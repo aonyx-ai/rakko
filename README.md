@@ -23,8 +23,10 @@ set of merged pull requests, not a manual sweep.
 
 Rakko is in its earliest stage, and it bootstraps on the tooling it exists
 to replace. The first milestone is complete when this repository has
-migrated to mise and Rakko itself, and its Justfile is gone. The rakko (ラッコ)
-is the Japanese sea otter — the otter that keeps a pebble as its tool.
+migrated to mise and Rakko itself, and its Justfile is gone. The long-term
+picture is in [VISION.md], and the terms of the design are in [GLOSSARY.md].
+The rakko (ラッコ) is the Japanese sea otter — the otter that keeps a pebble
+as its tool.
 
 ## License
 
@@ -46,4 +48,6 @@ for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
 
 [clawless]: https://github.com/aonyx-ai/clawless
+[glossary.md]: ./GLOSSARY.md
 [mise]: https://mise.jdx.dev
+[vision.md]: ./VISION.md
