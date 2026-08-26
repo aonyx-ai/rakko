@@ -1,0 +1,1295 @@
+{
+  "lockfile-version": 1,
+  "manifest": {
+    "schema-version": "1.12.0",
+    "install": {
+      "git": {
+        "pkg-path": "git",
+        "outputs": "all"
+      },
+      "gum": {
+        "pkg-path": "gum"
+      },
+      "just": {
+        "pkg-path": "just",
+        "outputs": "all"
+      },
+      "markdownlint-cli": {
+        "pkg-path": "markdownlint-cli"
+      },
+      "parallel": {
+        "pkg-path": "parallel",
+        "outputs": "all"
+      },
+      "pre-commit": {
+        "pkg-path": "pre-commit",
+        "outputs": "all"
+      },
+      "prettier": {
+        "pkg-path": "prettier"
+      },
+      "taplo": {
+        "pkg-path": "taplo"
+      },
+      "yamllint": {
+        "pkg-path": "yamllint",
+        "outputs": "all"
+      },
+      "zizmor": {
+        "pkg-path": "zizmor"
+      }
+    },
+    "hook": {},
+    "profile": {},
+    "options": {}
+  },
+  "packages": [
+    {
+      "attr_path": "git",
+      "broken": false,
+      "derivation": "/nix/store/9n758xnd7s67zz9naiivygz24pv7zpr4-git-2.53.0.drv",
+      "description": "Distributed version control system",
+      "install_id": "git",
+      "license": "GPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "git-2.53.0",
+      "pname": "git",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:52:41.145934Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.53.0",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/0kjpgj1grgba239ykdnv1cjc61xqk3aa-git-2.53.0-doc",
+        "out": "/nix/store/5y6cp247hspkqa7pp6cbc4540ygx0249-git-2.53.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "git",
+      "broken": false,
+      "derivation": "/nix/store/y0zdc38hb5flnbzx9a8sia7azv917jvc-git-2.53.0.drv",
+      "description": "Distributed version control system",
+      "install_id": "git",
+      "license": "GPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "git-2.53.0",
+      "pname": "git",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:22:15.108599Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.53.0",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/rc56a3l2wby94gk9gvirpwi9hv9v15gi-git-2.53.0-debug",
+        "doc": "/nix/store/q8j5mwix1g75xyq025d3hmringklm52z-git-2.53.0-doc",
+        "out": "/nix/store/gx9r7g2kyrjhh0zhgxz91f5nbczxh1ac-git-2.53.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "git",
+      "broken": false,
+      "derivation": "/nix/store/mpa3y57ch7a3rz55183a886hq2g4h9wm-git-2.53.0.drv",
+      "description": "Distributed version control system",
+      "install_id": "git",
+      "license": "GPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "git-2.53.0",
+      "pname": "git",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:55:22.731517Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.53.0",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/9jcm7zadfi5wsic3kizs4x71a8dqlj83-git-2.53.0-doc",
+        "out": "/nix/store/zar16r8w28c6qjdh3xqnkjcmvjjqwi77-git-2.53.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "git",
+      "broken": false,
+      "derivation": "/nix/store/gz2q1wq6ckyphg0q08nq9q93g1a6x561-git-2.53.0.drv",
+      "description": "Distributed version control system",
+      "install_id": "git",
+      "license": "GPL-2.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "git-2.53.0",
+      "pname": "git",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:36:03.677135Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "2.53.0",
+      "outputs_to_install": [
+        "out",
+        "out",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "debug": "/nix/store/qyqya20z59d164d6692hlyb9pkq10ykk-git-2.53.0-debug",
+        "doc": "/nix/store/vv1ap6qaxdzpa4jqg71myxh5wcvnlqv8-git-2.53.0-doc",
+        "out": "/nix/store/c0277k5giric1mn9dklllavbzvxl6hzb-git-2.53.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "gum",
+      "broken": false,
+      "derivation": "/nix/store/3if65h5mjjgjwgvd18srmm35cn3w6xs8-gum-0.17.0.drv",
+      "description": "Tasty Bubble Gum for your shell",
+      "install_id": "gum",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "gum-0.17.0",
+      "pname": "gum",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:52:41.504876Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.17.0",
+      "outputs_to_install": [
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ba53aq5kpjm2qb817qgxswy2hvnkxnyj-gum-0.17.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "gum",
+      "broken": false,
+      "derivation": "/nix/store/ka558hvp8n0vhw8lzwsw66zw3g3lavzd-gum-0.17.0.drv",
+      "description": "Tasty Bubble Gum for your shell",
+      "install_id": "gum",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "gum-0.17.0",
+      "pname": "gum",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:22:16.243739Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.17.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/3hlyv3x7jjn5364f08jw0bic3zddqhxc-gum-0.17.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "gum",
+      "broken": false,
+      "derivation": "/nix/store/z2rm91h36jx1ym7gpl3avxqqxc407pn2-gum-0.17.0.drv",
+      "description": "Tasty Bubble Gum for your shell",
+      "install_id": "gum",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "gum-0.17.0",
+      "pname": "gum",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:55:23.113121Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.17.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/qkwxvmldb9a8nmqq6aqqd47gj3pxwx42-gum-0.17.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "gum",
+      "broken": false,
+      "derivation": "/nix/store/835d9xq5q9w2hv6dzlsc3yjbh44kmpjn-gum-0.17.0.drv",
+      "description": "Tasty Bubble Gum for your shell",
+      "install_id": "gum",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "gum-0.17.0",
+      "pname": "gum",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:36:04.862400Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.17.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/c149nbx8xh8knvply95623gnwqds19xr-gum-0.17.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "just",
+      "broken": false,
+      "derivation": "/nix/store/qwwchl76sldxw4gk521b8b7p6ybzrp6q-just-1.50.0.drv",
+      "description": "Handy way to save and run project-specific commands",
+      "install_id": "just",
+      "license": "CC0-1.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "just-1.50.0",
+      "pname": "just",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:52:57.277778Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.50.0",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/9n71gassrpdy0nz4gfcrwvmkb4rwyd3g-just-1.50.0-doc",
+        "man": "/nix/store/daf30m3si50cl7xga42g0cqgdwaxj6ys-just-1.50.0-man",
+        "out": "/nix/store/qxqsxk2614qpcb7l32svpjmmb1sm7ya1-just-1.50.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "just",
+      "broken": false,
+      "derivation": "/nix/store/k9vbgx73yq86ffaymd99z2i8zj6k3ppj-just-1.50.0.drv",
+      "description": "Handy way to save and run project-specific commands",
+      "install_id": "just",
+      "license": "CC0-1.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "just-1.50.0",
+      "pname": "just",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:22:36.687198Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.50.0",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/gg298zgvg5vmvzk0lmn9zq7j6kkab3qs-just-1.50.0-doc",
+        "man": "/nix/store/59z0bx178i7c3vwmhawgajgpfmv43h5c-just-1.50.0-man",
+        "out": "/nix/store/ayqw7hgkjs9b0f7v1qh96k316i9jpdw8-just-1.50.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "just",
+      "broken": false,
+      "derivation": "/nix/store/vik7gkfcxl7hn3sczkpa72fh8k84n9w0-just-1.50.0.drv",
+      "description": "Handy way to save and run project-specific commands",
+      "install_id": "just",
+      "license": "CC0-1.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "just-1.50.0",
+      "pname": "just",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:55:39.081227Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.50.0",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/9d2i12jkmsyqw7bkcw3a9d0xki313xrp-just-1.50.0-doc",
+        "man": "/nix/store/0pvkn1lzh85sav0cj3v36kpigxwypdhb-just-1.50.0-man",
+        "out": "/nix/store/bmsgb4l7ldxj2zggcalfidzhkrgp03xq-just-1.50.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "just",
+      "broken": false,
+      "derivation": "/nix/store/q3ibm0a2m4flps30yw2k17zil4skh8ws-just-1.50.0.drv",
+      "description": "Handy way to save and run project-specific commands",
+      "install_id": "just",
+      "license": "CC0-1.0",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "just-1.50.0",
+      "pname": "just",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:36:25.033184Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.50.0",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/nk0p7b0n1fqg0sa2vasgavrhgi7xy9rz-just-1.50.0-doc",
+        "man": "/nix/store/6mrjsdff8skgnnn0ngyim2i7wabk0c8x-just-1.50.0-man",
+        "out": "/nix/store/vr4agmy8jw7f8kqynpizagdaqxy0ayw4-just-1.50.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/73s87kdamnsl4ap23f0d0zkxh3pfp2ja-markdownlint-cli-0.48.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "markdownlint-cli-0.48.0",
+      "pname": "markdownlint-cli",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:53:02.494429Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.48.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/375943y8zpzmxipls055d6bkp48yy68k-markdownlint-cli-0.48.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/0hknmdjnz90vd1mjx0ka35k54dgdmwry-markdownlint-cli-0.48.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "markdownlint-cli-0.48.0",
+      "pname": "markdownlint-cli",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:22:49.200757Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.48.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/nh1iablhmj7n806b6y72bmh0c9aix7d0-markdownlint-cli-0.48.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/1jz4sryli1vdzajqmbq9fdsnp82ifvry-markdownlint-cli-0.48.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "markdownlint-cli-0.48.0",
+      "pname": "markdownlint-cli",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:55:44.508258Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.48.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/b0wcf7mlj7pa5r5al36i84jjgr7l9802-markdownlint-cli-0.48.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "markdownlint-cli",
+      "broken": false,
+      "derivation": "/nix/store/rn9qpib508cxcyi4gavfln1s9a3xlq7c-markdownlint-cli-0.48.0.drv",
+      "description": "Command line interface for MarkdownLint",
+      "install_id": "markdownlint-cli",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "markdownlint-cli-0.48.0",
+      "pname": "markdownlint-cli",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:36:38.000296Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.48.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/fa2dd63i6mg5ny73799ndmm20yin8575-markdownlint-cli-0.48.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "parallel",
+      "broken": false,
+      "derivation": "/nix/store/ljaqxqcgk5shlwp4awf0sd81v00v26wv-parallel-20260422.drv",
+      "description": "Shell tool for executing jobs in parallel",
+      "install_id": "parallel",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "parallel-20260422",
+      "pname": "parallel",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:53:10.593898Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "20260422",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/aj416027bskigq4gxkmmf0sbmja2iqs7-parallel-20260422-doc",
+        "man": "/nix/store/bsrfi0si476vhx7lc2jpdgprx438b73i-parallel-20260422-man",
+        "out": "/nix/store/dk03db92yf55iq58vv7kpnx313xqyfhy-parallel-20260422"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "parallel",
+      "broken": false,
+      "derivation": "/nix/store/q6q1nmmvr0h2blsw3h86l71i4g4cxx3a-parallel-20260422.drv",
+      "description": "Shell tool for executing jobs in parallel",
+      "install_id": "parallel",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "parallel-20260422",
+      "pname": "parallel",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:23:01.657479Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "20260422",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/vjr3ap9jf51yszalb33mbknfr6iwvy3z-parallel-20260422-doc",
+        "man": "/nix/store/pcmi1qya1ms8zw9xgzqrgdclhsx2a8bj-parallel-20260422-man",
+        "out": "/nix/store/i9x5dqvpkgs8py1454pxv0ndyc19lh46-parallel-20260422"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "parallel",
+      "broken": false,
+      "derivation": "/nix/store/kvqqyrlq68jhcq32qgyl11093xf5sw11-parallel-20260422.drv",
+      "description": "Shell tool for executing jobs in parallel",
+      "install_id": "parallel",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "parallel-20260422",
+      "pname": "parallel",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:55:52.994045Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "20260422",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/85kb55fd0k3haad8k9j2p0835m9cbr13-parallel-20260422-doc",
+        "man": "/nix/store/clv0ras3r4g8jsw32qxd8zsiy9p1yc1h-parallel-20260422-man",
+        "out": "/nix/store/szpabjcfcnw66rmddx799fgsmw1j5mqp-parallel-20260422"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "parallel",
+      "broken": false,
+      "derivation": "/nix/store/a8gslchf6p6r11zx22yanqbgicv4pf3y-parallel-20260422.drv",
+      "description": "Shell tool for executing jobs in parallel",
+      "install_id": "parallel",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "parallel-20260422",
+      "pname": "parallel",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:36:50.583806Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "20260422",
+      "outputs_to_install": [
+        "man",
+        "out"
+      ],
+      "outputs": {
+        "doc": "/nix/store/a3ldf1rdkaxf0y8r2xjx20xa9pqbx0ha-parallel-20260422-doc",
+        "man": "/nix/store/qn27pcvf44q4bssvz3xxqw6xx671wdgr-parallel-20260422-man",
+        "out": "/nix/store/d22gb5iw3zcdi379c7h2avh61b52vj0s-parallel-20260422"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "pre-commit",
+      "broken": false,
+      "derivation": "/nix/store/mm18d02smyl30h0ibh35j6wq6gr19xr0-pre-commit-4.5.1.drv",
+      "description": "Framework for managing and maintaining multi-language pre-commit hooks",
+      "install_id": "pre-commit",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "pre-commit-4.5.1",
+      "pname": "pre-commit",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:53:19.893921Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.5.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/mnvfhlxypcnhgj86w0yb99qn23idyl9s-pre-commit-4.5.1-dist",
+        "out": "/nix/store/sc7yf1pjki5wr8fl32668cvwcz6fg7z2-pre-commit-4.5.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "pre-commit",
+      "broken": false,
+      "derivation": "/nix/store/im0bn773zzxpdyrpx2i6cqnlina8hp2x-pre-commit-4.5.1.drv",
+      "description": "Framework for managing and maintaining multi-language pre-commit hooks",
+      "install_id": "pre-commit",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "pre-commit-4.5.1",
+      "pname": "pre-commit",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:23:14.666104Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.5.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/i5ydw8yjlyncnmj2xlixbn92hzpncxph-pre-commit-4.5.1-dist",
+        "out": "/nix/store/21z7ni1rsz8kyc72s4rv3yaj0b0a0dkd-pre-commit-4.5.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "pre-commit",
+      "broken": false,
+      "derivation": "/nix/store/6k4v5y1ys2vai85k1ii10b46lw3f3v2w-pre-commit-4.5.1.drv",
+      "description": "Framework for managing and maintaining multi-language pre-commit hooks",
+      "install_id": "pre-commit",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "pre-commit-4.5.1",
+      "pname": "pre-commit",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:56:02.971869Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.5.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/07bqg3w88gl45vrx21x6rbnsg8c8p5xc-pre-commit-4.5.1-dist",
+        "out": "/nix/store/cyg8p7vsriyvh8ciq8iv1p8x33vcjia8-pre-commit-4.5.1"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "pre-commit",
+      "broken": false,
+      "derivation": "/nix/store/x279wibb83w4vys1qys0654ia7fdqwnf-pre-commit-4.5.1.drv",
+      "description": "Framework for managing and maintaining multi-language pre-commit hooks",
+      "install_id": "pre-commit",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "pre-commit-4.5.1",
+      "pname": "pre-commit",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:37:03.137184Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "4.5.1",
+      "outputs_to_install": [
+        "out",
+        "out",
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/vw0g1v72pmab5fnwij18bphqjfa2vp8p-pre-commit-4.5.1-dist",
+        "out": "/nix/store/dkbmb92knazrv7z114243y4r6d78055l-pre-commit-4.5.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "prettier",
+      "broken": false,
+      "derivation": "/nix/store/jxg4rjhzyssi2xwlgn9sm4wzd6179bjh-prettier-3.6.2.drv",
+      "description": "Code formatter",
+      "install_id": "prettier",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "prettier-3.6.2",
+      "pname": "prettier",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:53:19.934745Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.6.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/szq79p69f1ks5a55sdwsgh11gwvpyqcr-prettier-3.6.2"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "prettier",
+      "broken": false,
+      "derivation": "/nix/store/0m48w9w9x8l75fnlm0q751l534dg86wx-prettier-3.6.2.drv",
+      "description": "Code formatter",
+      "install_id": "prettier",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "prettier-3.6.2",
+      "pname": "prettier",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:23:14.725209Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.6.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/wdc71x3ym2hbpdsvxmyzvnilirdil5c8-prettier-3.6.2"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "prettier",
+      "broken": false,
+      "derivation": "/nix/store/8yk6bmhcf7hgr8jqxqcdyih9gm591fpc-prettier-3.6.2.drv",
+      "description": "Code formatter",
+      "install_id": "prettier",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "prettier-3.6.2",
+      "pname": "prettier",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:56:03.018865Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.6.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/jbzsiyl8z0kl51fj0nwyfpipjwgana1z-prettier-3.6.2"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "prettier",
+      "broken": false,
+      "derivation": "/nix/store/ww4v87g8qj6p9wlkhwdwijphw8fmr30a-prettier-3.6.2.drv",
+      "description": "Code formatter",
+      "install_id": "prettier",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "prettier-3.6.2",
+      "pname": "prettier",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:37:03.196006Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "3.6.2",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/dyhx0gc483sn1apbzl3rvqj0ykf13wlp-prettier-3.6.2"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "taplo",
+      "broken": false,
+      "derivation": "/nix/store/pi7kg5a0615sy77631ih65kphjs4wfzw-taplo-0.10.0.drv",
+      "description": "TOML toolkit written in Rust",
+      "install_id": "taplo",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "taplo-0.10.0",
+      "pname": "taplo",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:54:30.641394Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.10.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/vz82zh4mjryyvwbkfx4i8ddl3wfjbkr5-taplo-0.10.0"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "taplo",
+      "broken": false,
+      "derivation": "/nix/store/l8ks5z9qwmrh3126bi0vd5mgw0v5wl36-taplo-0.10.0.drv",
+      "description": "TOML toolkit written in Rust",
+      "install_id": "taplo",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "taplo-0.10.0",
+      "pname": "taplo",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:24:48.864513Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.10.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/rikm5h2s16db67ylb1a1q3wihzvl9853-taplo-0.10.0"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "taplo",
+      "broken": false,
+      "derivation": "/nix/store/rfn27fkw7h0585gfyjfq5nc29h1llxgg-taplo-0.10.0.drv",
+      "description": "TOML toolkit written in Rust",
+      "install_id": "taplo",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "taplo-0.10.0",
+      "pname": "taplo",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:57:19.898129Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.10.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/r3ccbxbf86pjzv8nf46s9s0kcgl08912-taplo-0.10.0"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "taplo",
+      "broken": false,
+      "derivation": "/nix/store/hs5nj9yxbwz44jyy2i7fyv2qkmrxh8a8-taplo-0.10.0.drv",
+      "description": "TOML toolkit written in Rust",
+      "install_id": "taplo",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "taplo-0.10.0",
+      "pname": "taplo",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:38:36.468495Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "0.10.0",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/apnl40iw6nrfrxs616qwpl7b0fs7fl5k-taplo-0.10.0"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yamllint",
+      "broken": false,
+      "derivation": "/nix/store/hwynd367py60vhz5fhdyxgkc7g0dgmgb-python3.13-yamllint-1.37.1.drv",
+      "description": "Linter for YAML files",
+      "install_id": "yamllint",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "python3.13-yamllint-1.37.1",
+      "pname": "yamllint",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:55:26.620354Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.37.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/32s4c8qgg8lch0y6k4cqxs09qkyazjw9-python3.13-yamllint-1.37.1-dist",
+        "out": "/nix/store/0yhwlrn6j4bpk8pqz0p5a53ml2a1h00v-python3.13-yamllint-1.37.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yamllint",
+      "broken": false,
+      "derivation": "/nix/store/wz76y78vpyla1zn7zw6g6w0qkphkb5cj-python3.13-yamllint-1.37.1.drv",
+      "description": "Linter for YAML files",
+      "install_id": "yamllint",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "python3.13-yamllint-1.37.1",
+      "pname": "yamllint",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:26:07.606268Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.37.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/14lw229a8sjsbfjvjj97b3m0jc11q147-python3.13-yamllint-1.37.1-dist",
+        "out": "/nix/store/m9g8qnggdzc6pjdw7w21vaywmlix2ccn-python3.13-yamllint-1.37.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yamllint",
+      "broken": false,
+      "derivation": "/nix/store/23ylm14crcvk04vl6pqixcza09a7fld9-python3.13-yamllint-1.37.1.drv",
+      "description": "Linter for YAML files",
+      "install_id": "yamllint",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "python3.13-yamllint-1.37.1",
+      "pname": "yamllint",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:58:21.149693Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.37.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/xx2yyh67vr217s8iv5gmkdhsibmqrdrw-python3.13-yamllint-1.37.1-dist",
+        "out": "/nix/store/s7aj93h2895lmyk13c6ypn22rsd6nf36-python3.13-yamllint-1.37.1"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "yamllint",
+      "broken": false,
+      "derivation": "/nix/store/12a3ibxi2chinldlmpz3wngjf5irx28r-python3.13-yamllint-1.37.1.drv",
+      "description": "Linter for YAML files",
+      "install_id": "yamllint",
+      "license": "GPL-3.0-or-later",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "python3.13-yamllint-1.37.1",
+      "pname": "yamllint",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:39:52.272153Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.37.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "dist": "/nix/store/sdyqiyd0aw6n3fv2fj33srgvqi779rsp-python3.13-yamllint-1.37.1-dist",
+        "out": "/nix/store/jx6bzribg9fa0mxbr8b602rq74k24dr7-python3.13-yamllint-1.37.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "zizmor",
+      "broken": false,
+      "derivation": "/nix/store/lai8mczk5jdy1wqgfah51x747xphm3mh-zizmor-1.24.1.drv",
+      "description": "Tool for finding security issues in GitHub Actions setups",
+      "install_id": "zizmor",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "zizmor-1.24.1",
+      "pname": "zizmor",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T08:55:27.687954Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.24.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/ngwfnp1mry27s9fjjg1pyawpvww8miyb-zizmor-1.24.1"
+      },
+      "system": "aarch64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "zizmor",
+      "broken": false,
+      "derivation": "/nix/store/gq515n66vxrh2j5c1p32xd7mhn60d59j-zizmor-1.24.1.drv",
+      "description": "Tool for finding security issues in GitHub Actions setups",
+      "install_id": "zizmor",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "zizmor-1.24.1",
+      "pname": "zizmor",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:26:09.408296Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.24.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/n0f951hqln1fvf5xwrfaidf6dsg1arj0-zizmor-1.24.1"
+      },
+      "system": "aarch64-linux",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "zizmor",
+      "broken": false,
+      "derivation": "/nix/store/qan2c62z50fwiwl8kvdcskhqiwqsnif4-zizmor-1.24.1.drv",
+      "description": "Tool for finding security issues in GitHub Actions setups",
+      "install_id": "zizmor",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "zizmor-1.24.1",
+      "pname": "zizmor",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T09:58:22.282947Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.24.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/vipiy9ka6gls6fznspm31rz6mnmy97w6-zizmor-1.24.1"
+      },
+      "system": "x86_64-darwin",
+      "group": "toplevel",
+      "priority": 5
+    },
+    {
+      "attr_path": "zizmor",
+      "broken": false,
+      "derivation": "/nix/store/rl94jwhd0j1yyfd5inch95nilvqrc6yb-zizmor-1.24.1.drv",
+      "description": "Tool for finding security issues in GitHub Actions setups",
+      "install_id": "zizmor",
+      "license": "MIT",
+      "locked_url": "https://github.com/flox/nixpkgs?rev=da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "name": "zizmor-1.24.1",
+      "pname": "zizmor",
+      "rev": "da5ad661ba4e5ef59ba743f0d112cbc30e474f32",
+      "rev_count": 995699,
+      "rev_date": "2026-05-10T19:57:52Z",
+      "scrape_date": "2026-05-13T10:39:54.046097Z",
+      "stabilities": [
+        "staging",
+        "unstable"
+      ],
+      "unfree": false,
+      "version": "1.24.1",
+      "outputs_to_install": [
+        "out"
+      ],
+      "outputs": {
+        "out": "/nix/store/sn8jcdgjww0lnji079sf3hsrg902rjdd-zizmor-1.24.1"
+      },
+      "system": "x86_64-linux",
+      "group": "toplevel",
+      "priority": 5
+    }
+  ]
+}

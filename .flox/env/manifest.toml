@@ -1,0 +1,34 @@
+# Flox manifest version managed by Flox CLI
+schema-version = "1.12.0"
+
+[install]
+# Local development tools
+git.pkg-path = "git"
+git.outputs = "all"
+gum.pkg-path = "gum"
+just.pkg-path = "just"
+just.outputs = "all"
+markdownlint-cli.pkg-path = "markdownlint-cli"
+parallel.pkg-path = "parallel"
+parallel.outputs = "all"
+pre-commit.pkg-path = "pre-commit"
+pre-commit.outputs = "all"
+prettier.pkg-path = "prettier"
+taplo.pkg-path = "taplo"
+yamllint.pkg-path = "yamllint"
+yamllint.outputs = "all"
+zizmor.pkg-path = "zizmor"
+
+[vars]
+
+[hook]
+
+[profile]
+
+[services]
+
+[include]
+
+[build]
+
+[options]

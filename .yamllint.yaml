@@ -1,0 +1,12 @@
+---
+extends: default
+
+ignore: |
+  .flox/cache/*
+
+rules:
+  comments:
+    min-spaces-from-content: 1
+  line-length:
+    ignore: |
+      .github/workflows/*
