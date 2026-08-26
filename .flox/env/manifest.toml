@@ -5,7 +5,6 @@ schema-version = "1.12.0"
 # Local development tools
 git.pkg-path = "git"
 git.outputs = "all"
-gum.pkg-path = "gum"
 just.pkg-path = "just"
 just.outputs = "all"
 markdownlint-cli.pkg-path = "markdownlint-cli"
