@@ -51,7 +51,6 @@ jobs:
       - name: Build tracey
         run: mise run install-tracey
 
-      # The version names the revision, so a stale binary in the cache shows
-      # up here.
+      # Print the revision, so a stale binary in the cache shows up here.
       - name: Show the version of tracey
         run: mise exec -- tracey --version
