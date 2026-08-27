@@ -16,7 +16,9 @@ MUST has the meaning that [RFC 2119] defines.
 A name identifies an action. The command-line projection turns a name into a
 subcommand, so a name holds only the characters that a subcommand can carry. A
 registry also finds an action by its name, so two names that a reader sees as
-the same must be the same value.
+the same must be the same value. An action states its name in its code, so a
+name that does not satisfy the rules is a defect in the action, and the build
+must refuse it.
 
 action[name.accepts]
 The crate MUST accept a name that starts with a lowercase ASCII letter, that
@@ -44,6 +46,10 @@ refusal MUST report the position of the second hyphen.
 
 action[name.end]
 The crate MUST refuse a name whose last character is a hyphen.
+
+action[name.literal]
+The crate MUST make a name from a literal string at compile time. A literal
+string that does not satisfy the rules for a name MUST fail the build.
 
 ## Layout
 
