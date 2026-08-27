@@ -51,6 +51,9 @@ postinstall = "mise run install-tracey"
 
 [tasks.install-tracey]
 description = "Build tracey from the pinned revision"
+# The default shell of a task is `sh`, which is dash on Debian and Ubuntu, and
+# dash has no `pipefail`.
+shell = "bash -c"
 # The task runs inside the mise environment, so the build finds node, pnpm, and
 # the pinned Rust toolchain.
 run = '''

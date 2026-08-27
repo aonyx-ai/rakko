@@ -83,6 +83,13 @@ jobs:
       - name: Install the tools
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
+      # The installation ends in the task that builds tracey, but a failed task
+      # is only a warning there. The task runs again here, where a failure
+      # stops the job instead of surfacing as a missing command.
+      - name: Build tracey
+        if: env.RAKKO_SKIP_TRACEY == ''
+        run: mise run install-tracey
+
       - name: Run check with Just
         env:
           TARGET: ${{ matrix.target }}

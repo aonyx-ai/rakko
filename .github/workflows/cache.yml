@@ -42,9 +42,14 @@ jobs:
       - name: Restore tracey
         uses: ./.github/actions/restore-tracey
 
-      # The installation ends in the task that builds tracey
       - name: Install the tools
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+
+      # The installation ends in the task that builds tracey, but a failed task
+      # is only a warning there. The task runs again here, where a failure
+      # stops the job.
+      - name: Build tracey
+        run: mise run install-tracey
 
       # The version names the revision, so a stale binary in the cache shows
       # up here.
