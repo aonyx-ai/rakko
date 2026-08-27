@@ -2,8 +2,9 @@
 
 `rakko-action` is the contract crate of Rakko. Every action and every harness
 depends on it, so it carries only what all of them share. Today that is the
-name that identifies an action, the context that an action reads when it runs,
-and the outcome that the run returns.
+`Action` trait that every action implements, the name that identifies an
+action, the context that an action reads when it runs, and the outcome that
+the run returns.
 
 Every requirement in this document has an identifier, and the code that
 implements or tests a requirement references the identifier in a comment.
@@ -159,6 +160,47 @@ An outcome MUST be safe to move to a different thread.
 
 action[outcome.sync]
 An outcome MUST be safe to share with a different thread.
+
+## Action
+
+An action is the unit of maintenance work. The `Action` trait is the contract
+between an action and the machinery that runs it. An action describes itself
+as data, so that the machinery can present it without running it. A registry
+holds many actions and a scheduler runs them in parallel, so an action
+travels between threads.
+
+action[action.name]
+An action MUST give the name that identifies it.
+
+action[action.args]
+An action MUST define the type of the arguments that a run of the action
+reads. That type MUST be safe to move to a different thread and safe to share
+with a different thread.
+
+action[action.send]
+An action MUST be safe to move to a different thread.
+
+action[action.sync]
+An action MUST be safe to share with a different thread.
+
+## Run
+
+A run is one execution of an action against a project. A run waits most of
+its time, for example on the subprocess of an external tool, and a scheduler
+drives many runs at the same time. A run that holds its thread while it waits
+would block every other run on that thread.
+
+action[run.outcome]
+A run MUST produce the outcome of the action from a context and from the
+arguments of the action.
+
+action[run.wait]
+A run MUST be able to return control to the thread that drives it before the
+outcome exists. The run MUST produce the outcome when the thread drives it
+again.
+
+action[run.send]
+A run MUST be safe to move to a different thread.
 
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/
