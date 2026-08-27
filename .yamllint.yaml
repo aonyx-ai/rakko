@@ -4,7 +4,6 @@ extends: default
 ignore: |
   .claude/worktrees/*
   .delta/*
-  .flox/cache/*
   target/*
 
 rules:

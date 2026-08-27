@@ -22,14 +22,23 @@ jobs:
     outputs:
       matrix: ${{ steps.export-targets.outputs.targets }}
 
+    env:
+      # This job lists the recipes, it does not run them, so it needs no tracey
+      RAKKO_SKIP_TRACEY: "1"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Install Just
-        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # 4.0.0
+      # Listing the recipes needs Just and jq, and nothing else. A cache would
+      # hold a tool set that no other job wants, so this job writes none.
+      - name: Install mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          cache: false
+          install_args: just jq
 
       - name: Export targets
         id: export-targets
@@ -45,7 +54,7 @@ jobs:
     needs: targets
 
     env:
-      # Only `just check-specs` calls tracey, and the Flox hook builds tracey
+      # Only `just check-specs` calls tracey, and the mise task builds tracey
       # from source when the cache below misses. An empty value leaves that
       # build on, so every other recipe skips it.
       RAKKO_SKIP_TRACEY: ${{ matrix.target != 'check-specs' && '1' || '' }}
@@ -71,16 +80,13 @@ jobs:
         if: env.RAKKO_SKIP_TRACEY == ''
         uses: ./.github/actions/restore-tracey
 
-      - name: Install Flox
-        uses: flox/install-flox-action@1128abd73431089ab9d871c893b4e72a729354e1 # v2.6.0
-
-      - name: Remove Flox installer (if it exists)
-        run: rm -f flox.x86_64-linux.deb
+      - name: Install the tools
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
       - name: Run check with Just
-        uses: flox/activate-action@7065dcbe5583b7b015f07a8ebd49d7266e3053e8 # v1.1.1
-        with:
-          command: just ${{ matrix.target }}
+        env:
+          TARGET: ${{ matrix.target }}
+        run: just "$TARGET"
 
   success:
     name: All checks succeeded

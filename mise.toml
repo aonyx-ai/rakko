@@ -1,0 +1,82 @@
+# Mise provisions every external tool that this repository needs, at the
+# versions that this file pins. ADR-003 records the decision.
+
+[tools]
+# The default toolchain for builds, Clippy, and the tests. Mise installs it
+# through rustup, so `rustup run nightly` and `cargo +nightly` still reach the
+# other toolchains that the justfile recipes need. The `rust-src` component
+# carries the source of the standard library, which rust-analyzer reads.
+rust = { version = "1.98.0", components = ["clippy", "rust-src", "rustfmt"] }
+
+# The cargo backend below builds a tool from source unless cargo-binstall is
+# available. With cargo-binstall, mise downloads a prebuilt binary instead.
+cargo-binstall = "1.22.0"
+
+"cargo:cargo-deny" = "0.20.2"
+"cargo:cargo-llvm-cov" = "0.9.0"
+"cargo:cargo-nextest" = "0.9.143"
+"cargo:cargo-udeps" = "0.1.61"
+
+jq = "1.8.2"
+just = "1.58.0"
+"npm:markdownlint-cli" = "0.49.1"
+
+# The build script of tracey bundles a web dashboard with node and pnpm. The
+# `install-tracey` task below is the only consumer of these two.
+node = "24.20.0"
+pnpm = "11.24.0"
+
+pre-commit = "4.6.2"
+"npm:prettier" = "3.9.6"
+taplo = "0.10.0"
+yamllint = "1.38.0"
+zizmor = "1.29.0"
+
+[vars]
+# The Git revision of tracey that the task below builds. The releases of tracey
+# lag behind its main branch, so a pinned revision is built from source. Change
+# the revision deliberately: main is a 2.0 release candidate, and its
+# configuration format can still change.
+tracey_rev = "7494469c454ea3e93203f2cc860adbf153fe64b9"
+
+[env]
+# The directory that the task below installs into. The path carries the
+# revision, so a new pin asks for a new build and leaves the old binary alone.
+_.path = ["{{ xdg_cache_home }}/rakko/tracey/{{ vars.tracey_rev }}/bin"]
+
+[hooks]
+# `mise install` provisions the tools above and then builds the one tool that
+# no mise backend can install.
+postinstall = "mise run install-tracey"
+
+[tasks.install-tracey]
+description = "Build tracey from the pinned revision"
+# The task runs inside the mise environment, so the build finds node, pnpm, and
+# the pinned Rust toolchain.
+run = '''
+set -euo pipefail
+
+# The binary goes into the cache directory of the user instead of the project,
+# so that clones, worktrees, and CI jobs on the same machine share one build.
+# The build takes several minutes. Set RAKKO_SKIP_TRACEY to a non-empty value
+# to skip it, for example in a CI job that does not call tracey.
+root="{{ xdg_cache_home }}/rakko/tracey/{{ vars.tracey_rev }}"
+if [ -n "${RAKKO_SKIP_TRACEY:-}" ] || [ -x "$root/bin/tracey" ]; then
+    exit 0
+fi
+
+echo "Building tracey {{ vars.tracey_rev }}, this takes several minutes..." >&2
+
+# Build into a temporary directory and move only the binary into place
+# afterwards, so that a failed build never leaves a half-installed tracey
+# behind. Moving a single file is an atomic rename, and two builds of the same
+# revision at the same time replace the binary with an identical one.
+mkdir -p "$(dirname "$root")"
+tmp="$(mktemp -d "$(dirname "$root")/tmp.XXXXXX")"
+trap 'rm -rf "$tmp"' EXIT
+
+cargo install --git https://github.com/bearcove/tracey --rev "{{ vars.tracey_rev }}" --locked --root "$tmp" tracey
+
+mkdir -p "$root/bin"
+mv "$tmp/bin/tracey" "$root/bin/tracey"
+'''

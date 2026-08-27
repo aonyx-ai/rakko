@@ -28,6 +28,32 @@ picture is in [VISION.md], and the terms of the design are in [GLOSSARY.md].
 The rakko (ラッコ) is the Japanese sea otter — the otter that keeps a pebble
 as its tool.
 
+## Development
+
+[Mise] provisions every tool that this repository needs. `mise.toml` pins the
+version of each tool, and mise installs them:
+
+```console
+mise install
+```
+
+The installation ends with a build of [Tracey] from source, which takes
+several minutes. Later installations reuse that binary.
+
+Activate mise in your shell, as the [mise documentation][mise-activate]
+describes. The activation puts the pinned tools on your `PATH`, where your
+editor and your scripts find them. Without activation, reach a tool through
+`mise exec`:
+
+```console
+mise exec -- just pre-commit
+```
+
+A recipe in the justfile enters the mise environment itself, so a recipe always
+runs the pinned version of a tool. The Git hook does the same, and it therefore
+needs only mise on your `PATH`. `pre-commit install` installs that hook, `just`
+lists the recipes, and `just pre-commit` runs the checks that the hook runs.
+
 ## License
 
 Copyright (c) 2026 Aonyx B.V.
@@ -50,4 +76,6 @@ dual licensed as above, without any additional terms or conditions.
 [clawless]: https://github.com/aonyx-ai/clawless
 [glossary.md]: ./GLOSSARY.md
 [mise]: https://mise.jdx.dev
+[mise-activate]: https://mise.jdx.dev/getting-started.html#activate-mise
+[tracey]: https://tracey.bearcove.eu/
 [vision.md]: ./VISION.md

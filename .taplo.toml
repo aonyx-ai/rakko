@@ -1,1 +1,1 @@
-exclude = ["./claude/worktrees/**", ".delta/**", ".flox/**", "target/**"]
+exclude = ["./claude/worktrees/**", ".delta/**", "target/**"]
