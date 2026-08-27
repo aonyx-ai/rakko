@@ -11,8 +11,8 @@ edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/aonyx-ai/rakko"
 
-# Rust edition 2024 requires Rust 1.85 or later
-rust-version = "1.85.0"
+# bon 3.10 requires Rust 1.88 or higher
+rust-version = "1.88.0"
 
 [workspace.dependencies]
 bon = "3"
