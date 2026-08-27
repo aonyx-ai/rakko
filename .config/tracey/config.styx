@@ -17,4 +17,16 @@ specs (
             }
         )
     }
+    {
+        name action
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-action/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-action/src/**/*.rs)
+                test_include (crates/rakko-action/tests/**/*.rs)
+            }
+        )
+    }
 )

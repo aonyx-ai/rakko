@@ -10,7 +10,7 @@ feature-depth = 1
 # Rakko is published under Apache-2.0 OR MIT, and a dependency must not add a
 # license that is stricter than these. Add a license here when a dependency
 # needs it, and only when it is OSI- or FSF-approved.
-allow = ["Apache-2.0", "MIT"]
+allow = ["Apache-2.0", "MIT", "Unicode-3.0"]
 
 [bans]
 # Two versions of one crate build and link both, which grows the binary and can
