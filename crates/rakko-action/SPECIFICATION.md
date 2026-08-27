@@ -2,8 +2,8 @@
 
 `rakko-action` is the contract crate of Rakko. Every action and every harness
 depends on it, so it carries only what all of them share. Today that is the
-name that identifies an action, and the context that an action reads when it
-runs.
+name that identifies an action, the context that an action reads when it runs,
+and the outcome that the run returns.
 
 Every requirement in this document has an identifier, and the code that
 implements or tests a requirement references the identifier in a comment.
@@ -85,6 +85,75 @@ A context MUST be safe to move to a different thread.
 
 action[context.sync]
 A context MUST be safe to share with a different thread.
+
+## Position
+
+A position tells where in a file a problem is. The first line of a file is
+line 1, and the first column of a line is column 1, because that is what an
+editor and a code host show. A column has no meaning without a line, so a
+position always has a line.
+
+action[position.line]
+A position MUST give the line that the problem is on.
+
+action[position.column]
+A position MUST give the column that the problem is at. A position that was
+made without a column MUST report that it has none.
+
+## Location
+
+A location tells where a problem is in a project. It always names a file, and
+it can add a position in that file. A path is relative to the project root, so
+that a reader and a code host see the same path.
+
+action[location.path]
+A location MUST give the path of the file that the problem is in.
+
+action[location.position]
+A location MUST give the position of the problem in that file. A location that
+was made without a position MUST report that it has none.
+
+## Finding
+
+A finding is one problem that an action found in a project. Findings travel in
+the outcome of an action run, and the machinery shows them to a reader or to a
+machine. A finding says what the problem is and where it is. It says nothing
+about how it looks, because the shape of the output belongs to the machinery.
+
+action[finding.message]
+A finding MUST give a message that describes the problem.
+
+action[finding.location]
+A finding MUST give the location of the problem.
+
+## Outcome
+
+An outcome is the result of one action run. It has one of four states: the
+action passed, the action failed, the action does not apply, or the action
+stopped. The machinery maps each state to output and to an exit code. A
+scheduler runs actions in parallel, so an outcome travels between threads.
+
+action[outcome.passed]
+An outcome MUST have a state for an action that examined the project and found
+no problem.
+
+action[outcome.failed]
+An outcome MUST have a state for an action that found problems. This state
+MUST hold the findings.
+
+action[outcome.skipped]
+An outcome MUST have a state for an action that does not apply to the project.
+This state MUST hold the reason why the action does not apply.
+
+action[outcome.errored]
+An outcome MUST have a state for an action that stopped before it got a
+result. This state MUST hold the error that stopped the action.
+
+action[outcome.send]
+An outcome MUST be safe to move to a different thread.
+
+action[outcome.sync]
+An outcome MUST be safe to share with a different thread.
 
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/
