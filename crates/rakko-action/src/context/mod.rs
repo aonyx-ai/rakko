@@ -3,11 +3,10 @@ mod layout;
 /// The root directory of the project
 mod project_root;
 
-pub use layout::{CacheDirectory, ConfigDirectory, Layout};
-pub use project_root::ProjectRoot;
-
 use bon::bon;
 use getset::Getters;
+pub use layout::{CacheDirectory, ConfigDirectory, Layout};
+pub use project_root::ProjectRoot;
 
 /// The data that an action reads when it runs
 ///

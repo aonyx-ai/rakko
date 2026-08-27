@@ -3,11 +3,10 @@ mod column;
 /// The line in a file that a problem is on
 mod line;
 
-pub use column::Column;
-pub use line::Line;
-
 use bon::bon;
+pub use column::Column;
 use getset::Getters;
+pub use line::Line;
 
 /// The position of a problem in a file
 ///

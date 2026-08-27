@@ -1,7 +1,8 @@
+use std::future::Future;
+
 use crate::context::Context;
 use crate::name::Name;
 use crate::outcome::Outcome;
-use std::future::Future;
 
 /// The unit of maintenance work
 ///
@@ -75,9 +76,10 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use super::*;
     use std::pin::{Pin, pin};
     use std::task::{Context as TaskContext, Poll, Waker};
+
+    use super::*;
 
     /// A minimal action that yields once and then passes
     struct Probe;

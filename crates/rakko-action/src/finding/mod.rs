@@ -3,11 +3,10 @@ mod location;
 /// The message that describes a problem
 mod message;
 
-pub use location::{Column, FilePath, Line, Location, ParseFilePathError, Position};
-pub use message::FindingMessage;
-
 use bon::bon;
 use getset::Getters;
+pub use location::{Column, FilePath, Line, Location, ParseFilePathError, Position};
+pub use message::FindingMessage;
 
 /// One problem that an action found in a project
 ///

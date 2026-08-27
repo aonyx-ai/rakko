@@ -3,12 +3,12 @@ mod cache_directory;
 /// The directory that holds the configuration of the tools of a project
 mod config_directory;
 
+use bon::bon;
 pub use cache_directory::CacheDirectory;
 pub use config_directory::ConfigDirectory;
+use getset::Getters;
 
 use super::project_root::ProjectRoot;
-use bon::bon;
-use getset::Getters;
 
 /// The directory layout of a project
 ///
