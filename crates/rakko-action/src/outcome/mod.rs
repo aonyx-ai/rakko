@@ -1,10 +1,11 @@
 /// The reason why an action does not apply to a project
 mod skip_reason;
 
+use std::error::Error;
+
 pub use skip_reason::SkipReason;
 
 use crate::finding::Finding;
-use std::error::Error;
 
 /// The result of one action run
 ///

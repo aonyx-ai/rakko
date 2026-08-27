@@ -3,11 +3,10 @@ mod file_path;
 /// The position of a problem in a file
 mod position;
 
-pub use file_path::{FilePath, ParseFilePathError};
-pub use position::{Column, Line, Position};
-
 use bon::bon;
+pub use file_path::{FilePath, ParseFilePathError};
 use getset::Getters;
+pub use position::{Column, Line, Position};
 
 /// The location of a problem in a project
 ///
