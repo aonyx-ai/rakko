@@ -44,6 +44,12 @@ jobs:
 
     needs: targets
 
+    env:
+      # Only `just check-specs` calls tracey, and the Flox hook builds tracey
+      # from source when the cache below misses. An empty value leaves that
+      # build on, so every other recipe skips it.
+      RAKKO_SKIP_TRACEY: ${{ matrix.target != 'check-specs' && '1' || '' }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -53,7 +59,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # `just check-specs` compares the pull request with its base branch,
+          # which is the first parent of the merge commit
+          fetch-depth: 2
           persist-credentials: false
+
+      # A runner of GitHub starts from a clean disk, and the build of tracey
+      # takes several minutes. The cache workflow keeps a cache on the default
+      # branch that every pull request can reach.
+      - name: Restore tracey
+        if: env.RAKKO_SKIP_TRACEY == ''
+        uses: ./.github/actions/restore-tracey
 
       - name: Install Flox
         uses: flox/install-flox-action@1128abd73431089ab9d871c893b4e72a729354e1 # v2.6.0

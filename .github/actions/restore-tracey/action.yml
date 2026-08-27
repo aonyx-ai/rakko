@@ -1,0 +1,17 @@
+---
+name: Restore tracey
+description: Restore the tracey binary that the Flox hook builds from source
+
+# The workflows that need tracey share this action, so that the key and the
+# path stay in one place. A key that differs between two workflows costs no
+# error, only a cache that never hits.
+runs:
+  using: composite
+  steps:
+    - name: Restore tracey
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/rakko/tracey
+        # The Flox hook builds the revision that the manifest pins, so a
+        # change to the manifest asks for a new build.
+        key: tracey-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.flox/env/manifest.toml') }}

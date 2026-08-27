@@ -5,10 +5,11 @@ ignore: |
   .claude/worktrees/*
   .delta/*
   .flox/cache/*
+  target/*
 
 rules:
   comments:
     min-spaces-from-content: 1
   line-length:
     ignore: |
-      .github/workflows/*
+      .github/**

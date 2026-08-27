@@ -1,0 +1,20 @@
+// Tracey links the requirements in the specifications to the code that
+// implements them and to the tests that verify them. Each crate has its own
+// specification and its own entry below, so that coverage is reported per
+// crate. See https://tracey.bearcove.eu/ for the configuration reference.
+@schema {id crate:tracey-config@1, cli tracey}
+
+specs (
+    {
+        name rakko
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko/src/**/*.rs)
+                test_include (crates/rakko/tests/**/*.rs)
+            }
+        )
+    }
+)
