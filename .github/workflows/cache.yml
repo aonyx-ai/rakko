@@ -1,0 +1,56 @@
+---
+name: Cache
+
+# A pull request can restore a cache from its base branch, but a cache that a
+# pull request creates stays with that pull request. The checks therefore need
+# a run on main to put a cache where every pull request can reach it. This
+# workflow is that run.
+#
+# GitHub removes a cache that nothing reads for seven days. The schedule below
+# keeps the largest gap at four days, so a quiet week does not cost the next
+# pull request the full build.
+"on":
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1,4"
+  workflow_dispatch:
+
+permissions: {}
+
+# A run builds tracey when the key misses, which takes about twenty minutes.
+# Two runs at once would do that work twice, so a second run waits and then
+# finds the cache warm.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  tracey:
+    name: Build tracey
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Restore tracey
+        uses: ./.github/actions/restore-tracey
+
+      - name: Install Flox
+        uses: flox/install-flox-action@1128abd73431089ab9d871c893b4e72a729354e1 # v2.6.0
+
+      - name: Remove Flox installer (if it exists)
+        run: rm -f flox.x86_64-linux.deb
+
+      # The activation runs the hook that builds tracey. The version names the
+      # revision, so a stale binary in the cache shows up here.
+      - name: Build tracey
+        uses: flox/activate-action@7065dcbe5583b7b015f07a8ebd49d7266e3053e8 # v1.1.1
+        with:
+          command: tracey --version
