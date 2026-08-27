@@ -20,7 +20,7 @@ pub mod outcome;
 
 pub use context::{CacheDirectory, ConfigDirectory, Context, Layout, ProjectRoot};
 pub use finding::{
-    ColumnNumber, FilePath, Finding, FindingMessage, LineNumber, Location, Position,
+    Column, FilePath, Finding, FindingMessage, Line, Location, ParseFilePathError, Position,
 };
 pub use name::{Name, ParseNameError};
 pub use outcome::{Outcome, SkipReason};

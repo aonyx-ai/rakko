@@ -51,7 +51,7 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
-    use crate::finding::Location;
+    use crate::finding::{FilePath, Location};
 
     fn assert_send<T: Send>() {}
     fn assert_sync<T: Sync>() {}
@@ -72,7 +72,9 @@ mod tests {
     // action[verify outcome.failed]
     #[test]
     fn failed_variant_holds_findings() {
-        let location = Location::builder().path("src/main.rs").build();
+        let location = Location::builder()
+            .path(FilePath::try_from("src/main.rs").unwrap())
+            .build();
         let finding = Finding::builder()
             .message("error")
             .location(location)

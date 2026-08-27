@@ -3,8 +3,8 @@ mod file_path;
 /// The position of a problem in a file
 mod position;
 
-pub use file_path::FilePath;
-pub use position::{ColumnNumber, LineNumber, Position};
+pub use file_path::{FilePath, ParseFilePathError};
+pub use position::{Column, Line, Position};
 
 use bon::bon;
 use getset::Getters;
@@ -30,10 +30,7 @@ impl Location {
     // action[impl location.path]
     // action[impl location.position]
     #[builder]
-    pub fn new(
-        #[builder(into)] path: FilePath,
-        #[builder(into)] position: Option<Position>,
-    ) -> Self {
+    pub fn new(path: FilePath, #[builder(into)] position: Option<Position>) -> Self {
         Self { path, position }
     }
 }
@@ -44,16 +41,18 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use std::path::PathBuf;
+    use std::path::Path;
 
     use super::*;
 
     // action[verify location.path]
     #[test]
     fn path_returns_given_path() {
-        let location = Location::builder().path("src/main.rs").build();
+        let location = Location::builder()
+            .path(FilePath::try_from("src/main.rs").unwrap())
+            .build();
 
-        assert_eq!(location.path().get(), &PathBuf::from("src/main.rs"));
+        assert_eq!(location.path().get(), Path::new("src/main.rs"));
     }
 
     // action[verify location.position]
@@ -61,7 +60,7 @@ mod tests {
     fn position_returns_given_position() {
         let position = Position::builder().line(10).column(3).build();
         let location = Location::builder()
-            .path("src/main.rs")
+            .path(FilePath::try_from("src/main.rs").unwrap())
             .position(position)
             .build();
 
@@ -71,7 +70,9 @@ mod tests {
     // action[verify location.position]
     #[test]
     fn position_without_value_returns_none() {
-        let location = Location::builder().path("src/main.rs").build();
+        let location = Location::builder()
+            .path(FilePath::try_from("src/main.rs").unwrap())
+            .build();
 
         assert_eq!(location.position(), &None);
     }

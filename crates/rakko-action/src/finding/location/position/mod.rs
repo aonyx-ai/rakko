@@ -1,10 +1,10 @@
 /// The column in a line that a problem is at
-mod column_number;
+mod column;
 /// The line in a file that a problem is on
-mod line_number;
+mod line;
 
-pub use column_number::ColumnNumber;
-pub use line_number::LineNumber;
+pub use column::Column;
+pub use line::Line;
 
 use bon::bon;
 use getset::Getters;
@@ -18,11 +18,11 @@ use getset::Getters;
 pub struct Position {
     /// The line that the problem is on
     #[getset(get = "pub")]
-    line: LineNumber,
+    line: Line,
     /// The column that the problem is at, or `None` when the position does not
     /// name a column
     #[getset(get = "pub")]
-    column: Option<ColumnNumber>,
+    column: Option<Column>,
 }
 
 #[bon]
@@ -31,10 +31,7 @@ impl Position {
     // action[impl position.line]
     // action[impl position.column]
     #[builder]
-    pub fn new(
-        #[builder(into)] line: LineNumber,
-        #[builder(into)] column: Option<ColumnNumber>,
-    ) -> Self {
+    pub fn new(#[builder(into)] line: Line, #[builder(into)] column: Option<Column>) -> Self {
         Self { line, column }
     }
 }
@@ -52,7 +49,7 @@ mod tests {
     fn column_returns_given_column() {
         let position = Position::builder().line(1).column(5).build();
 
-        assert_eq!(position.column(), &Some(ColumnNumber::new(5)));
+        assert_eq!(position.column(), &Some(Column::new(5)));
     }
 
     // action[verify position.column]

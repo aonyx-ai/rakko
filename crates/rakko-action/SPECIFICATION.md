@@ -103,11 +103,16 @@ made without a column MUST report that it has none.
 ## Location
 
 A location tells where a problem is in a project. It always names a file, and
-it can add a position in that file. A path is relative to the project root, so
-that a reader and a code host see the same path.
+it can add a position in that file. The path of that file is relative to the
+project root, so that a reader and a code host see the same path. A path that
+starts at the root of the file system says nothing about the project.
 
 action[location.path]
 A location MUST give the path of the file that the problem is in.
+
+action[location.relative]
+The crate MUST refuse a path that is absolute. The refusal MUST report the
+path.
 
 action[location.position]
 A location MUST give the position of the problem in that file. A location that

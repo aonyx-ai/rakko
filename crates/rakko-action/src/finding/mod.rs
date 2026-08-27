@@ -3,7 +3,7 @@ mod location;
 /// The message that describes a problem
 mod message;
 
-pub use location::{ColumnNumber, FilePath, LineNumber, Location, Position};
+pub use location::{Column, FilePath, Line, Location, ParseFilePathError, Position};
 pub use message::FindingMessage;
 
 use bon::bon;
@@ -48,7 +48,9 @@ mod tests {
     // action[verify finding.location]
     #[test]
     fn location_returns_given_location() {
-        let location = Location::builder().path("src/main.rs").build();
+        let location = Location::builder()
+            .path(FilePath::try_from("src/main.rs").unwrap())
+            .build();
         let finding = Finding::builder()
             .message("missing semicolon")
             .location(location.clone())
@@ -60,7 +62,9 @@ mod tests {
     // action[verify finding.message]
     #[test]
     fn message_returns_given_message() {
-        let location = Location::builder().path("src/main.rs").build();
+        let location = Location::builder()
+            .path(FilePath::try_from("src/main.rs").unwrap())
+            .build();
         let finding = Finding::builder()
             .message("missing semicolon")
             .location(location)
