@@ -1,5 +1,6 @@
-# Run all recipes inside the Flox environment
-set shell := ["flox", "activate", "--", "sh", "-cu"]
+# Run all recipes inside the mise environment, so that every recipe reaches
+# the tool versions that `mise.toml` pins.
+set shell := ["mise", "exec", "--", "sh", "-cu"]
 
 [private]
 default:
@@ -22,13 +23,23 @@ pre-commit-fix:
 # what each of them sees is what the commit will contain.
 [private]
 pre-commit-verify:
-    #!/usr/bin/env -S parallel --shebang --ungroup --jobs {{ num_cpus() }}
-    just check-specs
-    just lint-github-actions
-    just lint-markdown
-    just lint-rust
-    just lint-yaml
-    just test-rust
+    #!/usr/bin/env -S mise exec -- bash
+    set -uo pipefail
+
+    # Each check runs as a background job, and its output streams as it
+    # arrives, so lines from different checks interleave. The recipe waits for
+    # every job and fails if any of them failed.
+    pids=()
+    for recipe in check-specs lint-github-actions lint-markdown lint-rust lint-yaml test-rust; do
+        just "$recipe" &
+        pids+=("$!")
+    done
+
+    status=0
+    for pid in "${pids[@]}"; do
+        wait "$pid" || status=1
+    done
+    exit "$status"
 
 # Build the Rust documentation and force the rustdoc lints to run
 build-rustdoc:
@@ -36,10 +47,10 @@ build-rustdoc:
 
 # Check that Rakko builds with the latest dependencies
 check-latest-deps force="false":
-    #!/usr/bin/env bash
+    #!/usr/bin/env -S mise exec -- bash
 
-    # Abort if git is not clean (but ignore Flox's manifest.lock)
-    if [[ {{ force }} != "true" && -n $(git status --porcelain -- ':!.flox/env/manifest.lock') ]]; then
+    # Abort if git is not clean
+    if [[ {{ force }} != "true" && -n $(git status --porcelain) ]]; then
         echo "Git working directory is not clean. Commit or stash changes before running this recipe. Aborting."
         git status --porcelain
 
@@ -63,10 +74,10 @@ check-dependencies:
 
 # Check that Rakko builds with the minimal dependencies
 check-minimal-deps force="false":
-    #!/usr/bin/env bash
+    #!/usr/bin/env -S mise exec -- bash
 
-    # Abort if git is not clean (but ignore Flox's manifest.lock)
-    if [[ {{ force }} != "true" && -n $(git status --porcelain -- ':!.flox/env/manifest.lock') ]]; then
+    # Abort if git is not clean
+    if [[ {{ force }} != "true" && -n $(git status --porcelain) ]]; then
         echo "Git working directory is not clean. Commit or stash changes before running this recipe. Aborting."
         git status --porcelain
 
@@ -89,10 +100,9 @@ check-minimal-deps force="false":
 
 # Check that the specs and the requirement references in the code are valid
 check-specs:
-    #!/usr/bin/env -S flox activate -- bash
-    # The shebang activates the Flox environment, because a shebang recipe
-    # bypasses the `shell` setting above, and tracey is only on PATH inside
-    # the environment.
+    #!/usr/bin/env -S mise exec -- bash
+    # A shebang recipe bypasses the `shell` setting above, so it enters the
+    # mise environment itself.
     set -euo pipefail
 
     # tracey is compiled without logging and warns about its default log
@@ -124,7 +134,7 @@ check-specs:
 
 # Check that Rakko builds with the MSRV
 check-msrv:
-    #!/usr/bin/env bash
+    #!/usr/bin/env -S mise exec -- bash
 
     # Get the MSRV from the Cargo.toml
     MSRV=$(cat Cargo.toml | grep 'rust-version =' | head -n 1 | cut -d '"' -f 2)
@@ -137,7 +147,7 @@ check-msrv:
 
 # Check that all dependencies in Cargo.toml are used
 check-unused-deps:
-    #!/usr/bin/env bash
+    #!/usr/bin/env -S mise exec -- bash
 
     # Install the nightly toolchain if not already installed
     rustup install nightly

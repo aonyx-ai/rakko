@@ -42,15 +42,15 @@ jobs:
       - name: Restore tracey
         uses: ./.github/actions/restore-tracey
 
-      - name: Install Flox
-        uses: flox/install-flox-action@1128abd73431089ab9d871c893b4e72a729354e1 # v2.6.0
+      - name: Install the tools
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
-      - name: Remove Flox installer (if it exists)
-        run: rm -f flox.x86_64-linux.deb
-
-      # The activation runs the hook that builds tracey. The version names the
-      # revision, so a stale binary in the cache shows up here.
+      # The installation ends in the task that builds tracey, but a failed task
+      # is only a warning there. The task runs again here, where a failure
+      # stops the job.
       - name: Build tracey
-        uses: flox/activate-action@7065dcbe5583b7b015f07a8ebd49d7266e3053e8 # v1.1.1
-        with:
-          command: tracey --version
+        run: mise run install-tracey
+
+      # Print the revision, so a stale binary in the cache shows up here.
+      - name: Show the version of tracey
+        run: mise exec -- tracey --version

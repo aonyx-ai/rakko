@@ -14,14 +14,15 @@ repos:
       - id: check-added-large-files
       - id: check-case-conflict
       - id: end-of-file-fixer
-        exclude: ^.flox/env/manifest.lock$
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
   - repo: local
     hooks:
       - id: just
         name: just
-        entry: just
-        args: ["pre-commit"]
+        # Git runs the hook outside the mise environment, and only mise itself
+        # is on the PATH there, so the hook enters the environment.
+        entry: mise
+        args: ["exec", "--", "just", "pre-commit"]
         language: system
         pass_filenames: false

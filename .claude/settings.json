@@ -28,11 +28,11 @@
     "autoAllowBashIfSandboxed": true,
     "filesystem": {
       "allowWrite": [
-        "~/.cache/flox",
-        "~/.local/share/flox",
-        ".flox/cache",
-        ".flox/log",
-        ".flox/run"
+        "~/.cache/mise",
+        "~/.cargo",
+        "~/.local/share/mise",
+        "~/.local/state/mise",
+        "~/.rustup"
       ]
     }
   }
