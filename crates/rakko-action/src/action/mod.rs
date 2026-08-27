@@ -21,7 +21,7 @@ use std::future::Future;
 /// implementation writes a plain `async fn`:
 ///
 /// ```
-/// use rakko_action::{Action, Context, Name, Outcome};
+/// use rakko_action::{Action, Context, Name, Outcome, action_name};
 ///
 /// struct LineCount;
 ///
@@ -29,7 +29,7 @@ use std::future::Future;
 ///     type Args = ();
 ///
 ///     fn name(&self) -> Name {
-///         "line-count".parse().expect("the name is valid")
+///         action_name!("line-count")
 ///     }
 ///
 ///     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
