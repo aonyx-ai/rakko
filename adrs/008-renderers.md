@@ -1,4 +1,4 @@
-# ADR-008: Renderers Own the Shape of the Output
+# ADR-008: Output Renderers
 
 ## Status
 
