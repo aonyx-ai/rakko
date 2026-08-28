@@ -99,9 +99,10 @@ these links, and `.config/tracey/config.styx` lists the specifications.
 
 - One public type per module, use submodules for related types.
 - Use `mod.rs` for modules that contain submodules.
-- Import from a submodule with `use self::<module>`, not `use <module>`. The
-  prefix separates a submodule from a crate of the same name, and it groups
-  the imports of a module with the other imports that name a path.
+- Name a submodule with `self::<module>`, not `<module>`, in an import and in
+  every other path. The prefix separates a submodule from a crate of the same
+  name. In an import it also puts the path in the group with the other local
+  paths.
 - Prefer `pub` over `pub(crate)`. Visibility should come from module
   structure, not access modifiers. If a type needs restricted visibility,
   that is usually a signal to restructure the modules.
