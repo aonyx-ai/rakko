@@ -51,7 +51,7 @@ from the design discussions to the terms that replaced them.
   project, and it is the full adoption surface of a project.
 - **Linking** — The use of an external tool as a Rust library inside an
   action. Linking is an optimization for one action at a time, taken when
-  the tool has a real library API.
+  the library carries the behavior of the tool, not only its engine.
 - **mise** — The provisioning layer. [Mise] installs the external tools at
   pinned versions, and Renovate updates the pins in `mise.toml`.
 - **`mise run rakko`** — The mise task that builds and runs the harness of a
