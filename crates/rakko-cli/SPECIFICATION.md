@@ -49,6 +49,51 @@ The command line MUST show its help for a run that gives no argument.
 cli[command.output]
 The command line MUST carry the flags that control the output of a run.
 
+## Mount
+
+A harness mounts the actions that a project uses. It passes lists, and a list
+is an ordinary value that comes from a bundle, from another list, or from the
+code of the harness. Reading the harness therefore reports what the project
+runs, at the versions that Cargo resolved.
+
+The command tree is flat. A name identifies an action, and nothing groups
+actions today, so the command of an action sits directly under the command
+line.
+
+Two lists can carry one action, and a bundle that holds another bundle makes
+such an overlap ordinary. A name must mean one action, and a harness that
+mounts one name twice has a defect that only a change of its own code corrects.
+The mount is therefore where the conflict stops.
+
+cli[mount.list]
+The builder MUST accept a list of erased actions, and MUST give each action of
+that list a command.
+
+cli[mount.flat]
+The command tree MUST be flat. The command of an action MUST hold no command.
+
+cli[mount.collision]
+Two mounted actions with one name MUST stop the harness where it mounts them.
+The failure MUST report the name.
+
+## Run
+
+A run drives one action. The command that the user named resolves to the action
+that the harness mounted under that name, and the action gets the context that
+it needs to examine the project.
+
+The project root of that context is the directory that the user ran the command
+from. A user that runs the command from a subdirectory of a project therefore
+gets that subdirectory as the root, and finding the root of a project is a task
+of its own.
+
+A run shows nothing. The outcome of an action has no path to the output of the
+command line yet, so a run reports neither what an action found nor that it
+found nothing.
+
+cli[run.action]
+A run MUST drive the action that its command names.
+
 [clawless]: https://github.com/aonyx-ai/clawless
 [inventory]: https://crates.io/crates/inventory
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119

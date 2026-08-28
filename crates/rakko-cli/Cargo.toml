@@ -7,8 +7,9 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-clap = { workspace = true }
+clap = { workspace = true, features = ["string"] }
 clawless = { workspace = true }
+rakko-action = { workspace = true }
 
 [lints]
 workspace = true
