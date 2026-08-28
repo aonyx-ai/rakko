@@ -1,4 +1,4 @@
-# ADR-005: Composition Is Explicit Data
+# ADR-006: Composition Is Explicit Data
 
 ## Status
 
