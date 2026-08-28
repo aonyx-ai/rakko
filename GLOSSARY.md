@@ -35,9 +35,11 @@ from the design discussions to the terms that replaced them.
   variables and loaded configuration. Clawless uses the same name for a
   similar concept. This parallel is intentional, and consumers of Rakko do
   not see the Clawless type.
-- **Contract crate** — The `rakko` crate. It contains the `Action` trait,
-  the access types, and the other shared types. The contract crate stays
-  small, because every action and every harness depends on it.
+- **Contract crate** — The `rakko-action` crate. It contains the `Action`
+  trait, the access types, and the other shared types. The contract crate
+  stays small, because every action and every harness depends on it. The
+  `rakko` crate is a placeholder today, and it becomes a facade over the
+  contract later.
 - **Erased action** — The internal, object-safe view of an action. Bundles
   export erased actions, and the registry in the harness holds them. Action
   authors do not see this type.
@@ -86,7 +88,7 @@ from the design discussions to the terms that replaced them.
 
 | Retired                                | Replacement    | Reason                                                          |
 | -------------------------------------- | -------------- | --------------------------------------------------------------- |
-| core crate, framework crate, hub crate | contract crate | Four names were in use for the `rakko` crate.                   |
+| core crate, framework crate, hub crate | contract crate | Four names were in use for the `rakko-action` crate.            |
 | descriptor, metadata object            | erased action  | Three names were in use for the registry view of an action.     |
 | host                                   | harness        | "Host" reads as the machine that programs run on.               |
 | mode                                   | (none)         | Removed until an action shows a real need for a shared type.    |
