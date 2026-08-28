@@ -34,7 +34,8 @@ pub use args::{
 pub use context::{CacheDirectory, ConfigDirectory, Context, Layout, ProjectRoot};
 pub use erased_action::ErasedAction;
 pub use finding::{
-    Column, FilePath, Finding, FindingMessage, Line, Location, ParseFilePathError, Position,
+    Column, DirectoryPath, FilePath, Finding, FindingMessage, Line, Location,
+    ParseDirectoryPathError, ParseFilePathError, Position, Span,
 };
 pub use name::{Name, ParseNameError};
 pub use outcome::{Outcome, SkipReason};
