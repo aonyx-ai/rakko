@@ -11,9 +11,10 @@ use serde::{Serialize, Serializer};
 /// What a run reports about the action that it drove
 ///
 /// A report owns the name of the action and the outcome that the action
-/// returned, and it is what a run hands to the chassis. Every way of showing a
-/// run reads this one value: [`Display`] writes the text that a reader at a
-/// terminal gets, and [`Serialize`] writes the JSON that a machine gets.
+/// returned, and it is what a run hands to the command line. Every way of
+/// showing a run reads this one value: [`Display`] writes the text that a
+/// reader at a terminal gets, and [`Serialize`] writes the JSON that a
+/// machine gets.
 ///
 /// An action produces none of this. It returns an outcome, and the report
 /// decides how that outcome reaches a reader, so the output of every project

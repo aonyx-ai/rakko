@@ -8,7 +8,7 @@ into a small command-line tool, and updates arrive as pull requests.
 
 Rakko is the middle layer of a three-layer architecture. [Mise] provisions
 the external tools at pinned versions. Rakko provides the actions and the
-machinery to run them. [Clawless] provides the command-line chassis. Each
+machinery to run them. [Clawless] provides the command-line framework. Each
 project ships a tiny binary crate, the harness, that mounts its actions:
 
 ```console

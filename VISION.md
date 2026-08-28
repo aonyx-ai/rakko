@@ -34,7 +34,7 @@ Rakko turns maintenance tasks into versioned Rust crates that every project
 composes into its own small command-line tool. It is the middle layer of a
 three-layer architecture: [mise] provisions the external tools, Rakko
 provides the actions and the machinery to run them, and [Clawless] provides
-the command-line chassis.
+the command-line framework.
 
 - An **action** is a library crate that implements Rakko's `Action` trait.
   Most actions are checks: they examine the working tree and report findings,
