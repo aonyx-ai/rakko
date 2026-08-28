@@ -60,6 +60,9 @@ from the design discussions to the terms that replaced them.
 - **Project** — The unit that Rakko maintains: a directory tree with its own
   tools, actions, and harness. A project is usually a Git repository, but
   Rakko does not require one.
+- **Projection** — The `rakko-cli` crate. It turns the actions that a
+  harness mounts into commands, with the help text and the shared output
+  flags. Only a harness depends on it, so Clawless never reaches an action.
 - **Rakko** — This project: a toolkit that turns project maintenance into
   versioned Rust crates. The rakko (ラッコ) is the Japanese sea otter, the
   otter that keeps a pebble as its tool.
@@ -89,6 +92,7 @@ from the design discussions to the terms that replaced them.
 | core crate, framework crate, hub crate | contract crate | Four names were in use for the `rakko` crate.                   |
 | descriptor, metadata object            | erased action  | Three names were in use for the registry view of an action.     |
 | host                                   | harness        | "Host" reads as the machine that programs run on.               |
+| machinery crate                        | projection     | The design documents described the crate but never named it.    |
 | mode                                   | (none)         | Removed until an action shows a real need for a shared type.    |
 | phase                                  | access         | The fix and verify phases derive from access declarations.      |
 | recipe                                 | action         | Justfile vocabulary.                                            |

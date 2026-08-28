@@ -29,4 +29,16 @@ specs (
             }
         )
     }
+    {
+        name cli
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-cli/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-cli/src/**/*.rs)
+                test_include (crates/rakko-cli/tests/**/*.rs)
+            }
+        )
+    }
 )
