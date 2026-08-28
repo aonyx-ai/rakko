@@ -9,36 +9,19 @@
 //! crate alone, so the command-line framework stays out of the build of an
 //! action.
 //!
-//! This crate is a placeholder. It gets an API when there is a mount to
-//! project.
+//! The crate builds the command line when the harness runs, and not when the
+//! harness compiles. A command can therefore come from a crate that the project
+//! depends on, at the version that Cargo resolved.
+//!
+//! # Examples
+//!
+//! A harness runs the command line from its `main`:
+//!
+//! ```no_run
+//! rakko_cli::builder().run();
+//! ```
 
-/// Returns the sum of two unsigned 64-bit integers
-///
-/// This function is a placeholder. It exists so that the crate has an item to
-/// build and to test.
-///
-/// # Panics
-///
-/// This function panics in a debug build when the sum is more than
-/// [`u64::MAX`]. In a release build, the sum wraps around.
-// cli[impl placeholder.add]
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+/// The command line that a harness builds and runs
+mod builder;
 
-#[cfg(test)]
-mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
-
-    use super::*;
-
-    // cli[verify placeholder.add]
-    #[test]
-    fn add_two_and_two_returns_four() {
-        let result = add(2, 2);
-
-        assert_eq!(result, 4);
-    }
-}
+pub use builder::{Builder, builder};
