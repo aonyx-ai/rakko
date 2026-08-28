@@ -8,13 +8,18 @@
 //! A project marks its root with one file. The search tests whether the entry
 //! exists and never reads it, so a project that keeps nothing in the file
 //! still names its root.
+//!
+//! A root is absolute, holds no `.` or `..` component, and has its symbolic
+//! links resolved, whether the search found it or the user named it. An
+//! action joins its own paths onto the root, so a root that moves with the
+//! working directory would move every path that an action reports.
 
 /// What a run reports when it cannot name the root of its project
 mod error;
 
 use std::path::{Path, PathBuf};
 
-pub(crate) use error::DiscoverProjectRootError;
+pub(crate) use error::ResolveProjectRootError;
 use kawauso_project::error::{DiscoverProjectError, LoadProjectError};
 use kawauso_project::{Project, Search};
 use rakko_action::ProjectRoot;
@@ -33,6 +38,48 @@ const APPLICATION: &str = "rakko";
 /// is the whole test.
 const MARKER: &str = ".config/rakko.toml";
 
+/// Returns the root of the project that a run maintains
+///
+/// A user who names a root gets that root, and every other run searches for
+/// one from `start` upwards. The user knows what the search would look for,
+/// so a named root answers for a checkout that Rakko does not expect.
+///
+/// # Errors
+///
+/// Returns an error when the user names a directory that the file system does
+/// not answer for, when no directory at or above `start` holds the marker, and
+/// when the file system refuses to report on a directory of the walk. A run
+/// stops in every case, because an action that receives a guessed root reads
+/// the wrong files and reports paths that mean nothing.
+// cli[impl root.named]
+pub(crate) fn resolve(
+    named: Option<PathBuf>,
+    start: &Path,
+) -> Result<ProjectRoot, ResolveProjectRootError> {
+    match named {
+        Some(root) => canonical(root),
+        None => discover(start),
+    }
+}
+
+/// Returns the root that the user named, in the form that an action reads
+///
+/// The file system resolves the path, so a relative argument and a path
+/// through a symbolic link both reach an action as the directory that they
+/// name. A path that no directory answers for is a mistake in an argument,
+/// and the run reports it instead of a project.
+///
+/// # Errors
+///
+/// Returns an error when the file system does not answer for the path.
+fn canonical(root: PathBuf) -> Result<ProjectRoot, ResolveProjectRootError> {
+    let resolved = root
+        .canonicalize()
+        .map_err(|source| ResolveProjectRootError::UnreadableRoot { root, source })?;
+
+    Ok(ProjectRoot::new(resolved))
+}
+
 /// Returns the root of the project that holds the given directory
 ///
 /// The search starts at `start` and walks up to the root of the file system.
@@ -44,12 +91,10 @@ const MARKER: &str = ".config/rakko.toml";
 /// # Errors
 ///
 /// Returns an error when no directory at or above `start` holds the marker,
-/// and when the file system refuses to report on a directory of the walk. A
-/// run stops in both cases, because an action that receives a guessed root
-/// reads the wrong files and reports paths that mean nothing.
+/// and when the file system refuses to report on a directory of the walk.
 // cli[impl root.marker]
 // cli[impl root.unmarked]
-pub(crate) fn discover(start: &Path) -> Result<ProjectRoot, DiscoverProjectRootError> {
+fn discover(start: &Path) -> Result<ProjectRoot, ResolveProjectRootError> {
     let search = Search::start(start).marker(MARKER);
 
     let project: Project = Project::builder()
@@ -67,16 +112,16 @@ pub(crate) fn discover(start: &Path) -> Result<ProjectRoot, DiscoverProjectRootE
 /// failure, and its message names the file that a project creates to correct
 /// it. Every other failure leaves open whether a project exists, so it keeps
 /// the cause that the search reported.
-fn classify(source: LoadProjectError, start: &Path) -> DiscoverProjectRootError {
+fn classify(source: LoadProjectError, start: &Path) -> ResolveProjectRootError {
     match source {
         LoadProjectError::UndiscoverableProject {
             source: DiscoverProjectError::MissingProject { .. },
             ..
-        } => DiscoverProjectRootError::UnmarkedProject {
+        } => ResolveProjectRootError::UnmarkedProject {
             start: PathBuf::from(start),
             marker: MARKER,
         },
-        source => DiscoverProjectRootError::UnreadableStart { source },
+        source => ResolveProjectRootError::UnreadableStart { source },
     }
 }
 
@@ -99,6 +144,34 @@ mod tests {
         std::fs::write(configuration.join("rakko.toml"), "").expect("the test creates the marker");
 
         project
+    }
+
+    // cli[verify root.named]
+    #[test]
+    fn resolve_with_a_named_root_reports_it_without_a_relative_component() {
+        let project = project();
+        let named = project.path().join("crates").join("..");
+        std::fs::create_dir_all(project.path().join("crates"))
+            .expect("the test creates a subdirectory");
+
+        let root = resolve(Some(named), project.path()).expect("expected the run to take the root");
+
+        assert_eq!(
+            root.get().canonicalize().ok(),
+            project.path().canonicalize().ok()
+        );
+    }
+
+    // cli[verify root.named]
+    #[test]
+    fn resolve_with_a_named_root_that_no_directory_answers_reports_the_path() {
+        let missing = PathBuf::from("/rakko/does/not/live/here");
+
+        let Err(error) = resolve(Some(missing.clone()), Path::new(".")) else {
+            panic!("expected the run to report an error");
+        };
+
+        assert!(error.to_string().contains("/rakko/does/not/live/here"));
     }
 
     // cli[verify root.marker]

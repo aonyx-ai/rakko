@@ -11,7 +11,7 @@ use clap::error::ErrorKind;
 use clap::{Arg, ArgMatches, Command, value_parser};
 use clawless::output::OutputFlags;
 use clawless::runner::CommandRunner;
-use rakko_action::{ArgsValues, Context, ErasedAction, Outcome, ProjectRoot};
+use rakko_action::{ArgsValues, Context, ErasedAction, Outcome};
 use registry::Registry;
 
 use crate::report::Report;
@@ -243,10 +243,7 @@ fn dispatch(matches: ArgMatches, action: Box<dyn ErasedAction>) -> Result<u8, Bo
     let named = matches.get_one::<PathBuf>(PROJECT_ROOT).cloned();
 
     CommandRunner::run(matches, move |_matches, context| async move {
-        let root = match named {
-            Some(path) => ProjectRoot::new(path),
-            None => root::discover(context.current_working_directory().get())?,
-        };
+        let root = root::resolve(named, context.current_working_directory().get())?;
         let project = Context::builder().root(root).build();
 
         let name = action.name();
@@ -449,7 +446,11 @@ mod tests {
             .expect("expected the command line to drive the action");
 
         let root = seen.lock().expect("the test holds the lock alone").clone();
-        assert_eq!(root.as_deref(), Some(directory.path()));
+        let named = directory
+            .path()
+            .canonicalize()
+            .expect("the test names a directory that exists");
+        assert_eq!(root, Some(named));
     }
 
     // cli[verify exit.findings]
