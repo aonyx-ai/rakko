@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 /// The error type for file path parsing
 mod error;
-pub use error::ParseFilePathError;
+pub use self::error::ParseFilePathError;
 
 /// The path of a file that a problem is in
 ///

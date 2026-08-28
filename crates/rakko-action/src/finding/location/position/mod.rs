@@ -4,9 +4,10 @@ mod column;
 mod line;
 
 use bon::bon;
-pub use column::Column;
 use getset::Getters;
-pub use line::Line;
+
+pub use self::column::Column;
+pub use self::line::Line;
 
 /// The position of a problem in a file
 ///

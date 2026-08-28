@@ -5,11 +5,12 @@ mod message;
 
 use bon::bon;
 use getset::Getters;
-pub use location::{
+
+pub use self::location::{
     Column, DirectoryPath, FilePath, Line, Location, ParseDirectoryPathError, ParseFilePathError,
     Position, Span,
 };
-pub use message::FindingMessage;
+pub use self::message::FindingMessage;
 
 /// One problem that an action found in a project
 ///

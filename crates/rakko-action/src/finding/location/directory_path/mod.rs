@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 /// The error type for directory path parsing
 mod error;
-pub use error::ParseDirectoryPathError;
+pub use self::error::ParseDirectoryPathError;
 
 /// The path of a directory that a problem is in
 ///

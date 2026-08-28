@@ -19,10 +19,11 @@ mod error;
 
 use std::path::{Path, PathBuf};
 
-pub(crate) use error::ResolveProjectRootError;
 use kawauso_project::error::{DiscoverProjectError, LoadProjectError};
 use kawauso_project::{Project, Search};
 use rakko_action::ProjectRoot;
+
+pub(crate) use self::error::ResolveProjectRootError;
 
 /// The name that identifies Rakko to the search
 ///

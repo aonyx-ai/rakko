@@ -1,8 +1,9 @@
 /// The description of one argument
 mod argument;
 
-pub use argument::{Argument, ArgumentName};
 use getset::Getters;
+
+pub use self::argument::{Argument, ArgumentName};
 
 /// The description of the arguments that an action reads
 ///

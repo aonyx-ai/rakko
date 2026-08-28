@@ -42,13 +42,13 @@ impl Report {
 // cli[impl report.errored]
 impl fmt::Display for Report {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        text::render(self, formatter)
+        self::text::render(self, formatter)
     }
 }
 
 // cli[impl report.json]
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        schema::Payload::of(self).serialize(serializer)
+        self::schema::Payload::of(self).serialize(serializer)
     }
 }

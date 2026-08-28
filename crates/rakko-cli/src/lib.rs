@@ -28,4 +28,4 @@ mod report;
 /// The root of the project that a run maintains
 mod root;
 
-pub use builder::{Builder, builder};
+pub use self::builder::{Builder, builder};

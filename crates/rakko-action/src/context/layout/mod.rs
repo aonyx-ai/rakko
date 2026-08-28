@@ -4,10 +4,10 @@ mod cache_directory;
 mod config_directory;
 
 use bon::bon;
-pub use cache_directory::CacheDirectory;
-pub use config_directory::ConfigDirectory;
 use getset::Getters;
 
+pub use self::cache_directory::CacheDirectory;
+pub use self::config_directory::ConfigDirectory;
 use super::project_root::ProjectRoot;
 
 /// The directory layout of a project

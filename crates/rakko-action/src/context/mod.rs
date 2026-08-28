@@ -5,8 +5,9 @@ mod project_root;
 
 use bon::bon;
 use getset::Getters;
-pub use layout::{CacheDirectory, ConfigDirectory, Layout};
-pub use project_root::ProjectRoot;
+
+pub use self::layout::{CacheDirectory, ConfigDirectory, Layout};
+pub use self::project_root::ProjectRoot;
 
 /// The data that an action reads when it runs
 ///

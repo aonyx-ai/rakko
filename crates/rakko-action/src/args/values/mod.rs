@@ -3,8 +3,7 @@ mod value;
 
 use std::collections::BTreeMap;
 
-pub use value::ArgumentValue;
-
+pub use self::value::ArgumentValue;
 use crate::args::schema::ArgumentName;
 
 /// The values that a run reads for the arguments of an action
