@@ -162,9 +162,14 @@ format-json fix="false": (prettier fix "{json,json5}")
 format-markdown fix="false": (prettier fix "md")
 
 # Format Rust files
+#
+# The harness is a package of its own, outside the workspace, so cargo does not
+# reach it from the root and it takes a second call. ADR-009 records why it
+# sits outside.
 format-rust fix="false":
     rustup install -c rustfmt nightly
     rustup run nightly cargo fmt -- --unstable-features {{ if fix != "true" { "--check" } else { "" } }}
+    rustup run nightly cargo fmt --manifest-path tools/rakko/Cargo.toml -- --unstable-features {{ if fix != "true" { "--check" } else { "" } }}
 
 # Format TOML files
 format-toml fix="false":
@@ -182,8 +187,11 @@ lint-markdown:
     markdownlint **/*.md
 
 # Lint Rust files
+#
+# The harness takes a second call, for the reason that `format-rust` gives.
 lint-rust:
     cargo clippy --all-targets --all-features -- -D warnings
+    cargo clippy --manifest-path tools/rakko/Cargo.toml --all-targets --all-features -- -D warnings
 
 # Lint TOML files
 lint-toml:

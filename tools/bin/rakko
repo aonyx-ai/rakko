@@ -1,0 +1,3 @@
+#!/bin/sh
+# A shortcut to run `mise run rakko`
+exec mise run rakko "$@"

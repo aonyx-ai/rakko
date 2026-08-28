@@ -38,9 +38,13 @@ zizmor = "1.29.0"
 tracey_rev = "7494469c454ea3e93203f2cc860adbf153fe64b9"
 
 [env]
-# The directory that the task below installs into. The path carries the
-# revision, so a new pin asks for a new build and leaves the old binary alone.
-_.path = ["{{ xdg_cache_home }}/rakko/tracey/{{ vars.tracey_rev }}/bin"]
+# The first directory is where the task below installs tracey. The path carries
+# the revision, so a new pin asks for a new build and leaves the old binary
+# alone. The second holds `rakko`, the shortcut that runs the harness.
+_.path = [
+  "{{ xdg_cache_home }}/rakko/tracey/{{ vars.tracey_rev }}/bin",
+  "{{ config_root }}/tools/bin",
+]
 
 [hooks]
 # `mise install` provisions the tools above and then builds the one tool that
@@ -81,3 +85,10 @@ cargo install --git https://github.com/bearcove/tracey --rev "{{ vars.tracey_rev
 mkdir -p "$root/bin"
 mv "$tmp/bin/tracey" "$root/bin/tracey"
 '''
+
+[tasks.rakko]
+description = "Run the maintenance actions of this repository"
+# `raw_args` hands every argument to the harness untouched, so that a flag such
+# as `--help` reaches the harness instead of being read by mise.
+raw_args = true
+run = 'cargo run --quiet --manifest-path "{{ config_root }}/tools/rakko/Cargo.toml" --'
