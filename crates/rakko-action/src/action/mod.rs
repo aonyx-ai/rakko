@@ -1,5 +1,6 @@
 use std::future::Future;
 
+use crate::args::Args;
 use crate::context::Context;
 use crate::name::Name;
 use crate::outcome::Outcome;
@@ -46,12 +47,14 @@ use crate::outcome::Outcome;
 pub trait Action: Send + Sync {
     /// The arguments that a run of the action reads
     ///
-    /// Each action defines its own type. The machinery constructs a value of
-    /// this type and passes it to [`run`].
+    /// Each action defines its own type, and that type implements [`Args`].
+    /// It describes itself as data, so that a projection can build a command
+    /// before a run exists, and it builds itself from what the machinery
+    /// parsed. An action that reads no arguments uses the unit type.
     ///
     /// [`run`]: Action::run
     // action[impl action.args]
-    type Args: Send + Sync;
+    type Args: Args;
 
     /// Returns the name that identifies the action
     // action[impl action.name]

@@ -167,6 +167,46 @@ An outcome MUST be safe to move to a different thread.
 action[outcome.sync]
 An outcome MUST be safe to share with a different thread.
 
+## Arguments
+
+An action reads arguments when it runs, and each action defines their type. The
+machinery parses what a user asked for without knowing that type, so the type
+describes itself as data and builds itself from the values that the machinery
+collected. Both halves belong to the type, because only the crate that defines
+a type can generate code from its fields. The description says what an action
+reads, not how a user writes it, because the shape of a command line is the
+same for every action and belongs to the projection. The description holds
+what every argument has, and it grows when an action needs to say more.
+
+action[args.schema]
+An argument set MUST describe the arguments that it holds, in the order that
+the action declares them. The description MUST be available without a value of
+the argument set.
+
+action[args.argument]
+The description of one argument MUST give the name that identifies the
+argument.
+
+action[args.values]
+An argument set MUST build itself from the values that a run holds. The run
+MUST give the value of an argument by the name of that argument, and MUST
+report that it has none when it holds no value for a name.
+
+action[args.unreadable]
+Building an argument set MUST fail when a value that the argument set requires
+is absent, and when a value does not convert to the type that it belongs to.
+The failure MUST report the argument.
+
+action[args.empty]
+The crate MUST provide the description and the construction for an action that
+reads no arguments. That description MUST hold no argument.
+
+action[args.send]
+An argument set MUST be safe to move to a different thread.
+
+action[args.sync]
+An argument set MUST be safe to share with a different thread.
+
 ## Action
 
 An action is the unit of maintenance work. The `Action` trait is the contract
@@ -207,6 +247,46 @@ again.
 
 action[run.send]
 A run MUST be safe to move to a different thread.
+
+## Erased Action
+
+The `Action` trait carries the type of the arguments that an action reads, so
+two actions have two types. A registry holds many actions at once and cannot
+name a type for each of them, so it holds a view of an action that hides its
+type. The view answers what the machinery needs without naming the action:
+the name, the description of the arguments, and a run that takes the values of
+a command. The conversion from those values into the arguments happens behind
+the view, where the type is still known.
+
+action[erased.name]
+An erased action MUST give the name that identifies the action.
+
+action[erased.arguments]
+An erased action MUST give the description of the arguments that the action
+reads.
+
+action[erased.run]
+An erased action MUST run the action from a context and from the values of a
+run, and MUST produce the outcome of that run.
+
+action[erased.unreadable]
+An erased action that cannot build the arguments of the action from the values
+MUST produce the outcome for an action that stopped, and that outcome MUST hold
+the failure.
+
+action[erased.total]
+Every action MUST have an erased view, and the crate MUST provide that view
+for all of them.
+
+action[erased.object]
+An erased action MUST be usable as a trait object, so that one collection holds
+actions that have different types.
+
+action[erased.send]
+An erased action MUST be safe to move to a different thread.
+
+action[erased.sync]
+An erased action MUST be safe to share with a different thread.
 
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/
