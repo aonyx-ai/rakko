@@ -9,11 +9,14 @@ rust-version.workspace = true
 [dependencies]
 clap = { workspace = true, features = ["string"] }
 clawless = { workspace = true }
+kawauso-project = { workspace = true }
 rakko-action = { workspace = true }
 serde = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

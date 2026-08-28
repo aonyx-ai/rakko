@@ -65,7 +65,9 @@ from the design discussions to the terms that replaced them.
   with an error.
 - **Project** — The unit that Rakko maintains: a directory tree with its own
   tools, actions, and harness. A project is usually a Git repository, but
-  Rakko does not require one.
+  Rakko does not require one. A project marks its root with
+  `.config/rakko.toml`, and a run searches for that file from the directory
+  that it starts in.
 - **Projection** — The `rakko-cli` crate. It turns the actions that a
   harness mounts into commands, with the help text and the shared output
   flags. Only a harness depends on it, so Clawless never reaches an action.
