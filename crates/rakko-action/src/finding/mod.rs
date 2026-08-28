@@ -5,7 +5,10 @@ mod message;
 
 use bon::bon;
 use getset::Getters;
-pub use location::{Column, FilePath, Line, Location, ParseFilePathError, Position};
+pub use location::{
+    Column, DirectoryPath, FilePath, Line, Location, ParseDirectoryPathError, ParseFilePathError,
+    Position, Span,
+};
 pub use message::FindingMessage;
 
 /// One problem that an action found in a project
@@ -47,9 +50,9 @@ mod tests {
     // action[verify finding.location]
     #[test]
     fn location_returns_given_location() {
-        let location = Location::builder()
-            .path(FilePath::try_from("src/main.rs").unwrap())
-            .build();
+        let location = Location::File {
+            path: FilePath::try_from("src/main.rs").unwrap(),
+        };
         let finding = Finding::builder()
             .message("missing semicolon")
             .location(location.clone())
@@ -61,12 +64,9 @@ mod tests {
     // action[verify finding.message]
     #[test]
     fn message_returns_given_message() {
-        let location = Location::builder()
-            .path(FilePath::try_from("src/main.rs").unwrap())
-            .build();
         let finding = Finding::builder()
             .message("missing semicolon")
-            .location(location)
+            .location(Location::Project)
             .build();
 
         assert_eq!(finding.message().get(), "missing semicolon");

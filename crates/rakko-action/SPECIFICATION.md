@@ -107,23 +107,56 @@ action[position.column]
 A position MUST give the column that the problem is at. A position that was
 made without a column MUST report that it has none.
 
+## Span
+
+A span tells which range of a file a problem covers. A tool that reports a
+range gives the position where the range starts and the position where it
+ends, and the range can cross lines. The crate does not check that the end is
+at or after the start, because a range that a tool reported backwards is a
+defect in the action that reported it, and no reader of a span can repair it.
+
+action[span.start]
+A span MUST give the position where the range starts.
+
+action[span.end]
+A span MUST give the position where the range ends.
+
 ## Location
 
-A location tells where a problem is in a project. It always names a file, and
-it can add a position in that file. The path of that file is relative to the
-project root, so that a reader and a code host see the same path. A path that
-starts at the root of the file system says nothing about the project.
+A location tells how precisely an action can place a problem in a project.
+The tools that actions wrap do not agree on that precision. A formatter knows
+a file and no line in it, a linter knows a line and a column, and a check of
+the dependencies of a project knows no path at all. A location therefore
+names the level that it speaks at, and each level carries what that level
+knows and no more, so that a reader knows from the level alone what it can
+show. Every path is relative to the project root, so that a reader and a code
+host see the same path. A path that starts at the root of the file system
+says nothing about the project.
 
-action[location.path]
-A location MUST give the path of the file that the problem is in.
+action[location.project]
+A location MUST have a level for a problem that belongs to the project and to
+no path in it.
+
+action[location.directory]
+A location MUST have a level for a problem that belongs to a directory. This
+level MUST give the path of that directory.
+
+action[location.file]
+A location MUST have a level for a problem that belongs to a file. This level
+MUST give the path of that file.
+
+action[location.position+2]
+A location MUST have a level for a problem at one position in a file. This
+level MUST give the path of that file and the position of the problem in it.
+
+action[location.span]
+A location MUST have a level for a problem that covers a range of a file.
+This level MUST give the path of that file and the range that the problem
+covers.
 
 action[location.relative]
 The crate MUST refuse a path that is absolute. The refusal MUST report the
 path.
-
-action[location.position]
-A location MUST give the position of the problem in that file. A location that
-was made without a position MUST report that it has none.
 
 ## Finding
 

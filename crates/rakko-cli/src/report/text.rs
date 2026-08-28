@@ -1,12 +1,12 @@
 use std::fmt;
 
-use rakko_action::{Finding, Outcome};
+use rakko_action::{Finding, Location, Outcome, Position};
 
 use super::Report;
 
 /// Writes a report as the text that a reader at a terminal gets
 ///
-/// A finding takes one line, and that line starts with the location that the
+/// A finding takes one line, and that line starts with the place that the
 /// finding names. One line is what a finding of any granularity can produce,
 /// and it is the form that a reader greps and that an editor jumps to.
 ///
@@ -49,29 +49,58 @@ pub(super) fn render(report: &Report, formatter: &mut fmt::Formatter<'_>) -> fmt
 
 /// Writes one finding as the line that names where the problem is
 ///
-/// The line names as much of the location as the finding carries. A finding
-/// that names no position gives the path alone, and a finding that names a
-/// line without a column gives the line alone.
+/// The line names as much of the place as the level of the finding carries. A
+/// finding about the project gives the message alone, because it has no path
+/// to name. A finding about a directory or a file gives that path. A finding
+/// at a position gives the path, the line, and the column that the position
+/// carries.
+///
+/// A finding over a span gives the position where the range starts, and it
+/// drops the position where the range ends. A terminal line that reads
+/// `path:line:column` is what an editor jumps to, and the end of the range
+/// has no place in it.
 ///
 /// # Errors
 ///
 /// Returns the error of the formatter when the formatter cannot take what the
 /// finding writes.
 fn render_finding(finding: &Finding, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let location = finding.location();
-    let message = finding.message();
-
-    write!(formatter, "{}", location.path())?;
-
-    if let Some(position) = location.position() {
-        write!(formatter, ":{}", position.line())?;
-
-        if let Some(column) = position.column() {
-            write!(formatter, ":{column}")?;
+    match finding.location() {
+        Location::Project => {}
+        Location::Directory { path } => write!(formatter, "{path}: ")?,
+        Location::File { path } => write!(formatter, "{path}: ")?,
+        Location::Position { path, position } => {
+            write!(formatter, "{path}")?;
+            render_position(position, formatter)?;
+            write!(formatter, ": ")?;
+        }
+        Location::Span { path, span } => {
+            write!(formatter, "{path}")?;
+            render_position(span.start(), formatter)?;
+            write!(formatter, ": ")?;
         }
     }
 
-    writeln!(formatter, ": {message}")
+    writeln!(formatter, "{}", finding.message())
+}
+
+/// Writes the line, and the column, that a position names
+///
+/// The column follows the line only when the position carries one, so a tool
+/// that reports a line alone does not get a column that nobody measured.
+///
+/// # Errors
+///
+/// Returns the error of the formatter when the formatter cannot take what the
+/// position writes.
+fn render_position(position: &Position, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(formatter, ":{}", position.line())?;
+
+    if let Some(column) = position.column() {
+        write!(formatter, ":{column}")?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -80,21 +109,21 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{FilePath, Location, Position, SkipReason};
+    use rakko_action::{DirectoryPath, FilePath, SkipReason, Span};
 
     use super::*;
 
-    /// Returns a finding for the given path, position, and message
-    fn finding(path: &str, position: Option<Position>, message: &str) -> Finding {
-        let location = Location::builder()
-            .path(FilePath::try_from(path).expect("the test names a relative path"))
-            .maybe_position(position)
-            .build();
-
+    /// Returns a finding for the given location and message
+    fn finding(location: Location, message: &str) -> Finding {
         Finding::builder()
             .message(message)
             .location(location)
             .build()
+    }
+
+    /// Returns the path of a file that a test names
+    fn file(path: &str) -> FilePath {
+        FilePath::try_from(path).expect("the test names a relative path")
     }
 
     /// Returns the text that a run of the action `probe` reports
@@ -118,11 +147,18 @@ mod tests {
         let text = rendered(Outcome::Failed {
             findings: vec![
                 finding(
-                    "deny.toml",
-                    Some(Position::builder().line(3).column(1).build()),
+                    Location::Position {
+                        path: file("deny.toml"),
+                        position: Position::builder().line(3).column(1).build(),
+                    },
                     "the license is not allowlisted",
                 ),
-                finding("Cargo.toml", None, "the file is not formatted"),
+                finding(
+                    Location::File {
+                        path: file("Cargo.toml"),
+                    },
+                    "the file is not formatted",
+                ),
             ],
         });
 
@@ -138,7 +174,12 @@ mod tests {
     #[test]
     fn render_failed_outcome_with_one_finding_reports_it_in_the_singular() {
         let text = rendered(Outcome::Failed {
-            findings: vec![finding("Cargo.toml", None, "the file is not formatted")],
+            findings: vec![finding(
+                Location::File {
+                    path: file("Cargo.toml"),
+                },
+                "the file is not formatted",
+            )],
         });
 
         assert!(text.ends_with("probe: 1 finding"));
@@ -146,11 +187,58 @@ mod tests {
 
     // cli[verify report.findings]
     #[test]
+    fn render_finding_over_a_directory_reports_the_directory() {
+        let text = rendered(Outcome::Failed {
+            findings: vec![finding(
+                Location::Directory {
+                    path: DirectoryPath::try_from("crates/rakko")
+                        .expect("the test names a relative path"),
+                },
+                "the directory has no specification",
+            )],
+        });
+
+        assert!(text.starts_with("crates/rakko: the directory has no specification"));
+    }
+
+    // cli[verify report.findings]
+    #[test]
+    fn render_finding_over_a_span_reports_the_start_of_the_range() {
+        let text = rendered(Outcome::Failed {
+            findings: vec![finding(
+                Location::Span {
+                    path: file("src/lib.rs"),
+                    span: Span::builder()
+                        .start(Position::builder().line(1).column(1).build())
+                        .end(Position::builder().line(3).column(2).build())
+                        .build(),
+                },
+                "the block is not formatted",
+            )],
+        });
+
+        assert!(text.starts_with("src/lib.rs:1:1: the block is not formatted"));
+    }
+
+    // cli[verify report.findings]
+    #[test]
+    fn render_finding_over_the_project_reports_the_message_alone() {
+        let text = rendered(Outcome::Failed {
+            findings: vec![finding(Location::Project, "the crate serde is banned")],
+        });
+
+        assert!(text.starts_with("the crate serde is banned"));
+    }
+
+    // cli[verify report.findings]
+    #[test]
     fn render_finding_without_a_column_reports_the_line() {
         let text = rendered(Outcome::Failed {
             findings: vec![finding(
-                "README.md",
-                Some(Position::builder().line(7).build()),
+                Location::Position {
+                    path: file("README.md"),
+                    position: Position::builder().line(7).build(),
+                },
                 "the line is too long",
             )],
         });

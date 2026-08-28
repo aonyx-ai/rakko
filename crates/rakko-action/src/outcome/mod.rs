@@ -73,9 +73,9 @@ mod tests {
     // action[verify outcome.failed]
     #[test]
     fn failed_variant_holds_findings() {
-        let location = Location::builder()
-            .path(FilePath::try_from("src/main.rs").unwrap())
-            .build();
+        let location = Location::File {
+            path: FilePath::try_from("src/main.rs").unwrap(),
+        };
         let finding = Finding::builder()
             .message("error")
             .location(location)
