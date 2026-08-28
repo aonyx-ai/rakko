@@ -20,8 +20,6 @@ from the design discussions to the terms that replaced them.
 - **Bundle** — A meta-crate that exports a list of actions. A bundle defines
   what a word such as "recommended" means, as a dependency. Bundles can
   contain other bundles. A bundle release starts a rollout.
-- **`cargo ra`** — The cargo alias that builds and runs the harness of a
-  project. The alias lives in the `.cargo/config.toml` file of each project.
 - **Check** — An informal word for an action that examines the project and
   reports findings. A check is not a formal category: the system has one
   `Action` trait and no subtypes.
@@ -48,13 +46,18 @@ from the design discussions to the terms that replaced them.
   location. Findings travel in the outcome of an action run.
 - **Fleet** — All Aonyx projects that Rakko maintains.
 - **Harness** — The small binary crate in each project. The harness mounts
-  the bundles and actions that the project uses, and `cargo ra` runs it. The
-  harness is the full adoption surface of a project.
+  the bundles and actions that the project uses, and `mise run rakko` runs
+  it. The harness is a package of its own, outside the workspace of the
+  project, and it is the full adoption surface of a project.
 - **Linking** — The use of an external tool as a Rust library inside an
   action. Linking is an optimization for one action at a time, taken when
   the tool has a real library API.
 - **mise** — The provisioning layer. [Mise] installs the external tools at
   pinned versions, and Renovate updates the pins in `mise.toml`.
+- **`mise run rakko`** — The mise task that builds and runs the harness of a
+  project. The task lives in the `mise.toml` file of each project. It is the
+  canonical form on every platform, and documentation always writes it out,
+  because a shorter form exists only where a platform can supply one.
 - **Mount** — To register actions or bundles in the CLI of a harness. The
   harness names what it mounts, in code.
 - **Outcome** — The result of one action run. An outcome tells whether the
@@ -96,19 +99,20 @@ from the design discussions to the terms that replaced them.
 
 ## Retired Terms
 
-| Retired                                | Replacement    | Reason                                                          |
-| -------------------------------------- | -------------- | --------------------------------------------------------------- |
-| chassis                                | Clawless       | A second name for the framework that Clawless already names.    |
-| core crate, framework crate, hub crate | contract crate | Four names were in use for the `rakko-action` crate.            |
-| descriptor, metadata object            | erased action  | Three names were in use for the registry view of an action.     |
-| host                                   | harness        | "Host" reads as the machine that programs run on.               |
-| machinery crate                        | projection     | The design documents described the crate but never named it.    |
-| mode                                   | (none)         | Removed until an action shows a real need for a shared type.    |
-| phase                                  | access         | The fix and verify phases derive from access declarations.      |
-| recipe                                 | action         | Justfile vocabulary.                                            |
-| repository                             | project        | A project implies a repository, but Rakko does not require one. |
-| set                                    | bundle         | Both terms were in use for the same concept.                    |
-| xtask                                  | harness        | The name of the community pattern, not the name of our crate.   |
+| Retired                                | Replacement      | Reason                                                                    |
+| -------------------------------------- | ---------------- | ------------------------------------------------------------------------- |
+| `cargo ra`                             | `mise run rakko` | A cargo alias needs the harness in the workspace, which couples the MSRV. |
+| chassis                                | Clawless         | A second name for the framework that Clawless already names.              |
+| core crate, framework crate, hub crate | contract crate   | Four names were in use for the `rakko-action` crate.                      |
+| descriptor, metadata object            | erased action    | Three names were in use for the registry view of an action.               |
+| host                                   | harness          | "Host" reads as the machine that programs run on.                         |
+| machinery crate                        | projection       | The design documents described the crate but never named it.              |
+| mode                                   | (none)           | Removed until an action shows a real need for a shared type.              |
+| phase                                  | access           | The fix and verify phases derive from access declarations.                |
+| recipe                                 | action           | Justfile vocabulary.                                                      |
+| repository                             | project          | A project implies a repository, but Rakko does not require one.           |
+| set                                    | bundle           | Both terms were in use for the same concept.                              |
+| xtask                                  | harness          | The name of the community pattern, not the name of our crate.             |
 
 [clawless]: https://github.com/aonyx-ai/clawless
 [mise]: https://mise.jdx.dev
