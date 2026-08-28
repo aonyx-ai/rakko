@@ -19,6 +19,7 @@ bon = "3"
 clap = "4.3"
 clawless = "0.6.1"
 getset = ">=0.1,<1"
+rakko-action = { path = "crates/rakko-action", version = "0.1.0" }
 thiserror = "2"
 typed-fields = ">=0.6,<1"
 
