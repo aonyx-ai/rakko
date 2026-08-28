@@ -12,7 +12,7 @@ machinery to run them. [Clawless] provides the command-line framework. Each
 project ships a tiny binary crate, the harness, that mounts its actions:
 
 ```console
-cargo ra format toml --fix
+mise run rakko format toml --fix
 ```
 
 Actions ship in bundles: meta-crates that define what "recommended" means

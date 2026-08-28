@@ -53,15 +53,17 @@ the command-line framework.
 ## An Example
 
 ```console
-$ cargo ra format toml --fix
+$ mise run rakko format toml --fix
    Fixed  deny.toml
  Checked  14 files, fixed 1
 ```
 
 What happened, layer by layer:
 
-1. `cargo ra` is an alias in the project's `.cargo/config.toml` that
-   builds and runs the harness crate.
+1. `mise run rakko` is a task in the project's `mise.toml` that builds and
+   runs the harness crate. The harness is a package of its own, outside the
+   workspace of the project, so nothing it depends on reaches the crates that
+   the project publishes.
 2. The harness mounts its actions. Rakko hands their descriptors to Clawless,
    which generates the command tree, the help text from documentation
    comments, and the shared output flags — `--quiet`, `--verbose`, `--json`.
@@ -152,7 +154,7 @@ Rakko bootstraps on the tooling it exists to replace: the repository starts
 with a Justfile and the familiar configs, because nothing else exists yet.
 That irony defines the finish line. The MVP is complete when the Rakko
 repository has fully migrated to mise and Rakko itself — its own checks run
-through `cargo ra`, and the Justfile is gone.
+through `mise run rakko`, and the Justfile is gone.
 
 Until then, the repository doubles as the playground: the harness consumes new
 actions as path dependencies, so every action is exercised in a real
