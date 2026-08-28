@@ -7,10 +7,10 @@ mod position;
 /// The range of a file that a problem covers
 mod span;
 
-pub use directory_path::{DirectoryPath, ParseDirectoryPathError};
-pub use file_path::{FilePath, ParseFilePathError};
-pub use position::{Column, Line, Position};
-pub use span::Span;
+pub use self::directory_path::{DirectoryPath, ParseDirectoryPathError};
+pub use self::file_path::{FilePath, ParseFilePathError};
+pub use self::position::{Column, Line, Position};
+pub use self::span::Span;
 
 /// How precisely an action can place a problem in a project
 ///

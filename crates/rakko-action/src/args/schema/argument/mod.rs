@@ -2,7 +2,8 @@
 mod name;
 
 use getset::Getters;
-pub use name::ArgumentName;
+
+pub use self::name::ArgumentName;
 
 /// The description of one argument that an action reads
 ///

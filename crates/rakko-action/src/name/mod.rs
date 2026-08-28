@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 /// The error type for name parsing
 mod error;
-pub use error::ParseNameError;
+pub use self::error::ParseNameError;
 
 /// Constructs a [`Name`] from a literal string at compile time
 ///

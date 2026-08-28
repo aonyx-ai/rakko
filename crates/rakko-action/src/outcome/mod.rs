@@ -3,8 +3,7 @@ mod skip_reason;
 
 use std::error::Error;
 
-pub use skip_reason::SkipReason;
-
+pub use self::skip_reason::SkipReason;
 use crate::finding::Finding;
 
 /// The result of one action run

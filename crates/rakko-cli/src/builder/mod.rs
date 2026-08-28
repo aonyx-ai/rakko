@@ -12,8 +12,8 @@ use clap::{Arg, ArgMatches, Command, value_parser};
 use clawless::output::OutputFlags;
 use clawless::runner::CommandRunner;
 use rakko_action::{ArgsValues, Context, ErasedAction, Outcome};
-use registry::Registry;
 
+use self::registry::Registry;
 use crate::report::Report;
 use crate::root;
 

@@ -27,15 +27,15 @@ pub mod name;
 /// Types for the result of an action run
 pub mod outcome;
 
-pub use action::Action;
-pub use args::{
+pub use self::action::Action;
+pub use self::args::{
     Args, ArgsSchema, ArgsValues, Argument, ArgumentName, ArgumentValue, ReadArgsError,
 };
-pub use context::{CacheDirectory, ConfigDirectory, Context, Layout, ProjectRoot};
-pub use erased_action::ErasedAction;
-pub use finding::{
+pub use self::context::{CacheDirectory, ConfigDirectory, Context, Layout, ProjectRoot};
+pub use self::erased_action::ErasedAction;
+pub use self::finding::{
     Column, DirectoryPath, FilePath, Finding, FindingMessage, Line, Location,
     ParseDirectoryPathError, ParseFilePathError, Position, Span,
 };
-pub use name::{Name, ParseNameError};
-pub use outcome::{Outcome, SkipReason};
+pub use self::name::{Name, ParseNameError};
+pub use self::outcome::{Outcome, SkipReason};
