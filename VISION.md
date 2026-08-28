@@ -119,8 +119,8 @@ this is the short form.
 
 When all the sparkle is in place:
 
-- A new project adopts the full house standard by adding mise and a
-  three-line harness crate.
+- A new project adopts the full house standard by adding mise, a marker file
+  that names its root, and a three-line harness crate.
 - Adding a check across the fleet means publishing one bundle release and
   merging the green pull requests that follow. The red ones are the honest
   to-do list.

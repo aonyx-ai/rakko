@@ -3,17 +3,19 @@ mod registry;
 
 use std::error::Error;
 use std::ffi::OsString;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use clap::error::ErrorKind;
-use clap::{ArgMatches, Command};
+use clap::{Arg, ArgMatches, Command, value_parser};
 use clawless::output::OutputFlags;
 use clawless::runner::CommandRunner;
 use rakko_action::{ArgsValues, Context, ErasedAction, Outcome, ProjectRoot};
 use registry::Registry;
 
 use crate::report::Report;
+use crate::root;
 
 /// The description that the command line shows above its help
 const ABOUT: &str = "Runs the maintenance actions of this project";
@@ -30,6 +32,12 @@ const EXIT_FINDINGS: u8 = 1;
 /// that never reached an action and a run whose action stopped are the same
 /// event for whoever reads the result, so one code covers both.
 const EXIT_UNANSWERED: u8 = 2;
+
+/// The name of the argument with which a user names the project root
+///
+/// The name is also the long flag, so a reader of a workflow file sees
+/// `--project-root` and finds this argument in the help.
+const PROJECT_ROOT: &str = "project-root";
 
 /// The name that the command line carries
 ///
@@ -182,7 +190,8 @@ impl Builder {
         let mut command = Command::new(NAME)
             .about(ABOUT)
             .arg_required_else_help(true)
-            .subcommand_required(true);
+            .subcommand_required(true)
+            .arg(project_root());
 
         for action in self.registry.actions() {
             command = command.subcommand(Command::new(action.name().get().to_owned()));
@@ -192,11 +201,27 @@ impl Builder {
     }
 }
 
+/// Returns the argument with which a user names the project root
+///
+/// The argument is global, so it reads the same before and after the name of
+/// an action. A user reaches for it when the search cannot answer, which is
+/// why the help describes what it replaces.
+// cli[impl root.named]
+fn project_root() -> Arg {
+    Arg::new(PROJECT_ROOT)
+        .long(PROJECT_ROOT)
+        .value_name("PATH")
+        .value_parser(value_parser!(PathBuf))
+        .global(true)
+        .help("Take this directory as the root of the project instead of searching for one")
+}
+
 /// Runs one action and returns the code of the run
 ///
 /// The command line builds the context of a command, and this function turns
-/// that context into the context of an action. The project root is the directory
-/// that the user ran the command from.
+/// that context into the context of an action. A user who named the project
+/// root gets that root, and every other run searches for the directory that
+/// marks the project.
 ///
 /// What the action returned reaches the reader as one report, and the flags
 /// of the run decide whether that report renders as text or as JSON. The report travels
@@ -207,14 +232,21 @@ impl Builder {
 ///
 /// Returns the error of the command line when it cannot build the context of
 /// a command, when it cannot start the runtime that drives the action, and when
-/// the report cannot reach the reader.
+/// the report cannot reach the reader. Returns an error for a run that names no
+/// root and stands in no project, because an action that receives a guessed
+/// root reports paths that mean nothing.
+// cli[impl root.named]
 // cli[impl run.action]
 fn dispatch(matches: ArgMatches, action: Box<dyn ErasedAction>) -> Result<u8, Box<dyn Error>> {
     let code = Arc::new(AtomicU8::new(EXIT_UNANSWERED));
     let reported = Arc::clone(&code);
+    let named = matches.get_one::<PathBuf>(PROJECT_ROOT).cloned();
 
     CommandRunner::run(matches, move |_matches, context| async move {
-        let root = ProjectRoot::new(context.current_working_directory().get().to_path_buf());
+        let root = match named {
+            Some(path) => ProjectRoot::new(path),
+            None => root::discover(context.current_working_directory().get())?,
+        };
         let project = Context::builder().root(root).build();
 
         let name = action.name();
@@ -255,6 +287,8 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use std::path::Path;
+    use std::sync::Mutex;
     use std::sync::atomic::AtomicBool;
 
     use rakko_action::{Action, Name, SkipReason};
@@ -307,12 +341,48 @@ mod tests {
         }
     }
 
+    /// An action that records the project root that its run received
+    struct Recorder {
+        /// Where a run stores the root that it received
+        seen: Arc<Mutex<Option<PathBuf>>>,
+    }
+
+    impl Action for Recorder {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            "recorder"
+                .parse()
+                .expect("the test names an action correctly")
+        }
+
+        async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+            let mut seen = self.seen.lock().expect("the test holds the lock alone");
+            *seen = Some(context.root().get().to_path_buf());
+
+            Outcome::Passed
+        }
+    }
+
     /// Returns the code that a run of an action reporting `outcome` gives back
+    ///
+    /// The run names its project root, so that the test drives the action
+    /// without a directory tree that marks a project.
     fn code_for(outcome: fn() -> Outcome) -> u8 {
-        let matches = OutputFlags::augment_command(Command::new(NAME)).get_matches_from(["rakko"]);
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let (probe, _ran) = Probe::reporting("probe", outcome);
 
-        dispatch(matches, Box::new(probe)).expect("expected the command line to drive the action")
+        dispatch(naming(directory.path()), Box::new(probe))
+            .expect("expected the command line to drive the action")
+    }
+
+    /// Returns the matches of a run that names the given directory as its root
+    fn naming(root: &Path) -> ArgMatches {
+        OutputFlags::augment_command(Command::new(NAME).arg(project_root())).get_matches_from([
+            "rakko".as_ref(),
+            "--project-root".as_ref(),
+            root.as_os_str(),
+        ])
     }
 
     /// Returns the kind of the error that a run of the given arguments gives
@@ -364,6 +434,22 @@ mod tests {
                 .iter()
                 .all(|flag| flags.contains(flag))
         );
+    }
+
+    // cli[verify root.named]
+    #[test]
+    fn dispatch_gives_the_action_the_project_root_that_the_user_names() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let seen = Arc::new(Mutex::new(None));
+        let recorder = Recorder {
+            seen: Arc::clone(&seen),
+        };
+
+        dispatch(naming(directory.path()), Box::new(recorder))
+            .expect("expected the command line to drive the action");
+
+        let root = seen.lock().expect("the test holds the lock alone").clone();
+        assert_eq!(root.as_deref(), Some(directory.path()));
     }
 
     // cli[verify exit.findings]
@@ -420,10 +506,11 @@ mod tests {
     // cli[verify run.action]
     #[test]
     fn dispatch_runs_the_action_that_it_gets() {
-        let matches = OutputFlags::augment_command(Command::new(NAME)).get_matches_from(["rakko"]);
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let (probe, ran) = Probe::new("probe");
 
-        dispatch(matches, Box::new(probe)).expect("expected the command line to drive the action");
+        dispatch(naming(directory.path()), Box::new(probe))
+            .expect("expected the command line to drive the action");
 
         assert!(ran.load(Ordering::SeqCst));
     }

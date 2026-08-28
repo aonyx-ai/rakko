@@ -103,6 +103,38 @@ cli[mount.collision]
 Two mounted actions with one name MUST stop the harness where it mounts them.
 The failure MUST report the name.
 
+## Project Root
+
+Every action reads the project root from the context that a run gives it. The
+layout of a project derives the configuration directory and the cache
+directory from that root, and a finding reports its location relative to it,
+so a run that names the wrong root reads the wrong files and reports paths
+that no other tool in the project agrees with.
+
+A project marks its root with `.config/rakko.toml`. A run tests whether that
+entry exists and never reads it, so the rule stays right when the content of
+the file changes and when the file has no content at all.
+
+A user whose checkout is laid out in a way that Rakko does not expect names
+the root of the run instead. A run that receives a root does not search for
+one, because the user knows the answer that the search would look for.
+
+A run that finds no root stops. A wrong root reads the wrong files and reports
+paths that mean nothing, and it does all of that quietly, so a message that
+names the missing file is worth more than an answer that nobody can trust.
+
+cli[root.marker]
+A run MUST take the project root from the first directory, at or above the
+directory that the run starts in, that holds `.config/rakko.toml`.
+
+cli[root.named]
+A run whose user names the project root MUST take that root, and MUST NOT
+search for one.
+
+cli[root.unmarked]
+A run that finds no project root MUST stop, and MUST report the file that
+marks a root.
+
 ## Report
 
 A run shows what its action found. The projection renders the outcome, and an
@@ -142,10 +174,8 @@ A run drives one action. The command that the user named resolves to the action
 that the harness mounted under that name, and the action gets the context that
 it needs to examine the project.
 
-The project root of that context is the directory that the user ran the command
-from. A user that runs the command from a subdirectory of a project therefore
-gets that subdirectory as the root, and finding the root of a project is a task
-of its own.
+Where the project root of that context comes from is the Project Root section
+of this document.
 
 What a run shows, and the code that it gives back to the process that started
 it, are the Report and the Exit Code sections of this document.
