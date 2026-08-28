@@ -10,7 +10,7 @@ The crate builds its command tree when the harness runs, and not when the
 harness compiles. [Clawless] collects the commands of a binary with the
 [inventory] crate at link time, and that collection does not reach a command
 that another crate exported. A harness mounts such commands, so this crate
-builds a command tree of its own and hands it to the chassis. The parser behind
+builds a command tree of its own and hands it to Clawless. The parser behind
 that tree is an implementation detail, and it appears in no signature that a
 harness or an action can see.
 

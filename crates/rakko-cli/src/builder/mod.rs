@@ -192,21 +192,21 @@ impl Builder {
     }
 }
 
-/// Runs one action through the chassis and returns the code of the run
+/// Runs one action and returns the code of the run
 ///
-/// The chassis builds the context of a command, and this function turns that
-/// context into the context of an action. The project root is the directory
+/// The command line builds the context of a command, and this function turns
+/// that context into the context of an action. The project root is the directory
 /// that the user ran the command from.
 ///
-/// What the action returned reaches the reader as one report, and the chassis
-/// decides whether that report renders as text or as JSON. The report travels
+/// What the action returned reaches the reader as one report, and the flags
+/// of the run decide whether that report renders as text or as JSON. The report travels
 /// as the result of the command and not as a message, so the flags that reduce
 /// the output do not suppress what the run found.
 ///
 /// # Errors
 ///
-/// Returns the error of the chassis when it cannot build the context of a
-/// command, when it cannot start the runtime that drives the action, and when
+/// Returns the error of the command line when it cannot build the context of
+/// a command, when it cannot start the runtime that drives the action, and when
 /// the report cannot reach the reader.
 // cli[impl run.action]
 fn dispatch(matches: ArgMatches, action: Box<dyn ErasedAction>) -> Result<u8, Box<dyn Error>> {
@@ -312,7 +312,7 @@ mod tests {
         let matches = OutputFlags::augment_command(Command::new(NAME)).get_matches_from(["rakko"]);
         let (probe, _ran) = Probe::reporting("probe", outcome);
 
-        dispatch(matches, Box::new(probe)).expect("expected the chassis to drive the action")
+        dispatch(matches, Box::new(probe)).expect("expected the command line to drive the action")
     }
 
     /// Returns the kind of the error that a run of the given arguments gives
@@ -423,7 +423,7 @@ mod tests {
         let matches = OutputFlags::augment_command(Command::new(NAME)).get_matches_from(["rakko"]);
         let (probe, ran) = Probe::new("probe");
 
-        dispatch(matches, Box::new(probe)).expect("expected the chassis to drive the action");
+        dispatch(matches, Box::new(probe)).expect("expected the command line to drive the action");
 
         assert!(ran.load(Ordering::SeqCst));
     }

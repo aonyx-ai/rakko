@@ -26,8 +26,9 @@ from the design discussions to the terms that replaced them.
   reports findings. A check is not a formal category: the system has one
   `Action` trait and no subtypes.
 - **Clawless** — Aonyx's framework for command-line applications, and the
-  chassis of Rakko. [Clawless] turns mounted actions into commands, with
-  help text and shared output flags. Actions do not depend on Clawless.
+  layer that Rakko builds its command line on. [Clawless] turns mounted
+  actions into commands, with help text and shared output flags. Actions do
+  not depend on Clawless.
 - **Command** — The CLI projection of an action. Clawless generates one
   command for each mounted action. The command is not the action itself.
 - **Context** — The data that is relevant when an action runs. Today this is
@@ -97,6 +98,7 @@ from the design discussions to the terms that replaced them.
 
 | Retired                                | Replacement    | Reason                                                          |
 | -------------------------------------- | -------------- | --------------------------------------------------------------- |
+| chassis                                | Clawless       | A second name for the framework that Clawless already names.    |
 | core crate, framework crate, hub crate | contract crate | Four names were in use for the `rakko-action` crate.            |
 | descriptor, metadata object            | erased action  | Three names were in use for the registry view of an action.     |
 | host                                   | harness        | "Host" reads as the machine that programs run on.               |
