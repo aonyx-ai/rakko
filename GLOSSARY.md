@@ -68,6 +68,12 @@ from the design discussions to the terms that replaced them.
 - **Rakko** — This project: a toolkit that turns project maintenance into
   versioned Rust crates. The rakko (ラッコ) is the Japanese sea otter, the
   otter that keeps a pebble as its tool.
+- **Renderer** — The part of the machinery that turns the outcome of a run
+  into output. One renderer serves a reader at a terminal, one serves a
+  machine that reads JSON, and one serves the pull request of a CI run. A
+  renderer reads the outcome and nothing else, so a new output target costs a
+  renderer and changes no action. Clawless has a presenter, which is a
+  different part: it carries what a renderer produced to a stream.
 - **Renovate** — The update and rollout mechanism. [Renovate] opens pull
   requests for new action versions in `Cargo.toml`, and for new tool
   versions in `mise.toml`.

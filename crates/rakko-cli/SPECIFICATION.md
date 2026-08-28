@@ -49,6 +49,33 @@ The command line MUST show its help for a run that gives no argument.
 cli[command.output]
 The command line MUST carry the flags that control the output of a run.
 
+## Exit Code
+
+The exit code is what a CI job reads without parsing anything, so it is the
+contract between Rakko and every workflow that runs it. It answers one
+question, and the answer has three meanings: the project is clean, the project
+has a problem, or the run could not answer.
+
+An action that does not apply exits clean. A skip is an answer, and a bundle
+that mounts an action for a stack that a project does not use must not turn
+that project red.
+
+A run that could not answer takes the code that the parser already gives to a
+command line that it cannot read. A run that never reached an action and a run
+whose action stopped are the same event for whoever reads the result, and one
+code for both keeps the contract at three meanings instead of four.
+
+cli[exit.clean]
+A run whose action passed, and a run whose action does not apply, MUST exit
+with zero.
+
+cli[exit.findings]
+A run whose action found problems MUST exit with a nonzero code of its own.
+
+cli[exit.unanswered]
+A run whose action stopped MUST exit with a nonzero code that differs from the
+code for findings.
+
 ## Mount
 
 A harness mounts the actions that a project uses. It passes lists, and a list
@@ -76,6 +103,39 @@ cli[mount.collision]
 Two mounted actions with one name MUST stop the harness where it mounts them.
 The failure MUST report the name.
 
+## Report
+
+A run shows what its action found. The projection renders the outcome, and an
+action writes to no stream, so every project of the fleet reports in one shape
+and no action carries output code.
+
+A finding renders on one line, and that line starts with the location that the
+finding names. One line is what every granularity of a finding can produce,
+and it is what a reader greps. A block of source under that line, with the
+offending span marked, needs data that a finding does not carry.
+
+The result of a run is not an informational message, so the flags that reduce
+the output do not suppress it. A run reports the same result at every
+verbosity, and those flags reach the progress that a longer run reports later.
+
+The JSON that a run emits carries no compatibility promise yet. It says so in
+the payload, because the granularity of a finding is still open, and a schema
+that promises the shape of today's finding would break when that shape
+changes.
+
+cli[report.findings]
+A run whose action found problems MUST show every finding with its location.
+
+cli[report.skipped]
+A run whose action does not apply MUST show the reason.
+
+cli[report.errored]
+A run whose action stopped MUST show the error.
+
+cli[report.json]
+A run MUST render its outcome as JSON when the user asks for JSON, and that
+JSON MUST state that its schema is unstable.
+
 ## Run
 
 A run drives one action. The command that the user named resolves to the action
@@ -87,9 +147,8 @@ from. A user that runs the command from a subdirectory of a project therefore
 gets that subdirectory as the root, and finding the root of a project is a task
 of its own.
 
-A run shows nothing. The outcome of an action has no path to the output of the
-command line yet, so a run reports neither what an action found nor that it
-found nothing.
+What a run shows, and the code that it gives back to the process that started
+it, are the Report and the Exit Code sections of this document.
 
 cli[run.action]
 A run MUST drive the action that its command names.

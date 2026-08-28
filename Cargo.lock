@@ -413,6 +413,8 @@ dependencies = [
  "clap",
  "clawless",
  "rakko-action",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

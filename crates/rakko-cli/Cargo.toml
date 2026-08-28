@@ -10,6 +10,10 @@ rust-version.workspace = true
 clap = { workspace = true, features = ["string"] }
 clawless = { workspace = true }
 rakko-action = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [lints]
 workspace = true
