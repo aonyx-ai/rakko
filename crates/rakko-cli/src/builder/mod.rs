@@ -3,16 +3,33 @@ mod registry;
 
 use std::error::Error;
 use std::ffi::OsString;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 use clap::error::ErrorKind;
 use clap::{ArgMatches, Command};
 use clawless::output::OutputFlags;
 use clawless::runner::CommandRunner;
-use rakko_action::{ArgsValues, Context, ErasedAction, ProjectRoot};
+use rakko_action::{ArgsValues, Context, ErasedAction, Outcome, ProjectRoot};
 use registry::Registry;
+
+use crate::report::Report;
 
 /// The description that the command line shows above its help
 const ABOUT: &str = "Runs the maintenance actions of this project";
+
+/// The code that a run gives back when the project is clean
+const EXIT_CLEAN: u8 = 0;
+
+/// The code that a run gives back when its action found problems
+const EXIT_FINDINGS: u8 = 1;
+
+/// The code that a run gives back when it could not get an answer
+///
+/// The parser gives this code to a command line that it cannot read. A run
+/// that never reached an action and a run whose action stopped are the same
+/// event for whoever reads the result, so one code covers both.
+const EXIT_UNANSWERED: u8 = 2;
 
 /// The name that the command line carries
 ///
@@ -99,6 +116,9 @@ impl Builder {
     /// A request for help, and a request that the command line cannot read,
     /// end the process in this method. The user gets the message of the parser
     /// and the process gets an exit code.
+    ///
+    /// The method ends the process itself, so that a harness stays a `main`
+    /// that names what the project mounts and returns nothing.
     // cli[impl builder.run]
     pub fn run(self) {
         let (matches, action) = match self.resolve(std::env::args_os()) {
@@ -106,12 +126,13 @@ impl Builder {
             Err(error) => error.exit(),
         };
 
-        if let Err(error) = dispatch(matches, action) {
-            clap::Error::raw(
+        match dispatch(matches, action) {
+            Ok(code) => std::process::exit(i32::from(code)),
+            Err(error) => clap::Error::raw(
                 ErrorKind::Io,
                 format!("failed to run the action: {error}\n"),
             )
-            .exit();
+            .exit(),
         }
     }
 
@@ -171,29 +192,61 @@ impl Builder {
     }
 }
 
-/// Runs one action through the chassis
+/// Runs one action through the chassis and returns the code of the run
 ///
 /// The chassis builds the context of a command, and this function turns that
 /// context into the context of an action. The project root is the directory
 /// that the user ran the command from.
 ///
-/// The outcome of the action has no path to the output yet, so a run reports
-/// nothing and the process exits with the code of a run that parsed.
+/// What the action returned reaches the reader as one report, and the chassis
+/// decides whether that report renders as text or as JSON. The report travels
+/// as the result of the command and not as a message, so the flags that reduce
+/// the output do not suppress what the run found.
 ///
 /// # Errors
 ///
 /// Returns the error of the chassis when it cannot build the context of a
-/// command, and when it cannot start the runtime that drives the action.
+/// command, when it cannot start the runtime that drives the action, and when
+/// the report cannot reach the reader.
 // cli[impl run.action]
-fn dispatch(matches: ArgMatches, action: Box<dyn ErasedAction>) -> Result<(), Box<dyn Error>> {
+fn dispatch(matches: ArgMatches, action: Box<dyn ErasedAction>) -> Result<u8, Box<dyn Error>> {
+    let code = Arc::new(AtomicU8::new(EXIT_UNANSWERED));
+    let reported = Arc::clone(&code);
+
     CommandRunner::run(matches, move |_matches, context| async move {
         let root = ProjectRoot::new(context.current_working_directory().get().to_path_buf());
-        let context = Context::builder().root(root).build();
+        let project = Context::builder().root(root).build();
 
-        let _outcome = action.run(&context, &ArgsValues::empty()).await;
+        let name = action.name();
+        let outcome = action.run(&project, &ArgsValues::empty()).await;
+
+        reported.store(exit_code(&outcome), Ordering::SeqCst);
+
+        context
+            .output()
+            .artifact(Report::new(name, outcome))
+            .await?;
 
         Ok(())
-    })
+    })?;
+
+    Ok(code.load(Ordering::SeqCst))
+}
+
+/// Returns the code that a run gives back for the given outcome
+///
+/// A run that does not apply is clean, because a skip is an answer: a bundle
+/// that mounts an action for a stack that a project does not use must not turn
+/// that project red.
+// cli[impl exit.clean]
+// cli[impl exit.findings]
+// cli[impl exit.unanswered]
+fn exit_code(outcome: &Outcome) -> u8 {
+    match outcome {
+        Outcome::Passed | Outcome::Skipped { .. } => EXIT_CLEAN,
+        Outcome::Failed { .. } => EXIT_FINDINGS,
+        Outcome::Errored { .. } => EXIT_UNANSWERED,
+    }
 }
 
 #[cfg(test)]
@@ -202,28 +255,38 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::AtomicBool;
 
-    use rakko_action::{Action, Name, Outcome};
+    use rakko_action::{Action, Name, SkipReason};
 
     use super::*;
 
-    /// An action that passes and records that it ran
+    /// An action that records that it ran and reports what a test asked for
     struct Probe {
         /// The name that identifies this action
         name: Name,
         /// Whether a run of this action happened
         ran: Arc<AtomicBool>,
+        /// What a run of this action reports
+        ///
+        /// An outcome cannot be cloned, and a run borrows the action, so the
+        /// action holds a function that builds a fresh outcome per run.
+        outcome: fn() -> Outcome,
     }
 
     impl Probe {
         /// Creates an action with the given name, and the flag that it sets
         fn new(name: &str) -> (Self, Arc<AtomicBool>) {
+            Self::reporting(name, || Outcome::Passed)
+        }
+
+        /// Creates an action that reports what the given function builds
+        fn reporting(name: &str, outcome: fn() -> Outcome) -> (Self, Arc<AtomicBool>) {
             let ran = Arc::new(AtomicBool::new(false));
             let probe = Self {
                 name: name.parse().expect("the test names an action correctly"),
                 ran: Arc::clone(&ran),
+                outcome,
             };
 
             (probe, ran)
@@ -240,8 +303,16 @@ mod tests {
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
             self.ran.store(true, Ordering::SeqCst);
 
-            Outcome::Passed
+            (self.outcome)()
         }
+    }
+
+    /// Returns the code that a run of an action reporting `outcome` gives back
+    fn code_for(outcome: fn() -> Outcome) -> u8 {
+        let matches = OutputFlags::augment_command(Command::new(NAME)).get_matches_from(["rakko"]);
+        let (probe, _ran) = Probe::reporting("probe", outcome);
+
+        dispatch(matches, Box::new(probe)).expect("expected the chassis to drive the action")
     }
 
     /// Returns the kind of the error that a run of the given arguments gives
@@ -293,6 +364,57 @@ mod tests {
                 .iter()
                 .all(|flag| flags.contains(flag))
         );
+    }
+
+    // cli[verify exit.findings]
+    #[test]
+    fn dispatch_reports_a_nonzero_code_for_an_action_that_found_problems() {
+        let code = code_for(|| Outcome::Failed {
+            findings: Vec::new(),
+        });
+
+        assert_ne!(code, 0);
+    }
+
+    // cli[verify exit.unanswered]
+    #[test]
+    fn dispatch_reports_another_code_for_an_action_that_stopped() {
+        let findings = code_for(|| Outcome::Failed {
+            findings: Vec::new(),
+        });
+        let stopped = code_for(|| Outcome::Errored {
+            source: Box::new(std::io::Error::other("boom")),
+        });
+
+        assert_ne!(findings, stopped);
+    }
+
+    // cli[verify exit.unanswered]
+    #[test]
+    fn dispatch_reports_a_nonzero_code_for_an_action_that_stopped() {
+        let code = code_for(|| Outcome::Errored {
+            source: Box::new(std::io::Error::other("boom")),
+        });
+
+        assert_ne!(code, 0);
+    }
+
+    // cli[verify exit.clean]
+    #[test]
+    fn dispatch_reports_zero_for_a_passed_action() {
+        let code = code_for(|| Outcome::Passed);
+
+        assert_eq!(code, 0);
+    }
+
+    // cli[verify exit.clean]
+    #[test]
+    fn dispatch_reports_zero_for_an_action_that_does_not_apply() {
+        let code = code_for(|| Outcome::Skipped {
+            reason: SkipReason::new("this project has no TOML file"),
+        });
+
+        assert_eq!(code, 0);
     }
 
     // cli[verify run.action]

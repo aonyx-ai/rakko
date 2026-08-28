@@ -23,5 +23,7 @@
 
 /// The command line that a harness builds and runs
 mod builder;
+/// What a run reports about the action that it drove
+mod report;
 
 pub use builder::{Builder, builder};
