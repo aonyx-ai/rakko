@@ -228,6 +228,18 @@ reads, not how a user writes it, because the shape of a command line is the
 same for every action and belongs to the projection. The description holds
 what every argument has, and it grows when an action needs to say more.
 
+An argument has a name, a shape, and documentation, and it has all three. The
+shape says what kind of value the argument holds, and the documentation is the
+sentence that a user reads. The set of shapes is closed: every projection
+renders every shape, so a shape that a projection cannot render stops the
+build of that projection and not a run. A new shape is a breaking release of
+this crate, and that is what the guarantee costs.
+
+The description carries no default, and it does not say that an argument is
+required. The values of a run record what the user said, and the argument set
+decides what an absent value means, so a scheduler, a test, and a command line
+read the rules of the action and not the rules of a parser.
+
 action[args.schema]
 An argument set MUST describe the arguments that it holds, in the order that
 the action declares them. The description MUST be available without a value of
@@ -236,6 +248,14 @@ the argument set.
 action[args.argument]
 The description of one argument MUST give the name that identifies the
 argument.
+
+action[args.shape]
+The description of one argument MUST give the shape of the value that the
+argument holds. The shapes MUST be a value that is true or false, a whole
+number, the path of a file or of a directory, and a line of text.
+
+action[args.documentation]
+The description of one argument MUST give the documentation of the argument.
 
 action[args.values]
 An argument set MUST build itself from the values that a run holds. The run

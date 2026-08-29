@@ -6,7 +6,7 @@ pub mod schema;
 pub mod values;
 
 pub use self::error::ReadArgsError;
-pub use self::schema::{ArgsSchema, Argument, ArgumentName};
+pub use self::schema::{ArgsSchema, Argument, ArgumentName, ArgumentShape, Documentation};
 pub use self::values::{ArgsValues, ArgumentValue};
 
 /// The arguments that a run of an action reads
@@ -28,7 +28,9 @@ pub use self::values::{ArgsValues, ArgumentValue};
 /// # Examples
 ///
 /// ```
-/// use rakko_action::{Args, ArgsSchema, ArgsValues, Argument, ArgumentName, ReadArgsError};
+/// use rakko_action::{
+///     Args, ArgsSchema, ArgsValues, Argument, ArgumentName, ArgumentShape, ReadArgsError,
+/// };
 ///
 /// struct FormatArgs {
 ///     fix: bool,
@@ -36,7 +38,11 @@ pub use self::values::{ArgsValues, ArgumentValue};
 ///
 /// impl Args for FormatArgs {
 ///     fn schema() -> ArgsSchema {
-///         ArgsSchema::new([Argument::new("fix")])
+///         ArgsSchema::new([Argument::builder()
+///             .name("fix")
+///             .shape(ArgumentShape::Boolean)
+///             .documentation("Rewrite the files that the formatter can format")
+///             .build()])
 ///     }
 ///
 ///     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {

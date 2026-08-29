@@ -3,7 +3,7 @@ mod argument;
 
 use getset::Getters;
 
-pub use self::argument::{Argument, ArgumentName};
+pub use self::argument::{Argument, ArgumentName, ArgumentShape, Documentation};
 
 /// The description of the arguments that an action reads
 ///
@@ -50,8 +50,13 @@ mod tests {
 
     use super::*;
 
+    /// Returns the description of an argument with the given name
     fn argument(name: &str) -> Argument {
-        Argument::new(name)
+        Argument::builder()
+            .name(name)
+            .shape(ArgumentShape::Boolean)
+            .documentation("Rewrite the files that the tool can format")
+            .build()
     }
 
     // action[verify args.empty]

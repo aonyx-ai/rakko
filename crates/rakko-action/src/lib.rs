@@ -29,7 +29,8 @@ pub mod outcome;
 
 pub use self::action::Action;
 pub use self::args::{
-    Args, ArgsSchema, ArgsValues, Argument, ArgumentName, ArgumentValue, ReadArgsError,
+    Args, ArgsSchema, ArgsValues, Argument, ArgumentName, ArgumentShape, ArgumentValue,
+    Documentation, ReadArgsError,
 };
 pub use self::context::{CacheDirectory, ConfigDirectory, Context, Layout, ProjectRoot};
 pub use self::erased_action::ErasedAction;

@@ -115,7 +115,7 @@ mod tests {
 
     use super::*;
     use crate::action_name;
-    use crate::args::{Argument, ArgumentName, ReadArgsError};
+    use crate::args::{Argument, ArgumentName, ArgumentShape, ReadArgsError};
 
     /// An action that reads no arguments and passes
     struct Probe;
@@ -137,7 +137,11 @@ mod tests {
 
     impl Args for Unreadable {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([Argument::new("fix")])
+            ArgsSchema::new([Argument::builder()
+                .name("fix")
+                .shape(ArgumentShape::Boolean)
+                .documentation("Rewrite the files that the tool can format")
+                .build()])
         }
 
         fn from_values(_values: &ArgsValues) -> Result<Self, ReadArgsError> {
