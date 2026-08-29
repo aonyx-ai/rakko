@@ -26,6 +26,13 @@ const EXIT_CLEAN: u8 = 0;
 /// The code that a run gives back when its action found problems
 const EXIT_FINDINGS: u8 = 1;
 
+/// The code that a run gives back when its action repaired the project
+///
+/// A repair is not clean, because the run rewrote files and whoever started it
+/// holds a working tree that they did not have before. It is not a problem
+/// either, because nothing is left to fix.
+const EXIT_CHANGED: u8 = 3;
+
 /// The code that a run gives back when it could not get an answer
 ///
 /// The parser gives this code to a command line that it cannot read. A run
@@ -266,13 +273,16 @@ fn dispatch(matches: ArgMatches, action: Box<dyn ErasedAction>) -> Result<u8, Bo
 ///
 /// A run that does not apply is clean, because a skip is an answer: a bundle
 /// that mounts an action for a stack that a project does not use must not turn
-/// that project red.
+/// that project red. A run that repaired some of what it found still has a
+/// problem, so it takes the code for a problem.
 // cli[impl exit.clean]
+// cli[impl exit.changed]
 // cli[impl exit.findings]
 // cli[impl exit.unanswered]
 fn exit_code(outcome: &Outcome) -> u8 {
     match outcome {
         Outcome::Passed | Outcome::Skipped { .. } => EXIT_CLEAN,
+        Outcome::Changed { .. } => EXIT_CHANGED,
         Outcome::Failed { .. } => EXIT_FINDINGS,
         Outcome::Errored { .. } => EXIT_UNANSWERED,
     }
@@ -458,9 +468,37 @@ mod tests {
     fn dispatch_reports_a_nonzero_code_for_an_action_that_found_problems() {
         let code = code_for(|| Outcome::Failed {
             findings: Vec::new(),
+            repairs: Vec::new(),
         });
 
         assert_ne!(code, 0);
+    }
+
+    // cli[verify exit.changed]
+    #[test]
+    fn dispatch_reports_a_nonzero_code_for_an_action_that_repaired_the_project() {
+        let code = code_for(|| Outcome::Changed {
+            repairs: Vec::new(),
+        });
+
+        assert_ne!(code, 0);
+    }
+
+    // cli[verify exit.changed]
+    #[test]
+    fn dispatch_reports_another_code_for_an_action_that_repaired_the_project() {
+        let changed = code_for(|| Outcome::Changed {
+            repairs: Vec::new(),
+        });
+        let findings = code_for(|| Outcome::Failed {
+            findings: Vec::new(),
+            repairs: Vec::new(),
+        });
+        let stopped = code_for(|| Outcome::Errored {
+            source: Box::new(std::io::Error::other("boom")),
+        });
+
+        assert!(changed != findings && changed != stopped);
     }
 
     // cli[verify exit.unanswered]
@@ -468,6 +506,7 @@ mod tests {
     fn dispatch_reports_another_code_for_an_action_that_stopped() {
         let findings = code_for(|| Outcome::Failed {
             findings: Vec::new(),
+            repairs: Vec::new(),
         });
         let stopped = code_for(|| Outcome::Errored {
             source: Box::new(std::io::Error::other("boom")),

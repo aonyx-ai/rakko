@@ -64,9 +64,10 @@ pub trait Action: Send + Sync {
     ///
     /// The method returns a future, and the caller drives that future to get
     /// the [`Outcome`]. The run reports every result in the outcome: problems
-    /// travel as findings in [`Outcome::Failed`], and an error that stops the
-    /// run travels in [`Outcome::Errored`]. The method itself has no error
-    /// type.
+    /// travel as findings in [`Outcome::Failed`], problems that the action
+    /// repaired travel as repairs in [`Outcome::Changed`], and an error that
+    /// stops the run travels in [`Outcome::Errored`]. The method itself has no
+    /// error type.
     // action[impl run.outcome]
     // action[impl run.wait]
     // action[impl run.send]

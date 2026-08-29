@@ -53,21 +53,34 @@ The command line MUST carry the flags that control the output of a run.
 
 The exit code is what a CI job reads without parsing anything, so it is the
 contract between Rakko and every workflow that runs it. It answers one
-question, and the answer has three meanings: the project is clean, the project
-has a problem, or the run could not answer.
+question, and the answer has four meanings: the project is clean, the run
+repaired the project, the project has a problem, or the run could not answer.
 
 An action that does not apply exits clean. A skip is an answer, and a bundle
 that mounts an action for a stack that a project does not use must not turn
 that project red.
 
+A run that repaired the project gets a code of its own, because neither of the
+codes next to it says what happened. The run is not clean. It rewrote files,
+and whoever started it holds a working tree that they did not have before, so
+a hook that guards a commit must stop that commit and show them the change.
+The run did not find a problem either. Nothing is left to fix, and a caller
+that reads the code can tell a repair from the work that it must do by hand. A
+run that repaired some of what it found still has a problem, and it takes the
+code for a problem.
+
 A run that could not answer takes the code that the parser already gives to a
 command line that it cannot read. A run that never reached an action and a run
-whose action stopped are the same event for whoever reads the result, and one
-code for both keeps the contract at three meanings instead of four.
+whose action stopped are the same event for whoever reads the result, so one
+code covers both.
 
 cli[exit.clean]
 A run whose action passed, and a run whose action does not apply, MUST exit
 with zero.
+
+cli[exit.changed]
+A run whose action repaired the project MUST exit with a nonzero code that
+differs from the code for findings and from the code for a run that stopped.
 
 cli[exit.findings]
 A run whose action found problems MUST exit with a nonzero code of its own.
@@ -146,6 +159,11 @@ finding names. One line is what every granularity of a finding can produce,
 and it is what a reader greps. A block of source under that line, with the
 offending span marked, needs data that a finding does not carry.
 
+A repair renders as a finding does, because it is the problem that the run
+took away. A run that repaired some of the problems that it found shows its
+repairs first. The problems that remain follow them, so that the lines a
+reader has to act on sit next to the summary.
+
 The result of a run is not an informational message, so the flags that reduce
 the output do not suppress it. A run reports the same result at every
 verbosity, and those flags reach the progress that a longer run reports later.
@@ -157,6 +175,11 @@ changes.
 
 cli[report.findings]
 A run whose action found problems MUST show every finding with its location.
+
+cli[report.repairs]
+A run whose action repaired the project MUST show every repair with its
+location. A run whose action repaired some of the problems that it found MUST
+show the repairs and the problems that remain.
 
 cli[report.skipped]
 A run whose action does not apply MUST show the reason.

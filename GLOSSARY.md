@@ -61,8 +61,8 @@ from the design discussions to the terms that replaced them.
 - **Mount** — To register actions or bundles in the CLI of a harness. The
   harness names what it mounts, in code.
 - **Outcome** — The result of one action run. An outcome tells whether the
-  action passed, failed with findings, skipped as not applicable, or stopped
-  with an error.
+  action passed, changed the project by repairing everything that it found,
+  failed with findings, skipped as not applicable, or stopped with an error.
 - **Project** — The unit that Rakko maintains: a directory tree with its own
   tools, actions, and harness. A project is usually a Git repository, but
   Rakko does not require one. A project marks its root with
@@ -83,6 +83,11 @@ from the design discussions to the terms that replaced them.
 - **Renovate** — The update and rollout mechanism. [Renovate] opens pull
   requests for new action versions in `Cargo.toml`, and for new tool
   versions in `mise.toml`.
+- **Repair** — One problem that an action found in the project and corrected,
+  with its location. A repair takes the shape of a finding, because it is the
+  problem that the project no longer has. Repairs travel in the outcome of an
+  action run, whether the action repaired everything that it found or only
+  part of it.
 - **Rollout** — The propagation of a bundle release across the fleet. Each
   project receives a Renovate pull request, and the CI result of that pull
   request shows whether the project complies.

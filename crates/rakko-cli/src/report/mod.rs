@@ -38,6 +38,7 @@ impl Report {
 }
 
 // cli[impl report.findings]
+// cli[impl report.repairs]
 // cli[impl report.skipped]
 // cli[impl report.errored]
 impl fmt::Display for Report {

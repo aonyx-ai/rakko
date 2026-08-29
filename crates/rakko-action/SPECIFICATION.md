@@ -173,18 +173,35 @@ A finding MUST give the location of the problem.
 
 ## Outcome
 
-An outcome is the result of one action run. It has one of four states: the
-action passed, the action failed, the action does not apply, or the action
-stopped. The machinery maps each state to output and to an exit code. A
-scheduler runs actions in parallel, so an outcome travels between threads.
+An outcome is the result of one action run. It has one of five states: the
+action passed, the action changed the project, the action failed, the action
+does not apply, or the action stopped. The machinery maps each state to output
+and to an exit code. A scheduler runs actions in parallel, so an outcome
+travels between threads.
+
+An action that repairs a problem instead of reporting it ends in one of two of
+those states. It changed the project when it repaired every problem that it
+found, and it failed when a problem remains. Both states hold the repairs. A
+run that rewrote a file changed the working tree of whoever started it, and a
+result that says nothing about that change leaves them to find it in a diff. A
+repair is a problem that the project no longer has, so it takes the same shape
+as a finding.
 
 action[outcome.passed]
 An outcome MUST have a state for an action that examined the project and found
 no problem.
 
+action[outcome.changed]
+An outcome MUST have a state for an action that found problems and repaired
+all of them. This state MUST hold the repairs.
+
 action[outcome.failed]
 An outcome MUST have a state for an action that found problems. This state
 MUST hold the findings.
+
+action[outcome.repairs]
+The state for an action that found problems MUST hold the repairs that the
+action made, together with the problems that remain.
 
 action[outcome.skipped]
 An outcome MUST have a state for an action that does not apply to the project.
