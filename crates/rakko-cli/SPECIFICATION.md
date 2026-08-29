@@ -19,6 +19,52 @@ implements or tests a requirement references the identifier in a comment.
 [Tracey] checks that every requirement is implemented and tested. The key word
 MUST has the meaning that [RFC 2119] defines.
 
+## Arguments
+
+An action declares the arguments that it reads, and the projection turns each
+of them into a flag. One projection builds the flags of every action, so a
+user who learns the shape of one command knows the shape of all of them.
+
+Every argument becomes a long flag that carries the name of the argument. The
+projection gives no short flag, because one letter is a name that only one
+argument in the whole fleet can hold, and no action has a claim on it.
+
+The command line gives the action what the user wrote, as text. It tests that
+a number is a number, so that a user who wrote something else reads the usage
+message of the command line instead of an error from the action. Every other
+rule that a value must satisfy belongs to the action, which reports it.
+
+A flag that the user left out gives the action no value. The action decides
+what an absent value means, so a run from a command line and a run from a
+test read the same rules.
+
+cli[argument.flag]
+The command of an action MUST carry one long flag for each argument of that
+action, and the name of the flag MUST be the name of the argument.
+
+cli[argument.help]
+The flag of an argument MUST show the documentation of the argument.
+
+cli[argument.switch]
+The flag of an argument that holds a value that is true or false MUST take no
+value.
+
+cli[argument.value]
+The flag of an argument that holds a whole number, a path, or a text MUST take
+a value, and MUST name that value after the argument.
+
+cli[argument.integer]
+The command line MUST refuse a value that is not a whole number for an
+argument that holds a whole number.
+
+cli[argument.values]
+A run MUST give its action the value of every flag that the user gave. The
+value of a flag that holds a value that is true or false MUST say that it is
+true, and every other value MUST be the text that the user wrote.
+
+cli[argument.absent]
+A run MUST give its action no value for a flag that the user left out.
+
 ## Builder
 
 A harness builds its command line with a builder. The harness creates the
@@ -105,6 +151,12 @@ such an overlap ordinary. A name must mean one action, and a harness that
 mounts one name twice has a defect that only a change of its own code corrects.
 The mount is therefore where the conflict stops.
 
+The command line carries flags of its own, and a user reaches every one of
+them in the command of an action. An action that declares an argument with the
+name of such a flag takes a name that means something else in every other
+command of the fleet, and the command line cannot carry both. That conflict is
+a defect of the action, and the mount stops it as well.
+
 cli[mount.list]
 The builder MUST accept a list of erased actions, and MUST give each action of
 that list a command.
@@ -115,6 +167,11 @@ The command tree MUST be flat. The command of an action MUST hold no command.
 cli[mount.collision]
 Two mounted actions with one name MUST stop the harness where it mounts them.
 The failure MUST report the name.
+
+cli[mount.reserved]
+A mounted action whose argument carries the name of a flag of the command line
+MUST stop the harness where it mounts the action. The failure MUST report the
+action and the argument.
 
 ## Project Root
 
