@@ -8,9 +8,15 @@ use crate::finding::Finding;
 
 /// The result of one action run
 ///
-/// An outcome has one of four states: the action passed, the action failed, the
-/// action does not apply, or the action stopped. The machinery maps each state
-/// to output and to an exit code.
+/// An outcome has one of five states: the action passed, the action changed the
+/// project, the action failed, the action does not apply, or the action
+/// stopped. The machinery maps each state to output and to an exit code.
+///
+/// An action that repairs a problem instead of reporting it ends in one of two
+/// of those states. It changed the project when it repaired every problem that
+/// it found, and it failed when a problem remains. Both states hold the
+/// repairs, so that whoever started the run learns what it rewrote instead of
+/// finding it in a diff.
 // action[impl outcome.send]
 // action[impl outcome.sync]
 #[derive(Debug)]
@@ -18,13 +24,30 @@ pub enum Outcome {
     /// The action examined the project and found no problem
     // action[impl outcome.passed]
     Passed,
+    /// The action found problems in the project and repaired all of them
+    ///
+    /// This state holds one [`Finding`] for each problem that the action
+    /// repaired. The project is clean now, and the working tree of whoever
+    /// started the run differs from what they had before it.
+    // action[impl outcome.changed]
+    Changed {
+        /// The problems that the action repaired
+        repairs: Vec<Finding>,
+    },
     /// The action found problems in the project
     ///
-    /// This state holds every [`Finding`] that the action produced.
+    /// This state holds every [`Finding`] that the action produced. An action
+    /// that repairs what it finds reports the problems that remain here, and
+    /// the ones that it repaired alongside them.
     // action[impl outcome.failed]
+    // action[impl outcome.repairs]
     Failed {
         /// The findings that the action produced
         findings: Vec<Finding>,
+        /// The problems that the action repaired
+        ///
+        /// An action that repairs nothing leaves this list empty.
+        repairs: Vec<Finding>,
     },
     /// The action does not apply to the project
     ///
@@ -56,6 +79,28 @@ mod tests {
     fn assert_send<T: Send>() {}
     fn assert_sync<T: Sync>() {}
 
+    // action[verify outcome.changed]
+    #[test]
+    fn changed_variant_holds_repairs() {
+        let location = Location::File {
+            path: FilePath::try_from("deny.toml").unwrap(),
+        };
+        let repair = Finding::builder()
+            .message("the file was not formatted")
+            .location(location)
+            .build();
+        let expected = vec![repair.clone()];
+
+        let outcome = Outcome::Changed {
+            repairs: vec![repair],
+        };
+
+        let Outcome::Changed { repairs } = outcome else {
+            panic!("expected Changed variant");
+        };
+        assert_eq!(repairs, expected);
+    }
+
     // action[verify outcome.errored]
     #[test]
     fn errored_variant_holds_error() {
@@ -83,12 +128,36 @@ mod tests {
 
         let outcome = Outcome::Failed {
             findings: vec![finding],
+            repairs: Vec::new(),
         };
 
-        let Outcome::Failed { findings } = outcome else {
+        let Outcome::Failed { findings, .. } = outcome else {
             panic!("expected Failed variant");
         };
         assert_eq!(findings, expected);
+    }
+
+    // action[verify outcome.repairs]
+    #[test]
+    fn failed_variant_holds_repairs() {
+        let location = Location::File {
+            path: FilePath::try_from("deny.toml").unwrap(),
+        };
+        let repair = Finding::builder()
+            .message("the file was not formatted")
+            .location(location)
+            .build();
+        let expected = vec![repair.clone()];
+
+        let outcome = Outcome::Failed {
+            findings: Vec::new(),
+            repairs: vec![repair],
+        };
+
+        let Outcome::Failed { repairs, .. } = outcome else {
+            panic!("expected Failed variant");
+        };
+        assert_eq!(repairs, expected);
     }
 
     // action[verify outcome.send]

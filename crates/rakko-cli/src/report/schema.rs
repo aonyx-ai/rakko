@@ -31,8 +31,13 @@ pub(super) struct Payload<'a> {
     /// The error that stopped the action, when it stopped
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
-    /// The problems that the action found
+    /// The problems that the action found and left in the project
     findings: Vec<FindingPayload<'a>>,
+    /// The problems that the action found and repaired
+    ///
+    /// A run that repaired nothing carries an empty list, so a consumer reads
+    /// the same field whatever the state was.
+    repairs: Vec<FindingPayload<'a>>,
 }
 
 impl<'a> Payload<'a> {
@@ -50,8 +55,13 @@ impl<'a> Payload<'a> {
                 error: Some(source.to_string()),
                 ..Self::new(action, "errored")
             },
-            Outcome::Failed { findings } => Self {
+            Outcome::Changed { repairs } => Self {
+                repairs: repairs.iter().map(FindingPayload::of).collect(),
+                ..Self::new(action, "changed")
+            },
+            Outcome::Failed { findings, repairs } => Self {
                 findings: findings.iter().map(FindingPayload::of).collect(),
+                repairs: repairs.iter().map(FindingPayload::of).collect(),
                 ..Self::new(action, "failed")
             },
         }
@@ -69,6 +79,7 @@ impl<'a> Payload<'a> {
             reason: None,
             error: None,
             findings: Vec::new(),
+            repairs: Vec::new(),
         }
     }
 }
@@ -185,6 +196,7 @@ mod tests {
                     .location(location)
                     .build(),
             ],
+            repairs: Vec::new(),
         }
     }
 
@@ -207,7 +219,28 @@ mod tests {
 
         assert_eq!(
             json,
-            r#"{"schema":"unstable","action":"probe","outcome":"errored","error":"failed to read Cargo.toml","findings":[]}"#
+            r#"{"schema":"unstable","action":"probe","outcome":"errored","error":"failed to read Cargo.toml","findings":[],"repairs":[]}"#
+        );
+    }
+
+    // cli[verify report.json]
+    #[test]
+    fn payload_of_changed_outcome_carries_every_repair() {
+        let json = payload(Outcome::Changed {
+            repairs: vec![
+                Finding::builder()
+                    .message("the file was not formatted")
+                    .location(Location::File {
+                        path: FilePath::try_from("deny.toml")
+                            .expect("the test names a relative path"),
+                    })
+                    .build(),
+            ],
+        });
+
+        assert_eq!(
+            json,
+            r#"{"schema":"unstable","action":"probe","outcome":"changed","findings":[],"repairs":[{"level":"file","path":"deny.toml","message":"the file was not formatted"}]}"#
         );
     }
 
@@ -240,7 +273,37 @@ mod tests {
 
         assert_eq!(
             json,
-            r#"{"schema":"unstable","action":"probe","outcome":"failed","findings":[{"level":"position","path":"deny.toml","line":3,"column":1,"message":"the license is not allowlisted"}]}"#
+            r#"{"schema":"unstable","action":"probe","outcome":"failed","findings":[{"level":"position","path":"deny.toml","line":3,"column":1,"message":"the license is not allowlisted"}],"repairs":[]}"#
+        );
+    }
+
+    // cli[verify report.json]
+    #[test]
+    fn payload_of_failed_outcome_carries_the_repairs_beside_the_findings() {
+        let json = payload(Outcome::Failed {
+            findings: vec![
+                Finding::builder()
+                    .message("the file is not formatted")
+                    .location(Location::File {
+                        path: FilePath::try_from("Cargo.lock")
+                            .expect("the test names a relative path"),
+                    })
+                    .build(),
+            ],
+            repairs: vec![
+                Finding::builder()
+                    .message("the file was not formatted")
+                    .location(Location::File {
+                        path: FilePath::try_from("deny.toml")
+                            .expect("the test names a relative path"),
+                    })
+                    .build(),
+            ],
+        });
+
+        assert_eq!(
+            json,
+            r#"{"schema":"unstable","action":"probe","outcome":"failed","findings":[{"level":"file","path":"Cargo.lock","message":"the file is not formatted"}],"repairs":[{"level":"file","path":"deny.toml","message":"the file was not formatted"}]}"#
         );
     }
 
@@ -293,7 +356,7 @@ mod tests {
 
         assert_eq!(
             json,
-            r#"{"schema":"unstable","action":"probe","outcome":"passed","findings":[]}"#
+            r#"{"schema":"unstable","action":"probe","outcome":"passed","findings":[],"repairs":[]}"#
         );
     }
 
@@ -306,7 +369,7 @@ mod tests {
 
         assert_eq!(
             json,
-            r#"{"schema":"unstable","action":"probe","outcome":"skipped","reason":"this project has no TOML file","findings":[]}"#
+            r#"{"schema":"unstable","action":"probe","outcome":"skipped","reason":"this project has no TOML file","findings":[],"repairs":[]}"#
         );
     }
 }

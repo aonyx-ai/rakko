@@ -10,6 +10,11 @@ use super::Report;
 /// finding names. One line is what a finding of any granularity can produce,
 /// and it is the form that a reader greps and that an editor jumps to.
 ///
+/// A repair takes the same line, because it is the problem that the run took
+/// away. A run that repaired part of what it found writes its repairs first.
+/// The problems that remain follow them, so that the lines a reader has to act
+/// on sit next to the summary.
+///
 /// # Errors
 ///
 /// Returns the error of the formatter when the formatter cannot take what the
@@ -34,17 +39,60 @@ pub(super) fn render(report: &Report, formatter: &mut fmt::Formatter<'_>) -> fmt
 
             Ok(())
         }
-        Outcome::Failed { findings } => {
-            for finding in findings {
-                render_finding(finding, formatter)?;
+        Outcome::Changed { repairs } => {
+            render_findings(repairs, formatter)?;
+
+            write!(formatter, "{action}: ")?;
+            render_count(repairs.len(), "repair", formatter)
+        }
+        Outcome::Failed { findings, repairs } => {
+            render_findings(repairs, formatter)?;
+            render_findings(findings, formatter)?;
+
+            write!(formatter, "{action}: ")?;
+            render_count(findings.len(), "finding", formatter)?;
+
+            if !repairs.is_empty() {
+                write!(formatter, ", ")?;
+                render_count(repairs.len(), "repair", formatter)?;
             }
 
-            let count = findings.len();
-            let noun = if count == 1 { "finding" } else { "findings" };
-
-            write!(formatter, "{action}: {count} {noun}")
+            Ok(())
         }
     }
+}
+
+/// Writes each finding of a list on a line of its own
+///
+/// # Errors
+///
+/// Returns the error of the formatter when the formatter cannot take what a
+/// finding writes.
+fn render_findings(findings: &[Finding], formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+    for finding in findings {
+        render_finding(finding, formatter)?;
+    }
+
+    Ok(())
+}
+
+/// Writes how many of something a run reported, and the noun that names it
+///
+/// The noun stands in the singular, and a count of anything other than one
+/// gets the plural of that noun.
+///
+/// # Errors
+///
+/// Returns the error of the formatter when the formatter cannot take what the
+/// count writes.
+fn render_count(count: usize, noun: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(formatter, "{count} {noun}")?;
+
+    if count != 1 {
+        write!(formatter, "s")?;
+    }
+
+    Ok(())
 }
 
 /// Writes one finding as the line that names where the problem is
@@ -131,6 +179,49 @@ mod tests {
         Report::new("probe".parse().expect("the test names an action"), outcome).to_string()
     }
 
+    // cli[verify report.repairs]
+    #[test]
+    fn render_changed_outcome_reports_every_repair_with_its_location() {
+        let text = rendered(Outcome::Changed {
+            repairs: vec![
+                finding(
+                    Location::File {
+                        path: file("deny.toml"),
+                    },
+                    "the file was not formatted",
+                ),
+                finding(
+                    Location::File {
+                        path: file("Cargo.toml"),
+                    },
+                    "the file was not formatted",
+                ),
+            ],
+        });
+
+        assert_eq!(
+            text,
+            "deny.toml: the file was not formatted\n\
+             Cargo.toml: the file was not formatted\n\
+             probe: 2 repairs"
+        );
+    }
+
+    // cli[verify report.repairs]
+    #[test]
+    fn render_changed_outcome_with_one_repair_reports_it_in_the_singular() {
+        let text = rendered(Outcome::Changed {
+            repairs: vec![finding(
+                Location::File {
+                    path: file("deny.toml"),
+                },
+                "the file was not formatted",
+            )],
+        });
+
+        assert!(text.ends_with("probe: 1 repair"));
+    }
+
     // cli[verify report.errored]
     #[test]
     fn render_errored_outcome_reports_the_error() {
@@ -160,6 +251,7 @@ mod tests {
                     "the file is not formatted",
                 ),
             ],
+            repairs: Vec::new(),
         });
 
         assert_eq!(
@@ -167,6 +259,32 @@ mod tests {
             "deny.toml:3:1: the license is not allowlisted\n\
              Cargo.toml: the file is not formatted\n\
              probe: 2 findings"
+        );
+    }
+
+    // cli[verify report.repairs]
+    #[test]
+    fn render_failed_outcome_reports_the_repairs_before_the_findings() {
+        let text = rendered(Outcome::Failed {
+            findings: vec![finding(
+                Location::File {
+                    path: file("Cargo.lock"),
+                },
+                "the file is not formatted",
+            )],
+            repairs: vec![finding(
+                Location::File {
+                    path: file("deny.toml"),
+                },
+                "the file was not formatted",
+            )],
+        });
+
+        assert_eq!(
+            text,
+            "deny.toml: the file was not formatted\n\
+             Cargo.lock: the file is not formatted\n\
+             probe: 1 finding, 1 repair"
         );
     }
 
@@ -180,6 +298,7 @@ mod tests {
                 },
                 "the file is not formatted",
             )],
+            repairs: Vec::new(),
         });
 
         assert!(text.ends_with("probe: 1 finding"));
@@ -196,6 +315,7 @@ mod tests {
                 },
                 "the directory has no specification",
             )],
+            repairs: Vec::new(),
         });
 
         assert!(text.starts_with("crates/rakko: the directory has no specification"));
@@ -215,6 +335,7 @@ mod tests {
                 },
                 "the block is not formatted",
             )],
+            repairs: Vec::new(),
         });
 
         assert!(text.starts_with("src/lib.rs:1:1: the block is not formatted"));
@@ -225,6 +346,7 @@ mod tests {
     fn render_finding_over_the_project_reports_the_message_alone() {
         let text = rendered(Outcome::Failed {
             findings: vec![finding(Location::Project, "the crate serde is banned")],
+            repairs: Vec::new(),
         });
 
         assert!(text.starts_with("the crate serde is banned"));
@@ -241,6 +363,7 @@ mod tests {
                 },
                 "the line is too long",
             )],
+            repairs: Vec::new(),
         });
 
         assert!(text.starts_with("README.md:7: the line is too long"));
