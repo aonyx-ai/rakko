@@ -47,10 +47,10 @@ impl Argument {
     /// # Examples
     ///
     /// ```
-    /// use rakko_action::{Argument, ArgumentShape};
+    /// use rakko_action::{Argument, ArgumentShape, argument_name};
     ///
     /// let argument = Argument::builder()
-    ///     .name("fix")
+    ///     .name(argument_name!("fix"))
     ///     .shape(ArgumentShape::Boolean)
     ///     .documentation("Rewrite the files that the tool can format")
     ///     .build();
@@ -62,7 +62,7 @@ impl Argument {
     // action[impl args.documentation]
     #[builder]
     pub fn new(
-        #[builder(into)] name: ArgumentName,
+        name: ArgumentName,
         shape: ArgumentShape,
         #[builder(into)] documentation: Documentation,
     ) -> Self {
@@ -81,11 +81,12 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
+    use crate::argument_name;
 
     /// Returns the description of an argument that holds the given shape
     fn argument(shape: ArgumentShape) -> Argument {
         Argument::builder()
-            .name("fix")
+            .name(argument_name!("fix"))
             .shape(shape)
             .documentation("Rewrite the files that the tool can format")
             .build()
@@ -95,7 +96,7 @@ mod tests {
     #[test]
     fn documentation_returns_given_documentation() {
         let argument = Argument::builder()
-            .name("fix")
+            .name(argument_name!("fix"))
             .shape(ArgumentShape::Boolean)
             .documentation("Rewrite the files that the tool can format")
             .build();

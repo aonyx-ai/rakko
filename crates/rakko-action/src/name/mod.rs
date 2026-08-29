@@ -1,10 +1,10 @@
-use std::borrow::Cow;
-use std::fmt;
-use std::str::FromStr;
-
 /// The error type for name parsing
 mod error;
+/// What kebab case holds, and the names that hold only that
+pub(crate) mod kebab_case;
+
 pub use self::error::ParseNameError;
+pub(crate) use self::kebab_case::kebab_case_name;
 
 /// Constructs a [`Name`] from a literal string at compile time
 ///
@@ -37,162 +37,25 @@ macro_rules! action_name {
     };
 }
 
-/// The name of an action
-///
-/// A name identifies an action. It holds only lowercase ASCII letters, ASCII
-/// digits, and hyphens. It starts with a lowercase ASCII letter, it does not
-/// hold two consecutive hyphens, and it does not end with a hyphen.
-///
-/// Construct a name through [`FromStr`], [`TryFrom<&str>`], or
-/// [`TryFrom<String>`]. Every constructor validates the input and returns a
-/// [`ParseNameError`] when the input does not meet the rules. The
-/// [`action_name!`] macro constructs a name from a literal string at compile
-/// time, so an invalid literal fails the build instead of the run.
 // action[impl name.accepts]
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Name(Cow<'static, str>);
-
-impl Name {
-    /// Constructs a name from a static string
+// action[impl name.text]
+kebab_case_name! {
+    /// The name of an action
     ///
-    /// The function is `const`, so a constant context evaluates it during
-    /// the build. In that context, an input that does not satisfy the rules
-    /// for a name fails the build. The [`action_name!`] macro provides that
-    /// context for a literal string.
+    /// A name identifies an action. It holds only lowercase ASCII letters,
+    /// ASCII digits, and hyphens. It starts with a lowercase ASCII letter, it
+    /// does not hold two consecutive hyphens, and it does not end with a
+    /// hyphen.
     ///
-    /// # Examples
+    /// Construct a name through [`FromStr`], [`TryFrom<&str>`], or
+    /// [`TryFrom<String>`]. Every constructor validates the input and returns
+    /// a [`ParseNameError`] when the input does not meet the rules. The
+    /// [`action_name!`] macro constructs a name from a literal string at
+    /// compile time, so an invalid literal fails the build instead of the
+    /// run.
     ///
-    /// ```
-    /// use rakko_action::Name;
-    ///
-    /// const NAME: Name = Name::from_static("format-toml");
-    ///
-    /// assert_eq!(NAME.get(), "format-toml");
-    /// ```
-    ///
-    /// An input that does not satisfy the rules fails the build in a
-    /// constant context:
-    ///
-    /// ```compile_fail
-    /// use rakko_action::Name;
-    ///
-    /// const NAME: Name = Name::from_static("format--toml");
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics when `input` does not satisfy the rules for a name. In a
-    /// constant context, the panic becomes a compile error, so call this
-    /// function in a constant context.
-    // action[impl name.literal]
-    pub const fn from_static(input: &'static str) -> Self {
-        let bytes = input.as_bytes();
-
-        assert!(!bytes.is_empty(), "name is empty");
-        assert!(
-            bytes[0].is_ascii_lowercase(),
-            "name starts with an invalid character"
-        );
-
-        let mut position = 0;
-        let mut previous_was_hyphen = false;
-        while position < bytes.len() {
-            let byte = bytes[position];
-            assert!(
-                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-',
-                "name contains an invalid character"
-            );
-            assert!(
-                byte != b'-' || !previous_was_hyphen,
-                "name contains consecutive hyphens"
-            );
-            previous_was_hyphen = byte == b'-';
-            position += 1;
-        }
-
-        assert!(bytes[bytes.len() - 1] != b'-', "name ends with a hyphen");
-
-        Self(Cow::Borrowed(input))
-    }
-
-    /// Returns the text of the name
-    // action[impl name.text]
-    pub fn get(&self) -> &str {
-        &self.0
-    }
-
-    /// Validates that `input` satisfies the rules for a name
-    ///
-    /// # Errors
-    ///
-    /// Returns a [`ParseNameError`] when `input` does not satisfy the rules
-    /// for a name.
-    fn validate(input: &str) -> Result<(), ParseNameError> {
-        // action[impl name.empty]
-        let Some(first) = input.chars().next() else {
-            return Err(ParseNameError::Empty);
-        };
-
-        // action[impl name.start]
-        if !first.is_ascii_lowercase() {
-            return Err(ParseNameError::InvalidStart { character: first });
-        }
-
-        let mut prev_was_hyphen = false;
-        for (pos, c) in input.char_indices() {
-            // action[impl name.character]
-            if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-' {
-                return Err(ParseNameError::InvalidCharacter {
-                    character: c,
-                    position: pos,
-                });
-            }
-            // action[impl name.hyphens]
-            if c == '-' && prev_was_hyphen {
-                return Err(ParseNameError::ConsecutiveHyphens { position: pos });
-            }
-            prev_was_hyphen = c == '-';
-        }
-
-        // action[impl name.end]
-        if input.ends_with('-') {
-            return Err(ParseNameError::TrailingHyphen);
-        }
-
-        Ok(())
-    }
-}
-
-impl FromStr for Name {
-    type Err = ParseNameError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::validate(s)?;
-        Ok(Self(Cow::Owned(s.to_owned())))
-    }
-}
-
-impl TryFrom<&str> for Name {
-    type Error = ParseNameError;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        s.parse()
-    }
-}
-
-impl TryFrom<String> for Name {
-    type Error = ParseNameError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Self::validate(&s)?;
-        Ok(Self(Cow::Owned(s)))
-    }
-}
-
-impl fmt::Display for Name {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
+    /// [`FromStr`]: std::str::FromStr
+    Name
 }
 
 #[cfg(test)]

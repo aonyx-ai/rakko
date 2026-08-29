@@ -114,8 +114,8 @@ mod tests {
     use std::task::{Context as TaskContext, Poll, Waker};
 
     use super::*;
-    use crate::action_name;
-    use crate::args::{Argument, ArgumentName, ArgumentShape, ReadArgsError};
+    use crate::args::{Argument, ArgumentShape, ReadArgsError};
+    use crate::{action_name, argument_name};
 
     /// An action that reads no arguments and passes
     struct Probe;
@@ -138,7 +138,7 @@ mod tests {
     impl Args for Unreadable {
         fn schema() -> ArgsSchema {
             ArgsSchema::new([Argument::builder()
-                .name("fix")
+                .name(argument_name!("fix"))
                 .shape(ArgumentShape::Boolean)
                 .documentation("Rewrite the files that the tool can format")
                 .build()])
@@ -146,7 +146,7 @@ mod tests {
 
         fn from_values(_values: &ArgsValues) -> Result<Self, ReadArgsError> {
             Err(ReadArgsError::MissingValue {
-                name: ArgumentName::new("fix"),
+                name: argument_name!("fix"),
             })
         }
     }

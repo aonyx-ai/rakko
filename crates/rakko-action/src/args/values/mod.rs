@@ -55,21 +55,22 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
+    use crate::argument_name;
 
     // action[verify args.empty]
     #[test]
     fn empty_holds_no_value() {
         let values = ArgsValues::empty();
 
-        assert_eq!(values.get(&ArgumentName::new("fix")), None);
+        assert_eq!(values.get(&argument_name!("fix")), None);
     }
 
     // action[verify args.values]
     #[test]
     fn get_returns_none_for_an_unknown_argument() {
-        let values = ArgsValues::new([(ArgumentName::new("fix"), ArgumentValue::new("true"))]);
+        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
 
-        let value = values.get(&ArgumentName::new("check"));
+        let value = values.get(&argument_name!("check"));
 
         assert_eq!(value, None);
     }
@@ -77,9 +78,9 @@ mod tests {
     // action[verify args.values]
     #[test]
     fn get_returns_the_value_of_an_argument() {
-        let values = ArgsValues::new([(ArgumentName::new("fix"), ArgumentValue::new("true"))]);
+        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
 
-        let value = values.get(&ArgumentName::new("fix"));
+        let value = values.get(&argument_name!("fix"));
 
         assert_eq!(value, Some(&ArgumentValue::new("true")));
     }

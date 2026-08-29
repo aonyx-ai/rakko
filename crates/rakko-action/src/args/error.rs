@@ -35,12 +35,13 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
+    use crate::argument_name;
 
     // action[verify args.unreadable]
     #[test]
     fn missing_value_reports_the_argument() {
         let error = ReadArgsError::MissingValue {
-            name: ArgumentName::new("fix"),
+            name: argument_name!("fix"),
         };
 
         let message = error.to_string();
@@ -52,7 +53,7 @@ mod tests {
     #[test]
     fn unreadable_value_reports_the_argument() {
         let error = ReadArgsError::UnreadableValue {
-            name: ArgumentName::new("fix"),
+            name: argument_name!("fix"),
             value: ArgumentValue::new("maybe"),
         };
 

@@ -1,9 +1,10 @@
 use thiserror::Error;
 
-/// An error that occurs when parsing an action name
+/// An error that occurs when parsing a name
 ///
-/// A [`Name`](super::Name) validates its input against a set of rules.
-/// This error identifies which rule the input violated.
+/// The name of an action and the name of an argument satisfy one set of
+/// rules, and both report this error. The variant identifies the rule that
+/// the input does not satisfy.
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 pub enum ParseNameError {
     /// The input was empty
