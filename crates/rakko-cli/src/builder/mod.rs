@@ -330,8 +330,8 @@ mod tests {
 
     use clap::builder::{Str, ValueRange};
     use rakko_action::{
-        Action, Args, ArgsSchema, Argument, ArgumentName, ArgumentShape, ArgumentValue, Name,
-        ReadArgsError, SkipReason,
+        Action, Args, ArgsSchema, Argument, ArgumentShape, ArgumentValue, Name, ReadArgsError,
+        SkipReason, argument_name,
     };
 
     use super::*;
@@ -509,7 +509,7 @@ mod tests {
     /// Returns the description of an argument
     fn argument(name: &str, shape: ArgumentShape, documentation: &str) -> Argument {
         Argument::builder()
-            .name(name)
+            .name(name.parse().expect("the test names an argument correctly"))
             .shape(shape)
             .documentation(documentation)
             .build()
@@ -879,7 +879,7 @@ mod tests {
     fn run_gives_the_action_no_value_for_a_boolean_that_the_user_left_out() {
         let values = values_of(&[READER]);
 
-        let value = values.get(&ArgumentName::new("fix"));
+        let value = values.get(&argument_name!("fix"));
 
         assert_eq!(value, None);
     }
@@ -889,7 +889,7 @@ mod tests {
     fn run_gives_the_action_no_value_for_a_flag_that_the_user_left_out() {
         let values = values_of(&[READER]);
 
-        let value = values.get(&ArgumentName::new("extension"));
+        let value = values.get(&argument_name!("extension"));
 
         assert_eq!(value, None);
     }
@@ -899,7 +899,7 @@ mod tests {
     fn run_gives_the_action_the_path_that_the_user_wrote() {
         let values = values_of(&[READER, "--report", "target/report.json"]);
 
-        let value = values.get(&ArgumentName::new("report"));
+        let value = values.get(&argument_name!("report"));
 
         assert_eq!(value, Some(&ArgumentValue::new("target/report.json")));
     }
@@ -909,7 +909,7 @@ mod tests {
     fn run_gives_the_action_the_text_that_the_user_wrote() {
         let values = values_of(&[READER, "--jobs", "007"]);
 
-        let value = values.get(&ArgumentName::new("jobs"));
+        let value = values.get(&argument_name!("jobs"));
 
         assert_eq!(value, Some(&ArgumentValue::new("007")));
     }
@@ -919,7 +919,7 @@ mod tests {
     fn run_gives_the_action_true_for_a_boolean_that_the_user_gave() {
         let values = values_of(&[READER, "--fix"]);
 
-        let value = values.get(&ArgumentName::new("fix"));
+        let value = values.get(&argument_name!("fix"));
 
         assert_eq!(value, Some(&ArgumentValue::new("true")));
     }

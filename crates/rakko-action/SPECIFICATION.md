@@ -235,6 +235,11 @@ renders every shape, so a shape that a projection cannot render stops the
 build of that projection and not a run. A new shape is a breaking release of
 this crate, and that is what the guarantee costs.
 
+The name of an argument follows the rules that the name of an action follows.
+A projection turns the name into the token that a user types, so a name that a
+command line cannot carry is a defect in the action, and the build must refuse
+it.
+
 The description carries no default, and it does not say that an argument is
 required. The values of a run record what the user said, and the argument set
 decides what an absent value means, so a scheduler, a test, and a command line
@@ -248,6 +253,15 @@ the argument set.
 action[args.argument]
 The description of one argument MUST give the name that identifies the
 argument.
+
+action[args.name]
+The crate MUST refuse the name of an argument that does not satisfy the rules
+for the name of an action. The refusal MUST report the rule that the name does
+not satisfy.
+
+action[args.literal]
+The crate MUST make the name of an argument from a literal string at compile
+time. A literal string that does not satisfy those rules MUST fail the build.
 
 action[args.shape]
 The description of one argument MUST give the shape of the value that the

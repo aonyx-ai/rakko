@@ -53,7 +53,7 @@ mod tests {
     /// Returns the description of an argument with the given name
     fn argument(name: &str) -> Argument {
         Argument::builder()
-            .name(name)
+            .name(name.parse().expect("the test names an argument correctly"))
             .shape(ArgumentShape::Boolean)
             .documentation("Rewrite the files that the tool can format")
             .build()

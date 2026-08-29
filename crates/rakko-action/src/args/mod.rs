@@ -29,7 +29,7 @@ pub use self::values::{ArgsValues, ArgumentValue};
 ///
 /// ```
 /// use rakko_action::{
-///     Args, ArgsSchema, ArgsValues, Argument, ArgumentName, ArgumentShape, ReadArgsError,
+///     Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name,
 /// };
 ///
 /// struct FormatArgs {
@@ -39,14 +39,14 @@ pub use self::values::{ArgsValues, ArgumentValue};
 /// impl Args for FormatArgs {
 ///     fn schema() -> ArgsSchema {
 ///         ArgsSchema::new([Argument::builder()
-///             .name("fix")
+///             .name(argument_name!("fix"))
 ///             .shape(ArgumentShape::Boolean)
 ///             .documentation("Rewrite the files that the formatter can format")
 ///             .build()])
 ///     }
 ///
 ///     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
-///         let name = ArgumentName::new("fix");
+///         let name = argument_name!("fix");
 ///         let fix = match values.get(&name) {
 ///             Some(value) => value.get().parse().map_err(|_| ReadArgsError::UnreadableValue {
 ///                 name,
