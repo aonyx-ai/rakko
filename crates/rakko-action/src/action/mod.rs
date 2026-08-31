@@ -36,7 +36,7 @@ use crate::outcome::Outcome;
 ///
 ///     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
 ///         // Examine the project under `context.root()` here.
-///         Outcome::Passed
+///         Outcome::Passed { summary: None }
 ///     }
 /// }
 /// ```
@@ -97,7 +97,7 @@ mod tests {
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
             YieldOnce::default().await;
-            Outcome::Passed
+            Outcome::Passed { summary: None }
         }
     }
 
@@ -206,7 +206,7 @@ mod tests {
 
         let outcome = future.as_mut().poll(&mut task_context);
 
-        assert!(matches!(outcome, Poll::Ready(Outcome::Passed)));
+        assert!(matches!(outcome, Poll::Ready(Outcome::Passed { .. })));
     }
 
     // action[verify run.wait]

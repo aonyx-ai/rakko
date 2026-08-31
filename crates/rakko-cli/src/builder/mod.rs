@@ -110,7 +110,7 @@ impl Builder {
     /// #     type Args = ();
     /// #     fn name(&self) -> Name { action_name!("line-count") }
     /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-    /// #         Outcome::Passed
+    /// #         Outcome::Passed { summary: None }
     /// #     }
     /// # }
     /// let command_line = rakko_cli::builder().mount([Box::new(LineCount) as Box<dyn ErasedAction>]);
@@ -307,7 +307,7 @@ fn dispatch(matches: ArgMatches, action: Box<dyn ErasedAction>) -> Result<u8, Bo
 // cli[impl exit.unanswered]
 fn exit_code(outcome: &Outcome) -> u8 {
     match outcome {
-        Outcome::Passed | Outcome::Changed { .. } | Outcome::Skipped { .. } => EXIT_CLEAN,
+        Outcome::Passed { .. } | Outcome::Changed { .. } | Outcome::Skipped { .. } => EXIT_CLEAN,
         Outcome::Failed { .. } => EXIT_FINDINGS,
         Outcome::Errored { .. } => EXIT_UNANSWERED,
     }
@@ -390,7 +390,7 @@ mod tests {
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-            Outcome::Passed
+            Outcome::Passed { summary: None }
         }
     }
 
@@ -410,7 +410,7 @@ mod tests {
     impl Probe {
         /// Creates an action with the given name, and the flag that it sets
         fn new(name: &str) -> (Self, Arc<AtomicBool>) {
-            Self::reporting(name, || Outcome::Passed)
+            Self::reporting(name, || Outcome::Passed { summary: None })
         }
 
         /// Creates an action that reports what the given function builds
@@ -457,7 +457,7 @@ mod tests {
             let mut seen = self.seen.lock().expect("the test holds the lock alone");
             *seen = Some(args.values.clone());
 
-            Outcome::Passed
+            Outcome::Passed { summary: None }
         }
     }
 
@@ -480,7 +480,7 @@ mod tests {
             let mut seen = self.seen.lock().expect("the test holds the lock alone");
             *seen = Some(context.root().get().to_path_buf());
 
-            Outcome::Passed
+            Outcome::Passed { summary: None }
         }
     }
 
@@ -763,7 +763,7 @@ mod tests {
     // cli[verify exit.clean]
     #[test]
     fn dispatch_reports_zero_for_a_passed_action() {
-        let code = code_for(|| Outcome::Passed);
+        let code = code_for(|| Outcome::Passed { summary: None });
 
         assert_eq!(code, 0);
     }

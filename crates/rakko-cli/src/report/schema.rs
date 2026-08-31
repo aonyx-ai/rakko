@@ -1,4 +1,4 @@
-use rakko_action::{Finding, Location, Outcome, Position};
+use rakko_action::{Finding, Location, Outcome, Position, Summary};
 use serde::Serialize;
 
 use super::Report;
@@ -25,6 +25,9 @@ pub(super) struct Payload<'a> {
     action: &'a str,
     /// The state that the action returned
     outcome: &'static str,
+    /// What the run examined, when the action passed and said so
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary: Option<&'a str>,
     /// The reason why the action does not apply, when it does not apply
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<&'a str>,
@@ -46,7 +49,11 @@ impl<'a> Payload<'a> {
         let action = report.action.get();
 
         match &report.outcome {
-            Outcome::Passed => Self::new(action, "passed"),
+            // cli[impl report.passed]
+            Outcome::Passed { summary } => Self {
+                summary: summary.as_ref().map(Summary::get),
+                ..Self::new(action, "passed")
+            },
             Outcome::Skipped { reason } => Self {
                 reason: Some(reason.get()),
                 ..Self::new(action, "skipped")
@@ -76,6 +83,7 @@ impl<'a> Payload<'a> {
             schema: UNSTABLE,
             action,
             outcome,
+            summary: None,
             reason: None,
             error: None,
             findings: Vec::new(),
@@ -352,11 +360,24 @@ mod tests {
     // cli[verify report.json]
     #[test]
     fn payload_of_passed_outcome_carries_the_state_alone() {
-        let json = payload(Outcome::Passed);
+        let json = payload(Outcome::Passed { summary: None });
 
         assert_eq!(
             json,
             r#"{"schema":"unstable","action":"probe","outcome":"passed","findings":[],"repairs":[]}"#
+        );
+    }
+
+    // cli[verify report.passed]
+    #[test]
+    fn payload_of_passed_outcome_carries_the_summary() {
+        let json = payload(Outcome::Passed {
+            summary: Some(Summary::new("checked 0 files")),
+        });
+
+        assert_eq!(
+            json,
+            r#"{"schema":"unstable","action":"probe","outcome":"passed","summary":"checked 0 files","findings":[],"repairs":[]}"#
         );
     }
 

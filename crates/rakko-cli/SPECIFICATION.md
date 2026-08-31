@@ -218,6 +218,10 @@ took away. A run that repaired some of the problems that it found shows its
 repairs first. The problems that remain follow them, so that the lines a
 reader has to act on sit next to the summary.
 
+A pass shows what the run examined when the action said so, the way a skip
+shows its reason. A pass that examined less than the reader expects points to
+a misconfiguration, and the summary is the only place where that shows.
+
 The result of a run is not an informational message, so the flags that reduce
 the output do not suppress it. A run reports the same result at every
 verbosity, and those flags reach the progress that a longer run reports later.
@@ -234,6 +238,9 @@ cli[report.repairs]
 A run whose action repaired the project MUST show every repair with its
 location. A run whose action repaired some of the problems that it found MUST
 show the repairs and the problems that remain.
+
+cli[report.passed]
+A run whose action passed with a summary MUST show that summary.
 
 cli[report.skipped]
 A run whose action does not apply MUST show the reason.
