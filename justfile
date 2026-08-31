@@ -172,8 +172,12 @@ format-rust fix="false":
     rustup run nightly cargo fmt --manifest-path tools/rakko/Cargo.toml -- --unstable-features {{ if fix != "true" { "--check" } else { "" } }}
 
 # Format TOML files
+#
+# The recipe runs the harness instead of taplo, so the action does the work
+# that this recipe used to do itself. The harness reports findings and exit
+# codes uniformly, and a fix that rewrote files exits zero.
 format-toml fix="false":
-    taplo fmt {{ if fix != "true" { "--diff" } else { "" } }}
+    mise run rakko -- format-toml {{ if fix == "true" { "--fix" } else { "" } }}
 
 # Format YAML files
 format-yaml fix="false": (prettier fix "{yaml,yml}")

@@ -70,6 +70,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitflags"
+version = "2.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
+
+[[package]]
 name = "bon"
 version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -344,7 +350,9 @@ dependencies = [
 name = "harness"
 version = "0.1.0"
 dependencies = [
+ "rakko-action",
  "rakko-cli",
+ "rakko-format-toml",
 ]
 
 [[package]]
@@ -411,6 +419,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kawauso-process"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a5320ebd4a3e787e1f2f7caa0dbf4e10ee80ea47f070c643184e5c5595076ab"
+dependencies = [
+ "rustix",
+ "thiserror",
+ "tokio",
+ "typed-fields",
+]
+
+[[package]]
 name = "kawauso-project"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -438,6 +458,12 @@ checksum = "d7955dfc218a8afb29dfeffd540e3a6e96baeb94fe7138228dd7cc6937fbbf96"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "linux-raw-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "memchr"
@@ -525,6 +551,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-format-toml"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "rakko-tool"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "kawauso-process",
+ "rakko-action",
+ "thiserror",
+ "typed-fields",
+]
+
+[[package]]
 name = "redox_users"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -533,6 +581,19 @@ dependencies = [
  "getrandom",
  "libredox",
  "thiserror",
+]
+
+[[package]]
+name = "rustix"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6fe4565b9518b83ef4f91bb47ce29620ca828bd32cb7e408f0062e9930ba190"
+dependencies = [
+ "bitflags",
+ "errno",
+ "libc",
+ "linux-raw-sys",
+ "windows-sys",
 ]
 
 [[package]]
@@ -668,6 +729,7 @@ version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
 dependencies = [
+ "bytes",
  "libc",
  "mio",
  "pin-project-lite",

@@ -8,10 +8,15 @@
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
 
+use rakko_action::ErasedAction;
+use rakko_format_toml::FormatToml;
+
 /// Builds the command line of this repository and runs it
 ///
 /// The call ends the process itself, so a harness stays a `main` that names
 /// what the repository mounts and returns nothing.
 fn main() {
-    rakko_cli::builder().run();
+    rakko_cli::builder()
+        .mount([Box::new(FormatToml) as Box<dyn ErasedAction>])
+        .run();
 }
