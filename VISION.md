@@ -38,8 +38,9 @@ the command-line framework.
 
 - An **action** is a library crate that implements Rakko's `Action` trait.
   Most actions are checks: they examine the working tree and report findings,
-  and with `--fix`, some can repair what they find. An action depends only on
-  Rakko's small contract crate — not on Clawless, not on clap.
+  and with `--fix`, some can repair what they find. An action depends on
+  Rakko's small contract crate, and on a helper crate for machinery it shares
+  with other actions, such as running an external tool — not on the framework.
 - A **bundle** is a meta-crate that exports a list of actions — our
   definition of what "recommended" means, as a dependency. Bundles can
   contain bundles.
