@@ -577,6 +577,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-format-toml"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-tool"
 version = "0.1.0"
 dependencies = [
