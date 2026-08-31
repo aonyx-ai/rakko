@@ -99,21 +99,19 @@ The command line MUST carry the flags that control the output of a run.
 
 The exit code is what a CI job reads without parsing anything, so it is the
 contract between Rakko and every workflow that runs it. It answers one
-question, and the answer has four meanings: the project is clean, the run
-repaired the project, the project has a problem, or the run could not answer.
+question, and the answer has three meanings: the project is in order, the
+project has a problem, or the run could not answer.
 
 An action that does not apply exits clean. A skip is an answer, and a bundle
 that mounts an action for a stack that a project does not use must not turn
 that project red.
 
-A run that repaired the project gets a code of its own, because neither of the
-codes next to it says what happened. The run is not clean. It rewrote files,
-and whoever started it holds a working tree that they did not have before, so
-a hook that guards a commit must stop that commit and show them the change.
-The run did not find a problem either. Nothing is left to fix, and a caller
-that reads the code can tell a repair from the work that it must do by hand. A
-run that repaired some of what it found still has a problem, and it takes the
-code for a problem.
+A run that repaired the project exits clean as well. The caller asked the run
+to repair what it finds, and the run delivered exactly that, so a step that
+runs a fix in CI must not go red over its success. The code loses nothing: the
+repairs travel in the report, and the change sits in the working tree, which
+is what a hook that guards a commit reads anyway. A run that repaired some of
+what it found still has a problem, and it takes the code for a problem.
 
 A run that could not answer takes the code that the parser already gives to a
 command line that it cannot read. A run that never reached an action and a run
@@ -124,9 +122,8 @@ cli[exit.clean]
 A run whose action passed, and a run whose action does not apply, MUST exit
 with zero.
 
-cli[exit.changed]
-A run whose action repaired the project MUST exit with a nonzero code that
-differs from the code for findings and from the code for a run that stopped.
+cli[exit.changed+2]
+A run whose action repaired the project MUST exit with zero.
 
 cli[exit.findings]
 A run whose action found problems MUST exit with a nonzero code of its own.
