@@ -427,6 +427,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kawauso-process"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a5320ebd4a3e787e1f2f7caa0dbf4e10ee80ea47f070c643184e5c5595076ab"
+dependencies = [
+ "rustix",
+ "thiserror",
+ "tokio",
+ "typed-fields",
+]
+
+[[package]]
 name = "kawauso-project"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -562,6 +574,19 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "rakko-tool"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "kawauso-process",
+ "rakko-action",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "typed-fields",
 ]
 
 [[package]]
@@ -734,6 +759,7 @@ version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
 dependencies = [
+ "bytes",
  "libc",
  "mio",
  "pin-project-lite",

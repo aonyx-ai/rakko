@@ -13,7 +13,8 @@ from the design discussions to the terms that replaced them.
   declarations.
 - **Action** — The unit of maintenance work. An action is a library crate
   that implements the `Action` trait. An action depends on the contract
-  crate, and on nothing else from Rakko.
+  crate and on the helper crates that it uses. It never depends on the
+  projection or on Clawless.
 - **Applicability** — Whether an action applies to a project. Each action
   detects its own applicability, and it skips with a visible message when it
   does not apply. This behavior keeps broad bundles safe.
@@ -49,6 +50,12 @@ from the design discussions to the terms that replaced them.
   the bundles and actions that the project uses, and `mise run rakko` runs
   it. The harness is a package of its own, outside the workspace of the
   project, and it is the full adoption surface of a project.
+- **Helper crate** — A crate that carries machinery that many actions need.
+  `rakko-tool` is the first one: it finds an external tool through mise and
+  runs it. An action depends on the helper crates that it uses next to the
+  contract crate. A helper stays out of the contract crate because the
+  contract reaches every action, while a helper reaches only the actions
+  that use it.
 - **Linking** — The use of an external tool as a Rust library inside an
   action. Linking is an optimization for one action at a time, taken when
   the library carries the behavior of the tool, not only its engine.
