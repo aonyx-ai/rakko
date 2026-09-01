@@ -10,6 +10,8 @@
 mod args;
 /// The error that stops a run of the action
 mod error;
+/// One problem that taplo reported about a file
+mod problem;
 /// The report that taplo writes about a format run
 mod report;
 
@@ -26,7 +28,8 @@ use rakko_tool::{Execution, Tool, ToolName};
 
 pub use self::args::FormatTomlArgs;
 pub use self::error::FormatTomlError;
-use self::report::{ProblemDetail, TaploProblem, TaploReport};
+use self::problem::{ProblemDetail, TaploProblem};
+use self::report::TaploReport;
 
 /// The number of times one taplo operation starts before the action gives up
 ///
@@ -202,9 +205,9 @@ enum Operation {
 /// problems that it holds can be incomplete.
 fn complete(execution: &Execution, observed: &TaploReport) -> bool {
     if execution.status().success() {
-        observed.checked.is_some()
+        observed.checked().is_some()
     } else {
-        observed.failure_reported
+        observed.failure_reported()
     }
 }
 
@@ -234,29 +237,25 @@ async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, Form
 
     // formattoml[impl check.read]
     let (execution, observed, stderr) = observe(&tool, Operation::Check).await?;
-    let TaploReport {
-        rejected_configuration,
-        checked,
-        problems,
-        ..
-    } = observed;
 
     // formattoml[impl check.configuration]
-    if let Some(details) = rejected_configuration {
-        return Err(FormatTomlError::RejectedConfiguration { details });
+    if let Some(details) = observed.rejected_configuration() {
+        return Err(FormatTomlError::RejectedConfiguration {
+            details: details.clone(),
+        });
     }
 
-    if problems.is_empty() {
-        return passed(&execution, checked, stderr);
+    if observed.problems().is_empty() {
+        return passed(&execution, observed.checked(), stderr);
     }
 
     if args.fix() {
-        fix(&tool, problems, context.root()).await
+        fix(&tool, observed.problems(), context.root()).await
     } else {
         // formattoml[impl check.unformatted]
         // formattoml[impl check.invalid]
         Ok(Outcome::Failed {
-            findings: findings(problems, context.root())?,
+            findings: findings(observed.problems(), context.root())?,
             repairs: Vec::new(),
         })
     }
@@ -277,13 +276,13 @@ async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, Form
 ///
 /// [foreign]: FormatTomlError::ForeignPath
 fn finding(
-    problem: TaploProblem,
+    problem: &TaploProblem,
     root: &ProjectRoot,
     unformatted_message: &str,
 ) -> Result<Finding, FormatTomlError> {
-    let path = relative(&problem.path, root)?;
+    let path = relative(problem.path(), root)?;
 
-    let finding = match problem.detail {
+    let finding = match problem.detail() {
         ProblemDetail::Unformatted => Finding::builder()
             .message(unformatted_message)
             .location(Location::File { path })
@@ -293,10 +292,10 @@ fn finding(
             column,
             message,
         } => Finding::builder()
-            .message(message)
+            .message(message.clone())
             .location(Location::Position {
                 path,
-                position: Position::builder().line(line).column(column).build(),
+                position: Position::builder().line(*line).column(*column).build(),
             })
             .build(),
     };
@@ -313,11 +312,11 @@ fn finding(
 ///
 /// [foreign]: FormatTomlError::ForeignPath
 fn findings(
-    problems: Vec<TaploProblem>,
+    problems: &[TaploProblem],
     root: &ProjectRoot,
 ) -> Result<Vec<Finding>, FormatTomlError> {
     problems
-        .into_iter()
+        .iter()
         .map(|problem| finding(problem, root, UNFORMATTED_FINDING))
         .collect()
 }
@@ -338,37 +337,31 @@ fn findings(
 // formattoml[impl fix.write]
 async fn fix(
     tool: &Tool,
-    problems: Vec<TaploProblem>,
+    problems: &[TaploProblem],
     root: &ProjectRoot,
 ) -> Result<Outcome, FormatTomlError> {
     let (execution, observed, stderr) = observe(tool, Operation::Rewrite).await?;
-    let TaploReport {
-        rejected_configuration,
-        problems: unrepaired,
-        ..
-    } = observed;
 
     // formattoml[impl check.configuration]
-    if let Some(details) = rejected_configuration {
-        return Err(FormatTomlError::RejectedConfiguration { details });
+    if let Some(details) = observed.rejected_configuration() {
+        return Err(FormatTomlError::RejectedConfiguration {
+            details: details.clone(),
+        });
     }
 
     // formattoml[impl check.unrecognized]
-    if unrepaired.is_empty() && !execution.status().success() {
+    if observed.problems().is_empty() && !execution.status().success() {
         return Err(FormatTomlError::UnrecognizedReport { stderr });
     }
 
-    let remaining: HashSet<PathBuf> = unrepaired
-        .iter()
-        .map(|problem| problem.path.clone())
-        .collect();
+    let remaining: HashSet<&PathBuf> = observed.problems().iter().map(TaploProblem::path).collect();
     let repaired = problems
-        .into_iter()
-        .filter(|problem| !remaining.contains(&problem.path));
+        .iter()
+        .filter(|problem| !remaining.contains(problem.path()));
     let repairs = repaired
         .map(|problem| finding(problem, root, UNFORMATTED_REPAIR))
         .collect::<Result<Vec<Finding>, FormatTomlError>>()?;
-    let findings = findings(unrepaired, root)?;
+    let findings = findings(observed.problems(), root)?;
 
     if findings.is_empty() {
         // formattoml[impl fix.changed]

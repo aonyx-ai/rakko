@@ -9,6 +9,10 @@
 
 use std::path::PathBuf;
 
+use getset::{CopyGetters, Getters};
+
+use super::problem::{ProblemDetail, TaploProblem};
+
 /// The marker of the line that reports a rejected configuration file
 ///
 /// Taplo warns about a configuration that it cannot read and then runs with
@@ -51,60 +55,31 @@ const FAILURE_SUMMARY: &str = "operation failed";
 /// The report holds only what the parse found. A field that is `None` means
 /// that the corresponding line did not appear, and the caller decides what
 /// its absence means for the outcome of the run.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub(super) struct TaploReport {
     /// What taplo said about a configuration file that it rejected
-    pub(super) rejected_configuration: Option<String>,
+    #[getset(get = "pub(super)")]
+    rejected_configuration: Option<String>,
 
     /// How many files taplo checked, after its configuration excluded
     ///
     /// Taplo counts every file that it matched and the files that the
     /// configuration excluded separately, and the difference is what a run
     /// examined.
-    pub(super) checked: Option<u64>,
+    #[getset(get_copy = "pub(super)")]
+    checked: Option<u64>,
 
     /// Whether the report closes with the summary of a failed run
     ///
     /// A run that ends without success sums its failure up on its last
     /// line. A report of such a run without this line lost its tail, and
     /// the problems that it holds can be incomplete.
-    pub(super) failure_reported: bool,
+    #[getset(get_copy = "pub(super)")]
+    failure_reported: bool,
 
     /// The problems that taplo reported, in the order of the report
-    pub(super) problems: Vec<TaploProblem>,
-}
-
-/// One problem that taplo reported about a file
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub(super) struct TaploProblem {
-    /// The path of the file, as taplo wrote it
-    pub(super) path: PathBuf,
-
-    /// What taplo reported about the file
-    pub(super) detail: ProblemDetail,
-}
-
-/// What taplo reported about a file, at the level that taplo could name
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub(super) enum ProblemDetail {
-    /// The file is not formatted
-    ///
-    /// Taplo names the file and nothing in it, so the problem has no
-    /// position.
-    Unformatted,
-
-    /// Taplo reported a diagnostic at a position in the file
-    Diagnostic {
-        /// The line that the diagnostic points at, starting at 1
-        line: u32,
-
-        /// The column that the diagnostic points at, starting at 1
-        column: u32,
-
-        /// The message of taplo, with the label of the diagnostic when it
-        /// carries one
-        message: String,
-    },
+    #[getset(get = "pub(super)")]
+    problems: Vec<TaploProblem>,
 }
 
 /// Reads the report of one taplo run from its standard error stream
@@ -132,10 +107,9 @@ pub(super) fn parse(stderr: &str) -> TaploReport {
             report.checked = checked(line);
         } else if line.contains(UNFORMATTED) {
             if let Some(path) = quoted_path(line) {
-                report.problems.push(TaploProblem {
-                    path,
-                    detail: ProblemDetail::Unformatted,
-                });
+                report
+                    .problems
+                    .push(TaploProblem::new(path, ProblemDetail::Unformatted));
             }
         } else if let Some(header) = line.strip_prefix(DIAGNOSTIC)
             && let Some(problem) = diagnostic(header, &lines[index + 1..])
@@ -206,14 +180,14 @@ fn diagnostic(header: &str, following: &[&str]) -> Option<TaploProblem> {
         None => header.trim().to_owned(),
     };
 
-    Some(TaploProblem {
+    Some(TaploProblem::new(
         path,
-        detail: ProblemDetail::Diagnostic {
+        ProblemDetail::Diagnostic {
             line,
             column,
             message,
         },
-    })
+    ))
 }
 
 /// Returns the number that a field of the count line carries
@@ -255,6 +229,8 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use PathBuf;
+
     use super::*;
 
     /// The report of a run that checked two files and found nothing
@@ -273,14 +249,14 @@ mod tests {
     fn parse_clean_report_counts_the_checked_files() {
         let report = parse(CLEAN);
 
-        assert_eq!(report.checked, Some(2));
+        assert_eq!(report.checked(), Some(2));
     }
 
     #[test]
     fn parse_clean_report_finds_no_problem() {
         let report = parse(CLEAN);
 
-        assert!(report.problems.is_empty());
+        assert!(report.problems().is_empty());
     }
 
     #[test]
@@ -288,15 +264,15 @@ mod tests {
         let report = parse(INVALID);
 
         assert_eq!(
-            report.problems,
-            vec![TaploProblem {
-                path: PathBuf::from("/home/otter/project/broken.toml"),
-                detail: ProblemDetail::Diagnostic {
+            report.problems(),
+            &vec![TaploProblem::new(
+                PathBuf::from("/home/otter/project/broken.toml"),
+                ProblemDetail::Diagnostic {
                     line: 2,
                     column: 1,
                     message: "invalid TOML: unexpected EOF".to_owned(),
                 },
-            }]
+            )]
         );
     }
 
@@ -304,12 +280,11 @@ mod tests {
     fn parse_diagnostic_without_a_label_keeps_the_header() {
         let report = parse("error: invalid TOML\n  \u{250c}\u{2500} /p/broken.toml:2:1\n");
 
-        let Some(TaploProblem {
-            detail: ProblemDetail::Diagnostic { message, .. },
-            ..
-        }) = report.problems.first()
-        else {
+        let Some(problem) = report.problems().first() else {
             panic!("expected a diagnostic");
+        };
+        let ProblemDetail::Diagnostic { message, .. } = problem.detail() else {
+            panic!("expected a diagnostic, got {problem:?}");
         };
         assert_eq!(message, "invalid TOML");
     }
@@ -333,7 +308,7 @@ mod tests {
     fn parse_failed_run_sees_the_summary_of_the_failure() {
         let report = parse(UNFORMATTED);
 
-        assert!(report.failure_reported);
+        assert!(report.failure_reported());
     }
 
     #[test]
@@ -342,7 +317,7 @@ mod tests {
             "ERROR taplo:format_files: the file is not properly formatted path=\"/p/messy.toml\"\n",
         );
 
-        assert!(!report.failure_reported);
+        assert!(!report.failure_reported());
     }
 
     #[test]
@@ -350,7 +325,7 @@ mod tests {
         let report = parse(REJECTED);
 
         assert_eq!(
-            report.rejected_configuration.as_deref(),
+            report.rejected_configuration().as_deref(),
             Some("TOML parse error at line 1, column 5")
         );
     }
@@ -360,11 +335,11 @@ mod tests {
         let report = parse(UNFORMATTED);
 
         assert_eq!(
-            report.problems,
-            vec![TaploProblem {
-                path: PathBuf::from("/home/otter/project/sub/messy.toml"),
-                detail: ProblemDetail::Unformatted,
-            }]
+            report.problems(),
+            &vec![TaploProblem::new(
+                PathBuf::from("/home/otter/project/sub/messy.toml"),
+                ProblemDetail::Unformatted,
+            )]
         );
     }
 
@@ -374,6 +349,6 @@ mod tests {
             " INFO taplo:format_files:collect_files: found files total=1 excluded=0 files=[] cwd=\"/p\"\nERROR operation failed error=Permission denied (os error 13)\n",
         );
 
-        assert!(report.problems.is_empty());
+        assert!(report.problems().is_empty());
     }
 }
