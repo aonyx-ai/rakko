@@ -10,6 +10,7 @@
 
 use rakko_action::ErasedAction;
 use rakko_format_toml::FormatToml;
+use rakko_lint_rust::LintRust;
 use rakko_lint_toml::LintToml;
 
 /// Builds the command line of this repository and runs it
@@ -20,6 +21,7 @@ fn main() {
     rakko_cli::builder()
         .mount([
             Box::new(FormatToml) as Box<dyn ErasedAction>,
+            Box::new(LintRust),
             Box::new(LintToml),
         ])
         .run();

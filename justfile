@@ -195,10 +195,11 @@ lint-markdown:
 
 # Lint Rust files
 #
-# The harness takes a second call, for the reason that `format-rust` gives.
+# The recipe runs the harness instead of clippy, for the reason that
+# `format-toml` gives. The action lints every workspace of the repository,
+# so the harness needs no call of its own.
 lint-rust:
-    cargo clippy --all-targets --all-features -- -D warnings
-    cargo clippy --manifest-path tools/rakko/Cargo.toml --all-targets --all-features -- -D warnings
+    mise run rakko -- lint-rust
 
 # Lint TOML files
 #
