@@ -198,8 +198,12 @@ lint-rust:
     cargo clippy --manifest-path tools/rakko/Cargo.toml --all-targets --all-features -- -D warnings
 
 # Lint TOML files
+#
+# The recipe runs the harness instead of taplo, for the reason that
+# `format-toml` gives. It takes no argument, because taplo repairs nothing
+# that a validation finds.
 lint-toml:
-    taplo check
+    mise run rakko -- lint-toml
 
 # Lint YAML files
 lint-yaml:
