@@ -42,6 +42,18 @@ specs (
         )
     }
     {
+        name format-toml
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-format-toml/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-format-toml/src/**/*.rs)
+                test_include (crates/rakko-format-toml/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name tool
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-tool/SPECIFICATION.md)
