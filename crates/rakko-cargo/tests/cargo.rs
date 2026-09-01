@@ -195,12 +195,15 @@ impl Project {
     }
 }
 
-/// Returns the Rust toolchain that this repository pins, as mise reports it
+/// Returns the default Rust toolchain that this repository pins, as mise
+/// reports it
 ///
 /// The tests resolve a channel that the copied configuration pins, and the
-/// pin of the repository is the one channel that every machine which runs
-/// the tests has installed. Reading the pin from mise keeps the version out
-/// of the tests.
+/// default pin of the repository is the one toolchain that every machine
+/// which runs the tests has installed. The default pin names its version
+/// exactly, which tells it apart from a channel such as `nightly` that mise
+/// resolves to a dated toolchain. Reading the pin from mise keeps the
+/// version out of the tests.
 fn pinned_rust() -> String {
     let output = Command::new("mise")
         .args(["ls", "--current", "--json", "rust"])
@@ -210,10 +213,15 @@ fn pinned_rust() -> String {
     let pins: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("the test reads the report of mise");
 
-    pins[0]["requested_version"]
-        .as_str()
-        .expect("the repository pins a Rust toolchain")
-        .to_owned()
+    pins.as_array()
+        .and_then(|pins| {
+            pins.iter().find_map(|pin| {
+                let requested = pin["requested_version"].as_str()?;
+
+                (pin["version"].as_str() == Some(requested)).then(|| requested.to_owned())
+            })
+        })
+        .expect("the repository pins a Rust toolchain by its exact version")
 }
 
 /// Returns the root of the repository that the tests run in
