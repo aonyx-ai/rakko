@@ -353,6 +353,7 @@ dependencies = [
  "rakko-action",
  "rakko-cli",
  "rakko-format-toml",
+ "rakko-lint-toml",
 ]
 
 [[package]]
@@ -555,6 +556,16 @@ name = "rakko-format-toml"
 version = "0.1.0"
 dependencies = [
  "getset",
+ "rakko-action",
+ "rakko-taplo",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-lint-toml"
+version = "0.1.0"
+dependencies = [
  "rakko-action",
  "rakko-taplo",
  "rakko-tool",
