@@ -10,66 +10,18 @@
 mod args;
 /// The error that stops a run of the action
 mod error;
-/// One problem that taplo reported about a file
-mod problem;
-/// The report that taplo writes about a format run
-mod report;
 
 use std::collections::HashSet;
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::path::PathBuf;
 
 use rakko_action::{
-    Action, Context, FilePath, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    Summary, action_name,
+    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason, Summary,
+    action_name,
 };
-use rakko_tool::{Execution, Tool, ToolName};
+use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
 pub use self::args::FormatTomlArgs;
 pub use self::error::FormatTomlError;
-use self::problem::{ProblemDetail, TaploProblem};
-use self::report::TaploReport;
-
-/// The number of times one taplo operation starts before the action gives up
-///
-/// Taplo can lose the tail of its report when it exits, and a fresh run
-/// almost always answers completely, so a few attempts separate a lost tail
-/// from a report that the action genuinely does not understand.
-const ATTEMPTS: u32 = 6;
-
-/// The pause that grows between the attempts of one operation
-///
-/// The loss correlates with the load of the machine, so attempts that follow
-/// each other immediately tend to lose together. A growing pause carries the
-/// later attempts past the moment of load.
-const BACKOFF: Duration = Duration::from_millis(25);
-
-/// The name that mise knows the tool by
-const TAPLO: &str = "taplo";
-
-/// The subcommand of taplo that formats TOML files
-const FORMAT: &str = "fmt";
-
-/// The flag that asks taplo to report instead of rewriting
-const CHECK: &str = "--check";
-
-/// The flag that selects how taplo colors its report
-const COLORS: &str = "--colors";
-
-/// The value that asks taplo for a report without color codes
-///
-/// The action reads the report as data, and a color code inside a path would
-/// corrupt the parse. The flag selects the presentation of the report and
-/// not the behavior of the tool: what taplo does to the project comes from
-/// the configuration of the project alone.
-const PLAIN: &str = "never";
-
-/// The extension of the files that the action formats
-const TOML_EXTENSION: &str = "toml";
-
-/// The directory entry that the applicability look does not read
-const GIT_DIRECTORY: &str = ".git";
 
 /// The reason of a run that found no TOML file
 const NO_TOML_FILES: &str = "the project holds no file with the .toml extension";
@@ -135,82 +87,6 @@ impl Action for FormatToml {
     }
 }
 
-/// Returns whether the project holds a file that taplo would look at
-///
-/// The look walks the project from its root and stops at the first file with
-/// the `.toml` extension, in the case that taplo matches. It reads hidden
-/// directories, because taplo reads them, and it does not read the `.git`
-/// entry, which holds no file of the project. It follows no symbolic link,
-/// so a cycle of links cannot trap it.
-///
-/// A directory that the look cannot read counts as applicable. A look that
-/// cannot prove absence must not hide a real check behind a skip, and taplo
-/// reports its own failure when the run reaches it.
-// formattoml[impl skip.git]
-// formattoml[impl skip.links]
-// formattoml[impl skip.missing]
-async fn applies(root: &ProjectRoot) -> bool {
-    let mut pending = vec![root.get().to_path_buf()];
-
-    while let Some(directory) = pending.pop() {
-        let Ok(mut entries) = tokio::fs::read_dir(&directory).await else {
-            return true;
-        };
-
-        loop {
-            match entries.next_entry().await {
-                Ok(Some(entry)) => {
-                    if entry.file_name() == GIT_DIRECTORY {
-                        continue;
-                    }
-
-                    let Ok(kind) = entry.file_type().await else {
-                        return true;
-                    };
-
-                    if kind.is_dir() {
-                        pending.push(entry.path());
-                    } else if kind.is_file()
-                        && entry.path().extension() == Some(OsStr::new(TOML_EXTENSION))
-                    {
-                        return true;
-                    }
-                }
-                Ok(None) => break,
-                Err(_) => return true,
-            }
-        }
-    }
-
-    false
-}
-
-/// The operation that one taplo run performs
-///
-/// Every run of the action starts with a check, and a fix follows it with a
-/// rewrite, so the two operations share everything but one flag.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-enum Operation {
-    /// Report the problems and rewrite nothing
-    Check,
-    /// Rewrite the files that taplo can format
-    Rewrite,
-}
-
-/// Returns whether a report carries everything that its exit status promises
-///
-/// A run that ended without success closes its report with the summary of
-/// the failure, and a run that ended with success closes it with the count
-/// of the files. A report without its closing line lost its tail, and the
-/// problems that it holds can be incomplete.
-fn complete(execution: &Execution, observed: &TaploReport) -> bool {
-    if execution.status().success() {
-        observed.checked().is_some()
-    } else {
-        observed.failure_reported()
-    }
-}
-
 /// Runs the action against the project of the context
 ///
 /// The run examines the project, resolves taplo, checks, and fixes when the
@@ -222,8 +98,10 @@ fn complete(execution: &Execution, observed: &TaploReport) -> bool {
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, a taplo run, or the reading of the report.
 async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, FormatTomlError> {
+    // formattoml[impl skip.git]
+    // formattoml[impl skip.links]
     // formattoml[impl skip.missing]
-    if !applies(context.root()).await {
+    if !Taplo::applies(context.root()).await {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_TOML_FILES),
         });
@@ -231,31 +109,27 @@ async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, Form
 
     // formattoml[impl tool.taplo]
     // formattoml[impl tool.missing]
-    let tool = Tool::resolve(ToolName::new(TAPLO), context.root().clone())
+    let taplo = Taplo::resolve(context.root().clone())
         .await
         .map_err(|source| FormatTomlError::UnresolvedTool { source })?;
 
     // formattoml[impl check.read]
-    let (execution, observed, stderr) = observe(&tool, Operation::Check).await?;
+    let observation = taplo.observe(Operation::CheckFormat).await?;
 
     // formattoml[impl check.configuration]
-    if let Some(details) = observed.rejected_configuration() {
-        return Err(FormatTomlError::RejectedConfiguration {
-            details: details.clone(),
-        });
-    }
+    rejected(&observation)?;
 
-    if observed.problems().is_empty() {
-        return passed(&execution, observed.checked(), stderr);
+    if observation.problems().is_empty() {
+        return passed(&observation);
     }
 
     if args.fix() {
-        fix(&tool, observed.problems(), context.root()).await
+        fix(&taplo, observation.problems(), context.root()).await
     } else {
         // formattoml[impl check.unformatted]
         // formattoml[impl check.invalid]
         Ok(Outcome::Failed {
-            findings: findings(observed.problems(), context.root())?,
+            findings: findings(observation.problems(), context.root())?,
             repairs: Vec::new(),
         })
     }
@@ -280,13 +154,13 @@ fn finding(
     root: &ProjectRoot,
     unformatted_message: &str,
 ) -> Result<Finding, FormatTomlError> {
-    let path = relative(problem.path(), root)?;
+    let path = problem
+        .relative_path(root)
+        .ok_or_else(|| FormatTomlError::ForeignPath {
+            path: problem.path().clone(),
+        })?;
 
     let finding = match problem.detail() {
-        ProblemDetail::Unformatted => Finding::builder()
-            .message(unformatted_message)
-            .location(Location::File { path })
-            .build(),
         ProblemDetail::Diagnostic {
             line,
             column,
@@ -297,6 +171,14 @@ fn finding(
                 path,
                 position: Position::builder().line(*line).column(*column).build(),
             })
+            .build(),
+        ProblemDetail::Invalid { reason } => Finding::builder()
+            .message(reason.clone())
+            .location(Location::File { path })
+            .build(),
+        ProblemDetail::Unformatted => Finding::builder()
+            .message(unformatted_message)
+            .location(Location::File { path })
             .build(),
     };
 
@@ -336,32 +218,32 @@ fn findings(
 /// not recognize, or it reported a path outside the project.
 // formattoml[impl fix.write]
 async fn fix(
-    tool: &Tool,
+    taplo: &Taplo,
     problems: &[TaploProblem],
     root: &ProjectRoot,
 ) -> Result<Outcome, FormatTomlError> {
-    let (execution, observed, stderr) = observe(tool, Operation::Rewrite).await?;
+    let observation = taplo.observe(Operation::Format).await?;
 
     // formattoml[impl check.configuration]
-    if let Some(details) = observed.rejected_configuration() {
-        return Err(FormatTomlError::RejectedConfiguration {
-            details: details.clone(),
-        });
-    }
+    rejected(&observation)?;
 
     // formattoml[impl check.unrecognized]
-    if observed.problems().is_empty() && !execution.status().success() {
-        return Err(FormatTomlError::UnrecognizedReport { stderr });
+    if observation.problems().is_empty() && !observation.succeeded() {
+        return Err(unrecognized(&observation));
     }
 
-    let remaining: HashSet<&PathBuf> = observed.problems().iter().map(TaploProblem::path).collect();
+    let remaining: HashSet<&PathBuf> = observation
+        .problems()
+        .iter()
+        .map(TaploProblem::path)
+        .collect();
     let repaired = problems
         .iter()
         .filter(|problem| !remaining.contains(problem.path()));
     let repairs = repaired
         .map(|problem| finding(problem, root, UNFORMATTED_REPAIR))
         .collect::<Result<Vec<Finding>, FormatTomlError>>()?;
-    let findings = findings(observed.problems(), root)?;
+    let findings = findings(observation.problems(), root)?;
 
     if findings.is_empty() {
         // formattoml[impl fix.changed]
@@ -370,47 +252,6 @@ async fn fix(
         // formattoml[impl fix.partial]
         Ok(Outcome::Failed { findings, repairs })
     }
-}
-
-/// Runs one taplo operation until its report arrives complete
-///
-/// Taplo can lose the tail of its report when it exits, and a lost tail can
-/// hide problems that taplo found. A run whose report is incomplete
-/// therefore starts again, a few times, before the action gives up.
-/// Repeating a check reads the project again, and repeating a rewrite
-/// formats files that a previous attempt already formatted, so both
-/// operations repeat safely.
-///
-/// # Errors
-///
-/// Returns [`TaploUnavailable`][unavailable] when taplo does not run, and
-/// [`UnrecognizedReport`][unrecognized] when every attempt lost part of its
-/// report.
-///
-/// [unavailable]: FormatTomlError::TaploUnavailable
-/// [unrecognized]: FormatTomlError::UnrecognizedReport
-// formattoml[impl check.unrecognized]
-async fn observe(
-    tool: &Tool,
-    operation: Operation,
-) -> Result<(Execution, TaploReport, String), FormatTomlError> {
-    let mut stderr = String::new();
-
-    for attempt in 0..ATTEMPTS {
-        if attempt > 0 {
-            tokio::time::sleep(BACKOFF * attempt).await;
-        }
-
-        let execution = start(tool, operation).await?;
-        stderr = execution.stderr().to_string_lossy().into_owned();
-        let observed = report::parse(&stderr);
-
-        if complete(&execution, &observed) {
-            return Ok((execution, observed, stderr));
-        }
-    }
-
-    Err(FormatTomlError::UnrecognizedReport { stderr })
 }
 
 /// Returns the outcome of a check that reported no problem
@@ -429,17 +270,13 @@ async fn observe(
 /// [unrecognized]: FormatTomlError::UnrecognizedReport
 // formattoml[impl check.passed]
 // formattoml[impl check.unrecognized]
-fn passed(
-    execution: &Execution,
-    checked: Option<u64>,
-    stderr: String,
-) -> Result<Outcome, FormatTomlError> {
-    if !execution.status().success() {
-        return Err(FormatTomlError::UnrecognizedReport { stderr });
+fn passed(observation: &Observation) -> Result<Outcome, FormatTomlError> {
+    if !observation.succeeded() {
+        return Err(unrecognized(observation));
     }
 
-    let Some(checked) = checked else {
-        return Err(FormatTomlError::UnrecognizedReport { stderr });
+    let Some(checked) = observation.checked() else {
+        return Err(unrecognized(observation));
     };
 
     Ok(Outcome::Passed {
@@ -447,68 +284,25 @@ fn passed(
     })
 }
 
-/// Returns the path of a finding, relative to the project root
+/// Stops a run whose taplo rejected a configuration file of the project
 ///
-/// Taplo starts in the project root and reports absolute paths, so the root
-/// prefixes each of them. The root of the context can name the same
-/// directory through a symbolic link, which is why the canonical root is
-/// tried as well.
+/// Taplo warns and then runs with its defaults, and a run on the defaults
+/// quietly does what the project asked it not to do.
 ///
 /// # Errors
 ///
-/// Returns [`ForeignPath`][foreign] when the project root does not contain
-/// the path.
+/// Returns [`RejectedConfiguration`][rejected] when taplo rejected a
+/// configuration file.
 ///
-/// [foreign]: FormatTomlError::ForeignPath
-fn relative(path: &Path, root: &ProjectRoot) -> Result<FilePath, FormatTomlError> {
-    let stripped = strip(path, root).ok_or_else(|| FormatTomlError::ForeignPath {
-        path: path.to_path_buf(),
-    })?;
-
-    FilePath::try_from(stripped).map_err(|_| FormatTomlError::ForeignPath {
-        path: path.to_path_buf(),
-    })
-}
-
-/// Starts one taplo operation and collects what it produced
-///
-/// A check asks taplo to report and rewrites nothing, and a rewrite lets
-/// taplo format the files that it can format. Both read the report as data,
-/// so both ask for plain output: a color code inside a path would corrupt
-/// the parse, and the flag selects the presentation of the report and not
-/// the behavior of the tool.
-///
-/// # Errors
-///
-/// Returns [`TaploUnavailable`][unavailable] when taplo does not run.
-///
-/// [unavailable]: FormatTomlError::TaploUnavailable
-// formattoml[impl check.read]
-// formattoml[impl fix.write]
-async fn start(tool: &Tool, operation: Operation) -> Result<Execution, FormatTomlError> {
-    let invocation = tool.invocation().arg(FORMAT);
-    let invocation = match operation {
-        Operation::Check => invocation.arg(CHECK),
-        Operation::Rewrite => invocation,
-    };
-
-    invocation
-        .arg(COLORS)
-        .arg(PLAIN)
-        .run()
-        .await
-        .map_err(|source| FormatTomlError::TaploUnavailable { source })
-}
-
-/// Returns the path without the project root that prefixes it
-fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
-    if let Ok(stripped) = path.strip_prefix(root.get()) {
-        return Some(stripped.to_path_buf());
+/// [rejected]: FormatTomlError::RejectedConfiguration
+// formattoml[impl check.configuration]
+fn rejected(observation: &Observation) -> Result<(), FormatTomlError> {
+    match observation.rejected_configuration() {
+        Some(details) => Err(FormatTomlError::RejectedConfiguration {
+            details: details.clone(),
+        }),
+        None => Ok(()),
     }
-
-    let canonical = root.get().canonicalize().ok()?;
-
-    path.strip_prefix(canonical).ok().map(Path::to_path_buf)
 }
 
 /// Returns the summary that tells how many files taplo checked
@@ -518,5 +312,13 @@ fn summary(checked: u64) -> Summary {
         Summary::new("checked 1 file")
     } else {
         Summary::new(format!("checked {checked} files"))
+    }
+}
+
+/// Returns the error of a report that the action cannot answer from
+// formattoml[impl check.unrecognized]
+fn unrecognized(observation: &Observation) -> FormatTomlError {
+    FormatTomlError::UnrecognizedReport {
+        stderr: observation.stderr().clone(),
     }
 }

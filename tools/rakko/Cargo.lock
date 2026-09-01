@@ -556,6 +556,18 @@ version = "0.1.0"
 dependencies = [
  "getset",
  "rakko-action",
+ "rakko-taplo",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-taplo"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
  "rakko-tool",
  "thiserror",
  "tokio",

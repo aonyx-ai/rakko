@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use rakko_taplo::ObserveTaploError;
 use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
@@ -66,4 +67,19 @@ pub enum FormatTomlError {
         /// The cause of the failure
         source: ResolveToolError,
     },
+}
+
+impl From<ObserveTaploError> for FormatTomlError {
+    /// Turns the failure of a taplo run into the error of the action
+    ///
+    /// The machinery that runs taplo names the same two conditions that the
+    /// action reports, so the conversion renames them and adds nothing. A
+    /// report that never arrived complete is one that the action cannot
+    /// read, whatever kept it from arriving.
+    fn from(error: ObserveTaploError) -> Self {
+        match error {
+            ObserveTaploError::IncompleteReport { stderr } => Self::UnrecognizedReport { stderr },
+            ObserveTaploError::TaploUnavailable { source } => Self::TaploUnavailable { source },
+        }
+    }
 }
