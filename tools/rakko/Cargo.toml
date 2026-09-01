@@ -12,7 +12,9 @@ name = "rakko"
 path = "src/main.rs"
 
 [dependencies]
+rakko-action = { path = "../../crates/rakko-action" }
 rakko-cli = { path = "../../crates/rakko-cli" }
+rakko-format-toml = { path = "../../crates/rakko-format-toml" }
 
 [workspace.lints.clippy]
 # Require documentation on private items as well, since that helps with long-term maintainability.
