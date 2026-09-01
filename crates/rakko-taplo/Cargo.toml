@@ -12,7 +12,7 @@ getset = { workspace = true }
 rakko-action = { workspace = true }
 rakko-tool = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["fs", "time"] }
+tokio = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
