@@ -187,9 +187,22 @@ result that says nothing about that change leaves them to find it in a diff. A
 repair is a problem that the project no longer has, so it takes the same shape
 as a finding.
 
+A passing run can say what it examined. "Passed" alone reads the same when an
+action checked the whole project and when its tool matched nothing at all, and
+the second case can point to a misconfiguration that no finding will ever
+reveal. The state for a pass therefore carries a summary, such as `checked 0
+files`, that gives the reader the scope to question. The summary is a sentence
+for a reader and not data for a machine, and an action that has nothing useful
+to say gives none.
+
 action[outcome.passed]
 An outcome MUST have a state for an action that examined the project and found
 no problem.
+
+action[outcome.summary]
+The state for an action that found no problem MUST be able to hold a summary of
+what the run examined, and MUST report that it holds none when the action gave
+none.
 
 action[outcome.changed]
 An outcome MUST have a state for an action that found problems and repaired

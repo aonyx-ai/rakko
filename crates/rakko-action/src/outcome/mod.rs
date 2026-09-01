@@ -1,9 +1,12 @@
 /// The reason why an action does not apply to a project
 mod skip_reason;
+/// What a passing run examined
+mod summary;
 
 use std::error::Error;
 
 pub use self::skip_reason::SkipReason;
+pub use self::summary::Summary;
 use crate::finding::Finding;
 
 /// The result of one action run
@@ -22,8 +25,17 @@ use crate::finding::Finding;
 #[derive(Debug)]
 pub enum Outcome {
     /// The action examined the project and found no problem
+    ///
+    /// The state can carry a [`Summary`] of what the run examined, such as
+    /// `checked 3 files`. The summary lets a reader question a pass that
+    /// examined less than they expect, and an action that has nothing useful
+    /// to say gives none.
     // action[impl outcome.passed]
-    Passed,
+    // action[impl outcome.summary]
+    Passed {
+        /// What the run examined, or `None` when the action gave no summary
+        summary: Option<Summary>,
+    },
     /// The action found problems in the project and repaired all of them
     ///
     /// This state holds one [`Finding`] for each problem that the action
@@ -175,9 +187,33 @@ mod tests {
     // action[verify outcome.passed]
     #[test]
     fn passed_variant_exists() {
-        let outcome = Outcome::Passed;
+        let outcome = Outcome::Passed { summary: None };
 
-        assert!(matches!(outcome, Outcome::Passed));
+        assert!(matches!(outcome, Outcome::Passed { .. }));
+    }
+
+    // action[verify outcome.summary]
+    #[test]
+    fn passed_variant_holds_summary() {
+        let outcome = Outcome::Passed {
+            summary: Some(Summary::new("checked 3 files")),
+        };
+
+        let Outcome::Passed { summary } = &outcome else {
+            panic!("expected Passed variant");
+        };
+        assert_eq!(summary.as_ref().map(Summary::get), Some("checked 3 files"));
+    }
+
+    // action[verify outcome.summary]
+    #[test]
+    fn passed_variant_without_a_summary_reports_none() {
+        let outcome = Outcome::Passed { summary: None };
+
+        let Outcome::Passed { summary } = &outcome else {
+            panic!("expected Passed variant");
+        };
+        assert_eq!(*summary, None);
     }
 
     // action[verify outcome.skipped]

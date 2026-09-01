@@ -40,7 +40,7 @@ use crate::outcome::Outcome;
 ///     }
 ///
 ///     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-///         Outcome::Passed
+///         Outcome::Passed { summary: None }
 ///     }
 /// }
 ///
@@ -128,7 +128,7 @@ mod tests {
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-            Outcome::Passed
+            Outcome::Passed { summary: None }
         }
     }
 
@@ -162,7 +162,7 @@ mod tests {
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-            Outcome::Passed
+            Outcome::Passed { summary: None }
         }
     }
 
@@ -234,7 +234,7 @@ mod tests {
 
         let outcome = drive(&action, &values);
 
-        assert!(matches!(outcome, Outcome::Passed));
+        assert!(matches!(outcome, Outcome::Passed { .. }));
     }
 
     // action[verify erased.unreadable]

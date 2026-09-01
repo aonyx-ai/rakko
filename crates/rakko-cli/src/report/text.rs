@@ -15,6 +15,10 @@ use super::Report;
 /// The problems that remain follow them, so that the lines a reader has to act
 /// on sit next to the summary.
 ///
+/// A pass shows what the run examined when the action said so, in the way
+/// that a skip shows its reason, so a reader can question a pass that
+/// examined less than they expect.
+///
 /// # Errors
 ///
 /// Returns the error of the formatter when the formatter cannot take what the
@@ -23,7 +27,11 @@ pub(super) fn render(report: &Report, formatter: &mut fmt::Formatter<'_>) -> fmt
     let action = &report.action;
 
     match &report.outcome {
-        Outcome::Passed => write!(formatter, "{action}: passed"),
+        // cli[impl report.passed]
+        Outcome::Passed { summary } => match summary {
+            Some(summary) => write!(formatter, "{action}: passed, {summary}"),
+            None => write!(formatter, "{action}: passed"),
+        },
         Outcome::Skipped { reason } => write!(formatter, "{action}: skipped, {reason}"),
         Outcome::Errored { source } => {
             write!(formatter, "{action}: {source}")?;
@@ -157,7 +165,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{DirectoryPath, FilePath, SkipReason, Span};
+    use rakko_action::{DirectoryPath, FilePath, SkipReason, Span, Summary};
 
     use super::*;
 
@@ -371,9 +379,19 @@ mod tests {
 
     #[test]
     fn render_passed_outcome_reports_that_the_action_passed() {
-        let text = rendered(Outcome::Passed);
+        let text = rendered(Outcome::Passed { summary: None });
 
         assert_eq!(text, "probe: passed");
+    }
+
+    // cli[verify report.passed]
+    #[test]
+    fn render_passed_outcome_reports_the_summary() {
+        let text = rendered(Outcome::Passed {
+            summary: Some(Summary::new("checked 0 files")),
+        });
+
+        assert_eq!(text, "probe: passed, checked 0 files");
     }
 
     // cli[verify report.skipped]

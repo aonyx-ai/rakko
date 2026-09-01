@@ -39,4 +39,4 @@ pub use self::finding::{
     ParseDirectoryPathError, ParseFilePathError, Position, Span,
 };
 pub use self::name::{Name, ParseNameError};
-pub use self::outcome::{Outcome, SkipReason};
+pub use self::outcome::{Outcome, SkipReason, Summary};
