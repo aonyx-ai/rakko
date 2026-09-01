@@ -352,6 +352,7 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-cli",
+ "rakko-format-rust",
  "rakko-format-toml",
  "rakko-lint-rust",
  "rakko-lint-toml",
@@ -564,6 +565,17 @@ dependencies = [
  "kawauso-project",
  "rakko-action",
  "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-format-rust"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
  "thiserror",
 ]
 

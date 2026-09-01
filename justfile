@@ -166,13 +166,12 @@ format-markdown fix="false": (prettier fix "md")
 
 # Format Rust files
 #
-# The harness is a package of its own, outside the workspace, so cargo does not
-# reach it from the root and it takes a second call. ADR-009 records why it
-# sits outside.
+# The recipe runs the harness instead of rustfmt, for the reason that
+# `format-toml` gives. The action formats every workspace of the repository
+# on the nightly toolchain that `mise.toml` pins, so the harness needs no
+# call of its own, and the recipe installs no toolchain.
 format-rust fix="false":
-    rustup install -c rustfmt nightly
-    rustup run nightly cargo fmt -- --unstable-features {{ if fix != "true" { "--check" } else { "" } }}
-    rustup run nightly cargo fmt --manifest-path tools/rakko/Cargo.toml -- --unstable-features {{ if fix != "true" { "--check" } else { "" } }}
+    mise run rakko -- format-rust {{ if fix == "true" { "--fix" } else { "" } }}
 
 # Format TOML files
 #
