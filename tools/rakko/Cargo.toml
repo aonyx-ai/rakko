@@ -18,6 +18,7 @@ rakko-format-rust = { path = "../../crates/rakko-format-rust" }
 rakko-format-toml = { path = "../../crates/rakko-format-toml" }
 rakko-lint-rust = { path = "../../crates/rakko-lint-rust" }
 rakko-lint-toml = { path = "../../crates/rakko-lint-toml" }
+rakko-test-rust = { path = "../../crates/rakko-test-rust" }
 
 [workspace.lints.clippy]
 # Require documentation on private items as well, since that helps with long-term maintainability.

@@ -221,5 +221,8 @@ prettier fix="false" extension="*":
     prettier {{ if fix == "true" { "--write" } else { "--list-different" } }} --ignore-unknown "**/*.{{ extension }}"
 
 # Run the tests
+#
+# The recipe runs the harness instead of nextest, for the reason that
+# `format-toml` gives. The action tests every workspace of the repository.
 test-rust:
-    cargo llvm-cov nextest {{ if env("GITHUB_ACTIONS", "") != "" { "--lcov --output-path target/lcov.info" } else { "" } }} --all-features --all-targets
+    mise run rakko -- test-rust
