@@ -70,9 +70,9 @@ What happened, layer by layer:
    comments, and the shared output flags — `--quiet`, `--verbose`, `--json`.
 3. `format toml` resolves to the TOML formatting action; `--fix` selects the
    fix mode instead of the default check mode.
-4. The action formats via taplo as a library — no subprocess, no PATH
-   lookup, no shell. Actions that wrap external tools resolve them through
-   mise, so the pinned version runs no matter what shell invoked cargo.
+4. The action wraps taplo as a subprocess. Mise resolves the binary, so
+   the pinned version runs no matter what shell invoked cargo, and the
+   action starts it directly — no PATH lookup, no shell in between.
 5. Findings flow through structured output: human-readable text by default,
    JSON for machines, annotations in CI.
 
