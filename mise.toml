@@ -9,7 +9,7 @@ cargo-binstall = "1.22.0"
 # The build script of tracey bundles a web dashboard with node and pnpm. The
 # `install-tracey` task below is the only consumer of these two.
 node = "24.20.0"
-pnpm = "11.24.0"
+pnpm = "11.25.0"
 
 # The default toolchain for builds, Clippy, and the tests. Mise installs it
 # through rustup, so `rustup run nightly` and `cargo +nightly` still reach the
