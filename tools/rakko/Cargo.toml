@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 rakko-action = { path = "../../crates/rakko-action" }
 rakko-cli = { path = "../../crates/rakko-cli" }
+rakko-format-rust = { path = "../../crates/rakko-format-rust" }
 rakko-format-toml = { path = "../../crates/rakko-format-toml" }
 rakko-lint-rust = { path = "../../crates/rakko-lint-rust" }
 rakko-lint-toml = { path = "../../crates/rakko-lint-toml" }
