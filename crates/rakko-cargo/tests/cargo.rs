@@ -214,6 +214,33 @@ impl Drop for Project {
     }
 }
 
+// cargo[verify look.manifest]
+#[tokio::test]
+async fn applies_with_a_manifest_in_a_hidden_directory_is_true() {
+    let project = Project::bare();
+    project.write(".tools/harness/Cargo.toml", STANDALONE);
+
+    let applies = project.applies().await;
+
+    assert!(applies);
+}
+
+// cargo[verify look.links]
+#[cfg(unix)]
+#[tokio::test]
+async fn applies_with_a_manifest_only_behind_a_symbolic_link_is_false() {
+    let project = Project::bare();
+    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
+    std::fs::write(elsewhere.path().join("Cargo.toml"), STANDALONE)
+        .expect("the test writes a file outside the project");
+    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
+        .expect("the test links a directory into the project");
+
+    let applies = project.applies().await;
+
+    assert!(!applies);
+}
+
 // cargo[verify look.git]
 #[tokio::test]
 async fn applies_with_a_manifest_only_under_the_git_directory_is_false() {
@@ -234,33 +261,6 @@ async fn applies_with_a_manifest_only_under_the_target_directory_is_false() {
     let applies = project.applies().await;
 
     assert!(!applies);
-}
-
-// cargo[verify look.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn applies_with_a_manifest_only_behind_a_symbolic_link_is_false() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("Cargo.toml"), STANDALONE)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let applies = project.applies().await;
-
-    assert!(!applies);
-}
-
-// cargo[verify look.manifest]
-#[tokio::test]
-async fn applies_with_a_manifest_in_a_hidden_directory_is_true() {
-    let project = Project::bare();
-    project.write(".tools/harness/Cargo.toml", STANDALONE);
-
-    let applies = project.applies().await;
-
-    assert!(applies);
 }
 
 // cargo[verify look.unreadable]
@@ -370,27 +370,26 @@ async fn resolve_without_a_cargo_reports_the_tool() {
     );
 }
 
-// cargo[verify root.discover]
+// cargo[verify root.walk]
 #[tokio::test]
-async fn roots_of_a_workspace_name_the_workspace_once() {
+async fn roots_ignore_a_manifest_under_the_git_directory() {
     let project = Project::workspace();
+    project.write(".git/Cargo.toml", BROKEN);
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
     assert_eq!(roots, [project.cargo_root("")]);
 }
 
-// cargo[verify root.member]
+// cargo[verify root.walk]
 #[tokio::test]
-async fn roots_of_a_workspace_name_no_member() {
+async fn roots_ignore_a_manifest_under_the_target_directory() {
     let project = Project::workspace();
+    project.write("target/debug/build/dep/Cargo.toml", BROKEN);
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert!(
-        !roots.contains(&project.cargo_root("a")),
-        "expected no member among the roots, got {roots:?}"
-    );
+    assert_eq!(roots, [project.cargo_root("")]);
 }
 
 // cargo[verify root.discover]
@@ -420,26 +419,62 @@ async fn roots_of_a_project_without_a_workspace_name_the_package() {
     assert_eq!(roots, [project.cargo_root("")]);
 }
 
-// cargo[verify root.walk]
+// cargo[verify root.member]
 #[tokio::test]
-async fn roots_ignore_a_manifest_under_the_target_directory() {
+async fn roots_of_a_workspace_name_no_member() {
     let project = Project::workspace();
-    project.write("target/debug/build/dep/Cargo.toml", BROKEN);
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert!(
+        !roots.contains(&project.cargo_root("a")),
+        "expected no member among the roots, got {roots:?}"
+    );
+}
+
+// cargo[verify root.discover]
+#[tokio::test]
+async fn roots_of_a_workspace_name_the_workspace_once() {
+    let project = Project::workspace();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
     assert_eq!(roots, [project.cargo_root("")]);
 }
 
-// cargo[verify root.walk]
+// cargo[verify root.manifest]
 #[tokio::test]
-async fn roots_ignore_a_manifest_under_the_git_directory() {
-    let project = Project::workspace();
-    project.write(".git/Cargo.toml", BROKEN);
+async fn roots_with_a_manifest_that_cargo_cannot_read_hold_what_cargo_said() {
+    let project = Project::new();
+    project.write("Cargo.toml", BROKEN);
 
-    let roots = project.roots().await.expect("the test discovers the roots");
+    let roots = project.roots().await;
 
-    assert_eq!(roots, [project.cargo_root("")]);
+    let Err(DiscoverRootsError::UnreadableManifest { details, .. }) = roots else {
+        panic!("expected the broken manifest, got {roots:?}");
+    };
+    assert!(
+        details.contains("Cargo.toml:1"),
+        "expected the diagnosis of cargo, got {details}"
+    );
+}
+
+// cargo[verify root.manifest]
+#[tokio::test]
+async fn roots_with_a_manifest_that_cargo_cannot_read_name_the_manifest() {
+    let project = Project::new();
+    project.write("Cargo.toml", BROKEN);
+
+    let roots = project.roots().await;
+
+    assert!(
+        matches!(
+            &roots,
+            Err(DiscoverRootsError::UnreadableManifest { manifest, .. })
+                if manifest == &project.root().get().join("Cargo.toml")
+        ),
+        "expected the broken manifest, got {roots:?}"
+    );
 }
 
 // cargo[verify root.directory]
@@ -468,52 +503,6 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
     );
 }
 
-// cargo[verify root.manifest]
-#[tokio::test]
-async fn roots_with_a_manifest_that_cargo_cannot_read_name_the_manifest() {
-    let project = Project::new();
-    project.write("Cargo.toml", BROKEN);
-
-    let roots = project.roots().await;
-
-    assert!(
-        matches!(
-            &roots,
-            Err(DiscoverRootsError::UnreadableManifest { manifest, .. })
-                if manifest == &project.root().get().join("Cargo.toml")
-        ),
-        "expected the broken manifest, got {roots:?}"
-    );
-}
-
-// cargo[verify root.manifest]
-#[tokio::test]
-async fn roots_with_a_manifest_that_cargo_cannot_read_hold_what_cargo_said() {
-    let project = Project::new();
-    project.write("Cargo.toml", BROKEN);
-
-    let roots = project.roots().await;
-
-    let Err(DiscoverRootsError::UnreadableManifest { details, .. }) = roots else {
-        panic!("expected the broken manifest, got {roots:?}");
-    };
-    assert!(
-        details.contains("Cargo.toml:1"),
-        "expected the diagnosis of cargo, got {details}"
-    );
-}
-
-// cargo[verify toolchain.resolve]
-#[tokio::test]
-async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
-    let pin = pinned_rust();
-    let project = Project::with_rust(&format!("\"{pin}\""));
-
-    let toolchain = Toolchain::resolve(Channel::new(pin.clone()), &project.root()).await;
-
-    assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
-}
-
 // cargo[verify toolchain.uninstalled]
 #[tokio::test]
 async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
@@ -530,6 +519,17 @@ async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
         ),
         "expected an uninstalled toolchain, got {toolchain:?}"
     );
+}
+
+// cargo[verify toolchain.resolve]
+#[tokio::test]
+async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
+    let pin = pinned_rust();
+    let project = Project::with_rust(&format!("\"{pin}\""));
+
+    let toolchain = Toolchain::resolve(Channel::new(pin.clone()), &project.root()).await;
+
+    assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
 }
 
 // cargo[verify toolchain.unpinned]

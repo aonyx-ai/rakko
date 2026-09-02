@@ -177,6 +177,29 @@ mod tests {
         );
     }
 
+    // cargo[verify diagnostic.foreign]
+    #[test]
+    fn finding_outside_the_project_belongs_to_the_project() {
+        let diagnostic = warning("/home/otter/.cargo/registry/dep/src/lib.rs");
+
+        let finding = diagnostic.finding(&harness(), &project());
+
+        assert_eq!(finding.location(), &Location::Project);
+    }
+
+    // cargo[verify diagnostic.foreign]
+    #[test]
+    fn finding_outside_the_project_names_the_place_in_the_message() {
+        let diagnostic = warning("/home/otter/.cargo/registry/dep/src/lib.rs");
+
+        let finding = diagnostic.finding(&harness(), &project());
+
+        assert_eq!(
+            finding.message().get(),
+            "used `unwrap()` on an `Option` value [clippy::unwrap_used] at /home/otter/.cargo/registry/dep/src/lib.rs:8:88"
+        );
+    }
+
     // cargo[verify diagnostic.finding]
     #[test]
     fn finding_puts_the_code_behind_the_message() {
@@ -202,29 +225,6 @@ mod tests {
         let finding = diagnostic.finding(&harness(), &project());
 
         assert_eq!(finding.message().get(), "unused variable");
-    }
-
-    // cargo[verify diagnostic.foreign]
-    #[test]
-    fn finding_outside_the_project_names_the_place_in_the_message() {
-        let diagnostic = warning("/home/otter/.cargo/registry/dep/src/lib.rs");
-
-        let finding = diagnostic.finding(&harness(), &project());
-
-        assert_eq!(
-            finding.message().get(),
-            "used `unwrap()` on an `Option` value [clippy::unwrap_used] at /home/otter/.cargo/registry/dep/src/lib.rs:8:88"
-        );
-    }
-
-    // cargo[verify diagnostic.foreign]
-    #[test]
-    fn finding_outside_the_project_belongs_to_the_project() {
-        let diagnostic = warning("/home/otter/.cargo/registry/dep/src/lib.rs");
-
-        let finding = diagnostic.finding(&harness(), &project());
-
-        assert_eq!(finding.location(), &Location::Project);
     }
 
     // cargo[verify diagnostic.foreign]

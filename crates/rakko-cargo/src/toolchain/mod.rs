@@ -252,14 +252,6 @@ mod tests {
         assert_eq!(toolchain.ok(), Some(Toolchain::new("nightly-2026-08-11")));
     }
 
-    // cargo[verify toolchain.resolve]
-    #[test]
-    fn select_a_pinned_channel_answers_the_toolchain_it_resolved_to() {
-        let toolchain = select(&pins(), Channel::new("nightly"));
-
-        assert_eq!(toolchain.ok(), Some(Toolchain::new("nightly-2026-08-11")));
-    }
-
     // cargo[verify toolchain.unpinned]
     #[test]
     fn select_a_channel_that_prefixes_another_pin_does_not_match_it() {
@@ -289,6 +281,14 @@ mod tests {
             ),
             "expected an uninstalled toolchain, got {toolchain:?}"
         );
+    }
+
+    // cargo[verify toolchain.resolve]
+    #[test]
+    fn select_a_pinned_channel_answers_the_toolchain_it_resolved_to() {
+        let toolchain = select(&pins(), Channel::new("nightly"));
+
+        assert_eq!(toolchain.ok(), Some(Toolchain::new("nightly-2026-08-11")));
     }
 
     // cargo[verify toolchain.unpinned]

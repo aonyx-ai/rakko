@@ -260,14 +260,6 @@ mod tests {
         output
     }
 
-    // cargo[verify diagnostic.once]
-    #[test]
-    fn read_a_diagnostic_that_cargo_repeats_keeps_one() {
-        let report = CargoReport::read(&output(&[WARNING, WARNING, FINISHED]));
-
-        assert_eq!(report.diagnostics().len(), 1);
-    }
-
     // cargo[verify diagnostic.finished]
     #[test]
     fn read_a_build_that_failed_reports_no_success() {
@@ -339,6 +331,14 @@ mod tests {
                     .build(),
             ))
         );
+    }
+
+    // cargo[verify diagnostic.once]
+    #[test]
+    fn read_a_diagnostic_that_cargo_repeats_keeps_one() {
+        let report = CargoReport::read(&output(&[WARNING, WARNING, FINISHED]));
+
+        assert_eq!(report.diagnostics().len(), 1);
     }
 
     // cargo[verify diagnostic.read]

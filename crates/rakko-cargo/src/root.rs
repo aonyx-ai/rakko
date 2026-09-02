@@ -122,6 +122,16 @@ mod tests {
         );
     }
 
+    // cargo[verify path.relative]
+    #[test]
+    fn relative_directory_of_the_project_root_is_empty() {
+        let root = CargoRoot::new(PathBuf::from("/home/otter/project"));
+
+        let directory = root.relative_directory(&project());
+
+        assert_eq!(directory, Some(PathBuf::new()));
+    }
+
     // cargo[verify path.foreign]
     #[test]
     fn relative_directory_outside_the_project_names_nothing() {
@@ -134,16 +144,6 @@ mod tests {
 
     // cargo[verify path.relative]
     #[test]
-    fn relative_directory_of_the_project_root_is_empty() {
-        let root = CargoRoot::new(PathBuf::from("/home/otter/project"));
-
-        let directory = root.relative_directory(&project());
-
-        assert_eq!(directory, Some(PathBuf::new()));
-    }
-
-    // cargo[verify path.relative]
-    #[test]
     fn relative_directory_under_the_project_drops_the_project_root() {
         let root = nested();
 
@@ -152,14 +152,14 @@ mod tests {
         assert_eq!(directory, Some(PathBuf::from("tools/harness")));
     }
 
-    // cargo[verify path.foreign]
+    // cargo[verify path.relative]
     #[test]
-    fn relative_path_of_an_absolute_path_outside_the_project_names_nothing() {
+    fn relative_path_of_a_relative_path_joins_the_root() {
         let root = nested();
 
-        let path = root.relative_path(Path::new("/home/otter/.cargo/registry/a.rs"), &project());
+        let path = root.relative_path(Path::new("src/main.rs"), &project());
 
-        assert_eq!(path, None);
+        assert_eq!(path, FilePath::try_from("tools/harness/src/main.rs").ok());
     }
 
     // cargo[verify path.relative]
@@ -175,13 +175,13 @@ mod tests {
         assert_eq!(path, FilePath::try_from("tools/harness/src/main.rs").ok());
     }
 
-    // cargo[verify path.relative]
+    // cargo[verify path.foreign]
     #[test]
-    fn relative_path_of_a_relative_path_joins_the_root() {
+    fn relative_path_of_an_absolute_path_outside_the_project_names_nothing() {
         let root = nested();
 
-        let path = root.relative_path(Path::new("src/main.rs"), &project());
+        let path = root.relative_path(Path::new("/home/otter/.cargo/registry/a.rs"), &project());
 
-        assert_eq!(path, FilePath::try_from("tools/harness/src/main.rs").ok());
+        assert_eq!(path, None);
     }
 }
