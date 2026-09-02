@@ -5,6 +5,8 @@
 //! lines of nextest. The shape of the lines belongs to a version of nextest,
 //! and this module is the one place that knows it.
 
+/// The error that stops the reading
+mod error;
 /// One test that failed
 mod failure;
 /// Where and why a test panicked
@@ -12,7 +14,9 @@ mod panic;
 
 use getset::{CopyGetters, Getters};
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
+pub use self::error::ReadNextestReportError;
 pub use self::failure::TestFailure;
 pub use self::panic::Panic;
 
@@ -42,9 +46,10 @@ const OK: &str = "ok";
 ///
 /// let stdout = r#"{"type":"suite","event":"ok","passed":3,"failed":0,"ignored":1}"#;
 ///
-/// let report = NextestReport::read(stdout);
+/// let report = NextestReport::read(stdout)?;
 ///
 /// assert_eq!(report.ran(), 3);
+/// # Ok::<(), rakko_test_rust::ReadNextestReportError>(())
 /// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct NextestReport {
@@ -63,19 +68,35 @@ impl NextestReport {
     ///
     /// The reading keeps every test that failed and sums the tests of every
     /// binary that finished. It ignores every other line: a test that
-    /// started or passed, the lines of cargo, and a line that is not JSON at
-    /// all, so the two tools can share the stream.
+    /// started or passed, the lines of cargo, and a line that is not a
+    /// record of nextest at all, so the two tools can share the stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnrecognizedRecord`][unrecognized] when a line is about a
+    /// test or a binary of tests and the crate cannot read its body. The
+    /// shape belongs to a version of nextest, and a reading that skipped
+    /// such a line would let a run pass with its failures unread.
+    ///
+    /// [unrecognized]: ReadNextestReportError::UnrecognizedRecord
     // testrust[impl run.failed]
     // testrust[impl run.none]
     // testrust[impl run.passed]
-    pub fn read(stdout: &str) -> Self {
+    // testrust[impl run.unreadable]
+    pub fn read(stdout: &str) -> Result<Self, ReadNextestReportError> {
         let mut failures = Vec::new();
         let mut ran = 0;
 
         for line in stdout.lines() {
-            let Ok(record) = serde_json::from_str::<Record>(line) else {
+            let Ok(probe) = serde_json::from_str::<Probe>(line) else {
                 continue;
             };
+
+            if probe.kind != TEST && probe.kind != SUITE {
+                continue;
+            }
+
+            let record: Record = decode(line)?;
 
             match (record.kind.as_str(), record.event.as_str()) {
                 (TEST, FAILED) => {
@@ -90,8 +111,21 @@ impl NextestReport {
             }
         }
 
-        Self { failures, ran }
+        Ok(Self { failures, ran })
     }
+}
+
+/// The kind of a line, which says what the line is about
+///
+/// Every record of nextest carries a kind, and a line without one comes from
+/// cargo, which shares the stream. Nextest writes more than this field, and
+/// the reading ignores the rest, so a field that a new version adds does not
+/// break it.
+#[derive(Deserialize)]
+struct Probe {
+    /// Whether the line is about one test or about one binary of tests
+    #[serde(rename = "type")]
+    kind: String,
 }
 
 /// One line of the structured report of nextest
@@ -120,10 +154,29 @@ struct Record {
     failed: Option<u64>,
 }
 
+/// Reads a record of nextest from a line whose kind the crate knows
+///
+/// # Errors
+///
+/// Returns [`UnrecognizedRecord`][unrecognized] when the line does not have
+/// the shape of the record.
+///
+/// [unrecognized]: ReadNextestReportError::UnrecognizedRecord
+// testrust[impl run.unreadable]
+fn decode<T: DeserializeOwned>(line: &str) -> Result<T, ReadNextestReportError> {
+    serde_json::from_str(line).map_err(|source| ReadNextestReportError::UnrecognizedRecord {
+        line: line.to_owned(),
+        source,
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
+    // An assertion in a test panics by design, and a test that reads a report
+    // which nextest could have written expects the reading to succeed. A
+    // `# Panics` section on every test would repeat that and give the reader
+    // no information.
+    #![allow(clippy::expect_used)]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -144,6 +197,9 @@ mod tests {
     /// The line that closes a binary whose tests passed
     const PASSED_SUITE: &str = r#"{"type":"suite","event":"ok","passed":2,"failed":0,"ignored":1,"measured":0,"filtered_out":0,"exec_time":0.01}"#;
 
+    /// A line about a test in a shape that the crate does not know
+    const MISSHAPEN: &str = r#"{"type":"test","name":"probe::suite$fails"}"#;
+
     /// The line of a test that started
     const STARTED_TEST: &str = r#"{"type":"test","event":"started","name":"probe::suite$passes"}"#;
 
@@ -155,10 +211,16 @@ mod tests {
         output
     }
 
+    /// Returns the report of a run made of the given lines
+    fn read(lines: &[&str]) -> NextestReport {
+        NextestReport::read(&output(lines))
+            .expect("the test reads a report that nextest could write")
+    }
+
     // testrust[verify run.failed]
     #[test]
     fn read_a_failed_test_keeps_its_name() {
-        let report = NextestReport::read(&output(&[FAILED_TEST, FAILED_SUITE]));
+        let report = read(&[FAILED_TEST, FAILED_SUITE]);
 
         assert_eq!(
             report.failures().first().map(TestFailure::name),
@@ -169,7 +231,7 @@ mod tests {
     // testrust[verify run.failed]
     #[test]
     fn read_a_failed_test_keeps_what_it_wrote() {
-        let report = NextestReport::read(&output(&[FAILED_TEST, FAILED_SUITE]));
+        let report = read(&[FAILED_TEST, FAILED_SUITE]);
 
         assert!(
             report
@@ -184,7 +246,7 @@ mod tests {
     // testrust[verify run.passed]
     #[test]
     fn read_a_line_of_cargo_ignores_it() {
-        let report = NextestReport::read(&output(&[ARTIFACT, PASSED_SUITE]));
+        let report = read(&[ARTIFACT, PASSED_SUITE]);
 
         assert!(report.failures().is_empty());
     }
@@ -192,15 +254,29 @@ mod tests {
     // testrust[verify run.passed]
     #[test]
     fn read_a_passed_test_keeps_no_failure() {
-        let report = NextestReport::read(&output(&[STARTED_TEST, PASSED_TEST, PASSED_SUITE]));
+        let report = read(&[STARTED_TEST, PASSED_TEST, PASSED_SUITE]);
 
         assert!(report.failures().is_empty());
+    }
+
+    // testrust[verify run.unreadable]
+    #[test]
+    fn read_a_test_line_it_cannot_read_stops_with_the_line() {
+        let report = NextestReport::read(&output(&[MISSHAPEN, PASSED_SUITE]));
+
+        assert!(
+            matches!(
+                &report,
+                Err(ReadNextestReportError::UnrecognizedRecord { line, .. }) if line == MISSHAPEN
+            ),
+            "expected an unrecognized record, got {report:?}"
+        );
     }
 
     // testrust[verify run.none]
     #[test]
     fn read_an_empty_report_ran_nothing() {
-        let report = NextestReport::read("");
+        let report = read(&[]);
 
         assert_eq!(report.ran(), 0);
     }
@@ -208,7 +284,7 @@ mod tests {
     // testrust[verify run.passed]
     #[test]
     fn read_sums_the_tests_that_passed_and_failed_over_the_binaries() {
-        let report = NextestReport::read(&output(&[PASSED_SUITE, FAILED_TEST, FAILED_SUITE]));
+        let report = read(&[PASSED_SUITE, FAILED_TEST, FAILED_SUITE]);
 
         assert_eq!(report.ran(), 4);
     }

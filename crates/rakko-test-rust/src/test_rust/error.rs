@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
-use rakko_cargo::DiscoverRootsError;
+use rakko_cargo::{DiscoverRootsError, ReadReportError};
 use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
+
+use super::report::ReadNextestReportError;
 
 /// An error that stops a run of the action before it has an answer
 ///
@@ -31,6 +33,37 @@ pub enum TestRustError {
     UndiscoveredRoots {
         /// The cause of the failure
         source: DiscoverRootsError,
+    },
+
+    /// Cargo wrote a record that the action cannot read
+    ///
+    /// Nextest forwards the JSON of cargo on the same stream, and the shape
+    /// of a record belongs to a version of cargo. A line that names a
+    /// compiler message or the end of the build in a shape that the action
+    /// does not know leaves the diagnostics of the build untrusted, and an
+    /// answer built on them would hide problems behind a green result.
+    #[error("failed to read what cargo reported in {}", root.display())]
+    UnreadableDiagnostics {
+        /// The workspace root that the run worked on
+        root: PathBuf,
+
+        /// The cause of the failure
+        source: ReadReportError,
+    },
+
+    /// Nextest wrote a record that the action cannot read
+    ///
+    /// The shape of a record belongs to a version of nextest. A line about a
+    /// test or a binary of tests in a shape that the action does not know
+    /// leaves the report untrusted, and an answer built on it would hide
+    /// failures behind a green result.
+    #[error("failed to read what nextest reported in {}", root.display())]
+    UnreadableReport {
+        /// The workspace root that nextest worked on
+        root: PathBuf,
+
+        /// The cause of the failure
+        source: ReadNextestReportError,
     },
 
     /// Nextest wrote a report that the action does not recognize

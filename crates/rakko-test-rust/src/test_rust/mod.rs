@@ -17,7 +17,7 @@ use rakko_cargo::{Cargo, CargoReport, CargoRoot};
 use rakko_tool::Execution;
 
 pub use self::error::TestRustError;
-pub use self::report::{NextestReport, Panic, TestFailure};
+pub use self::report::{NextestReport, Panic, ReadNextestReportError, TestFailure};
 
 /// The reason of a run that found no manifest
 const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
@@ -220,6 +220,40 @@ fn finding(failure: &TestFailure, root: &CargoRoot, context: &Context) -> Findin
         .build()
 }
 
+/// Reads the diagnostics that cargo reported at a root
+///
+/// # Errors
+///
+/// Returns [`UnreadableDiagnostics`][unreadable] when the stream holds a
+/// record of cargo that the action cannot read. An answer built on such
+/// diagnostics would hide the problems of the build behind a green result.
+///
+/// [unreadable]: TestRustError::UnreadableDiagnostics
+// testrust[impl run.unreadable]
+fn read_diagnostics(root: &CargoRoot, stdout: &str) -> Result<CargoReport, TestRustError> {
+    CargoReport::read(stdout).map_err(|source| TestRustError::UnreadableDiagnostics {
+        root: root.directory().clone(),
+        source,
+    })
+}
+
+/// Reads what nextest reported at a root
+///
+/// # Errors
+///
+/// Returns [`UnreadableReport`][unreadable] when the stream holds a record
+/// of nextest that the action cannot read. An answer built on such a report
+/// would hide failures behind a green result.
+///
+/// [unreadable]: TestRustError::UnreadableReport
+// testrust[impl run.unreadable]
+fn read_report(root: &CargoRoot, stdout: &str) -> Result<NextestReport, TestRustError> {
+    NextestReport::read(stdout).map_err(|source| TestRustError::UnreadableReport {
+        root: root.directory().clone(),
+        source,
+    })
+}
+
 /// Returns whether the action can answer from the reports of a run
 ///
 /// A run that ended with success answered. A run that ended without success
@@ -279,8 +313,8 @@ async fn test(
         .map_err(|source| TestRustError::CargoUnavailable { source })?;
 
     let stdout = execution.stdout().to_string_lossy();
-    let nextest = NextestReport::read(&stdout);
-    let diagnostics = CargoReport::read(&stdout);
+    let nextest = read_report(root, &stdout)?;
+    let diagnostics = read_diagnostics(root, &stdout)?;
 
     // testrust[impl run.unrecognized]
     if !recognized(&nextest, &diagnostics, &execution) {
@@ -314,14 +348,53 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use std::path::{Path, PathBuf};
+
     use super::*;
+
+    // testrust[verify run.unreadable]
+    #[test]
+    fn read_diagnostics_in_a_shape_the_action_does_not_know_names_the_root() {
+        let root = CargoRoot::new(PathBuf::from("/home/otter/project"));
+
+        let diagnostics = read_diagnostics(
+            &root,
+            r#"{"reason":"compiler-message","message":{"level":5}}"#,
+        );
+
+        assert!(
+            matches!(
+                &diagnostics,
+                Err(TestRustError::UnreadableDiagnostics { root, .. })
+                    if root == Path::new("/home/otter/project")
+            ),
+            "expected unreadable diagnostics, got {diagnostics:?}"
+        );
+    }
+
+    // testrust[verify run.unreadable]
+    #[test]
+    fn read_report_in_a_shape_the_action_does_not_know_names_the_root() {
+        let root = CargoRoot::new(PathBuf::from("/home/otter/project"));
+
+        let report = read_report(&root, r#"{"type":"test","name":"probe::suite$fails"}"#);
+
+        assert!(
+            matches!(
+                &report,
+                Err(TestRustError::UnreadableReport { root, .. })
+                    if root == Path::new("/home/otter/project")
+            ),
+            "expected an unreadable report, got {report:?}"
+        );
+    }
 
     // testrust[verify run.passed]
     #[test]
-    fn summary_of_one_test_in_one_workspace_says_so() {
-        let summary = summary(1, 1);
+    fn summary_of_many_tests_counts_them() {
+        let summary = summary(354, 2);
 
-        assert_eq!(summary.get(), "ran 1 test in 1 workspace");
+        assert_eq!(summary.get(), "ran 354 tests in 2 workspaces");
     }
 
     // testrust[verify run.none]
@@ -334,9 +407,9 @@ mod tests {
 
     // testrust[verify run.passed]
     #[test]
-    fn summary_of_many_tests_counts_them() {
-        let summary = summary(354, 2);
+    fn summary_of_one_test_in_one_workspace_says_so() {
+        let summary = summary(1, 1);
 
-        assert_eq!(summary.get(), "ran 354 tests in 2 workspaces");
+        assert_eq!(summary.get(), "ran 1 test in 1 workspace");
     }
 }

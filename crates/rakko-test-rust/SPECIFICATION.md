@@ -163,6 +163,10 @@ A nextest run that ends without success and reports no failure, no
 diagnostic, and no absence of tests MUST stop the run, and the error MUST hold
 what nextest wrote.
 
+testrust[run.unreadable]
+A stream that holds a record of nextest or of cargo which the action cannot
+read MUST stop the run, and the error MUST name the root and hold the record.
+
 [nextest]: https://nexte.st
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/
