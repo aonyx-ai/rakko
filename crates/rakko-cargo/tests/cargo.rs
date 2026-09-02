@@ -20,7 +20,7 @@ use std::process::Command;
 
 use rakko_action::ProjectRoot;
 use rakko_cargo::{
-    Cargo, CargoRoot, Channel, DiscoverRootsError, ResolveToolchainError, Toolchain,
+    Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, ResolveToolchainError, Toolchain,
 };
 use tempfile::TempDir;
 
@@ -388,6 +388,35 @@ async fn invocation_with_toolchain_names_the_toolchain_first() {
     assert_eq!(arguments, ["+nightly-2026-08-11", "fmt"]);
 }
 
+// cargo[verify diagnostic.finished]
+// cargo[verify diagnostic.read]
+#[tokio::test]
+async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
+    let project = Project::workspace();
+    project.write("a/src/lib.rs", "pub fn unused() {\n    let value = 1;\n}\n");
+    let cargo = project.resolve().await;
+
+    let execution = cargo
+        .invocation(&project.cargo_root(""))
+        .args(["check", "--message-format=json"])
+        .run()
+        .await
+        .expect("the test runs cargo");
+    let report = CargoReport::read(&execution.stdout().to_string_lossy())
+        .expect("the test reads what cargo wrote");
+
+    assert_eq!(
+        (
+            report.finished(),
+            report
+                .diagnostics()
+                .first()
+                .and_then(|diagnostic| diagnostic.code().as_deref())
+        ),
+        (Some(true), Some("unused_variables"))
+    );
+}
+
 // cargo[verify tool.resolve]
 #[tokio::test]
 async fn resolve_in_a_project_that_pins_rust_finds_the_program() {
@@ -412,6 +441,22 @@ async fn resolve_without_a_cargo_reports_the_tool() {
         error.to_string().contains("cargo"),
         "expected the error to name the tool, got {error}"
     );
+}
+
+// cargo[verify root.walk]
+#[cfg(unix)]
+#[tokio::test]
+async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
+    let project = Project::workspace();
+    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
+    std::fs::write(elsewhere.path().join("Cargo.toml"), STANDALONE)
+        .expect("the test writes a file outside the project");
+    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
+        .expect("the test links a directory into the project");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(roots, [project.cargo_root("")]);
 }
 
 // cargo[verify root.walk]
@@ -622,9 +667,10 @@ async fn toolchain_resolve_outside_a_project_reports_what_mise_wrote() {
 
     assert!(
         matches!(
-            toolchain,
-            Err(ResolveToolchainError::UnreadableReport { .. })
+            &toolchain,
+            Err(ResolveToolchainError::UnreadableReport { details, .. })
+                if details.contains("mise.toml")
         ),
-        "expected an unreadable report, got {toolchain:?}"
+        "expected what mise wrote about mise.toml, got {toolchain:?}"
     );
 }
