@@ -353,6 +353,7 @@ dependencies = [
  "rakko-action",
  "rakko-cli",
  "rakko-format-toml",
+ "rakko-lint-rust",
  "rakko-lint-toml",
 ]
 
@@ -540,6 +541,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-cargo"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "typed-fields",
+]
+
+[[package]]
 name = "rakko-cli"
 version = "0.1.0"
 dependencies = [
@@ -558,6 +574,16 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-taplo",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-lint-rust"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-cargo",
  "rakko-tool",
  "thiserror",
 ]
