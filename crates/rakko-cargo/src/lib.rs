@@ -46,7 +46,7 @@
 //!             .args(["clippy", "--message-format=json"])
 //!             .run()
 //!             .await?;
-//!         let report = CargoReport::read(&execution.stdout().to_string_lossy());
+//!         let report = CargoReport::read(&execution.stdout().to_string_lossy())?;
 //!
 //!         println!("{} diagnostics", report.diagnostics().len());
 //!     }
@@ -68,6 +68,8 @@ pub mod root;
 pub mod toolchain;
 
 pub use self::cargo::{Cargo, DiscoverRootsError};
-pub use self::report::{CargoDiagnostic, CargoReport, DiagnosticLevel, DiagnosticSpan};
+pub use self::report::{
+    CargoDiagnostic, CargoReport, DiagnosticLevel, DiagnosticSpan, ReadReportError,
+};
 pub use self::root::CargoRoot;
 pub use self::toolchain::{Channel, ResolveToolchainError, Toolchain};

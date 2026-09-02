@@ -183,7 +183,13 @@ The crate reads the lines that carry a diagnostic at the level of a warning or
 an error, because those are the problems of a project. A note and a help line
 explain a diagnostic above them, and a line that ends a failed build adds
 nothing to the errors that it follows. Everything else is ignored, so a line
-that a new version adds does not break the reading.
+that a new version adds does not break the reading, and the output of a tool
+that cargo runs can share the stream.
+
+A line whose reason the crate knows but whose body it cannot read stops the
+reading. The shape belongs to a version of cargo, and a reading that skipped a
+diagnostic it did not understand would let a warning pass unread, which is what
+the pin is there to prevent.
 
 Cargo compiles a library once for the crate and once for its tests, and it
 reports a diagnostic once per target that compiles the file. The crate keeps
@@ -207,6 +213,10 @@ A diagnostic that cargo reports more than once MUST count once.
 cargo[diagnostic.finished]
 The crate MUST report whether cargo said that the build finished with success,
 and MUST report that cargo did not say when the line is absent.
+
+cargo[diagnostic.unrecognized]
+A compiler message, or the line that closes the build, that the crate cannot
+read MUST stop the reading, and the error MUST hold the line.
 
 cargo[diagnostic.finding]
 A diagnostic MUST become a finding with the message of the compiler, followed

@@ -7,6 +7,8 @@
 
 /// One diagnostic of the compiler
 mod diagnostic;
+/// The error that stops the reading
+mod error;
 /// How serious the compiler considers a diagnostic
 mod level;
 /// The source that a diagnostic points at
@@ -18,8 +20,10 @@ use std::path::PathBuf;
 use getset::{CopyGetters, Getters};
 use rakko_action::{Position, Span};
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
 pub use self::diagnostic::CargoDiagnostic;
+pub use self::error::ReadReportError;
 pub use self::level::DiagnosticLevel;
 pub use self::span::DiagnosticSpan;
 
@@ -49,9 +53,10 @@ const WARNING: &str = "warning";
 ///
 /// let stdout = r#"{"reason":"build-finished","success":true}"#;
 ///
-/// let report = CargoReport::read(stdout);
+/// let report = CargoReport::read(stdout)?;
 ///
 /// assert_eq!(report.finished(), Some(true));
+/// # Ok::<(), rakko_cargo::ReadReportError>(())
 /// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct CargoReport {
@@ -74,56 +79,97 @@ impl CargoReport {
     /// or an error, once each, and the line that says whether the build
     /// finished. It ignores every other line: the artifacts that cargo
     /// lists, the notes and the help lines of the compiler, and a line that
-    /// is not JSON at all, so the output of a tool that cargo runs can share
-    /// the stream.
+    /// is not a record of cargo at all, so the output of a tool that cargo
+    /// runs can share the stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnrecognizedRecord`][unrecognized] when a line names a
+    /// compiler message or the end of the build and the crate cannot read
+    /// its body. The shape belongs to a version of cargo, and a reading that
+    /// skipped such a line would let a build pass with its problems unread.
+    ///
+    /// [unrecognized]: ReadReportError::UnrecognizedRecord
     // cargo[impl diagnostic.finished]
     // cargo[impl diagnostic.ignore]
     // cargo[impl diagnostic.once]
     // cargo[impl diagnostic.read]
-    pub fn read(stdout: &str) -> Self {
+    // cargo[impl diagnostic.unrecognized]
+    pub fn read(stdout: &str) -> Result<Self, ReadReportError> {
         let mut diagnostics = Vec::new();
         let mut seen = HashSet::new();
         let mut finished = None;
 
         for line in stdout.lines() {
-            let Ok(record) = serde_json::from_str::<Record>(line) else {
+            let Ok(probe) = serde_json::from_str::<Probe>(line) else {
                 continue;
             };
 
-            match record.reason.as_str() {
+            match probe.reason.as_str() {
                 COMPILER_MESSAGE => {
-                    if let Some(diagnostic) = record.message.and_then(diagnostic)
+                    let record: CompilerMessage = decode(line)?;
+
+                    if let Some(diagnostic) = diagnostic(record.message)
                         && seen.insert(diagnostic.clone())
                     {
                         diagnostics.push(diagnostic);
                     }
                 }
-                BUILD_FINISHED => finished = record.success,
+                BUILD_FINISHED => {
+                    let record: BuildFinished = decode(line)?;
+                    finished = Some(record.success);
+                }
                 _ => {}
             }
         }
 
-        Self {
+        Ok(Self {
             diagnostics,
             finished,
-        }
+        })
     }
 }
 
-/// One line of the output of cargo
+/// The reason of a line of cargo, which says what the line is about
 ///
-/// Cargo writes more than these fields, and the reading ignores the rest, so
-/// a field that a new version adds does not break it.
+/// Every record of cargo carries a reason, and a line without one comes from
+/// another tool that shares the stream. Cargo writes more than this field,
+/// and the reading ignores the rest, so a field that a new version adds does
+/// not break it.
 #[derive(Deserialize)]
-struct Record {
+struct Probe {
     /// What the line is about
     reason: String,
+}
 
-    /// The diagnostic, when the line carries one
-    message: Option<Message>,
+/// A line that carries a diagnostic of the compiler
+#[derive(Deserialize)]
+struct CompilerMessage {
+    /// The diagnostic that cargo forwards
+    message: Message,
+}
 
-    /// Whether the build finished with success, when the line closes it
-    success: Option<bool>,
+/// The line that closes the output of a build
+#[derive(Deserialize)]
+struct BuildFinished {
+    /// Whether the build finished with success
+    success: bool,
+}
+
+/// Reads a record of cargo from a line whose reason the crate knows
+///
+/// # Errors
+///
+/// Returns [`UnrecognizedRecord`][unrecognized] when the line does not have
+/// the shape of the record.
+///
+/// [unrecognized]: ReadReportError::UnrecognizedRecord
+// cargo[impl diagnostic.unrecognized]
+fn decode<T: DeserializeOwned>(line: &str) -> Result<T, ReadReportError> {
+    serde_json::from_str(line).map_err(|source| ReadReportError::UnrecognizedRecord {
+        line: line.to_owned(),
+        source,
+    })
 }
 
 /// One diagnostic of the compiler, as cargo forwards it
@@ -225,8 +271,11 @@ fn diagnostic(message: Message) -> Option<CargoDiagnostic> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
+    // An assertion in a test panics by design, and a test that reads a report
+    // which cargo could have written expects the reading to succeed. A
+    // `# Panics` section on every test would repeat that and give the reader
+    // no information.
+    #![allow(clippy::expect_used)]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -246,6 +295,12 @@ mod tests {
     /// The line that closes a build that finished
     const FINISHED: &str = r#"{"reason":"build-finished","success":true}"#;
 
+    /// A line of another tool that shares the stream, in the shape of nextest
+    const FOREIGN: &str = r#"{"type":"suite","event":"ok","passed":3,"failed":0}"#;
+
+    /// A compiler message in a shape that the crate does not know
+    const MISSHAPEN: &str = r#"{"reason":"compiler-message","message":{"level":"warning","text":"a field that the crate does not know"}}"#;
+
     /// A diagnostic without a source, such as one about the manifest
     const UNPLACED: &str = r#"{"reason":"compiler-message","message":{"level":"warning","code":null,"message":"unused manifest key","spans":[]}}"#;
 
@@ -260,10 +315,15 @@ mod tests {
         output
     }
 
+    /// Returns the report of a build made of the given lines
+    fn read(lines: &[&str]) -> CargoReport {
+        CargoReport::read(&output(lines)).expect("the test reads a report that cargo could write")
+    }
+
     // cargo[verify diagnostic.finished]
     #[test]
     fn read_a_build_that_failed_reports_no_success() {
-        let report = CargoReport::read(&output(&[ERROR, FAILED]));
+        let report = read(&[ERROR, FAILED]);
 
         assert_eq!(report.finished(), Some(false));
     }
@@ -271,15 +331,29 @@ mod tests {
     // cargo[verify diagnostic.finished]
     #[test]
     fn read_a_build_that_finished_reports_success() {
-        let report = CargoReport::read(&output(&[ARTIFACT, FINISHED]));
+        let report = read(&[ARTIFACT, FINISHED]);
 
         assert_eq!(report.finished(), Some(true));
+    }
+
+    // cargo[verify diagnostic.unrecognized]
+    #[test]
+    fn read_a_compiler_message_it_cannot_read_stops_with_the_line() {
+        let report = CargoReport::read(&output(&[MISSHAPEN, FINISHED]));
+
+        assert!(
+            matches!(
+                &report,
+                Err(ReadReportError::UnrecognizedRecord { line, .. }) if line == MISSHAPEN
+            ),
+            "expected an unrecognized record, got {report:?}"
+        );
     }
 
     // cargo[verify diagnostic.read]
     #[test]
     fn read_a_diagnostic_reads_its_code() {
-        let report = CargoReport::read(&output(&[WARNING, FINISHED]));
+        let report = read(&[WARNING, FINISHED]);
 
         assert_eq!(
             report
@@ -293,7 +367,7 @@ mod tests {
     // cargo[verify diagnostic.read]
     #[test]
     fn read_a_diagnostic_reads_its_level() {
-        let report = CargoReport::read(&output(&[ERROR, FAILED]));
+        let report = read(&[ERROR, FAILED]);
 
         assert_eq!(
             report.diagnostics().first().map(CargoDiagnostic::level),
@@ -304,7 +378,7 @@ mod tests {
     // cargo[verify diagnostic.read]
     #[test]
     fn read_a_diagnostic_reads_its_message() {
-        let report = CargoReport::read(&output(&[ERROR, FAILED]));
+        let report = read(&[ERROR, FAILED]);
 
         assert_eq!(
             report.diagnostics().first().map(CargoDiagnostic::message),
@@ -315,7 +389,7 @@ mod tests {
     // cargo[verify diagnostic.read]
     #[test]
     fn read_a_diagnostic_reads_its_primary_span() {
-        let report = CargoReport::read(&output(&[WARNING, FINISHED]));
+        let report = read(&[WARNING, FINISHED]);
 
         let span = report
             .diagnostics()
@@ -336,7 +410,7 @@ mod tests {
     // cargo[verify diagnostic.once]
     #[test]
     fn read_a_diagnostic_that_cargo_repeats_keeps_one() {
-        let report = CargoReport::read(&output(&[WARNING, WARNING, FINISHED]));
+        let report = read(&[WARNING, WARNING, FINISHED]);
 
         assert_eq!(report.diagnostics().len(), 1);
     }
@@ -344,7 +418,7 @@ mod tests {
     // cargo[verify diagnostic.read]
     #[test]
     fn read_a_diagnostic_without_a_span_has_none() {
-        let report = CargoReport::read(&output(&[UNPLACED, FINISHED]));
+        let report = read(&[UNPLACED, FINISHED]);
 
         assert_eq!(
             report.diagnostics().first().map(CargoDiagnostic::span),
@@ -354,8 +428,16 @@ mod tests {
 
     // cargo[verify diagnostic.ignore]
     #[test]
+    fn read_a_line_of_another_tool_ignores_it() {
+        let report = read(&[FOREIGN, FINISHED]);
+
+        assert!(report.diagnostics().is_empty());
+    }
+
+    // cargo[verify diagnostic.ignore]
+    #[test]
     fn read_a_line_that_is_not_json_ignores_it() {
-        let report = CargoReport::read(&output(&["Compiling probe v0.1.0", FINISHED]));
+        let report = read(&["Compiling probe v0.1.0", FINISHED]);
 
         assert!(report.diagnostics().is_empty());
     }
@@ -363,7 +445,7 @@ mod tests {
     // cargo[verify diagnostic.ignore]
     #[test]
     fn read_a_note_that_ends_a_failed_build_ignores_it() {
-        let report = CargoReport::read(&output(&[ERROR, FAILURE_NOTE, FAILED]));
+        let report = read(&[ERROR, FAILURE_NOTE, FAILED]);
 
         assert_eq!(report.diagnostics().len(), 1);
     }
@@ -371,7 +453,7 @@ mod tests {
     // cargo[verify diagnostic.ignore]
     #[test]
     fn read_an_artifact_ignores_it() {
-        let report = CargoReport::read(&output(&[ARTIFACT, FINISHED]));
+        let report = read(&[ARTIFACT, FINISHED]);
 
         assert!(report.diagnostics().is_empty());
     }
@@ -379,7 +461,7 @@ mod tests {
     // cargo[verify diagnostic.finished]
     #[test]
     fn read_an_output_without_a_closing_line_reports_nothing_about_success() {
-        let report = CargoReport::read(&output(&[WARNING]));
+        let report = read(&[WARNING]);
 
         assert_eq!(report.finished(), None);
     }
