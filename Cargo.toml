@@ -19,7 +19,7 @@ bon = "3"
 clap = "4.3"
 clawless = "0.6.1"
 getset = ">=0.1,<1"
-kawauso-process = "0.1.0"
+kawauso-process = "0.2.0"
 kawauso-project = "0.2.0"
 rakko-action = { path = "crates/rakko-action", version = "0.1.0" }
 rakko-lint-toml = { path = "crates/rakko-lint-toml", version = "0.1.0" }
