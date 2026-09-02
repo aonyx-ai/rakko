@@ -141,6 +141,10 @@ A cargo run that ends without success and reports no diagnostic, or that ends
 with success and does not report that the build finished, MUST stop the run,
 and the error MUST hold what cargo wrote.
 
+lintrust[check.unreadable]
+A report that holds a record of cargo which the action cannot read MUST stop
+the run, and the error MUST name the root and hold the record.
+
 [clippy]: https://doc.rust-lang.org/clippy/
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/

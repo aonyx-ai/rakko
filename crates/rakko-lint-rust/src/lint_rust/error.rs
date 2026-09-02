@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rakko_cargo::DiscoverRootsError;
+use rakko_cargo::{DiscoverRootsError, ReadReportError};
 use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
@@ -31,6 +31,21 @@ pub enum LintRustError {
     UndiscoveredRoots {
         /// The cause of the failure
         source: DiscoverRootsError,
+    },
+
+    /// Cargo wrote a record that the action cannot read
+    ///
+    /// The shape of a record belongs to a version of cargo. A line that
+    /// names a compiler message or the end of the build in a shape that the
+    /// action does not know leaves the report untrusted, and an answer built
+    /// on it would hide problems behind a green result.
+    #[error("failed to read what cargo reported in {}", root.display())]
+    UnreadableReport {
+        /// The workspace root that cargo worked on
+        root: PathBuf,
+
+        /// The cause of the failure
+        source: ReadReportError,
     },
 
     /// Cargo wrote a report that the action does not recognize

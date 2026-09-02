@@ -167,7 +167,7 @@ async fn lint(
         .await
         .map_err(|source| LintRustError::CargoUnavailable { source })?;
 
-    let report = CargoReport::read(&execution.stdout().to_string_lossy());
+    let report = read(root, &execution.stdout().to_string_lossy())?;
 
     // lintrust[impl check.unrecognized]
     if !recognized(&report, &execution) {
@@ -199,6 +199,24 @@ fn recognized(report: &CargoReport, execution: &Execution) -> bool {
     }
 }
 
+/// Reads what cargo reported at a root
+///
+/// # Errors
+///
+/// Returns [`UnreadableReport`][unreadable] when the report holds a record
+/// of cargo that the action cannot read. The shape of a record belongs to a
+/// version of cargo, and an answer built on a report with such a record
+/// would hide problems behind a green result.
+///
+/// [unreadable]: LintRustError::UnreadableReport
+// lintrust[impl check.unreadable]
+fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, LintRustError> {
+    CargoReport::read(stdout).map_err(|source| LintRustError::UnreadableReport {
+        root: root.directory().clone(),
+        source,
+    })
+}
+
 /// Returns the summary that tells how many workspaces the run checked
 // lintrust[impl check.passed]
 fn summary(roots: usize) -> Summary {
@@ -215,7 +233,29 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use std::path::{Path, PathBuf};
+
     use super::*;
+
+    // lintrust[verify check.unreadable]
+    #[test]
+    fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
+        let root = CargoRoot::new(PathBuf::from("/home/otter/project"));
+
+        let report = read(
+            &root,
+            r#"{"reason":"compiler-message","message":{"level":5}}"#,
+        );
+
+        assert!(
+            matches!(
+                &report,
+                Err(LintRustError::UnreadableReport { root, .. })
+                    if root == Path::new("/home/otter/project")
+            ),
+            "expected an unreadable report, got {report:?}"
+        );
+    }
 
     // lintrust[verify check.passed]
     #[test]
