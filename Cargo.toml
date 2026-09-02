@@ -26,7 +26,7 @@ rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-lint-toml = { path = "crates/rakko-lint-toml", version = "0.1.0" }
 rakko-taplo = { path = "crates/rakko-taplo", version = "0.1.0" }
 rakko-tool = { path = "crates/rakko-tool", version = "0.1.0" }
-serde = { version = "1.0.220", features = ["derive"] }
+serde = { version = "1.0.225", features = ["derive"] }
 serde_json = "1.0.0"
 tempfile = "3"
 thiserror = "2"
