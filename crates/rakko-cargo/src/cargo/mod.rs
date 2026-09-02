@@ -215,6 +215,12 @@ impl Cargo {
 
     /// Asks cargo which workspace a manifest belongs to
     ///
+    /// The question runs in the directory of the manifest, because cargo
+    /// reads the configuration in `.cargo` from the directory it runs in
+    /// and not from the manifest it is given. The job that follows runs in
+    /// the directory of the root, so the answer and the job see the same
+    /// configuration.
+    ///
     /// # Errors
     ///
     /// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
@@ -227,9 +233,11 @@ impl Cargo {
     /// [unavailable]: DiscoverRootsError::CargoUnavailable
     // cargo[impl root.manifest]
     async fn metadata(&self, manifest: &Path) -> Result<Metadata, DiscoverRootsError> {
+        let directory = manifest.parent().unwrap_or(self.root.get());
         let execution = self
             .tool
             .invocation()
+            .in_directory(directory)
             .args(METADATA)
             .arg(MANIFEST_PATH)
             .arg(manifest)
