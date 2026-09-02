@@ -563,6 +563,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-cargo"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "typed-fields",
+]
+
+[[package]]
 name = "rakko-cli"
 version = "0.1.0"
 dependencies = [

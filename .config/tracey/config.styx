@@ -30,6 +30,18 @@ specs (
         )
     }
     {
+        name cargo
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-cargo/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-cargo/src/**/*.rs)
+                test_include (crates/rakko-cargo/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name cli
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-cli/SPECIFICATION.md)
