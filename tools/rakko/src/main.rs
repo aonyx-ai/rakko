@@ -13,6 +13,7 @@ use rakko_format_rust::FormatRust;
 use rakko_format_toml::FormatToml;
 use rakko_lint_rust::LintRust;
 use rakko_lint_toml::LintToml;
+use rakko_test_rust::TestRust;
 
 /// Builds the command line of this repository and runs it
 ///
@@ -25,6 +26,7 @@ fn main() {
             Box::new(FormatToml),
             Box::new(LintRust),
             Box::new(LintToml),
+            Box::new(TestRust),
         ])
         .run();
 }

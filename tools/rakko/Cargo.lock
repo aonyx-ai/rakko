@@ -356,6 +356,7 @@ dependencies = [
  "rakko-format-toml",
  "rakko-lint-rust",
  "rakko-lint-toml",
+ "rakko-test-rust",
 ]
 
 [[package]]
@@ -620,6 +621,19 @@ dependencies = [
  "rakko-tool",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "rakko-test-rust"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
