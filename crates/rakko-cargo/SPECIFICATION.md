@@ -223,7 +223,9 @@ name the path when there is one.
 Cargo writes some paths relative to the root that it works on, and some tools
 that cargo runs write absolute paths. A finding names its file relative to the
 project root, so that a reader, a machine, and a code host see the same path
-for the same file, and the crate turns both forms into that name.
+for the same file, and the crate turns both forms into that name. A path can
+climb through `..`, and a prefix check on such a path would answer for the
+wrong directory, so the crate resolves the climb before it decides.
 
 cargo[path.relative]
 The crate MUST report a path that cargo wrote relative to the project root,
@@ -231,6 +233,10 @@ whether cargo wrote it relative to a root or absolute.
 
 cargo[path.foreign]
 A path that the project root does not contain MUST get no relative name.
+
+cargo[path.parent]
+A path that climbs through its parent components MUST be resolved before the
+crate decides whether the project root contains it.
 
 [cargo]: https://doc.rust-lang.org/cargo/
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119

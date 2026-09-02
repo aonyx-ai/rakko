@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use getset::Getters;
 use rakko_action::{FilePath, ProjectRoot};
@@ -63,9 +63,11 @@ impl CargoRoot {
     ///
     /// Returns `None` when the project root does not contain the file, which
     /// happens for a diagnostic in a dependency that lives elsewhere on the
-    /// machine.
+    /// machine. A path that climbs through its parents is resolved first, so
+    /// a path that leaves the project that way gets no name either.
     // cargo[impl path.relative]
     // cargo[impl path.foreign]
+    // cargo[impl path.parent]
     pub fn relative_path(&self, path: &Path, root: &ProjectRoot) -> Option<FilePath> {
         let absolute = if path.is_absolute() {
             path.to_path_buf()
@@ -73,8 +75,32 @@ impl CargoRoot {
             self.directory.join(path)
         };
 
-        FilePath::try_from(strip(&absolute, root)?).ok()
+        FilePath::try_from(strip(&normalize(&absolute), root)?).ok()
     }
+}
+
+/// Returns the path with every `.` dropped and every `..` resolved against
+/// the component before it
+///
+/// A prefix check on a path that climbs through its parents answers for the
+/// wrong directory, so the climb is resolved first. The resolution is
+/// lexical: a component that is a symbolic link resolves as a directory,
+/// which is how cargo wrote the path.
+// cargo[impl path.parent]
+fn normalize(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            other => normalized.push(other),
+        }
+    }
+
+    normalized
 }
 
 /// Returns the path without the project root that prefixes it
@@ -150,6 +176,26 @@ mod tests {
         let directory = root.relative_directory(&project());
 
         assert_eq!(directory, Some(PathBuf::from("tools/harness")));
+    }
+
+    // cargo[verify path.parent]
+    #[test]
+    fn relative_path_of_a_path_that_climbs_out_of_the_project_names_nothing() {
+        let root = nested();
+
+        let path = root.relative_path(Path::new("../../../outside.rs"), &project());
+
+        assert_eq!(path, None);
+    }
+
+    // cargo[verify path.parent]
+    #[test]
+    fn relative_path_of_a_path_that_climbs_within_the_project_resolves_the_climb() {
+        let root = nested();
+
+        let path = root.relative_path(Path::new("../other/src/lib.rs"), &project());
+
+        assert_eq!(path, FilePath::try_from("tools/other/src/lib.rs").ok());
     }
 
     // cargo[verify path.relative]
