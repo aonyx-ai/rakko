@@ -15,7 +15,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use rakko_action::ProjectRoot;
@@ -38,10 +38,19 @@ const STANDALONE: &str =
 /// A manifest that cargo cannot read
 const BROKEN: &str = "this is not a manifest\n";
 
+/// The manifest of a workspace that lists a project below it as a member
+const OUTER: &str = "[workspace]\nmembers = [\"project\"]\nresolver = \"3\"\n";
+
+/// The manifest of a package that belongs to the workspace above it
+const MEMBER: &str = "[package]\nname = \"project\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
     directory: TempDir,
+
+    /// The root of the project, which is the directory or a directory below it
+    root: PathBuf,
 }
 
 impl Project {
@@ -51,8 +60,9 @@ impl Project {
     /// tool. A test uses this shape when it only looks at the project.
     fn bare() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let root = directory.path().to_path_buf();
 
-        Self { directory }
+        Self { directory, root }
     }
 
     /// Creates a project with the cargo of this repository
@@ -63,11 +73,24 @@ impl Project {
     /// copy is trusted right away.
     fn new() -> Self {
         let project = Self::bare();
+        project.pin_repository();
 
-        let pins = repository().join("mise.toml");
-        let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
-        trust(&copy);
+        project
+    }
+
+    /// Creates a project below a workspace that lists it as a member
+    ///
+    /// The workspace sits in the temporary directory, and the project is the
+    /// package in its `project` directory, so the root that cargo names for
+    /// the manifest of the project lies above the project.
+    fn inside_a_workspace() -> Self {
+        let mut project = Self::bare();
+        std::fs::write(project.directory.path().join("Cargo.toml"), OUTER)
+            .expect("the test writes the manifest of the outer workspace");
+        project.root = project.directory.path().join("project");
+        project.write("Cargo.toml", MEMBER);
+        project.write("src/lib.rs", "");
+        project.pin_repository();
 
         project
     }
@@ -76,7 +99,7 @@ impl Project {
     fn with_rust(pins: &str) -> Self {
         let project = Self::bare();
 
-        let configuration = project.directory.path().join("mise.toml");
+        let configuration = project.root.join("mise.toml");
         std::fs::write(&configuration, format!("[tools]\nrust = {pins}\n"))
             .expect("the test writes the mise.toml of the project");
         trust(&configuration);
@@ -104,6 +127,15 @@ impl Project {
         CargoRoot::new(self.root().get().join(path))
     }
 
+    /// Returns the directory above the project, which holds the outer
+    /// workspace of a project that sits inside one
+    fn outer(&self) -> PathBuf {
+        self.directory
+            .path()
+            .canonicalize()
+            .expect("the test names a directory that exists")
+    }
+
     /// Writes a package with the given name into the directory of that name
     fn package(&self, name: &str) {
         self.write(
@@ -111,6 +143,19 @@ impl Project {
             &format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"),
         );
         self.write(&format!("{name}/src/lib.rs"), "");
+    }
+
+    /// Copies the mise configuration of this repository into the project
+    ///
+    /// The cargo that mise resolves for the project is then the cargo that
+    /// the repository pins and installs. Mise ignores a configuration that
+    /// nobody trusts, so the copy is trusted right away.
+    fn pin_repository(&self) {
+        let pins = repository().join("mise.toml");
+        let copy = self.root.join("mise.toml");
+        std::fs::create_dir_all(&self.root).expect("the test creates the root of the project");
+        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
+        trust(&copy);
     }
 
     /// Resolves the cargo of this project
@@ -131,8 +176,7 @@ impl Project {
     /// on the symbolic links of the temporary directory.
     fn root(&self) -> ProjectRoot {
         let path = self
-            .directory
-            .path()
+            .root
             .canonicalize()
             .expect("the test names a directory that exists");
 
@@ -141,7 +185,7 @@ impl Project {
 
     /// Writes a file of the project, with the directories that lead to it
     fn write(&self, path: &str, content: &str) {
-        let path = self.directory.path().join(path);
+        let path = self.root.join(path);
 
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).expect("the test creates the directories of a file");
@@ -209,7 +253,7 @@ impl Drop for Project {
             .arg("trust")
             .arg("--quiet")
             .arg("--untrust")
-            .arg(self.directory.path().join("mise.toml"))
+            .arg(self.root.join("mise.toml"))
             .status();
     }
 }
@@ -440,6 +484,24 @@ async fn roots_of_a_workspace_name_the_workspace_once() {
     let roots = project.roots().await.expect("the test discovers the roots");
 
     assert_eq!(roots, [project.cargo_root("")]);
+}
+
+// cargo[verify root.contained]
+#[tokio::test]
+async fn roots_with_a_manifest_of_an_outer_workspace_name_the_workspace() {
+    let project = Project::inside_a_workspace();
+
+    let roots = project.roots().await;
+
+    assert!(
+        matches!(
+            &roots,
+            Err(DiscoverRootsError::ForeignWorkspace { manifest, workspace })
+                if manifest == &project.root().get().join("Cargo.toml")
+                    && workspace == &project.outer()
+        ),
+        "expected the outer workspace, got {roots:?}"
+    );
 }
 
 // cargo[verify root.manifest]

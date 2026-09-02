@@ -22,6 +22,25 @@ pub enum DiscoverRootsError {
         source: RunCommandError,
     },
 
+    /// A manifest of the project belongs to a workspace outside the project
+    ///
+    /// An outer workspace that lists the manifest as a member is the usual
+    /// case. Cargo names that outer directory as the root, and a job there
+    /// would work on files outside the project, so the discovery stops
+    /// instead of naming a root that the project does not contain.
+    #[error(
+        "the manifest {} belongs to a workspace outside the project, at {}",
+        manifest.display(),
+        workspace.display()
+    )]
+    ForeignWorkspace {
+        /// The manifest of the project that cargo assigned to the workspace
+        manifest: PathBuf,
+
+        /// The directory of the workspace, which lies outside the project
+        workspace: PathBuf,
+    },
+
     /// A directory of the project could not be read
     ///
     /// The discovery walks every directory of the project that can hold a

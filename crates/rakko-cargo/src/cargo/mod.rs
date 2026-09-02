@@ -172,13 +172,17 @@ impl Cargo {
     /// Returns [`UnreadableDirectory`][directory] when a directory of the
     /// project cannot be read, [`CargoUnavailable`][unavailable] when cargo
     /// does not run, [`UnreadableManifest`][manifest] when cargo refuses a
-    /// manifest, and [`UnrecognizedMetadata`][metadata] when cargo describes
-    /// a workspace in a shape that the crate cannot read.
+    /// manifest, [`UnrecognizedMetadata`][metadata] when cargo describes a
+    /// workspace in a shape that the crate cannot read, and
+    /// [`ForeignWorkspace`][foreign] when a manifest belongs to a workspace
+    /// whose root lies outside the project.
     ///
     /// [directory]: DiscoverRootsError::UnreadableDirectory
+    /// [foreign]: DiscoverRootsError::ForeignWorkspace
     /// [manifest]: DiscoverRootsError::UnreadableManifest
     /// [metadata]: DiscoverRootsError::UnrecognizedMetadata
     /// [unavailable]: DiscoverRootsError::CargoUnavailable
+    // cargo[impl root.contained]
     // cargo[impl root.discover]
     // cargo[impl root.member]
     // cargo[impl root.walk]
@@ -186,6 +190,7 @@ impl Cargo {
         let mut manifests = manifests(self.root.get(), Search::All).await?;
         manifests.sort_by_key(|manifest| (manifest.components().count(), manifest.clone()));
 
+        let project = canonical(self.root.get()).await;
         let mut claimed: HashSet<PathBuf> = HashSet::new();
         let mut roots: Vec<CargoRoot> = Vec::new();
 
@@ -196,6 +201,13 @@ impl Cargo {
 
             let metadata = self.metadata(&manifest).await?;
             let directory = canonical(&metadata.workspace_root).await;
+
+            if !directory.starts_with(&project) {
+                return Err(DiscoverRootsError::ForeignWorkspace {
+                    manifest,
+                    workspace: directory,
+                });
+            }
 
             claimed.insert(directory.join(MANIFEST));
             for package in metadata.packages {

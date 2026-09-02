@@ -91,6 +91,10 @@ workspace, and the members need no question of their own. A manifest that
 cargo cannot read stops the discovery, because a discovery that skipped it
 would hide a broken manifest behind a green run.
 
+A manifest of the project can belong to a workspace above the project, when
+that workspace lists the manifest as a member. A job at that root would work
+on files outside the project, so such a manifest stops the discovery as well.
+
 cargo[root.discover]
 The crate MUST report every workspace root below the project root, as cargo
 names it, once each, in the order of their paths.
@@ -98,6 +102,11 @@ names it, once each, in the order of their paths.
 cargo[root.member]
 A manifest that belongs to a workspace that the crate found MUST NOT count as
 a root of its own.
+
+cargo[root.contained]
+A manifest that belongs to a workspace whose root the project root does not
+contain MUST stop the discovery, and the error MUST name the manifest and the
+workspace root.
 
 cargo[root.walk]
 The discovery MUST search for manifests with the rules of the look: it MUST
