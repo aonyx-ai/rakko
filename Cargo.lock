@@ -657,6 +657,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-test-rust"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-tool"
 version = "0.1.0"
 dependencies = [
