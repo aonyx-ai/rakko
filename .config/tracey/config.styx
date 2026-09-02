@@ -66,6 +66,18 @@ specs (
         )
     }
     {
+        name lint-rust
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-lint-rust/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-lint-rust/src/**/*.rs)
+                test_include (crates/rakko-lint-rust/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name lint-toml
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-lint-toml/SPECIFICATION.md)

@@ -606,6 +606,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-lint-rust"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-lint-toml"
 version = "0.1.0"
 dependencies = [
