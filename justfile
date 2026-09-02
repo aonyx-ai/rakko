@@ -75,6 +75,7 @@ check-dependencies:
 # Check that Rakko builds with the minimal dependencies
 check-minimal-deps force="false":
     #!/usr/bin/env -S mise exec -- bash
+    set -euo pipefail
 
     # Abort if git is not clean
     if [[ {{ force }} != "true" && -n $(git status --porcelain) ]]; then
@@ -82,7 +83,7 @@ check-minimal-deps force="false":
         git status --porcelain
 
         # Print diff on GitHub Actions
-        if [ -n "$GITHUB_ACTIONS" ]; then
+        if [ -n "${GITHUB_ACTIONS:-}" ]; then
             git diff
         fi
 
@@ -95,8 +96,10 @@ check-minimal-deps force="false":
     # Update dependencies to minimal versions
     rustup run nightly cargo update -Z direct-minimal-versions
 
-    # Run tests to ensure the minimal versions are compatible
-    RUSTFLAGS="-D deprecated" rustup run nightly cargo test --all-features --all-targets --locked
+    # Run the tests on the toolchain that the project pins. Only the resolution
+    # needs the nightly, and a test that starts cargo would otherwise inherit
+    # the nightly through RUSTUP_TOOLCHAIN and miss the components of the pin.
+    RUSTFLAGS="-D deprecated" cargo test --all-features --all-targets --locked
 
 # Check that the specs and the requirement references in the code are valid
 check-specs:
