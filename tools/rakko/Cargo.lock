@@ -353,6 +353,7 @@ dependencies = [
  "rakko-action",
  "rakko-cli",
  "rakko-format-json",
+ "rakko-format-markdown",
  "rakko-format-rust",
  "rakko-format-toml",
  "rakko-lint-rust",
@@ -572,6 +573,17 @@ dependencies = [
 
 [[package]]
 name = "rakko-format-json"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-prettier",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-format-markdown"
 version = "0.1.0"
 dependencies = [
  "getset",
