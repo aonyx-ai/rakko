@@ -167,7 +167,11 @@ format-json fix="false":
     mise run rakko -- format-json {{ if fix == "true" { "--fix" } else { "" } }}
 
 # Format Markdown files
-format-markdown fix="false": (prettier fix "md")
+#
+# The recipe runs the harness instead of prettier, for the reason that
+# `format-toml` gives.
+format-markdown fix="false":
+    mise run rakko -- format-markdown {{ if fix == "true" { "--fix" } else { "" } }}
 
 # Format Rust files
 #
