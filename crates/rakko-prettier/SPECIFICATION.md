@@ -128,9 +128,21 @@ what it can and names every file that it examined, and it marks the files that
 it left unchanged, so the caller learns what the run repaired from the run
 itself.
 
+The crate asks prettier for a report without color codes, because it reads the
+report as data, and a color code inside the marker of a line would corrupt the
+reading. Prettier colors its report when it takes its output for a terminal,
+and it takes a continuous integration job for one, so a run that asked for
+nothing would be read correctly on the machine of a contributor and not in the
+job that gates a pull request. This selects the presentation of the report and
+not the behavior of the tool: what prettier does to a project comes from the
+configuration of that project alone.
+
 prettier[run.operation]
 Each operation MUST run the flags of prettier that do that job, and no other
 option of prettier.
+
+prettier[run.plain]
+Every run MUST ask prettier for a report without color codes.
 
 ## Report
 

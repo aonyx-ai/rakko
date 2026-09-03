@@ -32,6 +32,19 @@ const WRITE: &str = "--write";
 /// skip, which is what keeps a pattern for every extension usable.
 const IGNORE_UNKNOWN: &str = "--ignore-unknown";
 
+/// The flag that asks prettier for a report without color codes
+///
+/// The report is read as data, and a color code inside the marker of a line
+/// would corrupt the reading. Prettier colors its report when it takes its
+/// output for a terminal, and it takes a continuous integration job for one,
+/// so a run that asked for nothing would be read correctly on the machine of
+/// a contributor and not in the job that gates a pull request.
+///
+/// The flag selects the presentation of the report and not the behavior of
+/// the tool: what prettier does to a project comes from the configuration of
+/// that project alone.
+const NO_COLOR: &str = "--no-color";
+
 /// The directory entry that the look does not read
 const GIT_DIRECTORY: &str = ".git";
 
@@ -135,6 +148,7 @@ impl Prettier {
     ///
     /// [unavailable]: ObservePrettierError::PrettierUnavailable
     // prettier[impl run.operation]
+    // prettier[impl run.plain]
     // prettier[impl select.unknown]
     pub async fn observe(
         &self,
@@ -150,6 +164,7 @@ impl Prettier {
             .tool
             .invocation()
             .arg(flag)
+            .arg(NO_COLOR)
             .arg(IGNORE_UNKNOWN)
             .arg(filter.pattern())
             .run()
