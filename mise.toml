@@ -6,8 +6,10 @@
 # available. With cargo-binstall, it downloads a prebuilt binary instead.
 cargo-binstall = "1.22.0"
 
-# The build script of tracey bundles a web dashboard with node and pnpm. The
-# `install-tracey` task below is the only consumer of these two.
+# Prettier runs on node, and mise puts no node on the path for a tool of its
+# npm backend, so the pin below is what lets the format actions start prettier.
+# The build script of tracey bundles a web dashboard with node and pnpm, and
+# the `install-tracey` task below is the only consumer of the second pin.
 node = "24.20.0"
 pnpm = "11.25.0"
 

@@ -352,6 +352,7 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-cli",
+ "rakko-format-json",
  "rakko-format-rust",
  "rakko-format-toml",
  "rakko-lint-rust",
@@ -570,6 +571,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-format-json"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-prettier",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
 name = "rakko-format-rust"
 version = "0.1.0"
 dependencies = [
@@ -609,6 +621,19 @@ dependencies = [
  "rakko-taplo",
  "rakko-tool",
  "thiserror",
+]
+
+[[package]]
+name = "rakko-prettier"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
+ "typed-fields",
 ]
 
 [[package]]
