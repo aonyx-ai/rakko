@@ -66,6 +66,18 @@ specs (
         )
     }
     {
+        name format-markdown
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-format-markdown/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-format-markdown/src/**/*.rs)
+                test_include (crates/rakko-format-markdown/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name format-rust
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-format-rust/SPECIFICATION.md)
