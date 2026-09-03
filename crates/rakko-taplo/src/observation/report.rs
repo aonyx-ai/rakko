@@ -20,9 +20,6 @@ const TOTAL_FIELD: &str = "total=";
 /// excluded
 const EXCLUDED_FIELD: &str = "excluded=";
 
-/// The marker of the line that reports a file that is not formatted
-const UNFORMATTED: &str = "the file is not properly formatted";
-
 /// The marker of the line that reports a file that taplo refused
 ///
 /// The marker carries the field that follows it, so that the line of a
@@ -41,21 +38,28 @@ const DIAGNOSTIC: &str = "error: ";
 /// The marker of the line that places a diagnostic in a file
 const LOCATION_ARROW: &str = "┌─ ";
 
-/// The marker of the line that closes the report of a failed run
+/// The prefix of the line of a difference that names the file it rewrites
 ///
-/// A run that ends without success writes this line last, so a report that
-/// ends without it lost its tail.
-const FAILURE_SUMMARY: &str = "operation failed";
+/// A formatting run prints one difference for each file that it would
+/// rewrite, and the header of a difference names the file twice: once as the
+/// text on disk and once as the text that taplo would write. The reading
+/// takes the second name. No line inside a difference can be mistaken for
+/// it, because taplo marks an added line with a single `+`.
+const DIFF_TARGET: &str = "+++ b/";
 
 /// Reads what a run of taplo produced
 ///
-/// The reading walks the report line by line. A diagnostic spans several
+/// The reading walks each stream line by line. A diagnostic spans several
 /// lines, and the reading looks ahead from its header without consuming the
 /// block, because the lines of a block match no other rule.
-pub(super) fn read(stderr: &str, succeeded: bool) -> Observation {
+///
+/// The standard error stream is read first, so the files that taplo could
+/// not parse stand before the files that it would rewrite. The two streams
+/// name different files: taplo offers no difference for a file that it never
+/// parsed.
+pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
     let mut observation = Observation {
         checked: None,
-        failure_reported: false,
         problems: Vec::new(),
         rejected_configuration: None,
         stderr: stderr.to_owned(),
@@ -69,19 +73,9 @@ pub(super) fn read(stderr: &str, succeeded: bool) -> Observation {
             if observation.rejected_configuration.is_none() {
                 observation.rejected_configuration = Some(rejection(line));
             }
-        // taplo[impl report.failure]
-        } else if line.contains(FAILURE_SUMMARY) {
-            observation.failure_reported = true;
-        // taplo[impl report.checked]
+        // taplo[impl report.checked+2]
         } else if line.contains(FILES_FOUND) {
             observation.checked = checked(line);
-        // taplo[impl report.unformatted]
-        } else if line.contains(UNFORMATTED) {
-            if let Some(path) = quoted_path(line) {
-                observation
-                    .problems
-                    .push(TaploProblem::new(path, ProblemDetail::Unformatted));
-            }
         // taplo[impl report.invalid]
         } else if line.contains(INVALID_FILE) {
             if let Some(path) = quoted_path(line) {
@@ -96,6 +90,15 @@ pub(super) fn read(stderr: &str, succeeded: bool) -> Observation {
             && let Some(problem) = diagnostic(header, &lines[index + 1..])
         {
             observation.problems.push(problem);
+        }
+    }
+
+    // taplo[impl report.unformatted+2]
+    for line in stdout.lines() {
+        if let Some(path) = diff_target(line) {
+            observation
+                .problems
+                .push(TaploProblem::new(path, ProblemDetail::Unformatted));
         }
     }
 
@@ -124,6 +127,16 @@ fn checked(line: &str) -> Option<u64> {
     let excluded = field(line, EXCLUDED_FIELD)?;
 
     total.checked_sub(excluded)
+}
+
+/// Returns the file that the header of a difference names
+///
+/// A path that is empty names no file, so the reading drops such a header
+/// rather than reporting a problem about nothing.
+fn diff_target(line: &str) -> Option<PathBuf> {
+    let path = line.strip_prefix(DIFF_TARGET)?;
+
+    (!path.is_empty()).then(|| PathBuf::from(path))
 }
 
 /// Returns the coordinates of a diagnostic, from the text after its arrow
@@ -265,12 +278,15 @@ mod tests {
     /// The report of a run whose configuration taplo rejected
     const REJECTED: &str = " WARN taplo:format_files:load_config: invalid configuration file error=TOML parse error at line 1, column 5\n";
 
-    /// The report of a run over a file that is not formatted
-    const UNFORMATTED: &str = "ERROR taplo:format_files: the file is not properly formatted path=\"/home/otter/project/sub/messy.toml\"\nERROR operation failed error=some files were not properly formatted\n";
+    /// The difference that a run prints for a file that it would rewrite
+    ///
+    /// The content of a difference carries the color codes that taplo writes
+    /// whatever the report asked for, so the sample carries them too.
+    const DIFFERENCE: &str = "diff a//home/otter/project/sub/messy.toml b//home/otter/project/sub/messy.toml\n--- a//home/otter/project/sub/messy.toml\n+++ b//home/otter/project/sub/messy.toml\n@@ -0,1 +0,1 @@\n\u{1b}[31m-x   =    1\u{1b}[0m\n\u{1b}[32m+x = 1\u{1b}[0m\n";
 
     /// Returns the detail of the only problem of a report
     fn detail(stderr: &str) -> ProblemDetail {
-        let observation = read(stderr, false);
+        let observation = read("", stderr, false);
 
         let [problem] = observation.problems().as_slice() else {
             panic!("expected one problem, got {:?}", observation.problems());
@@ -279,17 +295,17 @@ mod tests {
         problem.detail().clone()
     }
 
-    // taplo[verify report.checked]
+    // taplo[verify report.checked+2]
     #[test]
     fn read_clean_report_counts_the_examined_files() {
-        let observation = read(CLEAN, true);
+        let observation = read("", CLEAN, true);
 
         assert_eq!(observation.checked(), Some(2));
     }
 
     #[test]
     fn read_clean_report_finds_no_problem() {
-        let observation = read(CLEAN, true);
+        let observation = read("", CLEAN, true);
 
         assert!(observation.problems().is_empty());
     }
@@ -297,7 +313,7 @@ mod tests {
     // taplo[verify report.diagnostic]
     #[test]
     fn read_diagnostic_reads_the_position() {
-        let observation = read(INVALID, false);
+        let observation = read("", INVALID, false);
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::detail),
@@ -312,7 +328,7 @@ mod tests {
     // taplo[verify report.diagnostic]
     #[test]
     fn read_diagnostic_reads_the_path() {
-        let observation = read(INVALID, false);
+        let observation = read("", INVALID, false);
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::path),
@@ -330,40 +346,34 @@ mod tests {
         assert_eq!(message, "invalid TOML");
     }
 
+    // taplo[verify report.unformatted+2]
+    #[test]
+    fn read_difference_names_the_file_that_it_would_rewrite() {
+        let observation = read(DIFFERENCE, "", false);
+
+        assert_eq!(
+            observation.problems(),
+            &vec![TaploProblem::new(
+                PathBuf::from("/home/otter/project/sub/messy.toml"),
+                ProblemDetail::Unformatted,
+            )]
+        );
+    }
+
     #[test]
     fn read_empty_report_finds_nothing() {
-        let observation = read("", true);
+        let observation = read("", "", true);
 
         assert_eq!(
             observation,
             Observation {
                 checked: None,
-                failure_reported: false,
                 problems: Vec::new(),
                 rejected_configuration: None,
                 stderr: String::new(),
                 succeeded: true,
             }
         );
-    }
-
-    // taplo[verify report.failure]
-    #[test]
-    fn read_failed_run_sees_the_summary_of_the_failure() {
-        let observation = read(UNFORMATTED, false);
-
-        assert!(observation.failure_reported());
-    }
-
-    // taplo[verify report.failure]
-    #[test]
-    fn read_incomplete_report_sees_no_summary_of_a_failure() {
-        let observation = read(
-            "ERROR taplo:format_files: the file is not properly formatted path=\"/p/messy.toml\"\n",
-            false,
-        );
-
-        assert!(!observation.failure_reported());
     }
 
     // taplo[verify report.invalid]
@@ -382,7 +392,7 @@ mod tests {
     // taplo[verify report.invalid]
     #[test]
     fn read_refused_file_reads_the_path() {
-        let observation = read(REFUSED, false);
+        let observation = read("", REFUSED, false);
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::path),
@@ -393,7 +403,7 @@ mod tests {
     // taplo[verify report.configuration]
     #[test]
     fn read_rejected_configuration_keeps_the_diagnosis() {
-        let observation = read(REJECTED, true);
+        let observation = read("", REJECTED, true);
 
         assert_eq!(
             observation.rejected_configuration().as_deref(),
@@ -404,28 +414,15 @@ mod tests {
     // taplo[verify report.summarized]
     #[test]
     fn read_summary_of_a_file_with_a_diagnostic_drops_out() {
-        let observation = read(INVALID, false);
+        let observation = read("", INVALID, false);
 
         assert_eq!(observation.problems().len(), 1);
-    }
-
-    // taplo[verify report.unformatted]
-    #[test]
-    fn read_unformatted_file_reads_the_path() {
-        let observation = read(UNFORMATTED, false);
-
-        assert_eq!(
-            observation.problems(),
-            &vec![TaploProblem::new(
-                PathBuf::from("/home/otter/project/sub/messy.toml"),
-                ProblemDetail::Unformatted,
-            )]
-        );
     }
 
     #[test]
     fn read_unrecognized_failure_finds_nothing() {
         let observation = read(
+            "",
             " INFO taplo:format_files:collect_files: found files total=1 excluded=0 files=[] cwd=\"/p\"\nERROR operation failed error=Permission denied (os error 13)\n",
             false,
         );

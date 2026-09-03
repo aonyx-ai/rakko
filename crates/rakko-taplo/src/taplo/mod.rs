@@ -20,16 +20,25 @@ use crate::operation::Operation;
 
 /// The number of times one operation starts before the crate gives up
 ///
-/// Taplo can lose the tail of its report when it exits, and a fresh run
-/// almost always answers completely, so a few attempts separate a lost tail
-/// from a report that has genuinely ended.
+/// Taplo can lose the end of its report when it exits, and a fresh run
+/// almost always answers, so a few attempts separate a lost line from a
+/// report that has genuinely ended.
 const ATTEMPTS: u32 = 6;
+
+/// The number of times one operation starts to get the count of the files
+///
+/// The count is the one part of a report that no other stream carries, and
+/// a run that has nothing left to do after it counts loses it most often. A
+/// caller reports a pass without the count, so the count gets a small budget
+/// of its own instead of the whole one.
+const COUNTED_ATTEMPTS: u32 = 2;
 
 /// The pause that grows between the attempts of one operation
 ///
-/// The loss correlates with the load of the machine, so attempts that follow
-/// each other immediately tend to lose together. A growing pause carries the
-/// later attempts past the moment of load.
+/// The loss happens while taplo exits, and a machine under load takes longer
+/// over it, so attempts that follow each other immediately tend to lose
+/// together. A growing pause carries the later attempts past the moment of
+/// load.
 const BACKOFF: Duration = Duration::from_millis(25);
 
 /// The name that mise knows the tool by
@@ -43,6 +52,14 @@ const LINT: &str = "lint";
 
 /// The flag that asks the formatter to report instead of rewriting
 const CHECK: &str = "--check";
+
+/// The flag that asks the formatter to name its files on standard output
+///
+/// The flag makes taplo print the difference that it would write for each
+/// file that is not formatted. The crate reads the header of each of those
+/// differences and not the text below it, because the header names the file
+/// and the stream that carries it does not lose lines.
+const DIFF: &str = "--diff";
 
 /// The flag that selects how taplo colors its report
 const COLORS: &str = "--colors";
@@ -149,24 +166,34 @@ impl Taplo {
 
     /// Runs one operation and reads what taplo reported
     ///
-    /// Taplo can lose the tail of its report when it exits, and a lost tail
-    /// can hide problems that taplo found. A run whose report is incomplete
-    /// therefore starts again, a few times, before the crate gives up.
-    /// Repeating is safe for every operation: a report reads the project
-    /// again, and a rewrite formats files that a previous attempt already
-    /// formatted.
+    /// Taplo can lose the end of its report when it exits. The answer of a
+    /// run survives that loss: the exit status carries whether taplo found
+    /// anything, a formatting run names the files that it would rewrite on
+    /// its standard output stream, and a file that taplo read and could not
+    /// accept gets a diagnostic that the same loss never reaches. A report
+    /// that holds no answer at all lost the lines that carried one, and such
+    /// a run starts again, a few times, before the crate gives up.
+    ///
+    /// The count of the files is the one part that no other stream carries.
+    /// An operation starts again to get it, with a budget of its own, and
+    /// answers without the count instead of failing over it: a run that
+    /// ended with success found nothing, whatever its report lost.
+    ///
+    /// Repeating is safe for every operation, because a report reads the
+    /// project again, and a rewrite formats files that a previous attempt
+    /// already formatted.
     ///
     /// # Errors
     ///
     /// Returns [`TaploUnavailable`][unavailable] when taplo does not run,
-    /// and [`IncompleteReport`][incomplete] when every attempt lost part of
-    /// its report.
+    /// and [`IncompleteReport`][incomplete] when no attempt answered.
     ///
     /// [incomplete]: ObserveTaploError::IncompleteReport
     /// [unavailable]: ObserveTaploError::TaploUnavailable
-    // taplo[impl run.complete]
+    // taplo[impl run.complete+2]
     pub async fn observe(&self, operation: Operation) -> Result<Observation, ObserveTaploError> {
         let mut stderr = String::new();
+        let mut answered: Option<Observation> = None;
 
         for attempt in 0..ATTEMPTS {
             if attempt > 0 {
@@ -175,14 +202,19 @@ impl Taplo {
 
             let observation = Observation::read(&self.start(operation).await?);
 
-            if observation.complete() {
+            if !observation.complete() {
+                stderr = observation.stderr().clone();
+                continue;
+            }
+
+            if observation.checked().is_some() || attempt + 1 >= COUNTED_ATTEMPTS {
                 return Ok(observation);
             }
 
-            stderr = observation.stderr().clone();
+            answered.get_or_insert(observation);
         }
 
-        Err(ObserveTaploError::IncompleteReport { stderr })
+        answered.ok_or(ObserveTaploError::IncompleteReport { stderr })
     }
 
     /// Returns the taplo that mise installed for the project
@@ -228,7 +260,7 @@ impl Taplo {
 // taplo[impl run.operation]
 fn arguments(operation: Operation) -> &'static [&'static str] {
     match operation {
-        Operation::CheckFormat => &[FORMAT, CHECK],
+        Operation::CheckFormat => &[FORMAT, CHECK, DIFF],
         Operation::Format => &[FORMAT],
         Operation::Lint => &[LINT],
     }
@@ -247,7 +279,7 @@ mod tests {
     fn arguments_of_a_format_check_report_instead_of_rewriting() {
         let selected = arguments(Operation::CheckFormat);
 
-        assert_eq!(selected, ["fmt", "--check"]);
+        assert_eq!(selected, ["fmt", "--check", "--diff"]);
     }
 
     // taplo[verify run.operation]

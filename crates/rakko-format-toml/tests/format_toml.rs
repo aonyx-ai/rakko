@@ -43,6 +43,9 @@ const REJECTED_CONFIGURATION: &str = "[formatting]\nalign_entries = \"banana\"\n
 /// A taplo configuration that excludes every file of the project
 const EXCLUDE_EVERYTHING: &str = "exclude = [\"**/*\"]\n";
 
+/// A taplo configuration that excludes one file of the project
+const EXCLUDE_ONE: &str = "exclude = [\"skipped.toml\"]\n";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -329,7 +332,7 @@ async fn run_with_an_unreadable_file_stops() {
     );
 }
 
-// formattoml[verify check.passed]
+// formattoml[verify check.passed+2]
 // formattoml[verify tool.taplo]
 #[tokio::test]
 async fn run_in_a_formatted_project_passes() {
@@ -344,7 +347,7 @@ async fn run_in_a_formatted_project_passes() {
     );
 }
 
-// formattoml[verify check.passed]
+// formattoml[verify check.passed+2]
 #[tokio::test]
 async fn run_in_a_formatted_project_counts_the_files() {
     let project = Project::new();
@@ -362,19 +365,39 @@ async fn run_in_a_formatted_project_counts_the_files() {
     );
 }
 
-// formattoml[verify check.passed]
+// formattoml[verify check.passed+2]
 #[tokio::test]
-async fn run_whose_configuration_excludes_every_file_counts_zero() {
+async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
     let project = Project::new();
-    project.write(".taplo.toml", EXCLUDE_EVERYTHING);
-    project.write("messy.toml", UNFORMATTED);
+    project.write(".taplo.toml", EXCLUDE_ONE);
+    project.write("clean.toml", FORMATTED);
+    project.write("skipped.toml", UNFORMATTED);
 
     let outcome = project.run(false).await;
 
     let Outcome::Passed { summary } = &outcome else {
         panic!("expected the run to pass, got {outcome:?}");
     };
-    assert_eq!(summary.as_ref().map(Summary::get), Some("checked 0 files"));
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("checked 3 files"),
+        "the project holds the clean file, its mise.toml, and the configuration"
+    );
+}
+
+// formattoml[verify check.passed+2]
+#[tokio::test]
+async fn run_whose_configuration_excludes_every_file_passes() {
+    let project = Project::new();
+    project.write(".taplo.toml", EXCLUDE_EVERYTHING);
+    project.write("messy.toml", UNFORMATTED);
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
 }
 
 // formattoml[verify fix.changed]

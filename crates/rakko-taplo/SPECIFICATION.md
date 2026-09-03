@@ -83,13 +83,23 @@ report as data and a color code inside a path would corrupt the reading. This
 selects the presentation of the report and not the behavior of the tool: what
 taplo does to a project comes from the configuration of that project alone.
 
-Taplo can lose the tail of its report when it exits, and a lost tail can hide
-problems that taplo found. A run that ended without success closes its report
-with the summary of the failure, and a run that ended with success closes it
-with the count of the files, so a report without its closing line is
-incomplete. The crate starts such a run again, a few times, before it gives
-up. Repeating is safe for every operation, because a report reads the project
-again, and a rewrite formats files that a previous attempt already formatted.
+Taplo can lose the end of its report when it exits, and the loss reaches
+whatever taplo wrote last. The answer of a run survives it: the exit status
+carries whether taplo found anything, a formatting run names the files that it
+would rewrite on its standard output stream, and a file that taplo read and
+could not accept gets a diagnostic that the loss does not reach. A run that
+ends without success therefore names at least one problem, and a report of
+such a run that names none arrived incomplete.
+
+The count of the files is the one part of a report that no other stream
+carries, and a run that has nothing left to do after it counts loses the count
+most often. A caller reports a pass without the count, because a run that
+ended with success found nothing whatever its report lost.
+
+The crate starts a run again, a few times, for a report that holds no answer,
+and again, fewer times, for one that lost only the count. Repeating is safe for
+every operation, because a report reads the project again, and a rewrite
+formats files that a previous attempt already formatted.
 
 taplo[run.operation]
 Each operation MUST run the subcommand and the flags of taplo that do that
@@ -98,18 +108,24 @@ job, and no other option of taplo.
 taplo[run.plain]
 Every run MUST ask taplo for a report without color codes.
 
-taplo[run.complete]
-A report MUST count as complete only when a run that ended with success
-counted its files, and a run that ended without success closed its report with
-the summary of the failure. A run whose report never arrives complete MUST
-report an error that holds what taplo wrote.
+taplo[run.complete+2]
+A report of a run that ended without success MUST count as complete only when
+it names at least one problem. A run whose report never arrives complete MUST
+report an error that holds what taplo wrote. A run that ended with success MUST
+count as complete, with or without the count of its files.
 
 ## Report
 
-Taplo writes its report to its standard error stream, and the crate reads the
-lines that carry an answer. Everything else is ignored, so a log line that a
-new version adds does not break the reading, and what the reading cannot find
-is absent from the answer.
+Taplo writes its report to two streams, and the crate reads the lines of each
+that carry an answer. Everything else is ignored, so a log line that a new
+version adds does not break the reading, and what the reading cannot find is
+absent from the answer.
+
+A formatting run that reports instead of rewriting prints the difference that
+it would write for each file that is not formatted, on its standard output
+stream. The crate reads the header of each difference, which names the file,
+and ignores the text below it. The stream that carries the differences does not
+lose lines, so the answer of such a run arrives whole.
 
 A configuration file that taplo rejects is part of the answer. Taplo warns
 about a configuration that it cannot read and then runs with its defaults, and
@@ -131,13 +147,14 @@ taplo[report.configuration]
 The crate MUST report what taplo said about a configuration file that taplo
 rejected.
 
-taplo[report.checked]
+taplo[report.checked+2]
 The crate MUST report how many files a run examined, which is the count of the
-files that taplo matched without the files that its configuration excluded.
+files that taplo matched without the files that its configuration excluded,
+when taplo reported that count.
 
-taplo[report.unformatted]
-A file that taplo reports as not formatted MUST become a problem that names
-the file and no position in it.
+taplo[report.unformatted+2]
+A file whose difference a formatting run prints MUST become a problem that
+names the file and no position in it.
 
 taplo[report.invalid]
 A file that taplo refused MUST become a problem that names the file and holds
@@ -150,10 +167,6 @@ the diagnostic names, with the message of taplo.
 taplo[report.summarized]
 A file that carries a diagnostic MUST NOT also carry the problem of the line
 that sums its diagnostics up.
-
-taplo[report.failure]
-The crate MUST report whether a report closes with the summary of a failed
-run.
 
 ## Paths
 

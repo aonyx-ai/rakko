@@ -102,9 +102,9 @@ answer built on such a report would hide every problem behind a green result.
 linttoml[check.read]
 A run MUST NOT change the project.
 
-linttoml[check.passed]
+linttoml[check.passed+2]
 A run whose taplo reports no problem MUST pass, and the outcome MUST say how
-many files taplo checked.
+many files taplo checked, when taplo reported that count.
 
 linttoml[check.diagnostic]
 A file that taplo read and refused MUST produce a finding at the line and the

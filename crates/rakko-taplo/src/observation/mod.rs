@@ -1,10 +1,12 @@
 //! What one run of taplo produced
 //!
-//! Taplo reports as text on its standard error stream, and this module turns
-//! that text into data. The reading recognizes the lines that carry an
-//! answer and ignores everything else, so a log line that a new version adds
-//! does not break it. What the reading cannot find is absent from the
-//! observation, and the caller decides what the absence means.
+//! Taplo reports as text on two streams, and this module turns that text
+//! into data. A formatting run names the files that it would rewrite on its
+//! standard output stream, and everything else arrives on its standard error
+//! stream. The reading recognizes the lines that carry an answer and ignores
+//! everything else, so a log line that a new version adds does not break it.
+//! What the reading cannot find is absent from the observation, and the
+//! caller decides what the absence means.
 
 /// The reading of the text that taplo wrote
 mod report;
@@ -36,15 +38,12 @@ pub struct Observation {
     #[getset(get_copy = "pub")]
     checked: Option<u64>,
 
-    /// Whether the report closes with the summary of a failed run
+    /// The problems that taplo reported
     ///
-    /// A run that ends without success sums its failure up on its last
-    /// line. A report of such a run without this line lost its tail, and
-    /// the problems that it holds can be incomplete.
-    #[getset(get_copy = "pub")]
-    failure_reported: bool,
-
-    /// The problems that taplo reported, in the order of the report
+    /// The problems of one stream stand in the order of that stream, and
+    /// the problems that taplo wrote to its standard error stream come
+    /// first. The two streams describe different files, because taplo
+    /// offers no difference for a file that it could not parse.
     #[getset(get = "pub")]
     problems: Vec<TaploProblem>,
 
@@ -77,7 +76,6 @@ impl Observation {
     #[builder]
     pub fn new(
         checked: Option<u64>,
-        #[builder(default)] failure_reported: bool,
         #[builder(default)] problems: Vec<TaploProblem>,
         rejected_configuration: Option<String>,
         #[builder(into, default)] stderr: String,
@@ -85,7 +83,6 @@ impl Observation {
     ) -> Self {
         Self {
             checked,
-            failure_reported,
             problems,
             rejected_configuration,
             stderr,
@@ -93,29 +90,29 @@ impl Observation {
         }
     }
 
-    /// Returns whether the report carries what its exit status promises
+    /// Returns whether the report holds the answer of the run
     ///
-    /// A run that ended with success closes its report with the count of
-    /// the files, and a run that ended without success closes it with the
-    /// summary of the failure. Taplo can lose the tail of its report when it
-    /// exits, so a report without its closing line arrived incomplete, and
-    /// the problems that it holds can be missing some of their company.
-    // taplo[impl run.complete]
+    /// A run that ended with success answered by ending that way: taplo
+    /// leaves nothing for a reader to find, and no line that a report lost
+    /// can turn a run that found problems into one that found none.
+    ///
+    /// A run that ended without success found something, so its report
+    /// names at least one problem. A report of such a run that names none
+    /// lost the lines that held them, and the caller must not read a silent
+    /// failure as an empty one.
+    // taplo[impl run.complete+2]
     pub fn complete(&self) -> bool {
-        if self.succeeded {
-            self.checked.is_some()
-        } else {
-            self.failure_reported
-        }
+        self.succeeded || !self.problems.is_empty()
     }
 
     /// Reads what a run of taplo produced
     ///
-    /// The reading takes the text of the run and its exit status. A caller
-    /// that holds a run of its own therefore reads it the same way as the
-    /// machinery of this crate does.
+    /// The reading takes both streams of the run and its exit status. A
+    /// caller that holds a run of its own therefore reads it the same way as
+    /// the machinery of this crate does.
     pub fn read(execution: &Execution) -> Self {
         self::report::read(
+            &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),
             execution.status().success(),
         )
@@ -128,46 +125,48 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use super::*;
+    use std::path::PathBuf;
 
-    /// Returns the observation of a run with the given count and summary
-    fn observation(succeeded: bool, checked: Option<u64>, failure_reported: bool) -> Observation {
+    use super::*;
+    use crate::problem::ProblemDetail;
+
+    /// Returns the observation of a run that ended the given way
+    fn observation(succeeded: bool, problems: Vec<TaploProblem>) -> Observation {
         Observation::builder()
-            .maybe_checked(checked)
-            .failure_reported(failure_reported)
+            .problems(problems)
             .succeeded(succeeded)
             .build()
     }
 
-    // taplo[verify run.complete]
+    /// Returns one problem, so that a report has something to hold
+    fn problem() -> TaploProblem {
+        TaploProblem::new(
+            PathBuf::from("/home/otter/project/a.toml"),
+            ProblemDetail::Unformatted,
+        )
+    }
+
+    // taplo[verify run.complete+2]
     #[test]
-    fn failed_run_that_summed_up_its_failure_is_complete() {
-        let observation = observation(false, None, true);
+    fn failed_run_that_named_a_problem_is_complete() {
+        let observation = observation(false, vec![problem()]);
 
         assert!(observation.complete());
     }
 
-    // taplo[verify run.complete]
+    // taplo[verify run.complete+2]
     #[test]
-    fn failed_run_without_a_summary_is_incomplete() {
-        let observation = observation(false, None, false);
+    fn failed_run_without_a_problem_is_incomplete() {
+        let observation = observation(false, Vec::new());
 
         assert!(!observation.complete());
     }
 
-    // taplo[verify run.complete]
+    // taplo[verify run.complete+2]
     #[test]
-    fn passing_run_that_counted_its_files_is_complete() {
-        let observation = observation(true, Some(3), false);
+    fn passing_run_without_a_count_is_complete() {
+        let observation = observation(true, Vec::new());
 
         assert!(observation.complete());
-    }
-
-    // taplo[verify run.complete]
-    #[test]
-    fn passing_run_without_a_count_is_incomplete() {
-        let observation = observation(true, None, false);
-
-        assert!(!observation.complete());
     }
 }

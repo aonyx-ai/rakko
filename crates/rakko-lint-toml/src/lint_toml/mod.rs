@@ -119,7 +119,7 @@ async fn drive(context: &Context) -> Result<Outcome, LintTomlError> {
     }
 
     if observation.problems().is_empty() {
-        return passed(&observation);
+        return Ok(passed(&observation));
     }
 
     // linttoml[impl check.diagnostic]
@@ -189,34 +189,20 @@ fn findings(problems: &[TaploProblem], root: &ProjectRoot) -> Result<Vec<Finding
 
 /// Returns the outcome of a run that reported no problem
 ///
-/// A pass needs the count of the files that taplo checked, so that a reader
-/// can question a pass that examined nothing. A run that ended without
-/// success, and a run that passed without the count, both wrote a report
-/// that the action does not recognize, and the run stops instead of hiding
-/// problems behind a green result.
-///
-/// # Errors
-///
-/// Returns [`UnrecognizedReport`][unrecognized] when the run ended without
-/// success or reported no count of the files.
-///
-/// [unrecognized]: LintTomlError::UnrecognizedReport
-// linttoml[impl check.passed]
-// linttoml[impl check.unrecognized]
-fn passed(observation: &Observation) -> Result<Outcome, LintTomlError> {
-    let Some(checked) = observation.checked().filter(|_| observation.succeeded()) else {
-        return Err(LintTomlError::UnrecognizedReport {
-            stderr: observation.stderr().clone(),
-        });
-    };
-
-    Ok(Outcome::Passed {
-        summary: Some(summary(checked)),
-    })
+/// A pass says how many files taplo checked, so that a reader can question a
+/// pass that examined nothing. Taplo can lose the line that carries the
+/// count, and a pass without it stays a pass: taplo ended the run with
+/// success, and no line that a report loses can turn a run that found
+/// problems into one that found none.
+// linttoml[impl check.passed+2]
+fn passed(observation: &Observation) -> Outcome {
+    Outcome::Passed {
+        summary: observation.checked().map(summary),
+    }
 }
 
 /// Returns the summary that tells how many files taplo checked
-// linttoml[impl check.passed]
+// linttoml[impl check.passed+2]
 fn summary(checked: u64) -> Summary {
     if checked == 1 {
         Summary::new("checked 1 file")
@@ -233,43 +219,7 @@ mod tests {
 
     use super::*;
 
-    /// What taplo wrote in a run that these tests stand in for
-    const REPORT: &str = "ERROR operation failed error=something new\n";
-
-    // linttoml[verify check.unrecognized]
-    #[test]
-    fn passed_of_a_run_that_ended_without_success_holds_what_taplo_wrote() {
-        let observation = Observation::builder()
-            .checked(3)
-            .stderr(REPORT)
-            .succeeded(false)
-            .build();
-
-        let outcome = passed(&observation);
-
-        assert!(
-            matches!(&outcome, Err(LintTomlError::UnrecognizedReport { stderr }) if stderr == REPORT),
-            "expected the report of taplo, got {outcome:?}"
-        );
-    }
-
-    // linttoml[verify check.unrecognized]
-    #[test]
-    fn passed_of_a_run_without_a_count_reports_an_unrecognized_report() {
-        let observation = Observation::builder()
-            .stderr(REPORT)
-            .succeeded(true)
-            .build();
-
-        let outcome = passed(&observation);
-
-        assert!(
-            matches!(outcome, Err(LintTomlError::UnrecognizedReport { .. })),
-            "expected an unrecognized report, got {outcome:?}"
-        );
-    }
-
-    // linttoml[verify check.passed]
+    // linttoml[verify check.passed+2]
     #[test]
     fn passed_of_a_run_that_counted_one_file_says_so() {
         let observation = Observation::builder().checked(1).succeeded(true).build();
@@ -277,8 +227,21 @@ mod tests {
         let outcome = passed(&observation);
 
         assert!(
-            matches!(&outcome, Ok(Outcome::Passed { summary: Some(summary) }) if summary.get() == "checked 1 file"),
+            matches!(&outcome, Outcome::Passed { summary: Some(summary) } if summary.get() == "checked 1 file"),
             "expected the count of the files, got {outcome:?}"
+        );
+    }
+
+    // linttoml[verify check.passed+2]
+    #[test]
+    fn passed_of_a_run_without_a_count_says_nothing() {
+        let observation = Observation::builder().succeeded(true).build();
+
+        let outcome = passed(&observation);
+
+        assert!(
+            matches!(&outcome, Outcome::Passed { summary: None }),
+            "expected a pass without a summary, got {outcome:?}"
         );
     }
 }
