@@ -15,7 +15,9 @@ pre-commit-checks: pre-commit-fix pre-commit-verify
 # from formatted sources.
 [private]
 pre-commit-fix:
-    just prettier true
+    just format-json true
+    just format-markdown true
+    just format-yaml true
     just format-toml true
     just format-rust true
 
@@ -191,7 +193,11 @@ format-toml fix="false":
     mise run rakko -- format-toml {{ if fix == "true" { "--fix" } else { "" } }}
 
 # Format YAML files
-format-yaml fix="false": (prettier fix "{yaml,yml}")
+#
+# The recipe runs the harness instead of prettier, for the reason that
+# `format-toml` gives.
+format-yaml fix="false":
+    mise run rakko -- format-yaml {{ if fix == "true" { "--fix" } else { "" } }}
 
 # Lint GitHub Actions workflows
 lint-github-actions:
@@ -224,10 +230,6 @@ lint-yaml:
 # Run a subset of checks as pre-commit hooks
 pre-commit:
     @just pre-commit-checks
-
-# Auto-format files with prettier
-prettier fix="false" extension="*":
-    prettier {{ if fix == "true" { "--write" } else { "--list-different" } }} --ignore-unknown "**/*.{{ extension }}"
 
 # Run the tests
 #

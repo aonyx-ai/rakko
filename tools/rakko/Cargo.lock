@@ -356,6 +356,7 @@ dependencies = [
  "rakko-format-markdown",
  "rakko-format-rust",
  "rakko-format-toml",
+ "rakko-format-yaml",
  "rakko-lint-rust",
  "rakko-lint-toml",
  "rakko-test-rust",
@@ -611,6 +612,17 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-taplo",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-format-yaml"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-prettier",
  "rakko-tool",
  "thiserror",
 ]
