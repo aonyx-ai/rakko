@@ -24,6 +24,7 @@ kawauso-project = "0.2.0"
 rakko-action = { path = "crates/rakko-action", version = "0.1.0" }
 rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-format-json = { path = "crates/rakko-format-json", version = "0.1.0" }
+rakko-format-markdown = { path = "crates/rakko-format-markdown", version = "0.1.0" }
 rakko-format-rust = { path = "crates/rakko-format-rust", version = "0.1.0" }
 rakko-lint-rust = { path = "crates/rakko-lint-rust", version = "0.1.0" }
 rakko-lint-toml = { path = "crates/rakko-lint-toml", version = "0.1.0" }
