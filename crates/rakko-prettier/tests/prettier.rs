@@ -34,6 +34,12 @@ const UNFORMATTED: &str = "#  Project\n";
 /// A file of a language that prettier does not know
 const FOREIGN: &str = "fn main() {}\n";
 
+/// A prettier configuration that names an option prettier does not know
+///
+/// Prettier reports the option and then formats without it, which is the
+/// shortest way to make a run write a marker line of its own.
+const IGNORED_CONFIGURATION: &str = "{ \"notAnOption\": 5 }\n";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -296,6 +302,38 @@ async fn observe_a_rewrite_formats_the_project() {
     project.observe(Operation::Rewrite, &markdown()).await;
 
     assert_eq!(project.content("messy.md"), FORMATTED);
+}
+
+// prettier[verify run.plain]
+#[tokio::test]
+async fn observe_reads_a_report_without_color_codes() {
+    let project = Project::new();
+    project.write(".prettierrc.json", IGNORED_CONFIGURATION);
+    project.write("clean.md", FORMATTED);
+
+    let observation = project.observe(Operation::Report, &markdown()).await;
+
+    assert!(
+        !observation.stderr().contains('\u{1b}'),
+        "expected a report without an escape code, got {:?}",
+        observation.stderr()
+    );
+}
+
+// prettier[verify run.plain]
+#[tokio::test]
+async fn observe_reads_the_marker_of_a_line_that_a_color_would_hide() {
+    let project = Project::new();
+    project.write(".prettierrc.json", IGNORED_CONFIGURATION);
+    project.write("clean.md", FORMATTED);
+
+    let observation = project.observe(Operation::Report, &markdown()).await;
+
+    assert!(
+        observation.rejected_configuration().is_some(),
+        "expected the ignored option, got {:?}",
+        observation.stderr()
+    );
 }
 
 // prettier[verify select.unknown]
