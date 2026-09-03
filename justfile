@@ -159,7 +159,12 @@ check-unused-deps:
     rustup run nightly cargo udeps
 
 # Format JSON files
-format-json fix="false": (prettier fix "{json,json5}")
+#
+# The recipe runs the harness instead of prettier, for the reason that
+# `format-toml` gives. The action names the files that prettier examines, so
+# the recipe passes no pattern of its own.
+format-json fix="false":
+    mise run rakko -- format-json {{ if fix == "true" { "--fix" } else { "" } }}
 
 # Format Markdown files
 format-markdown fix="false": (prettier fix "md")
