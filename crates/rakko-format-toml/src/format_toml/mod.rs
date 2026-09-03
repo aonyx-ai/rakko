@@ -120,7 +120,7 @@ async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, Form
     rejected(&observation)?;
 
     if observation.problems().is_empty() {
-        return passed(&observation);
+        return Ok(passed(&observation));
     }
 
     if args.fix() {
@@ -227,11 +227,6 @@ async fn fix(
     // formattoml[impl check.configuration]
     rejected(&observation)?;
 
-    // formattoml[impl check.unrecognized]
-    if observation.problems().is_empty() && !observation.succeeded() {
-        return Err(unrecognized(&observation));
-    }
-
     let remaining: HashSet<&PathBuf> = observation
         .problems()
         .iter()
@@ -256,32 +251,16 @@ async fn fix(
 
 /// Returns the outcome of a check that reported no problem
 ///
-/// A pass needs the count of the files that taplo checked, so that a reader
-/// can question a pass that examined nothing. A check that ended without
-/// success, and a check that passed without the count, both wrote a report
-/// that the action does not recognize, and the run stops instead of hiding
-/// problems behind a green result.
-///
-/// # Errors
-///
-/// Returns [`UnrecognizedReport`][unrecognized] when the check ended without
-/// success or reported no count of the files.
-///
-/// [unrecognized]: FormatTomlError::UnrecognizedReport
-// formattoml[impl check.passed]
-// formattoml[impl check.unrecognized]
-fn passed(observation: &Observation) -> Result<Outcome, FormatTomlError> {
-    if !observation.succeeded() {
-        return Err(unrecognized(observation));
+/// A pass says how many files taplo checked, so that a reader can question a
+/// pass that examined nothing. Taplo can lose the line that carries the
+/// count, and a pass without it stays a pass: taplo ended the check with
+/// success, and no line that a report loses can turn a check that found
+/// problems into one that found none.
+// formattoml[impl check.passed+2]
+fn passed(observation: &Observation) -> Outcome {
+    Outcome::Passed {
+        summary: observation.checked().map(summary),
     }
-
-    let Some(checked) = observation.checked() else {
-        return Err(unrecognized(observation));
-    };
-
-    Ok(Outcome::Passed {
-        summary: Some(summary(checked)),
-    })
 }
 
 /// Stops a run whose taplo rejected a configuration file of the project
@@ -306,19 +285,11 @@ fn rejected(observation: &Observation) -> Result<(), FormatTomlError> {
 }
 
 /// Returns the summary that tells how many files taplo checked
-// formattoml[impl check.passed]
+// formattoml[impl check.passed+2]
 fn summary(checked: u64) -> Summary {
     if checked == 1 {
         Summary::new("checked 1 file")
     } else {
         Summary::new(format!("checked {checked} files"))
-    }
-}
-
-/// Returns the error of a report that the action cannot answer from
-// formattoml[impl check.unrecognized]
-fn unrecognized(observation: &Observation) -> FormatTomlError {
-    FormatTomlError::UnrecognizedReport {
-        stderr: observation.stderr().clone(),
     }
 }

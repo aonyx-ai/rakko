@@ -123,9 +123,9 @@ rewrite formats files that a previous attempt already formatted.
 formattoml[check.read]
 A run without a true value for `fix` MUST NOT change the project.
 
-formattoml[check.passed]
+formattoml[check.passed+2]
 A run whose taplo reports no problem MUST pass, and the outcome MUST say how
-many files taplo checked.
+many files taplo checked, when taplo reported that count.
 
 formattoml[check.unformatted]
 A file that taplo reports as not formatted MUST produce a finding that names

@@ -210,7 +210,7 @@ async fn run_leaves_an_unformatted_file_unchanged() {
     assert_eq!(project.read("messy.toml"), UNFORMATTED);
 }
 
-// linttoml[verify check.passed]
+// linttoml[verify check.passed+2]
 #[tokio::test]
 async fn run_in_a_valid_project_counts_the_files() {
     let project = Project::new();
@@ -228,7 +228,7 @@ async fn run_in_a_valid_project_counts_the_files() {
     );
 }
 
-// linttoml[verify check.passed]
+// linttoml[verify check.passed+2]
 // linttoml[verify tool.taplo]
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {

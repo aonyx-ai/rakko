@@ -48,10 +48,9 @@ pub enum FormatTomlError {
     /// Taplo wrote a report that the action does not recognize
     ///
     /// The shape of the report belongs to a version of taplo. A run that
-    /// ended without success and named no problem, and a run that passed
-    /// without the count of the files, both wrote something the action could
-    /// not read, and an answer built on such a report would hide problems
-    /// behind a green result.
+    /// ended without success and named no problem wrote something the action
+    /// could not read, and an answer built on such a report would hide
+    /// problems behind a green result.
     #[error("taplo wrote a report that the action does not recognize: {stderr}")]
     UnrecognizedReport {
         /// What taplo wrote to its standard error stream
@@ -76,10 +75,36 @@ impl From<ObserveTaploError> for FormatTomlError {
     /// action reports, so the conversion renames them and adds nothing. A
     /// report that never arrived complete is one that the action cannot
     /// read, whatever kept it from arriving.
+    // formattoml[impl check.unrecognized]
     fn from(error: ObserveTaploError) -> Self {
         match error {
             ObserveTaploError::IncompleteReport { stderr } => Self::UnrecognizedReport { stderr },
             ObserveTaploError::TaploUnavailable { source } => Self::TaploUnavailable { source },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // An assertion in a test panics by design. A `# Panics` section on every
+    // test would repeat that and give the reader no information.
+    #![allow(clippy::missing_panics_doc)]
+
+    use super::*;
+
+    /// What taplo wrote in a run that no attempt could read
+    const REPORT: &str = "ERROR operation failed error=something new\n";
+
+    // formattoml[verify check.unrecognized]
+    #[test]
+    fn error_of_an_incomplete_report_holds_what_taplo_wrote() {
+        let error = FormatTomlError::from(ObserveTaploError::IncompleteReport {
+            stderr: REPORT.to_owned(),
+        });
+
+        assert!(
+            matches!(&error, FormatTomlError::UnrecognizedReport { stderr } if stderr == REPORT),
+            "expected the report of taplo, got {error:?}"
+        );
     }
 }
