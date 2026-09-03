@@ -54,6 +54,18 @@ specs (
         )
     }
     {
+        name format-json
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-format-json/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-format-json/src/**/*.rs)
+                test_include (crates/rakko-format-json/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name format-rust
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-format-rust/SPECIFICATION.md)
