@@ -593,6 +593,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-format-json"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-prettier",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-format-rust"
 version = "0.1.0"
 dependencies = [
