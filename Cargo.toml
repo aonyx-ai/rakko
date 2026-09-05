@@ -22,6 +22,7 @@ getset = ">=0.1,<1"
 kawauso-process = "0.2.0"
 kawauso-project = "0.2.0"
 rakko-action = { path = "crates/rakko-action", version = "0.1.0" }
+rakko-build-internal-docs = { path = "crates/rakko-build-internal-docs", version = "0.1.0" }
 rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-check-dependencies = { path = "crates/rakko-check-dependencies", version = "0.1.0" }
 rakko-check-msrv = { path = "crates/rakko-check-msrv", version = "0.1.0" }

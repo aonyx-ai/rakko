@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 rakko-action = { path = "../../crates/rakko-action" }
+rakko-build-internal-docs = { path = "../../crates/rakko-build-internal-docs" }
 rakko-check-dependencies = { path = "../../crates/rakko-check-dependencies" }
 rakko-check-msrv = { path = "../../crates/rakko-check-msrv" }
 rakko-check-unused-deps = { path = "../../crates/rakko-check-unused-deps" }
