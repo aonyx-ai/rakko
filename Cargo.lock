@@ -659,6 +659,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-lint-github-actions"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-lint-markdown"
 version = "0.1.0"
 dependencies = [
