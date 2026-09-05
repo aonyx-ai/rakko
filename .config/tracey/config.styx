@@ -269,4 +269,16 @@ specs (
             }
         )
     }
+    {
+        name worktree
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-worktree/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-worktree/src/**/*.rs)
+                test_include (crates/rakko-worktree/tests/**/*.rs)
+            }
+        )
+    }
 )

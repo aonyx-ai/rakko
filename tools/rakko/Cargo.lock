@@ -434,9 +434,9 @@ dependencies = [
 
 [[package]]
 name = "kawauso-process"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3713f937ad40edc897fedaedf4d7250270a0fd1f2f95cc8d2a5a96a61f6d8d94"
+checksum = "0e8bc089a1fce8c0ee9a53d418c27b4929c3c99c05a121e4f05ba39a8b621446"
 dependencies = [
  "rustix",
  "thiserror",
