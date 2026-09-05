@@ -8,10 +8,26 @@ description: Restore the tracey binary that the mise task builds from source
 runs:
   using: composite
   steps:
+    # The task builds the revision that `mise.toml` pins, so the revision is
+    # what the cached binary depends on. A key that hashed the whole file
+    # would rotate on every edit of it, and a reflowed comment would cost the
+    # twenty-minute build.
+    - name: Read the revision of tracey
+      id: revision
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        revision="$(sed -n 's/^tracey_rev = "\(.*\)"$/\1/p' mise.toml)"
+        if [ -z "${revision}" ]; then
+            echo "mise.toml declares no tracey_rev" >&2
+            exit 1
+        fi
+
+        echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+
     - name: Restore tracey
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/rakko/tracey
-        # The task builds the revision that `mise.toml` pins, so a change to
-        # the file asks for a new build.
-        key: tracey-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mise.toml') }}
+        key: tracey-${{ runner.os }}-${{ runner.arch }}-${{ steps.revision.outputs.revision }}
