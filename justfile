@@ -204,8 +204,15 @@ lint-github-actions:
     zizmor -p .
 
 # Lint Markdown files
+#
+# The recipe runs the harness instead of markdownlint, for the reason that
+# `format-toml` gives. The action names the project to markdownlint, which
+# then walks it, so the recipe passes no pattern of its own. The pattern that
+# it used to pass reached one directory deep, because `sh` does not expand
+# `**` recursively, so the run now covers every Markdown file of the
+# repository instead of the twelve below `adrs`.
 lint-markdown:
-    markdownlint **/*.md
+    mise run rakko -- lint-markdown
 
 # Lint Rust files
 #
