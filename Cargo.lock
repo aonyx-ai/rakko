@@ -698,6 +698,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-lint-yaml"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-prettier"
 version = "0.1.0"
 dependencies = [

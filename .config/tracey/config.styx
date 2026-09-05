@@ -150,6 +150,18 @@ specs (
         )
     }
     {
+        name lint-yaml
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-lint-yaml/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-lint-yaml/src/**/*.rs)
+                test_include (crates/rakko-lint-yaml/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name prettier
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-prettier/SPECIFICATION.md)
