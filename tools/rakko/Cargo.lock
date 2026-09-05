@@ -742,6 +742,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-nextest"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "rakko-prettier"
 version = "0.1.0"
 dependencies = [
@@ -770,12 +783,10 @@ dependencies = [
 name = "rakko-test-rust"
 version = "0.1.0"
 dependencies = [
- "getset",
  "rakko-action",
  "rakko-cargo",
+ "rakko-nextest",
  "rakko-tool",
- "serde",
- "serde_json",
  "thiserror",
 ]
 

@@ -17,7 +17,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, Summary};
+use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Summary};
 use rakko_test_rust::TestRust;
 use tempfile::TempDir;
 
@@ -56,9 +56,6 @@ const UNTESTED: &str = "pub fn value() -> i32 {\n    1\n}\n";
 
 /// A library that the compiler refuses
 const BROKEN: &str = "pub fn broken() -> i32 {\n    \"no\"\n}\n";
-
-/// The variable that gives consent to the experimental report of nextest
-const CONSENT_VARIABLE: &str = "NEXTEST_EXPERIMENTAL_LIBTEST_JSON";
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -230,27 +227,7 @@ fn action_identifies_itself_as_test_rust() {
     assert_eq!(name.get(), "test-rust");
 }
 
-// testrust[verify run.failed]
-#[tokio::test]
-async fn run_with_a_failing_test_carries_the_message_of_the_panic() {
-    let project = Project::with_library(FAILING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings[0]
-            .message()
-            .get()
-            .contains("the probe fails on purpose"),
-        "expected the message of the panic, got {:?}",
-        findings[0].message()
-    );
-}
-
-// testrust[verify run.failed]
+// testrust[verify run.failed+2]
 #[tokio::test]
 async fn run_with_a_failing_test_fails() {
     let project = Project::with_library(FAILING);
@@ -263,9 +240,9 @@ async fn run_with_a_failing_test_fails() {
     );
 }
 
-// testrust[verify run.failed]
+// testrust[verify run.failed+2]
 #[tokio::test]
-async fn run_with_a_failing_test_names_the_test() {
+async fn run_with_a_failing_test_holds_its_finding() {
     let project = Project::with_library(FAILING);
 
     let outcome = project.run().await;
@@ -274,35 +251,14 @@ async fn run_with_a_failing_test_names_the_test() {
         panic!("expected the run to fail, got {outcome:?}");
     };
     assert!(
-        findings[0].message().get().contains("tests::fails"),
-        "expected the name of the test, got {:?}",
-        findings[0].message()
+        findings
+            .iter()
+            .any(|finding| finding.message().get().contains("tests::fails")),
+        "expected the finding of the test, got {findings:?}"
     );
 }
 
-// testrust[verify run.position]
-#[tokio::test]
-async fn run_with_a_failing_test_reports_where_it_panicked() {
-    let project = Project::with_library(FAILING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    let Location::Position { path, position } = findings[0].location() else {
-        panic!("expected a finding at a position, got {:?}", findings[0]);
-    };
-    assert_eq!(
-        (path.to_string(), *position),
-        (
-            "src/lib.rs".to_owned(),
-            Position::builder().line(5).column(9).build()
-        )
-    );
-}
-
-// testrust[verify run.build]
+// testrust[verify run.build+2]
 #[tokio::test]
 async fn run_with_a_compiler_error_fails_with_a_finding() {
     let project = Project::with_library(BROKEN);
@@ -330,19 +286,6 @@ async fn run_leaves_the_project_unchanged() {
     assert_eq!(project.read("src/lib.rs"), FAILING);
 }
 
-// testrust[verify run.consent]
-#[tokio::test]
-async fn run_gives_consent_to_no_other_process() {
-    let project = Project::with_library(PASSING);
-    let before = std::env::var_os(CONSENT_VARIABLE);
-
-    project.run().await;
-
-    assert_eq!(std::env::var_os(CONSENT_VARIABLE), before);
-}
-
-// testrust[verify run.consent]
-// testrust[verify run.operation]
 // testrust[verify run.passed]
 // testrust[verify tool.cargo]
 #[tokio::test]
@@ -449,7 +392,7 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
-// testrust[verify run.unrecognized]
+// testrust[verify run.error]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -465,7 +408,7 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// testrust[verify run.unrecognized]
+// testrust[verify run.error]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
     let project = Project::new();

@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
 use rakko_cargo::{DiscoverRootsError, ReadReportError};
+use rakko_nextest::{ObserveNextestError, ReadNextestReportError};
 use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
-
-use super::report::ReadNextestReportError;
 
 /// An error that stops a run of the action before it has an answer
 ///
@@ -91,4 +90,25 @@ pub enum TestRustError {
         /// The cause of the failure
         source: ResolveToolError,
     },
+}
+
+impl From<ObserveNextestError> for TestRustError {
+    /// Turns the failure of a nextest run into the error of the action
+    ///
+    /// The machinery that runs nextest names the conditions that the action
+    /// reports, so the conversion renames them and adds nothing.
+    fn from(error: ObserveNextestError) -> Self {
+        match error {
+            ObserveNextestError::CargoUnavailable { source } => Self::CargoUnavailable { source },
+            ObserveNextestError::UnreadableDiagnostics { root, source } => {
+                Self::UnreadableDiagnostics { root, source }
+            }
+            ObserveNextestError::UnreadableReport { root, source } => {
+                Self::UnreadableReport { root, source }
+            }
+            ObserveNextestError::UnrecognizedReport { root, stderr } => {
+                Self::UnrecognizedReport { root, stderr }
+            }
+        }
+    }
 }
