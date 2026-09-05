@@ -15,15 +15,16 @@ pnpm = "11.25.0"
 
 # The first toolchain is the default for builds, Clippy, and the tests. The
 # second is the nightly channel, which rustfmt needs for the unstable options
-# in `.rustfmt.toml`. Mise resolves the channel to a dated toolchain and
-# records it in `mise.lock`, so every machine and every job format with the
-# same nightly, and `mise lock --bump` advances it. The third is the oldest
-# toolchain that the crates promise to compile on, and `check-msrv` runs the
-# compiler on it. That pin repeats the `rust-version` of the root
-# `Cargo.toml`, because the action reads the version from the manifest and
-# then asks mise for the toolchain, and Rakko installs nothing. A pin that
-# stops agreeing with the manifest therefore fails the check instead of
-# moving it. Mise installs all three through rustup, so `rustup run` still
+# in `.rustfmt.toml`, and which cargo-udeps needs for the unstable option that
+# records the crates a target loaded. Mise resolves the channel to a dated
+# toolchain and records it in `mise.lock`, so every machine and every job
+# format with the same nightly, and `mise lock --bump` advances it. The third
+# is the oldest toolchain that the crates promise to compile on, and
+# `check-msrv` runs the compiler on it. That pin repeats the `rust-version` of
+# the root `Cargo.toml`, because the action reads the version from the
+# manifest and then asks mise for the toolchain, and Rakko installs nothing. A
+# pin that stops agreeing with the manifest therefore fails the check instead
+# of moving it. Mise installs all three through rustup, so `rustup run` still
 # reaches the toolchains that the remaining justfile recipes install
 # themselves. The `rust-src` component carries the source of the standard
 # library, which rust-analyzer reads.

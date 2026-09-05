@@ -606,6 +606,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-check-unused-deps"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-cli"
 version = "0.1.0"
 dependencies = [

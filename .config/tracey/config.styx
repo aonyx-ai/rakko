@@ -66,6 +66,18 @@ specs (
         )
     }
     {
+        name check-unused-deps
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-check-unused-deps/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-check-unused-deps/src/**/*.rs)
+                test_include (crates/rakko-check-unused-deps/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name cli
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-cli/SPECIFICATION.md)
