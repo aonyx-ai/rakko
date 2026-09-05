@@ -54,6 +54,18 @@ specs (
         )
     }
     {
+        name check-msrv
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-check-msrv/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-check-msrv/src/**/*.rs)
+                test_include (crates/rakko-check-msrv/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name cli
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-cli/SPECIFICATION.md)

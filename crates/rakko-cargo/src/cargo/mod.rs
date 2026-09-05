@@ -13,12 +13,13 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rakko_action::ProjectRoot;
-use rakko_tool::{Execution, Invocation, ResolveToolError, Tool, ToolName};
+use rakko_tool::{Execution, Invocation, ResolveToolError, RunCommandError, Tool, ToolName};
 use serde::Deserialize;
 
 pub use self::error::DiscoverRootsError;
 use crate::root::{CargoRoot, MANIFEST};
 use crate::toolchain::Toolchain;
+use crate::version::{ReadRustVersionError, RustVersion};
 
 /// The name that mise knows the tool by
 const CARGO: &str = "cargo";
@@ -225,13 +226,120 @@ impl Cargo {
         Ok(roots)
     }
 
-    /// Asks cargo which workspace a manifest belongs to
+    /// Returns the Rust version that the packages of a root declare
+    ///
+    /// A package declares the oldest toolchain that it compiles on as the
+    /// `rust-version` of its manifest, and cargo resolves the inheritance
+    /// from the workspace before it reports the declaration. A workspace
+    /// compiles as one unit, so the highest declaration of its packages
+    /// answers, and a workspace whose packages declare nothing answers
+    /// `None`.
+    ///
+    /// The lookup starts a process, so a caller that needs the version more
+    /// than once keeps the answer for the length of the run.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
+    /// [`UnreadableManifest`][manifest] when cargo refuses the manifest of
+    /// the root, and [`UnrecognizedMetadata`][metadata] when cargo describes
+    /// the workspace in a shape that the crate cannot read.
+    ///
+    /// # Panics
+    ///
+    /// Panics when no Tokio runtime drives the future. The runtime waits for
+    /// cargo, and the method has no way to ask without one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::Cargo;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     if let Some(version) = cargo.rust_version(&root).await? {
+    ///         println!("{}", version);
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [manifest]: ReadRustVersionError::UnreadableManifest
+    /// [metadata]: ReadRustVersionError::UnrecognizedMetadata
+    /// [unavailable]: ReadRustVersionError::CargoUnavailable
+    // cargo[impl version.declared]
+    // cargo[impl version.unreadable]
+    pub async fn rust_version(
+        &self,
+        root: &CargoRoot,
+    ) -> Result<Option<RustVersion>, ReadRustVersionError> {
+        let manifest = root.manifest();
+        let metadata = self
+            .describe(&manifest)
+            .await
+            .map_err(|failure| match failure {
+                MetadataFailure::Unavailable { source } => {
+                    ReadRustVersionError::CargoUnavailable { source }
+                }
+                MetadataFailure::Unreadable { details } => {
+                    ReadRustVersionError::UnreadableManifest { manifest, details }
+                }
+                MetadataFailure::Unrecognized { source } => {
+                    ReadRustVersionError::UnrecognizedMetadata { manifest, source }
+                }
+            })?;
+
+        Ok(RustVersion::highest(
+            metadata
+                .packages
+                .into_iter()
+                .filter_map(|package| package.rust_version)
+                .map(RustVersion::new),
+        ))
+    }
+
+    /// Asks cargo to describe the workspace of a manifest
     ///
     /// The question runs in the directory of the manifest, because cargo
     /// reads the configuration in `.cargo` from the directory it runs in
     /// and not from the manifest it is given. The job that follows runs in
     /// the directory of the root, so the answer and the job see the same
     /// configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns what went wrong, without the manifest: every caller knows
+    /// which manifest it asked about, and each of them reports the failure
+    /// in the error of its own question.
+    async fn describe(&self, manifest: &Path) -> Result<Metadata, MetadataFailure> {
+        let directory = manifest.parent().unwrap_or(self.root.get());
+        let execution = self
+            .tool
+            .invocation()
+            .in_directory(directory)
+            .args(METADATA)
+            .arg(MANIFEST_PATH)
+            .arg(manifest)
+            .run()
+            .await
+            .map_err(|source| MetadataFailure::Unavailable { source })?;
+
+        if !execution.status().success() {
+            return Err(MetadataFailure::Unreadable {
+                details: details(&execution),
+            });
+        }
+
+        serde_json::from_slice(execution.stdout().get())
+            .map_err(|source| MetadataFailure::Unrecognized { source })
+    }
+
+    /// Asks cargo which workspace a manifest belongs to
     ///
     /// # Errors
     ///
@@ -245,32 +353,50 @@ impl Cargo {
     /// [unavailable]: DiscoverRootsError::CargoUnavailable
     // cargo[impl root.manifest]
     async fn metadata(&self, manifest: &Path) -> Result<Metadata, DiscoverRootsError> {
-        let directory = manifest.parent().unwrap_or(self.root.get());
-        let execution = self
-            .tool
-            .invocation()
-            .in_directory(directory)
-            .args(METADATA)
-            .arg(MANIFEST_PATH)
-            .arg(manifest)
-            .run()
+        self.describe(manifest)
             .await
-            .map_err(|source| DiscoverRootsError::CargoUnavailable { source })?;
-
-        if !execution.status().success() {
-            return Err(DiscoverRootsError::UnreadableManifest {
-                manifest: manifest.to_path_buf(),
-                details: details(&execution),
-            });
-        }
-
-        serde_json::from_slice(execution.stdout().get()).map_err(|source| {
-            DiscoverRootsError::UnrecognizedMetadata {
-                manifest: manifest.to_path_buf(),
-                source,
-            }
-        })
+            .map_err(|failure| match failure {
+                MetadataFailure::Unavailable { source } => {
+                    DiscoverRootsError::CargoUnavailable { source }
+                }
+                MetadataFailure::Unreadable { details } => DiscoverRootsError::UnreadableManifest {
+                    manifest: manifest.to_path_buf(),
+                    details,
+                },
+                MetadataFailure::Unrecognized { source } => {
+                    DiscoverRootsError::UnrecognizedMetadata {
+                        manifest: manifest.to_path_buf(),
+                        source,
+                    }
+                }
+            })
     }
+}
+
+/// What went wrong when cargo described a manifest
+///
+/// The question has two callers, and each of them reports the failure in the
+/// error of its own question. This enum carries what happened, and the
+/// caller adds the manifest that it asked about.
+#[derive(Debug)]
+enum MetadataFailure {
+    /// Cargo did not run
+    Unavailable {
+        /// The cause of the failure
+        source: RunCommandError,
+    },
+
+    /// Cargo refused the manifest
+    Unreadable {
+        /// What cargo wrote about the manifest
+        details: String,
+    },
+
+    /// Cargo answered in a shape that the crate does not recognize
+    Unrecognized {
+        /// The cause of the failure
+        source: serde_json::Error,
+    },
 }
 
 /// What cargo reports about the workspace of a manifest
@@ -291,6 +417,11 @@ struct Metadata {
 struct Package {
     /// The manifest of the package
     manifest_path: PathBuf,
+
+    /// The oldest Rust toolchain that the package declares it compiles on,
+    /// with the inheritance from the workspace resolved, when the package
+    /// declares one
+    rust_version: Option<String>,
 }
 
 /// How far a walk for manifests goes

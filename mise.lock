@@ -122,6 +122,11 @@ url = "https://github.com/pre-commit/pre-commit/releases/download/v4.6.2/pre-com
 url_api = "https://api.github.com/repos/pre-commit/pre-commit/releases/assets/509317714"
 
 [[tools.rust]]
+version = "1.88.0"
+backend = "core:rust"
+specifiers = ["1.88.0"]
+
+[[tools.rust]]
 version = "1.98.0"
 backend = "core:rust"
 specifiers = ["1.98.0"]

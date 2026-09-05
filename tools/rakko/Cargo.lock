@@ -352,6 +352,7 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-check-dependencies",
+ "rakko-check-msrv",
  "rakko-cli",
  "rakko-format-json",
  "rakko-format-markdown",
@@ -576,6 +577,16 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "rakko-check-msrv"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "thiserror",
 ]
 
 [[package]]
