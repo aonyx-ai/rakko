@@ -1,0 +1,20 @@
+[package]
+name = "rakko-worktree"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+getset = { workspace = true }
+kawauso-process = { workspace = true }
+rakko-action = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

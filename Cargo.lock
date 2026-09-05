@@ -834,6 +834,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-worktree"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "kawauso-process",
+ "rakko-action",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "redox_users"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
