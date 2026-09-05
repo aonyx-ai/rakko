@@ -22,6 +22,7 @@ rakko-format-yaml = { path = "../../crates/rakko-format-yaml" }
 rakko-lint-markdown = { path = "../../crates/rakko-lint-markdown" }
 rakko-lint-rust = { path = "../../crates/rakko-lint-rust" }
 rakko-lint-toml = { path = "../../crates/rakko-lint-toml" }
+rakko-lint-yaml = { path = "../../crates/rakko-lint-yaml" }
 rakko-test-rust = { path = "../../crates/rakko-test-rust" }
 
 [workspace.lints.clippy]
