@@ -57,27 +57,17 @@ build-internal-docs:
     mise run rakko -- build-internal-docs
 
 # Check that Rakko builds with the latest dependencies
-check-latest-deps force="false":
-    #!/usr/bin/env -S mise exec -- bash
-
-    # Abort if git is not clean
-    if [[ {{ force }} != "true" && -n $(git status --porcelain) ]]; then
-        echo "Git working directory is not clean. Commit or stash changes before running this recipe. Aborting."
-        git status --porcelain
-
-        # Print diff on GitHub Actions
-        if [ -n "$GITHUB_ACTIONS" ]; then
-            git diff
-        fi
-
-        exit 1
-    fi
-
-    # Update dependencies to latest versions
-    cargo update
-
-    # Run tests to ensure the latest versions are compatible
-    RUSTFLAGS="-D deprecated" cargo test --all-features --all-targets --locked
+#
+# The recipe runs the harness instead of cargo, for the reason that
+# `format-toml` gives. The action resolves and tests in a copy of the project,
+# so the recipe guards nothing and takes no argument: it leaves the lockfile
+# and the working tree of a contributor as they are, where the recipe that it
+# replaces rewrote `Cargo.lock` and refused to run on a tree with changes in
+# it. The action covers every workspace of the repository, so the harness is
+# checked as well, and it reports every diagnostic of the build as a finding,
+# where the bare cargo that it replaces denied deprecations alone.
+check-latest-deps:
+    mise run rakko -- check-latest-deps
 
 # Check that dependencies have compatible open-source licenses and trusted sources
 #

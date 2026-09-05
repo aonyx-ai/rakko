@@ -19,7 +19,7 @@ use std::process::Command;
 
 use rakko_action::{Location, Position, ProjectRoot};
 use rakko_cargo::Cargo;
-use rakko_nextest::{Nextest, Observation, ObserveNextestError};
+use rakko_nextest::{Lockfile, Nextest, Observation, ObserveNextestError};
 use tempfile::TempDir;
 
 /// The manifest of a package that nextest tests
@@ -90,11 +90,24 @@ impl Project {
 
     /// Tests the one workspace of the project and returns what it reported
     ///
+    /// Cargo resolves the dependencies of the build, which is what a run
+    /// against the project as it stands does.
+    ///
     /// # Errors
     ///
     /// Returns the error of the run when the reports of nextest and cargo
     /// leave it without an answer.
     async fn observe(&self) -> Result<Observation, ObserveNextestError> {
+        self.observe_with(Lockfile::Writable).await
+    }
+
+    /// Tests the one workspace of the project the way the lockfile says
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the run when the reports of nextest and cargo
+    /// leave it without an answer.
+    async fn observe_with(&self, lockfile: Lockfile) -> Result<Observation, ObserveNextestError> {
         let root = self.root();
         let cargo = Cargo::resolve(root.clone())
             .await
@@ -107,7 +120,14 @@ impl Project {
             .next()
             .expect("the project holds one workspace");
 
-        Nextest::new(cargo).observe(&workspace, &root).await
+        Nextest::new(cargo, lockfile)
+            .observe(&workspace, &root)
+            .await
+    }
+
+    /// Returns whether the project holds a file at the path
+    fn holds(&self, path: &str) -> bool {
+        self.directory.path().join(path).exists()
     }
 
     /// Returns the root of the project
@@ -303,7 +323,7 @@ async fn observe_a_failing_test_reports_where_it_panicked() {
 
 // nextest[verify report.ran]
 // nextest[verify run.consent]
-// nextest[verify run.operation]
+// nextest[verify run.operation+2]
 #[tokio::test]
 async fn observe_a_passing_test_counts_it() {
     let project = Project::with_library(PASSING);
@@ -316,7 +336,7 @@ async fn observe_a_passing_test_counts_it() {
     assert_eq!(observation.ran(), 1);
 }
 
-// nextest[verify run.operation]
+// nextest[verify run.operation+2]
 #[tokio::test]
 async fn observe_a_passing_test_finds_nothing() {
     let project = Project::with_library(PASSING);
@@ -331,6 +351,36 @@ async fn observe_a_passing_test_finds_nothing() {
         "expected no finding, got {:?}",
         observation.findings()
     );
+}
+
+// A workspace that nothing resolved yet holds no lockfile, so a run that
+// builds the versions of the lockfile has none to build and refuses. That
+// refusal is a report that the crate cannot answer from, which is what a
+// caller reads when the resolution it asked about is not the one on disk.
+// nextest[verify run.lockfile]
+#[tokio::test]
+async fn observe_a_workspace_without_a_lockfile_with_a_locked_run_stops() {
+    let project = Project::with_library(PASSING);
+
+    let observation = project.observe_with(Lockfile::Locked).await;
+
+    assert!(
+        matches!(
+            observation,
+            Err(ObserveNextestError::UnrecognizedReport { .. })
+        ),
+        "expected the run to stop, got {observation:?}"
+    );
+}
+
+// nextest[verify run.lockfile]
+#[tokio::test]
+async fn observe_a_workspace_without_a_lockfile_with_a_writable_run_resolves_it() {
+    let project = Project::with_library(PASSING);
+
+    let _observation = project.observe_with(Lockfile::Writable).await;
+
+    assert!(project.holds("Cargo.lock"));
 }
 
 // nextest[verify report.none]

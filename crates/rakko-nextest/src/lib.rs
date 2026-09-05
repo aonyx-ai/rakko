@@ -13,6 +13,12 @@
 //! runs the tests, so a run agrees with the terminal of a contributor that
 //! runs nextest bare.
 //!
+//! The caller also decides what a run does with the lockfile of the
+//! workspace. An action that tests the project as it stands lets cargo
+//! resolve the dependencies of the build. An action that first resolved the
+//! dependencies itself holds cargo to that resolution instead, so that a
+//! version which nobody chose cannot join the build unannounced.
+//!
 //! Nextest reports the tests as JSON, and cargo reports the diagnostics of
 //! the build as JSON as well. The shape of the two reports belongs to a
 //! version of the tools, so keeping the reading in one place keeps the
@@ -32,14 +38,14 @@
 //! ```no_run
 //! use rakko_action::ProjectRoot;
 //! use rakko_cargo::Cargo;
-//! use rakko_nextest::Nextest;
+//! use rakko_nextest::{Lockfile, Nextest};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let root = ProjectRoot::new("/home/otter/project".into());
 //! let cargo = Cargo::resolve(root.clone()).await?;
 //! let roots = cargo.roots().await?;
-//! let nextest = Nextest::new(cargo);
+//! let nextest = Nextest::new(cargo, Lockfile::Writable);
 //!
 //! for workspace in &roots {
 //!     let observation = nextest.observe(workspace, &root).await?;
@@ -60,6 +66,6 @@ pub mod observation;
 /// Types for what nextest reported about a run
 pub mod report;
 
-pub use self::nextest::{Nextest, ObserveNextestError};
+pub use self::nextest::{Lockfile, Nextest, ObserveNextestError};
 pub use self::observation::Observation;
 pub use self::report::{NextestReport, Panic, ReadNextestReportError, TestFailure};

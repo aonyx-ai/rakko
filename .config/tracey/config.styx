@@ -66,6 +66,18 @@ specs (
         )
     }
     {
+        name check-latest-deps
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-check-latest-deps/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-check-latest-deps/src/**/*.rs)
+                test_include (crates/rakko-check-latest-deps/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name check-msrv
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-check-msrv/SPECIFICATION.md)

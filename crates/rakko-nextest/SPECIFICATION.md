@@ -48,14 +48,28 @@ experimental report through a variable in the environment of the command, and
 the crate sets that variable for the command that it starts and for nothing
 else, so a process that the caller starts later is unaffected.
 
-nextest[run.operation]
+The lockfile of the workspace is the one part of the run that the caller
+decides. A run that answers for the project as it stands lets cargo resolve
+the dependencies of the build, because that resolution is part of the build
+that a contributor gets. A caller that resolved the dependencies before the
+run answers for those versions instead, and a build that quietly chose
+another one would answer a question that nobody asked, so cargo refuses such
+a build. The refusal reaches the caller as a run that reported nothing it can
+answer from.
+
+nextest[run.operation+2]
 A run MUST ask nextest to run every target with every feature, MUST ask
 nextest for its structured report and cargo for its report as JSON, and MUST
-NOT change any other option of nextest or cargo.
+NOT change an option of nextest or cargo that this document does not name.
 
 nextest[run.consent]
 A run MUST give consent to the experimental report of nextest in the
 environment of the command that it starts, and in no other place.
+
+nextest[run.lockfile]
+A run MUST ask cargo to build the versions that the lockfile of the workspace
+holds when the caller asks for that, and MUST leave the resolution of cargo
+alone when the caller does not.
 
 ## Report
 
