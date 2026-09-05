@@ -81,33 +81,19 @@ check-dependencies:
     mise run rakko -- check-dependencies
 
 # Check that Rakko builds with the minimal dependencies
-check-minimal-deps force="false":
-    #!/usr/bin/env -S mise exec -- bash
-    set -euo pipefail
-
-    # Abort if git is not clean
-    if [[ {{ force }} != "true" && -n $(git status --porcelain) ]]; then
-        echo "Git working directory is not clean. Commit or stash changes before running this recipe. Aborting."
-        git status --porcelain
-
-        # Print diff on GitHub Actions
-        if [ -n "${GITHUB_ACTIONS:-}" ]; then
-            git diff
-        fi
-
-        exit 1
-    fi
-
-    # Install the nightly toolchain if not already installed
-    rustup install nightly
-
-    # Update dependencies to minimal versions
-    rustup run nightly cargo update -Z direct-minimal-versions
-
-    # Run the tests on the toolchain that the project pins. Only the resolution
-    # needs the nightly, and a test that starts cargo would otherwise inherit
-    # the nightly through RUSTUP_TOOLCHAIN and miss the components of the pin.
-    RUSTFLAGS="-D deprecated" cargo test --all-features --all-targets --locked
+#
+# The recipe runs the harness instead of rustup and cargo, for the reason that
+# `format-toml` gives. The action resolves and tests in a copy of the project,
+# so the recipe guards nothing and takes no argument: it leaves the lockfile
+# and the working tree of a contributor as they are, where the recipe that it
+# replaces rewrote `Cargo.lock` and refused to run on a tree with changes in
+# it. The action resolves the floors on the nightly toolchain that `mise.toml`
+# pins, so the recipe installs no toolchain. It covers every workspace of the
+# repository, so the harness is checked as well, and it reports every
+# diagnostic of the build as a finding, where the bare cargo that it replaces
+# denied deprecations alone.
+check-minimal-deps:
+    mise run rakko -- check-minimal-deps
 
 # Check that the specs and the requirement references in the code are valid
 check-specs:

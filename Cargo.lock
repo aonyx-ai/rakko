@@ -620,6 +620,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-check-minimal-deps"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-nextest",
+ "rakko-tool",
+ "rakko-worktree",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-check-msrv"
 version = "0.1.0"
 dependencies = [
