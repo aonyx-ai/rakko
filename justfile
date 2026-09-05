@@ -200,8 +200,15 @@ format-yaml fix="false":
     mise run rakko -- format-yaml {{ if fix == "true" { "--fix" } else { "" } }}
 
 # Lint GitHub Actions workflows
+#
+# The recipe runs the harness instead of zizmor, for the reason that
+# `format-toml` gives. The action names the project to zizmor, which then
+# collects the files, so the recipe passes no path of its own. It asks for
+# the same pedantic persona that this recipe used to ask for, and it also
+# asks zizmor to stop at a file that it collected and cannot read, where the
+# bare zizmor dropped such a file with a warning and ended with success.
 lint-github-actions:
-    zizmor -p .
+    mise run rakko -- lint-github-actions
 
 # Lint Markdown files
 #

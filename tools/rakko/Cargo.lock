@@ -357,6 +357,7 @@ dependencies = [
  "rakko-format-rust",
  "rakko-format-toml",
  "rakko-format-yaml",
+ "rakko-lint-github-actions",
  "rakko-lint-markdown",
  "rakko-lint-rust",
  "rakko-lint-toml",
@@ -627,6 +628,20 @@ dependencies = [
  "rakko-prettier",
  "rakko-tool",
  "thiserror",
+]
+
+[[package]]
+name = "rakko-lint-github-actions"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
