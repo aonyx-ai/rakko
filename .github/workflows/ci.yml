@@ -83,6 +83,13 @@ jobs:
       - name: Install the tools
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
 
+      # The installation runs the task that downloads the toolchains which mise
+      # only recorded, but a failed task is only a warning there. The task runs
+      # again here, where a failure stops the job instead of leaving a
+      # toolchain for the first command that selects it to download.
+      - name: Download the toolchains
+        run: mise run install-toolchains
+
       # The installation ends in the task that builds tracey, but a failed task
       # is only a warning there. The task runs again here, where a failure
       # stops the job instead of surfacing as a missing command.
