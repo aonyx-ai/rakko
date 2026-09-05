@@ -19,6 +19,7 @@ rakko-format-markdown = { path = "../../crates/rakko-format-markdown" }
 rakko-format-rust = { path = "../../crates/rakko-format-rust" }
 rakko-format-toml = { path = "../../crates/rakko-format-toml" }
 rakko-format-yaml = { path = "../../crates/rakko-format-yaml" }
+rakko-lint-github-actions = { path = "../../crates/rakko-lint-github-actions" }
 rakko-lint-markdown = { path = "../../crates/rakko-lint-markdown" }
 rakko-lint-rust = { path = "../../crates/rakko-lint-rust" }
 rakko-lint-toml = { path = "../../crates/rakko-lint-toml" }

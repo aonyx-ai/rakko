@@ -14,6 +14,7 @@ use rakko_format_markdown::FormatMarkdown;
 use rakko_format_rust::FormatRust;
 use rakko_format_toml::FormatToml;
 use rakko_format_yaml::FormatYaml;
+use rakko_lint_github_actions::LintGitHubActions;
 use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
 use rakko_lint_toml::LintToml;
@@ -32,6 +33,7 @@ fn main() {
             Box::new(FormatRust),
             Box::new(FormatToml),
             Box::new(FormatYaml),
+            Box::new(LintGitHubActions),
             Box::new(LintMarkdown),
             Box::new(LintRust),
             Box::new(LintToml),
