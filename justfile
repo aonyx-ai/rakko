@@ -158,14 +158,16 @@ check-msrv:
     mise run rakko -- check-msrv
 
 # Check that all dependencies in Cargo.toml are used
+#
+# The recipe runs the harness instead of rustup and cargo-udeps, for the
+# reason that `format-toml` gives. The action examines every workspace of the
+# repository on the nightly toolchain that `mise.toml` pins, so the recipe
+# installs no toolchain. It examines every target of every package with every
+# feature, where the bare cargo-udeps that it replaces examined the default
+# targets with the default features, so a dependency that only a test or only
+# a feature declares answers now as well.
 check-unused-deps:
-    #!/usr/bin/env -S mise exec -- bash
-
-    # Install the nightly toolchain if not already installed
-    rustup install nightly
-
-    # Check for unused dependencies
-    rustup run nightly cargo udeps
+    mise run rakko -- check-unused-deps
 
 # Format JSON files
 #

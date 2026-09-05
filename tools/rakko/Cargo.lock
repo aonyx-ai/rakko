@@ -353,6 +353,7 @@ dependencies = [
  "rakko-action",
  "rakko-check-dependencies",
  "rakko-check-msrv",
+ "rakko-check-unused-deps",
  "rakko-cli",
  "rakko-format-json",
  "rakko-format-markdown",
@@ -586,6 +587,19 @@ dependencies = [
  "rakko-action",
  "rakko-cargo",
  "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-check-unused-deps"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
