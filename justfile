@@ -145,17 +145,17 @@ check-specs:
     tracey query status
 
 # Check that Rakko builds with the MSRV
+#
+# The recipe runs the harness instead of rustup and cargo, for the reason that
+# `format-toml` gives. The action reads the `rust-version` of every workspace
+# and checks each workspace on the toolchain that it declares, so the recipe
+# reads no version of its own and installs no toolchain. `mise.toml` pins the
+# toolchain of the MSRV next to the default one, because the harness installs
+# nothing. The action reports every diagnostic of the older compiler, so a
+# warning now fails the recipe, where the bare cargo that it replaces failed
+# on an error and on a deprecation alone.
 check-msrv:
-    #!/usr/bin/env -S mise exec -- bash
-
-    # Get the MSRV from the Cargo.toml
-    MSRV=$(cat Cargo.toml | grep 'rust-version =' | head -n 1 | cut -d '"' -f 2)
-
-    # Install the MSRV toolchain if not already installed
-    rustup install "${MSRV}"
-
-    # Run tests using the MSRV
-    RUSTFLAGS="-D deprecated" rustup run "${MSRV}" cargo check --all-features --all-targets
+    mise run rakko -- check-msrv
 
 # Check that all dependencies in Cargo.toml are used
 check-unused-deps:

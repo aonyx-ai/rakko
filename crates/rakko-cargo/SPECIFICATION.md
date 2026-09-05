@@ -120,6 +120,30 @@ cargo[root.manifest]
 A manifest that cargo cannot read MUST stop the discovery, and the error MUST
 name the manifest and hold what cargo reported.
 
+## Rust Version
+
+A package can declare the oldest Rust toolchain that it compiles on, and the
+declaration is the `rust-version` of its manifest. Cargo reports the
+declaration of every package of a workspace, with the inheritance from the
+workspace already resolved, so the crate asks cargo instead of reading the
+manifest itself.
+
+Cargo compiles a workspace as one unit, and a job that checks the declaration
+runs one toolchain. The crate therefore reports the highest version that the
+packages of a root declare. A toolchain below the highest cannot compile the
+package that asks for more, and a workspace whose packages declare nothing
+gets no version, so that a caller can skip the check instead of inventing one.
+
+cargo[version.declared]
+The crate MUST report the highest `rust-version` that the packages of a root
+declare, and MUST report that there is none when no package of the root
+declares one.
+
+cargo[version.unreadable]
+A manifest that cargo cannot read, and a description of a workspace that the
+crate cannot read, MUST stop the reading, and the error MUST name the
+manifest.
+
 ## Versions
 
 Two questions of this crate answer with a version of the compiler: which

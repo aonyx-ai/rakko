@@ -10,6 +10,7 @@
 
 use rakko_action::ErasedAction;
 use rakko_check_dependencies::CheckDependencies;
+use rakko_check_msrv::CheckMsrv;
 use rakko_format_json::FormatJson;
 use rakko_format_markdown::FormatMarkdown;
 use rakko_format_rust::FormatRust;
@@ -30,6 +31,7 @@ fn main() {
     rakko_cli::builder()
         .mount([
             Box::new(CheckDependencies) as Box<dyn ErasedAction>,
+            Box::new(CheckMsrv),
             Box::new(FormatJson),
             Box::new(FormatMarkdown),
             Box::new(FormatRust),

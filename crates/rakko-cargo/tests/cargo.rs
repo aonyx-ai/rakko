@@ -20,8 +20,8 @@ use std::process::Command;
 
 use rakko_action::ProjectRoot;
 use rakko_cargo::{
-    Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, ResolveNewestToolchainError,
-    ResolveToolchainError, Toolchain,
+    Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, ReadRustVersionError,
+    ResolveNewestToolchainError, ResolveToolchainError, RustVersion, Toolchain,
 };
 use tempfile::TempDir;
 
@@ -126,6 +126,17 @@ impl Project {
     /// Returns the path of a directory of the project, as a root
     fn cargo_root(&self, path: &str) -> CargoRoot {
         CargoRoot::new(self.root().get().join(path))
+    }
+
+    /// Writes a package that declares the Rust version it compiles on
+    fn declaring(&self, name: &str, version: &str) {
+        self.write(
+            &format!("{name}/Cargo.toml"),
+            &format!(
+                "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"{version}\"\n"
+            ),
+        );
+        self.write(&format!("{name}/src/lib.rs"), "");
     }
 
     /// Returns the directory above the project, which holds the outer
@@ -653,6 +664,56 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
                 if directory.ends_with("closed")
         ),
         "expected the unreadable directory, got {roots:?}"
+    );
+}
+
+// cargo[verify version.declared]
+#[tokio::test]
+async fn rust_version_of_a_workspace_answers_the_highest_declaration() {
+    let project = Project::new();
+    project.write("Cargo.toml", WORKSPACE);
+    project.declaring("a", "1.85.0");
+    project.declaring("b", "1.88.0");
+    let cargo = project.resolve().await;
+
+    let version = cargo
+        .rust_version(&project.cargo_root(""))
+        .await
+        .expect("the test reads a manifest that cargo accepts");
+
+    assert_eq!(version, Some(RustVersion::new("1.88.0")));
+}
+
+// cargo[verify version.declared]
+#[tokio::test]
+async fn rust_version_of_a_workspace_without_a_declaration_answers_nothing() {
+    let project = Project::workspace();
+    let cargo = project.resolve().await;
+
+    let version = cargo
+        .rust_version(&project.cargo_root(""))
+        .await
+        .expect("the test reads a manifest that cargo accepts");
+
+    assert_eq!(version, None);
+}
+
+// cargo[verify version.unreadable]
+#[tokio::test]
+async fn rust_version_with_a_manifest_that_cargo_cannot_read_names_the_manifest() {
+    let project = Project::new();
+    project.write("Cargo.toml", BROKEN);
+    let cargo = project.resolve().await;
+
+    let version = cargo.rust_version(&project.cargo_root("")).await;
+
+    assert!(
+        matches!(
+            &version,
+            Err(ReadRustVersionError::UnreadableManifest { manifest, .. })
+                if manifest == &project.root().get().join("Cargo.toml")
+        ),
+        "expected an unreadable manifest, got {version:?}"
     );
 }
 

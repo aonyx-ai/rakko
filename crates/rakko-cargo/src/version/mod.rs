@@ -6,7 +6,12 @@
 //! another program wrote, and both pick the newest of several, so this
 //! module holds the version and the comparison that orders them.
 
+/// The error that stops the reading of a declaration
+mod error;
+
 use std::cmp::Ordering;
+
+pub use self::error::ReadRustVersionError;
 
 /// The character that separates the parts of a version
 const SEPARATOR: char = '.';
