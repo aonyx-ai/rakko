@@ -351,6 +351,7 @@ name = "harness"
 version = "0.1.0"
 dependencies = [
  "rakko-action",
+ "rakko-check-dependencies",
  "rakko-cli",
  "rakko-format-json",
  "rakko-format-markdown",
@@ -561,6 +562,20 @@ dependencies = [
  "thiserror",
  "tokio",
  "typed-fields",
+]
+
+[[package]]
+name = "rakko-check-dependencies"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
