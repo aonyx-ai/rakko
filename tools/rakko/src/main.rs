@@ -9,6 +9,7 @@
 //! supplies the shortcut.
 
 use rakko_action::ErasedAction;
+use rakko_build_internal_docs::BuildInternalDocs;
 use rakko_check_dependencies::CheckDependencies;
 use rakko_check_msrv::CheckMsrv;
 use rakko_check_unused_deps::CheckUnusedDeps;
@@ -31,7 +32,8 @@ use rakko_test_rust::TestRust;
 fn main() {
     rakko_cli::builder()
         .mount([
-            Box::new(CheckDependencies) as Box<dyn ErasedAction>,
+            Box::new(BuildInternalDocs) as Box<dyn ErasedAction>,
+            Box::new(CheckDependencies),
             Box::new(CheckMsrv),
             Box::new(CheckUnusedDeps),
             Box::new(FormatJson),

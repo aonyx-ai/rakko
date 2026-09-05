@@ -563,6 +563,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-build-internal-docs"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-cargo"
 version = "0.1.0"
 dependencies = [

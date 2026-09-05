@@ -30,6 +30,18 @@ specs (
         )
     }
     {
+        name build-internal-docs
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-build-internal-docs/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-build-internal-docs/src/**/*.rs)
+                test_include (crates/rakko-build-internal-docs/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name cargo
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-cargo/SPECIFICATION.md)

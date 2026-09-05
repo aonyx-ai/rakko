@@ -43,9 +43,18 @@ pre-commit-verify:
     done
     exit "$status"
 
-# Build the Rust documentation and force the rustdoc lints to run
-build-rustdoc:
-    cargo doc --workspace --no-deps --document-private-items
+# Build the internal documentation of the Rust code
+#
+# The recipe runs the harness instead of cargo, for the reason that
+# `format-toml` gives. The action documents every workspace of the repository,
+# so the recipe names no package of its own, and it documents every feature,
+# where the bare cargo that it replaces documented the default ones. The
+# recipe that this one replaces was named `build-rustdoc` and claimed to force
+# the rustdoc lints to run, but nothing denied them, so a broken link between
+# two items left it green. The action reads the report of the build instead,
+# and a diagnostic of rustdoc now fails the recipe.
+build-internal-docs:
+    mise run rakko -- build-internal-docs
 
 # Check that Rakko builds with the latest dependencies
 check-latest-deps force="false":

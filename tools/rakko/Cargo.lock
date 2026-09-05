@@ -351,6 +351,7 @@ name = "harness"
 version = "0.1.0"
 dependencies = [
  "rakko-action",
+ "rakko-build-internal-docs",
  "rakko-check-dependencies",
  "rakko-check-msrv",
  "rakko-check-unused-deps",
@@ -549,6 +550,16 @@ dependencies = [
  "getset",
  "thiserror",
  "typed-fields",
+]
+
+[[package]]
+name = "rakko-build-internal-docs"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "thiserror",
 ]
 
 [[package]]
