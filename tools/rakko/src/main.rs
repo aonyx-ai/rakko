@@ -9,6 +9,7 @@
 //! supplies the shortcut.
 
 use rakko_action::ErasedAction;
+use rakko_check_dependencies::CheckDependencies;
 use rakko_format_json::FormatJson;
 use rakko_format_markdown::FormatMarkdown;
 use rakko_format_rust::FormatRust;
@@ -28,7 +29,8 @@ use rakko_test_rust::TestRust;
 fn main() {
     rakko_cli::builder()
         .mount([
-            Box::new(FormatJson) as Box<dyn ErasedAction>,
+            Box::new(CheckDependencies) as Box<dyn ErasedAction>,
+            Box::new(FormatJson),
             Box::new(FormatMarkdown),
             Box::new(FormatRust),
             Box::new(FormatToml),

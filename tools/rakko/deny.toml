@@ -1,0 +1,31 @@
+# Cargo-deny looks for its configuration from the directory of a run upwards,
+# so this file answers for the harness and the deny.toml above answers for the
+# crates of the repository. The two workspaces need different answers, because
+# the harness is a package that nothing publishes and it depends on the crates
+# of this repository by path.
+
+[licenses]
+# The harness reaches the same dependencies as the workspace above it, so it
+# accepts the same licenses. Add a license here when a dependency needs it, and
+# only when it is OSI- or FSF-approved.
+allow = ["Apache-2.0", "MIT", "MPL-2.0", "Unicode-3.0"]
+
+[licenses.private]
+# The harness is never published and carries no license expression of its own.
+ignore = true
+
+[bans]
+# Two versions of one crate build and link both, which grows the binary and can
+# split a type across the versions. It is a warning, because a duplicate often
+# comes from a transitive dependency that the workspace cannot control.
+multiple-versions = "warn"
+
+# A wildcard requirement accepts any future release, including one with a
+# breaking change, so a build that works today can break without a noticeable
+# change here.
+wildcards = "deny"
+
+# The harness depends on the crates of this repository by path, and such a
+# dependency states no version. It is not the open-ended requirement that the
+# rule above is about, because it moves with the repository.
+allow-wildcard-paths = true

@@ -71,8 +71,15 @@ check-latest-deps force="false":
     RUSTFLAGS="-D deprecated" cargo test --all-features --all-targets --locked
 
 # Check that dependencies have compatible open-source licenses and trusted sources
+#
+# The recipe runs the harness instead of cargo-deny, for the reason that
+# `format-toml` gives. The action checks every workspace of the repository,
+# where the bare cargo-deny that it replaces reached only the workspace of the
+# crates, so the harness is covered now and carries a `deny.toml` of its own.
+# A warning still leaves the recipe passing, and the run counts the warnings
+# that it read.
 check-dependencies:
-    cargo deny check bans licenses sources
+    mise run rakko -- check-dependencies
 
 # Check that Rakko builds with the minimal dependencies
 check-minimal-deps force="false":

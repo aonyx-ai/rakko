@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 rakko-action = { path = "../../crates/rakko-action" }
+rakko-check-dependencies = { path = "../../crates/rakko-check-dependencies" }
 rakko-cli = { path = "../../crates/rakko-cli" }
 rakko-format-json = { path = "../../crates/rakko-format-json" }
 rakko-format-markdown = { path = "../../crates/rakko-format-markdown" }
