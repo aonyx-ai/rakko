@@ -20,7 +20,8 @@ use std::process::Command;
 
 use rakko_action::ProjectRoot;
 use rakko_cargo::{
-    Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, ResolveToolchainError, Toolchain,
+    Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, ResolveNewestToolchainError,
+    ResolveToolchainError, Toolchain,
 };
 use tempfile::TempDir;
 
@@ -195,33 +196,40 @@ impl Project {
     }
 }
 
-/// Returns the default Rust toolchain that this repository pins, as mise
-/// reports it
+/// Returns the Rust toolchain that this repository builds with
 ///
-/// The tests resolve a channel that the copied configuration pins, and the
-/// default pin of the repository is the one toolchain that every machine
-/// which runs the tests has installed. The default pin names its version
-/// exactly, which tells it apart from a channel such as `nightly` that mise
-/// resolves to a dated toolchain. Reading the pin from mise keeps the
-/// version out of the tests.
-fn pinned_rust() -> String {
+/// The crate itself makes the choice, so a test that needs a toolchain which
+/// every machine running the tests has installed names the same one that a
+/// job of the repository would. Asking the crate keeps the version out of
+/// the tests, and the rule that picks it in one place with its own tests.
+async fn pinned_rust() -> String {
+    Toolchain::newest(&ProjectRoot::new(repository().to_path_buf()))
+        .await
+        .expect("the repository pins a Rust toolchain by a version")
+        .get()
+        .to_owned()
+}
+
+/// Returns the Rust toolchain that mise selects for this repository
+///
+/// Mise names the toolchain of the default pin in `RUSTUP_TOOLCHAIN`, and it
+/// reports that through another interface than the list of pins that
+/// [`pinned_rust`] reads. The test below holds the two answers against each
+/// other, so a pin that moves which toolchain the helper picks fails a test
+/// instead of sending every test that needs a cargo to another toolchain.
+fn selected_rust() -> String {
     let output = Command::new("mise")
-        .args(["ls", "--current", "--json", "rust"])
+        .args(["env", "--json"])
         .current_dir(repository())
         .output()
-        .expect("the test starts mise to list the toolchains");
-    let pins: serde_json::Value =
+        .expect("the test starts mise to read the environment of the project");
+    let environment: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("the test reads the report of mise");
 
-    pins.as_array()
-        .and_then(|pins| {
-            pins.iter().find_map(|pin| {
-                let requested = pin["requested_version"].as_str()?;
-
-                (pin["version"].as_str() == Some(requested)).then(|| requested.to_owned())
-            })
-        })
-        .expect("the repository pins a Rust toolchain by its exact version")
+    environment["RUSTUP_TOOLCHAIN"]
+        .as_str()
+        .expect("mise selects a Rust toolchain for the repository")
+        .to_owned()
 }
 
 /// Returns the root of the repository that the tests run in
@@ -343,6 +351,36 @@ async fn applies_without_a_manifest_is_false() {
     let applies = project.applies().await;
 
     assert!(!applies);
+}
+
+// The pins of the project name two toolchains that no machine installs, so
+// the choice among them surfaces as the toolchain that the failure names.
+// That keeps the test free of whichever versions this repository installs.
+// cargo[verify toolchain.newest]
+#[tokio::test]
+async fn newest_in_a_project_that_pins_several_versions_names_the_highest() {
+    let project = Project::with_rust("[\"1.71.0\", \"1.70.0\"]");
+
+    let toolchain = Toolchain::newest(&project.root()).await;
+
+    assert!(
+        matches!(
+            &toolchain,
+            Err(ResolveNewestToolchainError::UninstalledToolchain { toolchain })
+                if toolchain.get() == "1.71.0"
+        ),
+        "expected the highest pin, got {toolchain:?}"
+    );
+}
+
+// cargo[verify toolchain.newest]
+#[tokio::test]
+async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
+    let selected = selected_rust();
+
+    let toolchain = Toolchain::newest(&ProjectRoot::new(repository().to_path_buf())).await;
+
+    assert_eq!(toolchain.ok(), Some(Toolchain::new(selected)));
 }
 
 // cargo[verify run.directory]
@@ -621,7 +659,7 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
 // cargo[verify toolchain.uninstalled]
 #[tokio::test]
 async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
-    let pin = pinned_rust();
+    let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("[\"{pin}\", \"nightly-2020-01-01\"]"));
 
     let toolchain = Toolchain::resolve(Channel::new("nightly"), &project.root()).await;
@@ -639,7 +677,7 @@ async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
 // cargo[verify toolchain.resolve]
 #[tokio::test]
 async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
-    let pin = pinned_rust();
+    let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("\"{pin}\""));
 
     let toolchain = Toolchain::resolve(Channel::new(pin.clone()), &project.root()).await;

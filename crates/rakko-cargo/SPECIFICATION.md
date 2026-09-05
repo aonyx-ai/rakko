@@ -120,6 +120,32 @@ cargo[root.manifest]
 A manifest that cargo cannot read MUST stop the discovery, and the error MUST
 name the manifest and hold what cargo reported.
 
+## Versions
+
+Two questions of this crate answer with a version of the compiler: which
+toolchain a project pins for its builds, and which toolchain the packages of
+a workspace promise to compile on. Both read a version out of text that
+another program wrote, and both pick the newest of several.
+
+A version is a sequence of numbers that dots separate, and it can leave the
+parts behind the first one out. The comparison reads the numbers, because
+`1.9` comes before `1.88` as text and after it as a version, and a part that
+a version leaves out counts as zero, because `1.88` and `1.88.0` name one
+release. A name whose parts are not all numbers is no version, which is how a
+toolchain such as `nightly-2026-08-11` tells itself apart from one.
+
+cargo[version.highest]
+The crate MUST report the highest of a set of versions, and MUST report that
+there is none when the set holds no version.
+
+cargo[version.compare]
+The comparison of two versions MUST read each part as a number, and a part
+that a version leaves out MUST count as zero.
+
+cargo[version.parse]
+The crate MUST report the version that a name states, and MUST report that a
+name whose parts are not all numbers is no version.
+
 ## Toolchain
 
 Mise pins the Rust toolchain of a project, and it can pin more than one: the
@@ -150,6 +176,35 @@ channel and the toolchain, and the crate MUST NOT install the toolchain.
 cargo[toolchain.report]
 A report of mise that the crate cannot read MUST produce an error that holds
 what mise wrote.
+
+A job can also need the toolchain that the project builds with, and not the
+toolchain of a channel: a check that runs on the pin of the project while
+another toolchain does a step of its own asks for that one. A project pins
+that toolchain by a version, and mise resolves a pin such as `1.98.0` or
+`1.85` to a version of the compiler. It resolves a channel such as `nightly`
+to a dated toolchain, whose name is no version, and that pin says nothing
+about which compiler the project builds with. The candidates are therefore
+the pins that mise resolved to a version, and the newest of them is the
+answer.
+
+Mise lists the pins in an order of its own, so the choice reads the versions
+and not the order. It reads each part of a version as a number, because `1.9`
+comes before `1.88` as text and after it as a version.
+
+cargo[toolchain.newest]
+The crate MUST report the newest toolchain among the pins that mise resolved
+to a version, whatever order mise lists them in, and it MUST name the
+toolchain that the pin resolved to. It MUST NOT consider a pin that mise
+resolved to a name which is no version.
+
+cargo[toolchain.unversioned]
+A project whose every Rust pin resolved to a name that is no version MUST
+produce an error, because no pin says which toolchain the project builds
+with.
+
+cargo[toolchain.absent]
+A newest pin that nothing installed MUST produce an error that names the
+toolchain, and the crate MUST NOT install the toolchain.
 
 ## Runs
 

@@ -21,8 +21,9 @@ use std::process::Command;
 
 use rakko_action::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, Position,
-    Summary, argument_name,
+    ProjectRoot, Summary, argument_name,
 };
+use rakko_cargo::Toolchain;
 use rakko_format_rust::{FormatRust, FormatRustArgs};
 use tempfile::TempDir;
 
@@ -182,31 +183,18 @@ fn locations(findings: &[Finding]) -> Vec<String> {
         .collect()
 }
 
-/// Returns the default Rust toolchain that this repository pins, as mise
-/// reports it
+/// Returns the Rust toolchain that this repository builds with
 ///
-/// A test that pins no nightly still needs a cargo, and the default pin of
-/// the repository is the one toolchain that every machine which runs the
-/// tests has installed. Reading the pin from mise keeps the version out of
-/// the tests.
-fn pinned_rust() -> String {
-    let output = Command::new("mise")
-        .args(["ls", "--current", "--json", "rust"])
-        .current_dir(repository())
-        .output()
-        .expect("the test starts mise to list the toolchains");
-    let pins: serde_json::Value =
-        serde_json::from_slice(&output.stdout).expect("the test reads the report of mise");
-
-    pins.as_array()
-        .and_then(|pins| {
-            pins.iter().find_map(|pin| {
-                let requested = pin["requested_version"].as_str()?;
-
-                (!requested.starts_with("nightly")).then(|| requested.to_owned())
-            })
-        })
-        .expect("the repository pins a default Rust toolchain")
+/// The crate itself makes the choice, so a test that needs a toolchain which
+/// every machine running the tests has installed names the same one that a
+/// job of the repository would. Asking the crate keeps the version out of
+/// the tests, and the rule that picks it in one place with its own tests.
+async fn pinned_rust() -> String {
+    Toolchain::newest(&ProjectRoot::new(repository().to_path_buf()))
+        .await
+        .expect("the repository pins a Rust toolchain by a version")
+        .get()
+        .to_owned()
 }
 
 /// Returns the root of the repository that the tests run in
@@ -586,7 +574,7 @@ async fn run_without_a_cargo_stops() {
 // formatrust[verify tool.unpinned]
 #[tokio::test]
 async fn run_without_a_nightly_toolchain_names_the_channel() {
-    let project = Project::with_rust(&format!("\"{}\"", pinned_rust()));
+    let project = Project::with_rust(&format!("\"{}\"", pinned_rust().await));
 
     let outcome = project.run(false).await;
 
@@ -608,7 +596,7 @@ async fn run_without_a_nightly_toolchain_names_the_channel() {
 // formatrust[verify tool.unpinned]
 #[tokio::test]
 async fn run_without_a_nightly_toolchain_stops() {
-    let project = Project::with_rust(&format!("\"{}\"", pinned_rust()));
+    let project = Project::with_rust(&format!("\"{}\"", pinned_rust().await));
 
     let outcome = project.run(false).await;
 

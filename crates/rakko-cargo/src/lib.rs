@@ -66,10 +66,13 @@ pub mod report;
 pub mod root;
 /// Types for the Rust toolchain that a job runs on
 pub mod toolchain;
+/// Types for a version of the Rust compiler
+pub mod version;
 
 pub use self::cargo::{Cargo, DiscoverRootsError};
 pub use self::report::{
     CargoDiagnostic, CargoReport, DiagnosticLevel, DiagnosticSpan, ReadReportError,
 };
 pub use self::root::CargoRoot;
-pub use self::toolchain::{Channel, ResolveToolchainError, Toolchain};
+pub use self::toolchain::{Channel, ResolveNewestToolchainError, ResolveToolchainError, Toolchain};
+pub use self::version::RustVersion;

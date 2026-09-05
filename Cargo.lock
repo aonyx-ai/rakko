@@ -641,7 +641,6 @@ dependencies = [
  "rakko-action",
  "rakko-cargo",
  "rakko-tool",
- "serde_json",
  "tempfile",
  "thiserror",
  "tokio",
