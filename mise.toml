@@ -67,9 +67,45 @@ _.path = [
 ]
 
 [hooks]
-# `mise install` provisions the tools above and then builds the one tool that
-# no mise backend can install.
-postinstall = "mise run install-tracey"
+# `mise install` provisions the tools above, downloads the toolchains that it
+# only recorded, and then builds the one tool that no mise backend can
+# install.
+postinstall = "mise run install-toolchains && mise run install-tracey"
+
+[tasks.install-toolchains]
+description = "Download every pinned Rust toolchain that rustup is missing"
+# The default shell of a task is `sh`, which is dash on Debian and Ubuntu, and
+# dash has no `pipefail`.
+shell = "bash -c"
+# Mise installs a Rust toolchain through rustup, and it records the install as
+# a symlink to the shared cargo directory. That symlink is what mise reads
+# afterwards, so a machine that carries the symlink without the toolchain
+# behind it reports the toolchain as installed while rustup has never
+# downloaded it. A cache that holds the mise directory and not the rustup home
+# is the usual way to get there. Whatever selects such a toolchain first
+# downloads it, and two commands that select it at once ruin each other's
+# download.
+#
+# This task closes that gap, so that every toolchain the project pins is on
+# the machine before anything asks for it. It looks only at the toolchains
+# that mise reports as installed, because a toolchain that mise has not
+# installed is still mise's to install, and a run that provisions nothing Rust
+# then downloads nothing either. It calls rustup instead of mise, because mise
+# runs this task while `mise install` still holds its own lock. The profile is
+# the one that rustup is configured with, which carries the components that
+# the checks of this repository need.
+run = '''
+set -euo pipefail
+
+for toolchain in $(mise ls --current --json rust | jq -r '.[] | select(.installed) | .version'); do
+    if rustup toolchain list | grep -q "^${toolchain}-"; then
+        continue
+    fi
+
+    echo "Downloading the ${toolchain} toolchain..." >&2
+    rustup toolchain install "${toolchain}" --no-self-update
+done
+'''
 
 [tasks.install-tracey]
 description = "Build tracey from the pinned revision"
