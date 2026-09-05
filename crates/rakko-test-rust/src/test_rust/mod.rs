@@ -10,7 +10,7 @@ mod error;
 
 use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
 use rakko_cargo::Cargo;
-use rakko_nextest::Nextest;
+use rakko_nextest::{Lockfile, Nextest};
 
 pub use self::error::TestRustError;
 
@@ -110,7 +110,7 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
         .await
         .map_err(|source| TestRustError::UndiscoveredRoots { source })?;
 
-    let nextest = Nextest::new(cargo);
+    let nextest = Nextest::new(cargo, Lockfile::Writable);
     let mut findings: Vec<Finding> = Vec::new();
     let mut ran = 0;
 
