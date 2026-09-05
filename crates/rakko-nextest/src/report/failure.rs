@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
 use getset::Getters;
+use rakko_action::{Finding, Location, Position, ProjectRoot};
+use rakko_cargo::CargoRoot;
 
 use super::Panic;
 
@@ -18,7 +20,7 @@ const BACKTRACE_NOTE: &str = "note: run with `RUST_BACKTRACE=1`";
 /// harness of Rust writes the location and the message of a panic there. The
 /// failure keeps the output as it is and reads the panic out of it on
 /// demand, so a test that failed without a panic, or with an output that
-/// the action cannot read, still names the test.
+/// the crate cannot read, still names the test.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct TestFailure {
     /// The name of the test, as nextest wrote it
@@ -39,6 +41,46 @@ impl TestFailure {
         }
     }
 
+    /// Returns the finding that reports the failure
+    ///
+    /// The finding names the test and carries the message of the panic, at
+    /// the position where the test panicked, with the path relative to the
+    /// project root.
+    ///
+    /// A test whose output names no panic, and a test that panicked in a
+    /// file outside the project, get a finding at the level of the project.
+    // nextest[impl finding.failed]
+    // nextest[impl finding.position]
+    pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
+        let Some(panic) = self.panic() else {
+            return Finding::builder()
+                .message(format!("test `{}` failed", self.name))
+                .location(Location::Project)
+                .build();
+        };
+
+        let message = match panic.message() {
+            Some(message) => format!("test `{}` failed: {message}", self.name),
+            None => format!("test `{}` panicked", self.name),
+        };
+
+        let location = match root.relative_path(panic.path(), project) {
+            Some(path) => Location::Position {
+                path,
+                position: Position::builder()
+                    .line(panic.line())
+                    .column(panic.column())
+                    .build(),
+            },
+            None => Location::Project,
+        };
+
+        Finding::builder()
+            .message(message)
+            .location(location)
+            .build()
+    }
+
     /// Returns where and why the test panicked, when its output says
     ///
     /// The test harness of Rust writes one line that names the location,
@@ -46,8 +88,8 @@ impl TestFailure {
     /// the note about the backtrace. A test that ended another way, such as
     /// one that the process killed, wrote no such line, and the method
     /// answers `None`.
-    // testrust[impl run.failed]
-    // testrust[impl run.position]
+    // nextest[impl finding.failed]
+    // nextest[impl finding.position]
     pub fn panic(&self) -> Option<Panic> {
         let mut lines = self.output.lines();
         let header = lines.find(|line| line.contains(PANICKED_AT))?;
@@ -100,7 +142,7 @@ mod tests {
     /// What a test that panicked without a message wrote
     const BARE: &str = "thread 'fails' panicked at src/lib.rs:6:9:\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n";
 
-    // testrust[verify run.failed]
+    // nextest[verify finding.failed]
     #[test]
     fn panic_joins_the_lines_of_the_message() {
         let failure = TestFailure::new("probe::suite$fails", ASSERTION);
@@ -116,7 +158,7 @@ mod tests {
         );
     }
 
-    // testrust[verify run.position]
+    // nextest[verify finding.position]
     #[test]
     fn panic_reads_the_location() {
         let failure = TestFailure::new("probe::suite$fails", ASSERTION);
@@ -129,7 +171,7 @@ mod tests {
         );
     }
 
-    // testrust[verify run.failed]
+    // nextest[verify finding.failed]
     #[test]
     fn panic_without_a_message_has_none() {
         let failure = TestFailure::new("probe::probe$tests::fails", BARE);
@@ -139,7 +181,7 @@ mod tests {
         assert_eq!(panic.and_then(|panic| panic.message().clone()), None);
     }
 
-    // testrust[verify run.position]
+    // nextest[verify finding.position]
     #[test]
     fn panic_without_a_location_is_none() {
         let failure = TestFailure::new("probe::suite$killed", "the process was killed\n");

@@ -222,6 +222,18 @@ specs (
         )
     }
     {
+        name nextest
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-nextest/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-nextest/src/**/*.rs)
+                test_include (crates/rakko-nextest/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name prettier
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-prettier/SPECIFICATION.md)

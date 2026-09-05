@@ -4,16 +4,16 @@
 [nextest]. The action wraps the cargo that mise pinned for the project, so a
 run agrees with the terminal of a contributor that runs nextest bare. Cargo
 builds every target, and nextest reads its own configuration and runs the
-tests. The action selects the operation and translates what nextest and
-cargo reported into an outcome.
+tests. The action names the workspaces of the project and translates what
+nextest and cargo reported into an outcome.
 
-Nextest reports the tests as JSON when a run asks for that format, and cargo
-reports the diagnostics of the build as JSON as well, so a failed test and a
-build that does not finish both arrive as data. The structured report of
-nextest is experimental, and nextest asks for consent through a variable in
-the environment of the command. The shape of an experimental report can
-change with a version, and the pin turns the change into a red pull request
-instead of a quiet drift.
+Nextest reports the tests as JSON, and cargo reports the diagnostics of the
+build as JSON as well, so a failed test and a build that does not finish both
+arrive as data. The action runs nextest and reads both reports through the
+machinery that every action which runs nextest shares. The shape of a report
+belongs to a version of the tools, and a report that the run cannot answer
+from stops the action instead of passing quietly, so the drift shows as a red
+pull request.
 
 Every requirement in this document has an identifier, and the code that
 implements or tests a requirement references the identifier in a comment.
@@ -96,44 +96,21 @@ MUST hold the error.
 
 ## Run
 
-Nextest builds every target of every package with every feature enabled, so
-that a test behind a feature runs as well, and it runs the tests the way the
-configuration of the project says: whether a failure stops the run early, how
-many tests run at once, and which tests are retried all come from that
-configuration and not from the action. Nothing about the project changes,
-whatever the run finds.
+The action tests one workspace at a time and sums what the runs reported.
+Nothing about the project changes, whatever a run finds.
 
-The action asks nextest for its structured report and cargo for its report as
-JSON, because it reads both as data. This selects the presentation of the
-reports and not the behavior of the tools. The structured report of nextest
-is experimental, and nextest asks for consent through a variable in the
-environment of the command; the action gives that consent for the command
-that it starts and for nothing else.
-
-A test that failed becomes a finding that names the test and carries the
-message of the panic, at the line and the column where the test panicked,
-when the report names them. A build that does not finish arrives as the
-diagnostics of the compiler, and each becomes a finding at the range that the
-compiler named. A workspace without a test is not a failure: a project can
-keep its tests in one workspace and its harness in another, so such a
+A test that failed and a diagnostic of a build that did not finish are both
+problems of the project, and both travel as findings, so a run that gets
+either of them fails. A workspace without a test is not a failure: a project
+can keep its tests in one workspace and its harness in another, so such a
 workspace ran no test, and the count of the run says so.
 
-A report that the action does not recognize stops the run. A run that ended
-without success and reported no failure, no diagnostic, and no absence of
-tests wrote a report that the action could not read, and an answer built on
-such a report would hide every failure behind a green result.
+A run that nextest leaves without an answer stops the action. Such a run
+examined nothing that the action can report, and an answer built on it would
+hide every failure behind a green result.
 
 testrust[run.read]
 A run MUST NOT change the project.
-
-testrust[run.operation]
-A run MUST ask nextest to run every target with every feature, MUST ask
-nextest for its structured report and cargo for its report as JSON, and MUST
-NOT change any other option of nextest or cargo.
-
-testrust[run.consent]
-A run MUST give consent to the experimental report of nextest in the
-environment of the command that it starts, and in no other place.
 
 testrust[run.passed]
 A run whose nextest reports no failure and whose cargo reports no diagnostic
@@ -144,28 +121,17 @@ testrust[run.none]
 A workspace without a test MUST count as a workspace that ran no test, and
 MUST NOT fail the run.
 
-testrust[run.failed]
-A test that failed MUST produce a finding that names the test and carries the
-message of the panic, and a run with such a finding MUST fail.
+testrust[run.failed+2]
+A test that failed MUST fail the run, and the outcome MUST hold the finding
+of the test.
 
-testrust[run.position]
-The finding of a failed test MUST be at the line and the column where the
-test panicked, with the path relative to the project root, when the report
-names them.
+testrust[run.build+2]
+A diagnostic of the compiler MUST fail the run, and the outcome MUST hold the
+finding of the diagnostic.
 
-testrust[run.build]
-A diagnostic of the compiler MUST produce a finding at the range that the
-compiler reports, with the message and the code of the diagnostic, and a run
-with such a finding MUST fail.
-
-testrust[run.unrecognized]
-A nextest run that ends without success and reports no failure, no
-diagnostic, and no absence of tests MUST stop the run, and the error MUST hold
-what nextest wrote.
-
-testrust[run.unreadable]
-A stream that holds a record of nextest or of cargo which the action cannot
-read MUST stop the run, and the error MUST name the root and hold the record.
+testrust[run.error]
+A run of nextest that leaves the action without an answer MUST stop the run,
+and the outcome MUST hold the error.
 
 [nextest]: https://nexte.st
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119

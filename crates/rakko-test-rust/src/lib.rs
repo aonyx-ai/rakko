@@ -31,6 +31,4 @@
 /// Types for the action that runs the tests of a project
 pub mod test_rust;
 
-pub use self::test_rust::{
-    NextestReport, Panic, ReadNextestReportError, TestFailure, TestRust, TestRustError,
-};
+pub use self::test_rust::{TestRust, TestRustError};
