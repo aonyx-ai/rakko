@@ -26,6 +26,7 @@ rakko-build-internal-docs = { path = "crates/rakko-build-internal-docs", version
 rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-check-dependencies = { path = "crates/rakko-check-dependencies", version = "0.1.0" }
 rakko-check-latest-deps = { path = "crates/rakko-check-latest-deps", version = "0.1.0" }
+rakko-check-minimal-deps = { path = "crates/rakko-check-minimal-deps", version = "0.1.0" }
 rakko-check-msrv = { path = "crates/rakko-check-msrv", version = "0.1.0" }
 rakko-check-unused-deps = { path = "crates/rakko-check-unused-deps", version = "0.1.0" }
 rakko-format-json = { path = "crates/rakko-format-json", version = "0.1.0" }

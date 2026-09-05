@@ -371,6 +371,7 @@ dependencies = [
  "rakko-build-internal-docs",
  "rakko-check-dependencies",
  "rakko-check-latest-deps",
+ "rakko-check-minimal-deps",
  "rakko-check-msrv",
  "rakko-check-unused-deps",
  "rakko-cli",
@@ -623,6 +624,18 @@ dependencies = [
 
 [[package]]
 name = "rakko-check-latest-deps"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-nextest",
+ "rakko-tool",
+ "rakko-worktree",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-check-minimal-deps"
 version = "0.1.0"
 dependencies = [
  "rakko-action",
