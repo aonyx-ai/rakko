@@ -114,6 +114,18 @@ specs (
         )
     }
     {
+        name lint-markdown
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-lint-markdown/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-lint-markdown/src/**/*.rs)
+                test_include (crates/rakko-lint-markdown/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name lint-rust
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-lint-rust/SPECIFICATION.md)
