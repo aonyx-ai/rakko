@@ -30,6 +30,7 @@ rakko-format-yaml = { path = "crates/rakko-format-yaml", version = "0.1.0" }
 rakko-lint-markdown = { path = "crates/rakko-lint-markdown", version = "0.1.0" }
 rakko-lint-rust = { path = "crates/rakko-lint-rust", version = "0.1.0" }
 rakko-lint-toml = { path = "crates/rakko-lint-toml", version = "0.1.0" }
+rakko-lint-yaml = { path = "crates/rakko-lint-yaml", version = "0.1.0" }
 rakko-prettier = { path = "crates/rakko-prettier", version = "0.1.0" }
 rakko-taplo = { path = "crates/rakko-taplo", version = "0.1.0" }
 rakko-test-rust = { path = "crates/rakko-test-rust", version = "0.1.0" }
