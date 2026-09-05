@@ -360,6 +360,7 @@ dependencies = [
  "rakko-lint-markdown",
  "rakko-lint-rust",
  "rakko-lint-toml",
+ "rakko-lint-yaml",
  "rakko-test-rust",
 ]
 
@@ -660,6 +661,18 @@ dependencies = [
  "rakko-taplo",
  "rakko-tool",
  "thiserror",
+]
+
+[[package]]
+name = "rakko-lint-yaml"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

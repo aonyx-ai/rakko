@@ -231,8 +231,14 @@ lint-toml:
     mise run rakko -- lint-toml
 
 # Lint YAML files
+#
+# The recipe runs the harness instead of yamllint, for the reason that
+# `format-toml` gives. The action names the project to yamllint, which then
+# walks it, so the recipe passes no pattern of its own. A rule of the warning
+# level now fails the recipe, where the bare yamllint that it replaces ended
+# with success.
 lint-yaml:
-    yamllint .
+    mise run rakko -- lint-yaml
 
 # Run a subset of checks as pre-commit hooks
 pre-commit:
