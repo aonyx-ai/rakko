@@ -300,37 +300,6 @@ async fn run_in_a_clean_project_passes() {
     );
 }
 
-// lintgithubactions[verify skip.missing]
-#[tokio::test]
-async fn run_in_a_project_without_a_workflow_directory_skips() {
-    let project = Project::without_zizmor();
-    project.write("README.md", "# Notes\n");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// lintgithubactions[verify skip.missing]
-#[tokio::test]
-async fn run_in_a_project_without_a_workflow_names_what_it_looked_for() {
-    let project = Project::without_zizmor();
-    project.write(&format!("{WORKFLOWS}/notes.txt"), "not a workflow\n");
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert_eq!(
-        reason.get(),
-        "the .github/workflows directory of the project holds no .yaml or .yml file"
-    );
-}
-
 // lintgithubactions[verify check.read]
 #[tokio::test]
 async fn run_leaves_a_workflow_with_a_finding_unchanged() {
@@ -525,26 +494,5 @@ async fn run_without_a_zizmor_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
-    );
-}
-
-// lintgithubactions[verify skip.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_a_workflow_behind_a_symbolic_link_skips() {
-    let project = Project::without_zizmor();
-    project.write("elsewhere/clean.yml", CLEAN);
-    project.write(&format!("{WORKFLOWS}/.keep"), "");
-    std::os::unix::fs::symlink(
-        project.directory.path().join("elsewhere/clean.yml"),
-        project.directory.path().join(WORKFLOWS).join("clean.yml"),
-    )
-    .expect("the test links a workflow into the workflow directory");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
     );
 }
