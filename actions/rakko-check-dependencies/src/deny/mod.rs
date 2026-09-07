@@ -75,7 +75,7 @@ const NO_DIAGNOSIS: &str = "cargo-deny wrote nothing about it";
 ///
 /// ```no_run
 /// use rakko_action::ProjectRoot;
-/// use rakko_cargo::CargoRoot;
+/// use rakko_cargo::{CargoRoot, Documentation};
 /// use rakko_check_dependencies::Deny;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
@@ -84,7 +84,7 @@ const NO_DIAGNOSIS: &str = "cargo-deny wrote nothing about it";
 /// let deny = Deny::resolve(root).await?;
 ///
 /// let problems = deny
-///     .check(&CargoRoot::new("/home/otter/project".into()))
+///     .check(&CargoRoot::new("/home/otter/project".into(), Documentation::Testable))
 ///     .await?;
 ///
 /// println!("{} problems", problems.len());

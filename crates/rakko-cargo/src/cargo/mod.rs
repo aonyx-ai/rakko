@@ -17,7 +17,7 @@ use rakko_tool::{Execution, Invocation, ResolveToolError, RunCommandError, Tool,
 use serde::Deserialize;
 
 pub use self::error::DiscoverRootsError;
-use crate::root::{CargoRoot, MANIFEST};
+use crate::root::{CargoRoot, Documentation, MANIFEST};
 use crate::toolchain::Toolchain;
 use crate::version::{ReadRustVersionError, RustVersion};
 
@@ -41,6 +41,14 @@ const MANIFEST_PATH: &str = "--manifest-path";
 
 /// The details of a run of cargo that ended without success and wrote nothing
 const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
+
+/// The crate types whose documentation cargo can test
+///
+/// Rustdoc compiles an example against the library that documents it, and it
+/// can only link the types below. Cargo refuses a run that asks for the
+/// documentation examples of a workspace whose every library is of another
+/// type, such as a `cdylib`.
+const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 
 /// The cargo that a project runs
 ///
@@ -177,6 +185,7 @@ impl Cargo {
 
             let metadata = self.metadata(&manifest).await?;
             let directory = canonical(&metadata.workspace_root).await;
+            let documentation = metadata.documentation();
 
             if !directory.starts_with(&project) {
                 return Err(DiscoverRootsError::ForeignWorkspace {
@@ -190,7 +199,7 @@ impl Cargo {
                 claimed.insert(canonical(&package.manifest_path).await);
             }
 
-            let root = CargoRoot::new(directory);
+            let root = CargoRoot::new(directory, documentation);
             if !roots.contains(&root) {
                 roots.push(root);
             }
@@ -387,6 +396,24 @@ struct Metadata {
     packages: Vec<Package>,
 }
 
+impl Metadata {
+    /// Returns whether cargo can test the examples in the documentation of
+    /// the workspace
+    // cargo[impl doctest.library]
+    fn documentation(&self) -> Documentation {
+        if self
+            .packages
+            .iter()
+            .flat_map(|package| &package.targets)
+            .any(Target::doctested)
+        {
+            Documentation::Testable
+        } else {
+            Documentation::Untestable
+        }
+    }
+}
+
 /// One package of a workspace, as cargo describes it
 #[derive(Deserialize)]
 struct Package {
@@ -397,6 +424,31 @@ struct Package {
     /// with the inheritance from the workspace resolved, when the package
     /// declares one
     rust_version: Option<String>,
+
+    /// The targets that the package builds
+    targets: Vec<Target>,
+}
+
+/// One target of a package, as cargo describes it
+#[derive(Deserialize)]
+struct Target {
+    /// The forms that the compiler builds the target in
+    crate_types: Vec<String>,
+}
+
+impl Target {
+    /// Returns whether cargo can test the documentation of this target
+    ///
+    /// A target answers for the forms that it builds in, because that is
+    /// what decides whether rustdoc can link an example against it. A target
+    /// that builds in several forms answers yes when one of them supports
+    /// the examples.
+    // cargo[impl doctest.library]
+    fn doctested(&self) -> bool {
+        self.crate_types
+            .iter()
+            .any(|kind| DOCTESTED.contains(&kind.as_str()))
+    }
 }
 
 /// Returns the path with every symbolic link resolved

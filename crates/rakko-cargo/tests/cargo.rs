@@ -20,8 +20,9 @@ use std::process::Command;
 
 use rakko_action::ProjectRoot;
 use rakko_cargo::{
-    Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, ReadRustVersionError,
-    ResolveNewestToolchainError, ResolveToolchainError, RustVersion, Toolchain,
+    Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, Documentation,
+    ReadRustVersionError, ResolveNewestToolchainError, ResolveToolchainError, RustVersion,
+    Toolchain,
 };
 use tempfile::TempDir;
 
@@ -38,6 +39,12 @@ const STANDALONE: &str =
 
 /// A manifest that cargo cannot read
 const BROKEN: &str = "this is not a manifest\n";
+
+/// The manifest of a package whose library builds a C library
+///
+/// Rustdoc links no example against such a library, and cargo says so when a
+/// run asks for the documentation examples of the package.
+const FOREIGN_LIBRARY: &str = "[workspace]\n\n[package]\nname = \"native\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[lib]\ncrate-type = [\"cdylib\"]\n";
 
 /// The manifest of a workspace that lists a project below it as a member
 const OUTER: &str = "[workspace]\nmembers = [\"project\"]\nresolver = \"3\"\n";
@@ -118,9 +125,16 @@ impl Project {
         project
     }
 
-    /// Returns the path of a directory of the project, as a root
+    /// Returns the path of a directory of the project, as a root whose
+    /// packages hold a library
     fn cargo_root(&self, path: &str) -> CargoRoot {
-        CargoRoot::new(self.root().get().join(path))
+        CargoRoot::new(self.root().get().join(path), Documentation::Testable)
+    }
+
+    /// Returns the path of a directory of the project, as a root whose
+    /// packages hold no library
+    fn binary_root(&self, path: &str) -> CargoRoot {
+        CargoRoot::new(self.root().get().join(path), Documentation::Untestable)
     }
 
     /// Writes a package that declares the Rust version it compiles on
@@ -310,6 +324,49 @@ async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
     assert_eq!(toolchain.ok(), Some(Toolchain::new(selected)));
 }
 
+// cargo[verify doctest.library]
+#[tokio::test]
+async fn roots_of_a_workspace_of_binaries_say_that_nothing_documents_an_example() {
+    let project = Project::new();
+    project.write("Cargo.toml", STANDALONE);
+    project.write("src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(CargoRoot::documentation),
+        Some(Documentation::Untestable)
+    );
+}
+
+// cargo[verify doctest.library]
+#[tokio::test]
+async fn roots_of_a_workspace_with_a_library_say_that_its_examples_are_testable() {
+    let project = Project::workspace();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(CargoRoot::documentation),
+        Some(Documentation::Testable)
+    );
+}
+
+// cargo[verify doctest.library]
+#[tokio::test]
+async fn roots_with_a_library_of_another_form_say_that_nothing_documents_an_example() {
+    let project = Project::new();
+    project.write("Cargo.toml", FOREIGN_LIBRARY);
+    project.write("src/lib.rs", "");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(CargoRoot::documentation),
+        Some(Documentation::Untestable)
+    );
+}
+
 // cargo[verify run.directory]
 #[tokio::test]
 async fn invocation_runs_in_the_directory_of_the_root() {
@@ -443,7 +500,10 @@ async fn roots_find_a_manifest_in_a_hidden_directory() {
 
     assert_eq!(
         roots,
-        [project.cargo_root(""), project.cargo_root(".tools/harness")]
+        [
+            project.cargo_root(""),
+            project.binary_root(".tools/harness")
+        ]
     );
 }
 
@@ -480,7 +540,7 @@ async fn roots_of_a_project_with_a_standalone_package_name_both() {
 
     assert_eq!(
         roots,
-        [project.cargo_root(""), project.cargo_root("tools/harness")]
+        [project.cargo_root(""), project.binary_root("tools/harness")]
     );
 }
 
@@ -493,7 +553,7 @@ async fn roots_of_a_project_without_a_workspace_name_the_package() {
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(roots, [project.cargo_root("")]);
+    assert_eq!(roots, [project.binary_root("")]);
 }
 
 // cargo[verify root.member]

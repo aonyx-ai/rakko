@@ -1,7 +1,18 @@
+//! One workspace root of a project
+//!
+//! This module holds the root that the discovery reports and what a root
+//! knows about the packages of its workspace, which is what a caller reads
+//! instead of asking cargo a second time.
+
+/// Whether cargo can test the examples of a workspace
+mod documentation;
+
 use std::path::{Component, Path, PathBuf};
 
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, ProjectRoot};
+
+pub use self::documentation::Documentation;
 
 /// The name of the file that describes a package or a workspace to cargo
 pub const MANIFEST: &str = "Cargo.toml";
@@ -19,18 +30,35 @@ pub const MANIFEST: &str = "Cargo.toml";
 /// project root, which is the name that a reader, a machine, and a code host
 /// all recognize.
 ///
+/// A root also carries what cargo said about the packages of its workspace,
+/// so that a caller reads the answer instead of asking cargo again. Whether
+/// cargo can test the examples in the documentation is the first such
+/// answer:
+/// the discovery of the roots asks cargo to describe every workspace anyway,
+/// and the description names the targets of every package.
+///
 /// [relative]: CargoRoot::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
 pub struct CargoRoot {
     /// The directory that holds the manifest of the workspace
     #[getset(get = "pub")]
     directory: PathBuf,
+
+    /// Whether cargo can test the examples in the documentation of the
+    /// workspace
+    #[getset(get_copy = "pub")]
+    documentation: Documentation,
 }
 
 impl CargoRoot {
-    /// Creates a root from the directory that holds its manifest
-    pub fn new(directory: PathBuf) -> Self {
-        Self { directory }
+    /// Creates a root from the directory that holds its manifest and what
+    /// cargo can test of its documentation
+    // cargo[impl doctest.library]
+    pub fn new(directory: PathBuf, documentation: Documentation) -> Self {
+        Self {
+            directory,
+            documentation,
+        }
     }
 
     /// Returns the path of the manifest of the workspace
@@ -133,7 +161,10 @@ mod tests {
 
     /// Returns a root in a subdirectory of the project
     fn nested() -> CargoRoot {
-        CargoRoot::new(PathBuf::from("/home/otter/project/tools/harness"))
+        CargoRoot::new(
+            PathBuf::from("/home/otter/project/tools/harness"),
+            Documentation::Testable,
+        )
     }
 
     #[test]
@@ -151,7 +182,10 @@ mod tests {
     // cargo[verify path.relative]
     #[test]
     fn relative_directory_of_the_project_root_is_empty() {
-        let root = CargoRoot::new(PathBuf::from("/home/otter/project"));
+        let root = CargoRoot::new(
+            PathBuf::from("/home/otter/project"),
+            Documentation::Testable,
+        );
 
         let directory = root.relative_directory(&project());
 
@@ -161,7 +195,10 @@ mod tests {
     // cargo[verify path.foreign]
     #[test]
     fn relative_directory_outside_the_project_names_nothing() {
-        let root = CargoRoot::new(PathBuf::from("/home/otter/elsewhere"));
+        let root = CargoRoot::new(
+            PathBuf::from("/home/otter/elsewhere"),
+            Documentation::Testable,
+        );
 
         let directory = root.relative_directory(&project());
 

@@ -5,8 +5,9 @@ Cargo does several jobs of project maintenance — it formats Rust files with
 rustfmt, it lints them with clippy, and it runs the tests with nextest — and
 one action wraps each job. Every one of those actions asks the same questions,
 so this crate answers them once: does the project hold Rust code, which cargo
-runs here, which workspaces make up the project, which toolchain does a job
-need, and what did cargo report about the build?
+runs here, which workspaces make up the project, what does each of those
+workspaces hold, which toolchain does a job need, and what did cargo report
+about the build?
 
 The crate reads what cargo reports as data. Cargo writes the diagnostics of a
 build as JSON when a run asks for that format, and the shape of that JSON
@@ -119,6 +120,29 @@ cargo[version.unreadable]
 A manifest that cargo cannot read, and a description of a workspace that the
 crate cannot read, MUST stop the reading, and the error MUST name the
 manifest.
+
+## Documentation Examples
+
+Cargo runs the examples in the documentation of a library, and a workspace can
+hold no library at all: the harness of a project is a binary. Cargo refuses a
+run that asks for the documentation examples of such a workspace, so a root
+states whether cargo can test its examples, and a caller runs its job at the
+roots where it can. The discovery asks cargo to describe every workspace
+already, and a description names the targets of every package, so the answer
+travels with the root instead of costing a question of its own.
+
+Rustdoc compiles an example against the library that documents it, so the form
+that a library builds in decides whether cargo can test its documentation.
+The
+forms that support the examples are `lib`, `rlib`, and `proc-macro`, and a
+library that builds in several forms counts when one of them supports them.
+The `doctest` flag of a manifest decides something else: it selects whether a
+plain run of the tests includes the examples, and a run that names the
+documentation itself tests them either way.
+
+cargo[doctest.library]
+A root MUST state whether the workspace holds a target that builds in a form
+whose documentation cargo can test.
 
 ## Versions
 
