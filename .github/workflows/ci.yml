@@ -22,10 +22,6 @@ jobs:
     outputs:
       matrix: ${{ steps.export-targets.outputs.targets }}
 
-    env:
-      # This job lists the recipes, it does not run them, so it needs no tracey
-      RAKKO_SKIP_TRACEY: "1"
-
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,10 +50,17 @@ jobs:
     needs: targets
 
     env:
-      # Only `just check-specs` calls tracey, and the mise task builds tracey
-      # from source when the cache below misses. An empty value leaves that
-      # build on, so every other recipe skips it.
-      RAKKO_SKIP_TRACEY: ${{ matrix.target != 'check-specs' && '1' || '' }}
+      # Only `just check-specs` calls tracey, so every other job skips both the
+      # cache and the build. A build takes about twenty minutes.
+      TRACEY: ${{ matrix.target == 'check-specs' }}
+
+      # A job that never reaches tracey disables the tool, so that the build
+      # stays out of it. The name is the one that `mise.toml` writes, because
+      # a short name disables nothing. A job that does reach tracey leaves the
+      # value empty, so that the recipe finds the tool that the step below
+      # installed. The empty value is the fallback of the expression, because
+      # an expression that yields it from the left of `||` yields it always.
+      MISE_DISABLE_TOOLS: ${{ matrix.target != 'check-specs' && 'cargo:https://github.com/bearcove/tracey' || '' }}
 
     strategy:
       fail-fast: false
@@ -77,11 +80,38 @@ jobs:
       # takes several minutes. The cache workflow keeps a cache on the default
       # branch that every pull request can reach.
       - name: Restore tracey
-        if: env.RAKKO_SKIP_TRACEY == ''
+        if: env.TRACEY == 'true'
         uses: $/.github/actions/restore-tracey
 
+      # Tracey stays out of this installation even in a job that reaches it,
+      # because a tool of the cargo backend builds without the other tools of
+      # mise on its path, and the build script of tracey needs two of them.
+      # The step below builds it with those two on the path instead.
       - name: Install the tools
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        env:
+          MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
+
+      # The build script of tracey starts node and pnpm by name, and it finds
+      # neither through mise: a tool of the cargo backend builds without the
+      # other tools of mise on its path, so the script reaches whatever node
+      # the machine carries and no pnpm at all. The links put both on the path
+      # under names that belong to no tool of mise, and the versions that they
+      # print are the pins of this repository, so a wrong path stops the job
+      # here instead of after the nine minutes that the dependencies take.
+      - name: Build tracey
+        if: env.TRACEY == 'true'
+        run: |
+          tools="${RUNNER_TEMP}/tracey-build-tools"
+          mkdir -p "${tools}"
+          ln -sf "$(mise where node)/bin/node" "${tools}/node"
+          ln -sf "$(mise where pnpm)/pnpm" "${tools}/pnpm"
+          export PATH="${tools}:${PATH}"
+
+          node --version
+          pnpm --version
+
+          mise install "cargo:https://github.com/bearcove/tracey"
 
       # The installation runs the task that downloads the toolchains which mise
       # only recorded, but a failed task is only a warning there. The task runs
@@ -89,13 +119,6 @@ jobs:
       # toolchain for the first command that selects it to download.
       - name: Download the toolchains
         run: mise run install-toolchains
-
-      # The installation ends in the task that builds tracey, but a failed task
-      # is only a warning there. The task runs again here, where a failure
-      # stops the job instead of surfacing as a missing command.
-      - name: Build tracey
-        if: env.RAKKO_SKIP_TRACEY == ''
-        run: mise run install-tracey
 
       - name: Run check with Just
         env:

@@ -42,14 +42,36 @@ jobs:
       - name: Restore tracey
         uses: $/.github/actions/restore-tracey
 
+      # Tracey stays out of this installation. Its build script bundles a web
+      # dashboard with node and pnpm, and a tool of the cargo backend does not
+      # see the other tools of mise while it builds: it finds whatever node the
+      # runner carries and no pnpm at all.
       - name: Install the tools
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        env:
+          MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
 
-      # The installation ends in the task that builds tracey, but a failed task
-      # is only a warning there. The task runs again here, where a failure
-      # stops the job.
+      # The build script of tracey starts node and pnpm by name, and it finds
+      # neither through mise: a tool of the cargo backend builds without the
+      # other tools of mise on its path, so the script reaches whatever node
+      # the machine carries and no pnpm at all. The links put both on the path
+      # under names that belong to no tool of mise, and the versions that they
+      # print are the pins of this repository, so a wrong path stops the job
+      # here instead of after the nine minutes that the dependencies take.
       - name: Build tracey
-        run: mise run install-tracey
+        env:
+          MISE_DISABLE_TOOLS: ""
+        run: |
+          tools="${RUNNER_TEMP}/tracey-build-tools"
+          mkdir -p "${tools}"
+          ln -sf "$(mise where node)/bin/node" "${tools}/node"
+          ln -sf "$(mise where pnpm)/pnpm" "${tools}/pnpm"
+          export PATH="${tools}:${PATH}"
+
+          node --version
+          pnpm --version
+
+          mise install "cargo:https://github.com/bearcove/tracey"
 
       # Print the revision, so a stale binary in the cache shows up here.
       - name: Show the version of tracey
