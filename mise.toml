@@ -9,7 +9,7 @@ cargo-binstall = "1.22.0"
 # Prettier runs on node, and mise puts no node on the path for a tool of its
 # npm backend, so the pin below is what lets the format actions start prettier.
 # The build script of tracey bundles a web dashboard with node and pnpm, and
-# the `install-tracey` task below is the only consumer of the second pin.
+# the install of tracey below is the only consumer of the second pin.
 node = "24.20.0"
 pnpm = "11.25.0"
 
@@ -49,6 +49,16 @@ just = "1.58.0"
 pre-commit = "4.6.2"
 "npm:prettier" = "3.9.6"
 taplo = "0.10.0"
+
+# The releases of tracey lag behind its main branch, so the pin names a Git
+# revision and the cargo backend builds it. Change the revision deliberately:
+# main is a 2.0 release candidate, and its configuration format can still
+# change. The `crate` option names the package to install, because the
+# repository holds a second one that carries a binary of its own, and cargo
+# refuses to choose. A build takes about twenty minutes, so a machine that has
+# none restores one from the cache that the `Cache` workflow keeps warm.
+"cargo:https://github.com/bearcove/tracey" = { version = "rev:7494469c454ea3e93203f2cc860adbf153fe64b9", crate = "tracey" }
+
 yamllint = "1.38.0"
 zizmor = "1.30.0"
 
@@ -58,27 +68,19 @@ zizmor = "1.30.0"
 # the day.
 lockfile = true
 
-[vars]
-# The Git revision of tracey that the task below builds. The releases of tracey
-# lag behind its main branch, so a pinned revision is built from source. Change
-# the revision deliberately: main is a 2.0 release candidate, and its
-# configuration format can still change.
-tracey_rev = "7494469c454ea3e93203f2cc860adbf153fe64b9"
-
 [env]
-# The first directory is where the task below installs tracey. The path carries
-# the revision, so a new pin asks for a new build and leaves the old binary
-# alone. The second holds `rakko`, the shortcut that runs the harness.
-_.path = [
-  "{{ xdg_cache_home }}/rakko/tracey/{{ vars.tracey_rev }}/bin",
-  "{{ config_root }}/tools/bin",
-]
+# The directory holds `rakko`, the shortcut that runs the harness.
+_.path = ["{{ config_root }}/tools/bin"]
 
 [hooks]
-# `mise install` provisions the tools above, downloads the toolchains that it
-# only recorded, and then builds the one tool that no mise backend can
-# install.
-postinstall = "mise run install-toolchains && mise run install-tracey"
+# `mise install` provisions the tools above and then downloads the toolchains
+# that it only recorded.
+#
+# The hook starts mise again, and that second mise provisions before it runs a
+# task. It would then install a tool that the first one has just written and
+# has yet to record, and the installer of a tool refuses to overwrite what is
+# already there. The hook therefore only runs the task.
+postinstall = "MISE_AUTO_INSTALL=false mise run install-toolchains"
 
 [tasks.install-toolchains]
 description = "Download every pinned Rust toolchain that rustup is missing"
@@ -102,6 +104,9 @@ shell = "bash -c"
 # runs this task while `mise install` still holds its own lock. The profile is
 # the one that rustup is configured with, which carries the components that
 # the checks of this repository need.
+#
+# The question to mise installs nothing, because the hook above already asked
+# for a run that provisions nothing, and that reaches this command.
 run = '''
 set -euo pipefail
 
@@ -113,41 +118,6 @@ for toolchain in $(mise ls --current --json rust | jq -r '.[] | select(.installe
     echo "Downloading the ${toolchain} toolchain..." >&2
     rustup toolchain install "${toolchain}" --no-self-update
 done
-'''
-
-[tasks.install-tracey]
-description = "Build tracey from the pinned revision"
-# The default shell of a task is `sh`, which is dash on Debian and Ubuntu, and
-# dash has no `pipefail`.
-shell = "bash -c"
-# The task runs inside the mise environment, so the build finds node, pnpm, and
-# the pinned Rust toolchain.
-run = '''
-set -euo pipefail
-
-# The binary goes into the cache directory of the user instead of the project,
-# so that clones, worktrees, and CI jobs on the same machine share one build.
-# The build takes several minutes. Set RAKKO_SKIP_TRACEY to a non-empty value
-# to skip it, for example in a CI job that does not call tracey.
-root="{{ xdg_cache_home }}/rakko/tracey/{{ vars.tracey_rev }}"
-if [ -n "${RAKKO_SKIP_TRACEY:-}" ] || [ -x "$root/bin/tracey" ]; then
-    exit 0
-fi
-
-echo "Building tracey {{ vars.tracey_rev }}, this takes several minutes..." >&2
-
-# Build into a temporary directory and move only the binary into place
-# afterwards, so that a failed build never leaves a half-installed tracey
-# behind. Moving a single file is an atomic rename, and two builds of the same
-# revision at the same time replace the binary with an identical one.
-mkdir -p "$(dirname "$root")"
-tmp="$(mktemp -d "$(dirname "$root")/tmp.XXXXXX")"
-trap 'rm -rf "$tmp"' EXIT
-
-cargo install --git https://github.com/bearcove/tracey --rev "{{ vars.tracey_rev }}" --locked --root "$tmp" tracey
-
-mkdir -p "$root/bin"
-mv "$tmp/bin/tracey" "$root/bin/tracey"
 '''
 
 [tasks.rakko]

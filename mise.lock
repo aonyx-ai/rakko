@@ -34,6 +34,14 @@ version = "0.1.61"
 backend = "cargo:cargo-udeps"
 specifiers = ["0.1.61"]
 
+[[tools."cargo:https://github.com/bearcove/tracey"]]
+version = "rev:7494469c454ea3e93203f2cc860adbf153fe64b9"
+backend = "cargo:https://github.com/bearcove/tracey"
+specifiers = ["rev:7494469c454ea3e93203f2cc860adbf153fe64b9"]
+
+[tools."cargo:https://github.com/bearcove/tracey".options]
+crate = "tracey"
+
 [[tools.jq]]
 version = "1.8.2"
 backend = "aqua:jqlang/jq"
