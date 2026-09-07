@@ -170,6 +170,73 @@ A mounted action whose argument carries the name of a flag of the command line
 MUST stop the harness where it mounts the action. The failure MUST report the
 action and the argument.
 
+## Pre-Commit
+
+A hook that guards a commit runs many actions, and the command line runs them
+for it. The harness names the actions that guard a commit, and the command
+line carries a `pre-commit` command that drives every one of them. The command
+is a feature of the projection and not an action. An action returns one
+outcome, and a list that folded the outcomes of its members into one would
+lose what each of them said: which action a finding came from, why an action
+skipped, and what a pass examined. The command keeps every outcome apart. Each
+action reports as a run of that action alone would, as soon as it finishes, so
+a reader sees the result of one action while the next one runs, and no two
+reports interleave.
+
+The harness passes the list as steps, and the order of the steps is the order
+of the run. The actions that rewrite the tree go first, so that what the later
+actions read is what the commit will hold. Nothing runs at the same time yet,
+and nothing derives the order from what an action declares. Both wait for the
+declarations of what an action reads and writes, which the actions do not
+carry today.
+
+The command carries one flag of its own. `fix` asks the actions that can
+repair a problem to do so, and each step says whether its action gets the
+flag. The harness therefore states which actions repair, and the command line
+learns nothing about the arguments that an action reads. A hook runs the
+command with the flag, and a job that only wants to know runs it without.
+
+A run drives every action of the list. A run that stopped at the first action
+that failed would hide what the actions after it would have found, and the
+reader would learn them one commit at a time.
+
+The exit code of the run folds the codes of the actions. The code answers one
+question for whoever reads it, and the fold keeps the answer that matters
+most: a run in which any action stopped could not answer, a run in which any
+action found problems has a problem, and every other run is clean.
+
+The command exists for one list today, and its shape is deliberately narrow:
+the harness writes the steps out by hand, the projection knows the name of
+the command and its one flag, and the contract crate knows nothing of lists.
+A second list, such as the checks of a job in CI or the list that a bundle
+recommends, will show what the general shape is, and the decision waits for
+it. The steps are the surface to test that shape against: whatever replaces
+them must drive the same actions with the same values and report the same
+way.
+
+cli[precommit.list]
+The builder MUST accept a list of steps that guard a commit, and each step
+MUST name one erased action. The command line MUST carry a `pre-commit`
+command when the harness gave such steps, and MUST NOT carry one otherwise.
+
+cli[precommit.fix]
+The `pre-commit` command MUST carry a `fix` flag that takes no value. A run
+MUST give the value of that flag to the action of every step that asks for
+it, and MUST give no value to the action of every other step.
+
+cli[precommit.order]
+A pre-commit run MUST drive every action of the list, in the order of the
+list, and MUST drive the actions that follow an action that failed or stopped.
+
+cli[precommit.report]
+A pre-commit run MUST report each action of the list as a run of that action
+alone would, and MUST report an action when that action finishes.
+
+cli[precommit.exit]
+A pre-commit run MUST exit with the code for a stopped action when any action
+of the list stopped, else with the code for findings when any action of the
+list found problems, and else with zero.
+
 ## Project Root
 
 Every action reads the project root from the context that a run gives it. The
@@ -256,7 +323,9 @@ JSON MUST state that its schema is unstable.
 
 A run drives one action. The command that the user named resolves to the action
 that the harness mounted under that name, and the action gets the context that
-it needs to examine the project.
+it needs to examine the project. A run of the `pre-commit` command drives the
+actions that guard a commit instead, and the Pre-Commit section of this
+document is where that list is.
 
 Where the project root of that context comes from is the Project Root section
 of this document.

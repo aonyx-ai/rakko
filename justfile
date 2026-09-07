@@ -6,43 +6,6 @@ set shell := ["mise", "exec", "--", "sh", "-cu"]
 default:
     @just --list
 
-[private]
-pre-commit-checks: pre-commit-fix pre-commit-verify
-
-# Every recipe that rewrites the working tree, in sequence: they overlap each
-# other, and nothing may read a file while one of them is writing it. The
-# formatters run before the generation so that what is generated is derived
-# from formatted sources.
-[private]
-pre-commit-fix:
-    just format-json true
-    just format-markdown true
-    just format-yaml true
-    just format-toml true
-    just format-rust true
-
-# Every recipe that only reads, in parallel: the tree has stopped changing, so
-# what each of them sees is what the commit will contain.
-[private]
-pre-commit-verify:
-    #!/usr/bin/env -S mise exec -- bash
-    set -uo pipefail
-
-    # Each check runs as a background job, and its output streams as it
-    # arrives, so lines from different checks interleave. The recipe waits for
-    # every job and fails if any of them failed.
-    pids=()
-    for recipe in check-specs lint-github-actions lint-markdown lint-rust lint-yaml test-rust; do
-        just "$recipe" &
-        pids+=("$!")
-    done
-
-    status=0
-    for pid in "${pids[@]}"; do
-        wait "$pid" || status=1
-    done
-    exit "$status"
-
 # Build the internal documentation of the Rust code
 #
 # The recipe runs the harness instead of cargo, for the reason that
@@ -216,9 +179,19 @@ lint-toml:
 lint-yaml:
     mise run rakko -- lint-yaml
 
-# Run a subset of checks as pre-commit hooks
+# Run the actions that guard a commit
+#
+# The recipe runs the harness instead of the private recipes that it used to
+# chain, for the reason that `format-toml` gives. The harness names the
+# actions that guard a commit and their order, so the recipe lists nothing of
+# its own, and the flag lets the formatters rewrite the tree before the checks
+# read it. Each action reports on its own, so the reports no longer
+# interleave, and the run drives every action, where the chain that it
+# replaces stopped at the first formatter that failed. The checks ran at the
+# same time before and run one after another now, until the harness learns
+# what each action reads and writes.
 pre-commit:
-    @just pre-commit-checks
+    mise run rakko -- pre-commit --fix
 
 # Run the tests
 #

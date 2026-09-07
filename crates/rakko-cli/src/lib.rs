@@ -3,7 +3,9 @@
 //! A harness is the small binary that a project runs to maintain itself. It
 //! mounts the actions that the project uses, and this crate turns them into a
 //! command-line interface: one command for each action, the help text of each
-//! command, and the flags that every command shares.
+//! command, and the flags that every command shares. A harness also names the
+//! actions that guard a commit, and the command line carries a `pre-commit`
+//! command that drives every one of them and reports each on its own.
 //!
 //! Only a harness depends on this crate. An action depends on the contract
 //! crate alone, so the command-line framework stays out of the build of an
@@ -28,4 +30,4 @@ mod report;
 /// The root of the project that a run maintains
 mod root;
 
-pub use self::builder::{Builder, builder};
+pub use self::builder::{Builder, Step, builder};

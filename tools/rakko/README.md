@@ -15,6 +15,15 @@ mise run rakko
 Where mise supplies its environment, `rakko` is a shortcut for the same
 command.
 
+The `pre-commit` command runs the actions that guard a commit, in the order
+that the harness names them, and reports each of them on its own. The hook
+runs it with `--fix`, so that the formatters rewrite the tree before the
+checks read it:
+
+```console
+mise run rakko -- pre-commit --fix
+```
+
 ## Layout
 
 The package sits outside the workspace of the repository, so it resolves its
