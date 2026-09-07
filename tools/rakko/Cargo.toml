@@ -18,6 +18,7 @@ rakko-check-dependencies = { path = "../../crates/rakko-check-dependencies" }
 rakko-check-latest-deps = { path = "../../crates/rakko-check-latest-deps" }
 rakko-check-minimal-deps = { path = "../../crates/rakko-check-minimal-deps" }
 rakko-check-msrv = { path = "../../crates/rakko-check-msrv" }
+rakko-check-specs = { path = "../../crates/rakko-check-specs" }
 rakko-check-unused-deps = { path = "../../crates/rakko-check-unused-deps" }
 rakko-cli = { path = "../../crates/rakko-cli" }
 rakko-format-json = { path = "../../crates/rakko-format-json" }
