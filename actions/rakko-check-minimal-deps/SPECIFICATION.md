@@ -37,29 +37,19 @@ The action MUST identify itself as `check-minimal-deps`.
 
 ## Applicability
 
-The action applies to a project that holds a manifest of cargo. The
-examination is a cheap look that runs before the tool resolves, so that a
-broad bundle stays safe: a project without Rust code and without a cargo skips
-visibly instead of stopping over a tool that it has no reason to install.
+The action applies to a project that holds a cargo workspace, and cargo is
+what decides that. A run discovers the workspace roots of the project before
+it does anything with them, and a project that holds no manifest gives an
+empty discovery, which the action reports as a skip.
 
-The look reads hidden directories, because a project can keep a package in
-one. It does not read the `.git` entry, which holds no file of the project,
-and it does not read a directory named `target`, where cargo builds. It
-follows no symbolic link, so that a cycle of links cannot trap it.
+The discovery is the work the run needs anyway, so nothing is examined twice.
+Its rules belong to it rather than to this action: what it reads, what it
+leaves alone, and what a directory it cannot read costs are settled where the
+discovery lives.
 
-checkminimaldeps[skip.missing]
-A run in a project that holds no file named `Cargo.toml` MUST report that the
-action does not apply, and MUST NOT resolve the tool. The reason MUST name
-what the run looked for.
-
-checkminimaldeps[skip.git]
-The examination MUST NOT read the `.git` entry of the project.
-
-checkminimaldeps[skip.target]
-The examination MUST NOT read a directory named `target`.
-
-checkminimaldeps[skip.links]
-The examination MUST NOT follow a symbolic link.
+checkminimaldeps[skip.undiscovered]
+A run whose cargo discovers no workspace MUST report that the action does not
+apply, and the reason MUST say that cargo found none.
 
 ## Arguments
 

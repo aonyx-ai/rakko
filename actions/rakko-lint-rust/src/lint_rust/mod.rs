@@ -14,8 +14,8 @@ use rakko_tool::Execution;
 
 pub use self::error::LintRustError;
 
-/// The reason of a run that found no manifest
-const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The arguments that ask cargo to lint every target with every feature
 ///
@@ -45,8 +45,8 @@ const CLIPPY: [&str; 4] = [
 /// with the message of the compiler and the code of the lint, and a run with
 /// a finding fails, whether the project warns about the lint or denies it.
 ///
-/// The action applies to a project that holds a manifest of cargo, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
+/// A project whose cargo discovers no workspace skips visibly, and says so.
+/// A run stops with an error when mise reports no
 /// cargo, when the workspaces of the project cannot be discovered, and when
 /// cargo writes a report that the action does not recognize.
 ///
@@ -99,16 +99,6 @@ impl Action for LintRust {
 /// the tool, the discovery of the workspaces, a cargo run, or the reading
 /// of a report.
 async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
-    // lintrust[impl skip.git]
-    // lintrust[impl skip.links]
-    // lintrust[impl skip.missing]
-    // lintrust[impl skip.target]
-    if !Cargo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MANIFEST),
-        });
-    }
-
     // lintrust[impl tool.cargo]
     // lintrust[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
@@ -120,6 +110,13 @@ async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
         .roots()
         .await
         .map_err(|source| LintRustError::UndiscoveredRoots { source })?;
+
+    // lintrust[impl skip.undiscovered]
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
 
     let mut findings = Vec::new();
 

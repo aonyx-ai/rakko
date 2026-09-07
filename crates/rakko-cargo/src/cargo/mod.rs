@@ -1,8 +1,8 @@
 //! The cargo that a project runs
 //!
-//! This module holds the program that mise installed for a project, the look
-//! that tells whether cargo has anything to do there, the discovery of the
-//! workspace roots, and the command that runs one job at a root. An action
+//! This module holds the program that mise installed for a project, the
+//! discovery of the workspace roots, and the command that runs one job at a
+//! root. An action
 //! writes the arguments of its job, and everything between the action and
 //! the process lives here.
 
@@ -24,10 +24,10 @@ use crate::version::{ReadRustVersionError, RustVersion};
 /// The name that mise knows the tool by
 const CARGO: &str = "cargo";
 
-/// The directory entry that the look does not read
+/// The directory entry that the discovery does not read
 const GIT_DIRECTORY: &str = ".git";
 
-/// The directory that cargo builds in, which the look does not read
+/// The directory that cargo builds in, which the discovery does not read
 const TARGET_DIRECTORY: &str = "target";
 
 /// The arguments that ask cargo to describe the workspace of a manifest
@@ -78,31 +78,6 @@ pub struct Cargo {
 }
 
 impl Cargo {
-    /// Returns whether the project holds a manifest that cargo would read
-    ///
-    /// The look walks the project from its root and stops at the first file
-    /// named `Cargo.toml`. It reads hidden directories, because a project
-    /// can keep a package in one. It does not read the `.git` entry, which
-    /// holds no file of the project, and it does not read a directory named
-    /// `target`, where cargo builds. It follows no symbolic link, so a cycle
-    /// of links cannot trap it.
-    ///
-    /// A directory that the look cannot read counts as holding a manifest. A
-    /// look that cannot prove absence must not hide a real check behind a
-    /// skip, and the discovery of the roots reports its own failure when a
-    /// run reaches it.
-    // cargo[impl look.git]
-    // cargo[impl look.links]
-    // cargo[impl look.manifest]
-    // cargo[impl look.target]
-    // cargo[impl look.unreadable]
-    pub async fn applies(root: &ProjectRoot) -> bool {
-        match manifests(root.get(), Search::First).await {
-            Ok(found) => !found.is_empty(),
-            Err(_) => true,
-        }
-    }
-
     /// Returns the command that runs cargo at a root
     ///
     /// The command starts the program that [`resolve`][resolve] found, in
@@ -160,7 +135,7 @@ impl Cargo {
     /// paths
     ///
     /// The discovery walks the project for manifests with the rules of the
-    /// look, and it asks cargo which workspace each manifest belongs to.
+    /// walk, and it asks cargo which workspace each manifest belongs to.
     /// Cargo names the root of that workspace and its members, so the
     /// members need no question of their own, and a root counts once
     /// however many members it has.
@@ -186,9 +161,9 @@ impl Cargo {
     // cargo[impl root.contained]
     // cargo[impl root.discover]
     // cargo[impl root.member]
-    // cargo[impl root.walk]
+    // cargo[impl root.walk+2]
     pub async fn roots(&self) -> Result<Vec<CargoRoot>, DiscoverRootsError> {
-        let mut manifests = manifests(self.root.get(), Search::All).await?;
+        let mut manifests = manifests(self.root.get()).await?;
         manifests.sort_by_key(|manifest| (manifest.components().count(), manifest.clone()));
 
         let project = canonical(self.root.get()).await;
@@ -424,16 +399,6 @@ struct Package {
     rust_version: Option<String>,
 }
 
-/// How far a walk for manifests goes
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-enum Search {
-    /// Stop at the first manifest, because the caller asks whether one exists
-    First,
-
-    /// Collect every manifest, because the caller asks for all of them
-    All,
-}
-
 /// Returns the path with every symbolic link resolved
 ///
 /// Cargo resolves the links of a path that it reports, and a temporary
@@ -473,13 +438,9 @@ fn details(execution: &Execution) -> String {
 /// cannot be read.
 ///
 /// [directory]: DiscoverRootsError::UnreadableDirectory
-// cargo[impl look.git]
-// cargo[impl look.links]
-// cargo[impl look.manifest]
-// cargo[impl look.target]
 // cargo[impl root.directory]
-// cargo[impl root.walk]
-async fn manifests(root: &Path, search: Search) -> Result<Vec<PathBuf>, DiscoverRootsError> {
+// cargo[impl root.walk+2]
+async fn manifests(root: &Path) -> Result<Vec<PathBuf>, DiscoverRootsError> {
     let mut found = Vec::new();
     let mut pending = vec![root.to_path_buf()];
 
@@ -508,10 +469,6 @@ async fn manifests(root: &Path, search: Search) -> Result<Vec<PathBuf>, Discover
                 pending.push(entry.path());
             } else if kind.is_file() && name == MANIFEST {
                 found.push(entry.path());
-
-                if search == Search::First {
-                    return Ok(found);
-                }
             }
         }
     }

@@ -15,8 +15,8 @@ use rakko_tool::Execution;
 pub use self::error::CheckUnusedDepsError;
 use crate::report::UdepsReport;
 
-/// The reason of a run that found no manifest
-const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The channel that cargo-udeps needs
 ///
@@ -59,8 +59,8 @@ const UDEPS: [&str; 6] = [
 /// leaves cargo-udeps without an answer, and the diagnostics of the compiler
 /// become the findings instead.
 ///
-/// The action applies to a project that holds a manifest of cargo, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
+/// A project whose cargo discovers no workspace skips visibly, and says so.
+/// A run stops with an error when mise reports no
 /// cargo or no nightly toolchain, when the workspaces of the project cannot
 /// be discovered, and when the tools write a report that the action does not
 /// recognize.
@@ -115,16 +115,6 @@ impl Action for CheckUnusedDeps {
 /// the tool or of the toolchain, the discovery of the workspaces, a run of
 /// cargo, or the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
-    // checkunuseddeps[impl skip.git]
-    // checkunuseddeps[impl skip.links]
-    // checkunuseddeps[impl skip.missing]
-    // checkunuseddeps[impl skip.target]
-    if !Cargo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MANIFEST),
-        });
-    }
-
     // checkunuseddeps[impl tool.cargo]
     // checkunuseddeps[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
@@ -142,6 +132,13 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
         .roots()
         .await
         .map_err(|source| CheckUnusedDepsError::UndiscoveredRoots { source })?;
+
+    // checkunuseddeps[impl skip.undiscovered]
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
 
     let mut findings = Vec::new();
 
