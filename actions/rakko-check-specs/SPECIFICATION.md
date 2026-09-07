@@ -39,7 +39,7 @@ the task can change its tool without renaming the command of every project.
 checkspecs[name]
 The action MUST identify itself as `check-specs`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that configures tracey, and tracey is what
 decides that. A run asks tracey for the coverage of the project, and a project

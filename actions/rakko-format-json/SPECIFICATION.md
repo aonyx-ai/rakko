@@ -33,7 +33,7 @@ the task can change its tool without renaming the command of every project.
 formatjson[name]
 The action MUST identify itself as `format-json`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that holds JSON files, and prettier is what
 decides that. Prettier treats a pattern that matches no file as an error, so a

@@ -32,7 +32,7 @@ the task can change its tool without renaming the command of every project.
 lintmarkdown[name]
 The action MUST identify itself as `lint-markdown`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that holds Markdown files, and markdownlint is
 what decides that. A run that resolves no file answers with its usage text

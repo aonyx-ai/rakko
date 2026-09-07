@@ -26,13 +26,13 @@ the task can change its tool without renaming the command of every project.
 linttoml[name]
 The action MUST identify itself as `lint-toml`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that holds TOML files, and taplo is what
 decides that. Taplo reports a run that collected nothing on a log stream it
 truncates on exit, so that answer arrives about four times in five and cannot
 carry a requirement. A project without TOML files therefore passes, having
-found nothing to report, rather than reporting that the action does not apply.
+found nothing to report, rather than skipping.
 
 Little rests on the difference. A project marks its root with a TOML file, so
 a project that a run can reach holds at least one.
