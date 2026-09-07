@@ -78,6 +78,18 @@ specs (
         )
     }
     {
+        name check-minimal-deps
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-check-minimal-deps/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-check-minimal-deps/src/**/*.rs)
+                test_include (crates/rakko-check-minimal-deps/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name check-msrv
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-check-msrv/SPECIFICATION.md)

@@ -1,0 +1,246 @@
+# Rakko Check Minimal Deps
+
+`rakko-check-minimal-deps` provides the action that checks a project against
+the lowest versions of its dependencies. A manifest states a floor for each
+dependency, and a floor is a promise: that version of the dependency works.
+Nobody keeps that promise by writing it down, because a build reaches for the
+newest version that the floor allows and never touches the floor itself, so
+the action resolves the floors and runs the tests of the project against them.
+
+The action wraps the cargo that mise pinned for the project. Cargo resolves
+the dependencies, and [nextest] runs the tests, so a run agrees with a
+contributor who does the same two things by hand. The action selects the
+operations and translates what the two runs reported into an outcome.
+
+Cargo resolves the floors behind an unstable option, so the resolution runs on
+the nightly toolchain that the project pins. The tests do not: they answer for
+the versions of the resolution and not for the compiler that resolved them,
+and they run on the toolchain that the project builds with.
+
+A run rewrites the lockfile of every workspace, and the checkout of a
+contributor is no place for that, so the whole run happens in a disposable
+copy of the project. The contributor keeps the tree they are working in,
+whatever the run finds and however it ends.
+
+Every requirement in this document has an identifier, and the code that
+implements or tests a requirement references the identifier in a comment.
+[Tracey] checks that every requirement is implemented and tested. The key
+words MUST and MUST NOT have the meaning that [RFC 2119] defines.
+
+## Name
+
+The name of the action names the maintenance task and not the tool, so that
+the task can change its tool without renaming the command of every project.
+
+checkminimaldeps[name]
+The action MUST identify itself as `check-minimal-deps`.
+
+## Applicability
+
+The action applies to a project that holds a manifest of cargo. The
+examination is a cheap look that runs before the tool resolves, so that a
+broad bundle stays safe: a project without Rust code and without a cargo skips
+visibly instead of stopping over a tool that it has no reason to install.
+
+The look reads hidden directories, because a project can keep a package in
+one. It does not read the `.git` entry, which holds no file of the project,
+and it does not read a directory named `target`, where cargo builds. It
+follows no symbolic link, so that a cycle of links cannot trap it.
+
+checkminimaldeps[skip.missing]
+A run in a project that holds no file named `Cargo.toml` MUST report that the
+action does not apply, and MUST NOT resolve the tool. The reason MUST name
+what the run looked for.
+
+checkminimaldeps[skip.git]
+The examination MUST NOT read the `.git` entry of the project.
+
+checkminimaldeps[skip.target]
+The examination MUST NOT read a directory named `target`.
+
+checkminimaldeps[skip.links]
+The examination MUST NOT follow a symbolic link.
+
+## Arguments
+
+The action reads no argument. The recipe that this action replaces took one,
+which let a contributor run the check with changes in their tree, because the
+check would otherwise have rewritten their lockfile. The copy makes that
+argument meaningless: a tree with changes in it is what the run copies, and
+the check never writes where the contributor works.
+
+checkminimaldeps[args.none]
+The action MUST declare no argument.
+
+## Tool
+
+The action runs the cargo that mise installed for the project, at the version
+that the project pinned, so a run reaches the same program as the terminal of
+a contributor. Nextest is a plugin of cargo, and cargo finds it on the path of
+the environment that mise sets, at the version that the project pinned. A
+cargo that mise does not report stops the action, because provisioning is the
+job of mise, and the action installs nothing.
+
+Cargo resolves the floors behind an option that only the nightly channel
+accepts, and a stable cargo refuses the option and resolves nothing at all.
+The resolution therefore runs on the nightly toolchain that the project pins,
+and a project that pins none stops the action, for the same reason that a
+missing cargo does.
+
+The tool resolves at the project and not in the copy. Mise reads no
+configuration that nobody trusted, and the copy is a directory that nobody has
+seen before, so the copy could answer for no pin of the project. The program
+that the project resolves to is the program that the run starts in the copy.
+
+checkminimaldeps[tool.cargo]
+A run that applies MUST resolve `cargo` through mise for the project of the
+run, and MUST run the program that mise reports.
+
+checkminimaldeps[tool.missing]
+A run whose cargo mise does not report MUST stop, and the outcome MUST hold
+the error.
+
+checkminimaldeps[tool.toolchain]
+A run MUST resolve the toolchain that mise installed for the `nightly` channel
+of the project.
+
+checkminimaldeps[tool.unpinned]
+A run in a project whose `nightly` channel mise does not report as pinned and
+installed MUST stop, and the outcome MUST hold the error.
+
+## Copy
+
+A run resolves the dependencies of every workspace, which rewrites a lockfile,
+and it builds the project. Neither belongs in the checkout of a contributor. A
+check that leaves the lockfile of a project rewritten costs the contributor
+their afternoon, and it is a check that they will stop running.
+
+The run therefore does its work in a disposable copy of the project. The copy
+holds the commit that the project is on, with the changed files of the
+checkout over it, so a contributor who lowers a floor in a manifest and runs
+the check before they commit reads the answer for the new floor. A tree with
+changes in it is no reason to stop.
+
+The copy is a working tree of the repository of the project, so a project that
+is no repository has no copy, and such a run stops instead of writing where
+the contributor works.
+
+The copy holds the tree of the project at its own root, so a path of the copy
+and the same path of the project read alike. A finding therefore names the
+file that a contributor opens, and nothing of the copy reaches the report.
+
+checkminimaldeps[copy.disposable]
+A run MUST resolve and test in a copy of the project, and MUST leave the
+working tree of the project as it was.
+
+checkminimaldeps[copy.paths]
+A finding MUST name its file with the path that the file has in the project.
+
+checkminimaldeps[copy.unavailable]
+A run in a project that is not a git repository, and a run whose copy cannot
+be created, MUST stop, and the outcome MUST hold the error.
+
+## Roots
+
+A project can hold more than one workspace, because the harness of a project
+is a package of its own, and cargo resolves and tests one workspace at a time.
+A run therefore covers every workspace root of the project. The harness of a
+project usually depends on the crates of the project by path, so the run there
+confirms that the harness builds with the lowest versions of everything behind
+those paths.
+
+A workspace that the run cannot discover stops it, because a run that passed
+over a workspace would hide every failure of that workspace behind a green
+result. So does a workspace root that the copy does not hold, which is a
+project that moved while the run was on.
+
+checkminimaldeps[roots.all]
+A run MUST cover every workspace root of the project.
+
+checkminimaldeps[roots.error]
+A run whose workspace roots cannot be discovered, and a run whose workspace
+root the copy does not hold, MUST stop, and the outcome MUST hold the error.
+
+## Update
+
+The run asks cargo to resolve the direct dependencies of every workspace to
+the lowest versions that the manifests allow. That resolution is the question
+of the action: a manifest that names `1.2` promises that `1.2` works, and only
+a run against `1.2` can confirm the promise. Every ordinary build reaches for
+a later version, so nothing else in the life of the project ever asks.
+
+The resolution covers the dependencies that the manifests name and not the
+dependencies of those, because a floor of another project is a promise that
+its author makes and not one that this project can keep.
+
+An update that ends without success is an answer about the project and not a
+failure of the run. A floor that no version can satisfy, and a manifest that
+cargo refuses, are both problems that somebody has to solve, so the run
+reports what cargo wrote as a finding at the manifest of that root. Such a run
+runs no test: the resolution that a test would answer for never came about,
+and a test that ran anyway would answer for a lockfile that nobody wrote.
+
+checkminimaldeps[update.operation]
+A run MUST ask cargo to update the direct dependencies of a workspace root to
+the lowest versions that its manifests allow, on the toolchain of the
+`nightly` channel, and MUST NOT change any other option of cargo.
+
+checkminimaldeps[update.failed]
+An update that ends without success MUST fail the run with a finding at the
+manifest of its root that holds what cargo wrote, and that run MUST NOT test.
+
+## Tests
+
+The tests answer the question that the update raised. The run tests every
+workspace with nextest, which builds every target of every package with every
+feature and runs the tests the way the configuration of the project says.
+
+The tests run on the toolchain that the project builds with, and not on the
+nightly that resolved the floors. Only the resolution needs the nightly, the
+project promises nothing about a compiler that it does not pin, and a test
+that starts cargo would inherit the nightly and miss the components that the
+pin of the project carries.
+
+The build gets the versions that the update resolved and no others. A build
+that resolved for itself would reach for a newer version than the floor and
+answer a question that nobody asked, so cargo refuses such a build, and the
+run reports that it has no answer.
+
+A test that failed and a diagnostic of a build that did not finish are both
+answers about the lowest versions, and both travel as findings, so a run that
+gets either of them fails. A workspace without a test is not a failure: a
+project can keep its tests in one workspace and its harness in another, so
+such a workspace ran no test, and the count of the run says so.
+
+A run that nextest leaves without an answer stops the action. Such a run
+examined nothing that the action can report, and an answer built on it would
+hide every failure behind a green result.
+
+checkminimaldeps[tests.locked]
+A run MUST test a workspace root with the versions that the update resolved
+for it.
+
+checkminimaldeps[tests.toolchain]
+A run MUST test a workspace root on the default toolchain of the project.
+
+checkminimaldeps[tests.passed]
+A run whose updates all succeeded and whose nextest reports no failure and
+whose cargo reports no diagnostic at any root MUST pass, and the outcome MUST
+say how many workspaces the run updated and how many tests it ran.
+
+checkminimaldeps[tests.none]
+A workspace without a test MUST count as a workspace that ran no test, and
+MUST NOT fail the run.
+
+checkminimaldeps[tests.failed]
+A test that failed MUST fail the run, and the outcome MUST hold the finding of
+the test. A diagnostic of the compiler MUST fail the run, and the outcome MUST
+hold the finding of the diagnostic.
+
+checkminimaldeps[tests.error]
+A run of nextest that leaves the action without an answer MUST stop the run,
+and the outcome MUST hold the error.
+
+[nextest]: https://nexte.st
+[rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
+[tracey]: https://tracey.bearcove.eu/

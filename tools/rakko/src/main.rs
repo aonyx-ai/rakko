@@ -12,6 +12,7 @@ use rakko_action::ErasedAction;
 use rakko_build_internal_docs::BuildInternalDocs;
 use rakko_check_dependencies::CheckDependencies;
 use rakko_check_latest_deps::CheckLatestDeps;
+use rakko_check_minimal_deps::CheckMinimalDeps;
 use rakko_check_msrv::CheckMsrv;
 use rakko_check_unused_deps::CheckUnusedDeps;
 use rakko_format_json::FormatJson;
@@ -36,6 +37,7 @@ fn main() {
             Box::new(BuildInternalDocs) as Box<dyn ErasedAction>,
             Box::new(CheckDependencies),
             Box::new(CheckLatestDeps),
+            Box::new(CheckMinimalDeps),
             Box::new(CheckMsrv),
             Box::new(CheckUnusedDeps),
             Box::new(FormatJson),
