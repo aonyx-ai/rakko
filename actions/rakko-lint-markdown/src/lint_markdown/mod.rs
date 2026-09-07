@@ -18,13 +18,11 @@ use crate::markdownlint::Markdownlint;
 use crate::observation::Observation;
 use crate::problem::MarkdownlintProblem;
 
-/// The reason of a run that found no Markdown file
-const NO_MARKDOWN_FILES: &str = "the project holds no file with the .md or .markdown extension";
-
 /// The reason of a run whose markdownlint examined nothing
 ///
-/// The look of the action found a file, and markdownlint then collected none.
-/// The ignore file of the project explains the difference.
+/// Markdownlint answers with its usage text when it resolves no file, so this
+/// is what a project without Markdown files reports. A project whose ignore
+/// file excludes every one of them reports the same way.
 const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine";
 
 /// The action that lints the Markdown files of a project
@@ -93,15 +91,6 @@ impl Action for LintMarkdown {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the markdownlint run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintMarkdownError> {
-    // lintmarkdown[impl skip.hidden]
-    // lintmarkdown[impl skip.links]
-    // lintmarkdown[impl skip.missing]
-    if !Markdownlint::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MARKDOWN_FILES),
-        });
-    }
-
     // lintmarkdown[impl tool.markdownlint]
     // lintmarkdown[impl tool.missing]
     let markdownlint = Markdownlint::resolve(context.root().clone())

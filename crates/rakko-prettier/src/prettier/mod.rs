@@ -1,9 +1,9 @@
 //! The prettier that a project runs
 //!
-//! This module holds the program that mise installed for a project, the look
-//! that tells whether prettier has anything to do there, and the run of one
-//! operation. An action states which operation it wants and which files it
-//! cares about, and everything between the action and the process lives here.
+//! This module holds the program that mise installed for a project and the
+//! run of one operation. An action states which operation it wants and which
+//! files it cares about, and everything between the action and the process
+//! lives here.
 
 /// The error that leaves a run without an answer
 mod error;
@@ -45,12 +45,6 @@ const IGNORE_UNKNOWN: &str = "--ignore-unknown";
 /// that project alone.
 const NO_COLOR: &str = "--no-color";
 
-/// The directory entry that the look does not read
-const GIT_DIRECTORY: &str = ".git";
-
-/// The directory entry of installed packages, which prettier excludes
-const DEPENDENCY_DIRECTORY: &str = "node_modules";
-
 /// The prettier that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -83,62 +77,6 @@ pub struct Prettier {
 }
 
 impl Prettier {
-    /// Returns whether the project holds a file that the filter selects
-    ///
-    /// The look walks the project from its root and stops at the first file
-    /// that the filter matches. It reads hidden directories, because prettier
-    /// reads them, and it reads neither the `.git` entry, which holds no file
-    /// of the project, nor a `node_modules` entry, which prettier excludes.
-    /// It follows no symbolic link, so a cycle of links cannot trap it.
-    ///
-    /// A directory that the look cannot read counts as holding files. A look
-    /// that cannot prove absence must not hide a real check behind a skip,
-    /// and prettier reports its own failure when a run reaches it.
-    ///
-    /// The look and prettier can still disagree at the margins, because the
-    /// ignore files of a project can exclude every file that the look found.
-    /// A caller that reaches prettier therefore reports what prettier saw.
-    // prettier[impl look.dependencies]
-    // prettier[impl look.files]
-    // prettier[impl look.git]
-    // prettier[impl look.links]
-    // prettier[impl look.unreadable]
-    pub async fn applies(root: &ProjectRoot, filter: &Filter) -> bool {
-        let mut pending = vec![root.get().to_path_buf()];
-
-        while let Some(directory) = pending.pop() {
-            let Ok(mut entries) = tokio::fs::read_dir(&directory).await else {
-                return true;
-            };
-
-            loop {
-                match entries.next_entry().await {
-                    Ok(Some(entry)) => {
-                        let name = entry.file_name();
-
-                        if name == GIT_DIRECTORY || name == DEPENDENCY_DIRECTORY {
-                            continue;
-                        }
-
-                        let Ok(kind) = entry.file_type().await else {
-                            return true;
-                        };
-
-                        if kind.is_dir() {
-                            pending.push(entry.path());
-                        } else if kind.is_file() && filter.matches(&entry.path()) {
-                            return true;
-                        }
-                    }
-                    Ok(None) => break,
-                    Err(_) => return true,
-                }
-            }
-        }
-
-        false
-    }
-
     /// Runs one operation over the files that the filter selects
     ///
     /// # Errors

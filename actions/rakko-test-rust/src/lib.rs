@@ -10,8 +10,7 @@
 //! A run only reports, and it takes no argument. A test that failed becomes
 //! a finding at the position where it panicked, and a build that does not
 //! finish becomes findings from the diagnostics of the compiler. The action
-//! applies to a project that holds a manifest of cargo, and it skips visibly
-//! otherwise.
+//! skips visibly in a project whose cargo discovers no workspace.
 //!
 //! # Examples
 //!

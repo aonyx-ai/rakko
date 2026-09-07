@@ -27,8 +27,8 @@
 //!
 //! # Asynchronous Runtime
 //!
-//! The look at a project reads a path, and a run starts programs and waits for
-//! them. A [Tokio] runtime drives both, and they panic without one.
+//! A run starts programs and waits for them. A [Tokio] runtime drives that,
+//! and it panics without one.
 //!
 //! # Requirements
 //!

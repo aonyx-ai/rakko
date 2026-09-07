@@ -14,8 +14,8 @@ use rakko_tool::Execution;
 
 pub use self::error::BuildInternalDocsError;
 
-/// The reason of a run that found no manifest
-const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The arguments that ask cargo to document every package of a workspace
 ///
@@ -57,8 +57,8 @@ const DOC: [&str; 6] = [
 /// because the harness of a project is a package of its own. The
 /// documentation goes where cargo builds, and the sources stay as they are.
 ///
-/// The action applies to a project that holds a manifest of cargo, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
+/// A project whose cargo discovers no workspace skips visibly, and says so.
+/// A run stops with an error when mise reports no
 /// cargo, when the workspaces of the project cannot be discovered, and when
 /// cargo writes a report that the action does not recognize.
 ///
@@ -111,16 +111,6 @@ impl Action for BuildInternalDocs {
 /// the tool, the discovery of the workspaces, a cargo run, or the reading
 /// of a report.
 async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
-    // buildinternaldocs[impl skip.git]
-    // buildinternaldocs[impl skip.links]
-    // buildinternaldocs[impl skip.missing]
-    // buildinternaldocs[impl skip.target]
-    if !Cargo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MANIFEST),
-        });
-    }
-
     // buildinternaldocs[impl tool.cargo]
     // buildinternaldocs[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
@@ -132,6 +122,13 @@ async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
         .roots()
         .await
         .map_err(|source| BuildInternalDocsError::UndiscoveredRoots { source })?;
+
+    // buildinternaldocs[impl skip.undiscovered]
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
 
     let mut findings = Vec::new();
 

@@ -388,24 +388,10 @@ async fn run_in_a_clean_project_passes() {
     );
 }
 
-// checkdependencies[verify skip.missing]
-#[tokio::test]
-async fn run_in_a_project_without_a_manifest_names_what_it_looked_for() {
-    let project = Project::without_deny();
-    project.write("README.md", "# Notes\n");
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert_eq!(reason.get(), "the project holds no file named Cargo.toml");
-}
-
-// checkdependencies[verify skip.missing]
+// checkdependencies[verify skip.undiscovered]
 #[tokio::test]
 async fn run_in_a_project_without_a_manifest_skips() {
-    let project = Project::without_deny();
+    let project = Project::new();
     project.write("README.md", "# Notes\n");
 
     let outcome = project.run().await;
@@ -457,53 +443,6 @@ async fn run_reads_the_configuration_that_lies_closest_to_a_workspace() {
         matches!(outcome, Outcome::Passed { .. }),
         "expected the workspace below the root to answer from its own \
          configuration, got {outcome:?}"
-    );
-}
-
-// checkdependencies[verify skip.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_a_manifest_only_behind_a_symbolic_link_skips() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("Cargo.toml"), PACKAGE)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// checkdependencies[verify skip.git]
-#[tokio::test]
-async fn run_with_a_manifest_only_under_the_git_directory_skips() {
-    let project = Project::bare();
-    project.write(".git/Cargo.toml", PACKAGE);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// checkdependencies[verify skip.target]
-#[tokio::test]
-async fn run_with_a_manifest_only_under_the_target_directory_skips() {
-    let project = Project::bare();
-    project.write("target/debug/build/dep/Cargo.toml", PACKAGE);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
     );
 }
 

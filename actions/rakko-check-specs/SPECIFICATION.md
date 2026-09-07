@@ -41,19 +41,17 @@ The action MUST identify itself as `check-specs`.
 
 ## Applicability
 
-The action applies to a project that configures tracey. The examination is a
-cheap look of the action's own, and it runs before the tool resolves, so that
-a broad bundle stays safe: a project that writes no specifications skips
-visibly instead of stopping over a tool that it has no reason to install.
+The action applies to a project that configures tracey, and tracey is what
+decides that. A run asks tracey for the coverage of the project, and a project
+that configures nothing gets a report with no implementation in it and a
+normal exit. The action reads that as a project with no requirements to check.
 
-The look reads one path: `.config/tracey/config.styx` below the root of the
-project. Tracey reads its configuration there, and a project without that file
-has no specification for tracey to check.
+The question costs nothing extra. A run that passes reports the same coverage
+as its summary, so the answer is read once and used twice.
 
-checkspecs[skip.missing]
-A run in a project that holds no `.config/tracey/config.styx` MUST report that
-the action does not apply, and MUST NOT resolve the tool. The reason MUST name
-what the run looked for.
+checkspecs[skip.unconfigured]
+A run whose tracey reports no requirement MUST report that the action does not
+apply, and the reason MUST say that tracey tracks none.
 
 ## Arguments
 

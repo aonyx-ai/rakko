@@ -14,8 +14,8 @@ use rakko_tool::Execution;
 
 pub use self::error::CheckMsrvError;
 
-/// The reason of a run that found no manifest
-const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The reason of a run that found no declaration
 const NO_DECLARATION: &str =
@@ -52,8 +52,8 @@ const CHECK: [&str; 4] = [
 /// range that the compiler named, and a run with a finding fails, whether
 /// the compiler warned or refused the code.
 ///
-/// The action applies to a project that holds a manifest of cargo and
-/// declares a Rust version in it, and it skips visibly otherwise. A run
+/// A project whose cargo discovers no workspace, and one whose workspaces
+/// declare no Rust version, skip visibly and say so. A run
 /// stops with an error when mise reports no cargo or no declared toolchain,
 /// when the workspaces of the project cannot be discovered, when a
 /// declaration cannot be read, and when cargo writes a report that the
@@ -109,16 +109,6 @@ impl Action for CheckMsrv {
 /// the tool or of a toolchain, the discovery of the workspaces, the reading
 /// of a declaration, a cargo run, or the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
-    // checkmsrv[impl skip.git]
-    // checkmsrv[impl skip.links]
-    // checkmsrv[impl skip.missing]
-    // checkmsrv[impl skip.target]
-    if !Cargo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MANIFEST),
-        });
-    }
-
     // checkmsrv[impl tool.cargo]
     // checkmsrv[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
@@ -130,6 +120,13 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
         .roots()
         .await
         .map_err(|source| CheckMsrvError::UndiscoveredRoots { source })?;
+
+    // checkmsrv[impl skip.undiscovered]
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
 
     let declared = declarations(&cargo, &roots).await?;
 

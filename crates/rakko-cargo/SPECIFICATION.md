@@ -24,38 +24,6 @@ implements or tests a requirement references the identifier in a comment.
 [Tracey] checks that every requirement is implemented and tested. The key
 words MUST and MUST NOT have the meaning that [RFC 2119] defines.
 
-## Look
-
-The look tells whether cargo has anything to do in a project. It is cheap, and
-it runs before the tool resolves, so that a broad bundle stays safe: a project
-without Rust code and without a cargo skips visibly instead of stopping over a
-tool that it has no reason to install.
-
-The look searches for a manifest, which is a file named `Cargo.toml`. It reads
-hidden directories, because a project can keep a package in one. It does not
-read the `.git` entry, which holds no file of the project. It does not read a
-directory named `target`, because that is where cargo builds, and the
-manifests that a build copies there belong to no package of the project. It
-follows no symbolic link, so that a cycle of links cannot trap it.
-
-cargo[look.manifest]
-The crate MUST report whether the project holds a file named `Cargo.toml`,
-below the root that the caller names.
-
-cargo[look.git]
-The look MUST NOT read the `.git` entry of the project.
-
-cargo[look.target]
-The look MUST NOT read a directory named `target`.
-
-cargo[look.links]
-The look MUST NOT follow a symbolic link.
-
-cargo[look.unreadable]
-A directory that the look cannot read MUST count as a directory that holds a
-manifest. A look that cannot prove absence must not hide a real check behind a
-skip.
-
 ## Tool
 
 The cargo that runs is the cargo that mise installed for the project, at the
@@ -91,6 +59,12 @@ workspace, and the members need no question of their own. A manifest that
 cargo cannot read stops the discovery, because a discovery that skipped it
 would hide a broken manifest behind a green run.
 
+The search reads hidden directories, because a project can keep a package in
+one. It does not read the `.git` entry, which holds no file of the project,
+and it does not read a directory named `target`, because that is where cargo
+builds and the manifests a build copies there belong to no package. It follows
+no symbolic link, so that a cycle of links cannot trap it.
+
 A manifest of the project can belong to a workspace above the project, when
 that workspace lists the manifest as a member. A job at that root would work
 on files outside the project, so such a manifest stops the discovery as well.
@@ -108,9 +82,11 @@ A manifest that belongs to a workspace whose root the project root does not
 contain MUST stop the discovery, and the error MUST name the manifest and the
 workspace root.
 
-cargo[root.walk]
-The discovery MUST search for manifests with the rules of the look: it MUST
-NOT read the `.git` entry, a directory named `target`, or a symbolic link.
+cargo[root.walk+2]
+The discovery MUST search the project for files named `Cargo.toml`. It MUST
+read hidden directories, because a project can keep a package in one, and it
+MUST NOT read the `.git` entry, a directory named `target`, or a symbolic
+link.
 
 cargo[root.directory]
 A directory that the discovery cannot read MUST stop the discovery, and the

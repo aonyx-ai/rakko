@@ -8,8 +8,7 @@
 //! what rustfmt reported into the outcome of the run.
 //!
 //! A run reports by default and rewrites with the `fix` argument. The action
-//! applies to a project that holds a manifest of cargo, and it skips visibly
-//! otherwise.
+//! skips visibly in a project whose cargo discovers no workspace.
 //!
 //! # Examples
 //!

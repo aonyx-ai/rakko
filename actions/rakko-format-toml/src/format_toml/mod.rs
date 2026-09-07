@@ -15,16 +15,12 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason, Summary,
-    action_name,
+    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary, action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
 pub use self::args::FormatTomlArgs;
 pub use self::error::FormatTomlError;
-
-/// The reason of a run that found no TOML file
-const NO_TOML_FILES: &str = "the project holds no file with the .toml extension";
 
 /// The message of a finding about a file that is not formatted
 const UNFORMATTED_FINDING: &str = "the file is not properly formatted";
@@ -47,8 +43,8 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// rewrites the files that it can format, and the outcome carries one repair
 /// for each file that it rewrote, next to the problems that remain.
 ///
-/// The action applies to a project that holds TOML files, and it skips
-/// visibly otherwise. A run stops with an error when mise reports no taplo,
+/// A project that holds no TOML file passes, having formatted nothing. A run stops
+/// with an error when mise reports no taplo,
 /// when taplo rejects a configuration file of the project, and when taplo
 /// writes a report that the action does not recognize.
 ///
@@ -98,15 +94,6 @@ impl Action for FormatToml {
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, a taplo run, or the reading of the report.
 async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, FormatTomlError> {
-    // formattoml[impl skip.git]
-    // formattoml[impl skip.links]
-    // formattoml[impl skip.missing]
-    if !Taplo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_TOML_FILES),
-        });
-    }
-
     // formattoml[impl tool.taplo]
     // formattoml[impl tool.missing]
     let taplo = Taplo::resolve(context.root().clone())

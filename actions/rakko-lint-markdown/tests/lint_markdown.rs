@@ -369,39 +369,6 @@ async fn run_whose_markdownlint_examined_nothing_skips() {
     );
 }
 
-// lintmarkdown[verify skip.hidden]
-#[tokio::test]
-async fn run_with_markdown_only_under_a_hidden_directory_skips() {
-    let project = Project::bare();
-    project.write(".github/NOTES.md", VALID);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// lintmarkdown[verify skip.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_markdown_only_behind_a_symbolic_link_skips() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("linked.md"), VALID)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
 // lintmarkdown[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_markdownlint_stops() {
@@ -416,27 +383,10 @@ async fn run_without_a_markdownlint_stops() {
     );
 }
 
-// lintmarkdown[verify skip.missing]
-#[tokio::test]
-async fn run_without_markdown_files_names_what_it_looked_for() {
-    let project = Project::bare();
-    project.write("notes.txt", "Not Markdown.\n");
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains(".md"),
-        "expected the reason to name the extension, got {reason:?}"
-    );
-}
-
-// lintmarkdown[verify skip.missing]
+// lintmarkdown[verify skip.unexamined]
 #[tokio::test]
 async fn run_without_markdown_files_skips() {
-    let project = Project::bare();
+    let project = Project::new();
     project.write("notes.txt", "Not Markdown.\n");
 
     let outcome = project.run().await;

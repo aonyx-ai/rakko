@@ -1,9 +1,8 @@
 //! The tracey that a project runs
 //!
-//! This module holds the program that mise installed for a project, the look
-//! that tells whether tracey has anything to do there, and the questions that
-//! an action asks it. An action states which question it wants, and everything
-//! between the action and the process lives here.
+//! This module holds the program that mise installed for a project and the
+//! questions that an action asks it. An action states which question it
+//! wants, and everything between the action and the process lives here.
 //!
 //! The module judges nothing. It reports what tracey said, and the action that
 //! asked decides what the answer means for its outcome.
@@ -51,9 +50,6 @@ const DENY: &str = "--deny";
 /// The diagnostics that a run refuses to pass over
 const WARNINGS: &str = "warnings";
 
-/// The file that tracey reads the specifications of a project from
-const CONFIGURATION: &str = ".config/tracey/config.styx";
-
 /// The tracey that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -86,19 +82,6 @@ pub struct Tracey {
 }
 
 impl Tracey {
-    /// Returns whether the project configures tracey
-    ///
-    /// Tracey reads the specifications of a project from one file, and a
-    /// project without that file has none for tracey to check. The look reads
-    /// that path and nothing else, so it costs one question to the file
-    /// system.
-    // checkspecs[impl skip.missing]
-    pub async fn applies(root: &ProjectRoot) -> bool {
-        tokio::fs::metadata(root.get().join(CONFIGURATION))
-            .await
-            .is_ok_and(|configuration| configuration.is_file())
-    }
-
     /// Returns the coverage of the specifications of the project
     ///
     /// # Errors

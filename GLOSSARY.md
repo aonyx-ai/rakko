@@ -15,9 +15,6 @@ from the design discussions to the terms that replaced them.
   that implements the `Action` trait. An action depends on the contract
   crate and on the helper crates that it uses. It never depends on the
   projection or on Clawless.
-- **Applicability** — Whether an action applies to a project. Each action
-  detects its own applicability, and it skips with a visible message when it
-  does not apply. This behavior keeps broad bundles safe.
 - **Bundle** — A meta-crate that exports a list of actions. A bundle defines
   what a word such as "recommended" means, as a dependency. Bundles can
   contain other bundles. A bundle release starts a rollout.
@@ -69,7 +66,8 @@ from the design discussions to the terms that replaced them.
   harness names what it mounts, in code.
 - **Outcome** — The result of one action run. An outcome tells whether the
   action passed, changed the project by repairing everything that it found,
-  failed with findings, skipped as not applicable, or stopped with an error.
+  failed with findings, skipped because there was nothing to examine, or
+  stopped with an error.
 - **Project** — The unit that Rakko maintains: a directory tree with its own
   tools, actions, and harness. A project is usually a Git repository, but
   Rakko does not require one. A project marks its root with

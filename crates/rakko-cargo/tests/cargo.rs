@@ -118,11 +118,6 @@ impl Project {
         project
     }
 
-    /// Returns whether cargo has anything to do in this project
-    async fn applies(&self) -> bool {
-        Cargo::applies(&self.root()).await
-    }
-
     /// Returns the path of a directory of the project, as a root
     fn cargo_root(&self, path: &str) -> CargoRoot {
         CargoRoot::new(self.root().get().join(path))
@@ -285,85 +280,6 @@ impl Drop for Project {
     }
 }
 
-// cargo[verify look.manifest]
-#[tokio::test]
-async fn applies_with_a_manifest_in_a_hidden_directory_is_true() {
-    let project = Project::bare();
-    project.write(".tools/harness/Cargo.toml", STANDALONE);
-
-    let applies = project.applies().await;
-
-    assert!(applies);
-}
-
-// cargo[verify look.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn applies_with_a_manifest_only_behind_a_symbolic_link_is_false() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("Cargo.toml"), STANDALONE)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let applies = project.applies().await;
-
-    assert!(!applies);
-}
-
-// cargo[verify look.git]
-#[tokio::test]
-async fn applies_with_a_manifest_only_under_the_git_directory_is_false() {
-    let project = Project::bare();
-    project.write(".git/Cargo.toml", STANDALONE);
-
-    let applies = project.applies().await;
-
-    assert!(!applies);
-}
-
-// cargo[verify look.target]
-#[tokio::test]
-async fn applies_with_a_manifest_only_under_the_target_directory_is_false() {
-    let project = Project::bare();
-    project.write("target/debug/build/dep/Cargo.toml", STANDALONE);
-
-    let applies = project.applies().await;
-
-    assert!(!applies);
-}
-
-// cargo[verify look.unreadable]
-#[cfg(unix)]
-#[tokio::test]
-async fn applies_with_an_unreadable_directory_is_true() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let project = Project::bare();
-    project.write("closed/README.md", "# Project\n");
-    let closed = project.directory.path().join("closed");
-    std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o000))
-        .expect("the test removes the permissions of a directory");
-
-    let applies = project.applies().await;
-
-    std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o755))
-        .expect("the test restores the permissions of a directory");
-    assert!(applies);
-}
-
-// cargo[verify look.manifest]
-#[tokio::test]
-async fn applies_without_a_manifest_is_false() {
-    let project = Project::bare();
-    project.write("README.md", "# Project\n");
-
-    let applies = project.applies().await;
-
-    assert!(!applies);
-}
-
 // The pins of the project name two toolchains that no machine installs, so
 // the choice among them surfaces as the toolchain that the failure names.
 // That keeps the test free of whichever versions this repository installs.
@@ -500,7 +416,7 @@ async fn resolve_without_a_cargo_reports_the_tool() {
     );
 }
 
-// cargo[verify root.walk]
+// cargo[verify root.walk+2]
 #[cfg(unix)]
 #[tokio::test]
 async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
@@ -516,7 +432,22 @@ async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
     assert_eq!(roots, [project.cargo_root("")]);
 }
 
-// cargo[verify root.walk]
+// cargo[verify root.walk+2]
+#[tokio::test]
+async fn roots_find_a_manifest_in_a_hidden_directory() {
+    let project = Project::workspace();
+    project.write(".tools/harness/Cargo.toml", STANDALONE);
+    project.write(".tools/harness/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots,
+        [project.cargo_root(""), project.cargo_root(".tools/harness")]
+    );
+}
+
+// cargo[verify root.walk+2]
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_git_directory() {
     let project = Project::workspace();
@@ -527,7 +458,7 @@ async fn roots_ignore_a_manifest_under_the_git_directory() {
     assert_eq!(roots, [project.cargo_root("")]);
 }
 
-// cargo[verify root.walk]
+// cargo[verify root.walk+2]
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_target_directory() {
     let project = Project::workspace();

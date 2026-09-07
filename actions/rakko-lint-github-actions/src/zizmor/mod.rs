@@ -1,18 +1,13 @@
 //! The zizmor that a project runs
 //!
-//! This module holds the program that mise installed for a project, the look
-//! that tells whether zizmor has anything to do there, and the run that
-//! produces a report. An action asks for a run, and everything between the
-//! action and the process lives here.
+//! This module holds the program that mise installed for a project and the
+//! run that produces a report. An action asks for a run, and everything
+//! between the action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 /// The reading of the report that zizmor wrote
 mod report;
-
-use std::ffi::OsStr;
-use std::io::ErrorKind;
-use std::path::Path;
 
 use rakko_action::ProjectRoot;
 use rakko_tool::{ResolveToolError, Tool, ToolName};
@@ -83,12 +78,6 @@ const LOWEST_FINDING: i32 = 11;
 /// The highest status of a zizmor that audited the project and found something
 const HIGHEST_FINDING: i32 = 14;
 
-/// The directory that a project keeps its GitHub Actions workflows in
-const WORKFLOWS: [&str; 2] = [".github", "workflows"];
-
-/// The extensions of the workflow files that GitHub reads
-const WORKFLOW_EXTENSIONS: [&str; 2] = ["yaml", "yml"];
-
 /// The zizmor that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -107,10 +96,10 @@ const WORKFLOW_EXTENSIONS: [&str; 2] = ["yaml", "yml"];
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let root = ProjectRoot::new("/home/otter/project".into());
 ///
-/// if Zizmor::applies(&root).await {
-///     let zizmor = Zizmor::resolve(root).await?;
-///     let observation = zizmor.observe().await?;
+/// let zizmor = Zizmor::resolve(root).await?;
+/// let observation = zizmor.observe().await?;
 ///
+/// if observation.collected() {
 ///     println!("{} problems", observation.problems().len());
 /// }
 /// # Ok(())
@@ -123,53 +112,6 @@ pub struct Zizmor {
 }
 
 impl Zizmor {
-    /// Returns whether the project holds a GitHub Actions workflow
-    ///
-    /// The look reads one directory: `.github/workflows` below the root of
-    /// the project. GitHub reads a workflow in that directory and nowhere
-    /// else, so a project with a workflow has one there. An entry counts when
-    /// it is a file with the `.yaml` or the `.yml` extension, which are the
-    /// two that GitHub reads.
-    ///
-    /// The look follows no symbolic link, so a project whose workflows sit
-    /// only behind a link reports no workflow here. A directory that the look
-    /// cannot read counts as holding workflows: a look that cannot prove
-    /// absence must not hide a real check behind a skip, and zizmor reports
-    /// its own failure when a run reaches it.
-    ///
-    /// The look answers narrower than zizmor, which collects an action
-    /// definition, a Dependabot configuration, and the files of pre-commit as
-    /// well. A project whose only auditable file is one of those holds no
-    /// GitHub Actions workflows, which is what this action is named for.
-    // lintgithubactions[impl skip.links]
-    // lintgithubactions[impl skip.missing]
-    pub async fn applies(root: &ProjectRoot) -> bool {
-        let directory = WORKFLOWS
-            .iter()
-            .fold(root.get().to_path_buf(), |path, segment| path.join(segment));
-
-        let mut entries = match tokio::fs::read_dir(&directory).await {
-            Ok(entries) => entries,
-            Err(error) => return error.kind() != ErrorKind::NotFound,
-        };
-
-        loop {
-            match entries.next_entry().await {
-                Ok(Some(entry)) => {
-                    let Ok(kind) = entry.file_type().await else {
-                        return true;
-                    };
-
-                    if kind.is_file() && workflow(&entry.path()) {
-                        return true;
-                    }
-                }
-                Ok(None) => return false,
-                Err(_) => return true,
-            }
-        }
-    }
-
     /// Runs zizmor over the project and reads what it reported
     ///
     /// The run names the root of the project, asks for the pedantic persona,
@@ -287,30 +229,11 @@ fn audited(status: Option<i32>) -> Option<Collection> {
     }
 }
 
-/// Returns whether GitHub would read the file as a workflow
-///
-/// GitHub reads a file of the workflow directory when it carries one of the
-/// two YAML extensions. The comparison ignores case, which is what a file
-/// system that ignores case does, and is the wider answer everywhere else. A
-/// look that answers for the wider set never hides a check behind a skip.
-// lintgithubactions[impl skip.missing]
-fn workflow(path: &Path) -> bool {
-    let Some(extension) = path.extension().and_then(OsStr::to_str) else {
-        return false;
-    };
-
-    WORKFLOW_EXTENSIONS
-        .iter()
-        .any(|candidate| extension.eq_ignore_ascii_case(candidate))
-}
-
 #[cfg(test)]
 mod tests {
     // An assertion in a test panics by design. A `# Panics` section on every
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
-
-    use std::path::PathBuf;
 
     use super::*;
 
@@ -352,37 +275,5 @@ mod tests {
         let collection = audited(Some(NOTHING_COLLECTED));
 
         assert_eq!(collection, Some(Collection::Empty));
-    }
-
-    // lintgithubactions[verify skip.missing]
-    #[test]
-    fn workflow_of_a_file_of_another_extension_reports_no_match() {
-        let matched = workflow(&PathBuf::from(".github/workflows/notes.txt"));
-
-        assert!(!matched);
-    }
-
-    // lintgithubactions[verify skip.missing]
-    #[test]
-    fn workflow_of_a_file_without_an_extension_reports_no_match() {
-        let matched = workflow(&PathBuf::from(".github/workflows/README"));
-
-        assert!(!matched);
-    }
-
-    // lintgithubactions[verify skip.missing]
-    #[test]
-    fn workflow_of_a_long_extension_reports_a_match() {
-        let matched = workflow(&PathBuf::from(".github/workflows/ci.yaml"));
-
-        assert!(matched);
-    }
-
-    // lintgithubactions[verify skip.missing]
-    #[test]
-    fn workflow_of_a_short_extension_reports_a_match() {
-        let matched = workflow(&PathBuf::from(".github/workflows/ci.yml"));
-
-        assert!(matched);
     }
 }

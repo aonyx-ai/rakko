@@ -18,14 +18,11 @@ use crate::observation::Observation;
 use crate::problem::YamllintProblem;
 use crate::yamllint::Yamllint;
 
-/// The reason of a run that found no YAML file
-const NO_YAML_FILES: &str =
-    "the project holds no file with the .yaml or .yml extension, and no .yamllint";
-
 /// The reason of a run whose yamllint examines nothing
 ///
-/// The look of the action found a file, and yamllint then collected none. The
-/// configuration of the project explains the difference.
+/// Yamllint lists the files it examines on request, so this is what a project
+/// without YAML files reports. A project whose configuration excludes every
+/// one of them reports the same way.
 const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 
 /// The action that lints the YAML files of a project
@@ -97,15 +94,6 @@ impl Action for LintYaml {
 /// tool, the listing of the files, the yamllint run, or the reading of the
 /// report.
 async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
-    // lintyaml[impl skip.hidden]
-    // lintyaml[impl skip.links]
-    // lintyaml[impl skip.missing]
-    if !Yamllint::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_YAML_FILES),
-        });
-    }
-
     // lintyaml[impl tool.missing]
     // lintyaml[impl tool.yamllint]
     let yamllint = Yamllint::resolve(context.root().clone())

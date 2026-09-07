@@ -9,15 +9,11 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason, Summary,
-    action_name,
+    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary, action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
 pub use self::error::LintTomlError;
-
-/// The reason of a run that found no TOML file
-const NO_TOML_FILES: &str = "the project holds no file with the .toml extension";
 
 /// The message of a finding about a file that is not formatted
 ///
@@ -41,8 +37,8 @@ const UNFORMATTED: &str = "the file is not properly formatted";
 /// finding that names the file and carries the reason of taplo, because
 /// taplo never read a character of it.
 ///
-/// The action applies to a project that holds TOML files, and it skips
-/// visibly otherwise. A run stops with an error when mise reports no taplo,
+/// A project that holds no TOML file passes, having found nothing to report. A run stops
+/// with an error when mise reports no taplo,
 /// when taplo rejects a configuration file of the project, and when taplo
 /// writes a report that the action does not recognize.
 ///
@@ -93,15 +89,6 @@ impl Action for LintToml {
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, the taplo run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintTomlError> {
-    // linttoml[impl skip.git]
-    // linttoml[impl skip.links]
-    // linttoml[impl skip.missing]
-    if !Taplo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_TOML_FILES),
-        });
-    }
-
     // linttoml[impl tool.taplo]
     // linttoml[impl tool.missing]
     let taplo = Taplo::resolve(context.root().clone())
