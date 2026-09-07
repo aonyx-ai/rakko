@@ -1,9 +1,8 @@
 //! The yamllint that a project runs
 //!
-//! This module holds the program that mise installed for a project, the look
-//! that tells whether yamllint has anything to do there, and the runs that
-//! produce a listing and a report. An action asks for a run, and everything
-//! between the action and the process lives here.
+//! This module holds the program that mise installed for a project and the
+//! runs that produce a listing and a report. An action asks for a run, and
+//! everything between the action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
@@ -12,8 +11,7 @@ pub mod listing;
 /// The reading of the report that yamllint wrote
 pub mod report;
 
-use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use rakko_action::ProjectRoot;
 use rakko_tool::{ResolveToolError, Tool, ToolName};
@@ -54,12 +52,6 @@ const HERE: &str = ".";
 /// Every other status belongs to a run that stopped before it was done.
 const PROBLEMS_FOUND: i32 = 1;
 
-/// The extensions of the files that yamllint collects below a directory
-const YAML_EXTENSIONS: [&str; 2] = ["yaml", "yml"];
-
-/// The name of the configuration file that yamllint examines as well
-const CONFIGURATION: &str = ".yamllint";
-
 /// The yamllint that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -78,14 +70,12 @@ const CONFIGURATION: &str = ".yamllint";
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let root = ProjectRoot::new("/home/otter/project".into());
 ///
-/// if Yamllint::applies(&root).await {
-///     let yamllint = Yamllint::resolve(root).await?;
+/// let yamllint = Yamllint::resolve(root).await?;
 ///
-///     if !yamllint.list().await?.is_empty() {
-///         let observation = yamllint.observe().await?;
+/// if !yamllint.list().await?.is_empty() {
+///     let observation = yamllint.observe().await?;
 ///
-///         println!("{} problems", observation.problems().len());
-///     }
+///     println!("{} problems", observation.problems().len());
 /// }
 /// # Ok(())
 /// # }
@@ -97,57 +87,6 @@ pub struct Yamllint {
 }
 
 impl Yamllint {
-    /// Returns whether the project holds a file that yamllint would look at
-    ///
-    /// The look walks the project from its root and stops at the first file
-    /// with the `.yaml` or the `.yml` extension, and at the first file named
-    /// `.yamllint`, which are the three that yamllint collects below a
-    /// directory by default. It reads an entry whose name starts with a dot,
-    /// because yamllint reads one as well, so a project whose only YAML files
-    /// sit in a directory such as `.github` applies. It follows no symbolic
-    /// link, so a cycle of links cannot trap it.
-    ///
-    /// A directory that the look cannot read counts as holding YAML files. A
-    /// look that cannot prove absence must not hide a real check behind a
-    /// skip, and yamllint reports its own failure when a run reaches it.
-    ///
-    /// The look and yamllint can still disagree at the margins, because the
-    /// configuration of a project can name other file patterns and can
-    /// exclude every file that the look found. A caller therefore asks
-    /// yamllint for its own selection before it lints.
-    // lintyaml[impl skip.hidden]
-    // lintyaml[impl skip.links]
-    // lintyaml[impl skip.missing]
-    pub async fn applies(root: &ProjectRoot) -> bool {
-        let mut pending = vec![root.get().to_path_buf()];
-
-        while let Some(directory) = pending.pop() {
-            let Ok(mut entries) = tokio::fs::read_dir(&directory).await else {
-                return true;
-            };
-
-            loop {
-                match entries.next_entry().await {
-                    Ok(Some(entry)) => {
-                        let Ok(kind) = entry.file_type().await else {
-                            return true;
-                        };
-
-                        if kind.is_dir() {
-                            pending.push(entry.path());
-                        } else if kind.is_file() && yaml(&entry.path()) {
-                            return true;
-                        }
-                    }
-                    Ok(None) => break,
-                    Err(_) => return true,
-                }
-            }
-        }
-
-        false
-    }
-
     /// Returns the files that yamllint examines in the project
     ///
     /// The listing reads the configuration of the project, so it answers with
@@ -232,77 +171,5 @@ impl Yamllint {
         let tool = Tool::resolve(ToolName::new(YAMLLINT), root).await?;
 
         Ok(Self { tool })
-    }
-}
-
-/// Returns whether yamllint would collect the file below a directory
-///
-/// Yamllint matches the name of a file against the patterns that its
-/// configuration names, and the patterns that it uses without a configuration
-/// are the two YAML extensions and its own configuration file. The comparison
-/// of the extension ignores case, which is what yamllint does on a file system
-/// that ignores case, and is the wider answer everywhere else. A look that
-/// answers for the wider set never hides a check behind a skip.
-// lintyaml[impl skip.missing]
-fn yaml(path: &Path) -> bool {
-    if path.file_name() == Some(OsStr::new(CONFIGURATION)) {
-        return true;
-    }
-
-    let Some(extension) = path.extension().and_then(OsStr::to_str) else {
-        return false;
-    };
-
-    YAML_EXTENSIONS
-        .iter()
-        .any(|candidate| extension.eq_ignore_ascii_case(candidate))
-}
-
-#[cfg(test)]
-mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
-
-    use super::*;
-
-    // lintyaml[verify skip.missing]
-    #[test]
-    fn yaml_of_a_configuration_of_yamllint_reports_a_match() {
-        let matched = yaml(&PathBuf::from("sub/.yamllint"));
-
-        assert!(matched);
-    }
-
-    // lintyaml[verify skip.missing]
-    #[test]
-    fn yaml_of_a_file_of_another_extension_reports_no_match() {
-        let matched = yaml(&PathBuf::from("sub/notes.txt"));
-
-        assert!(!matched);
-    }
-
-    // lintyaml[verify skip.missing]
-    #[test]
-    fn yaml_of_a_file_without_an_extension_reports_no_match() {
-        let matched = yaml(&PathBuf::from("justfile"));
-
-        assert!(!matched);
-    }
-
-    // lintyaml[verify skip.missing]
-    #[test]
-    fn yaml_of_a_long_extension_reports_a_match() {
-        let matched = yaml(&PathBuf::from("sub/notes.yaml"));
-
-        assert!(matched);
-    }
-
-    // lintyaml[verify skip.missing]
-    #[test]
-    fn yaml_of_a_short_extension_reports_a_match() {
-        let matched = yaml(&PathBuf::from("sub/notes.yml"));
-
-        assert!(matched);
     }
 }

@@ -19,8 +19,8 @@ pub use self::error::CheckDependenciesError;
 use crate::deny::Deny;
 use crate::problem::{DenyProblem, Severity};
 
-/// The reason of a run that found no manifest
-const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The word that a summary counts one workspace with
 const WORKSPACE: &str = "workspace";
@@ -60,8 +60,8 @@ const WARNINGS: &str = "warnings";
 /// place that it underlines is a line of a lock file, or of a manifest in the
 /// registry cache of the machine.
 ///
-/// The action applies to a project that holds a manifest of cargo, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
+/// A project whose cargo discovers no workspace skips visibly, and says so.
+/// A run stops with an error when mise reports no
 /// tool, when the workspaces of the project cannot be discovered, when
 /// cargo-deny stops before it has checked a workspace, and when it writes a
 /// record that the action cannot read.
@@ -115,16 +115,6 @@ impl Action for CheckDependencies {
 /// tool, the discovery of the workspaces, a cargo-deny run, or the reading of
 /// a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
-    // checkdependencies[impl skip.git]
-    // checkdependencies[impl skip.links]
-    // checkdependencies[impl skip.missing]
-    // checkdependencies[impl skip.target]
-    if !Cargo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MANIFEST),
-        });
-    }
-
     // checkdependencies[impl tool.cargo]
     // checkdependencies[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
@@ -142,6 +132,13 @@ async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
         .roots()
         .await
         .map_err(|source| CheckDependenciesError::UndiscoveredRoots { source })?;
+
+    // checkdependencies[impl skip.undiscovered]
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
 
     let mut findings = Vec::new();
     let mut warnings = 0_usize;

@@ -41,37 +41,12 @@ The action MUST identify itself as `lint-yaml`.
 
 ## Applicability
 
-The action applies to a project that holds YAML files. The examination is a
-cheap look of the action's own, and it runs before the tool resolves, so that
-a broad bundle stays safe. A project without YAML files and without a yamllint
-skips visibly instead of stopping over a tool that it has no reason to
-install.
-
-The look mirrors the discovery of yamllint where mirroring is cheap. It
-matches the `.yaml` and `.yml` extensions and the name `.yamllint`, which are
-the three that yamllint collects below a directory by default. It reads an
-entry whose name starts with a dot, because yamllint reads one as well. A
-project whose only YAML files sit in a directory such as `.github` therefore
-applies. That rule costs a walk through the version control directory of the
-project, which yamllint walks as well.
-
-The look follows no symbolic link, so that a cycle of links cannot trap it. A
-project whose YAML files sit only behind a link therefore skips. The look and
-yamllint can also disagree about the configuration of the project, which can
-name other file patterns and can exclude every file that the look found. The
-action therefore asks yamllint which files it examines before it lints them.
-
-lintyaml[skip.missing]
-A run in a project that holds no file with the `.yaml` or the `.yml`
-extension, and no file named `.yamllint`, MUST report that the action does not
-apply, and MUST NOT resolve the tool. The reason MUST name what the run looked
-for.
-
-lintyaml[skip.hidden]
-The examination MUST read an entry whose name starts with a dot.
-
-lintyaml[skip.links]
-The examination MUST NOT follow a symbolic link.
+The action applies to a project that holds YAML files, and yamllint is what
+decides that. A run asks yamllint which files it examines before it lints
+them, so the selection comes from the configuration of the project rather than
+from a guess about it. A project whose configuration names other patterns, or
+excludes every file it would otherwise collect, is answered correctly for the
+same reason.
 
 lintyaml[skip.unexamined]
 A run whose yamllint examines no file MUST report that the action does not

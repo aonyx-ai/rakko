@@ -91,6 +91,22 @@ impl Project {
         project
     }
 
+    /// Creates a project with the tracey of this repository and no
+    /// specification
+    ///
+    /// The project resolves the tool, and tracey then reports a project that
+    /// tracks no requirement. A test uses this shape for the run that skips.
+    fn unconfigured() -> Self {
+        let project = Self::bare();
+
+        let pins = repository().join("mise.toml");
+        let copy = project.directory.path().join("mise.toml");
+        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
+        trust(&copy);
+
+        project
+    }
+
     /// Creates a project that pins a tracey that nothing installed
     fn without_tracey() -> Self {
         let project = Self::bare();
@@ -363,27 +379,10 @@ async fn run_with_a_requirement_that_nothing_answers_passes() {
     );
 }
 
-// checkspecs[verify skip.missing]
-#[tokio::test]
-async fn run_without_a_configuration_names_what_it_looked_for() {
-    let project = Project::bare();
-    project.write("README.md", "# Project\n");
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains(".config/tracey/config.styx"),
-        "expected the reason to name the configuration, got {reason:?}"
-    );
-}
-
-// checkspecs[verify skip.missing]
+// checkspecs[verify skip.unconfigured]
 #[tokio::test]
 async fn run_without_a_configuration_skips() {
-    let project = Project::bare();
+    let project = Project::unconfigured();
     project.write("README.md", "# Project\n");
 
     let outcome = project.run().await;

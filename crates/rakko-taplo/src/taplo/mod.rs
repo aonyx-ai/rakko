@@ -1,14 +1,12 @@
 //! The taplo that a project runs
 //!
-//! This module holds the program that mise installed for a project, the look
-//! that tells whether taplo has anything to do there, and the run of one
-//! operation. An action states which operation it wants, and everything
-//! between the action and the process lives here.
+//! This module holds the program that mise installed for a project and the
+//! run of one operation. An action states which operation it wants, and
+//! everything between the action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 
-use std::ffi::OsStr;
 use std::time::Duration;
 
 use rakko_action::ProjectRoot;
@@ -72,12 +70,6 @@ const COLORS: &str = "--colors";
 /// configuration of that project alone.
 const PLAIN: &str = "never";
 
-/// The extension of the files that taplo works on
-const TOML_EXTENSION: &str = "toml";
-
-/// The directory entry that the look does not read
-const GIT_DIRECTORY: &str = ".git";
-
 /// The taplo that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -109,61 +101,6 @@ pub struct Taplo {
 }
 
 impl Taplo {
-    /// Returns whether the project holds a file that taplo would look at
-    ///
-    /// The look walks the project from its root and stops at the first file
-    /// with the `.toml` extension, in the case that taplo matches. It reads
-    /// hidden directories, because taplo reads them, and it does not read
-    /// the `.git` entry, which holds no file of the project. It follows no
-    /// symbolic link, so a cycle of links cannot trap it.
-    ///
-    /// A directory that the look cannot read counts as holding TOML files. A
-    /// look that cannot prove absence must not hide a real check behind a
-    /// skip, and taplo reports its own failure when a run reaches it.
-    ///
-    /// The look and taplo can still disagree at the margins, because the
-    /// configuration of a project can exclude every file that the look
-    /// found. A caller that reaches taplo therefore reports what taplo saw.
-    // taplo[impl look.git]
-    // taplo[impl look.links]
-    // taplo[impl look.toml]
-    // taplo[impl look.unreadable]
-    pub async fn applies(root: &ProjectRoot) -> bool {
-        let mut pending = vec![root.get().to_path_buf()];
-
-        while let Some(directory) = pending.pop() {
-            let Ok(mut entries) = tokio::fs::read_dir(&directory).await else {
-                return true;
-            };
-
-            loop {
-                match entries.next_entry().await {
-                    Ok(Some(entry)) => {
-                        if entry.file_name() == GIT_DIRECTORY {
-                            continue;
-                        }
-
-                        let Ok(kind) = entry.file_type().await else {
-                            return true;
-                        };
-
-                        if kind.is_dir() {
-                            pending.push(entry.path());
-                        } else if kind.is_file()
-                            && entry.path().extension() == Some(OsStr::new(TOML_EXTENSION))
-                        {
-                            return true;
-                        }
-                    }
-                    Ok(None) => break,
-                    Err(_) => return true,
-                }
-            }
-        }
-
-        false
-    }
-
     /// Runs one operation and reads what taplo reported
     ///
     /// Taplo can lose the end of its report when it exits. The answer of a

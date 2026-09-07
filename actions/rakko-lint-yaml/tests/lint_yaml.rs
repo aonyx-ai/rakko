@@ -279,10 +279,10 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
     assert_eq!(locations(findings), ["deep/sub/notes.yaml"]);
 }
 
-// lintyaml[verify skip.hidden]
+// lintyaml[verify skip.unexamined]
 #[tokio::test]
 async fn run_reaches_a_file_under_a_hidden_directory() {
-    let project = Project::bare();
+    let project = Project::new();
     project.write(".github/workflows/ci.yml", VALID);
 
     let outcome = project.run().await;
@@ -416,25 +416,6 @@ async fn run_with_an_unreadable_file_stops() {
     );
 }
 
-// lintyaml[verify skip.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_yaml_only_behind_a_symbolic_link_skips() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("linked.yaml"), VALID)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
 // lintyaml[verify skip.unexamined]
 #[tokio::test]
 async fn run_whose_yamllint_examined_nothing_skips() {
@@ -464,36 +445,5 @@ async fn run_without_a_yamllint_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
-    );
-}
-
-// lintyaml[verify skip.missing]
-#[tokio::test]
-async fn run_without_yaml_files_names_what_it_looked_for() {
-    let project = Project::bare();
-    project.write("notes.txt", "Not YAML.\n");
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains(".yaml"),
-        "expected the reason to name the extension, got {reason:?}"
-    );
-}
-
-// lintyaml[verify skip.missing]
-#[tokio::test]
-async fn run_without_yaml_files_skips() {
-    let project = Project::bare();
-    project.write("notes.txt", "Not YAML.\n");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
     );
 }

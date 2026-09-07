@@ -17,8 +17,8 @@ use crate::comparison::Comparison;
 use crate::problem::TraceyProblem;
 use crate::tracey::{Coverage, Tracey};
 
-/// The reason of a run in a project that configures no tracey
-const NO_CONFIGURATION: &str = "the project holds no .config/tracey/config.styx";
+/// The reason of a run whose tracey tracks no requirements
+const NO_SPECIFICATIONS: &str = "tracey tracks no requirements in this project";
 
 /// The variable that names the base branch of a pull request
 ///
@@ -45,8 +45,7 @@ const BASE_REF: &str = "GITHUB_BASE_REF";
 /// project, and nothing about the repository of the project: the comparison
 /// that a pull request needs is built in a copy.
 ///
-/// The action applies to a project that configures tracey, and it skips
-/// visibly otherwise.
+/// A project whose tracey tracks no requirement skips visibly, and says so.
 ///
 /// # Examples
 ///
@@ -96,13 +95,6 @@ impl Action for CheckSpecs {
 /// tool, a question that tracey left unanswered, or the comparison that a pull
 /// request needs.
 async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
-    // checkspecs[impl skip.missing]
-    if !Tracey::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_CONFIGURATION),
-        });
-    }
-
     // checkspecs[impl tool.tracey]
     // checkspecs[impl tool.missing]
     let tracey = Tracey::resolve(context.root().clone())
@@ -112,6 +104,17 @@ async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
     // checkspecs[impl daemon.stop]
     // checkspecs[impl daemon.absent]
     tracey.stop().await?;
+
+    // checkspecs[impl coverage.open]
+    // checkspecs[impl coverage.summary]
+    let coverage = tracey.coverage().await?;
+
+    // checkspecs[impl skip.unconfigured]
+    if coverage.total == 0 {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_SPECIFICATIONS),
+        });
+    }
 
     // checkspecs[impl check.read]
     let problems = tracey.validate().await?;
@@ -142,10 +145,8 @@ async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
         });
     }
 
-    // checkspecs[impl coverage.open]
-    // checkspecs[impl coverage.summary]
     Ok(Outcome::Passed {
-        summary: Some(summary(tracey.coverage().await?)),
+        summary: Some(summary(coverage)),
     })
 }
 

@@ -62,9 +62,10 @@ pub struct Observation {
     /// Whether prettier refused the pattern of the run because nothing
     /// matched it
     ///
-    /// The look of a project runs before prettier and keeps this from
-    /// happening, so a run that reports it met a tree that changed under it,
-    /// or a look that disagrees with the pattern.
+    /// Prettier treats a pattern that matches nothing as an error, so this
+    /// is how a run reports that the project holds no file of the group. A
+    /// caller answers it as a run that had nothing to examine, not as a
+    /// failure.
     #[getset(get_copy = "pub")]
     unmatched_pattern: bool,
 }

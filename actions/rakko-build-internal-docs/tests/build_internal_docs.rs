@@ -432,53 +432,6 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
     );
 }
 
-// buildinternaldocs[verify skip.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_a_manifest_only_behind_a_symbolic_link_skips() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("Cargo.toml"), PACKAGE)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// buildinternaldocs[verify skip.git]
-#[tokio::test]
-async fn run_with_a_manifest_only_under_the_git_directory_skips() {
-    let project = Project::bare();
-    project.write(".git/Cargo.toml", PACKAGE);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// buildinternaldocs[verify skip.target]
-#[tokio::test]
-async fn run_with_a_manifest_only_under_the_target_directory_skips() {
-    let project = Project::bare();
-    project.write("target/debug/build/dep/Cargo.toml", PACKAGE);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
 // buildinternaldocs[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
@@ -526,27 +479,10 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// buildinternaldocs[verify skip.missing]
-#[tokio::test]
-async fn run_without_a_manifest_names_what_it_looked_for() {
-    let project = Project::bare();
-    project.write("README.md", "# Project\n");
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains("Cargo.toml"),
-        "expected the reason to name the manifest, got {reason:?}"
-    );
-}
-
-// buildinternaldocs[verify skip.missing]
+// buildinternaldocs[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
-    let project = Project::bare();
+    let project = Project::new();
     project.write("README.md", "# Project\n");
 
     let outcome = project.run().await;

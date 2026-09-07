@@ -21,8 +21,8 @@
 //!
 //! # Asynchronous Runtime
 //!
-//! The look at a project reads directories, and a run starts a program and
-//! waits for it. A [Tokio] runtime drives both, and they panic without one.
+//! A run starts a program and waits for it. A [Tokio] runtime drives that,
+//! and it panics without one.
 //!
 //! # Examples
 //!
@@ -37,19 +37,17 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let root = ProjectRoot::new("/home/otter/project".into());
 //!
-//! if Cargo::applies(&root).await {
-//!     let cargo = Cargo::resolve(root).await?;
+//! let cargo = Cargo::resolve(root).await?;
 //!
-//!     for workspace in cargo.roots().await? {
-//!         let execution = cargo
-//!             .invocation(&workspace)
-//!             .args(["clippy", "--message-format=json"])
-//!             .run()
-//!             .await?;
-//!         let report = CargoReport::read(&execution.stdout().to_string_lossy())?;
+//! for workspace in cargo.roots().await? {
+//!     let execution = cargo
+//!         .invocation(&workspace)
+//!         .args(["clippy", "--message-format=json"])
+//!         .run()
+//!         .await?;
+//!     let report = CargoReport::read(&execution.stdout().to_string_lossy())?;
 //!
-//!         println!("{} diagnostics", report.diagnostics().len());
-//!     }
+//!     println!("{} diagnostics", report.diagnostics().len());
 //! }
 //! # Ok(())
 //! # }

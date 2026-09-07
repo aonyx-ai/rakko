@@ -25,8 +25,8 @@ pub use self::args::FormatRustArgs;
 pub use self::error::FormatRustError;
 pub use self::report::{RustfmtProblem, RustfmtProblemDetail, RustfmtReport};
 
-/// The reason of a run that found no manifest
-const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The channel of the toolchain that rustfmt runs on
 ///
@@ -69,8 +69,8 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// remain. A run formats every workspace of the project, because the harness
 /// of a project is a package of its own.
 ///
-/// The action applies to a project that holds a manifest of cargo, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
+/// A project whose cargo discovers no workspace skips visibly, and says so.
+/// A run stops with an error when mise reports no
 /// cargo or no nightly toolchain, when the workspaces of the project cannot
 /// be discovered, when rustfmt warns about its configuration, and when
 /// rustfmt writes a report that the action does not recognize.
@@ -125,16 +125,6 @@ impl Action for FormatRust {
 /// the tool or the toolchain, the discovery of the workspaces, a rustfmt
 /// run, or the reading of a report.
 async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, FormatRustError> {
-    // formatrust[impl skip.git]
-    // formatrust[impl skip.links]
-    // formatrust[impl skip.missing]
-    // formatrust[impl skip.target]
-    if !Cargo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MANIFEST),
-        });
-    }
-
     // formatrust[impl tool.cargo]
     // formatrust[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
@@ -152,6 +142,13 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
         .roots()
         .await
         .map_err(|source| FormatRustError::UndiscoveredRoots { source })?;
+
+    // formatrust[impl skip.undiscovered]
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
 
     let mut findings = Vec::new();
     let mut repairs = Vec::new();

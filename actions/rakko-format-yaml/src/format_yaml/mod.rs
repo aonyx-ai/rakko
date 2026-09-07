@@ -30,13 +30,11 @@ const YAML_EXTENSION: &str = "yaml";
 /// The short extension that a project can give a YAML file
 const YML_EXTENSION: &str = "yml";
 
-/// The reason of a run that found no YAML file
-const NO_YAML_FILES: &str = "the project holds no file with the .yaml or .yml extension";
-
 /// The reason of a run whose prettier found nothing to examine
 ///
-/// The look of the action found a file, and prettier then matched none. The
-/// ignore files of the project explain the difference.
+/// Prettier refuses a pattern that matches no file, so this is what a project
+/// without files of the group reports. A project whose ignore files exclude
+/// every one of them reports it as well.
 const NOTHING_TO_EXAMINE: &str = "prettier found no YAML file to examine";
 
 /// The message of a finding about a file that is not formatted
@@ -59,8 +57,8 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// prettier rewrites the files that it can format, and the outcome carries one
 /// repair for each file that it rewrote, next to the problems that remain.
 ///
-/// The action applies to a project that holds YAML files, and it skips
-/// visibly otherwise. A run stops with an error when mise reports no prettier,
+/// A run whose prettier found no YAML file to examine skips visibly, and
+/// says so. A run stops with an error when mise reports no prettier,
 /// when a configuration of the project did not reach the run, and when
 /// prettier writes a report that the action does not recognize.
 ///
@@ -101,9 +99,9 @@ impl Action for FormatYaml {
 
 /// Runs the action against the project of the context
 ///
-/// The run examines the project, resolves prettier, and then reports or
-/// rewrites, depending on the arguments. An error that this function returns
-/// stops the run, and the caller reports it in the outcome.
+/// The run resolves prettier, and then reports or rewrites, depending on the
+/// arguments. An error that this function returns stops the run, and the
+/// caller reports it in the outcome.
 ///
 /// # Errors
 ///
@@ -111,16 +109,6 @@ impl Action for FormatYaml {
 /// tool, a prettier run, or the reading of the report.
 async fn drive(context: &Context, args: &FormatYamlArgs) -> Result<Outcome, FormatYamlError> {
     let filter = filter();
-
-    // formatyaml[impl skip.dependencies]
-    // formatyaml[impl skip.git]
-    // formatyaml[impl skip.links]
-    // formatyaml[impl skip.missing]
-    if !Prettier::applies(context.root(), &filter).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_YAML_FILES),
-        });
-    }
 
     // formatyaml[impl tool.prettier]
     // formatyaml[impl tool.missing]
@@ -136,7 +124,6 @@ async fn drive(context: &Context, args: &FormatYamlArgs) -> Result<Outcome, Form
 }
 
 /// Returns the filter that selects the files of the action
-// formatyaml[impl skip.missing]
 fn filter() -> Filter {
     Filter::new([
         FileExtension::new(YAML_EXTENSION),

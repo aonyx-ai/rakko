@@ -22,8 +22,8 @@ use rakko_worktree::Worktree;
 
 pub use self::error::CheckLatestDepsError;
 
-/// The reason of a run that found no manifest
-const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The argument that asks cargo for the newest versions that the manifests
 /// allow
@@ -62,8 +62,8 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// run finds. A tree with changes in it is copied as it is, so a contributor
 /// reads the answer for the manifest that they are editing.
 ///
-/// The action applies to a project that holds a manifest of cargo, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
+/// A project whose cargo discovers no workspace skips visibly, and says so.
+/// A run stops with an error when mise reports no
 /// cargo, when the project is no git repository, when the copy cannot be
 /// created, when the workspaces of the project cannot be discovered, and when
 /// nextest writes a report that the run cannot answer from.
@@ -125,16 +125,6 @@ impl Action for CheckLatestDeps {
 /// tool, the discovery of the workspaces, the creation of the copy, a run of
 /// cargo, or a run of nextest that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
-    // checklatestdeps[impl skip.git]
-    // checklatestdeps[impl skip.links]
-    // checklatestdeps[impl skip.missing]
-    // checklatestdeps[impl skip.target]
-    if !Cargo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MANIFEST),
-        });
-    }
-
     // checklatestdeps[impl tool.cargo]
     // checklatestdeps[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
@@ -146,6 +136,13 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
         .roots()
         .await
         .map_err(|source| CheckLatestDepsError::UndiscoveredRoots { source })?;
+
+    // checklatestdeps[impl skip.undiscovered]
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
 
     // checklatestdeps[impl copy.disposable]
     // checklatestdeps[impl copy.unavailable]

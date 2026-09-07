@@ -15,8 +15,7 @@
 //! not finish becomes a finding at the manifest of its workspace, a test that
 //! failed becomes a finding at the position where it panicked, and a build
 //! that does not finish becomes findings from the diagnostics of the compiler.
-//! The action applies to a project that holds a manifest of cargo, and it
-//! skips visibly otherwise.
+//! A project whose cargo discovers no workspace skips visibly, and says so.
 //!
 //! # Examples
 //!

@@ -14,8 +14,8 @@ use rakko_nextest::{Lockfile, Nextest};
 
 pub use self::error::TestRustError;
 
-/// The reason of a run that found no manifest
-const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The action that runs the tests of a project
 ///
@@ -33,8 +33,8 @@ const NO_MANIFEST: &str = "the project holds no file named Cargo.toml";
 /// compiler. A workspace without a test ran no test, and the run says so
 /// instead of failing.
 ///
-/// The action applies to a project that holds a manifest of cargo, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
+/// A project whose cargo discovers no workspace skips visibly, and says so.
+/// A run stops with an error when mise reports no
 /// cargo, when the workspaces of the project cannot be discovered, and when
 /// nextest writes a report that the run cannot answer from.
 ///
@@ -88,16 +88,6 @@ impl Action for TestRust {
 /// the tool, the discovery of the workspaces, or a run of nextest that left
 /// no answer.
 async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
-    // testrust[impl skip.git]
-    // testrust[impl skip.links]
-    // testrust[impl skip.missing]
-    // testrust[impl skip.target]
-    if !Cargo::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_MANIFEST),
-        });
-    }
-
     // testrust[impl tool.cargo]
     // testrust[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
@@ -109,6 +99,13 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
         .roots()
         .await
         .map_err(|source| TestRustError::UndiscoveredRoots { source })?;
+
+    // testrust[impl skip.undiscovered]
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
 
     let nextest = Nextest::new(cargo, Lockfile::Writable);
     let mut findings: Vec<Finding> = Vec::new();

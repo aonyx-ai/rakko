@@ -365,39 +365,6 @@ async fn run_with_an_unreadable_file_names_the_file() {
     assert_eq!(locations(findings), ["secret.toml"]);
 }
 
-// linttoml[verify skip.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_toml_only_behind_a_symbolic_link_skips() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("linked.toml"), VALID)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// linttoml[verify skip.git]
-#[tokio::test]
-async fn run_with_toml_only_under_the_git_directory_skips() {
-    let project = Project::bare();
-    project.write(".git/config.toml", VALID);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
 // linttoml[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_taplo_stops() {
@@ -409,36 +376,5 @@ async fn run_without_a_taplo_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
-    );
-}
-
-// linttoml[verify skip.missing]
-#[tokio::test]
-async fn run_without_toml_files_names_what_it_looked_for() {
-    let project = Project::bare();
-    project.write("README.md", "# Project\n");
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains(".toml"),
-        "expected the reason to name the extension, got {reason:?}"
-    );
-}
-
-// linttoml[verify skip.missing]
-#[tokio::test]
-async fn run_without_toml_files_skips() {
-    let project = Project::bare();
-    project.write("README.md", "# Project\n");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
     );
 }

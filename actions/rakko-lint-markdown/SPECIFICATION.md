@@ -34,37 +34,12 @@ The action MUST identify itself as `lint-markdown`.
 
 ## Applicability
 
-The action applies to a project that holds Markdown files. The examination is
-a cheap look of the action's own, and it runs before the tool resolves, so
-that a broad bundle stays safe: a project without Markdown files and without a
-markdownlint skips visibly instead of stopping over a tool that it has no
-reason to install.
-
-The look mirrors the discovery of markdownlint where mirroring is cheap. It
-matches the `.md` and `.markdown` extensions, which are the two that
-markdownlint collects below a directory, and it reads no entry whose name
-starts with a dot, because markdownlint reads none either. The rule about the
-dot covers the `.git` entry, which holds no file of the project, and it needs
-no exception for the directory of installed packages, which markdownlint reads
-like any other.
-
-The look follows no symbolic link, so that a cycle of links cannot trap it,
-and markdownlint follows one. A project whose Markdown files sit only behind a
-link therefore skips. The look and markdownlint can disagree at the margins
-for the ignore file of the project as well, which can exclude every file that
-the look found, and a run that reaches markdownlint then reports what
-markdownlint saw.
-
-lintmarkdown[skip.missing]
-A run in a project that holds no file with the `.md` or the `.markdown`
-extension MUST report that the action does not apply, and MUST NOT resolve the
-tool. The reason MUST name what the run looked for.
-
-lintmarkdown[skip.hidden]
-The examination MUST NOT read an entry whose name starts with a dot.
-
-lintmarkdown[skip.links]
-The examination MUST NOT follow a symbolic link.
+The action applies to a project that holds Markdown files, and markdownlint is
+what decides that. A run that resolves no file answers with its usage text
+instead of a report, so a project with nothing to lint reports itself, and the
+action turns that into a skip. A project whose ignore file excludes every
+Markdown file reports the same way, which is the right answer: markdownlint
+examined nothing either way.
 
 lintmarkdown[skip.unexamined]
 A run whose markdownlint examined no file MUST report that the action does not

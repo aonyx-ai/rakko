@@ -23,38 +23,6 @@ implements or tests a requirement references the identifier in a comment.
 [Tracey] checks that every requirement is implemented and tested. The key word
 MUST has the meaning that [RFC 2119] defines.
 
-## Look
-
-The look tells whether taplo has anything to do in a project. It is cheap, and
-it runs before the tool resolves, so that a broad bundle stays safe: a project
-without TOML files and without a taplo skips visibly instead of stopping over
-a tool that it has no reason to install.
-
-The look mirrors the discovery of taplo where mirroring is cheap. It matches
-the `.toml` extension with the case that taplo matches, and it reads hidden
-directories, because taplo reads them. It does not read the `.git` entry,
-which holds no file of the project, and it follows no symbolic link, so that a
-cycle of links cannot trap it.
-
-The look and taplo can still disagree at the margins, because a configuration
-can exclude every file that the look found. A caller that reaches taplo
-therefore reports what taplo saw.
-
-taplo[look.toml]
-The crate MUST report whether the project holds a file with the `.toml`
-extension, below the root that the caller names.
-
-taplo[look.git]
-The look MUST NOT read the `.git` entry of the project.
-
-taplo[look.links]
-The look MUST NOT follow a symbolic link.
-
-taplo[look.unreadable]
-A directory that the look cannot read MUST count as a directory that holds
-TOML files. A look that cannot prove absence must not hide a real check behind
-a skip.
-
 ## Tool
 
 The taplo that runs is the taplo that mise installed for the project, at the

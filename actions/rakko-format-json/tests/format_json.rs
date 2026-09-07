@@ -206,27 +206,10 @@ async fn run_in_a_formatted_project_passes() {
     );
 }
 
-// formatjson[verify skip.missing]
-#[tokio::test]
-async fn run_in_a_project_without_json_names_what_it_looked_for() {
-    let project = Project::bare();
-    project.write("notes.txt", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains(".json"),
-        "expected the reason to name the extension, got {reason}"
-    );
-}
-
-// formatjson[verify skip.missing]
+// formatjson[verify skip.unmatched]
 #[tokio::test]
 async fn run_in_a_project_without_json_skips() {
-    let project = Project::bare();
+    let project = Project::new();
     project.write("notes.txt", FORMATTED);
 
     let outcome = project.run(false).await;
@@ -463,53 +446,6 @@ async fn run_with_fix_rewrites_the_file() {
     project.run(true).await;
 
     assert_eq!(project.read("messy.json"), FORMATTED);
-}
-
-// formatjson[verify skip.dependencies]
-#[tokio::test]
-async fn run_with_json_only_under_the_dependencies_skips() {
-    let project = Project::bare();
-    project.write("node_modules/package/README.json", UNFORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// formatjson[verify skip.git]
-#[tokio::test]
-async fn run_with_json_only_under_the_git_directory_skips() {
-    let project = Project::bare();
-    project.write(".git/description.json", UNFORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// formatjson[verify skip.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_json_only_behind_a_symbolic_link_skips() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("linked.json"), UNFORMATTED)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
 }
 
 // formatjson[verify check.read]

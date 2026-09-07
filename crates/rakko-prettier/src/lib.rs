@@ -21,13 +21,12 @@
 //!
 //! # Asynchronous Runtime
 //!
-//! The look at a project reads directories, and a run starts a program and
-//! waits for it. A [Tokio] runtime drives both, and they panic without one.
+//! A run starts a program and waits for it. A [Tokio] runtime drives that,
+//! and it panics without one.
 //!
 //! # Examples
 //!
-//! An action looks at the project, resolves prettier, and reads what one
-//! operation reported:
+//! An action resolves prettier and reads what one operation reported:
 //!
 //! ```no_run
 //! use rakko_action::ProjectRoot;
@@ -38,10 +37,12 @@
 //! let root = ProjectRoot::new("/home/otter/project".into());
 //! let filter = Filter::new([FileExtension::new("yaml"), FileExtension::new("yml")]);
 //!
-//! if Prettier::applies(&root, &filter).await {
-//!     let prettier = Prettier::resolve(root).await?;
-//!     let observation = prettier.observe(Operation::Report, &filter).await?;
+//! let prettier = Prettier::resolve(root).await?;
+//! let observation = prettier.observe(Operation::Report, &filter).await?;
 //!
+//! if observation.unmatched_pattern() {
+//!     println!("nothing to examine");
+//! } else {
 //!     println!("{} problems", observation.problems().len());
 //! }
 //! # Ok(())

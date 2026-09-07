@@ -43,36 +43,16 @@ The action MUST identify itself as `lint-github-actions`.
 
 ## Applicability
 
-The action applies to a project that holds GitHub Actions workflows. The
-examination is a cheap look of the action's own, and it runs before the tool
-resolves, so that a broad bundle stays safe. A project without workflows and
-without a zizmor skips visibly instead of stopping over a tool that it has no
-reason to install.
+The action applies to a project that zizmor finds something to audit in, and
+zizmor is what decides that. A run asks zizmor to stop at an input it cannot
+read and reports an empty collection as its own status, so a project with
+nothing to audit reports itself, and the action turns that into a skip.
 
-The look reads one directory: `.github/workflows` below the root of the
-project. GitHub reads a workflow in that directory and nowhere else, so a
-project with a workflow has one there. The look matches the `.yaml` and the
-`.yml` extension, which are the two that GitHub reads.
-
-The look follows no symbolic link, so that a link cannot lead it out of the
-project. A directory that the look cannot read counts as holding workflows,
-because a look that cannot prove absence must not hide a real check behind a
-skip.
-
-Zizmor collects more than the workflows of a project. It also collects an
-action definition, a Dependabot configuration, and the configuration and the
-hooks of pre-commit. The look therefore answers narrower than zizmor, and a
-project whose only auditable file is one of those skips. Such a project has no
-GitHub Actions workflows, which is what this action is named for, and a
-project that adds its first workflow gets the rest of the audit with it.
-
-lintgithubactions[skip.missing]
-A run in a project whose `.github/workflows` directory holds no file with the
-`.yaml` or the `.yml` extension MUST report that the action does not apply,
-and MUST NOT resolve the tool. The reason MUST name what the run looked for.
-
-lintgithubactions[skip.links]
-The examination MUST NOT follow a symbolic link.
+Zizmor collects more than the workflows of a project: an action definition, a
+Dependabot configuration, and the configuration and the hooks of pre-commit
+count as well. A run audits every one of them, as it always did once it
+started, and a project whose only auditable file is one of those is now
+audited rather than skipped.
 
 lintgithubactions[skip.uncollected]
 A run whose zizmor collects no input MUST report that the action does not

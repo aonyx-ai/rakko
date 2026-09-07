@@ -16,15 +16,11 @@ pub use self::error::LintGitHubActionsError;
 use crate::problem::ZizmorProblem;
 use crate::zizmor::Zizmor;
 
-/// The reason of a run that found no workflow
-const NO_WORKFLOWS: &str =
-    "the .github/workflows directory of the project holds no .yaml or .yml file";
-
 /// The reason of a run whose zizmor collected nothing
 ///
-/// The look of the action found a workflow, and zizmor then collected none.
-/// The configuration of the project, and the ignore rules of the version
-/// control system, explain the difference.
+/// Zizmor gives an empty collection its own exit status, so this is what a
+/// project with nothing to audit reports. The configuration of the project,
+/// and the ignore rules of the version control system, can empty it too.
 const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 
 /// The action that audits the GitHub Actions workflows of a project
@@ -96,9 +92,8 @@ impl Action for LintGitHubActions {
 /// it. An error that this function returns stops the run, and the caller
 /// reports it in the outcome.
 ///
-/// A passing run carries no summary. Zizmor names no count in its report, and
-/// it collects more than the workflows that the look of the action counted, so
-/// a count from the action would speak about a different set of files than the
+/// A passing run carries no summary. Zizmor names no count in its report, so
+/// a count from the action would be a guess about the set of files that the
 /// run examined.
 ///
 /// # Errors
@@ -106,14 +101,6 @@ impl Action for LintGitHubActions {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the zizmor run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintGitHubActionsError> {
-    // lintgithubactions[impl skip.links]
-    // lintgithubactions[impl skip.missing]
-    if !Zizmor::applies(context.root()).await {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_WORKFLOWS),
-        });
-    }
-
     // lintgithubactions[impl tool.missing]
     // lintgithubactions[impl tool.zizmor]
     let zizmor = Zizmor::resolve(context.root().clone())
