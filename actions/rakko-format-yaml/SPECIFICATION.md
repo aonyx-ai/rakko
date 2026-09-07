@@ -35,40 +35,12 @@ The action MUST identify itself as `format-yaml`.
 
 ## Applicability
 
-The action applies to a project that holds YAML files. The examination is
-a cheap look of the action's own, and it runs before the tool resolves, so
-that a broad bundle stays safe: a project without YAML files and without a
-prettier skips visibly instead of stopping over a tool that it has no reason
-to install. The look also keeps a run from starting a prettier that would
-refuse a pattern which matches no file.
-
-The look mirrors the files that the run examines where mirroring is cheap. It
-matches the `.yaml` and `.yml` extensions with the case that prettier
-matches, and it reads
-hidden directories, because prettier reads them. It reads neither the `.git`
-entry, which holds no file of the project, nor a `node_modules` entry, which
-prettier excludes, and it follows no symbolic link, so that a cycle of links
-cannot trap it.
-
-The look and prettier can still disagree at the margins, because the ignore
-files of a project can exclude every file that the look found. A run that
-reaches prettier then reports what prettier saw, and a prettier that refuses
-the pattern reports that the action found nothing to do after all.
-
-formatyaml[skip.missing]
-A run in a project that holds no file with the `.yaml` or the `.yml`
-extension MUST report
-that the action does not apply, and MUST NOT resolve the tool. The reason MUST
-name what the run looked for.
-
-formatyaml[skip.git]
-The examination MUST NOT read the `.git` entry of the project.
-
-formatyaml[skip.dependencies]
-The examination MUST NOT read the `node_modules` entry of a directory.
-
-formatyaml[skip.links]
-The examination MUST NOT follow a symbolic link.
+The action applies to a project that holds YAML files, and prettier is what
+decides that. Prettier treats a pattern that matches no file as an error, so a
+project without YAML files reports itself, and the action answers with a
+skip rather than with a problem. A project whose ignore files exclude every
+YAML file reports the same way, which is the right answer: prettier had
+nothing to examine either way.
 
 formatyaml[skip.unmatched]
 A run whose prettier matched no file MUST report that the action does not

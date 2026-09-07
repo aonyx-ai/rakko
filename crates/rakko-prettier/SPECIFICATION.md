@@ -60,44 +60,6 @@ extension.
 prettier[select.unknown]
 A run MUST let prettier skip a file whose language prettier does not know.
 
-## Look
-
-The look tells whether prettier has anything to do in a project. It is cheap,
-and it runs before the tool resolves, so that a broad bundle stays safe: a
-project without files of the group and without a prettier skips visibly
-instead of stopping over a tool that it has no reason to install. The look
-also keeps a run from starting a prettier that would refuse a pattern which
-matches no file.
-
-The look mirrors the selection where mirroring is cheap. It matches the
-extensions of the selection with the case that prettier matches, and it reads
-hidden directories, because prettier reads them. It does not read the `.git`
-entry, which holds no file of the project, and it does not read the
-`node_modules` entry, which prettier excludes. It follows no symbolic link,
-so that a cycle of links cannot trap it.
-
-The look and prettier can still disagree at the margins, because the ignore
-files of a project can exclude every file that the look found. A caller that
-reaches prettier therefore reports what prettier saw.
-
-prettier[look.files]
-The crate MUST report whether the project holds a file that the selection
-matches, below the root that the caller names.
-
-prettier[look.git]
-The look MUST NOT read the `.git` entry of the project.
-
-prettier[look.dependencies]
-The look MUST NOT read the `node_modules` entry of a directory.
-
-prettier[look.links]
-The look MUST NOT follow a symbolic link.
-
-prettier[look.unreadable]
-A directory that the look cannot read MUST count as a directory that holds
-files of the selection. A look that cannot prove absence must not hide a real
-check behind a skip.
-
 ## Tool
 
 The prettier that runs is the prettier that mise installed for the project, at

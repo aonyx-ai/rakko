@@ -90,11 +90,6 @@ impl Project {
         project
     }
 
-    /// Returns whether prettier has anything to do in this project
-    async fn applies(&self, filter: &Filter) -> bool {
-        Prettier::applies(&self.root(), filter).await
-    }
-
     /// Returns what a file of this project holds
     fn content(&self, path: &str) -> String {
         std::fs::read_to_string(self.directory.path().join(path))
@@ -184,85 +179,6 @@ impl Drop for Project {
             .arg(self.directory.path().join("mise.toml"))
             .status();
     }
-}
-
-// prettier[verify look.files]
-#[tokio::test]
-async fn applies_with_a_file_of_the_filter_is_true() {
-    let project = Project::bare();
-    project.write("sub/clean.md", FORMATTED);
-
-    let applies = project.applies(&markdown()).await;
-
-    assert!(applies);
-}
-
-// prettier[verify look.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn applies_with_a_file_only_behind_a_symbolic_link_is_false() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("linked.md"), FORMATTED)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let applies = project.applies(&markdown()).await;
-
-    assert!(!applies);
-}
-
-// prettier[verify look.dependencies]
-#[tokio::test]
-async fn applies_with_a_file_only_under_the_dependencies_is_false() {
-    let project = Project::bare();
-    project.write("node_modules/package/README.md", FORMATTED);
-
-    let applies = project.applies(&markdown()).await;
-
-    assert!(!applies);
-}
-
-// prettier[verify look.git]
-#[tokio::test]
-async fn applies_with_a_file_only_under_the_git_directory_is_false() {
-    let project = Project::bare();
-    project.write(".git/description.md", FORMATTED);
-
-    let applies = project.applies(&markdown()).await;
-
-    assert!(!applies);
-}
-
-// prettier[verify look.unreadable]
-#[cfg(unix)]
-#[tokio::test]
-async fn applies_with_an_unreadable_directory_is_true() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let project = Project::bare();
-    project.write("closed/notes.txt", FORMATTED);
-    let closed = project.directory.path().join("closed");
-    std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o000))
-        .expect("the test removes the permissions of a directory");
-
-    let applies = project.applies(&markdown()).await;
-
-    std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o755))
-        .expect("the test restores the permissions of a directory");
-    assert!(applies);
-}
-
-// prettier[verify look.files]
-#[tokio::test]
-async fn applies_without_a_file_of_the_filter_is_false() {
-    let project = Project::bare();
-    project.write("main.rs", FOREIGN);
-
-    let applies = project.applies(&markdown()).await;
-
-    assert!(!applies);
 }
 
 // prettier[verify run.operation]

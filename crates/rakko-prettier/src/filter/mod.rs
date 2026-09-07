@@ -2,8 +2,7 @@
 //!
 //! Prettier discovers no files of its own: a run names them, and this module
 //! holds that name. An action states the extensions of the group that it
-//! wraps, and the filter turns them into the pattern that prettier reads and
-//! into the question that the look of a project asks about a file.
+//! wraps, and the filter turns them into the pattern that prettier reads.
 
 /// The extension of a file that a run examines
 mod extension;
