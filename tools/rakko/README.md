@@ -17,7 +17,7 @@ command.
 
 ## Layout
 
-The package sits outside the workspace in `crates/`, so it resolves its
+The package sits outside the workspace of the repository, so it resolves its
 dependencies on its own and carries its own `Cargo.lock`. The binary is named
 `rakko`, and the package is named `harness`, because a package that depends on
 the `rakko` crate cannot carry that name as well.

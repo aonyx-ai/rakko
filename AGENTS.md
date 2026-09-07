@@ -17,8 +17,12 @@ shaped the way it is. [ADR-001][adr-001] defines the process.
   `adrs/000-template.md`, give it the next free number, and open it in its own
   pull request. A new ADR can also supersede an existing one.
 
-Each crate has a specification in `crates/<crate>/SPECIFICATION.md` that
-documents what the crate does. A specification is a list of requirements with
+Crates are grouped by who picks them. `actions/` holds the actions that a
+project mounts, and `crates/` holds the contract, the projection, and the
+machinery that the actions share. [ADR-012] records this decision.
+
+Each crate has a specification in `<crate>/SPECIFICATION.md` that documents
+what the crate does. A specification is a list of requirements with
 identifiers, such as `rakko[placeholder.add]`. The prefix is the name of the
 crate without `rakko-`. [Tracey] links each requirement to the code that
 implements it and to the test that verifies it. `just check-specs` validates
@@ -180,5 +184,6 @@ these links, and `.config/tracey/config.styx` lists the specifications.
 
 [adr-001]: adrs/001-adrs.md
 [adr-002]: adrs/002-specifications.md
+[adr-012]: adrs/012-repository-layout.md
 [git-style-guide]: https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [tracey]: https://tracey.bearcove.eu/

@@ -32,12 +32,12 @@ specs (
     {
         name build-internal-docs
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-build-internal-docs/SPECIFICATION.md)
+        include (actions/rakko-build-internal-docs/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-build-internal-docs/src/**/*.rs)
-                test_include (crates/rakko-build-internal-docs/tests/**/*.rs)
+                include (actions/rakko-build-internal-docs/src/**/*.rs)
+                test_include (actions/rakko-build-internal-docs/tests/**/*.rs)
             }
         )
     }
@@ -56,72 +56,72 @@ specs (
     {
         name check-dependencies
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-check-dependencies/SPECIFICATION.md)
+        include (actions/rakko-check-dependencies/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-check-dependencies/src/**/*.rs)
-                test_include (crates/rakko-check-dependencies/tests/**/*.rs)
+                include (actions/rakko-check-dependencies/src/**/*.rs)
+                test_include (actions/rakko-check-dependencies/tests/**/*.rs)
             }
         )
     }
     {
         name check-latest-deps
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-check-latest-deps/SPECIFICATION.md)
+        include (actions/rakko-check-latest-deps/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-check-latest-deps/src/**/*.rs)
-                test_include (crates/rakko-check-latest-deps/tests/**/*.rs)
+                include (actions/rakko-check-latest-deps/src/**/*.rs)
+                test_include (actions/rakko-check-latest-deps/tests/**/*.rs)
             }
         )
     }
     {
         name check-minimal-deps
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-check-minimal-deps/SPECIFICATION.md)
+        include (actions/rakko-check-minimal-deps/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-check-minimal-deps/src/**/*.rs)
-                test_include (crates/rakko-check-minimal-deps/tests/**/*.rs)
+                include (actions/rakko-check-minimal-deps/src/**/*.rs)
+                test_include (actions/rakko-check-minimal-deps/tests/**/*.rs)
             }
         )
     }
     {
         name check-msrv
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-check-msrv/SPECIFICATION.md)
+        include (actions/rakko-check-msrv/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-check-msrv/src/**/*.rs)
-                test_include (crates/rakko-check-msrv/tests/**/*.rs)
+                include (actions/rakko-check-msrv/src/**/*.rs)
+                test_include (actions/rakko-check-msrv/tests/**/*.rs)
             }
         )
     }
     {
         name check-specs
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-check-specs/SPECIFICATION.md)
+        include (actions/rakko-check-specs/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-check-specs/src/**/*.rs)
-                test_include (crates/rakko-check-specs/tests/**/*.rs)
+                include (actions/rakko-check-specs/src/**/*.rs)
+                test_include (actions/rakko-check-specs/tests/**/*.rs)
             }
         )
     }
     {
         name check-unused-deps
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-check-unused-deps/SPECIFICATION.md)
+        include (actions/rakko-check-unused-deps/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-check-unused-deps/src/**/*.rs)
-                test_include (crates/rakko-check-unused-deps/tests/**/*.rs)
+                include (actions/rakko-check-unused-deps/src/**/*.rs)
+                test_include (actions/rakko-check-unused-deps/tests/**/*.rs)
             }
         )
     }
@@ -140,120 +140,120 @@ specs (
     {
         name format-json
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-format-json/SPECIFICATION.md)
+        include (actions/rakko-format-json/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-format-json/src/**/*.rs)
-                test_include (crates/rakko-format-json/tests/**/*.rs)
+                include (actions/rakko-format-json/src/**/*.rs)
+                test_include (actions/rakko-format-json/tests/**/*.rs)
             }
         )
     }
     {
         name format-markdown
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-format-markdown/SPECIFICATION.md)
+        include (actions/rakko-format-markdown/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-format-markdown/src/**/*.rs)
-                test_include (crates/rakko-format-markdown/tests/**/*.rs)
+                include (actions/rakko-format-markdown/src/**/*.rs)
+                test_include (actions/rakko-format-markdown/tests/**/*.rs)
             }
         )
     }
     {
         name format-rust
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-format-rust/SPECIFICATION.md)
+        include (actions/rakko-format-rust/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-format-rust/src/**/*.rs)
-                test_include (crates/rakko-format-rust/tests/**/*.rs)
+                include (actions/rakko-format-rust/src/**/*.rs)
+                test_include (actions/rakko-format-rust/tests/**/*.rs)
             }
         )
     }
     {
         name format-toml
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-format-toml/SPECIFICATION.md)
+        include (actions/rakko-format-toml/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-format-toml/src/**/*.rs)
-                test_include (crates/rakko-format-toml/tests/**/*.rs)
+                include (actions/rakko-format-toml/src/**/*.rs)
+                test_include (actions/rakko-format-toml/tests/**/*.rs)
             }
         )
     }
     {
         name format-yaml
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-format-yaml/SPECIFICATION.md)
+        include (actions/rakko-format-yaml/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-format-yaml/src/**/*.rs)
-                test_include (crates/rakko-format-yaml/tests/**/*.rs)
+                include (actions/rakko-format-yaml/src/**/*.rs)
+                test_include (actions/rakko-format-yaml/tests/**/*.rs)
             }
         )
     }
     {
         name lint-github-actions
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-lint-github-actions/SPECIFICATION.md)
+        include (actions/rakko-lint-github-actions/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-lint-github-actions/src/**/*.rs)
-                test_include (crates/rakko-lint-github-actions/tests/**/*.rs)
+                include (actions/rakko-lint-github-actions/src/**/*.rs)
+                test_include (actions/rakko-lint-github-actions/tests/**/*.rs)
             }
         )
     }
     {
         name lint-markdown
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-lint-markdown/SPECIFICATION.md)
+        include (actions/rakko-lint-markdown/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-lint-markdown/src/**/*.rs)
-                test_include (crates/rakko-lint-markdown/tests/**/*.rs)
+                include (actions/rakko-lint-markdown/src/**/*.rs)
+                test_include (actions/rakko-lint-markdown/tests/**/*.rs)
             }
         )
     }
     {
         name lint-rust
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-lint-rust/SPECIFICATION.md)
+        include (actions/rakko-lint-rust/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-lint-rust/src/**/*.rs)
-                test_include (crates/rakko-lint-rust/tests/**/*.rs)
+                include (actions/rakko-lint-rust/src/**/*.rs)
+                test_include (actions/rakko-lint-rust/tests/**/*.rs)
             }
         )
     }
     {
         name lint-toml
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-lint-toml/SPECIFICATION.md)
+        include (actions/rakko-lint-toml/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-lint-toml/src/**/*.rs)
-                test_include (crates/rakko-lint-toml/tests/**/*.rs)
+                include (actions/rakko-lint-toml/src/**/*.rs)
+                test_include (actions/rakko-lint-toml/tests/**/*.rs)
             }
         )
     }
     {
         name lint-yaml
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-lint-yaml/SPECIFICATION.md)
+        include (actions/rakko-lint-yaml/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-lint-yaml/src/**/*.rs)
-                test_include (crates/rakko-lint-yaml/tests/**/*.rs)
+                include (actions/rakko-lint-yaml/src/**/*.rs)
+                test_include (actions/rakko-lint-yaml/tests/**/*.rs)
             }
         )
     }
@@ -296,12 +296,12 @@ specs (
     {
         name test-rust
         source_url https://github.com/aonyx-ai/rakko
-        include (crates/rakko-test-rust/SPECIFICATION.md)
+        include (actions/rakko-test-rust/SPECIFICATION.md)
         impls (
             {
                 name rust
-                include (crates/rakko-test-rust/src/**/*.rs)
-                test_include (crates/rakko-test-rust/tests/**/*.rs)
+                include (actions/rakko-test-rust/src/**/*.rs)
+                test_include (actions/rakko-test-rust/tests/**/*.rs)
             }
         )
     }
