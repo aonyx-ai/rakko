@@ -39,7 +39,7 @@ the task can change its tool without renaming the command of every project.
 lintyaml[name]
 The action MUST identify itself as `lint-yaml`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that holds YAML files, and yamllint is what
 decides that. A run asks yamllint which files it examines before it lints

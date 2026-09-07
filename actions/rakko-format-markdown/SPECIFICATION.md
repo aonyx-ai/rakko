@@ -33,7 +33,7 @@ the task can change its tool without renaming the command of every project.
 formatmarkdown[name]
 The action MUST identify itself as `format-markdown`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that holds Markdown files, and prettier is what
 decides that. Prettier treats a pattern that matches no file as an error, so a

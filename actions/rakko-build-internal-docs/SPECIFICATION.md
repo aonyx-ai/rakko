@@ -35,7 +35,7 @@ project publishes for its users, which a task of its own builds.
 buildinternaldocs[name]
 The action MUST identify itself as `build-internal-docs`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that holds a cargo workspace, and cargo is
 what decides that. A run discovers the workspace roots of the project before

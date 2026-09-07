@@ -41,7 +41,7 @@ the task can change its tool without renaming the command of every project.
 lintgithubactions[name]
 The action MUST identify itself as `lint-github-actions`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that zizmor finds something to audit in, and
 zizmor is what decides that. A run asks zizmor to stop at an input it cannot

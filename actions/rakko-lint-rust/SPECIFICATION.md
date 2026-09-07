@@ -28,7 +28,7 @@ the task can change its tool without renaming the command of every project.
 lintrust[name]
 The action MUST identify itself as `lint-rust`.
 
-## Applicability
+## Skipping
 
 The action applies to a project that holds a cargo workspace, and cargo is
 what decides that. A run discovers the workspace roots of the project before
