@@ -29,32 +29,14 @@ The action MUST identify itself as `format-toml`.
 
 ## Applicability
 
-The action applies to a project that holds TOML files. The examination is a
-cheap look of the action's own, and it runs before the tool resolves, so that
-a broad bundle stays safe: a project without TOML files and without a taplo
-skips visibly instead of stopping over a tool that it has no reason to
-install.
+The action applies to a project that holds TOML files, and taplo is what
+decides that. Taplo reports a run that collected nothing on a log stream it
+truncates on exit, so that answer arrives about four times in five and cannot
+carry a requirement. A project without TOML files therefore passes, having
+formatted nothing, rather than reporting that the action does not apply.
 
-The look mirrors the discovery of taplo where mirroring is cheap. It matches
-the `.toml` extension with the case that taplo matches, and it reads hidden
-directories, because taplo reads them. It does not read the `.git` entry,
-which holds no file of the project, and it follows no symbolic link, so that
-a cycle of links cannot trap it. A directory that the look cannot read counts
-as applicable, because a look that cannot prove absence must not hide a real
-check behind a skip. The look and taplo can still disagree at the margins — a
-configuration can exclude every file that the look found — and a run that
-reaches taplo then reports what taplo saw.
-
-formattoml[skip.missing]
-A run in a project that holds no file with the `.toml` extension MUST report
-that the action does not apply, and MUST NOT resolve the tool. The reason
-MUST name what the run looked for.
-
-formattoml[skip.git]
-The examination MUST NOT read the `.git` entry of the project.
-
-formattoml[skip.links]
-The examination MUST NOT follow a symbolic link.
+Little rests on the difference. A project marks its root with a TOML file, so
+a project that a run can reach holds at least one.
 
 ## Arguments
 

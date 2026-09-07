@@ -14,13 +14,12 @@
 //!
 //! # Asynchronous Runtime
 //!
-//! The look at a project reads directories, and a run starts a program and
-//! waits for it. A [Tokio] runtime drives both, and they panic without one.
+//! A run starts a program and waits for it. A [Tokio] runtime drives that,
+//! and it panics without one.
 //!
 //! # Examples
 //!
-//! An action looks at the project, resolves taplo, and reads what one
-//! operation reported:
+//! An action resolves taplo and reads what one operation reported:
 //!
 //! ```no_run
 //! use rakko_action::ProjectRoot;
@@ -30,12 +29,10 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let root = ProjectRoot::new("/home/otter/project".into());
 //!
-//! if Taplo::applies(&root).await {
-//!     let taplo = Taplo::resolve(root).await?;
-//!     let observation = taplo.observe(Operation::Lint).await?;
+//! let taplo = Taplo::resolve(root).await?;
+//! let observation = taplo.observe(Operation::Lint).await?;
 //!
-//!     println!("{} problems", observation.problems().len());
-//! }
+//! println!("{} problems", observation.problems().len());
 //! # Ok(())
 //! # }
 //! ```

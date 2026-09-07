@@ -80,11 +80,6 @@ impl Project {
         project
     }
 
-    /// Returns whether taplo has anything to do in this project
-    async fn applies(&self) -> bool {
-        Taplo::applies(&self.root()).await
-    }
-
     /// Runs one operation of taplo against this project
     async fn observe(&self, operation: Operation) -> Observation {
         let taplo = Taplo::resolve(self.root())
@@ -163,74 +158,6 @@ impl Drop for Project {
             .arg(self.directory.path().join("mise.toml"))
             .status();
     }
-}
-
-// taplo[verify look.git]
-#[tokio::test]
-async fn applies_with_toml_only_under_the_git_directory_is_false() {
-    let project = Project::bare();
-    project.write(".git/config.toml", FORMATTED);
-
-    let applies = project.applies().await;
-
-    assert!(!applies);
-}
-
-// taplo[verify look.links]
-#[cfg(unix)]
-#[tokio::test]
-async fn applies_with_toml_only_behind_a_symbolic_link_is_false() {
-    let project = Project::bare();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("linked.toml"), FORMATTED)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let applies = project.applies().await;
-
-    assert!(!applies);
-}
-
-// taplo[verify look.unreadable]
-#[cfg(unix)]
-#[tokio::test]
-async fn applies_with_an_unreadable_directory_is_true() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let project = Project::bare();
-    project.write("closed/README.md", "# Project\n");
-    let closed = project.directory.path().join("closed");
-    std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o000))
-        .expect("the test removes the permissions of a directory");
-
-    let applies = project.applies().await;
-
-    std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o755))
-        .expect("the test restores the permissions of a directory");
-    assert!(applies);
-}
-
-// taplo[verify look.toml]
-#[tokio::test]
-async fn applies_with_a_toml_file_is_true() {
-    let project = Project::bare();
-    project.write("sub/clean.toml", FORMATTED);
-
-    let applies = project.applies().await;
-
-    assert!(applies);
-}
-
-// taplo[verify look.toml]
-#[tokio::test]
-async fn applies_without_a_toml_file_is_false() {
-    let project = Project::bare();
-    project.write("README.md", "# Project\n");
-
-    let applies = project.applies().await;
-
-    assert!(!applies);
 }
 
 // taplo[verify run.operation]
