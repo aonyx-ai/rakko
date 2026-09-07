@@ -96,38 +96,13 @@ check-minimal-deps:
     mise run rakko -- check-minimal-deps
 
 # Check that the specs and the requirement references in the code are valid
+#
+# The recipe runs the harness instead of tracey, for the reason that
+# `format-toml` gives. The action stops the daemon that would answer from a
+# stale scan, and it builds the comparison that a pull request needs in a copy
+# of the repository instead of moving the HEAD of the checkout.
 check-specs:
-    #!/usr/bin/env -S mise exec -- bash
-    # A shebang recipe bypasses the `shell` setting above, so it enters the
-    # mise environment itself.
-    set -euo pipefail
-
-    # tracey is compiled without logging and warns about its default log
-    # filter on every run. Turning logging off silences the warning.
-    export RUST_LOG=off
-
-    # tracey answers queries from a daemon per workspace, which picks up file
-    # changes with a delay of a few seconds. Stop the daemon before the check,
-    # so that a fresh daemon scans the workspace before it answers. The LSP
-    # and MCP servers reconnect and start a new daemon on their next call.
-    tracey kill >/dev/null
-
-    # Broken or stale references, duplicate or malformed requirement IDs
-    tracey query validate --deny warnings
-
-    # A staged change to the text of a requirement needs a version bump.
-    # tracey compares the index with HEAD. On a pull request, GitHub Actions
-    # checks out a merge commit and stages nothing, so move HEAD to the base
-    # branch, the first parent of the merge commit. The index keeps the
-    # content of the pull request, and tracey compares the two.
-    if [ -n "${GITHUB_BASE_REF:-}" ] && git rev-parse --quiet --verify HEAD^2 >/dev/null; then
-        git reset --quiet --soft HEAD^1
-    fi
-    tracey pre-commit
-
-    # Coverage is information, not a gate: a spec can land before its
-    # implementation. The gaps are listed here and in the tracey dashboard.
-    tracey query status
+    mise run rakko -- check-specs
 
 # Check that Rakko builds with the MSRV
 #

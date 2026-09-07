@@ -373,6 +373,7 @@ dependencies = [
  "rakko-check-latest-deps",
  "rakko-check-minimal-deps",
  "rakko-check-msrv",
+ "rakko-check-specs",
  "rakko-check-unused-deps",
  "rakko-cli",
  "rakko-format-json",
@@ -654,6 +655,22 @@ dependencies = [
  "rakko-cargo",
  "rakko-tool",
  "thiserror",
+]
+
+[[package]]
+name = "rakko-check-specs"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "kawauso-process",
+ "rakko-action",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

@@ -50,9 +50,12 @@ jobs:
     needs: targets
 
     env:
-      # Only `just check-specs` calls tracey, so every other job skips both the
-      # cache and the build. A build takes about twenty minutes.
-      TRACEY: ${{ matrix.target == 'check-specs' }}
+      # The recipes that reach tracey: `check-specs` calls it, and the three
+      # that run the test suite reach it through the integration tests of
+      # `rakko-check-specs`, which start the tool that the project pins. Every
+      # other job skips both the cache and the build, which takes about twenty
+      # minutes when the cache misses.
+      TRACEY: ${{ contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.target) }}
 
       # A job that never reaches tracey disables the tool, so that the build
       # stays out of it. The name is the one that `mise.toml` writes, because
@@ -60,7 +63,7 @@ jobs:
       # value empty, so that the recipe finds the tool that the step below
       # installed. The empty value is the fallback of the expression, because
       # an expression that yields it from the left of `||` yields it always.
-      MISE_DISABLE_TOOLS: ${{ matrix.target != 'check-specs' && 'cargo:https://github.com/bearcove/tracey' || '' }}
+      MISE_DISABLE_TOOLS: ${{ !contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.target) && 'cargo:https://github.com/bearcove/tracey' || '' }}
 
     strategy:
       fail-fast: false

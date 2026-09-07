@@ -646,6 +646,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-check-specs"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "kawauso-process",
+ "rakko-action",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-check-unused-deps"
 version = "0.1.0"
 dependencies = [
