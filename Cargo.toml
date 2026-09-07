@@ -22,27 +22,10 @@ getset = ">=0.1,<1"
 kawauso-process = "0.2.1"
 kawauso-project = "0.2.0"
 rakko-action = { path = "crates/rakko-action", version = "0.1.0" }
-rakko-build-internal-docs = { path = "actions/rakko-build-internal-docs", version = "0.1.0" }
 rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
-rakko-check-dependencies = { path = "actions/rakko-check-dependencies", version = "0.1.0" }
-rakko-check-latest-deps = { path = "actions/rakko-check-latest-deps", version = "0.1.0" }
-rakko-check-minimal-deps = { path = "actions/rakko-check-minimal-deps", version = "0.1.0" }
-rakko-check-msrv = { path = "actions/rakko-check-msrv", version = "0.1.0" }
-rakko-check-specs = { path = "actions/rakko-check-specs", version = "0.1.0" }
-rakko-check-unused-deps = { path = "actions/rakko-check-unused-deps", version = "0.1.0" }
-rakko-format-json = { path = "actions/rakko-format-json", version = "0.1.0" }
-rakko-format-markdown = { path = "actions/rakko-format-markdown", version = "0.1.0" }
-rakko-format-rust = { path = "actions/rakko-format-rust", version = "0.1.0" }
-rakko-format-yaml = { path = "actions/rakko-format-yaml", version = "0.1.0" }
-rakko-lint-github-actions = { path = "actions/rakko-lint-github-actions", version = "0.1.0" }
-rakko-lint-markdown = { path = "actions/rakko-lint-markdown", version = "0.1.0" }
-rakko-lint-rust = { path = "actions/rakko-lint-rust", version = "0.1.0" }
-rakko-lint-toml = { path = "actions/rakko-lint-toml", version = "0.1.0" }
-rakko-lint-yaml = { path = "actions/rakko-lint-yaml", version = "0.1.0" }
 rakko-nextest = { path = "crates/rakko-nextest", version = "0.1.0" }
 rakko-prettier = { path = "crates/rakko-prettier", version = "0.1.0" }
 rakko-taplo = { path = "crates/rakko-taplo", version = "0.1.0" }
-rakko-test-rust = { path = "actions/rakko-test-rust", version = "0.1.0" }
 rakko-tool = { path = "crates/rakko-tool", version = "0.1.0" }
 rakko-worktree = { path = "crates/rakko-worktree", version = "0.1.0" }
 serde = { version = "1.0.225", features = ["derive"] }

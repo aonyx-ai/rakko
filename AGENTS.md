@@ -58,6 +58,10 @@ these links, and `.config/tracey/config.styx` lists the specifications.
 ### Dependencies
 
 - All versions managed in root `Cargo.toml`, crates import from workspace.
+- `[workspace.dependencies]` lists only the crates that workspace members
+  share. An action is not listed there, because nothing in the workspace
+  depends on an action. The harness is its own workspace and names every
+  action it mounts by path.
 - Require the lowest version of a dependency that still compiles, so that
   applications keep the widest choice of versions. Verify the floor with
   `just check-minimal-deps`.
