@@ -387,6 +387,7 @@ dependencies = [
  "rakko-lint-toml",
  "rakko-lint-yaml",
  "rakko-test-rust",
+ "rakko-test-rust-docs",
 ]
 
 [[package]]
@@ -858,6 +859,17 @@ dependencies = [
  "rakko-action",
  "rakko-cargo",
  "rakko-nextest",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-test-rust-docs"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
  "rakko-tool",
  "thiserror",
 ]

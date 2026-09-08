@@ -32,6 +32,7 @@ rakko-lint-rust = { path = "../../actions/rakko-lint-rust" }
 rakko-lint-toml = { path = "../../actions/rakko-lint-toml" }
 rakko-lint-yaml = { path = "../../actions/rakko-lint-yaml" }
 rakko-test-rust = { path = "../../actions/rakko-test-rust" }
+rakko-test-rust-docs = { path = "../../actions/rakko-test-rust-docs" }
 
 [workspace.lints.clippy]
 # Require documentation on private items as well, since that helps with long-term maintainability.
