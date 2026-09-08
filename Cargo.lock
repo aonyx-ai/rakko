@@ -878,6 +878,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-test-rust-docs"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cargo",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-tool"
 version = "0.1.0"
 dependencies = [

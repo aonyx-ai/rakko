@@ -27,6 +27,7 @@ use rakko_lint_rust::LintRust;
 use rakko_lint_toml::LintToml;
 use rakko_lint_yaml::LintYaml;
 use rakko_test_rust::TestRust;
+use rakko_test_rust_docs::TestRustDocs;
 
 /// Builds the command line of this repository and runs it
 ///
@@ -53,6 +54,7 @@ fn main() {
             Box::new(LintToml),
             Box::new(LintYaml),
             Box::new(TestRust),
+            Box::new(TestRustDocs),
         ])
         .run();
 }

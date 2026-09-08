@@ -32,7 +32,7 @@ pre-commit-verify:
     # arrives, so lines from different checks interleave. The recipe waits for
     # every job and fails if any of them failed.
     pids=()
-    for recipe in check-specs lint-github-actions lint-markdown lint-rust lint-yaml test-rust; do
+    for recipe in check-specs lint-github-actions lint-markdown lint-rust lint-yaml test-rust test-rust-docs; do
         just "$recipe" &
         pids+=("$!")
     done
@@ -226,3 +226,13 @@ pre-commit:
 # `format-toml` gives. The action tests every workspace of the repository.
 test-rust:
     mise run rakko -- test-rust
+
+# Run the examples in the documentation
+#
+# The recipe runs the harness instead of cargo, for the reason that
+# `format-toml` gives. It exists beside `test-rust` because nextest leaves
+# the examples out and says nothing about it, so no recipe compiled one until
+# this one arrived. The action runs the examples of every workspace of the
+# repository that holds a library, which leaves the harness out.
+test-rust-docs:
+    mise run rakko -- test-rust-docs

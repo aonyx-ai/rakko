@@ -7,6 +7,11 @@ builds every target, and nextest reads its own configuration and runs the
 tests. The action names the workspaces of the project and translates what
 nextest and cargo reported into an outcome.
 
+A run covers the tests that cargo builds into the binaries of the workspace,
+and it covers nothing else. Nextest does not run the examples in the
+documentation, and it leaves them out without a word, so a project that wants
+those examples run mounts `test-rust-docs` beside this action.
+
 Nextest reports the tests as JSON, and cargo reports the diagnostics of the
 build as JSON as well, so a failed test and a build that does not finish both
 arrive as data. The action runs nextest and reads both reports through the
