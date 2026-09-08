@@ -6,43 +6,6 @@ set shell := ["mise", "exec", "--", "sh", "-cu"]
 default:
     @just --list
 
-[private]
-pre-commit-checks: pre-commit-fix pre-commit-verify
-
-# Every recipe that rewrites the working tree, in sequence: they overlap each
-# other, and nothing may read a file while one of them is writing it. The
-# formatters run before the generation so that what is generated is derived
-# from formatted sources.
-[private]
-pre-commit-fix:
-    just format-json true
-    just format-markdown true
-    just format-yaml true
-    just format-toml true
-    just format-rust true
-
-# Every recipe that only reads, in parallel: the tree has stopped changing, so
-# what each of them sees is what the commit will contain.
-[private]
-pre-commit-verify:
-    #!/usr/bin/env -S mise exec -- bash
-    set -uo pipefail
-
-    # Each check runs as a background job, and its output streams as it
-    # arrives, so lines from different checks interleave. The recipe waits for
-    # every job and fails if any of them failed.
-    pids=()
-    for recipe in check-specs lint-github-actions lint-markdown lint-rust lint-yaml test-rust test-rust-docs; do
-        just "$recipe" &
-        pids+=("$!")
-    done
-
-    status=0
-    for pid in "${pids[@]}"; do
-        wait "$pid" || status=1
-    done
-    exit "$status"
-
 # Build the internal documentation of the Rust code
 #
 # The recipe runs the harness instead of cargo, for the reason that
@@ -216,9 +179,15 @@ lint-toml:
 lint-yaml:
     mise run rakko -- lint-yaml
 
-# Run a subset of checks as pre-commit hooks
+# Run the actions that guard a commit
+#
+# The recipe runs the harness instead of a chain of recipes. The harness
+# carries a `pre-commit` command that names the actions and their order, so
+# one run drives all of them and reports each one, where this recipe used to
+# start the harness once per action through just. The command repairs what it
+# can, as the hook asks it to, and it examines the tree that it repaired.
 pre-commit:
-    @just pre-commit-checks
+    mise run rakko -- pre-commit --fix
 
 # Run the tests
 #

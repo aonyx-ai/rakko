@@ -313,6 +313,11 @@ A written command writes its own output through Clawless, and the projection
 renders none of it. What the projection shows for a written command is the
 error of a run that failed, so that a reader learns why the run stopped.
 
+A written command that drives actions shows their outcomes itself, and the
+crate gives it the report that a run of one action renders. The output of such
+a command then has the shape that this section describes, in text and in JSON,
+and no harness carries a renderer of its own.
+
 cli[report.findings]
 A run whose action found problems MUST show every finding with its location.
 
@@ -336,6 +341,10 @@ JSON MUST state that its schema is unstable.
 
 cli[report.failed]
 A run whose written command failed MUST show the error.
+
+cli[report.written]
+The crate MUST give a written command the report of an action, from the name
+of the action and the outcome that the action produced.
 
 ## Run
 
