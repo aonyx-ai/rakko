@@ -48,6 +48,13 @@ jobs:
       # runner carries and no pnpm at all.
       - name: Install the tools
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          # Without a pin the action installs the release that mise reports as
+          # the newest one, and a release whose upload failed carries no file
+          # to download. Renovate advances the pin, so a release that breaks
+          # costs one revert instead of a red pull request.
+          # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
+          version: 2026.9.2
         env:
           MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
 
