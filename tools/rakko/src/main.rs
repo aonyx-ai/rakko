@@ -5,8 +5,15 @@
 //! repository uses, and the command line that it builds turns each of them
 //! into a command.
 //!
+//! It also mounts the commands that this repository writes for itself, for a
+//! maintenance activity that no single action describes. Each of them lives in
+//! a module of this package, and this file names it.
+//!
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
+
+/// The command that runs the actions that guard a commit
+mod pre_commit;
 
 use rakko_action::ErasedAction;
 use rakko_build_internal_docs::BuildInternalDocs;
@@ -16,6 +23,7 @@ use rakko_check_minimal_deps::CheckMinimalDeps;
 use rakko_check_msrv::CheckMsrv;
 use rakko_check_specs::CheckSpecs;
 use rakko_check_unused_deps::CheckUnusedDeps;
+use rakko_cli::ErasedCommand;
 use rakko_format_json::FormatJson;
 use rakko_format_markdown::FormatMarkdown;
 use rakko_format_rust::FormatRust;
@@ -28,6 +36,8 @@ use rakko_lint_toml::LintToml;
 use rakko_lint_yaml::LintYaml;
 use rakko_test_rust::TestRust;
 use rakko_test_rust_docs::TestRustDocs;
+
+use self::pre_commit::PreCommit;
 
 /// Builds the command line of this repository and runs it
 ///
@@ -56,5 +66,6 @@ fn main() {
             Box::new(TestRust),
             Box::new(TestRustDocs),
         ])
+        .mount_commands([Box::new(PreCommit) as Box<dyn ErasedCommand>])
         .run();
 }

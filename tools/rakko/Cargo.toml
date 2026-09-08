@@ -12,6 +12,7 @@ name = "rakko"
 path = "src/main.rs"
 
 [dependencies]
+getset = ">=0.1,<1"
 rakko-action = { path = "../../crates/rakko-action" }
 rakko-build-internal-docs = { path = "../../actions/rakko-build-internal-docs" }
 rakko-check-dependencies = { path = "../../actions/rakko-check-dependencies" }
@@ -33,6 +34,7 @@ rakko-lint-toml = { path = "../../actions/rakko-lint-toml" }
 rakko-lint-yaml = { path = "../../actions/rakko-lint-yaml" }
 rakko-test-rust = { path = "../../actions/rakko-test-rust" }
 rakko-test-rust-docs = { path = "../../actions/rakko-test-rust-docs" }
+thiserror = "2"
 
 [workspace.lints.clippy]
 # Require documentation on private items as well, since that helps with long-term maintainability.

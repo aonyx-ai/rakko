@@ -20,9 +20,31 @@ use serde::{Serialize, Serializer};
 /// decides how that outcome reaches a reader, so the output of every project
 /// in the fleet has one shape and no action carries code that draws it.
 ///
+/// A command that a harness wrote reports what it wants, and a command that
+/// drives actions itself wants exactly this. It creates one report for each
+/// action that it ran and writes that report as an artifact of Clawless, so
+/// the run shows what a run of each action alone shows, in text and in JSON,
+/// and the harness carries no renderer of its own.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_action::{Outcome, Summary, action_name};
+/// use rakko_cli::Report;
+///
+/// let outcome = Outcome::Passed {
+///     summary: Some(Summary::new("checked 3 files")),
+/// };
+///
+/// let report = Report::new(action_name!("format-toml"), outcome);
+///
+/// assert_eq!(report.to_string(), "format-toml: passed, checked 3 files");
+/// ```
+///
 /// [`Display`]: fmt::Display
+// cli[impl report.written]
 #[derive(Debug)]
-pub(crate) struct Report {
+pub struct Report {
     /// The name of the action that the run drove
     action: Name,
     /// What that action returned
@@ -32,7 +54,9 @@ pub(crate) struct Report {
 impl Report {
     /// Creates a report from the name of an action and what that action
     /// returned
-    pub(crate) fn new(action: Name, outcome: Outcome) -> Self {
+    // cli[impl report.written]
+    #[must_use]
+    pub fn new(action: Name, outcome: Outcome) -> Self {
         Self { action, outcome }
     }
 }

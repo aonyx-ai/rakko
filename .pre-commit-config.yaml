@@ -1,8 +1,8 @@
 # pre-commit configuration
 #
 # We use pre-commit to enforce a consistent style in our repositories. The hooks
-# check for a few common issues with files, and then execute the
-# `just pre-commit` to run formatters and linters.
+# check for a few common issues with files, and then run the `pre-commit`
+# command of the harness, which drives the formatters and the linters.
 #
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
@@ -18,11 +18,12 @@ repos:
         args: [--markdown-linebreak-ext=md]
   - repo: local
     hooks:
-      - id: just
-        name: just
+      - id: rakko
+        name: rakko
         # Git runs the hook outside the mise environment, and only mise itself
-        # is on the PATH there, so the hook enters the environment.
+        # is on the PATH there, so the hook enters the environment. The task
+        # builds the harness and hands it every argument that follows.
         entry: mise
-        args: ["exec", "--", "just", "pre-commit"]
+        args: ["run", "rakko", "--", "pre-commit", "--fix"]
         language: system
         pass_filenames: false

@@ -13,6 +13,10 @@
 //! re-exports Clawless, so a harness names what a command receives and
 //! returns without a dependency of its own.
 //!
+//! A command that drives actions itself shows what they found with the
+//! [`Report`] of this crate, so that its output takes the shape that a run of
+//! one action has.
+//!
 //! Only a harness depends on this crate. An action depends on the contract
 //! crate alone, so the command-line framework stays out of the build of an
 //! action.
@@ -52,3 +56,4 @@ pub use clawless;
 pub use self::builder::{Builder, builder};
 pub use self::command::Command;
 pub use self::erased_command::ErasedCommand;
+pub use self::report::Report;
