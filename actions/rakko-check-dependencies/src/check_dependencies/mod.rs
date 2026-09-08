@@ -257,12 +257,17 @@ mod tests {
 
     use std::path::{Path, PathBuf};
 
+    use rakko_cargo::Documentation;
+
     use super::*;
     use crate::problem::Package;
 
     /// Returns the workspace root that lies at the root of the project
     fn project_workspace() -> CargoRoot {
-        CargoRoot::new(PathBuf::from("/home/otter/project"))
+        CargoRoot::new(
+            PathBuf::from("/home/otter/project"),
+            Documentation::Testable,
+        )
     }
 
     /// Returns a problem of the given weight about one package
@@ -282,7 +287,10 @@ mod tests {
 
     /// Returns a workspace root below the root of the project
     fn tool_workspace() -> CargoRoot {
-        CargoRoot::new(PathBuf::from("/home/otter/project/tools/harness"))
+        CargoRoot::new(
+            PathBuf::from("/home/otter/project/tools/harness"),
+            Documentation::Testable,
+        )
     }
 
     // checkdependencies[verify check.finding]
@@ -319,7 +327,10 @@ mod tests {
 
     #[test]
     fn location_of_a_workspace_outside_the_project_reports_the_path() {
-        let outside = CargoRoot::new(PathBuf::from("/home/otter/elsewhere"));
+        let outside = CargoRoot::new(
+            PathBuf::from("/home/otter/elsewhere"),
+            Documentation::Testable,
+        );
 
         let error = location(&outside, &root()).unwrap_err();
 

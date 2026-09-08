@@ -220,7 +220,7 @@ fn copies(
         .map(|root| {
             worktree
                 .path_of(root.directory())
-                .map(CargoRoot::new)
+                .map(|directory| CargoRoot::new(directory, root.documentation()))
                 .ok_or_else(|| CheckLatestDepsError::ForeignRoot {
                     root: root.directory().clone(),
                 })

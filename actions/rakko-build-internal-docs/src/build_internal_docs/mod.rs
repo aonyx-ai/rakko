@@ -244,12 +244,17 @@ mod tests {
 
     use std::path::{Path, PathBuf};
 
+    use rakko_cargo::Documentation;
+
     use super::*;
 
     // buildinternaldocs[verify build.unreadable]
     #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
-        let root = CargoRoot::new(PathBuf::from("/home/otter/project"));
+        let root = CargoRoot::new(
+            PathBuf::from("/home/otter/project"),
+            Documentation::Testable,
+        );
 
         let report = read(
             &root,

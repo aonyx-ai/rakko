@@ -4,10 +4,10 @@
 //! each of them: rustfmt formats the Rust files, clippy lints them, and
 //! nextest runs the tests. Every one of those actions asks the same
 //! questions: does this project hold Rust code at all, which cargo does it
-//! run, which workspaces make up the project, which toolchain does the job
-//! need, and what did cargo report about the build? This crate answers all
-//! of them, so that an action writes the command line of its job and reads
-//! the answer as data.
+//! run, which workspaces make up the project, what does each workspace hold,
+//! which toolchain does the job need, and what did cargo report about the
+//! build? This crate answers all of them, so that an action writes the
+//! command line of its job and reads the answer as data.
 //!
 //! A project can hold more than one workspace. The harness of a project is a
 //! package of its own, outside the workspace of the crates that it maintains,
@@ -71,6 +71,6 @@ pub use self::cargo::{Cargo, DiscoverRootsError};
 pub use self::report::{
     CargoDiagnostic, CargoReport, DiagnosticLevel, DiagnosticSpan, ReadReportError,
 };
-pub use self::root::CargoRoot;
+pub use self::root::{CargoRoot, Documentation};
 pub use self::toolchain::{Channel, ResolveNewestToolchainError, ResolveToolchainError, Toolchain};
 pub use self::version::{ReadRustVersionError, RustVersion};

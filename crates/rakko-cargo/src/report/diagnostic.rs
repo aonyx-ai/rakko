@@ -117,6 +117,7 @@ mod tests {
     use rakko_action::{Position, Span};
 
     use super::*;
+    use crate::root::Documentation;
 
     /// Returns the project root that the tests place a root in
     fn project() -> ProjectRoot {
@@ -125,7 +126,10 @@ mod tests {
 
     /// Returns the root of the harness of the project
     fn harness() -> CargoRoot {
-        CargoRoot::new(PathBuf::from("/home/otter/project/tools/harness"))
+        CargoRoot::new(
+            PathBuf::from("/home/otter/project/tools/harness"),
+            Documentation::Testable,
+        )
     }
 
     /// Returns the range that the diagnostics of the tests cover

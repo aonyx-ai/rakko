@@ -80,11 +80,16 @@ mod tests {
 
     use std::path::Path;
 
+    use rakko_cargo::Documentation;
+
     use super::*;
 
     /// Returns the root of the harness of the project
     fn harness() -> CargoRoot {
-        CargoRoot::new(PathBuf::from("/home/otter/project/tools/harness"))
+        CargoRoot::new(
+            PathBuf::from("/home/otter/project/tools/harness"),
+            Documentation::Testable,
+        )
     }
 
     /// Returns the project root that the tests place a root in
