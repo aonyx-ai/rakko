@@ -6,6 +6,13 @@ command, and the flags that every command shares. A harness depends on this
 crate, and an action never does, so the command-line framework stays out of the
 crate that every action depends on.
 
+A harness also writes commands of its own, for a maintenance activity of its
+project that does not fit an action: a run that drives many actions, a watch
+that never returns, or a server. A written command is an ordinary command of
+the framework behind a trait of this crate, and it sits in the same tree as
+the commands that the projection derives from actions. This document says
+written command where the difference between the two matters.
+
 The crate builds its command tree when the harness runs, and not when the
 harness compiles. [Clawless] collects the commands of a binary with the
 [inventory] crate at link time, and that collection does not reach a command
@@ -24,6 +31,10 @@ MUST has the meaning that [RFC 2119] defines.
 An action declares the arguments that it reads, and the projection turns each
 of them into a flag. One projection builds the flags of every action, so a
 user who learns the shape of one command knows the shape of all of them.
+
+A written command declares its arguments in the same vocabulary, and the same
+rules render them. This section speaks of an action, and the Written Command
+section asks that every rule in it reach a written command unchanged.
 
 Every argument becomes a long flag that carries the name of the argument. The
 projection gives no short flag, because one letter is a name that only one
@@ -95,6 +106,47 @@ The command line MUST show its help for a run that gives no argument.
 cli[command.output]
 The command line MUST carry the flags that control the output of a run.
 
+## Erased Command
+
+The `Command` trait carries the type of the arguments that a written command
+reads, so two written commands have two types. The builder holds many of them
+at once, beside the actions, and cannot name a type for each of them, so it
+holds a view of a written command that hides its type, as the contract crate
+holds one of an action. The view answers what the projection needs without
+naming the written command: the name, the description of the arguments, and
+a run that takes the values of a command. The conversion from those values
+into the arguments happens behind the view, where the type is still known.
+
+cli[erased.name]
+An erased command MUST give the name that identifies the written command.
+
+cli[erased.arguments]
+An erased command MUST give the description of the arguments that the written
+command reads.
+
+cli[erased.run]
+An erased command MUST run the written command from the context of the
+project, the context of Clawless, and the values of a run, and MUST produce
+the result of that run.
+
+cli[erased.unreadable]
+An erased command that cannot build the arguments of the written command from
+the values MUST produce an error, and that error MUST hold the failure.
+
+cli[erased.total]
+Every written command MUST have an erased view, and the crate MUST provide
+that view for all of them.
+
+cli[erased.object]
+An erased command MUST be usable as a trait object, so that one collection
+holds written commands that have different types.
+
+cli[erased.send]
+An erased command MUST be safe to move to a different thread.
+
+cli[erased.sync]
+An erased command MUST be safe to share with a different thread.
+
 ## Exit Code
 
 The exit code is what a CI job reads without parsing anything, so it is the
@@ -118,6 +170,12 @@ command line that it cannot read. A run that never reached an action and a run
 whose action stopped are the same event for whoever reads the result, so one
 code covers both.
 
+A written command answers a different question. It says whether it succeeded,
+and a run cannot tell a problem of the project from a failure of the command,
+so a run whose written command failed takes the code of a run that could not
+answer. The code for findings keeps its one meaning, and a written command
+that drives actions folds their verdicts into its result by hand.
+
 cli[exit.clean]
 A run whose action passed, and a run whose action does not apply, MUST exit
 with zero.
@@ -132,6 +190,13 @@ cli[exit.unanswered]
 A run whose action stopped MUST exit with a nonzero code that differs from the
 code for findings.
 
+cli[exit.succeeded]
+A run whose written command succeeded MUST exit with zero.
+
+cli[exit.failed]
+A run whose written command failed MUST exit with the code of a run that
+could not answer.
+
 ## Mount
 
 A harness mounts the actions that a project uses. It passes lists, and a list
@@ -139,36 +204,49 @@ is an ordinary value that comes from a bundle, from another list, or from the
 code of the harness. Reading the harness therefore reports what the project
 runs, at the versions that Cargo resolved.
 
+A harness mounts the commands that it wrote as a second list beside its
+actions. The projection derives nothing from a written command, so the list
+is the only place that names it, and a reader of the harness finds every
+activity of the project in one place.
+
 The command tree is flat. A name identifies an action, and nothing groups
 actions today, so the command of an action sits directly under the command
 line.
 
 Two lists can carry one action, and a bundle that holds another bundle makes
-such an overlap ordinary. A name must mean one action, and a harness that
-mounts one name twice has a defect that only a change of its own code corrects.
-The mount is therefore where the conflict stops.
+such an overlap ordinary. A written command can take the name of an action as
+well. A name must mean one action or one written command, and a harness that
+mounts one name twice has a defect that only a change of its own code
+corrects. The mount is therefore where the conflict stops.
 
 The command line carries flags of its own, and a user reaches every one of
-them in the command of an action. An action that declares an argument with the
-name of such a flag takes a name that means something else in every other
-command of the fleet, and the command line cannot carry both. That conflict is
-a defect of the action, and the mount stops it as well.
+them in every command. An action or a written command that declares an
+argument with the name of such a flag takes a name that means something else
+in every other command of the fleet, and the command line cannot carry both.
+That conflict is a defect of the action or the written command, and the mount
+stops it as well.
 
 cli[mount.list]
 The builder MUST accept a list of erased actions, and MUST give each action of
 that list a command.
 
-cli[mount.flat]
-The command tree MUST be flat. The command of an action MUST hold no command.
+cli[mount.commands]
+The builder MUST accept a list of erased commands, and MUST give each written
+command of that list a place in the command tree beside the commands of the
+actions.
 
-cli[mount.collision]
-Two mounted actions with one name MUST stop the harness where it mounts them.
-The failure MUST report the name.
+cli[mount.flat+2]
+The command tree MUST be flat. The command of an action and the command of a
+written command MUST hold no command.
 
-cli[mount.reserved]
-A mounted action whose argument carries the name of a flag of the command line
-MUST stop the harness where it mounts the action. The failure MUST report the
-action and the argument.
+cli[mount.collision+2]
+Two mounted actions or written commands with one name MUST stop the harness
+where it mounts them. The failure MUST report the name.
+
+cli[mount.reserved+2]
+A mounted action or written command whose argument carries the name of a flag
+of the command line MUST stop the harness where it mounts it. The failure
+MUST report the action or the written command, and the argument.
 
 ## Project Root
 
@@ -231,6 +309,10 @@ the payload, because the granularity of a finding is still open, and a schema
 that promises the shape of today's finding would break when that shape
 changes.
 
+A written command writes its own output through Clawless, and the projection
+renders none of it. What the projection shows for a written command is the
+error of a run that failed, so that a reader learns why the run stopped.
+
 cli[report.findings]
 A run whose action found problems MUST show every finding with its location.
 
@@ -252,11 +334,19 @@ cli[report.json]
 A run MUST render its outcome as JSON when the user asks for JSON, and that
 JSON MUST state that its schema is unstable.
 
+cli[report.failed]
+A run whose written command failed MUST show the error.
+
 ## Run
 
 A run drives one action. The command that the user named resolves to the action
 that the harness mounted under that name, and the action gets the context that
 it needs to examine the project.
+
+A run of a written command drives the written command instead. It resolves
+the project root as a run of an action does, and it gives the written command
+the context of the project, the context of Clawless, and the values of its
+arguments.
 
 Where the project root of that context comes from is the Project Root section
 of this document.
@@ -266,6 +356,63 @@ it, are the Report and the Exit Code sections of this document.
 
 cli[run.action]
 A run MUST drive the action that its command names.
+
+cli[run.command]
+A run MUST drive the written command that its command names.
+
+## Written Command
+
+A harness writes a command for a maintenance activity of its project that
+does not fit an action. An action runs once and reports one outcome, and a
+run that drives many actions, a watch that never returns, or a server does
+not. The projection derives nothing from a written command, so the harness
+describes it as data the way an action describes itself: a name, and the
+arguments that a run reads, in the vocabulary of the contract crate. The
+rules that render the arguments of an action reach a written command
+unchanged, so a user who learns the flags of one command knows the flags of
+all of them. The help shows no sentence for a written command yet, as it
+shows none for an action. Both wait for the documentation that derives from
+the doc comments of the type, so that nobody writes a sentence twice.
+
+The run is arbitrary code. It receives the context of the project and the
+context of Clawless, writes its output through Clawless, and returns success
+or an error. The projection hands it no view of the actions that the harness
+mounted, so a written command that runs actions calls them as the libraries
+that they are.
+
+The trait lives in this crate, because a written command receives the type of
+Clawless, and the contract crate keeps Clawless out. A harness already depends
+on this crate, and this crate re-exports Clawless, so a harness names what a
+written command receives and returns without a dependency of its own.
+
+cli[written.name]
+A written command MUST give the name that identifies it.
+
+cli[written.args]
+A written command MUST define the type of the arguments that a run reads, and
+that type MUST describe itself in the vocabulary of the contract crate.
+
+cli[written.flags]
+The command of a written command MUST carry the flags that the Arguments
+section gives to the command of an action, under the rules of that section,
+and a run MUST give the written command the values that those rules give to
+an action.
+
+cli[written.run]
+A run of a written command MUST receive the context of the project, the
+context of Clawless, and the arguments of the written command, and MUST
+produce success or an error.
+
+cli[written.wait]
+A run of a written command MUST be able to return control to the thread that
+drives it before it ends.
+
+cli[written.send]
+A written command and the run of a written command MUST be safe to move to a
+different thread.
+
+cli[written.sync]
+A written command MUST be safe to share with a different thread.
 
 [clawless]: https://github.com/aonyx-ai/clawless
 [inventory]: https://crates.io/crates/inventory
