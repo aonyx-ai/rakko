@@ -25,13 +25,17 @@ from the design discussions to the terms that replaced them.
   layer that Rakko builds its command line on. [Clawless] turns mounted
   actions into commands, with help text and shared output flags. Actions do
   not depend on Clawless.
-- **Command** — The CLI projection of an action. Clawless generates one
-  command for each mounted action. The command is not the action itself.
+- **Command** — One thing that a user of the command line of a harness can
+  run. The projection derives one command from each mounted action, and a
+  harness writes the others, for a maintenance activity of the project that
+  does not fit an action. A derived command is not the action itself. A
+  written command is an ordinary Clawless command, and it knows nothing
+  about actions.
 - **Context** — The data that is relevant when an action runs. Today this is
   the project root and the directory layout. Later it can include user
   variables and loaded configuration. Clawless uses the same name for a
-  similar concept. This parallel is intentional, and consumers of Rakko do
-  not see the Clawless type.
+  similar concept. This parallel is intentional. An action never sees the
+  Clawless type, and a command receives both.
 - **Contract crate** — The `rakko-action` crate. It contains the `Action`
   trait, the access types, and the other shared types. The contract crate
   stays small, because every action and every harness depends on it. The
