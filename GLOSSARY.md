@@ -48,9 +48,10 @@ from the design discussions to the terms that replaced them.
   location. Findings travel in the outcome of an action run.
 - **Fleet** — All Aonyx projects that Rakko maintains.
 - **Harness** — The small binary crate in each project. The harness mounts
-  the bundles and actions that the project uses, and `mise run rakko` runs
-  it. The harness is a package of its own, outside the workspace of the
-  project, and it is the full adoption surface of a project.
+  the bundles and actions that the project uses, writes the commands of the
+  project that do not fit an action, and `mise run rakko` runs it. The
+  harness is a package of its own, outside the workspace of the project, and
+  it is the full adoption surface of a project.
 - **Helper crate** — A crate that carries machinery that many actions need.
   `rakko-tool` is the first one: it finds an external tool through mise and
   runs it. An action depends on the helper crates that it uses next to the
@@ -66,8 +67,8 @@ from the design discussions to the terms that replaced them.
   project. The task lives in the `mise.toml` file of each project. It is the
   canonical form on every platform, and documentation always writes it out,
   because a shorter form exists only where a platform can supply one.
-- **Mount** — To register actions or bundles in the CLI of a harness. The
-  harness names what it mounts, in code.
+- **Mount** — To register actions, bundles, or written commands in the CLI
+  of a harness. The harness names what it mounts, in code.
 - **Outcome** — The result of one action run. An outcome tells whether the
   action passed, changed the project by repairing everything that it found,
   failed with findings, skipped because there was nothing to examine, or
@@ -79,7 +80,8 @@ from the design discussions to the terms that replaced them.
   that it starts in.
 - **Projection** — The `rakko-cli` crate. It turns the actions that a
   harness mounts into commands, with the help text and the shared output
-  flags. Only a harness depends on it, so Clawless never reaches an action.
+  flags, and it defines the trait that a written command implements. Only a
+  harness depends on it, so Clawless never reaches an action.
 - **Rakko** — This project: a toolkit that turns project maintenance into
   versioned Rust crates. The rakko (ラッコ) is the Japanese sea otter, the
   otter that keeps a pebble as its tool.

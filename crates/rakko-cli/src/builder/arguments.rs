@@ -2,7 +2,9 @@ use std::collections::BTreeSet;
 use std::num::ParseIntError;
 
 use clap::{Arg, ArgAction, ArgMatches};
-use rakko_action::{ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue, ErasedAction};
+use rakko_action::{ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue};
+
+use super::registry::Mounted;
 
 /// The value that a run holds for a boolean flag that the user gave
 ///
@@ -10,7 +12,7 @@ use rakko_action::{ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValu
 /// standard library reads as true.
 const TRUE: &str = "true";
 
-/// Returns the flags that render the arguments of an action
+/// Returns the flags that render the arguments of an action or a command
 ///
 /// Every argument becomes one long flag that carries the name of the
 /// argument. The projection gives no short flag: one letter is a name that
@@ -21,7 +23,7 @@ pub(super) fn render(schema: &ArgsSchema) -> Vec<Arg> {
     schema.arguments().iter().map(flag).collect()
 }
 
-/// Returns the values that a run holds for the arguments of an action
+/// Returns the values that a run holds for the arguments of a command
 ///
 /// A flag that the user left out gets no value, because the action decides
 /// what an absent value means. A flag that the user gave carries the text
@@ -39,30 +41,29 @@ pub(super) fn collect(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
     }))
 }
 
-/// Stops the harness when an action declares a reserved argument
+/// Stops the harness when an action or a command declares a reserved argument
 ///
 /// The command line holds flags of its own, and a user reaches every one of
-/// them in the command of an action. An argument with such a name would take
-/// a name that means something else in every other command of the fleet.
-/// Only a change of the action corrects that, so the failure happens where
-/// the harness mounts the action and not where a user runs it.
+/// them in every command. An argument with such a name would take a name that
+/// means something else in every other command of the fleet. Only a change of
+/// the action or the command corrects that, so the failure happens where the
+/// harness mounts it and not where a user runs it.
 ///
 /// # Panics
 ///
-/// Panics when an argument of an action carries the name of a flag of the
-/// command line, and reports the action and the argument.
-// cli[impl mount.reserved]
-pub(super) fn refuse_reserved(actions: &[Box<dyn ErasedAction>]) {
+/// Panics when an argument of an action or a command carries the name of a
+/// flag of the command line, and reports the entry and the argument.
+// cli[impl mount.reserved+2]
+pub(super) fn refuse_reserved(entries: &[Mounted]) {
     let reserved = reserved();
 
-    for action in actions {
-        let schema = action.arguments();
+    for mounted in entries {
+        let schema = mounted.arguments();
 
         for argument in schema.arguments() {
             assert!(
                 !reserved.contains(argument.name().get()),
-                "the action '{}' declares the argument '{}', which the command line carries itself",
-                action.name(),
+                "the {mounted} declares the argument '{}', which the command line defines itself",
                 argument.name(),
             );
         }
@@ -115,7 +116,7 @@ fn placeholder(name: &str) -> String {
     name.to_uppercase().replace('-', "_")
 }
 
-/// Returns the names of the flags that the command line carries itself
+/// Returns the names of the flags that the command line defines itself
 ///
 /// The names come from the command that the builder assembles, so a flag that
 /// arrives with a new version of a dependency reaches this list without a
