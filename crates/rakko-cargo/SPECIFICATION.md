@@ -103,23 +103,20 @@ A package can declare the oldest Rust toolchain that it compiles on, and the
 declaration is the `rust-version` of its manifest. Cargo reports the
 declaration of every package of a workspace, with the inheritance from the
 workspace already resolved, so the crate asks cargo instead of reading the
-manifest itself.
+manifest itself. It asks while it discovers the roots, because one
+description of a workspace answers both what the workspace holds and what its
+packages declare, and a root carries the answer.
 
 Cargo compiles a workspace as one unit, and a job that checks the declaration
-runs one toolchain. The crate therefore reports the highest version that the
-packages of a root declare. A toolchain below the highest cannot compile the
-package that asks for more, and a workspace whose packages declare nothing
-gets no version, so that a caller can skip the check instead of inventing one.
+runs one toolchain. A root therefore reports the highest version that its
+packages declare. A toolchain below the highest cannot compile the package
+that asks for more, and a workspace whose packages declare nothing gets no
+version, so that a caller can skip the check instead of inventing one.
 
-cargo[version.declared]
-The crate MUST report the highest `rust-version` that the packages of a root
-declare, and MUST report that there is none when no package of the root
-declares one.
-
-cargo[version.unreadable]
-A manifest that cargo cannot read, and a description of a workspace that the
-crate cannot read, MUST stop the reading, and the error MUST name the
-manifest.
+cargo[version.declared+2]
+A root MUST report the highest `rust-version` that the packages of its
+workspace declare, and MUST report that there is none when no package of the
+workspace declares one.
 
 ## Documentation Examples
 

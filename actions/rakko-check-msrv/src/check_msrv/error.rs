@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
-use rakko_cargo::{
-    DiscoverRootsError, ReadReportError, ReadRustVersionError, ResolveToolchainError, RustVersion,
-};
+use rakko_cargo::{DiscoverRootsError, ReadReportError, ResolveToolchainError, RustVersion};
 use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
@@ -33,21 +31,6 @@ pub enum CheckMsrvError {
     UndiscoveredRoots {
         /// The cause of the failure
         source: DiscoverRootsError,
-    },
-
-    /// The declaration of a workspace could not be read
-    ///
-    /// The run asked cargo which Rust version the packages of the workspace
-    /// declare, and cargo gave no answer that the action can use. A run that
-    /// took the silence for an absent declaration would pass over a
-    /// workspace that the project asked it to check.
-    #[error("failed to read the rust-version that {} declares", root.display())]
-    UnreadableDeclaration {
-        /// The workspace root whose declaration was read
-        root: PathBuf,
-
-        /// The cause of the failure
-        source: ReadRustVersionError,
     },
 
     /// Cargo wrote a record that the action cannot read

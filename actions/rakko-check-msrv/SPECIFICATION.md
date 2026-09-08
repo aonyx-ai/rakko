@@ -98,18 +98,18 @@ workspace makes its own promise, so a run reads the declaration of every
 workspace and checks each workspace on its own toolchain.
 
 A workspace that declares nothing is passed over, and the run reports on the
-workspaces that it checked. A workspace that the run cannot discover, and a
-declaration that the run cannot read, both stop the run, because a run that
-passed over such a workspace would hide every problem of that workspace behind
-a green result.
+workspaces that it checked. The discovery reports the declaration of each
+workspace along with the workspace itself, so a run that cannot discover the
+roots has no declaration either, and it stops: a run that passed over a
+workspace would hide every problem of that workspace behind a green result.
 
 checkmsrv[roots.declared]
 A run MUST check every workspace root of the project that declares a
 `rust-version`, and MUST pass over a root that declares none.
 
-checkmsrv[roots.error]
-A run whose workspace roots cannot be discovered, and a run whose declaration
-of a workspace cannot be read, MUST stop, and the outcome MUST hold the error.
+checkmsrv[roots.error+2]
+A run whose workspace roots cannot be discovered MUST stop, and the outcome
+MUST hold the error.
 
 ## Check
 

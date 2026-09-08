@@ -159,10 +159,10 @@ mod tests {
 
     /// The root of the workspace that a test reports a failure of
     fn root() -> CargoRoot {
-        CargoRoot::new(
-            PathBuf::from("/home/otter/project/crates"),
-            Documentation::Testable,
-        )
+        CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project/crates"))
+            .documentation(Documentation::Testable)
+            .build()
     }
 
     /// The root of the project that a test reports a failure of

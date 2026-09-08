@@ -21,8 +21,7 @@ use std::process::Command;
 use rakko_action::ProjectRoot;
 use rakko_cargo::{
     Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, Documentation,
-    ReadRustVersionError, ResolveNewestToolchainError, ResolveToolchainError, RustVersion,
-    Toolchain,
+    ResolveNewestToolchainError, ResolveToolchainError, RustVersion, Toolchain,
 };
 use tempfile::TempDir;
 
@@ -128,13 +127,19 @@ impl Project {
     /// Returns the path of a directory of the project, as a root whose
     /// packages hold a library
     fn cargo_root(&self, path: &str) -> CargoRoot {
-        CargoRoot::new(self.root().get().join(path), Documentation::Testable)
+        CargoRoot::builder()
+            .directory(self.root().get().join(path))
+            .documentation(Documentation::Testable)
+            .build()
     }
 
     /// Returns the path of a directory of the project, as a root whose
     /// packages hold no library
     fn binary_root(&self, path: &str) -> CargoRoot {
-        CargoRoot::new(self.root().get().join(path), Documentation::Untestable)
+        CargoRoot::builder()
+            .directory(self.root().get().join(path))
+            .documentation(Documentation::Untestable)
+            .build()
     }
 
     /// Writes a package that declares the Rust version it compiles on
@@ -349,6 +354,35 @@ async fn roots_of_a_workspace_with_a_library_say_that_its_examples_are_testable(
     assert_eq!(
         roots.first().map(CargoRoot::documentation),
         Some(Documentation::Testable)
+    );
+}
+
+// cargo[verify version.declared+2]
+#[tokio::test]
+async fn roots_of_a_workspace_that_declares_a_version_answer_the_highest() {
+    let project = Project::new();
+    project.write("Cargo.toml", WORKSPACE);
+    project.declaring("a", "1.85.0");
+    project.declaring("b", "1.88.0");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().and_then(|root| root.rust_version().clone()),
+        Some(RustVersion::new("1.88.0"))
+    );
+}
+
+// cargo[verify version.declared+2]
+#[tokio::test]
+async fn roots_of_a_workspace_without_a_declaration_answer_no_version() {
+    let project = Project::workspace();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().and_then(|root| root.rust_version().clone()),
+        None
     );
 }
 
@@ -655,56 +689,6 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
                 if directory.ends_with("closed")
         ),
         "expected the unreadable directory, got {roots:?}"
-    );
-}
-
-// cargo[verify version.declared]
-#[tokio::test]
-async fn rust_version_of_a_workspace_answers_the_highest_declaration() {
-    let project = Project::new();
-    project.write("Cargo.toml", WORKSPACE);
-    project.declaring("a", "1.85.0");
-    project.declaring("b", "1.88.0");
-    let cargo = project.resolve().await;
-
-    let version = cargo
-        .rust_version(&project.cargo_root(""))
-        .await
-        .expect("the test reads a manifest that cargo accepts");
-
-    assert_eq!(version, Some(RustVersion::new("1.88.0")));
-}
-
-// cargo[verify version.declared]
-#[tokio::test]
-async fn rust_version_of_a_workspace_without_a_declaration_answers_nothing() {
-    let project = Project::workspace();
-    let cargo = project.resolve().await;
-
-    let version = cargo
-        .rust_version(&project.cargo_root(""))
-        .await
-        .expect("the test reads a manifest that cargo accepts");
-
-    assert_eq!(version, None);
-}
-
-// cargo[verify version.unreadable]
-#[tokio::test]
-async fn rust_version_with_a_manifest_that_cargo_cannot_read_names_the_manifest() {
-    let project = Project::new();
-    project.write("Cargo.toml", BROKEN);
-    let cargo = project.resolve().await;
-
-    let version = cargo.rust_version(&project.cargo_root("")).await;
-
-    assert!(
-        matches!(
-            &version,
-            Err(ReadRustVersionError::UnreadableManifest { manifest, .. })
-                if manifest == &project.root().get().join("Cargo.toml")
-        ),
-        "expected an unreadable manifest, got {version:?}"
     );
 }
 

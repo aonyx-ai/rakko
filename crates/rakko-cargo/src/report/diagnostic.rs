@@ -126,10 +126,10 @@ mod tests {
 
     /// Returns the root of the harness of the project
     fn harness() -> CargoRoot {
-        CargoRoot::new(
-            PathBuf::from("/home/otter/project/tools/harness"),
-            Documentation::Testable,
-        )
+        CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project/tools/harness"))
+            .documentation(Documentation::Testable)
+            .build()
     }
 
     /// Returns the range that the diagnostics of the tests cover

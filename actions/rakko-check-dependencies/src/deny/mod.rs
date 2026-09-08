@@ -84,7 +84,7 @@ const NO_DIAGNOSIS: &str = "cargo-deny wrote nothing about it";
 /// let deny = Deny::resolve(root).await?;
 ///
 /// let problems = deny
-///     .check(&CargoRoot::new("/home/otter/project".into(), Documentation::Testable))
+///     .check(&CargoRoot::builder().directory("/home/otter/project".into()).documentation(Documentation::Testable).build())
 ///     .await?;
 ///
 /// println!("{} problems", problems.len());

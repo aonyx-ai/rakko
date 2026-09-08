@@ -19,7 +19,7 @@ use serde::Deserialize;
 pub use self::error::DiscoverRootsError;
 use crate::root::{CargoRoot, Documentation, MANIFEST};
 use crate::toolchain::Toolchain;
-use crate::version::{ReadRustVersionError, RustVersion};
+use crate::version::RustVersion;
 
 /// The name that mise knows the tool by
 const CARGO: &str = "cargo";
@@ -195,96 +195,23 @@ impl Cargo {
             }
 
             claimed.insert(directory.join(MANIFEST));
-            for package in metadata.packages {
+            for package in &metadata.packages {
                 claimed.insert(canonical(&package.manifest_path).await);
             }
 
-            let root = CargoRoot::new(directory, documentation);
+            let root = CargoRoot::builder()
+                .directory(directory)
+                .documentation(documentation)
+                .maybe_rust_version(metadata.rust_version())
+                .build();
             if !roots.contains(&root) {
                 roots.push(root);
             }
         }
 
-        roots.sort();
+        roots.sort_by(|left, right| left.directory().cmp(right.directory()));
 
         Ok(roots)
-    }
-
-    /// Returns the Rust version that the packages of a root declare
-    ///
-    /// A package declares the oldest toolchain that it compiles on as the
-    /// `rust-version` of its manifest, and cargo resolves the inheritance
-    /// from the workspace before it reports the declaration. A workspace
-    /// compiles as one unit, so the highest declaration of its packages
-    /// answers, and a workspace whose packages declare nothing answers
-    /// `None`.
-    ///
-    /// The lookup starts a process, so a caller that needs the version more
-    /// than once keeps the answer for the length of the run.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
-    /// [`UnreadableManifest`][manifest] when cargo refuses the manifest of
-    /// the root, and [`UnrecognizedMetadata`][metadata] when cargo describes
-    /// the workspace in a shape that the crate cannot read.
-    ///
-    /// # Panics
-    ///
-    /// Panics when no Tokio runtime drives the future. The runtime waits for
-    /// cargo, and the method has no way to ask without one.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rakko_action::ProjectRoot;
-    /// use rakko_cargo::Cargo;
-    ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
-    ///
-    /// for root in cargo.roots().await? {
-    ///     if let Some(version) = cargo.rust_version(&root).await? {
-    ///         println!("{}", version);
-    ///     }
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// [manifest]: ReadRustVersionError::UnreadableManifest
-    /// [metadata]: ReadRustVersionError::UnrecognizedMetadata
-    /// [unavailable]: ReadRustVersionError::CargoUnavailable
-    // cargo[impl version.declared]
-    // cargo[impl version.unreadable]
-    pub async fn rust_version(
-        &self,
-        root: &CargoRoot,
-    ) -> Result<Option<RustVersion>, ReadRustVersionError> {
-        let manifest = root.manifest();
-        let metadata = self
-            .describe(&manifest)
-            .await
-            .map_err(|failure| match failure {
-                MetadataFailure::Unavailable { source } => {
-                    ReadRustVersionError::CargoUnavailable { source }
-                }
-                MetadataFailure::Unreadable { details } => {
-                    ReadRustVersionError::UnreadableManifest { manifest, details }
-                }
-                MetadataFailure::Unrecognized { source } => {
-                    ReadRustVersionError::UnrecognizedMetadata { manifest, source }
-                }
-            })?;
-
-        Ok(RustVersion::highest(
-            metadata
-                .packages
-                .into_iter()
-                .filter_map(|package| package.rust_version)
-                .map(RustVersion::new),
-        ))
     }
 
     /// Asks cargo to describe the workspace of a manifest
@@ -397,6 +324,22 @@ struct Metadata {
 }
 
 impl Metadata {
+    /// Returns the oldest Rust toolchain that the packages of the workspace
+    /// declare they compile on
+    ///
+    /// Cargo compiles a workspace as one unit, so the highest declaration of
+    /// its packages answers, and a workspace whose packages declare nothing
+    /// answers `None`.
+    // cargo[impl version.declared+2]
+    fn rust_version(&self) -> Option<RustVersion> {
+        RustVersion::highest(
+            self.packages
+                .iter()
+                .filter_map(|package| package.rust_version.clone())
+                .map(RustVersion::new),
+        )
+    }
+
     /// Returns whether cargo can test the examples in the documentation of
     /// the workspace
     // cargo[impl doctest.library]

@@ -466,7 +466,7 @@ async fn run_with_a_workspace_that_declares_nothing_passes_over_it() {
     );
 }
 
-// checkmsrv[verify roots.error]
+// checkmsrv[verify roots.error+2]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();

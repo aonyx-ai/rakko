@@ -5,13 +5,11 @@
 //! workspace promise to compile on. Both read a version out of text that
 //! another program wrote, and both pick the newest of several, so this
 //! module holds the version and the comparison that orders them.
-
-/// The error that stops the reading of a declaration
-mod error;
+//!
+//! Nothing here fails. A version that a program wrote is either a version or
+//! a name that is none, and the reading says which.
 
 use std::cmp::Ordering;
-
-pub use self::error::ReadRustVersionError;
 
 /// The character that separates the parts of a version
 const SEPARATOR: char = '.';
