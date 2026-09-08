@@ -166,10 +166,10 @@ mod tests {
     // nextest[verify report.unreadable]
     #[test]
     fn read_diagnostics_in_a_shape_the_crate_does_not_know_names_the_root() {
-        let root = CargoRoot::new(
-            PathBuf::from("/home/otter/project"),
-            Documentation::Testable,
-        );
+        let root = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .build();
 
         let diagnostics = read_diagnostics(
             &root,
@@ -189,10 +189,10 @@ mod tests {
     // nextest[verify report.unreadable]
     #[test]
     fn read_report_in_a_shape_the_crate_does_not_know_names_the_root() {
-        let root = CargoRoot::new(
-            PathBuf::from("/home/otter/project"),
-            Documentation::Testable,
-        );
+        let root = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .build();
 
         let report = read_report(&root, r#"{"type":"test","name":"probe::suite$fails"}"#);
 

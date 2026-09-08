@@ -73,4 +73,4 @@ pub use self::report::{
 };
 pub use self::root::{CargoRoot, Documentation};
 pub use self::toolchain::{Channel, ResolveNewestToolchainError, ResolveToolchainError, Toolchain};
-pub use self::version::{ReadRustVersionError, RustVersion};
+pub use self::version::RustVersion;

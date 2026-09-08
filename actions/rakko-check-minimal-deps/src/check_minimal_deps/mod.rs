@@ -243,7 +243,13 @@ fn copies(
         .map(|root| {
             worktree
                 .path_of(root.directory())
-                .map(|directory| CargoRoot::new(directory, root.documentation()))
+                .map(|directory| {
+                    CargoRoot::builder()
+                        .directory(directory)
+                        .documentation(root.documentation())
+                        .maybe_rust_version(root.rust_version().clone())
+                        .build()
+                })
                 .ok_or_else(|| CheckMinimalDepsError::ForeignRoot {
                     root: root.directory().clone(),
                 })

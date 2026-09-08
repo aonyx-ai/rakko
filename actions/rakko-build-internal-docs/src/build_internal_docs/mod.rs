@@ -251,10 +251,10 @@ mod tests {
     // buildinternaldocs[verify build.unreadable]
     #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
-        let root = CargoRoot::new(
-            PathBuf::from("/home/otter/project"),
-            Documentation::Testable,
-        );
+        let root = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .build();
 
         let report = read(
             &root,

@@ -9,10 +9,12 @@ mod documentation;
 
 use std::path::{Component, Path, PathBuf};
 
+use bon::bon;
 use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, ProjectRoot};
 
 pub use self::documentation::Documentation;
+use crate::version::RustVersion;
 
 /// The name of the file that describes a package or a workspace to cargo
 pub const MANIFEST: &str = "Cargo.toml";
@@ -30,15 +32,18 @@ pub const MANIFEST: &str = "Cargo.toml";
 /// project root, which is the name that a reader, a machine, and a code host
 /// all recognize.
 ///
-/// A root also carries what cargo said about the packages of its workspace,
-/// so that a caller reads the answer instead of asking cargo again. Whether
-/// cargo can test the examples in the documentation is the first such
-/// answer:
-/// the discovery of the roots asks cargo to describe every workspace anyway,
-/// and the description names the targets of every package.
+/// A root also carries what cargo said about the packages of its workspace:
+/// whether cargo can test the examples in their documentation, and the
+/// oldest toolchain that they promise to compile on. The discovery of the
+/// roots asks cargo to describe every workspace anyway, and one description
+/// answers both, so a caller reads them here instead of asking cargo again.
+///
+/// The type has no order, because a version has none. A caller that wants
+/// the roots in a fixed order sorts them by their directory, which is how
+/// the discovery reports them.
 ///
 /// [relative]: CargoRoot::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, CopyGetters, Getters)]
 pub struct CargoRoot {
     /// The directory that holds the manifest of the workspace
     #[getset(get = "pub")]
@@ -48,16 +53,31 @@ pub struct CargoRoot {
     /// workspace
     #[getset(get_copy = "pub")]
     documentation: Documentation,
+
+    /// The oldest Rust toolchain that the packages of the workspace declare
+    /// they compile on, or `None` when no package declares one
+    #[getset(get = "pub")]
+    rust_version: Option<RustVersion>,
 }
 
+#[bon]
 impl CargoRoot {
     /// Creates a root from the directory that holds its manifest and what
-    /// cargo can test of its documentation
+    /// cargo said about the packages of the workspace
+    ///
+    /// A root whose packages declare no `rust-version` carries none.
     // cargo[impl doctest.library]
-    pub fn new(directory: PathBuf, documentation: Documentation) -> Self {
+    // cargo[impl version.declared+2]
+    #[builder]
+    pub fn new(
+        directory: PathBuf,
+        documentation: Documentation,
+        rust_version: Option<RustVersion>,
+    ) -> Self {
         Self {
             directory,
             documentation,
+            rust_version,
         }
     }
 
@@ -161,10 +181,10 @@ mod tests {
 
     /// Returns a root in a subdirectory of the project
     fn nested() -> CargoRoot {
-        CargoRoot::new(
-            PathBuf::from("/home/otter/project/tools/harness"),
-            Documentation::Testable,
-        )
+        CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project/tools/harness"))
+            .documentation(Documentation::Testable)
+            .build()
     }
 
     #[test]
@@ -182,10 +202,10 @@ mod tests {
     // cargo[verify path.relative]
     #[test]
     fn relative_directory_of_the_project_root_is_empty() {
-        let root = CargoRoot::new(
-            PathBuf::from("/home/otter/project"),
-            Documentation::Testable,
-        );
+        let root = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .build();
 
         let directory = root.relative_directory(&project());
 
@@ -195,10 +215,10 @@ mod tests {
     // cargo[verify path.foreign]
     #[test]
     fn relative_directory_outside_the_project_names_nothing() {
-        let root = CargoRoot::new(
-            PathBuf::from("/home/otter/elsewhere"),
-            Documentation::Testable,
-        );
+        let root = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/elsewhere"))
+            .documentation(Documentation::Testable)
+            .build();
 
         let directory = root.relative_directory(&project());
 

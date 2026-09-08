@@ -86,7 +86,7 @@ impl Action for CheckMsrv {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // checkmsrv[impl roots.error]
+            // checkmsrv[impl roots.error+2]
             // checkmsrv[impl tool.missing]
             // checkmsrv[impl tool.unpinned]
             Err(error) => Outcome::Errored {
@@ -115,7 +115,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
         .await
         .map_err(|source| CheckMsrvError::UnresolvedTool { source })?;
 
-    // checkmsrv[impl roots.error]
+    // checkmsrv[impl roots.error+2]
     let roots = cargo
         .roots()
         .await
@@ -128,7 +128,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
         });
     }
 
-    let declared = declarations(&cargo, &roots).await?;
+    let declared = declarations(&roots);
 
     // checkmsrv[impl skip.undeclared]
     if declared.is_empty() {
@@ -219,37 +219,19 @@ async fn check(
 /// of them declares
 ///
 /// A root that declares none is passed over, because it promises nothing
-/// that a compiler can confirm.
-///
-/// # Errors
-///
-/// Returns [`UnreadableDeclaration`][declaration] when cargo gives no answer
-/// about a root that the action can use.
-///
-/// [declaration]: CheckMsrvError::UnreadableDeclaration
+/// that a compiler can confirm. The discovery of the roots read the
+/// declarations, so nothing here asks cargo.
 // checkmsrv[impl roots.declared]
 // checkmsrv[impl skip.undeclared]
-async fn declarations(
-    cargo: &Cargo,
-    roots: &[CargoRoot],
-) -> Result<Vec<(CargoRoot, RustVersion)>, CheckMsrvError> {
-    let mut declared = Vec::new();
-
-    for root in roots {
-        // checkmsrv[impl roots.error]
-        let version = cargo.rust_version(root).await.map_err(|source| {
-            CheckMsrvError::UnreadableDeclaration {
-                root: root.directory().clone(),
-                source,
-            }
-        })?;
-
-        if let Some(version) = version {
-            declared.push((root.clone(), version));
-        }
-    }
-
-    Ok(declared)
+fn declarations(roots: &[CargoRoot]) -> Vec<(CargoRoot, RustVersion)> {
+    roots
+        .iter()
+        .filter_map(|root| {
+            root.rust_version()
+                .clone()
+                .map(|version| (root.clone(), version))
+        })
+        .collect()
 }
 
 /// Returns whether the action can answer from a report
@@ -310,10 +292,10 @@ mod tests {
     // checkmsrv[verify check.unreadable]
     #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
-        let root = CargoRoot::new(
-            PathBuf::from("/home/otter/project"),
-            Documentation::Testable,
-        );
+        let root = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .build();
 
         let report = read(
             &root,

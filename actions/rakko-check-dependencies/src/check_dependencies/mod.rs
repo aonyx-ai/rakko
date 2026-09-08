@@ -264,10 +264,10 @@ mod tests {
 
     /// Returns the workspace root that lies at the root of the project
     fn project_workspace() -> CargoRoot {
-        CargoRoot::new(
-            PathBuf::from("/home/otter/project"),
-            Documentation::Testable,
-        )
+        CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .build()
     }
 
     /// Returns a problem of the given weight about one package
@@ -287,10 +287,10 @@ mod tests {
 
     /// Returns a workspace root below the root of the project
     fn tool_workspace() -> CargoRoot {
-        CargoRoot::new(
-            PathBuf::from("/home/otter/project/tools/harness"),
-            Documentation::Testable,
-        )
+        CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project/tools/harness"))
+            .documentation(Documentation::Testable)
+            .build()
     }
 
     // checkdependencies[verify check.finding]
@@ -327,10 +327,10 @@ mod tests {
 
     #[test]
     fn location_of_a_workspace_outside_the_project_reports_the_path() {
-        let outside = CargoRoot::new(
-            PathBuf::from("/home/otter/elsewhere"),
-            Documentation::Testable,
-        );
+        let outside = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/elsewhere"))
+            .documentation(Documentation::Testable)
+            .build();
 
         let error = location(&outside, &root()).unwrap_err();
 
