@@ -20,7 +20,8 @@ jobs:
       contents: read
 
     outputs:
-      matrix: ${{ steps.export-commands.outputs.commands }}
+      checks: ${{ steps.export-commands.outputs.checks }}
+      tests: ${{ steps.export-commands.outputs.tests }}
 
     steps:
       - name: Checkout code
@@ -40,25 +41,32 @@ jobs:
       # `help` is not a check. A written command that is a check therefore
       # has to carry one of these prefixes to reach CI.
       #
+      # The list splits in two, because a command that runs the tests runs on
+      # every platform and every other command runs on one.
+      #
       # The help is text that clap lays out, and a release of clap may lay it
-      # out differently. The count below turns that into a failure of this
-      # job, because an empty list would otherwise skip every check and read
-      # as a pull request that has nothing to run.
+      # out differently. An empty list would skip a whole job and read as a
+      # pull request that has nothing to run, so an empty one fails here.
       - name: Export the commands
         id: export-commands
         run: |
-          commands=$(mise run rakko -- --help |
+          listed=$(mise run rakko -- --help |
             awk '/^Commands:/ { list = 1; next }
                  /^$/         { list = 0 }
-                 list && /^  (build|check|format|lint|test)-/ { print $1 }' |
-            jq --compact-output --null-input --raw-input '[inputs]')
+                 list && /^  (build|check|format|lint|test)-/ { print $1 }')
 
-          if [ "$(jq 'length' <<< "${commands}")" -eq 0 ]; then
-            echo "The help of the harness listed no command." >&2
+          checks=$(grep --invert-match '^test-' <<< "${listed}" || true)
+          tests=$(grep '^test-' <<< "${listed}" || true)
+
+          if [ -z "${checks}" ] || [ -z "${tests}" ]; then
+            echo "The help of the harness listed no command for one of the jobs." >&2
             exit 1
           fi
 
-          echo "commands=${commands}" >> "$GITHUB_OUTPUT"
+          to_json() { jq --compact-output --null-input --raw-input '[inputs]'; }
+
+          echo "checks=$(to_json <<< "${checks}")" >> "$GITHUB_OUTPUT"
+          echo "tests=$(to_json <<< "${tests}")" >> "$GITHUB_OUTPUT"
 
   checks:
     name: ${{ matrix.command }}
@@ -70,12 +78,12 @@ jobs:
     needs: commands
 
     env:
-      # The commands that reach tracey: `check-specs` calls it, and the three
-      # that run the test suite reach it through the integration tests of
-      # `rakko-check-specs`, which start the tool that the project pins. Every
-      # other job skips both the cache and the build, which takes about twenty
-      # minutes when the cache misses.
-      TRACEY: ${{ contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.command) }}
+      # The commands that reach tracey: `check-specs` calls it, and the two
+      # that resolve the dependencies afresh reach it through the integration
+      # tests of `rakko-check-specs`, which start the tool that the project
+      # pins. Every other job skips both the cache and the build, which takes
+      # about twenty minutes when the cache misses.
+      TRACEY: ${{ contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs"]'), matrix.command) }}
 
       # A job that never reaches tracey disables the tool, so that the build
       # stays out of it. The name is the one that `mise.toml` writes, because
@@ -83,12 +91,12 @@ jobs:
       # value empty, so that the harness finds the tool that the step below
       # installed. The empty value is the fallback of the expression, because
       # an expression that yields it from the left of `||` yields it always.
-      MISE_DISABLE_TOOLS: ${{ !contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.command) && 'cargo:https://github.com/bearcove/tracey' || '' }}
+      MISE_DISABLE_TOOLS: ${{ !contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs"]'), matrix.command) && 'cargo:https://github.com/bearcove/tracey' || '' }}
 
     strategy:
       fail-fast: false
       matrix:
-        command: ${{ fromJson(needs.commands.outputs.matrix) }}
+        command: ${{ fromJson(needs.commands.outputs.checks) }}
 
     steps:
       - name: Checkout code
@@ -112,13 +120,57 @@ jobs:
           COMMAND: ${{ matrix.command }}
         run: mise run rakko -- "$COMMAND"
 
+  # An action starts a subprocess and reads the paths that it reported, and
+  # that is where an assumption about a platform shows up, so the commands
+  # that run the tests run on more than one platform. Every other command
+  # answers the same on all of them and runs on one, which is why this job is
+  # separate from the matrix above. Windows belongs in this matrix as well,
+  # and issue #24 carries what it still waits on.
+  tests:
+    name: ${{ matrix.command }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: read
+
+    needs: commands
+
+    env:
+      # The tests of `rakko-check-specs` start the tool that the project pins,
+      # and they travel with the crates that `test-rust` builds. Nothing else
+      # here reaches tracey, so nothing else pays for the build.
+      TRACEY: ${{ matrix.command == 'test-rust' }}
+      MISE_DISABLE_TOOLS: ${{ matrix.command != 'test-rust' && 'cargo:https://github.com/bearcove/tracey' || '' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        command: ${{ fromJson(needs.commands.outputs.tests) }}
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the tools
+        uses: $/.github/actions/setup
+        with:
+          tracey: ${{ env.TRACEY }}
+
+      - name: Run the command
+        env:
+          COMMAND: ${{ matrix.command }}
+        run: mise run rakko -- "$COMMAND"
+
   success:
     name: All checks succeeded
     runs-on: ubuntu-latest
 
     permissions: {}
 
-    needs: checks
+    needs: [checks, tests]
     if: always()
 
     steps:
