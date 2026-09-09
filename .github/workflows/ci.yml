@@ -28,26 +28,10 @@ jobs:
         with:
           persist-credentials: false
 
-      # Tracey stays out of this job. It builds the harness and reads the
-      # help, and it runs no action, so nothing here reaches the tool, whose
-      # build takes about twenty minutes.
-      - name: Install the tools
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-        with:
-          # Without a pin the action installs the release that mise reports as
-          # the newest one, and a release whose upload failed carries no file
-          # to download. Renovate advances the pin, so a release that breaks
-          # costs one revert instead of a red pull request.
-          # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
-          version: 2026.9.4
-        env:
-          MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
-
-      # The build of the harness selects the default toolchain, and a
-      # toolchain that mise recorded without downloading arrives here instead
-      # of during the build.
-      - name: Download the toolchains
-        run: mise run install-toolchains
+      # This job builds the harness and reads the help, and it runs no
+      # action, so nothing here reaches tracey.
+      - name: Set up the tools
+        uses: $/.github/actions/setup
 
       # The help of the harness lists what this repository mounts, so an
       # action that the harness gains reaches CI without a change to this
@@ -115,56 +99,10 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      # A runner of GitHub starts from a clean disk, and the build of tracey
-      # takes several minutes. The cache workflow keeps a cache on the default
-      # branch that every pull request can reach.
-      - name: Restore tracey
-        if: env.TRACEY == 'true'
-        uses: $/.github/actions/restore-tracey
-
-      # Tracey stays out of this installation even in a job that reaches it,
-      # because a tool of the cargo backend builds without the other tools of
-      # mise on its path, and the build script of tracey needs two of them.
-      # The step below builds it with those two on the path instead.
-      - name: Install the tools
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - name: Set up the tools
+        uses: $/.github/actions/setup
         with:
-          # Without a pin the action installs the release that mise reports as
-          # the newest one, and a release whose upload failed carries no file
-          # to download. Renovate advances the pin, so a release that breaks
-          # costs one revert instead of a red pull request.
-          # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
-          version: 2026.9.4
-        env:
-          MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
-
-      # The build script of tracey starts node and pnpm by name, and it finds
-      # neither through mise: a tool of the cargo backend builds without the
-      # other tools of mise on its path, so the script reaches whatever node
-      # the machine carries and no pnpm at all. The links put both on the path
-      # under names that belong to no tool of mise, and the versions that they
-      # print are the pins of this repository, so a wrong path stops the job
-      # here instead of after the nine minutes that the dependencies take.
-      - name: Build tracey
-        if: env.TRACEY == 'true'
-        run: |
-          tools="${RUNNER_TEMP}/tracey-build-tools"
-          mkdir -p "${tools}"
-          ln -sf "$(mise where node)/bin/node" "${tools}/node"
-          ln -sf "$(mise where pnpm)/pnpm" "${tools}/pnpm"
-          export PATH="${tools}:${PATH}"
-
-          node --version
-          pnpm --version
-
-          mise install "cargo:https://github.com/bearcove/tracey"
-
-      # The installation runs the task that downloads the toolchains which mise
-      # only recorded, but a failed task is only a warning there. The task runs
-      # again here, where a failure stops the job instead of leaving a
-      # toolchain for the first command that selects it to download.
-      - name: Download the toolchains
-        run: mise run install-toolchains
+          tracey: ${{ env.TRACEY }}
 
       # The task hands every argument to the harness untouched, and the harness
       # is what a contributor runs as well, so a job of CI and a machine of a
