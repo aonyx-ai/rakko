@@ -38,6 +38,15 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 /// The details of a run of mise that ended with success and named no location
 const NO_LOCATION: &str = "mise named no location";
 
+/// The extensions that Windows starts a program by
+///
+/// The list holds the extensions of `PATHEXT` that carry a program of their
+/// own, in the order that Windows reads them. It leaves out the ones that
+/// name a script for an interpreter, such as `.ps1`, because starting one of
+/// those is a setting of a machine and not a property of the project.
+#[cfg(windows)]
+const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
+
 /// An external program that an action runs
 ///
 /// A tool is a program that mise installed for a project, at the version that
@@ -164,10 +173,13 @@ impl Tool {
                 source,
             })?;
 
-        let program = program(&execution).ok_or_else(|| ResolveToolError::UnresolvedTool {
+        let named = program(&execution).ok_or_else(|| ResolveToolError::UnresolvedTool {
             tool: name.clone(),
             details: details(&execution),
         })?;
+
+        // tool[impl resolve.executable]
+        let program = executable(named);
 
         Ok(Self {
             name,
@@ -226,6 +238,42 @@ fn program(execution: &Execution) -> Option<Program> {
         .map(Program::from)
 }
 
+/// Returns the program that the platform starts for what mise named
+///
+/// Every platform but Windows starts the file that mise named, and the answer
+/// is the one that arrived.
+#[cfg(not(windows))]
+fn executable(program: Program) -> Program {
+    program
+}
+
+/// Returns the program that the platform starts for what mise named
+///
+/// Windows decides what it can start from the extension of a file. A package
+/// manager for Node writes a script without an extension and a launcher with
+/// one, side by side under the same name, and mise names the script, which
+/// Windows refuses to start. The lookup therefore adds the extensions of the
+/// platform to the name and answers with the first file that exists.
+///
+/// A file that already carries an extension is the answer, and so is one that
+/// no launcher sits beside, so that a tool which mise resolved and this
+/// platform cannot start fails where a run starts it, with the location that
+/// mise reported in the message.
+#[cfg(windows)]
+fn executable(program: Program) -> Program {
+    let path = program.get();
+
+    if path.extension().is_some() {
+        return program;
+    }
+
+    EXECUTABLE_EXTENSIONS
+        .iter()
+        .map(|extension| path.with_extension(extension))
+        .find(|candidate| candidate.is_file())
+        .map_or(program, Program::from)
+}
+
 #[cfg(test)]
 mod tests {
     // An assertion in a test panics by design. A `# Panics` section on every
@@ -244,6 +292,14 @@ mod tests {
     /// that reads an argument and writes it back, so that a run can show what
     /// reached the tool.
     const PINNED: &str = "jq";
+
+    /// A tool of this repository that a package manager for Node installed
+    ///
+    /// Such a package writes a script without an extension and a launcher
+    /// with one under the same name, and mise names the script. The name is
+    /// therefore the one that shows whether resolution answers with a program
+    /// that the platform can start.
+    const SCRIPTED: &str = "prettier";
 
     /// Returns the root of the project that the tests run against
     ///
@@ -296,6 +352,25 @@ mod tests {
         let tool = pinned().await;
 
         assert!(tool.program().get().is_file());
+    }
+
+    // A file that mise names for a package of Node is a script on every
+    // platform, and Windows starts a program by the extension of its file, so
+    // this run reaches the tool only when resolution answered with the
+    // launcher beside the script.
+    // tool[verify resolve.executable]
+    #[tokio::test]
+    async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
+        let tool = Tool::resolve(ToolName::new(SCRIPTED), root())
+            .await
+            .expect("expected mise to report the location of a tool that this project pins");
+
+        let execution = tool.invocation().arg("--version").run().await;
+
+        assert!(
+            execution.is_ok(),
+            "expected the tool to run, got {execution:?}"
+        );
     }
 
     // tool[verify resolve.missing]
