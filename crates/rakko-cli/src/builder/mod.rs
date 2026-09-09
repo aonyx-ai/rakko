@@ -1098,9 +1098,7 @@ mod tests {
         .expect("expected the command line to drive the action");
 
         let root = seen.lock().expect("the test holds the lock alone").clone();
-        let named = directory
-            .path()
-            .canonicalize()
+        let named = rakko_action::path::canonical(directory.path())
             .expect("the test names a directory that exists");
         assert_eq!(root, Some(named));
     }
@@ -1123,9 +1121,7 @@ mod tests {
             .lock()
             .expect("the test holds the lock alone")
             .clone();
-        let named = directory
-            .path()
-            .canonicalize()
+        let named = rakko_action::path::canonical(directory.path())
             .expect("the test names a directory that exists");
         assert_eq!(root, Some(named));
     }

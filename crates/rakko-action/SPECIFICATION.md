@@ -93,6 +93,28 @@ A context MUST be safe to move to a different thread.
 action[context.sync]
 A context MUST be safe to share with a different thread.
 
+## Paths
+
+An action reports a location, and whatever produces it compares a path of the
+project with a path that an external tool wrote. The two describe one file
+only when both carry the spelling of the platform. Windows has two spellings
+for one file: the one that the file system resolves a path to, which opens
+with a prefix that marks it, and the one that a program writes. A path in the
+first spelling matches no path of a program, so a directory of the project
+holds none of the files that a tool reported below it.
+
+action[path.canonical]
+The crate MUST resolve a path into the file that the file system names for
+it. A path that names no file MUST report the error of the file system.
+
+action[path.plain]
+A resolved path MUST carry the spelling that a program of the platform
+writes, unless a program cannot open a path in that spelling. A path that
+nothing resolved MUST stay as it is.
+
+action[path.root]
+The crate MUST make a project root from a resolved path.
+
 ## Position
 
 A position tells where in a file a problem is. The first line of a file is

@@ -400,9 +400,14 @@ impl Target {
 /// directory on macOS sits behind one, so a path of the walk and a path of
 /// cargo can name one file in two ways. Both go through this function before
 /// they meet. A path that cannot be resolved stays as it is.
+///
+/// The answer carries the spelling that a program writes, because the
+/// resolution of Windows produces a second spelling that a root of the
+/// project never holds.
 async fn canonical(path: &Path) -> PathBuf {
     tokio::fs::canonicalize(path)
         .await
+        .map(|resolved| rakko_action::path::plain(&resolved))
         .unwrap_or_else(|_| path.to_path_buf())
 }
 
