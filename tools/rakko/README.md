@@ -34,9 +34,8 @@ mise run rakko -- pre-commit --fix
 ```
 
 The `--fix` flag lets the formatters rewrite the files that they can format.
-The hook that Git runs before a commit passes it, and so does `just
-pre-commit`. A run without the flag reports what a commit would have to
-repair, and it changes nothing.
+The hook that Git runs before a commit passes it. A run without the flag
+reports what a commit would have to repair, and it changes nothing.
 
 The command fails when an action found problems or stopped, so the commit
 waits. A run in which the formatters repaired everything that they found

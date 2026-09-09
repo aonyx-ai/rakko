@@ -12,15 +12,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  targets:
-    name: Enumerate Just recipes
+  commands:
+    name: Enumerate the commands
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
 
     outputs:
-      matrix: ${{ steps.export-targets.outputs.targets }}
+      matrix: ${{ steps.export-commands.outputs.commands }}
 
     steps:
       - name: Checkout code
@@ -28,59 +28,89 @@ jobs:
         with:
           persist-credentials: false
 
-      # Listing the recipes needs Just and jq, and nothing else. A cache would
-      # hold a tool set that no other job wants, so this job writes none.
-      - name: Install mise
+      # Tracey stays out of this job. It builds the harness and reads the
+      # help, and it runs no action, so nothing here reaches the tool, whose
+      # build takes about twenty minutes.
+      - name: Install the tools
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
-          cache: false
-          install_args: just jq
           # Without a pin the action installs the release that mise reports as
           # the newest one, and a release whose upload failed carries no file
           # to download. Renovate advances the pin, so a release that breaks
           # costs one revert instead of a red pull request.
           # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
           version: 2026.9.3
+        env:
+          MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
 
-      - name: Export targets
-        id: export-targets
-        run: echo "targets=$(just --list | awk '/build-|check-|format-|lint-|test-/{print $1}' | jq -cnR '[inputs]')" >> "$GITHUB_OUTPUT"
+      # The build of the harness selects the default toolchain, and a
+      # toolchain that mise recorded without downloading arrives here instead
+      # of during the build.
+      - name: Download the toolchains
+        run: mise run install-toolchains
+
+      # The help of the harness lists what this repository mounts, so an
+      # action that the harness gains reaches CI without a change to this
+      # file. The prefix picks the commands that a job runs: `pre-commit`
+      # drives the actions that the jobs below already run one by one, and
+      # `help` is not a check. A written command that is a check therefore
+      # has to carry one of these prefixes to reach CI.
+      #
+      # The help is text that clap lays out, and a release of clap may lay it
+      # out differently. The count below turns that into a failure of this
+      # job, because an empty list would otherwise skip every check and read
+      # as a pull request that has nothing to run.
+      - name: Export the commands
+        id: export-commands
+        run: |
+          commands=$(mise run rakko -- --help |
+            awk '/^Commands:/ { list = 1; next }
+                 /^$/         { list = 0 }
+                 list && /^  (build|check|format|lint|test)-/ { print $1 }' |
+            jq --compact-output --null-input --raw-input '[inputs]')
+
+          if [ "$(jq 'length' <<< "${commands}")" -eq 0 ]; then
+            echo "The help of the harness listed no command." >&2
+            exit 1
+          fi
+
+          echo "commands=${commands}" >> "$GITHUB_OUTPUT"
 
   checks:
-    name: ${{ matrix.target }}
+    name: ${{ matrix.command }}
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
 
-    needs: targets
+    needs: commands
 
     env:
-      # The recipes that reach tracey: `check-specs` calls it, and the three
+      # The commands that reach tracey: `check-specs` calls it, and the three
       # that run the test suite reach it through the integration tests of
       # `rakko-check-specs`, which start the tool that the project pins. Every
       # other job skips both the cache and the build, which takes about twenty
       # minutes when the cache misses.
-      TRACEY: ${{ contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.target) }}
+      TRACEY: ${{ contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.command) }}
 
       # A job that never reaches tracey disables the tool, so that the build
       # stays out of it. The name is the one that `mise.toml` writes, because
       # a short name disables nothing. A job that does reach tracey leaves the
-      # value empty, so that the recipe finds the tool that the step below
+      # value empty, so that the harness finds the tool that the step below
       # installed. The empty value is the fallback of the expression, because
       # an expression that yields it from the left of `||` yields it always.
-      MISE_DISABLE_TOOLS: ${{ !contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.target) && 'cargo:https://github.com/bearcove/tracey' || '' }}
+      MISE_DISABLE_TOOLS: ${{ !contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.command) && 'cargo:https://github.com/bearcove/tracey' || '' }}
 
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJson(needs.targets.outputs.matrix) }}
+        command: ${{ fromJson(needs.commands.outputs.matrix) }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # `just check-specs` compares the pull request with its base branch,
+          # `check-specs` compares the pull request with its base branch,
           # which is the first parent of the merge commit
           fetch-depth: 2
           persist-credentials: false
@@ -136,10 +166,13 @@ jobs:
       - name: Download the toolchains
         run: mise run install-toolchains
 
-      - name: Run check with Just
+      # The task hands every argument to the harness untouched, and the harness
+      # is what a contributor runs as well, so a job of CI and a machine of a
+      # contributor answer the same question with the same command.
+      - name: Run the command
         env:
-          TARGET: ${{ matrix.target }}
-        run: just "$TARGET"
+          COMMAND: ${{ matrix.command }}
+        run: mise run rakko -- "$COMMAND"
 
   success:
     name: All checks succeeded
@@ -153,6 +186,6 @@ jobs:
     steps:
       - name: Check if all checks succeeded
         # `needs` is a list of job names, which themselves are generated from
-        # the output of `just --list`, so we ignore the template injection here.
+        # the help of the harness, so we ignore the template injection here.
         # zizmor: ignore[template-injection]
         run: jq --exit-status 'all(.result == "success")' <<< '${{ toJson(needs) }}'

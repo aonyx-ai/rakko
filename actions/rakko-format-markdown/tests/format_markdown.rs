@@ -11,7 +11,7 @@
 //!
 //! Prettier runs on Node, and the program that mise reports starts Node from
 //! the environment of the process. The tests therefore run inside the
-//! environment of mise, which every Just recipe of this repository enters.
+//! environment of mise, which the task that starts the harness enters.
 
 // An assertion in a test panics by design, and the helpers of this file exist
 // only for tests. The lints that guard production code do not apply.

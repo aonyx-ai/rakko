@@ -25,8 +25,9 @@ Each crate has a specification in `<crate>/SPECIFICATION.md` that documents
 what the crate does. A specification is a list of requirements with
 identifiers, such as `rakko[placeholder.add]`. The prefix is the name of the
 crate without `rakko-`. [Tracey] links each requirement to the code that
-implements it and to the test that verifies it. `just check-specs` validates
-these links, and `.config/tracey/config.styx` lists the specifications.
+implements it and to the test that verifies it.
+`mise run rakko -- check-specs` validates these links, and
+`.config/tracey/config.styx` lists the specifications.
 [ADR-002] records this decision.
 
 - Before you implement a crate, read its specification.
@@ -64,14 +65,15 @@ these links, and `.config/tracey/config.styx` lists the specifications.
   action it mounts by path.
 - Require the lowest version of a dependency that still compiles, so that
   applications keep the widest choice of versions. Verify the floor with
-  `just check-minimal-deps`.
+  `mise run rakko -- check-minimal-deps`.
 - Write dependency entries without comments. Do not describe what a package
   does, and do not explain a version requirement. Reasoning that matters, such
   as why a floor cannot go lower, belongs in the commit message.
-- When adding dependencies, run `just check-dependencies` to verify license
-  compatibility. If new licenses need allowlisting in `deny.toml`, include
-  that in the same commit, again without a comment. Allowlist licenses that
-  are OSI- or FSF-approved, ask for any other licenses.
+- When adding dependencies, run `mise run rakko -- check-dependencies` to
+  verify license compatibility. If new licenses need allowlisting in
+  `deny.toml`, include that in the same commit, again without a comment.
+  Allowlist licenses that are OSI- or FSF-approved, ask for any other
+  licenses.
 
 ### Derives
 
@@ -156,8 +158,8 @@ these links, and `.config/tracey/config.styx` lists the specifications.
 
 - Never commit directly to `main`, always create a branch or worktree.
 - Every commit should be a logical unit of change.
-- Every commit must build and pass all checks. Use `just` recipes for
-  verification (e.g. `just pre-commit`).
+- Every commit must build and pass all checks. Use the harness for
+  verification (e.g. `mise run rakko -- pre-commit`).
 - Fixes and refactoring should be in separate commits from features.
 - Each pull request should have one primary commit with a well-crafted
   message — this is what lands in the Git history since we squash merge.

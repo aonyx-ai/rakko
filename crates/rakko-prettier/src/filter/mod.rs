@@ -177,7 +177,7 @@ mod tests {
     // prettier[verify select.any]
     #[test]
     fn matches_a_file_without_an_extension_reports_no_match() {
-        let matched = Filter::any().matches(&PathBuf::from("justfile"));
+        let matched = Filter::any().matches(&PathBuf::from("LICENSE-MIT"));
 
         assert!(!matched);
     }
