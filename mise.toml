@@ -24,10 +24,10 @@ pnpm = "11.25.0"
 # the root `Cargo.toml`, because the action reads the version from the
 # manifest and then asks mise for the toolchain, and Rakko installs nothing. A
 # pin that stops agreeing with the manifest therefore fails the check instead
-# of moving it. Mise installs all three through rustup, so `rustup run` still
-# reaches the toolchains that the remaining justfile recipes install
-# themselves. The `rust-src` component carries the source of the standard
-# library, which rust-analyzer reads.
+# of moving it. Mise installs all three through rustup, so an action that
+# names a toolchain reaches it through the proxy of rustup. The `rust-src`
+# component carries the source of the standard library, which rust-analyzer
+# reads.
 rust = [
   { version = "1.98.0", components = [
     "clippy",
@@ -44,7 +44,6 @@ rust = [
 "cargo:cargo-nextest" = "0.9.143"
 "cargo:cargo-udeps" = "0.1.61"
 jq = "1.8.2"
-just = "1.58.0"
 "npm:markdownlint-cli" = "0.49.1"
 pre-commit = "4.6.2"
 "npm:prettier" = "3.9.6"

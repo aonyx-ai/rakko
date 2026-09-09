@@ -151,13 +151,13 @@ When all the sparkle is in place:
 
 ## The First Milestone
 
-Rakko bootstraps on the tooling it exists to replace: the repository starts
-with a Justfile and the familiar configs, because nothing else exists yet.
-That irony defines the finish line. The MVP is complete when the Rakko
-repository has fully migrated to mise and Rakko itself — its own checks run
-through `mise run rakko`, and the Justfile is gone.
+Rakko bootstrapped on the tooling it exists to replace: the repository
+started with a Justfile and the familiar configs, because nothing else existed
+yet. That irony defined the finish line, and the repository has reached it. It
+has fully migrated to mise and Rakko itself — its own checks run through `mise
+run rakko`, and the Justfile is gone.
 
-Until then, the repository doubles as the playground: the harness consumes new
+The repository also doubles as the playground: the harness consumes new
 actions as path dependencies, so every action is exercised in a real
 repository the moment it compiles. The exceptions are actions for stacks this
 repository does not contain — those wait for their first real adopter.

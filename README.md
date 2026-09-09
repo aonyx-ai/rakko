@@ -55,9 +55,8 @@ The first installation builds [Tracey] from source, which takes several
 minutes. Later installations reuse the binary.
 
 `pre-commit install` installs the Git hook, which runs `rakko pre-commit
---fix` before every commit, and `just` lists the recipes that wrap the
-commands of the harness. Mise writes the stubs in `bin` once, so a change to
-the tasks of `mise.toml` wants a fresh `mise generate task-stubs`.
+--fix` before every commit. Mise writes the stubs in `bin` once, so a change
+to the tasks of `mise.toml` wants a fresh `mise generate task-stubs`.
 
 ## License
 

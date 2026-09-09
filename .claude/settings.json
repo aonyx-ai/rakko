@@ -20,7 +20,7 @@
       "Bash(git checkout:*)",
       "Bash(git pull:*)",
       "Bash(git switch:*)",
-      "Bash(just pre-commit:*)"
+      "Bash(mise run rakko:*)"
     ]
   },
   "sandbox": {
