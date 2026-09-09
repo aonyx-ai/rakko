@@ -69,8 +69,11 @@ zizmor = "1.30.0"
 lockfile = true
 
 [env]
-# The directory holds `rakko`, the shortcut that runs the harness.
-_.path = ["{{ config_root }}/tools/bin"]
+# The directory holds the stubs that `mise generate task-stubs` writes, one per
+# task, so that `rakko` runs the harness wherever mise supplies its
+# environment. Mise writes the stubs once and never touches them again, so a
+# change to the tasks below wants a fresh run of the generator.
+_.path = ["{{ config_root }}/bin"]
 
 [hooks]
 # `mise install` provisions the tools above and then downloads the toolchains
