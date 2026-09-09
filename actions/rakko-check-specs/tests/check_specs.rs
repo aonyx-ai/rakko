@@ -19,6 +19,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Location, Outcome, ProjectRoot};
 use rakko_check_specs::{CheckSpecs, Comparison};
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// The configuration that points tracey at the files of a project
@@ -142,13 +143,8 @@ impl Project {
 
     /// Returns the canonical root of the project
     fn root(&self) -> ProjectRoot {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
-            .expect("the test names a directory that exists");
-
-        ProjectRoot::from(root.as_path())
+        ProjectRoot::canonical(self.directory.path())
+            .expect("the test names a directory that exists")
     }
 
     /// Runs the action against this project
@@ -358,7 +354,7 @@ async fn run_with_an_unknown_reference_reports_the_position() {
     };
     assert_eq!(
         (path.to_string(), position.line().get()),
-        ("src/lib.rs".to_owned(), 4)
+        (path_text("src/lib.rs"), 4)
     );
 }
 

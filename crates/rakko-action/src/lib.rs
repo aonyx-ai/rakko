@@ -26,6 +26,8 @@ pub mod finding;
 pub mod name;
 /// Types for the result of an action run
 pub mod outcome;
+/// The spelling of a path that an action reports
+pub mod path;
 
 pub use self::action::Action;
 pub use self::args::{

@@ -26,8 +26,9 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Summary};
+use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_check_latest_deps::CheckLatestDeps;
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// The manifest of a package that nextest tests
@@ -190,13 +191,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Runs git in the project
@@ -519,7 +517,7 @@ async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["tools/harness/src/lib.rs"]);
+    assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
 // checklatestdeps[verify roots.error]

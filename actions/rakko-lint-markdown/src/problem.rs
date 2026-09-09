@@ -96,39 +96,36 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_test_utils::path;
+
     use super::*;
 
     /// Returns a problem about the given path
-    fn problem(path: &str) -> MarkdownlintProblem {
-        MarkdownlintProblem::new(
-            PathBuf::from(path),
-            1,
-            None,
-            "MD041/first-line-heading".to_owned(),
-        )
+    fn problem(path: PathBuf) -> MarkdownlintProblem {
+        MarkdownlintProblem::new(path, 1, None, "MD041/first-line-heading".to_owned())
     }
 
     #[test]
     fn relative_path_outside_the_root_names_nothing() {
-        let path = problem("/home/otter/elsewhere/a.md")
-            .relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem(path("/home/otter/elsewhere/a.md"))
+            .relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, None);
+        assert_eq!(relative, None);
     }
 
     #[test]
     fn relative_path_that_arrived_absolute_drops_the_root() {
-        let path = problem("/home/otter/project/sub/a.md")
-            .relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem(path("/home/otter/project/sub/a.md"))
+            .relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, FilePath::try_from("sub/a.md").ok());
+        assert_eq!(relative, FilePath::try_from(path("sub/a.md")).ok());
     }
 
     #[test]
     fn relative_path_that_arrived_relative_stands_as_markdownlint_wrote_it() {
-        let path = problem("sub/a.md")
-            .relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative =
+            problem(path("sub/a.md")).relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, FilePath::try_from("sub/a.md").ok());
+        assert_eq!(relative, FilePath::try_from(path("sub/a.md")).ok());
     }
 }

@@ -188,6 +188,7 @@ mod tests {
     use std::path::PathBuf;
 
     use rakko_action::{Position, Span};
+    use rakko_test_utils::path;
 
     use super::*;
     use crate::problem::Severity;
@@ -206,7 +207,7 @@ mod tests {
 
     /// The root that the problems of a test belong to
     fn root() -> ProjectRoot {
-        ProjectRoot::new(PathBuf::from("/home/otter/project"))
+        ProjectRoot::new(path("/home/otter/project"))
     }
 
     /// Returns the range that the problems of a test cover
@@ -246,7 +247,7 @@ mod tests {
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
         let problem = ZizmorProblem::new(
-            PathBuf::from("/elsewhere/ci.yml"),
+            path("/elsewhere/ci.yml"),
             span(),
             Severity::High,
             "unpinned-uses".to_owned(),

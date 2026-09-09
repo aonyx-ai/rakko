@@ -18,7 +18,9 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, Summary};
+#[cfg(unix)]
+use rakko_action::Finding;
+use rakko_action::{Action, Args, Context, Location, Outcome, Position, ProjectRoot, Summary};
 use rakko_lint_toml::LintToml;
 use tempfile::TempDir;
 
@@ -93,13 +95,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not
     /// depend on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Returns the content of a file of the project
@@ -126,6 +125,10 @@ impl Project {
 }
 
 /// Returns the paths that the findings of an outcome name
+///
+/// Only the test that takes the permissions off a file asks for them, and
+/// that test runs on Unix alone.
+#[cfg(unix)]
 fn locations(findings: &[Finding]) -> Vec<String> {
     findings
         .iter()

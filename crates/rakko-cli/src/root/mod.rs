@@ -74,11 +74,8 @@ pub(crate) fn resolve(
 ///
 /// Returns an error when the file system does not answer for the path.
 fn canonical(root: PathBuf) -> Result<ProjectRoot, ResolveProjectRootError> {
-    let resolved = root
-        .canonicalize()
-        .map_err(|source| ResolveProjectRootError::UnreadableRoot { root, source })?;
-
-    Ok(ProjectRoot::new(resolved))
+    ProjectRoot::canonical(&root)
+        .map_err(|source| ResolveProjectRootError::UnreadableRoot { root, source })
 }
 
 /// Returns the root of the project that holds the given directory

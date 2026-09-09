@@ -49,6 +49,17 @@ tool[resolve.missing]
 Resolution MUST report an error that names the tool when mise reports no
 location for it. The crate MUST NOT install the tool.
 
+Mise names one file, and that file is not always a program that the platform
+can start. A package manager for Node writes a script without an extension
+and a launcher with one, side by side under the same name, and mise names the
+script. Windows decides what it can start from the extension of a file, so
+the script is no program there and the launcher beside it is.
+
+tool[resolve.executable]
+Resolution MUST report a program that the platform can start. Where the file
+that mise named is no program of the platform, and a file of the same name
+beside it is one, resolution MUST report that file instead.
+
 ## Runs
 
 A resolved tool describes the command that runs it. An action adds the

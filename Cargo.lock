@@ -286,6 +286,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dunce"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -557,7 +563,9 @@ name = "rakko-action"
 version = "0.1.0"
 dependencies = [
  "bon",
+ "dunce",
  "getset",
+ "tempfile",
  "thiserror",
  "typed-fields",
 ]
@@ -568,6 +576,7 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-cargo",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -612,6 +621,7 @@ dependencies = [
  "rakko-action",
  "rakko-cargo",
  "rakko-nextest",
+ "rakko-test-utils",
  "rakko-tool",
  "rakko-worktree",
  "tempfile",
@@ -626,6 +636,7 @@ dependencies = [
  "rakko-action",
  "rakko-cargo",
  "rakko-nextest",
+ "rakko-test-utils",
  "rakko-tool",
  "rakko-worktree",
  "tempfile",
@@ -639,6 +650,7 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-cargo",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -653,6 +665,7 @@ dependencies = [
  "getset",
  "kawauso-process",
  "rakko-action",
+ "rakko-test-utils",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -668,6 +681,7 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-cargo",
+ "rakko-test-utils",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -697,6 +711,7 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-prettier",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -710,6 +725,7 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-prettier",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -723,6 +739,7 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-cargo",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -749,6 +766,7 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-prettier",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -762,6 +780,7 @@ dependencies = [
  "bon",
  "getset",
  "rakko-action",
+ "rakko-test-utils",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -777,6 +796,7 @@ dependencies = [
  "bon",
  "getset",
  "rakko-action",
+ "rakko-test-utils",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -791,6 +811,7 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-cargo",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -816,6 +837,7 @@ dependencies = [
  "bon",
  "getset",
  "rakko-action",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -829,6 +851,7 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-cargo",
+ "rakko-test-utils",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -844,6 +867,7 @@ dependencies = [
  "bon",
  "getset",
  "rakko-action",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -871,6 +895,7 @@ dependencies = [
  "rakko-action",
  "rakko-cargo",
  "rakko-nextest",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -884,11 +909,16 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-cargo",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
  "tokio",
 ]
+
+[[package]]
+name = "rakko-test-utils"
+version = "0.1.0"
 
 [[package]]
 name = "rakko-tool"

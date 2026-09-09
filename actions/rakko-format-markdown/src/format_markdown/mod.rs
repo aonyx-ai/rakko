@@ -349,11 +349,13 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_test_utils::path;
+
     use super::*;
 
     /// The root that the problems of a test belong to
     fn root() -> ProjectRoot {
-        ProjectRoot::new(PathBuf::from("/home/otter/project"))
+        ProjectRoot::new(path("/home/otter/project"))
     }
 
     // formatmarkdown[verify check.invalid]
@@ -398,10 +400,7 @@ mod tests {
 
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = PrettierProblem::new(
-            PathBuf::from("/elsewhere/notes.md"),
-            ProblemDetail::Unformatted,
-        );
+        let problem = PrettierProblem::new(path("/elsewhere/notes.md"), ProblemDetail::Unformatted);
 
         let error = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap_err();
 

@@ -21,8 +21,11 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, Span};
+use rakko_action::{
+    Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Span,
+};
 use rakko_lint_github_actions::LintGitHubActions;
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// A workflow that no audit of the pedantic persona reports
@@ -159,13 +162,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Returns the content of a file of the project
@@ -325,7 +325,7 @@ async fn run_names_the_project_and_reports_the_path_below_it() {
     assert!(
         paths(findings)
             .iter()
-            .all(|path| path == ".github/workflows/injection.yaml"),
+            .all(|path| path == &path_text(".github/workflows/injection.yaml")),
         "expected the path below the project, got {:?}",
         paths(findings)
     );

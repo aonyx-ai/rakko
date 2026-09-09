@@ -20,7 +20,8 @@ jobs:
       contents: read
 
     outputs:
-      matrix: ${{ steps.export-commands.outputs.commands }}
+      checks: ${{ steps.export-commands.outputs.checks }}
+      tests: ${{ steps.export-commands.outputs.tests }}
 
     steps:
       - name: Checkout code
@@ -28,26 +29,10 @@ jobs:
         with:
           persist-credentials: false
 
-      # Tracey stays out of this job. It builds the harness and reads the
-      # help, and it runs no action, so nothing here reaches the tool, whose
-      # build takes about twenty minutes.
-      - name: Install the tools
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-        with:
-          # Without a pin the action installs the release that mise reports as
-          # the newest one, and a release whose upload failed carries no file
-          # to download. Renovate advances the pin, so a release that breaks
-          # costs one revert instead of a red pull request.
-          # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
-          version: 2026.9.3
-        env:
-          MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
-
-      # The build of the harness selects the default toolchain, and a
-      # toolchain that mise recorded without downloading arrives here instead
-      # of during the build.
-      - name: Download the toolchains
-        run: mise run install-toolchains
+      # This job builds the harness and reads the help, and it runs no
+      # action, so nothing here reaches tracey.
+      - name: Set up the tools
+        uses: $/.github/actions/setup
 
       # The help of the harness lists what this repository mounts, so an
       # action that the harness gains reaches CI without a change to this
@@ -56,25 +41,32 @@ jobs:
       # `help` is not a check. A written command that is a check therefore
       # has to carry one of these prefixes to reach CI.
       #
+      # The list splits in two, because a command that runs the tests runs on
+      # every platform and every other command runs on one.
+      #
       # The help is text that clap lays out, and a release of clap may lay it
-      # out differently. The count below turns that into a failure of this
-      # job, because an empty list would otherwise skip every check and read
-      # as a pull request that has nothing to run.
+      # out differently. An empty list would skip a whole job and read as a
+      # pull request that has nothing to run, so an empty one fails here.
       - name: Export the commands
         id: export-commands
         run: |
-          commands=$(mise run rakko -- --help |
+          listed=$(mise run rakko -- --help |
             awk '/^Commands:/ { list = 1; next }
                  /^$/         { list = 0 }
-                 list && /^  (build|check|format|lint|test)-/ { print $1 }' |
-            jq --compact-output --null-input --raw-input '[inputs]')
+                 list && /^  (build|check|format|lint|test)-/ { print $1 }')
 
-          if [ "$(jq 'length' <<< "${commands}")" -eq 0 ]; then
-            echo "The help of the harness listed no command." >&2
+          checks=$(grep --invert-match '^test-' <<< "${listed}" || true)
+          tests=$(grep '^test-' <<< "${listed}" || true)
+
+          if [ -z "${checks}" ] || [ -z "${tests}" ]; then
+            echo "The help of the harness listed no command for one of the jobs." >&2
             exit 1
           fi
 
-          echo "commands=${commands}" >> "$GITHUB_OUTPUT"
+          to_json() { jq --compact-output --null-input --raw-input '[inputs]'; }
+
+          echo "checks=$(to_json <<< "${checks}")" >> "$GITHUB_OUTPUT"
+          echo "tests=$(to_json <<< "${tests}")" >> "$GITHUB_OUTPUT"
 
   checks:
     name: ${{ matrix.command }}
@@ -86,12 +78,12 @@ jobs:
     needs: commands
 
     env:
-      # The commands that reach tracey: `check-specs` calls it, and the three
-      # that run the test suite reach it through the integration tests of
-      # `rakko-check-specs`, which start the tool that the project pins. Every
-      # other job skips both the cache and the build, which takes about twenty
-      # minutes when the cache misses.
-      TRACEY: ${{ contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.command) }}
+      # The commands that reach tracey: `check-specs` calls it, and the two
+      # that resolve the dependencies afresh reach it through the integration
+      # tests of `rakko-check-specs`, which start the tool that the project
+      # pins. Every other job skips both the cache and the build, which takes
+      # about twenty minutes when the cache misses.
+      TRACEY: ${{ contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs"]'), matrix.command) }}
 
       # A job that never reaches tracey disables the tool, so that the build
       # stays out of it. The name is the one that `mise.toml` writes, because
@@ -99,12 +91,12 @@ jobs:
       # value empty, so that the harness finds the tool that the step below
       # installed. The empty value is the fallback of the expression, because
       # an expression that yields it from the left of `||` yields it always.
-      MISE_DISABLE_TOOLS: ${{ !contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs", "test-rust"]'), matrix.command) && 'cargo:https://github.com/bearcove/tracey' || '' }}
+      MISE_DISABLE_TOOLS: ${{ !contains(fromJSON('["check-latest-deps", "check-minimal-deps", "check-specs"]'), matrix.command) && 'cargo:https://github.com/bearcove/tracey' || '' }}
 
     strategy:
       fail-fast: false
       matrix:
-        command: ${{ fromJson(needs.commands.outputs.matrix) }}
+        command: ${{ fromJson(needs.commands.outputs.checks) }}
 
     steps:
       - name: Checkout code
@@ -115,60 +107,57 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      # A runner of GitHub starts from a clean disk, and the build of tracey
-      # takes several minutes. The cache workflow keeps a cache on the default
-      # branch that every pull request can reach.
-      - name: Restore tracey
-        if: env.TRACEY == 'true'
-        uses: $/.github/actions/restore-tracey
-
-      # Tracey stays out of this installation even in a job that reaches it,
-      # because a tool of the cargo backend builds without the other tools of
-      # mise on its path, and the build script of tracey needs two of them.
-      # The step below builds it with those two on the path instead.
-      - name: Install the tools
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - name: Set up the tools
+        uses: $/.github/actions/setup
         with:
-          # Without a pin the action installs the release that mise reports as
-          # the newest one, and a release whose upload failed carries no file
-          # to download. Renovate advances the pin, so a release that breaks
-          # costs one revert instead of a red pull request.
-          # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
-          version: 2026.9.3
-        env:
-          MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
-
-      # The build script of tracey starts node and pnpm by name, and it finds
-      # neither through mise: a tool of the cargo backend builds without the
-      # other tools of mise on its path, so the script reaches whatever node
-      # the machine carries and no pnpm at all. The links put both on the path
-      # under names that belong to no tool of mise, and the versions that they
-      # print are the pins of this repository, so a wrong path stops the job
-      # here instead of after the nine minutes that the dependencies take.
-      - name: Build tracey
-        if: env.TRACEY == 'true'
-        run: |
-          tools="${RUNNER_TEMP}/tracey-build-tools"
-          mkdir -p "${tools}"
-          ln -sf "$(mise where node)/bin/node" "${tools}/node"
-          ln -sf "$(mise where pnpm)/pnpm" "${tools}/pnpm"
-          export PATH="${tools}:${PATH}"
-
-          node --version
-          pnpm --version
-
-          mise install "cargo:https://github.com/bearcove/tracey"
-
-      # The installation runs the task that downloads the toolchains which mise
-      # only recorded, but a failed task is only a warning there. The task runs
-      # again here, where a failure stops the job instead of leaving a
-      # toolchain for the first command that selects it to download.
-      - name: Download the toolchains
-        run: mise run install-toolchains
+          tracey: ${{ env.TRACEY }}
 
       # The task hands every argument to the harness untouched, and the harness
       # is what a contributor runs as well, so a job of CI and a machine of a
       # contributor answer the same question with the same command.
+      - name: Run the command
+        env:
+          COMMAND: ${{ matrix.command }}
+        run: mise run rakko -- "$COMMAND"
+
+  # An action starts a subprocess and reads the paths that it reported, and
+  # that is where an assumption about a platform shows up, so the commands
+  # that build every crate and run its tests run on every platform that Rakko
+  # supports. The rest answers the same on all of them and runs on one, which
+  # is why this job is separate from the matrix above.
+  tests:
+    name: ${{ matrix.command }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: read
+
+    needs: commands
+
+    env:
+      # The tests of `rakko-check-specs` start the tool that the project pins,
+      # and they travel with the crates that `test-rust` builds. Nothing else
+      # here reaches tracey, so nothing else pays for the build.
+      TRACEY: ${{ matrix.command == 'test-rust' }}
+      MISE_DISABLE_TOOLS: ${{ matrix.command != 'test-rust' && 'cargo:https://github.com/bearcove/tracey' || '' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        command: ${{ fromJson(needs.commands.outputs.tests) }}
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the tools
+        uses: $/.github/actions/setup
+        with:
+          tracey: ${{ env.TRACEY }}
+
       - name: Run the command
         env:
           COMMAND: ${{ matrix.command }}
@@ -180,7 +169,7 @@ jobs:
 
     permissions: {}
 
-    needs: checks
+    needs: [checks, tests]
     if: always()
 
     steps:

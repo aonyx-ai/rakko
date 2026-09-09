@@ -78,40 +78,42 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_test_utils::path;
+
     use super::*;
 
     /// Returns a problem about the given path
-    fn problem(path: &str) -> PrettierProblem {
-        PrettierProblem::new(PathBuf::from(path), ProblemDetail::Unformatted)
+    fn problem(path: PathBuf) -> PrettierProblem {
+        PrettierProblem::new(path, ProblemDetail::Unformatted)
     }
 
     // prettier[verify path.foreign]
     #[test]
     fn relative_path_outside_the_root_names_nothing() {
-        let problem = problem("/home/otter/elsewhere/a.md");
+        let problem = problem(path("/home/otter/elsewhere/a.md"));
 
-        let path = problem.relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem.relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, None);
+        assert_eq!(relative, None);
     }
 
     // prettier[verify path.relative]
     #[test]
     fn relative_path_that_arrived_absolute_drops_the_root() {
-        let problem = problem("/home/otter/project/sub/a.md");
+        let problem = problem(path("/home/otter/project/sub/a.md"));
 
-        let path = problem.relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem.relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, FilePath::try_from("sub/a.md").ok());
+        assert_eq!(relative, FilePath::try_from(path("sub/a.md")).ok());
     }
 
     // prettier[verify path.relative]
     #[test]
     fn relative_path_that_arrived_relative_stands_as_prettier_wrote_it() {
-        let problem = problem("sub/a.md");
+        let problem = problem(path("sub/a.md"));
 
-        let path = problem.relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem.relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, FilePath::try_from("sub/a.md").ok());
+        assert_eq!(relative, FilePath::try_from(path("sub/a.md")).ok());
     }
 }
