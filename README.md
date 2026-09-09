@@ -1,58 +1,63 @@
 # 🦦 Rakko
 
-Rakko turns project maintenance into versioned Rust crates. Today, every
-Aonyx project maintains itself with a copy of the same Justfile recipes and
-linter configs, and the copies drift. With Rakko, maintenance tasks are
-published crates called actions. Each project composes the actions it wants
-into a small command-line tool, and updates arrive as pull requests.
+Rakko turns project maintenance into versioned Rust crates. Aonyx built it to
+replace the Justfile recipes that every project copies, because the copies
+drift. A maintenance task, such as formatting the TOML files or checking the
+licenses of the dependencies, is a crate called an action. A project mounts
+the actions it wants in a small binary crate, the harness, and an update to an
+action arrives as a pull request, like any other dependency.
 
-Rakko is the middle layer of a three-layer architecture. [Mise] provisions
-the external tools at pinned versions. Rakko provides the actions and the
-machinery to run them. [Clawless] provides the command-line framework. Each
-project ships a tiny binary crate, the harness, that mounts its actions:
+Rakko is the middle layer of three. [Mise] provisions the external tools at
+pinned versions, Rakko provides the actions and the machinery that runs them,
+and [Clawless] turns the mounted actions into a command line. [VISION.md]
+describes where the project is going, and [GLOSSARY.md] defines its terms.
+
+Rakko (ラッコ) is Japanese for sea otter, the otter that keeps a pebble as its
+tool.
+
+## Usage
+
+A project adopts Rakko by writing a harness, a small package that mounts the
+actions the project runs. Mise builds and runs it:
 
 ```console
-mise run rakko format toml --fix
+mise run rakko
 ```
 
-Actions ship in bundles: meta-crates that define what "recommended" means
-for the fleet. When a bundle release adds a new check, every project
-receives a Renovate pull request, and the CI result of that pull request
-shows whether the project already complies. Rollout across the fleet is a
-set of merged pull requests, not a manual sweep.
+Activate mise in your shell, as the [mise documentation][mise-activate]
+describes. Activation puts the pinned tools on your `PATH`, and with them the
+`bin` directory of the project, which holds a stub for every mise task.
+`rakko` is then the same command, from every directory of the project. On
+Windows, where mise activates no native shell, `bin\rakko` from the root of
+the project is that stub.
 
-Rakko is in its earliest stage, and it bootstraps on the tooling it exists
-to replace. The first milestone is complete when this repository has
-migrated to mise and Rakko itself, and its Justfile is gone. The long-term
-picture is in [VISION.md], and the terms of the design are in [GLOSSARY.md].
-The rakko (ラッコ) is the Japanese sea otter — the otter that keeps a pebble
-as its tool.
+A run without a command lists the commands. Each action is one, and
+`pre-commit` runs every action that guards a commit:
+
+```console
+rakko format-toml --fix
+rakko pre-commit
+```
+
+This repository is the first adopter: the package in `tools/rakko` mounts the
+actions that maintain Rakko itself.
 
 ## Development
 
-[Mise] provisions every tool that this repository needs. `mise.toml` pins the
-version of each tool, and mise installs them:
+[Mise] provisions every tool that this repository needs, at the versions that
+`mise.toml` pins:
 
 ```console
 mise install
 ```
 
-The installation ends with a build of [Tracey] from source, which takes
-several minutes. Later installations reuse that binary.
+The first installation builds [Tracey] from source, which takes several
+minutes. Later installations reuse the binary.
 
-Activate mise in your shell, as the [mise documentation][mise-activate]
-describes. The activation puts the pinned tools on your `PATH`, where your
-editor and your scripts find them. Without activation, reach a tool through
-`mise exec`:
-
-```console
-mise exec -- just pre-commit
-```
-
-A recipe in the justfile enters the mise environment itself, so a recipe always
-runs the pinned version of a tool. The Git hook does the same, and it therefore
-needs only mise on your `PATH`. `pre-commit install` installs that hook, `just`
-lists the recipes, and `just pre-commit` runs the checks that the hook runs.
+`pre-commit install` installs the Git hook, which runs `rakko pre-commit
+--fix` before every commit, and `just` lists the recipes that wrap the
+commands of the harness. Mise writes the stubs in `bin` once, so a change to
+the tasks of `mise.toml` wants a fresh `mise generate task-stubs`.
 
 ## License
 
