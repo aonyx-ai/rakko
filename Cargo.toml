@@ -26,6 +26,7 @@ rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-nextest = { path = "crates/rakko-nextest", version = "0.1.0" }
 rakko-prettier = { path = "crates/rakko-prettier", version = "0.1.0" }
 rakko-taplo = { path = "crates/rakko-taplo", version = "0.1.0" }
+rakko-test-utils = { path = "crates/rakko-test-utils", version = "0.1.0" }
 rakko-tool = { path = "crates/rakko-tool", version = "0.1.0" }
 rakko-worktree = { path = "crates/rakko-worktree", version = "0.1.0" }
 serde = { version = "1.0.225", features = ["derive"] }
