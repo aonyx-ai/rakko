@@ -97,11 +97,19 @@ project gets the same shape. A run names the action that it wants, and flags
 that every action shares control what the run shows. An action names none of
 this, because uniform output is what the projection exists for.
 
-cli[command.action]
-The command line MUST refuse a run that names no action.
+A run that gives no argument asks for nothing, and the reader of that run
+wants to know what the project runs. It gets the help, which lists the
+commands that the harness mounted, and the command line does not refuse it: a
+list that answers the question is not a mistake. A run that gives an argument
+and names no action asked for something that the command line cannot deliver,
+and the command line refuses that run.
 
-cli[command.help]
-The command line MUST show its help for a run that gives no argument.
+cli[command.action+2]
+The command line MUST refuse a run that gives an argument and names no action.
+
+cli[command.help+2]
+The command line MUST show its help for a run that gives no argument, and MUST
+NOT refuse that run.
 
 cli[command.output]
 The command line MUST carry the flags that control the output of a run.
@@ -170,6 +178,10 @@ command line that it cannot read. A run that never reached an action and a run
 whose action stopped are the same event for whoever reads the result, so one
 code covers both.
 
+A run that gives no argument answers with the list of the commands, and it
+exits clean. It drove no action, so it found no problem, and a reader that
+asked what the project runs got what it asked for.
+
 A written command answers a different question. It says whether it succeeded,
 and a run cannot tell a problem of the project from a failure of the command,
 so a run whose written command failed takes the code of a run that could not
@@ -196,6 +208,9 @@ A run whose written command succeeded MUST exit with zero.
 cli[exit.failed]
 A run whose written command failed MUST exit with the code of a run that
 could not answer.
+
+cli[exit.help]
+A run that gives no argument MUST exit with zero.
 
 ## Mount
 

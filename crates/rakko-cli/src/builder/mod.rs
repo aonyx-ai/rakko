@@ -194,10 +194,11 @@ impl Builder {
     ///
     /// A request for help, and a request that the command line cannot read,
     /// end the process in this method. The user gets the message of the parser
-    /// and the process gets an exit code. A run that failed ends here as
-    /// well: the user gets the error, and the process gets the code of a run
-    /// that could not answer, whether the failure stopped an action or a
-    /// command.
+    /// and the process gets an exit code. A run that names nothing ends here
+    /// as well: the user gets the commands that the harness mounted, and the
+    /// process gets the code of a clean run. A run that failed ends here too:
+    /// the user gets the error, and the process gets the code of a run that
+    /// could not answer, whether the failure stopped an action or a command.
     ///
     /// The method ends the process itself, so that a harness stays a `main`
     /// that names what the project mounts and returns nothing.
@@ -206,7 +207,10 @@ impl Builder {
     // cli[impl report.failed]
     pub fn run(self) {
         let (matches, mounted) = match self.resolve(std::env::args_os()) {
-            Ok(resolved) => resolved,
+            Ok(Resolution::Entry(matches, mounted)) => (matches, mounted),
+            Ok(Resolution::Commands(mut command)) => {
+                std::process::exit(i32::from(show_commands(&mut command)));
+            }
             Err(error) => error.exit(),
         };
         let entry = mounted.to_string();
@@ -227,6 +231,10 @@ impl Builder {
     /// Parses the arguments and takes the action or the command that the run
     /// names
     ///
+    /// A run that gives no argument names nothing, and it gets the command
+    /// line back instead of an error, so that the caller lists the commands
+    /// that the harness mounted.
+    ///
     /// The method takes the arguments as a parameter, so that a test drives
     /// the command line without the arguments of the test process.
     ///
@@ -236,19 +244,32 @@ impl Builder {
     /// run, and when the user asked for help. Returns an error for a run that
     /// names no action and no command of the registry, which the command tree
     /// already prevents.
-    fn resolve<I, T>(mut self, arguments: I) -> Result<(ArgMatches, Mounted), clap::Error>
+    // cli[impl command.action+2]
+    // cli[impl command.help+2]
+    fn resolve<I, T>(mut self, arguments: I) -> Result<Resolution, clap::Error>
     where
         I: IntoIterator<Item = T>,
         T: Clone + Into<OsString>,
     {
-        let matches = self.command().try_get_matches_from(arguments)?;
+        let mut command = self.command();
+
+        let matches = match command.try_get_matches_from_mut(arguments) {
+            Ok(matches) => matches,
+            // The parser reports this kind for a run that gives no argument
+            // at all, and for no other run, so it is the whole test for a run
+            // that names nothing.
+            Err(error) if error.kind() == ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
+                return Ok(Resolution::Commands(Box::new(command)));
+            }
+            Err(error) => return Err(error),
+        };
 
         let mounted = matches
             .subcommand()
             .and_then(|(name, _)| self.registry.take(name));
 
         match mounted {
-            Some(mounted) => Ok((matches, mounted)),
+            Some(mounted) => Ok(Resolution::Entry(matches, mounted)),
             None => Err(clap::Error::raw(
                 ErrorKind::InvalidSubcommand,
                 "the run names no action and no command\n",
@@ -264,8 +285,8 @@ impl Builder {
     /// The command of an action and the command that a harness wrote take the
     /// same shape here: a name, the flags of the arguments, and a place
     /// directly under the command line.
-    // cli[impl command.action]
-    // cli[impl command.help]
+    // cli[impl command.action+2]
+    // cli[impl command.help+2]
     // cli[impl command.output]
     // cli[impl mount.flat+2]
     // cli[impl mount.commands]
@@ -282,6 +303,41 @@ impl Builder {
 
         command
     }
+}
+
+/// What the arguments of a run describe
+///
+/// A run names one action or one written command, and the command line drives
+/// it. A run that gives no argument names neither. It asked for nothing, so
+/// it gets the commands that the harness mounted, and not a refusal.
+///
+/// The command line travels with that second answer. The parser holds the
+/// only description of the tree that the builder assembled, and the help of
+/// that tree is the list of the commands.
+enum Resolution {
+    /// The action or the written command that the run names, with the
+    /// arguments that the parser read
+    Entry(ArgMatches, Mounted),
+    /// The command line of a run that names nothing
+    Commands(Box<Command>),
+}
+
+/// Shows the commands that a harness mounted and returns the code of the run
+///
+/// The help of the command line lists the commands, so a user who wrote the
+/// name of the harness and nothing else reads what the project runs. The run
+/// drove no action and found no problem, so it is clean, and a workflow that
+/// calls the harness without a command reads a code that says as much.
+///
+/// A reader that closed the stream loses the list. The parser drops its own
+/// output in that case as well, and the run answers with its code either
+/// way.
+// cli[impl command.help+2]
+// cli[impl exit.help]
+fn show_commands(command: &mut Command) -> u8 {
+    let _ = command.print_help();
+
+    EXIT_CLEAN
 }
 
 /// Returns the command line without the command of any action
@@ -834,10 +890,12 @@ mod tests {
         ];
         invocation.extend(arguments.iter().map(OsString::from));
 
-        let (matches, action) = builder()
+        let Ok(Resolution::Entry(matches, action)) = builder()
             .mount([Box::new(reader) as Box<dyn ErasedAction>])
             .resolve(invocation)
-            .expect("the test names a run that the command line reads");
+        else {
+            panic!("expected the command line to read the run that the test names");
+        };
 
         dispatch(matches, action).expect("expected the command line to drive the action");
 
@@ -862,10 +920,12 @@ mod tests {
         ];
         invocation.extend(arguments.iter().map(OsString::from));
 
-        let (matches, mounted) = builder()
+        let Ok(Resolution::Entry(matches, mounted)) = builder()
             .mount_commands([Box::new(written) as Box<dyn ErasedCommand>])
             .resolve(invocation)
-            .expect("the test names a run that the command line reads");
+        else {
+            panic!("expected the command line to read the run that the test names");
+        };
 
         dispatch(matches, mounted).expect("expected the command line to drive the command");
 
@@ -997,9 +1057,9 @@ mod tests {
         assert_eq!(help, Some(FIX.to_owned()));
     }
 
-    // cli[verify command.action]
+    // cli[verify command.action+2]
     #[test]
-    fn command_refuses_a_run_that_names_no_action() {
+    fn command_refuses_a_run_that_gives_an_argument_and_names_no_action() {
         let kind = error_kind(&["rakko", "--json"]);
 
         assert_eq!(kind, ErrorKind::MissingSubcommand);
@@ -1274,7 +1334,8 @@ mod tests {
     fn resolve_returns_the_action_that_the_run_names() {
         let builder = builder().mount([probe("format-toml"), probe("lint-rust")]);
 
-        let Ok((_matches, Mounted::Action(action))) = builder.resolve(["rakko", "lint-rust"])
+        let Ok(Resolution::Entry(_matches, Mounted::Action(action))) =
+            builder.resolve(["rakko", "lint-rust"])
         else {
             panic!("expected the run to resolve an action");
         };
@@ -1289,7 +1350,9 @@ mod tests {
             .mount([probe("lint-rust")])
             .mount_commands([written("serve")]);
 
-        let Ok((_matches, Mounted::Command(command))) = builder.resolve(["rakko", "serve"]) else {
+        let Ok(Resolution::Entry(_matches, Mounted::Command(command))) =
+            builder.resolve(["rakko", "serve"])
+        else {
             panic!("expected the run to resolve a command");
         };
 
@@ -1356,14 +1419,14 @@ mod tests {
         assert_eq!(value, Some(&ArgumentValue::new("true")));
     }
 
-    // cli[verify command.help]
+    // cli[verify command.help+2]
     #[test]
     fn resolve_shows_the_help_for_a_run_without_arguments() {
-        let Err(error) = builder().resolve(["rakko"]) else {
-            panic!("expected the run to report an error");
+        let Ok(Resolution::Commands(mut command)) = builder().resolve(["rakko"]) else {
+            panic!("expected the run to ask for the commands");
         };
 
-        let help = error.render().to_string();
+        let help = command.render_help().to_string();
 
         assert!(help.contains(ABOUT));
     }
@@ -1374,5 +1437,15 @@ mod tests {
         let kind = error_kind(&["rakko", "--unknown"]);
 
         assert_eq!(kind, ErrorKind::UnknownArgument);
+    }
+
+    // cli[verify exit.help]
+    #[test]
+    fn show_commands_reports_a_clean_run() {
+        let mut command = builder().command();
+
+        let code = show_commands(&mut command);
+
+        assert_eq!(code, EXIT_CLEAN);
     }
 }
