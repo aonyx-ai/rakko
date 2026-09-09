@@ -214,6 +214,8 @@ mod tests {
 
     use std::path::PathBuf;
 
+    use rakko_test_utils::path;
+
     use super::*;
 
     /// Returns a problem at the given position of a file of the project
@@ -228,7 +230,7 @@ mod tests {
 
     /// The root that the problems of a test belong to
     fn root() -> ProjectRoot {
-        ProjectRoot::new(PathBuf::from("/home/otter/project"))
+        ProjectRoot::new(path("/home/otter/project"))
     }
 
     // lintmarkdown[verify check.violation]
@@ -273,7 +275,7 @@ mod tests {
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
         let problem = MarkdownlintProblem::new(
-            PathBuf::from("/elsewhere/notes.md"),
+            path("/elsewhere/notes.md"),
             1,
             None,
             "MD041/first-line-heading".to_owned(),

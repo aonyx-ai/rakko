@@ -17,8 +17,9 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Summary};
+use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_lint_rust::LintRust;
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// The manifest of a package that clippy examines
@@ -119,13 +120,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not
     /// depend on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Returns the content of a file of the project
@@ -359,7 +357,10 @@ async fn run_with_a_warning_in_a_second_workspace_names_its_path() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings)[0], "tools/harness/src/lib.rs");
+    assert_eq!(
+        locations(findings)[0],
+        path_text("tools/harness/src/lib.rs")
+    );
 }
 
 // lintrust[verify roots.all]

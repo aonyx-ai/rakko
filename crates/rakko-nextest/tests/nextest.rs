@@ -20,6 +20,7 @@ use std::process::Command;
 use rakko_action::{Location, Position, ProjectRoot};
 use rakko_cargo::Cargo;
 use rakko_nextest::{Lockfile, Nextest, Observation, ObserveNextestError};
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// The manifest of a package that nextest tests
@@ -135,13 +136,8 @@ impl Project {
     /// The root is canonical, so the paths that a run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn root(&self) -> ProjectRoot {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
-            .expect("the test names a directory that exists");
-
-        ProjectRoot::new(root)
+        ProjectRoot::canonical(self.directory.path())
+            .expect("the test names a directory that exists")
     }
 
     /// Writes a file of the project, with the directories that lead to it
@@ -315,7 +311,7 @@ async fn observe_a_failing_test_reports_where_it_panicked() {
     assert_eq!(
         (path.to_string(), *position),
         (
-            "src/lib.rs".to_owned(),
+            path_text("src/lib.rs"),
             Position::builder().line(5).column(9).build()
         )
     );

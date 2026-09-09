@@ -22,7 +22,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, DirectoryPath, Finding, Location, Outcome};
+use rakko_action::{Action, Args, Context, DirectoryPath, Finding, Location, Outcome, ProjectRoot};
 use rakko_check_dependencies::CheckDependencies;
 use tempfile::TempDir;
 
@@ -180,13 +180,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Writes the mise configuration of the project and trusts it

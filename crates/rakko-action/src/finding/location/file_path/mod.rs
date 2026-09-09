@@ -97,6 +97,18 @@ mod tests {
 
     use super::*;
 
+    /// A path that the platform of the test reads as absolute
+    ///
+    /// A path that starts with a separator is absolute on Unix and relative
+    /// on Windows, where a path is absolute only when it names a volume as
+    /// well. The tests below need a path that the platform they run on
+    /// refuses, so each platform names one of its own.
+    const ABSOLUTE: &str = if cfg!(windows) {
+        r"C:\Windows\system.ini"
+    } else {
+        "/etc/hosts"
+    };
+
     #[test]
     fn display_shows_the_path_that_the_file_path_was_made_from() {
         let path: FilePath = "src/main.rs".parse().unwrap();
@@ -114,12 +126,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn from_str_with_absolute_path_returns_error() {
-        let error = "/etc/hosts".parse::<FilePath>().unwrap_err();
+        let error = ABSOLUTE.parse::<FilePath>().unwrap_err();
 
         assert_eq!(
             error,
             ParseFilePathError::AbsolutePath {
-                path: PathBuf::from("/etc/hosts"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }
@@ -148,12 +160,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn try_from_path_buf_with_absolute_path_returns_error() {
-        let error = FilePath::try_from(PathBuf::from("/etc/hosts")).unwrap_err();
+        let error = FilePath::try_from(PathBuf::from(ABSOLUTE)).unwrap_err();
 
         assert_eq!(
             error,
             ParseFilePathError::AbsolutePath {
-                path: PathBuf::from("/etc/hosts"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }
@@ -161,12 +173,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn try_from_path_with_absolute_path_returns_error() {
-        let error = FilePath::try_from(Path::new("/etc/hosts")).unwrap_err();
+        let error = FilePath::try_from(Path::new(ABSOLUTE)).unwrap_err();
 
         assert_eq!(
             error,
             ParseFilePathError::AbsolutePath {
-                path: PathBuf::from("/etc/hosts"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }
@@ -181,12 +193,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn try_from_str_with_absolute_path_returns_error() {
-        let error = FilePath::try_from("/etc/hosts").unwrap_err();
+        let error = FilePath::try_from(ABSOLUTE).unwrap_err();
 
         assert_eq!(
             error,
             ParseFilePathError::AbsolutePath {
-                path: PathBuf::from("/etc/hosts"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }
@@ -201,12 +213,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn try_from_string_with_absolute_path_returns_error() {
-        let error = FilePath::try_from("/etc/hosts".to_string()).unwrap_err();
+        let error = FilePath::try_from(ABSOLUTE.to_string()).unwrap_err();
 
         assert_eq!(
             error,
             ParseFilePathError::AbsolutePath {
-                path: PathBuf::from("/etc/hosts"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }

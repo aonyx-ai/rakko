@@ -136,12 +136,14 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_test_utils::path;
+
     use super::*;
 
     /// Returns a problem about the given path
-    fn problem(path: &str) -> YamllintProblem {
+    fn problem(path: PathBuf) -> YamllintProblem {
         YamllintProblem::new(
-            PathBuf::from(path),
+            path,
             1,
             1,
             ProblemLevel::Warning,
@@ -151,13 +153,13 @@ mod tests {
 
     /// The root that the problems of a test belong to
     fn root() -> ProjectRoot {
-        ProjectRoot::new(PathBuf::from("/home/otter/project"))
+        ProjectRoot::new(path("/home/otter/project"))
     }
 
     // lintyaml[verify check.problem]
     #[test]
     fn message_of_a_problem_reads_like_the_line_of_yamllint() {
-        let message = problem("./notes.yaml").message();
+        let message = problem(path("./notes.yaml")).message();
 
         assert_eq!(
             message,
@@ -167,23 +169,23 @@ mod tests {
 
     #[test]
     fn relative_path_outside_the_root_names_nothing() {
-        let path = problem("/home/otter/elsewhere/a.yaml").relative_path(&root());
+        let relative = problem(path("/home/otter/elsewhere/a.yaml")).relative_path(&root());
 
-        assert_eq!(path, None);
+        assert_eq!(relative, None);
     }
 
     #[test]
     fn relative_path_that_arrived_absolute_drops_the_root() {
-        let path = problem("/home/otter/project/sub/a.yaml").relative_path(&root());
+        let relative = problem(path("/home/otter/project/sub/a.yaml")).relative_path(&root());
 
-        assert_eq!(path, FilePath::try_from("sub/a.yaml").ok());
+        assert_eq!(relative, FilePath::try_from(path("sub/a.yaml")).ok());
     }
 
     // lintyaml[verify check.problem]
     #[test]
     fn relative_path_that_arrived_relative_drops_the_prefix_of_yamllint() {
-        let path = problem("./sub/a.yaml").relative_path(&root());
+        let relative = problem(path("./sub/a.yaml")).relative_path(&root());
 
-        assert_eq!(path, FilePath::try_from("sub/a.yaml").ok());
+        assert_eq!(relative, FilePath::try_from(path("sub/a.yaml")).ok());
     }
 }

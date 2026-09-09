@@ -156,10 +156,10 @@ impl Project {
     /// Returns the directory above the project, which holds the outer
     /// workspace of a project that sits inside one
     fn outer(&self) -> PathBuf {
-        self.directory
-            .path()
-            .canonicalize()
+        ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists")
+            .get()
+            .to_path_buf()
     }
 
     /// Writes a package with the given name into the directory of that name
@@ -201,12 +201,7 @@ impl Project {
     /// The root is canonical, so the paths that a run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn root(&self) -> ProjectRoot {
-        let path = self
-            .root
-            .canonicalize()
-            .expect("the test names a directory that exists");
-
-        ProjectRoot::new(path)
+        ProjectRoot::canonical(&self.root).expect("the test names a directory that exists")
     }
 
     /// Writes a file of the project, with the directories that lead to it

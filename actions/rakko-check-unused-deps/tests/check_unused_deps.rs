@@ -24,8 +24,9 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Summary};
+use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_check_unused_deps::CheckUnusedDeps;
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// A source file that the compiler refuses
@@ -148,13 +149,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not
     /// depend on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Writes the mise configuration of the project and trusts it
@@ -374,7 +372,7 @@ async fn run_with_a_compiler_error_names_the_file() {
 
     let outcome = project.run().await;
 
-    assert_eq!(paths(&outcome), vec!["src/lib.rs".to_owned()]);
+    assert_eq!(paths(&outcome), vec![path_text("src/lib.rs")]);
 }
 
 // checkunuseddeps[verify check.diagnostic]
@@ -463,7 +461,7 @@ async fn run_with_an_unused_dependency_in_a_second_workspace_names_its_manifest(
 
     let outcome = project.run().await;
 
-    assert_eq!(paths(&outcome), vec!["tools/harness/Cargo.toml".to_owned()]);
+    assert_eq!(paths(&outcome), vec![path_text("tools/harness/Cargo.toml")]);
 }
 
 // checkunuseddeps[verify check.finding]
