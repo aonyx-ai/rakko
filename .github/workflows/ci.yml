@@ -23,14 +23,21 @@ jobs:
       checks: ${{ steps.export-commands.outputs.checks }}
       tests: ${{ steps.export-commands.outputs.tests }}
 
+    env:
+      # This job builds the harness and reads the help, and it runs no action,
+      # so nothing here reaches tracey. The variable says so to every step,
+      # and not only to the one that installs the tools, because a step that
+      # starts mise installs what the configuration pins and mise has yet to
+      # build. Without it this job pays the twenty-minute build of tracey, and
+      # every other job of the workflow waits for it.
+      MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      # This job builds the harness and reads the help, and it runs no
-      # action, so nothing here reaches tracey.
       - name: Set up the tools
         uses: $/.github/actions/setup
 
