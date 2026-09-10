@@ -318,6 +318,18 @@ specs (
         )
     }
     {
+        name test-utils
+        source_url https://github.com/aonyx-ai/rakko
+        include (crates/rakko-test-utils/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (crates/rakko-test-utils/src/**/*.rs)
+                test_include (crates/rakko-test-utils/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name tool
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-tool/SPECIFICATION.md)
