@@ -6,7 +6,8 @@
 //! arguments that a run reads, the context that an action reads when it runs,
 //! the finding that an action produces, and the outcome that the run returns.
 //! It also holds the view of an action that hides its type, which is how a
-//! registry holds many actions at once.
+//! registry holds many actions at once, and the list of such views that a
+//! bundle exports.
 //!
 //! The crate stays small on purpose. Everything in it reaches every action and
 //! every project that mounts one, so an addition here is a change for all of
@@ -16,6 +17,8 @@
 pub mod action;
 /// Types for the arguments that a run of an action reads
 pub mod args;
+/// The list of actions that a bundle exports
+pub mod bundle;
 /// Types for the data that an action reads when it runs
 pub mod context;
 /// The view of an action that hides its type
@@ -34,6 +37,7 @@ pub use self::args::{
     Args, ArgsSchema, ArgsValues, Argument, ArgumentName, ArgumentShape, ArgumentValue,
     Documentation, ReadArgsError,
 };
+pub use self::bundle::Bundle;
 pub use self::context::{CacheDirectory, ConfigDirectory, Context, Layout, ProjectRoot};
 pub use self::erased_action::ErasedAction;
 pub use self::finding::{

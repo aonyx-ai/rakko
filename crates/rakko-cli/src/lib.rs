@@ -1,9 +1,10 @@
 //! The command-line projection of the actions that a harness mounts
 //!
 //! A harness is the small binary that a project runs to maintain itself. It
-//! mounts the actions that the project uses, and this crate turns them into a
-//! command-line interface: one command for each action, the help text of each
-//! command, and the flags that every command shares.
+//! mounts the actions that the project uses, alone or through a bundle, and
+//! this crate turns them into a command-line interface: one command for each
+//! action, the help text of each command, and the flags that every command
+//! shares.
 //!
 //! A harness also writes commands of its own, for a maintenance activity of
 //! the project that does not fit an action, and mounts them beside its
