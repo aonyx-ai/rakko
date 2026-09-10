@@ -3,8 +3,8 @@
 `rakko-action` is the contract crate of Rakko. Every action and every harness
 depends on it, so it carries only what all of them share. Today that is the
 `Action` trait that every action implements, the name that identifies an
-action, the context that an action reads when it runs, and the outcome that
-the run returns.
+action, the context that an action reads when it runs, the outcome that the
+run returns, and the list of actions that a bundle exports.
 
 Every requirement in this document has an identifier, and the code that
 implements or tests a requirement references the identifier in a comment.
@@ -406,6 +406,29 @@ An erased action MUST be safe to move to a different thread.
 
 action[erased.sync]
 An erased action MUST be safe to share with a different thread.
+
+## Bundle
+
+A bundle is a crate that exports a set of actions. A project adopts the set
+with one dependency and one line in its harness, and a release of the bundle
+rolls a change across every project that mounts it. A bundle exports the same
+kind of list that a harness mounts: a list of erased actions, which is an
+ordinary value. A harness passes the list to its mount as it is, joins two
+lists, or leaves one action out, and none of that needs machinery in this
+crate. A bundle contains another bundle when it includes the list of that
+bundle in its own.
+
+action[bundle.list]
+The crate MUST provide the type of the list that a bundle exports. The list
+MUST hold erased actions.
+
+action[bundle.contains]
+The list of a bundle MUST be able to hold the list of another bundle.
+
+action[bundle.mount]
+A harness MUST be able to pass the list of a bundle to a mount that takes
+erased actions, without a conversion. The mount MUST receive the actions in
+the order of the list.
 
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/

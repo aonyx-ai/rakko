@@ -118,6 +118,41 @@ impl Builder {
     /// # }
     /// let command_line = rakko_cli::builder().mount([Box::new(LineCount) as Box<dyn ErasedAction>]);
     /// ```
+    ///
+    /// A bundle exports its actions as a [`Bundle`], and a harness mounts that
+    /// list as it is. A second mount adds to the first, so a harness mounts a
+    /// bundle beside the actions that it names itself:
+    ///
+    /// ```
+    /// # use rakko_action::{Action, Context, ErasedAction, Name, Outcome, action_name};
+    /// # mod rakko_baseline {
+    /// #     use rakko_action::{Action, Bundle, Context, Name, Outcome, action_name};
+    /// #     struct FormatJson;
+    /// #     impl Action for FormatJson {
+    /// #         type Args = ();
+    /// #         fn name(&self) -> Name { action_name!("format-json") }
+    /// #         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #             Outcome::Passed { summary: None }
+    /// #         }
+    /// #     }
+    /// #     pub fn bundle() -> Bundle {
+    /// #         Bundle::new(vec![Box::new(FormatJson)])
+    /// #     }
+    /// # }
+    /// # struct CheckSpecs;
+    /// # impl Action for CheckSpecs {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("check-specs") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    /// let command_line = rakko_cli::builder()
+    ///     .mount(rakko_baseline::bundle())
+    ///     .mount([Box::new(CheckSpecs) as Box<dyn ErasedAction>]);
+    /// ```
+    ///
+    /// [`Bundle`]: rakko_action::Bundle
     // cli[impl mount.list]
     // cli[impl mount.collision+2]
     #[must_use]
