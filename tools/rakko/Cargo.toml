@@ -15,13 +15,9 @@ path = "src/main.rs"
 getset = ">=0.1,<1"
 rakko-action = { path = "../../crates/rakko-action" }
 rakko-baseline = { path = "../../bundles/rakko-baseline" }
-rakko-build-internal-docs = { path = "../../actions/rakko-build-internal-docs" }
-rakko-check-dependencies = { path = "../../actions/rakko-check-dependencies" }
-rakko-check-latest-deps = { path = "../../actions/rakko-check-latest-deps" }
 rakko-check-minimal-deps = { path = "../../actions/rakko-check-minimal-deps" }
 rakko-check-msrv = { path = "../../actions/rakko-check-msrv" }
 rakko-check-specs = { path = "../../actions/rakko-check-specs" }
-rakko-check-unused-deps = { path = "../../actions/rakko-check-unused-deps" }
 rakko-cli = { path = "../../crates/rakko-cli" }
 rakko-format-json = { path = "../../actions/rakko-format-json" }
 rakko-format-markdown = { path = "../../actions/rakko-format-markdown" }
@@ -32,6 +28,7 @@ rakko-lint-github-actions = { path = "../../actions/rakko-lint-github-actions" }
 rakko-lint-markdown = { path = "../../actions/rakko-lint-markdown" }
 rakko-lint-rust = { path = "../../actions/rakko-lint-rust" }
 rakko-lint-yaml = { path = "../../actions/rakko-lint-yaml" }
+rakko-rust = { path = "../../bundles/rakko-rust" }
 rakko-test-rust = { path = "../../actions/rakko-test-rust" }
 rakko-test-rust-docs = { path = "../../actions/rakko-test-rust-docs" }
 thiserror = "2"

@@ -891,6 +891,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-rust"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-build-internal-docs",
+ "rakko-check-dependencies",
+ "rakko-check-latest-deps",
+ "rakko-check-unused-deps",
+ "rakko-format-rust",
+ "rakko-lint-rust",
+ "rakko-test-rust",
+]
+
+[[package]]
 name = "rakko-taplo"
 version = "0.1.0"
 dependencies = [
