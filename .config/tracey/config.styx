@@ -306,6 +306,30 @@ specs (
         )
     }
     {
+        name rust-binary
+        source_url https://github.com/aonyx-ai/rakko
+        include (bundles/rakko-rust-binary/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (bundles/rakko-rust-binary/src/**/*.rs)
+                test_include (bundles/rakko-rust-binary/tests/**/*.rs)
+            }
+        )
+    }
+    {
+        name rust-library
+        source_url https://github.com/aonyx-ai/rakko
+        include (bundles/rakko-rust-library/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (bundles/rakko-rust-library/src/**/*.rs)
+                test_include (bundles/rakko-rust-library/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name taplo
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-taplo/SPECIFICATION.md)

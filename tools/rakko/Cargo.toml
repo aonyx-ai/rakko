@@ -15,8 +15,6 @@ path = "src/main.rs"
 getset = ">=0.1,<1"
 rakko-action = { path = "../../crates/rakko-action" }
 rakko-baseline = { path = "../../bundles/rakko-baseline" }
-rakko-check-minimal-deps = { path = "../../actions/rakko-check-minimal-deps" }
-rakko-check-msrv = { path = "../../actions/rakko-check-msrv" }
 rakko-check-specs = { path = "../../actions/rakko-check-specs" }
 rakko-cli = { path = "../../crates/rakko-cli" }
 rakko-format-json = { path = "../../actions/rakko-format-json" }
@@ -28,7 +26,7 @@ rakko-lint-github-actions = { path = "../../actions/rakko-lint-github-actions" }
 rakko-lint-markdown = { path = "../../actions/rakko-lint-markdown" }
 rakko-lint-rust = { path = "../../actions/rakko-lint-rust" }
 rakko-lint-yaml = { path = "../../actions/rakko-lint-yaml" }
-rakko-rust = { path = "../../bundles/rakko-rust" }
+rakko-rust-library = { path = "../../bundles/rakko-rust-library" }
 rakko-test-rust = { path = "../../actions/rakko-test-rust" }
 rakko-test-rust-docs = { path = "../../actions/rakko-test-rust-docs" }
 thiserror = "2"

@@ -376,8 +376,6 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-baseline",
- "rakko-check-minimal-deps",
- "rakko-check-msrv",
  "rakko-check-specs",
  "rakko-cli",
  "rakko-format-json",
@@ -389,7 +387,7 @@ dependencies = [
  "rakko-lint-markdown",
  "rakko-lint-rust",
  "rakko-lint-yaml",
- "rakko-rust",
+ "rakko-rust-library",
  "rakko-test-rust",
  "rakko-test-rust-docs",
  "thiserror",
@@ -873,6 +871,17 @@ dependencies = [
  "rakko-format-rust",
  "rakko-lint-rust",
  "rakko-test-rust",
+]
+
+[[package]]
+name = "rakko-rust-library"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-check-minimal-deps",
+ "rakko-check-msrv",
+ "rakko-rust",
+ "rakko-test-rust-docs",
 ]
 
 [[package]]
