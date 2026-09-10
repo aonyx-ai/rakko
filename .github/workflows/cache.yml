@@ -54,7 +54,7 @@ jobs:
           # to download. Renovate advances the pin, so a release that breaks
           # costs one revert instead of a red pull request.
           # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
-          version: 2026.9.3
+          version: 2026.9.4
         env:
           MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
 
