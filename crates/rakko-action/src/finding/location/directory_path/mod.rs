@@ -102,6 +102,14 @@ mod tests {
 
     use super::*;
 
+    /// A path that the platform of the test reads as absolute
+    ///
+    /// A path that starts with a separator is absolute on Unix and relative
+    /// on Windows, where a path is absolute only when it names a volume as
+    /// well. The tests below need a path that the platform they run on
+    /// refuses, so each platform names one of its own.
+    const ABSOLUTE: &str = if cfg!(windows) { r"C:\Windows" } else { "/etc" };
+
     #[test]
     fn display_shows_the_path_that_the_directory_path_was_made_from() {
         let path: DirectoryPath = "crates/rakko".parse().unwrap();
@@ -119,12 +127,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn from_str_with_absolute_path_returns_error() {
-        let error = "/etc".parse::<DirectoryPath>().unwrap_err();
+        let error = ABSOLUTE.parse::<DirectoryPath>().unwrap_err();
 
         assert_eq!(
             error,
             ParseDirectoryPathError::AbsolutePath {
-                path: PathBuf::from("/etc"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }
@@ -146,12 +154,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn try_from_path_buf_with_absolute_path_returns_error() {
-        let error = DirectoryPath::try_from(PathBuf::from("/etc")).unwrap_err();
+        let error = DirectoryPath::try_from(PathBuf::from(ABSOLUTE)).unwrap_err();
 
         assert_eq!(
             error,
             ParseDirectoryPathError::AbsolutePath {
-                path: PathBuf::from("/etc"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }
@@ -166,12 +174,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn try_from_path_with_absolute_path_returns_error() {
-        let error = DirectoryPath::try_from(Path::new("/etc")).unwrap_err();
+        let error = DirectoryPath::try_from(Path::new(ABSOLUTE)).unwrap_err();
 
         assert_eq!(
             error,
             ParseDirectoryPathError::AbsolutePath {
-                path: PathBuf::from("/etc"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }
@@ -186,12 +194,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn try_from_str_with_absolute_path_returns_error() {
-        let error = DirectoryPath::try_from("/etc").unwrap_err();
+        let error = DirectoryPath::try_from(ABSOLUTE).unwrap_err();
 
         assert_eq!(
             error,
             ParseDirectoryPathError::AbsolutePath {
-                path: PathBuf::from("/etc"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }
@@ -206,12 +214,12 @@ mod tests {
     // action[verify location.relative]
     #[test]
     fn try_from_string_with_absolute_path_returns_error() {
-        let error = DirectoryPath::try_from("/etc".to_string()).unwrap_err();
+        let error = DirectoryPath::try_from(ABSOLUTE.to_string()).unwrap_err();
 
         assert_eq!(
             error,
             ParseDirectoryPathError::AbsolutePath {
-                path: PathBuf::from("/etc"),
+                path: PathBuf::from(ABSOLUTE),
             },
         );
     }

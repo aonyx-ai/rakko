@@ -20,7 +20,7 @@ use std::process::Command;
 
 use rakko_action::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, Position,
-    Summary, argument_name,
+    ProjectRoot, Summary, argument_name,
 };
 use rakko_format_toml::{FormatToml, FormatTomlArgs};
 use tempfile::TempDir;
@@ -102,13 +102,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not
     /// depend on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Returns the content of a file of the project

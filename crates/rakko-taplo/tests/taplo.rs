@@ -97,13 +97,8 @@ impl Project {
     /// The root is canonical, so the paths that a run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn root(&self) -> ProjectRoot {
-        let path = self
-            .directory
-            .path()
-            .canonicalize()
-            .expect("the test names a directory that exists");
-
-        ProjectRoot::new(path)
+        ProjectRoot::canonical(self.directory.path())
+            .expect("the test names a directory that exists")
     }
 
     /// Writes a file of the project, with the directories that lead to it

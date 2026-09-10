@@ -17,7 +17,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position};
+use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_lint_markdown::LintMarkdown;
 use tempfile::TempDir;
 
@@ -99,13 +99,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Returns the content of a file of the project
@@ -285,6 +282,9 @@ async fn run_with_a_broken_rule_names_the_file() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
+    // Markdownlint writes a path with the separator that it chose, and the
+    // action reports what the tool wrote, so this literal stands on every
+    // platform.
     assert_eq!(locations(findings), ["sub/notes.md"]);
 }
 

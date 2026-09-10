@@ -166,18 +166,19 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use rakko_action::Position;
+    use rakko_test_utils::path;
 
     use super::*;
 
     /// Returns a problem about the given path
-    fn problem(path: &str) -> ZizmorProblem {
+    fn problem(path: PathBuf) -> ZizmorProblem {
         weighed(path, Severity::High)
     }
 
     /// Returns a problem of the given severity about the given path
-    fn weighed(path: &str, severity: Severity) -> ZizmorProblem {
+    fn weighed(path: PathBuf, severity: Severity) -> ZizmorProblem {
         ZizmorProblem::new(
-            PathBuf::from(path),
+            path,
             span(),
             severity,
             "template-injection".to_owned(),
@@ -197,7 +198,7 @@ mod tests {
     // lintgithubactions[verify check.finding]
     #[test]
     fn message_holds_the_words_of_zizmor() {
-        let message = problem("./.github/workflows/ci.yml").message();
+        let message = problem(path("./.github/workflows/ci.yml")).message();
 
         assert_eq!(
             message,
@@ -209,7 +210,7 @@ mod tests {
     // lintgithubactions[verify check.severity]
     #[test]
     fn message_of_an_informational_finding_names_its_severity() {
-        let problem = weighed("./.github/workflows/ci.yml", Severity::Informational);
+        let problem = weighed(path("./.github/workflows/ci.yml"), Severity::Informational);
 
         let message = problem.message();
 
@@ -221,25 +222,31 @@ mod tests {
 
     #[test]
     fn relative_path_outside_the_root_names_nothing() {
-        let path = problem("/home/otter/elsewhere/ci.yml")
-            .relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem(path("/home/otter/elsewhere/ci.yml"))
+            .relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, None);
+        assert_eq!(relative, None);
     }
 
     #[test]
     fn relative_path_that_arrived_absolute_drops_the_root() {
-        let path = problem("/home/otter/project/.github/workflows/ci.yml")
-            .relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem(path("/home/otter/project/.github/workflows/ci.yml"))
+            .relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, FilePath::try_from(".github/workflows/ci.yml").ok());
+        assert_eq!(
+            relative,
+            FilePath::try_from(path(".github/workflows/ci.yml")).ok()
+        );
     }
 
     #[test]
     fn relative_path_that_arrived_relative_drops_the_place_of_the_run() {
-        let path = problem("./.github/workflows/ci.yml")
-            .relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem(path("./.github/workflows/ci.yml"))
+            .relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
-        assert_eq!(path, FilePath::try_from(".github/workflows/ci.yml").ok());
+        assert_eq!(
+            relative,
+            FilePath::try_from(path(".github/workflows/ci.yml")).ok()
+        );
     }
 }

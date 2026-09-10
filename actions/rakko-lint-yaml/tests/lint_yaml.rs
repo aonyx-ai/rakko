@@ -24,8 +24,9 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position};
+use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_lint_yaml::LintYaml;
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// A YAML document that yamllint accepts
@@ -109,13 +110,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Returns the content of a file of the project
@@ -276,7 +274,7 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["deep/sub/notes.yaml"]);
+    assert_eq!(locations(findings), [path_text("deep/sub/notes.yaml")]);
 }
 
 // lintyaml[verify skip.unexamined]
@@ -337,7 +335,7 @@ async fn run_with_a_broken_rule_names_the_file() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["sub/notes.yaml"]);
+    assert_eq!(locations(findings), [path_text("sub/notes.yaml")]);
 }
 
 // lintyaml[verify check.problem]

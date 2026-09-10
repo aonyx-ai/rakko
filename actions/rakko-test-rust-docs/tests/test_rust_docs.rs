@@ -17,8 +17,11 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, SkipReason, Summary};
+use rakko_action::{
+    Action, Args, Context, Finding, Location, Outcome, ProjectRoot, SkipReason, Summary,
+};
 use rakko_test_rust_docs::TestRustDocs;
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// The manifest of a package whose documentation cargo can test
@@ -134,13 +137,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not
     /// depend on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Returns the content of a file of the project
@@ -277,7 +277,7 @@ async fn run_with_a_failing_example_names_the_file_that_documents_it() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["src/lib.rs"]);
+    assert_eq!(locations(findings), [path_text("src/lib.rs")]);
 }
 
 // testrustdocs[verify run.failed]
@@ -337,7 +337,10 @@ async fn run_with_two_failing_packages_holds_the_findings_of_both() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["a/src/lib.rs", "b/src/lib.rs"]);
+    assert_eq!(
+        locations(findings),
+        [path_text("a/src/lib.rs"), path_text("b/src/lib.rs")]
+    );
 }
 
 // testrustdocs[verify run.build]
@@ -368,7 +371,7 @@ async fn run_with_a_compiler_error_names_the_file_of_the_diagnostic() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["src/lib.rs"]);
+    assert_eq!(locations(findings), [path_text("src/lib.rs")]);
 }
 
 // testrustdocs[verify run.read]
@@ -455,7 +458,7 @@ async fn run_with_a_failing_example_in_a_second_workspace_names_its_path() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["tools/harness/src/lib.rs"]);
+    assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
 // testrustdocs[verify roots.all]

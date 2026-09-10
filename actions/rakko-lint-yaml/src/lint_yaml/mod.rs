@@ -233,6 +233,8 @@ mod tests {
 
     use std::path::PathBuf;
 
+    use rakko_test_utils::path;
+
     use super::*;
     use crate::problem::ProblemLevel;
 
@@ -249,7 +251,7 @@ mod tests {
 
     /// The root that the problems of a test belong to
     fn root() -> ProjectRoot {
-        ProjectRoot::new(PathBuf::from("/home/otter/project"))
+        ProjectRoot::new(path("/home/otter/project"))
     }
 
     // lintyaml[verify check.problem]
@@ -291,7 +293,7 @@ mod tests {
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
         let problem = YamllintProblem::new(
-            PathBuf::from("/elsewhere/notes.yaml"),
+            path("/elsewhere/notes.yaml"),
             1,
             1,
             ProblemLevel::Error,

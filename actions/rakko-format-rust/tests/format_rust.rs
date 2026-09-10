@@ -25,6 +25,7 @@ use rakko_action::{
 };
 use rakko_cargo::Toolchain;
 use rakko_format_rust::{FormatRust, FormatRustArgs};
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// The manifest of a package that rustfmt formats
@@ -131,13 +132,10 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not
     /// depend on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = self
-            .directory
-            .path()
-            .canonicalize()
+        let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
 
-        Context::builder().root(root.as_path()).build()
+        Context::builder().root(root).build()
     }
 
     /// Returns the content of a file of the project
@@ -280,7 +278,7 @@ async fn run_with_an_invalid_file_reports_the_position() {
     assert_eq!(
         (path.to_string(), *position),
         (
-            "src/lib.rs".to_owned(),
+            path_text("src/lib.rs"),
             Position::builder().line(1).column(18).build()
         )
     );
@@ -422,7 +420,7 @@ async fn run_with_an_unformatted_file_in_a_second_workspace_names_its_path() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["tools/harness/src/lib.rs"]);
+    assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
 // formatrust[verify roots.all]
@@ -470,7 +468,10 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
     };
     let mut repaired = locations(repairs);
     repaired.sort();
-    assert_eq!(repaired, ["src/lib.rs", "src/main.rs"]);
+    assert_eq!(
+        repaired,
+        [path_text("src/lib.rs"), path_text("src/main.rs")]
+    );
 }
 
 // formatrust[verify fix.changed]
@@ -523,7 +524,7 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_holds_the_repairs() {
     let Outcome::Failed { repairs, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(repairs), ["src/lib.rs"]);
+    assert_eq!(locations(repairs), [path_text("src/lib.rs")]);
 }
 
 // formatrust[verify fix.partial]
@@ -538,7 +539,7 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_keeps_the_problem() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["tools/harness/src/lib.rs"]);
+    assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
 // formatrust[verify fix.partial]
