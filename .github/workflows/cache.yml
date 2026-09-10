@@ -27,11 +27,18 @@ concurrency:
 
 jobs:
   tracey:
-    name: Build tracey
-    runs-on: ubuntu-latest
+    name: Build tracey on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
     permissions:
       contents: read
+
+    # Tracey is cached once per platform, so every platform that a pull
+    # request runs a command on needs a run of its own.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - name: Checkout code
