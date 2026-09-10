@@ -1,0 +1,17 @@
+[package]
+name = "rakko-rust-library"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rakko-action = { workspace = true }
+rakko-check-minimal-deps = { path = "../../actions/rakko-check-minimal-deps", version = "0.1.0" }
+rakko-check-msrv = { path = "../../actions/rakko-check-msrv", version = "0.1.0" }
+rakko-rust = { workspace = true }
+rakko-test-rust-docs = { path = "../../actions/rakko-test-rust-docs", version = "0.1.0" }
+
+[lints]
+workspace = true

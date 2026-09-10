@@ -18,11 +18,8 @@
 mod pre_commit;
 
 use rakko_action::ErasedAction;
-use rakko_check_minimal_deps::CheckMinimalDeps;
-use rakko_check_msrv::CheckMsrv;
 use rakko_check_specs::CheckSpecs;
 use rakko_cli::ErasedCommand;
-use rakko_test_rust_docs::TestRustDocs;
 
 use self::pre_commit::PreCommit;
 
@@ -33,13 +30,8 @@ use self::pre_commit::PreCommit;
 fn main() {
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
-        .mount(rakko_rust::bundle())
-        .mount([
-            Box::new(CheckMinimalDeps) as Box<dyn ErasedAction>,
-            Box::new(CheckMsrv),
-            Box::new(CheckSpecs),
-            Box::new(TestRustDocs),
-        ])
+        .mount(rakko_rust_library::bundle())
+        .mount([Box::new(CheckSpecs) as Box<dyn ErasedAction>])
         .mount_commands([Box::new(PreCommit) as Box<dyn ErasedCommand>])
         .run();
 }
