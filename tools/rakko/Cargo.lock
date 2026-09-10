@@ -376,13 +376,9 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-baseline",
- "rakko-build-internal-docs",
- "rakko-check-dependencies",
- "rakko-check-latest-deps",
  "rakko-check-minimal-deps",
  "rakko-check-msrv",
  "rakko-check-specs",
- "rakko-check-unused-deps",
  "rakko-cli",
  "rakko-format-json",
  "rakko-format-markdown",
@@ -393,6 +389,7 @@ dependencies = [
  "rakko-lint-markdown",
  "rakko-lint-rust",
  "rakko-lint-yaml",
+ "rakko-rust",
  "rakko-test-rust",
  "rakko-test-rust-docs",
  "thiserror",
@@ -862,6 +859,20 @@ dependencies = [
  "thiserror",
  "tokio",
  "typed-fields",
+]
+
+[[package]]
+name = "rakko-rust"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-build-internal-docs",
+ "rakko-check-dependencies",
+ "rakko-check-latest-deps",
+ "rakko-check-unused-deps",
+ "rakko-format-rust",
+ "rakko-lint-rust",
+ "rakko-test-rust",
 ]
 
 [[package]]

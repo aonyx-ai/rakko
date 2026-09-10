@@ -294,6 +294,18 @@ specs (
         )
     }
     {
+        name rust
+        source_url https://github.com/aonyx-ai/rakko
+        include (bundles/rakko-rust/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (bundles/rakko-rust/src/**/*.rs)
+                test_include (bundles/rakko-rust/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name taplo
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-taplo/SPECIFICATION.md)
