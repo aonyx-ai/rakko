@@ -571,6 +571,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-baseline"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-format-json",
+ "rakko-format-markdown",
+ "rakko-format-toml",
+ "rakko-format-yaml",
+ "rakko-lint-github-actions",
+ "rakko-lint-markdown",
+ "rakko-lint-toml",
+ "rakko-lint-yaml",
+]
+
+[[package]]
 name = "rakko-build-internal-docs"
 version = "0.1.0"
 dependencies = [

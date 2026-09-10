@@ -1,9 +1,11 @@
 //! The maintenance commands of this repository
 //!
 //! This binary is the harness of the Rakko repository: the one place that
-//! states which maintenance actions run here. It mounts the actions that this
-//! repository uses, and the command line that it builds turns each of them
-//! into a command.
+//! states which maintenance actions run here. It mounts the bundles and the
+//! actions that this repository uses, and the command line that it builds
+//! turns each of them into a command. A bundle carries a set of actions that
+//! projects adopt together, so the harness names the bundle instead of each
+//! action in it.
 //!
 //! It also mounts the commands that this repository writes for itself, for a
 //! maintenance activity that no single action describes. Each of them lives in
@@ -24,16 +26,8 @@ use rakko_check_msrv::CheckMsrv;
 use rakko_check_specs::CheckSpecs;
 use rakko_check_unused_deps::CheckUnusedDeps;
 use rakko_cli::ErasedCommand;
-use rakko_format_json::FormatJson;
-use rakko_format_markdown::FormatMarkdown;
 use rakko_format_rust::FormatRust;
-use rakko_format_toml::FormatToml;
-use rakko_format_yaml::FormatYaml;
-use rakko_lint_github_actions::LintGitHubActions;
-use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
-use rakko_lint_toml::LintToml;
-use rakko_lint_yaml::LintYaml;
 use rakko_test_rust::TestRust;
 use rakko_test_rust_docs::TestRustDocs;
 
@@ -45,6 +39,7 @@ use self::pre_commit::PreCommit;
 /// what the repository mounts and returns nothing.
 fn main() {
     rakko_cli::builder()
+        .mount(rakko_baseline::bundle())
         .mount([
             Box::new(BuildInternalDocs) as Box<dyn ErasedAction>,
             Box::new(CheckDependencies),
@@ -53,16 +48,8 @@ fn main() {
             Box::new(CheckMsrv),
             Box::new(CheckSpecs),
             Box::new(CheckUnusedDeps),
-            Box::new(FormatJson),
-            Box::new(FormatMarkdown),
             Box::new(FormatRust),
-            Box::new(FormatToml),
-            Box::new(FormatYaml),
-            Box::new(LintGitHubActions),
-            Box::new(LintMarkdown),
             Box::new(LintRust),
-            Box::new(LintToml),
-            Box::new(LintYaml),
             Box::new(TestRust),
             Box::new(TestRustDocs),
         ])

@@ -30,6 +30,18 @@ specs (
         )
     }
     {
+        name baseline
+        source_url https://github.com/aonyx-ai/rakko
+        include (bundles/rakko-baseline/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (bundles/rakko-baseline/src/**/*.rs)
+                test_include (bundles/rakko-baseline/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name build-internal-docs
         source_url https://github.com/aonyx-ai/rakko
         include (actions/rakko-build-internal-docs/SPECIFICATION.md)

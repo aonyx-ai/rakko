@@ -1,8 +1,10 @@
 # Harness
 
 This package is the harness of the Rakko repository: the one place that states
-which maintenance actions run here. It mounts the actions that this repository
-uses, and the command line that it builds turns each of them into a command.
+which maintenance actions run here. It mounts the bundles and the actions that
+this repository uses, and the command line that it builds turns each of them
+into a command. A bundle carries a set of actions that projects adopt
+together, so the harness names the bundle instead of each action in it.
 
 It also writes the commands of this repository, for a maintenance activity
 that no single action describes. `src/main.rs` names them, and each of them

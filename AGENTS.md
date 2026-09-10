@@ -18,8 +18,9 @@ shaped the way it is. [ADR-001][adr-001] defines the process.
   pull request. A new ADR can also supersede an existing one.
 
 Crates are grouped by who picks them. `actions/` holds the actions that a
-project mounts, and `crates/` holds the contract, the projection, and the
-machinery that the actions share. [ADR-012] records this decision.
+project mounts, `bundles/` holds the bundles that export a set of actions, and
+`crates/` holds the contract, the projection, and the machinery that the
+actions share. [ADR-012] records this decision.
 
 Each crate has a specification in `<crate>/SPECIFICATION.md` that documents
 what the crate does. A specification is a list of requirements with
@@ -60,9 +61,9 @@ implements it and to the test that verifies it.
 
 - All versions managed in root `Cargo.toml`, crates import from workspace.
 - `[workspace.dependencies]` lists only the crates that workspace members
-  share. An action is not listed there, because nothing in the workspace
-  depends on an action. The harness is its own workspace and names every
-  action it mounts by path.
+  share. An action that a single bundle exports stays out, because no other
+  member depends on it. The harness is its own workspace and names every
+  bundle and every action it mounts by path.
 - Require the lowest version of a dependency that still compiles, so that
   applications keep the widest choice of versions. Verify the floor with
   `mise run rakko -- check-minimal-deps`.
