@@ -375,6 +375,7 @@ version = "0.1.0"
 dependencies = [
  "getset",
  "rakko-action",
+ "rakko-baseline",
  "rakko-build-internal-docs",
  "rakko-check-dependencies",
  "rakko-check-latest-deps",
@@ -391,7 +392,6 @@ dependencies = [
  "rakko-lint-github-actions",
  "rakko-lint-markdown",
  "rakko-lint-rust",
- "rakko-lint-toml",
  "rakko-lint-yaml",
  "rakko-test-rust",
  "rakko-test-rust-docs",
@@ -592,6 +592,21 @@ dependencies = [
  "getset",
  "thiserror",
  "typed-fields",
+]
+
+[[package]]
+name = "rakko-baseline"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-format-json",
+ "rakko-format-markdown",
+ "rakko-format-toml",
+ "rakko-format-yaml",
+ "rakko-lint-github-actions",
+ "rakko-lint-markdown",
+ "rakko-lint-toml",
+ "rakko-lint-yaml",
 ]
 
 [[package]]
