@@ -26,6 +26,23 @@ runs:
 
         echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
 
+    # Mise keeps what it installed below its data directory, which sits
+    # somewhere else on Windows, and the cache has to restore into the
+    # directory that mise reads afterwards.
+    - name: Find the install directory of mise
+      id: location
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [ "${RUNNER_OS}" = "Windows" ]; then
+            data="${LOCALAPPDATA}/mise"
+        else
+            data="${HOME}/.local/share/mise"
+        fi
+
+        echo "path=${data}/installs/cargo-https-github-com-bearcove-tracey" >> "${GITHUB_OUTPUT}"
+
     # The path is where the cargo backend of mise installs the tool. The
     # directory carries the revision below it, so a new pin asks for a new
     # build and the cache of the old one expires on its own.
@@ -34,8 +51,9 @@ runs:
     # it was saved from. An entry that a task wrote elsewhere would unpack
     # there, leave this directory empty, and still count as a hit, and a hit on
     # the key of an entry writes none, so every run would build tracey again.
+    # Tracey is cached once per platform, so the platform is part of the key.
     - name: Restore tracey
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ~/.local/share/mise/installs/cargo-https-github-com-bearcove-tracey
+        path: ${{ steps.location.outputs.path }}
         key: tracey-mise-${{ runner.os }}-${{ runner.arch }}-${{ steps.revision.outputs.revision }}
