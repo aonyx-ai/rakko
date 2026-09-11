@@ -9,7 +9,9 @@
 //!
 //! It also mounts the commands that this repository writes for itself, for a
 //! maintenance activity that no single action describes. Each of them lives in
-//! a module of this package, and this file names it.
+//! a module of this package, and this file names it. When a command runs
+//! actions, this file names those actions as well and gives them to the
+//! command.
 //!
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
@@ -20,6 +22,17 @@ mod pre_commit;
 use rakko_action::ErasedAction;
 use rakko_check_specs::CheckSpecs;
 use rakko_cli::ErasedCommand;
+use rakko_format_json::FormatJson;
+use rakko_format_markdown::FormatMarkdown;
+use rakko_format_rust::FormatRust;
+use rakko_format_toml::FormatToml;
+use rakko_format_yaml::FormatYaml;
+use rakko_lint_github_actions::LintGitHubActions;
+use rakko_lint_markdown::LintMarkdown;
+use rakko_lint_rust::LintRust;
+use rakko_lint_yaml::LintYaml;
+use rakko_test_rust::TestRust;
+use rakko_test_rust_docs::TestRustDocs;
 
 use self::pre_commit::PreCommit;
 
@@ -28,10 +41,44 @@ use self::pre_commit::PreCommit;
 /// The call ends the process itself, so a harness stays a `main` that names
 /// what the repository mounts and returns nothing.
 fn main() {
+    let pre_commit = PreCommit::new(actions_that_write(), actions_that_read());
+
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
         .mount([Box::new(CheckSpecs) as Box<dyn ErasedAction>])
-        .mount_commands([Box::new(PreCommit) as Box<dyn ErasedCommand>])
+        .mount_commands([Box::new(pre_commit) as Box<dyn ErasedCommand>])
         .run();
+}
+
+/// Returns the actions that write to the tree before a commit, in their order
+///
+/// The order is the one in which this repository formatted before the
+/// pre-commit command existed. The formatters overlap in the files that they
+/// write, so the last formatter that writes a file decides its content.
+fn actions_that_write() -> Vec<Box<dyn ErasedAction>> {
+    vec![
+        Box::new(FormatJson),
+        Box::new(FormatMarkdown),
+        Box::new(FormatYaml),
+        Box::new(FormatToml),
+        Box::new(FormatRust),
+    ]
+}
+
+/// Returns the actions that only read the tree before a commit, in their order
+///
+/// The list is shorter than the list that the harness mounts. An action such
+/// as `check-latest-deps`, which resolves the dependencies of the project
+/// again, belongs in a scheduled job and not in front of every commit.
+fn actions_that_read() -> Vec<Box<dyn ErasedAction>> {
+    vec![
+        Box::new(CheckSpecs),
+        Box::new(LintGitHubActions),
+        Box::new(LintMarkdown),
+        Box::new(LintRust),
+        Box::new(LintYaml),
+        Box::new(TestRust),
+        Box::new(TestRustDocs),
+    ]
 }

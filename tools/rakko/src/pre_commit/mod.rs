@@ -8,21 +8,9 @@ mod verdict;
 use rakko_action::{
     ArgsValues, ArgumentValue, Context, ErasedAction, Name, action_name, argument_name,
 };
-use rakko_check_specs::CheckSpecs;
 use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
 use rakko_cli::{Command, Report};
-use rakko_format_json::FormatJson;
-use rakko_format_markdown::FormatMarkdown;
-use rakko_format_rust::FormatRust;
-use rakko_format_toml::FormatToml;
-use rakko_format_yaml::FormatYaml;
-use rakko_lint_github_actions::LintGitHubActions;
-use rakko_lint_markdown::LintMarkdown;
-use rakko_lint_rust::LintRust;
-use rakko_lint_yaml::LintYaml;
-use rakko_test_rust::TestRust;
-use rakko_test_rust_docs::TestRustDocs;
 
 pub(crate) use self::args::PreCommitArgs;
 pub(crate) use self::error::PreCommitError;
@@ -36,12 +24,38 @@ use self::verdict::Verdict;
 /// action answers with one outcome. The command therefore drives the actions
 /// itself, and the hook that Git runs before a commit calls it.
 ///
-/// The command names its actions in its own code, because which activities
-/// guard a commit is a decision of this repository. The list is shorter than
-/// the list that the harness mounts: an action such as `check-latest-deps`,
-/// which resolves the dependencies of the project again, belongs in a
-/// scheduled job and not in front of every commit.
-pub(crate) struct PreCommit;
+/// The command names no action of its own. Which activities guard a commit is
+/// a decision of the project, so the harness names the actions and gives them
+/// to the command in two lists: the actions that write to the tree, and the
+/// actions that only read it.
+pub(crate) struct PreCommit {
+    /// The actions that write to the tree, in the order in which they run
+    actions_that_write: Vec<Box<dyn ErasedAction>>,
+
+    /// The actions that only read the tree, in the order in which they run
+    actions_that_read: Vec<Box<dyn ErasedAction>>,
+}
+
+impl PreCommit {
+    /// Creates the command from the actions that it runs before a commit
+    ///
+    /// An action that writes to the tree belongs in the first list, whether
+    /// it repairs a file or generates one from files that another action
+    /// formats. An action that only reads the tree belongs in the second list.
+    /// Only the actions that write receive the `fix` argument of a run.
+    ///
+    /// The command keeps the order of each list, and a run drives every action
+    /// that writes before the first action that reads.
+    pub(crate) fn new(
+        actions_that_write: impl IntoIterator<Item = Box<dyn ErasedAction>>,
+        actions_that_read: impl IntoIterator<Item = Box<dyn ErasedAction>>,
+    ) -> Self {
+        Self {
+            actions_that_write: actions_that_write.into_iter().collect(),
+            actions_that_read: actions_that_read.into_iter().collect(),
+        }
+    }
+}
 
 impl Command for PreCommit {
     type Args = PreCommitArgs;
@@ -52,9 +66,9 @@ impl Command for PreCommit {
 
     /// Runs the actions that guard a commit, one after another
     ///
-    /// The formatters run first, so that what the checks read is what the
-    /// commit will contain. They rewrite the same files, so no two of them
-    /// run at once. The checks only read, and they run one after another as
+    /// The actions that write run first, so that what the other actions read
+    /// is what the commit will contain. They can write the same files, so no
+    /// two of them run at once. The actions that read run one after another as
     /// well, until an action declares what it reads and writes and a
     /// scheduler can overlap them.
     ///
@@ -69,14 +83,19 @@ impl Command for PreCommit {
         clawless: &ClawlessContext,
         args: &Self::Args,
     ) -> CommandResult {
-        let formatters = formatters();
-        let checks = checks();
-        let total = formatters.len() + checks.len();
+        let total = self.actions_that_write.len() + self.actions_that_read.len();
 
-        // The formatters run to their end before the first check starts, so
-        // that what a check reads is what the commit will contain.
-        let mut problems = drive(formatters, &repairs(args), project, clawless).await?;
-        problems += drive(checks, &ArgsValues::empty(), project, clawless).await?;
+        // The actions that write run to their end before the first action that
+        // reads starts, so that what it reads is what the commit will contain.
+        let mut problems =
+            drive(&self.actions_that_write, &repairs(args), project, clawless).await?;
+        problems += drive(
+            &self.actions_that_read,
+            &ArgsValues::empty(),
+            project,
+            clawless,
+        )
+        .await?;
 
         if problems > 0 {
             return Err(PreCommitError::FailedActions { problems, total }.into());
@@ -86,43 +105,13 @@ impl Command for PreCommit {
     }
 }
 
-/// Returns the actions that rewrite the tree, in the order that they run
-///
-/// The order is the one that this repository formatted in before the command
-/// existed. The formatters overlap in the files that they write, and a run
-/// that let two of them write one file would keep whichever wrote last.
-fn formatters() -> Vec<Box<dyn ErasedAction>> {
-    vec![
-        Box::new(FormatJson),
-        Box::new(FormatMarkdown),
-        Box::new(FormatYaml),
-        Box::new(FormatToml),
-        Box::new(FormatRust),
-    ]
-}
-
-/// Returns the actions that only read the tree, in the order that they run
-///
-/// Nothing writes while these run, so what each of them sees is what the
-/// commit will contain.
-fn checks() -> Vec<Box<dyn ErasedAction>> {
-    vec![
-        Box::new(CheckSpecs),
-        Box::new(LintGitHubActions),
-        Box::new(LintMarkdown),
-        Box::new(LintRust),
-        Box::new(LintYaml),
-        Box::new(TestRust),
-        Box::new(TestRustDocs),
-    ]
-}
-
 /// Returns the values that the actions which repair receive
 ///
-/// The command carries one flag, and the formatters read an argument of that
-/// name, so a run that was asked to repair passes the flag on and every other
-/// run passes nothing. Which actions receive it is the code above: the
-/// checks repair nothing, and they read no argument at all.
+/// The command carries one flag, and the actions that write take an argument
+/// of that name, so a run that was asked to repair passes the flag on and
+/// every other run passes nothing. Which actions receive it is the code above:
+/// the actions that only read repair nothing, and they take no argument at
+/// all.
 fn repairs(args: &PreCommitArgs) -> ArgsValues {
     if args.fix() {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
@@ -145,7 +134,7 @@ fn repairs(args: &PreCommitArgs) -> ArgsValues {
 ///
 /// Returns an error when the report of an action does not reach the reader.
 async fn drive(
-    actions: Vec<Box<dyn ErasedAction>>,
+    actions: &[Box<dyn ErasedAction>],
     values: &ArgsValues,
     project: &Context,
     clawless: &ClawlessContext,
@@ -181,55 +170,82 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::Args;
+    use std::path::Path;
+    use std::pin::pin;
+    use std::sync::{Arc, Mutex};
+    use std::task::{Context as TaskContext, Poll, Waker};
+
+    use rakko_action::{Action, Args, Outcome};
+    use rakko_cli::clawless::event::event_channel;
+    use rakko_cli::clawless::prelude::Output;
 
     use super::*;
 
-    /// Returns the names of the actions of a list, in their order
-    fn names(actions: &[Box<dyn ErasedAction>]) -> Vec<String> {
-        actions
-            .iter()
-            .map(|action| action.name().to_string())
-            .collect()
+    /// An action that writes its name into a log when it runs, and passes
+    struct Recorder {
+        /// The name that the action reports and writes into the log
+        name: Name,
+
+        /// The log that every action of a test writes into, in the order of
+        /// their runs
+        log: Arc<Mutex<Vec<String>>>,
     }
 
-    #[test]
-    fn checks_run_in_the_order_that_the_repository_checks_in() {
-        let actions = checks();
+    impl Action for Recorder {
+        type Args = ();
 
-        assert_eq!(
-            names(&actions),
-            [
-                "check-specs",
-                "lint-github-actions",
-                "lint-markdown",
-                "lint-rust",
-                "lint-yaml",
-                "test-rust",
-                "test-rust-docs",
-            ]
-        );
+        fn name(&self) -> Name {
+            self.name.clone()
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            self.log
+                .lock()
+                .expect("the test runs one action at a time")
+                .push(self.name.to_string());
+
+            Outcome::Passed { summary: None }
+        }
     }
 
-    #[test]
-    fn formatters_run_in_the_order_that_the_repository_formats_in() {
-        let actions = formatters();
+    /// Drives a run of the command to its end and returns its result
+    ///
+    /// The receiver of the output lives until the run ends, because a report
+    /// that nothing reads fails the run.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the run when the command failed.
+    fn complete(command: &PreCommit) -> CommandResult {
+        let project = Context::builder().root("/tmp/project").build();
+        let (sender, _receiver) = event_channel();
+        let clawless = ClawlessContext::builder()
+            .current_working_directory(Path::new("/tmp/project"))
+            .output(Output::new(sender))
+            .build()
+            .expect("the test names a working directory");
+        let args = PreCommitArgs::default();
+        let mut future = pin!(command.run(&project, &clawless, &args));
+        let mut task_context = TaskContext::from_waker(Waker::noop());
 
-        assert_eq!(
-            names(&actions),
-            [
-                "format-json",
-                "format-markdown",
-                "format-yaml",
-                "format-toml",
-                "format-rust",
-            ]
-        );
+        loop {
+            if let Poll::Ready(result) = future.as_mut().poll(&mut task_context) {
+                return result;
+            }
+        }
+    }
+
+    /// Returns an action with the given name that writes into the given log
+    fn recorder(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
+        Box::new(Recorder {
+            name,
+            log: Arc::clone(log),
+        })
     }
 
     #[test]
     fn name_is_the_name_of_the_hook() {
-        let command = PreCommit;
+        let command = PreCommit::new([], []);
 
         assert_eq!(command.name().get(), "pre-commit");
     }
@@ -257,5 +273,27 @@ mod tests {
         let values = repairs(&args);
 
         assert_eq!(values, ArgsValues::empty());
+    }
+
+    #[test]
+    fn run_drives_the_actions_that_write_first_and_each_list_in_order() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let command = PreCommit::new(
+            [
+                recorder(action_name!("format-yaml"), &log),
+                recorder(action_name!("format-json"), &log),
+            ],
+            [
+                recorder(action_name!("lint-yaml"), &log),
+                recorder(action_name!("check-specs"), &log),
+            ],
+        );
+
+        complete(&command).expect("every action of the test passes");
+
+        assert_eq!(
+            *log.lock().expect("the run has ended"),
+            ["format-yaml", "format-json", "lint-yaml", "check-specs"]
+        );
     }
 }

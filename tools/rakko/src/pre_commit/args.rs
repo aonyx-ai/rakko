@@ -9,7 +9,7 @@ const FIX_DOCUMENTATION: &str = "Let the actions of the run repair what they can
 /// The arguments that a run of the pre-commit command reads
 ///
 /// The command reads one argument. A run reports by default, and `fix` lets
-/// the formatters of the list rewrite the files that they can format.
+/// the actions that write repair what they find.
 /// Reporting is the safe default, because a run that was started in order to
 /// look must not change the tree that its caller holds. The hook that guards
 /// a commit asks for the repair, and a contributor who wants to know what a
