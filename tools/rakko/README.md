@@ -8,7 +8,8 @@ together, so the harness names the bundle instead of each action in it.
 
 It also writes the commands of this repository, for a maintenance activity
 that no single action describes. `src/main.rs` names them, and each of them
-lives in a module of its own.
+lives in a module of its own. When a command runs actions, `src/main.rs` names
+those actions as well and gives them to the command.
 
 ## Usage
 
