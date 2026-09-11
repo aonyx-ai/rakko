@@ -282,6 +282,18 @@ specs (
         )
     }
     {
+        name pre-commit
+        source_url https://github.com/aonyx-ai/rakko
+        include (commands/rakko-pre-commit/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (commands/rakko-pre-commit/src/**/*.rs)
+                test_include (commands/rakko-pre-commit/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name prettier
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-prettier/SPECIFICATION.md)

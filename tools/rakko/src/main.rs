@@ -7,17 +7,13 @@
 //! projects adopt together, so the harness names the bundle instead of each
 //! action in it.
 //!
-//! It also mounts the commands that this repository writes for itself, for a
-//! maintenance activity that no single action describes. Each of them lives in
-//! a module of this package, and this file names it. When a command runs
-//! actions, this file names those actions as well and gives them to the
-//! command.
+//! It also mounts commands, for a maintenance activity that no single action
+//! describes. A command comes from a crate, as an action does, and this file
+//! names it. When a command runs actions, this file names those actions as
+//! well and gives them to the command.
 //!
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
-
-/// The command that runs the actions that guard a commit
-mod pre_commit;
 
 use rakko_action::ErasedAction;
 use rakko_check_specs::CheckSpecs;
@@ -31,10 +27,9 @@ use rakko_lint_github_actions::LintGitHubActions;
 use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
 use rakko_lint_yaml::LintYaml;
+use rakko_pre_commit::PreCommit;
 use rakko_test_rust::TestRust;
 use rakko_test_rust_docs::TestRustDocs;
-
-use self::pre_commit::PreCommit;
 
 /// Builds the command line of this repository and runs it
 ///

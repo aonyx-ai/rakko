@@ -15,13 +15,14 @@ const FIX_DOCUMENTATION: &str = "Let the actions of the run repair what they can
 /// a commit asks for the repair, and a contributor who wants to know what a
 /// commit would report runs the command without the flag.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
-pub(crate) struct PreCommitArgs {
+pub struct PreCommitArgs {
     /// Whether the actions of the run repair what they find
-    #[getset(get_copy = "pub(crate)")]
+    #[getset(get_copy = "pub")]
     fix: bool,
 }
 
 impl Args for PreCommitArgs {
+    // precommit[impl args.fix]
     fn schema() -> ArgsSchema {
         ArgsSchema::new([Argument::builder()
             .name(argument_name!("fix"))
@@ -30,6 +31,8 @@ impl Args for PreCommitArgs {
             .build()])
     }
 
+    // precommit[impl args.value]
+    // precommit[impl args.absent]
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let name = argument_name!("fix");
         let fix = match values.get(&name) {
@@ -62,6 +65,7 @@ mod tests {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new(fix))])
     }
 
+    // precommit[verify args.value]
     #[test]
     fn from_values_with_an_unreadable_value_reports_the_argument() {
         let error = PreCommitArgs::from_values(&values("maybe")).unwrap_err();
@@ -72,6 +76,7 @@ mod tests {
         ));
     }
 
+    // precommit[verify lists.fix]
     #[test]
     fn from_values_with_true_asks_for_a_repair() {
         let args = PreCommitArgs::from_values(&values("true")).unwrap();
@@ -79,6 +84,7 @@ mod tests {
         assert!(args.fix());
     }
 
+    // precommit[verify args.absent]
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = PreCommitArgs::from_values(&ArgsValues::empty()).unwrap();
@@ -86,6 +92,7 @@ mod tests {
         assert!(!args.fix());
     }
 
+    // precommit[verify args.fix]
     #[test]
     fn schema_declares_the_fix_argument() {
         let schema = PreCommitArgs::schema();
@@ -99,6 +106,7 @@ mod tests {
         assert_eq!(names, ["fix"]);
     }
 
+    // precommit[verify args.fix]
     #[test]
     fn schema_documents_the_fix_argument() {
         let schema = PreCommitArgs::schema();
@@ -111,6 +119,7 @@ mod tests {
         assert_eq!(documentation, Some(FIX_DOCUMENTATION));
     }
 
+    // precommit[verify args.fix]
     #[test]
     fn schema_gives_fix_a_boolean_shape() {
         let schema = PreCommitArgs::schema();

@@ -18,9 +18,9 @@
 //! [`Report`] of this crate, so that its output takes the shape that a run of
 //! one action has.
 //!
-//! Only a harness depends on this crate. An action depends on the contract
-//! crate alone, so the command-line framework stays out of the build of an
-//! action.
+//! A harness depends on this crate, and so does a crate that provides a
+//! command for a harness to mount. An action depends on the contract crate
+//! alone, so the command-line framework stays out of the build of an action.
 //!
 //! The crate builds the command line when the harness runs, and not when the
 //! harness compiles. A command can therefore come from a crate that the project

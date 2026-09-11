@@ -10,11 +10,12 @@ use thiserror::Error;
 /// the actions did not leave the project ready for one, or what an action
 /// found never reached the reader.
 #[derive(Debug, Error)]
-pub(crate) enum PreCommitError {
+pub enum PreCommitError {
     /// Actions of the run found problems in the project, or stopped
     ///
     /// The run reported every action before it, so the message counts them
     /// instead of repeating what they said.
+    // precommit[impl result.failed]
     #[error("{problems} of {total} actions found problems or stopped")]
     FailedActions {
         /// How many actions found problems or stopped
@@ -29,6 +30,7 @@ pub(crate) enum PreCommitError {
     /// The run writes each report as it arrives, and it stops at a report that
     /// nothing takes, because the reader would learn nothing about the actions
     /// that follow either.
+    // precommit[impl report.unreported]
     #[error("failed to report the outcome of the {action} action")]
     UnreportedOutcome {
         /// The action whose outcome the run could not report
@@ -50,6 +52,7 @@ mod tests {
 
     use super::*;
 
+    // precommit[verify result.failed]
     #[test]
     fn failed_actions_counts_the_actions_that_did_not_pass() {
         let error = PreCommitError::FailedActions {
@@ -63,6 +66,7 @@ mod tests {
         );
     }
 
+    // precommit[verify report.unreported]
     #[test]
     fn unreported_outcome_names_the_action() {
         let error = PreCommitError::UnreportedOutcome {
