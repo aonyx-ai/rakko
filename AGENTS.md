@@ -18,7 +18,8 @@ shaped the way it is. [ADR-001][adr-001] defines the process.
   pull request. A new ADR can also supersede an existing one.
 
 Crates are grouped by who picks them. `actions/` holds the actions that a
-project mounts, `bundles/` holds the bundles that export a set of actions, and
+project mounts, `bundles/` holds the bundles that export a set of actions,
+`commands/` holds the commands that a harness mounts beside its actions, and
 `crates/` holds the contract, the projection, and the machinery that the
 actions share. [ADR-012] records this decision.
 
@@ -63,7 +64,7 @@ implements it and to the test that verifies it.
 - `[workspace.dependencies]` lists only the crates that workspace members
   share. An action that a single bundle exports stays out, because no other
   member depends on it. The harness is its own workspace and names every
-  bundle and every action it mounts by path.
+  bundle, every action, and every command it mounts by path.
 - Require the lowest version of a dependency that still compiles, so that
   applications keep the widest choice of versions. Verify the floor with
   `mise run rakko -- check-minimal-deps`.

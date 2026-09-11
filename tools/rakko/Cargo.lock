@@ -373,7 +373,6 @@ dependencies = [
 name = "harness"
 version = "0.1.0"
 dependencies = [
- "getset",
  "rakko-action",
  "rakko-baseline",
  "rakko-check-specs",
@@ -387,10 +386,10 @@ dependencies = [
  "rakko-lint-markdown",
  "rakko-lint-rust",
  "rakko-lint-yaml",
+ "rakko-pre-commit",
  "rakko-rust-library",
  "rakko-test-rust",
  "rakko-test-rust-docs",
- "thiserror",
 ]
 
 [[package]]
@@ -843,6 +842,16 @@ dependencies = [
  "rakko-tool",
  "serde",
  "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-pre-commit"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cli",
  "thiserror",
 ]
 

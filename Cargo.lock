@@ -876,6 +876,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-pre-commit"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko-action",
+ "rakko-cli",
+ "thiserror",
+]
+
+[[package]]
 name = "rakko-prettier"
 version = "0.1.0"
 dependencies = [
