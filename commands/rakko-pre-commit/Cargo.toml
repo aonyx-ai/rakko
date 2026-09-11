@@ -9,7 +9,7 @@ rust-version.workspace = true
 [dependencies]
 getset = { workspace = true }
 rakko-action = { workspace = true }
-rakko-cli = { path = "../../crates/rakko-cli", version = "0.1.0" }
+rakko-cli = { workspace = true }
 thiserror = { workspace = true }
 
 [lints]
