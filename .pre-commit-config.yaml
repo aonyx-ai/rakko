@@ -14,6 +14,11 @@ repos:
       - id: check-added-large-files
       - id: check-case-conflict
       - id: end-of-file-fixer
+        # Mise writes the stubs in `bin` without a final newline, and it
+        # recognizes a stub of its own by its exact content. A newline added
+        # here makes `mise generate task-stubs` refuse to write the file ever
+        # again, so the generated directory stays out of this hook.
+        exclude: ^bin/
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
   - repo: local
