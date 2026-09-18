@@ -42,6 +42,9 @@ const CONFIGURATION: &str = "MD018: false\nMD041: false\n";
 /// An ignore file that excludes the whole project
 const IGNORE_EVERYTHING: &str = "*.md\n";
 
+/// An ignore file that excludes a directory whose name starts with a dot
+const IGNORE_DOT_DIRECTORY: &str = ".claude/\n";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -221,6 +224,40 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     assert_eq!(project.read("notes.md"), UNSPACED_HEADING);
 }
 
+// lintmarkdown[verify run.ignored]
+#[tokio::test]
+async fn run_leaves_out_a_directory_that_the_ignore_file_names() {
+    let project = Project::new();
+    project.write(".markdownlint.yaml", "MD041: false\n");
+    project.write(".markdownlintignore", IGNORE_DOT_DIRECTORY);
+    project.write("notes.md", VALID);
+    project.write(".claude/notes.md", UNSPACED_HEADING);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the ignore file to leave the directory out, got {outcome:?}"
+    );
+}
+
+// lintmarkdown[verify run.git]
+#[tokio::test]
+async fn run_leaves_out_the_directories_of_git() {
+    let project = Project::new();
+    project.write(".markdownlint.yaml", "MD041: false\n");
+    project.write("notes.md", VALID);
+    project.write(".git/notes.md", UNSPACED_HEADING);
+    project.write("vendor/.git/notes.md", UNSPACED_HEADING);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to leave the directories of git out, got {outcome:?}"
+    );
+}
+
 // lintmarkdown[verify check.passed]
 // lintmarkdown[verify tool.markdownlint]
 #[tokio::test]
@@ -236,7 +273,7 @@ async fn run_in_a_valid_project_passes() {
     );
 }
 
-// lintmarkdown[verify run.structured]
+// lintmarkdown[verify run.structured+2]
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
@@ -252,7 +289,7 @@ async fn run_reads_the_configuration_of_the_project() {
 }
 
 // lintmarkdown[verify check.violation]
-// lintmarkdown[verify run.structured]
+// lintmarkdown[verify run.structured+2]
 #[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_markdownlint() {
     let project = Project::new();
@@ -411,4 +448,20 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
         panic!("expected the run to fail, got {outcome:?}");
     };
     assert_eq!(locations(findings), ["deep/sub/notes.md"]);
+}
+
+// lintmarkdown[verify run.dot]
+#[tokio::test]
+async fn run_reaches_a_file_in_a_directory_with_a_dot() {
+    let project = Project::new();
+    project.write(".markdownlint.yaml", "MD041: false\n");
+    project.write("notes.md", VALID);
+    project.write(".changeset/notes.md", UNSPACED_HEADING);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [".changeset/notes.md"]);
 }

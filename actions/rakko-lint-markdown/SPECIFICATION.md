@@ -82,9 +82,25 @@ hold the error.
 ## Runs
 
 Markdownlint discovers no files until a run names a place to look. The action
-names the root of the project and nothing else, so a run covers what a
-contributor covers when they start markdownlint bare in the root of their
-checkout, and the ignore file of the project decides the rest.
+names the root of the project and nothing else, so a run covers the checkout
+of a contributor, and the ignore file of the project decides the rest.
+
+Markdownlint skips every file and directory whose name starts with a dot,
+unless a run asks for them. Projects keep Markdown in such directories: GitHub
+reads issue templates from `.github`, and a changeset tool writes its
+changesets to `.changeset`. Markdownlint accepts this request on its command
+line only, and its configuration has no key for it, so a project cannot make
+the request itself. The action therefore asks for the entries with a dot, and
+a contributor who wants the same answer from a bare markdownlint passes
+`--dot` to it. The ignore file of the project still excludes what it names,
+in a directory with a dot as well.
+
+The directory in which Git keeps a repository also starts with a dot, and it
+holds no content of the project. A run that asks for the entries with a dot
+reaches it, so the action excludes every directory with the name `.git`. The
+exclusion applies at every depth, because a repository that a project holds
+in its tree has a `.git` directory of its own. A bare markdownlint does the
+same when a contributor also passes `--ignore '**/.git/**'` to it.
 
 The action asks for the report as data. Markdownlint writes its findings for a
 reader by default, and the same run writes them as JSON on request, which
@@ -97,9 +113,19 @@ lintmarkdown[run.project]
 A run MUST name the root of the project to markdownlint, and no other place to
 look.
 
-lintmarkdown[run.structured]
-A run MUST ask markdownlint for its report as data, and MUST set no other
-option of markdownlint.
+lintmarkdown[run.dot]
+A run MUST ask markdownlint to examine the files and directories whose name
+starts with a dot.
+
+lintmarkdown[run.ignored]
+A run MUST leave out every file that the ignore file of the project excludes.
+
+lintmarkdown[run.git]
+A run MUST leave out every file inside a directory with the name `.git`.
+
+lintmarkdown[run.structured+2]
+A run MUST ask markdownlint for its report as data, and MUST set no option of
+markdownlint that this section does not name.
 
 ## Check
 
