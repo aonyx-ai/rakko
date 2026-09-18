@@ -1,6 +1,7 @@
 ---
 name: Feature
 about: Behavior that a user of the software notices.
+title: ""
 type: Feature
 ---
 
@@ -14,11 +15,13 @@ type: Feature
 
 ## Decisions
 
-<!-- What was decided when this issue was scoped, each with its reason, so that a later reader can tell whether the reason still holds. -->
+<!-- What was decided when this issue was scoped, each with its reason, so
+that a later reader can tell whether the reason still holds. -->
 
 ## Open
 
-<!-- What is not decided, with the assumption to proceed under, and the leaning where there is one. -->
+<!-- What is not decided, with the assumption to proceed under, and the
+leaning where there is one. -->
 
 ## Out of scope
 
@@ -30,4 +33,5 @@ type: Feature
 
 ## Size
 
-<!-- The expected size of the change, in one line, so that the pull request can be measured against it. -->
+<!-- The expected size of the change, in one line, so that the pull request
+can be measured against it. -->

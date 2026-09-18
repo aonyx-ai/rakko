@@ -28,6 +28,32 @@ const MARKDOWNLINT: &str = "markdownlint";
 /// configuration of the project alone.
 const JSON: &str = "--json";
 
+/// The flag that asks markdownlint to examine the entries with a dot
+///
+/// Markdownlint skips every file and directory whose name starts with a dot
+/// by default. Projects keep Markdown in such directories: GitHub reads issue
+/// templates from `.github`, and a changeset tool writes its changesets to
+/// `.changeset`. Markdownlint accepts this request on its command line only,
+/// and its configuration has no key for it, so a project cannot make the
+/// request itself. The ignore file of the project still excludes what it
+/// names, in a directory with a dot as well.
+const DOT: &str = "--dot";
+
+/// The flag that leaves the files of a pattern out of a run
+///
+/// Markdownlint applies the flag next to the ignore file of the project, and
+/// a file that either one names stays out of the run.
+const IGNORE: &str = "--ignore";
+
+/// The pattern of the directories in which Git keeps a repository
+///
+/// The directory of a repository starts with a dot, so a run that asks for
+/// the entries with a dot reaches it, and it holds no content of the project.
+/// The pattern matches at every depth, because a repository that a project
+/// holds in its tree has a `.git` directory of its own. The argument reaches
+/// markdownlint without a shell, so nothing expands the wildcards on the way.
+const GIT: &str = "**/.git/**";
+
 /// The place that a run tells markdownlint to look
 ///
 /// A run starts in the root of the project, so the working directory is the
@@ -71,6 +97,11 @@ impl Markdownlint {
     /// Runs markdownlint over the project and reads what it reported
     ///
     /// The run names the root of the project and asks for the report as data.
+    /// It includes the files and directories whose name starts with a dot,
+    /// which markdownlint skips by default, and it leaves out every directory
+    /// with the name `.git`. The ignore file of the project decides what else
+    /// the run leaves out.
+    ///
     /// Markdownlint writes the report on its standard error stream, and it
     /// leaves the standard output stream empty for as long as it has a file
     /// to examine, so a run that wrote there examined nothing and answered
@@ -85,13 +116,19 @@ impl Markdownlint {
     /// [unavailable]: ObserveMarkdownlintError::MarkdownlintUnavailable
     /// [unreadable]: ObserveMarkdownlintError::UnreadableReport
     // lintmarkdown[impl check.read]
+    // lintmarkdown[impl run.dot]
+    // lintmarkdown[impl run.git]
+    // lintmarkdown[impl run.ignored]
     // lintmarkdown[impl run.project]
-    // lintmarkdown[impl run.structured]
+    // lintmarkdown[impl run.structured+2]
     pub async fn observe(&self) -> Result<Observation, ObserveMarkdownlintError> {
         let execution = self
             .tool
             .invocation()
             .arg(JSON)
+            .arg(DOT)
+            .arg(IGNORE)
+            .arg(GIT)
             .arg(HERE)
             .run()
             .await

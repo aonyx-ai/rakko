@@ -34,6 +34,11 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 /// one that [mise] installed for the project, at the version that the project
 /// pinned, and the action installs nothing.
 ///
+/// A run examines the files and directories whose name starts with a dot,
+/// such as `.github`, which markdownlint skips by default. It leaves out every
+/// directory with the name `.git`, and the ignore file of the project decides
+/// what else a run leaves out.
+///
 /// A run only reports, and it takes no argument. Every rule that a file broke
 /// becomes a finding on the line that markdownlint named, at the column when
 /// the rule points at one, and the message of the finding is the sentence
