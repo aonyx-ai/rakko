@@ -502,7 +502,7 @@ async fn resolve_without_a_cargo_reports_the_tool() {
     );
 }
 
-// cargo[verify root.walk+2]
+// cargo[verify root.walk+3]
 #[cfg(unix)]
 #[tokio::test]
 async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
@@ -518,7 +518,7 @@ async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
     assert_eq!(roots, [project.cargo_root("")]);
 }
 
-// cargo[verify root.walk+2]
+// cargo[verify root.walk+3]
 #[tokio::test]
 async fn roots_find_a_manifest_in_a_hidden_directory() {
     let project = Project::workspace();
@@ -536,7 +536,7 @@ async fn roots_find_a_manifest_in_a_hidden_directory() {
     );
 }
 
-// cargo[verify root.walk+2]
+// cargo[verify root.walk+3]
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_git_directory() {
     let project = Project::workspace();
@@ -547,7 +547,19 @@ async fn roots_ignore_a_manifest_under_the_git_directory() {
     assert_eq!(roots, [project.cargo_root("")]);
 }
 
-// cargo[verify root.walk+2]
+// cargo[verify root.walk+3]
+#[tokio::test]
+async fn roots_ignore_a_manifest_under_the_node_modules_directory() {
+    let project = Project::workspace();
+    project.write("node_modules/@otter/clipboard/Cargo.toml", STANDALONE);
+    project.write("node_modules/@otter/clipboard/src/lib.rs", "");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(roots, [project.cargo_root("")]);
+}
+
+// cargo[verify root.walk+3]
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_target_directory() {
     let project = Project::workspace();
