@@ -63,7 +63,10 @@ would hide a broken manifest behind a green run.
 The search reads hidden directories, because a project can keep a package in
 one. It does not read the `.git` entry, which holds no file of the project,
 and it does not read a directory named `target`, because that is where cargo
-builds and the manifests a build copies there belong to no package. It follows
+builds and the manifests a build copies there belong to no package. For the
+same reason it does not read a directory named `node_modules`: a package
+manager of Node installs packages there, and a package that holds Rust code
+can ship its manifest, which belongs to no package of the project. It follows
 no symbolic link, so that a cycle of links cannot trap it.
 
 A manifest of the project can belong to a workspace above the project, when
@@ -83,11 +86,11 @@ A manifest that belongs to a workspace whose root the project root does not
 contain MUST stop the discovery, and the error MUST name the manifest and the
 workspace root.
 
-cargo[root.walk+2]
+cargo[root.walk+3]
 The discovery MUST search the project for files named `Cargo.toml`. It MUST
 read hidden directories, because a project can keep a package in one, and it
-MUST NOT read the `.git` entry, a directory named `target`, or a symbolic
-link.
+MUST NOT read the `.git` entry, a directory named `target` or `node_modules`,
+or a symbolic link.
 
 cargo[root.directory]
 A directory that the discovery cannot read MUST stop the discovery, and the

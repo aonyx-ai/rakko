@@ -30,6 +30,10 @@ const GIT_DIRECTORY: &str = ".git";
 /// The directory that cargo builds in, which the discovery does not read
 const TARGET_DIRECTORY: &str = "target";
 
+/// The directory that a package manager of Node installs packages in, which
+/// the discovery does not read
+const NODE_MODULES_DIRECTORY: &str = "node_modules";
+
 /// The arguments that ask cargo to describe the workspace of a manifest
 ///
 /// Without the dependencies, cargo reads the manifests of the workspace and
@@ -169,7 +173,7 @@ impl Cargo {
     // cargo[impl root.contained]
     // cargo[impl root.discover]
     // cargo[impl root.member]
-    // cargo[impl root.walk+2]
+    // cargo[impl root.walk+3]
     pub async fn roots(&self) -> Result<Vec<CargoRoot>, DiscoverRootsError> {
         let mut manifests = manifests(self.root.get()).await?;
         manifests.sort_by_key(|manifest| (manifest.components().count(), manifest.clone()));
@@ -429,8 +433,8 @@ fn details(execution: &Execution) -> String {
 
 /// Returns the manifests below a directory
 ///
-/// The walk does not read the `.git` entry, a directory named `target`, or a
-/// symbolic link.
+/// The walk does not read the `.git` entry, a directory named `target` or
+/// `node_modules`, or a symbolic link.
 ///
 /// # Errors
 ///
@@ -439,7 +443,7 @@ fn details(execution: &Execution) -> String {
 ///
 /// [directory]: DiscoverRootsError::UnreadableDirectory
 // cargo[impl root.directory]
-// cargo[impl root.walk+2]
+// cargo[impl root.walk+3]
 async fn manifests(root: &Path) -> Result<Vec<PathBuf>, DiscoverRootsError> {
     let mut found = Vec::new();
     let mut pending = vec![root.to_path_buf()];
@@ -456,7 +460,7 @@ async fn manifests(root: &Path) -> Result<Vec<PathBuf>, DiscoverRootsError> {
         {
             let name = entry.file_name();
 
-            if name == GIT_DIRECTORY || name == TARGET_DIRECTORY {
+            if name == GIT_DIRECTORY || name == TARGET_DIRECTORY || name == NODE_MODULES_DIRECTORY {
                 continue;
             }
 
