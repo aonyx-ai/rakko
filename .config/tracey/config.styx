@@ -258,6 +258,18 @@ specs (
         )
     }
     {
+        name lint-typescript
+        source_url https://github.com/aonyx-ai/rakko
+        include (actions/rakko-lint-typescript/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (actions/rakko-lint-typescript/src/**/*.rs)
+                test_include (actions/rakko-lint-typescript/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name lint-yaml
         source_url https://github.com/aonyx-ai/rakko
         include (actions/rakko-lint-yaml/SPECIFICATION.md)

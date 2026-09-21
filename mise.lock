@@ -98,6 +98,26 @@ version = "3.9.6"
 backend = "npm:prettier"
 specifiers = ["3.9.6"]
 
+[[tools.oxlint]]
+version = "1.83.0"
+backend = "aqua:oxc-project/oxc/oxlint"
+specifiers = ["1.83.0"]
+
+[tools.oxlint."platforms.linux-x64"]
+checksum = "sha256:4995c0f6a55ed8aa611a7c5461dd4d61cdc41ce767d6d92aae665d135b50e5a1"
+url = "https://github.com/oxc-project/oxc/releases/download/apps_v1.83.0/oxlint-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/563328410"
+
+[tools.oxlint."platforms.macos-arm64"]
+checksum = "sha256:18021b3bc2557e1cb9bb912ff7ae730d877f3e2ba1e06f98c75a979e5fa3a97e"
+url = "https://github.com/oxc-project/oxc/releases/download/apps_v1.83.0/oxlint-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/563328337"
+
+[tools.oxlint."platforms.windows-x64"]
+checksum = "sha256:42deff7e157277f812365886eba1a7f37e19998341f7713de9a0451e9534e5f5"
+url = "https://github.com/oxc-project/oxc/releases/download/apps_v1.83.0/oxlint-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/563328400"
+
 [[tools."pipx:pre-commit"]]
 version = "4.6.2"
 backend = "pipx:pre-commit"
