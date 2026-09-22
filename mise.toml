@@ -6,8 +6,9 @@
 # available. With cargo-binstall, it downloads a prebuilt binary instead.
 cargo-binstall = "1.22.0"
 
-# Prettier runs on node, and mise puts no node on the path for a tool of its
-# npm backend, so the pin below is what lets the format actions start prettier.
+# Prettier and oxfmt both run on node, and mise puts no node on the path for a
+# tool of its npm backend, so the pin below is what lets the format actions
+# start either of them.
 # The build script of tracey bundles a web dashboard with node and pnpm, and
 # the install of tracey below is the only consumer of the second pin.
 node = "24.20.0"
@@ -45,6 +46,7 @@ rust = [
 "cargo:cargo-udeps" = "0.1.61"
 jq = "1.8.2"
 "npm:markdownlint-cli" = "0.49.1"
+oxfmt = "0.70.0"
 oxlint = "1.83.0"
 # The release of pre-commit is a Python zipapp, and the registry maps that
 # file to no Windows download, so the pin names the backend that installs
