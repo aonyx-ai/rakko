@@ -1019,6 +1019,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-test-typescript"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-test-utils",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-test-utils"
 version = "0.1.0"
 
