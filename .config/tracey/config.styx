@@ -414,6 +414,18 @@ specs (
         )
     }
     {
+        name test-typescript
+        source_url https://github.com/aonyx-ai/rakko
+        include (actions/rakko-test-typescript/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (actions/rakko-test-typescript/src/**/*.rs)
+                test_include (actions/rakko-test-typescript/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name test-utils
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-test-utils/SPECIFICATION.md)
