@@ -126,6 +126,18 @@ specs (
         )
     }
     {
+        name check-typescript
+        source_url https://github.com/aonyx-ai/rakko
+        include (actions/rakko-check-typescript/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (actions/rakko-check-typescript/src/**/*.rs)
+                test_include (actions/rakko-check-typescript/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name check-unused-deps
         source_url https://github.com/aonyx-ai/rakko
         include (actions/rakko-check-unused-deps/SPECIFICATION.md)

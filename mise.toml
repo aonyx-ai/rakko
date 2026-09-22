@@ -6,9 +6,9 @@
 # available. With cargo-binstall, it downloads a prebuilt binary instead.
 cargo-binstall = "1.22.0"
 
-# Prettier and oxfmt both run on node, and mise puts no node on the path for a
-# tool of its npm backend, so the pin below is what lets the format actions
-# start either of them.
+# Prettier, oxfmt, and tsc all run on node, and mise puts no node on the path
+# for a tool of its npm backend, so the pin below is what lets the actions that
+# wrap them start any of the three.
 # The build script of tracey bundles a web dashboard with node and pnpm, and
 # the install of tracey below is the only consumer of the second pin.
 node = "24.20.0"
@@ -63,6 +63,8 @@ taplo = "0.10.0"
 # refuses to choose. A build takes about twenty minutes, so a machine that has
 # none restores one from the cache that the `Cache` workflow keeps warm.
 "cargo:https://github.com/bearcove/tracey" = { version = "rev:7494469c454ea3e93203f2cc860adbf153fe64b9", crate = "tracey" }
+
+"npm:typescript" = "7.0.2"
 
 yamllint = "1.38.0"
 zizmor = "1.30.0"
