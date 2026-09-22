@@ -690,6 +690,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-check-typescript"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-test-utils",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-check-unused-deps"
 version = "0.1.0"
 dependencies = [
