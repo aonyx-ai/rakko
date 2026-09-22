@@ -198,6 +198,18 @@ specs (
         )
     }
     {
+        name format-typescript
+        source_url https://github.com/aonyx-ai/rakko
+        include (actions/rakko-format-typescript/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (actions/rakko-format-typescript/src/**/*.rs)
+                test_include (actions/rakko-format-typescript/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name format-yaml
         source_url https://github.com/aonyx-ai/rakko
         include (actions/rakko-format-yaml/SPECIFICATION.md)

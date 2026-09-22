@@ -775,6 +775,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-format-typescript"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-test-utils",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-format-yaml"
 version = "0.1.0"
 dependencies = [

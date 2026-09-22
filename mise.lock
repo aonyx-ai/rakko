@@ -98,6 +98,11 @@ version = "3.9.6"
 backend = "npm:prettier"
 specifiers = ["3.9.6"]
 
+[[tools.oxfmt]]
+version = "0.70.0"
+backend = "npm:oxfmt"
+specifiers = ["0.70.0"]
+
 [[tools.oxlint]]
 version = "1.83.0"
 backend = "aqua:oxc-project/oxc/oxlint"
