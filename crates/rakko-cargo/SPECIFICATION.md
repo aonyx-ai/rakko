@@ -144,6 +144,48 @@ cargo[doctest.library]
 A root MUST state whether the workspace holds a target that builds in a form
 whose documentation cargo can test.
 
+## Packages
+
+A job can select the packages of a workspace that cargo works on, and it
+selects them by name. A root names every package of its workspace, so that a
+caller knows what a selection leaves out without asking cargo again.
+
+Cargo documents the targets of a workspace in parallel, and it writes the
+documentation of a target to a directory that the crate name of the target
+names. The crate name is the name of the target with every hyphen replaced by
+an underscore. A package shares a crate name when one of its documented
+targets has the crate name of a documented target of another package, such as
+a binary that carries the name of a library of another package. Then two runs
+of rustdoc write one directory at once. Cargo warns about the collision and
+continues, and one of the two runs can fail with an error that depends on
+timing.
+
+Cargo documents a library and a binary unless the manifest excludes the
+target with `doc = false`. It documents an example, a test, or a benchmark
+only when the manifest includes the target with `doc = true`. The description
+of a workspace states this choice for every target. Cargo also leaves out a
+binary whose required features are off. The crate counts a target as cargo
+documents it with every feature on, because a job that documents a workspace
+turns every feature on. Cargo gives no way to ask which targets collide, so the
+crate applies these rules to the description itself. A root states for each
+package whether it shares a crate name, and a caller that documents the
+workspace documents such a package apart from the others.
+
+Two targets of one package do not count, on purpose. Cargo skips a binary that
+carries the name of the library of its own package, which is the common case.
+Other targets of one package can still collide, such as an example that the
+manifest documents under the name of its library. That case is rare, and
+separating it would take runs for single targets instead of packages.
+
+cargo[package.all]
+A root MUST name every package of its workspace, once each, in the order of
+their names.
+
+cargo[package.shared]
+A root MUST state for each package whether the package shares a crate name
+with another package of the workspace. A target that cargo does not document
+with every feature on MUST NOT count.
+
 ## Versions
 
 Two questions of this crate answer with a version of the compiler: which

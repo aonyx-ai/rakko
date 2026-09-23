@@ -247,6 +247,7 @@ fn copies(
                     CargoRoot::builder()
                         .directory(directory)
                         .documentation(root.documentation())
+                        .packages(root.packages().clone())
                         .maybe_rust_version(root.rust_version().clone())
                         .build()
                 })

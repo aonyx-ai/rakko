@@ -6,6 +6,8 @@
 
 /// Whether cargo can test the examples of a workspace
 mod documentation;
+/// One package of a workspace
+mod package;
 
 use std::path::{Component, Path, PathBuf};
 
@@ -14,6 +16,7 @@ use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, ProjectRoot};
 
 pub use self::documentation::Documentation;
+pub use self::package::{CargoPackage, DocumentedNames, PackageName};
 use crate::version::RustVersion;
 
 /// The name of the file that describes a package or a workspace to cargo
@@ -33,10 +36,11 @@ pub const MANIFEST: &str = "Cargo.toml";
 /// all recognize.
 ///
 /// A root also carries what cargo said about the packages of its workspace:
-/// whether cargo can test the examples in their documentation, and the
-/// oldest toolchain that they promise to compile on. The discovery of the
-/// roots asks cargo to describe every workspace anyway, and one description
-/// answers both, so a caller reads them here instead of asking cargo again.
+/// their names, which of them share a crate name, whether cargo can test the
+/// examples in their documentation, and the oldest toolchain that they
+/// promise to compile on. The discovery of the roots asks cargo to describe
+/// every workspace anyway, and one description answers all of them, so a
+/// caller reads them here instead of asking cargo again.
 ///
 /// The type has no order, because a version has none. A caller that wants
 /// the roots in a fixed order sorts them by their directory, which is how
@@ -54,6 +58,10 @@ pub struct CargoRoot {
     #[getset(get_copy = "pub")]
     documentation: Documentation,
 
+    /// Every package of the workspace, in the order of their names
+    #[getset(get = "pub")]
+    packages: Vec<CargoPackage>,
+
     /// The oldest Rust toolchain that the packages of the workspace declare
     /// they compile on, or `None` when no package declares one
     #[getset(get = "pub")]
@@ -65,18 +73,24 @@ impl CargoRoot {
     /// Creates a root from the directory that holds its manifest and what
     /// cargo said about the packages of the workspace
     ///
-    /// A root whose packages declare no `rust-version` carries none.
+    /// A root whose packages declare no `rust-version` carries none. A root
+    /// built without its packages names none, so no package of it shares a
+    /// crate name, and a caller treats the workspace as one whole.
     // cargo[impl doctest.library]
+    // cargo[impl package.all]
+    // cargo[impl package.shared]
     // cargo[impl version.declared+2]
     #[builder]
     pub fn new(
         directory: PathBuf,
         documentation: Documentation,
+        #[builder(default)] packages: Vec<CargoPackage>,
         rust_version: Option<RustVersion>,
     ) -> Self {
         Self {
             directory,
             documentation,
+            packages,
             rust_version,
         }
     }

@@ -36,6 +36,28 @@ const FEATURED: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\neditio
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
+/// The manifest of a workspace of a library, a command line tool, and a
+/// third package that uses the library
+const SHARED_NAME: &str =
+    "[workspace]\nmembers = [\"demo\", \"demo-cli\", \"extra\"]\nresolver = \"3\"\n";
+
+/// The manifest of the library of that workspace
+const DEMO: &str = "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// The manifest of a package whose binary carries the name of the library
+/// of another package, and which uses that library
+///
+/// Cargo documents both targets into one directory, and without a run of
+/// their own the two runs of rustdoc race.
+const DEMO_CLI: &str = "[package]\nname = \"demo-cli\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[[bin]]\nname = \"demo\"\npath = \"src/main.rs\"\n\n[dependencies]\ndemo = { path = \"../demo\" }\n";
+
+/// The manifest of the library of that workspace, with a feature that no
+/// package of the workspace enables
+const DEMO_FEATURED: &str = "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[features]\ngated = []\n";
+
+/// The manifest of a package that uses the library and shares no name
+const EXTRA: &str = "[package]\nname = \"extra\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\ndemo = { path = \"../demo\" }\n";
+
 /// A manifest with a build script that fails
 ///
 /// Cargo reports the failure on its standard error stream and not as a
@@ -58,6 +80,25 @@ const BROKEN_LINK: &str = "/// A link to [`Missing`].\npub fn documented() {}\n"
 /// Rustdoc reads the documentation of a private item only when the run asks
 /// for the private items.
 const PRIVATE_LINK: &str = "/// A link to [`Missing`].\nfn hidden() {}\n";
+
+/// A library whose public item links to nothing and holds a variable that
+/// nothing uses
+///
+/// Rustdoc reports the link. Cargo compiles the library for every run that
+/// documents a package which uses it, and the compiler reports the variable
+/// in each of those runs.
+const BROKEN_DEPENDENCY: &str =
+    "/// A link to [`Missing`].\npub fn documented() {\n    let unused = 1;\n}\n";
+
+/// A library whose only item exists behind a feature
+const GATED_ITEM: &str = "#[cfg(feature = \"gated\")]\npub fn gated() {}\n";
+
+/// A source file whose public item links to an item behind a feature of
+/// the library
+const LINK_TO_GATED: &str = "/// Uses [`demo::gated`].\npub fn uses() {}\n";
+
+/// A binary whose entry point links to nothing
+const BROKEN_BINARY: &str = "/// A link to [`Missing`].\nfn main() {}\n";
 
 /// A source file whose item behind a feature links to nothing
 ///
@@ -172,6 +213,29 @@ impl Project {
     }
 }
 
+/// Returns the path and the code of the lint that each finding of an outcome
+/// names
+///
+/// The message of a finding ends with the code of its lint in brackets.
+fn codes(findings: &[Finding]) -> Vec<(String, String)> {
+    let paths = locations(findings);
+
+    findings
+        .iter()
+        .zip(paths)
+        .map(|(finding, path)| {
+            let code = finding
+                .message()
+                .get()
+                .rsplit_once('[')
+                .and_then(|(_, code)| code.strip_suffix(']'))
+                .unwrap_or_default();
+
+            (path, code.to_owned())
+        })
+        .collect()
+}
+
 /// Returns the paths that the findings of an outcome name
 fn locations(findings: &[Finding]) -> Vec<String> {
     findings
@@ -257,7 +321,7 @@ async fn run_in_a_clean_project_counts_the_workspaces() {
     );
 }
 
-// buildinternaldocs[verify build.operation]
+// buildinternaldocs[verify build.operation+2]
 // buildinternaldocs[verify build.passed]
 // buildinternaldocs[verify tool.cargo]
 #[tokio::test]
@@ -282,7 +346,49 @@ async fn run_leaves_the_sources_unchanged() {
     assert_eq!(project.read("src/lib.rs"), BROKEN_LINK);
 }
 
-// buildinternaldocs[verify build.operation]
+// The race that the split prevents depends on timing, so this test cannot
+// show the split itself. It shows that both packages are still documented,
+// and that the warning of the library which two runs compile counts once.
+// buildinternaldocs[verify build.once]
+// buildinternaldocs[verify build.operation+2]
+#[tokio::test]
+async fn run_with_a_binary_that_shares_the_name_of_a_library_documents_both_packages() {
+    let project = Project::new();
+    project.write("Cargo.toml", SHARED_NAME);
+    project.write("demo/Cargo.toml", DEMO);
+    project.write("demo/src/lib.rs", BROKEN_DEPENDENCY);
+    project.write("demo-cli/Cargo.toml", DEMO_CLI);
+    project.write("demo-cli/src/main.rs", BROKEN_BINARY);
+    project.write("extra/Cargo.toml", EXTRA);
+    project.write("extra/src/lib.rs", CLEAN);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    let mut codes = codes(findings);
+    codes.sort();
+    assert_eq!(
+        codes,
+        [
+            (
+                path_text("demo-cli/src/main.rs"),
+                String::from("rustdoc::broken_intra_doc_links")
+            ),
+            (
+                path_text("demo/src/lib.rs"),
+                String::from("rustdoc::broken_intra_doc_links")
+            ),
+            (
+                path_text("demo/src/lib.rs"),
+                String::from("unused_variables")
+            ),
+        ]
+    );
+}
+
+// buildinternaldocs[verify build.operation+2]
 #[tokio::test]
 async fn run_with_a_broken_link_behind_a_feature_fails() {
     let project = Project::with_manifest(FEATURED, GATED_LINK);
@@ -327,7 +433,7 @@ async fn run_with_a_broken_link_fails() {
     );
 }
 
-// buildinternaldocs[verify build.operation]
+// buildinternaldocs[verify build.operation+2]
 #[tokio::test]
 async fn run_with_a_broken_link_in_a_private_item_fails() {
     let project = Project::with_library(PRIVATE_LINK);
@@ -445,6 +551,29 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
+}
+
+// A single run turns every feature of the library on, and the link resolves.
+// The run of the other packages leaves the library out and builds it with the
+// features that those packages ask for, so only a split breaks the link.
+// buildinternaldocs[verify build.shared]
+#[tokio::test]
+async fn run_with_a_shared_name_documents_the_rest_without_the_features_of_the_sharing_packages() {
+    let project = Project::new();
+    project.write("Cargo.toml", SHARED_NAME);
+    project.write("demo/Cargo.toml", DEMO_FEATURED);
+    project.write("demo/src/lib.rs", GATED_ITEM);
+    project.write("demo-cli/Cargo.toml", DEMO_CLI);
+    project.write("demo-cli/src/main.rs", "fn main() {}\n");
+    project.write("extra/Cargo.toml", EXTRA);
+    project.write("extra/src/lib.rs", LINK_TO_GATED);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [path_text("extra/src/lib.rs")]);
 }
 
 // buildinternaldocs[verify roots.all]

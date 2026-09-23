@@ -8,8 +8,10 @@
 /// The error that stops a run of the action
 mod error;
 
+use std::collections::HashSet;
+
 use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
-use rakko_cargo::{Cargo, CargoReport, CargoRoot};
+use rakko_cargo::{Cargo, CargoPackage, CargoReport, CargoRoot, DocumentedNames};
 use rakko_tool::Execution;
 
 pub use self::error::BuildInternalDocsError;
@@ -17,7 +19,7 @@ pub use self::error::BuildInternalDocsError;
 /// The reason of a run whose cargo discovered no workspace
 const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
-/// The arguments that ask cargo to document every package of a workspace
+/// The arguments that ask cargo to document the packages that a run selects
 ///
 /// The private items belong to the internal documentation, and a feature
 /// that is off by default can carry documentation of its own, so the run
@@ -28,21 +30,28 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// format selects the presentation of the report and not the behavior of the
 /// tool: which lints apply, and at which level, comes from the configuration
 /// of the project alone.
-const DOC: [&str; 6] = [
+const DOC: [&str; 5] = [
     "doc",
-    "--workspace",
     "--no-deps",
     "--document-private-items",
     "--all-features",
     "--message-format=json",
 ];
 
+/// The flag that selects every package of the workspace
+const WORKSPACE: &str = "--workspace";
+
+/// The flag that leaves one package out of a run that selects the workspace
+const EXCLUDE: &str = "--exclude";
+
+/// The flag that selects one package of the workspace
+const PACKAGE: &str = "--package";
+
 /// The action that builds the internal documentation of a project
 ///
 /// The action wraps [rustdoc]: cargo reads the manifests of the project and
 /// renders the documentation of every package, with the private items and
-/// with every feature, so a run agrees with a contributor that runs
-/// `cargo doc` bare. The cargo that runs is the one that [mise] installed for
+/// with every feature. The cargo that runs is the one that [mise] installed for
 /// the project, at the version that the project pinned, and the action
 /// installs nothing.
 ///
@@ -54,7 +63,15 @@ const DOC: [&str; 6] = [
 /// finding fails, whether the diagnostic is a warning or an error.
 ///
 /// A run takes no argument. It documents every workspace of the project,
-/// because the harness of a project is a package of its own. The
+/// because the harness of a project is a package of its own. A package that
+/// shares a crate name with another package, such as a binary that carries
+/// the name of a library, is documented in a cargo run of its own, because
+/// cargo would otherwise write both into one directory at once. Cargo builds
+/// the dependencies of each run with the features of the packages of that
+/// run only. A package that relies on a feature which only a package of
+/// another run enables then fails. The compiler can also report other
+/// warnings for a library of the workspace than a single run does. A
+/// diagnostic that several runs report becomes one finding. The
 /// documentation goes where cargo builds, and the sources stay as they are.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
@@ -134,7 +151,19 @@ async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
 
     // buildinternaldocs[impl roots.all]
     for root in &roots {
-        findings.extend(document(&cargo, root, context).await?);
+        let mut earlier: HashSet<Finding> = HashSet::new();
+
+        for selection in selections(root) {
+            // buildinternaldocs[impl build.once]
+            let fresh: Vec<Finding> = document(&cargo, root, selection, context)
+                .await?
+                .into_iter()
+                .filter(|finding| !earlier.contains(finding))
+                .collect();
+
+            earlier.extend(fresh.iter().cloned());
+            findings.extend(fresh);
+        }
     }
 
     if findings.is_empty() {
@@ -151,7 +180,49 @@ async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
     }
 }
 
-/// Documents one workspace of the project and returns the findings
+/// Returns the arguments that select the packages of each cargo run at a
+/// root
+///
+/// Cargo documents the packages of a workspace in parallel, and two targets
+/// of different packages that share a crate name write one directory at
+/// once, which fails at random. Each package that shares a crate name
+/// therefore gets a run of its own, and the other packages share one run. A
+/// workspace without a shared name keeps its one run, and a workspace whose
+/// every package shares a name has no run for the rest, because cargo
+/// refuses a run that excludes every package.
+// buildinternaldocs[impl build.operation+2]
+// buildinternaldocs[impl build.shared]
+fn selections(root: &CargoRoot) -> Vec<Vec<&str>> {
+    let (shared, unique): (Vec<&CargoPackage>, Vec<&CargoPackage>) = root
+        .packages()
+        .iter()
+        .partition(|package| package.documented_names() == DocumentedNames::Shared);
+
+    if shared.is_empty() {
+        return vec![vec![WORKSPACE]];
+    }
+
+    let mut selections = Vec::new();
+
+    if !unique.is_empty() {
+        let mut rest = vec![WORKSPACE];
+        for package in &shared {
+            rest.extend([EXCLUDE, package.name().get()]);
+        }
+        selections.push(rest);
+    }
+
+    selections.extend(
+        shared
+            .iter()
+            .map(|package| vec![PACKAGE, package.name().get()]),
+    );
+
+    selections
+}
+
+/// Documents the selected packages of one workspace and returns the
+/// findings
 ///
 /// # Errors
 ///
@@ -162,16 +233,18 @@ async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
 /// [unavailable]: BuildInternalDocsError::CargoUnavailable
 /// [unrecognized]: BuildInternalDocsError::UnrecognizedReport
 // buildinternaldocs[impl build.diagnostic]
-// buildinternaldocs[impl build.operation]
+// buildinternaldocs[impl build.operation+2]
 // buildinternaldocs[impl build.sources]
 async fn document(
     cargo: &Cargo,
     root: &CargoRoot,
+    selection: Vec<&str>,
     context: &Context,
 ) -> Result<Vec<Finding>, BuildInternalDocsError> {
     let execution = cargo
         .invocation(root)
         .args(DOC)
+        .args(selection)
         .run()
         .await
         .map_err(|source| BuildInternalDocsError::CargoUnavailable { source })?;
@@ -244,9 +317,25 @@ mod tests {
 
     use std::path::{Path, PathBuf};
 
-    use rakko_cargo::Documentation;
+    use rakko_cargo::{Documentation, PackageName};
 
     use super::*;
+
+    /// Returns a root with the given packages
+    fn workspace(packages: &[(&str, DocumentedNames)]) -> CargoRoot {
+        CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .packages(
+                packages
+                    .iter()
+                    .map(|&(name, documented_names)| {
+                        CargoPackage::new(PackageName::new(name), documented_names)
+                    })
+                    .collect(),
+            )
+            .build()
+    }
 
     // buildinternaldocs[verify build.unreadable]
     #[test]
@@ -269,6 +358,56 @@ mod tests {
             ),
             "expected an unreadable report, got {report:?}"
         );
+    }
+
+    // buildinternaldocs[verify build.shared]
+    #[test]
+    fn selections_of_a_workspace_whose_every_package_shares_a_name_select_each_alone() {
+        let root = workspace(&[
+            ("demo", DocumentedNames::Shared),
+            ("demo-cli", DocumentedNames::Shared),
+        ]);
+
+        let selections = selections(&root);
+
+        assert_eq!(
+            selections,
+            [vec!["--package", "demo"], vec!["--package", "demo-cli"]]
+        );
+    }
+
+    // buildinternaldocs[verify build.shared]
+    #[test]
+    fn selections_of_a_workspace_with_a_shared_name_select_the_rest_and_each_sharing_package() {
+        let root = workspace(&[
+            ("demo", DocumentedNames::Shared),
+            ("demo-cli", DocumentedNames::Shared),
+            ("extra", DocumentedNames::Unique),
+        ]);
+
+        let selections = selections(&root);
+
+        assert_eq!(
+            selections,
+            [
+                vec!["--workspace", "--exclude", "demo", "--exclude", "demo-cli"],
+                vec!["--package", "demo"],
+                vec!["--package", "demo-cli"],
+            ]
+        );
+    }
+
+    // buildinternaldocs[verify build.shared]
+    #[test]
+    fn selections_of_a_workspace_without_a_shared_name_select_the_workspace() {
+        let root = workspace(&[
+            ("a", DocumentedNames::Unique),
+            ("b", DocumentedNames::Unique),
+        ]);
+
+        let selections = selections(&root);
+
+        assert_eq!(selections, [vec!["--workspace"]]);
     }
 
     // buildinternaldocs[verify build.passed]

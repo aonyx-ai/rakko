@@ -9,7 +9,7 @@
 /// The error that stops the discovery of the roots
 mod error;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use rakko_action::ProjectRoot;
@@ -17,7 +17,7 @@ use rakko_tool::{Execution, Invocation, ResolveToolError, RunCommandError, Tool,
 use serde::Deserialize;
 
 pub use self::error::DiscoverRootsError;
-use crate::root::{CargoRoot, Documentation, MANIFEST};
+use crate::root::{CargoPackage, CargoRoot, Documentation, DocumentedNames, MANIFEST, PackageName};
 use crate::toolchain::Toolchain;
 use crate::version::RustVersion;
 
@@ -206,6 +206,7 @@ impl Cargo {
             let root = CargoRoot::builder()
                 .directory(directory)
                 .documentation(documentation)
+                .packages(metadata.cargo_packages())
                 .maybe_rust_version(metadata.rust_version())
                 .build();
             if !roots.contains(&root) {
@@ -328,6 +329,53 @@ struct Metadata {
 }
 
 impl Metadata {
+    /// Returns the packages of the workspace, in the order of their names
+    ///
+    /// A package shares a crate name when one of its documented targets has
+    /// the crate name of a documented target of another package. Cargo then
+    /// documents both targets into one directory at once, and one of the runs
+    /// of rustdoc can fail. A target that cargo does not document writes no
+    /// directory, so it does not count. Two targets of one package count
+    /// once, because the common case, a binary that carries the name of the
+    /// library of its own package, is one that cargo skips.
+    // cargo[impl package.all]
+    // cargo[impl package.shared]
+    fn cargo_packages(&self) -> Vec<CargoPackage> {
+        let mut owners: HashMap<String, HashSet<&str>> = HashMap::new();
+
+        for package in &self.packages {
+            for target in package.targets.iter().filter(|target| target.doc) {
+                owners
+                    .entry(target.crate_name())
+                    .or_default()
+                    .insert(package.name.as_str());
+            }
+        }
+
+        let shared: HashSet<&str> = owners
+            .into_values()
+            .filter(|packages| packages.len() > 1)
+            .flatten()
+            .collect();
+
+        let mut packages: Vec<CargoPackage> = self
+            .packages
+            .iter()
+            .map(|package| {
+                let documented_names = if shared.contains(package.name.as_str()) {
+                    DocumentedNames::Shared
+                } else {
+                    DocumentedNames::Unique
+                };
+
+                CargoPackage::new(PackageName::new(&package.name), documented_names)
+            })
+            .collect();
+        packages.sort_by(|left, right| left.name().cmp(right.name()));
+
+        packages
+    }
+
     /// Returns the oldest Rust toolchain that the packages of the workspace
     /// declare they compile on
     ///
@@ -364,6 +412,9 @@ impl Metadata {
 /// One package of a workspace, as cargo describes it
 #[derive(Deserialize)]
 struct Package {
+    /// The name of the package
+    name: String,
+
     /// The manifest of the package
     manifest_path: PathBuf,
 
@@ -379,11 +430,29 @@ struct Package {
 /// One target of a package, as cargo describes it
 #[derive(Deserialize)]
 struct Target {
+    /// The name of the target
+    name: String,
+
+    /// Whether the manifest lets cargo document the target when a run
+    /// selects its package
+    doc: bool,
+
     /// The forms that the compiler builds the target in
     crate_types: Vec<String>,
 }
 
 impl Target {
+    /// Returns the name that the compiler knows the target by
+    ///
+    /// Cargo describes a library by its crate name already, and a binary by
+    /// the name that its manifest states, which can hold a hyphen. The
+    /// compiler replaces every hyphen with an underscore, and rustdoc names
+    /// the directory of the documentation after the result.
+    // cargo[impl package.shared]
+    fn crate_name(&self) -> String {
+        self.name.replace('-', "_")
+    }
+
     /// Returns whether cargo can test the documentation of this target
     ///
     /// A target answers for the forms that it builds in, because that is
