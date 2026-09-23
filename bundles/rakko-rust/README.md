@@ -52,7 +52,10 @@ mounts this bundle pins these tools in its `mise.toml`:
 - a second `rust` on the `nightly` channel, with the `rustfmt` component,
   because `format-rust` reads the unstable options of `.rustfmt.toml` and
   `check-unused-deps` needs the unstable option that records which crates a
-  target loaded. Both refuse to do their work on a stable toolchain.
+  target loaded. Both refuse to do their work on a stable toolchain. Pin it by
+  its date, such as `nightly-2026-08-11`, and not by the bare channel. Mise
+  ignores `mise.lock` for Rust once it has installed any toolchain, so a bare
+  `nightly` resolves to the newest nightly that the machine holds.
 - `cargo:cargo-deny`, for `check-dependencies`.
 - `cargo:cargo-nextest`, for `test-rust` and for the tests that
   `check-latest-deps` runs.
