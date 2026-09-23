@@ -71,6 +71,6 @@ pub use self::cargo::{Cargo, DiscoverRootsError};
 pub use self::report::{
     CargoDiagnostic, CargoReport, DiagnosticLevel, DiagnosticSpan, ReadReportError,
 };
-pub use self::root::{CargoRoot, Documentation};
+pub use self::root::{CargoPackage, CargoRoot, Documentation, DocumentedNames, PackageName};
 pub use self::toolchain::{Channel, ResolveNewestToolchainError, ResolveToolchainError, Toolchain};
 pub use self::version::RustVersion;

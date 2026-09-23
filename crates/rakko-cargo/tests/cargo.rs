@@ -20,8 +20,9 @@ use std::process::Command;
 
 use rakko_action::ProjectRoot;
 use rakko_cargo::{
-    Cargo, CargoReport, CargoRoot, Channel, DiscoverRootsError, Documentation,
-    ResolveNewestToolchainError, ResolveToolchainError, RustVersion, Toolchain,
+    Cargo, CargoPackage, CargoReport, CargoRoot, Channel, DiscoverRootsError, Documentation,
+    DocumentedNames, PackageName, ResolveNewestToolchainError, ResolveToolchainError, RustVersion,
+    Toolchain,
 };
 use tempfile::TempDir;
 
@@ -44,6 +45,32 @@ const BROKEN: &str = "this is not a manifest\n";
 /// Rustdoc links no example against such a library, and cargo says so when a
 /// run asks for the documentation examples of the package.
 const FOREIGN_LIBRARY: &str = "[workspace]\n\n[package]\nname = \"native\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[lib]\ncrate-type = [\"cdylib\"]\n";
+
+/// The manifest of a workspace of a library and a command line tool
+const SHARED_NAME: &str = "[workspace]\nmembers = [\"demo\", \"demo-cli\"]\nresolver = \"3\"\n";
+
+/// The manifest of the library of that workspace
+const DEMO: &str = "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// The manifest of a package whose binary carries the name of the library
+/// of another package
+const DEMO_CLI: &str = "[package]\nname = \"demo-cli\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[[bin]]\nname = \"demo\"\npath = \"src/main.rs\"\n";
+
+/// The manifest of a package whose binary carries the name of the library
+/// of another package and stays out of the documentation
+const UNDOCUMENTED_CLI: &str = "[package]\nname = \"demo-cli\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[[bin]]\nname = \"demo\"\npath = \"src/main.rs\"\ndoc = false\n";
+
+/// The manifest of a workspace of a library whose name holds a hyphen and a
+/// command line tool
+const HYPHENATED: &str = "[workspace]\nmembers = [\"demo-core\", \"tool\"]\nresolver = \"3\"\n";
+
+/// The manifest of a package whose binary carries the name of the library
+/// of another package, with a hyphen where the crate name has an underscore
+const TOOL: &str = "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[[bin]]\nname = \"demo-core\"\npath = \"src/main.rs\"\n";
+
+/// The manifest of a workspace whose members sit in directories that do not
+/// follow the order of their names
+const UNSORTED: &str = "[workspace]\nmembers = [\"first\", \"second\"]\nresolver = \"3\"\n";
 
 /// The manifest of a workspace that lists a project below it as a member
 const OUTER: &str = "[workspace]\nmembers = [\"project\"]\nresolver = \"3\"\n";
@@ -102,6 +129,19 @@ impl Project {
         project
     }
 
+    /// Creates a project with a library and a package whose binary carries
+    /// the name of the library, and the given manifest for that package
+    fn sharing_a_name(manifest: &str) -> Self {
+        let project = Self::new();
+        project.write("Cargo.toml", SHARED_NAME);
+        project.write("demo/Cargo.toml", DEMO);
+        project.write("demo/src/lib.rs", "");
+        project.write("demo-cli/Cargo.toml", manifest);
+        project.write("demo-cli/src/main.rs", "fn main() {}\n");
+
+        project
+    }
+
     /// Creates a project that pins the given Rust toolchains
     fn with_rust(pins: &str) -> Self {
         let project = Self::bare();
@@ -133,12 +173,26 @@ impl Project {
             .build()
     }
 
-    /// Returns the path of a directory of the project, as a root whose
-    /// packages hold no library
+    /// Returns the path of a directory of the project, as the root of the
+    /// standalone package whose binary is the harness
     fn binary_root(&self, path: &str) -> CargoRoot {
         CargoRoot::builder()
             .directory(self.root().get().join(path))
             .documentation(Documentation::Untestable)
+            .packages(vec![package("harness", DocumentedNames::Unique)])
+            .build()
+    }
+
+    /// Returns the root of the workspace of two members that
+    /// [`workspace`][Project::workspace] writes
+    fn workspace_root(&self) -> CargoRoot {
+        CargoRoot::builder()
+            .directory(self.root().get().to_path_buf())
+            .documentation(Documentation::Testable)
+            .packages(vec![
+                package("a", DocumentedNames::Unique),
+                package("b", DocumentedNames::Unique),
+            ])
             .build()
     }
 
@@ -214,6 +268,11 @@ impl Project {
 
         std::fs::write(&path, content).expect("the test writes a file of the project");
     }
+}
+
+/// Returns a package of a root with the given name
+fn package(name: &str, documented_names: DocumentedNames) -> CargoPackage {
+    CargoPackage::new(PackageName::new(name), documented_names)
 }
 
 /// Returns the Rust toolchain that this repository builds with
@@ -349,6 +408,118 @@ async fn roots_of_a_workspace_with_a_library_say_that_its_examples_are_testable(
     assert_eq!(
         roots.first().map(CargoRoot::documentation),
         Some(Documentation::Testable)
+    );
+}
+
+// cargo[verify package.all]
+#[tokio::test]
+async fn roots_of_a_workspace_name_its_packages() {
+    let project = Project::workspace();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("a", DocumentedNames::Unique),
+            package("b", DocumentedNames::Unique)
+        ])
+    );
+}
+
+// cargo[verify package.all]
+#[tokio::test]
+async fn roots_of_a_workspace_name_its_packages_in_the_order_of_their_names() {
+    let project = Project::new();
+    project.write("Cargo.toml", UNSORTED);
+    project.write(
+        "first/Cargo.toml",
+        "[package]\nname = \"zeta\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    );
+    project.write("first/src/lib.rs", "");
+    project.write(
+        "second/Cargo.toml",
+        "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    );
+    project.write("second/src/lib.rs", "");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("alpha", DocumentedNames::Unique),
+            package("zeta", DocumentedNames::Unique)
+        ])
+    );
+}
+
+// cargo[verify package.shared]
+#[tokio::test]
+async fn roots_of_a_workspace_whose_binary_shares_the_name_of_a_library_say_both_share_it() {
+    let project = Project::sharing_a_name(DEMO_CLI);
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("demo", DocumentedNames::Shared),
+            package("demo-cli", DocumentedNames::Shared)
+        ])
+    );
+}
+
+// cargo[verify package.shared]
+#[tokio::test]
+async fn roots_of_a_workspace_whose_binary_shares_the_name_of_its_own_library_say_none_shares_it() {
+    let project = Project::workspace();
+    project.write("a/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("a", DocumentedNames::Unique),
+            package("b", DocumentedNames::Unique)
+        ])
+    );
+}
+
+// cargo[verify package.shared]
+#[tokio::test]
+async fn roots_of_a_workspace_whose_hyphenated_binary_shares_a_name_say_both_share_it() {
+    let project = Project::new();
+    project.write("Cargo.toml", HYPHENATED);
+    project.package("demo-core");
+    project.write("tool/Cargo.toml", TOOL);
+    project.write("tool/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("demo-core", DocumentedNames::Shared),
+            package("tool", DocumentedNames::Shared)
+        ])
+    );
+}
+
+// cargo[verify package.shared]
+#[tokio::test]
+async fn roots_of_a_workspace_whose_undocumented_binary_shares_a_name_say_none_shares_it() {
+    let project = Project::sharing_a_name(UNDOCUMENTED_CLI);
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("demo", DocumentedNames::Unique),
+            package("demo-cli", DocumentedNames::Unique)
+        ])
     );
 }
 
@@ -515,7 +686,7 @@ async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(roots, [project.cargo_root("")]);
+    assert_eq!(roots, [project.workspace_root()]);
 }
 
 // cargo[verify root.walk+3]
@@ -530,7 +701,7 @@ async fn roots_find_a_manifest_in_a_hidden_directory() {
     assert_eq!(
         roots,
         [
-            project.cargo_root(""),
+            project.workspace_root(),
             project.binary_root(".tools/harness")
         ]
     );
@@ -544,7 +715,7 @@ async fn roots_ignore_a_manifest_under_the_git_directory() {
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(roots, [project.cargo_root("")]);
+    assert_eq!(roots, [project.workspace_root()]);
 }
 
 // cargo[verify root.walk+3]
@@ -556,7 +727,7 @@ async fn roots_ignore_a_manifest_under_the_node_modules_directory() {
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(roots, [project.cargo_root("")]);
+    assert_eq!(roots, [project.workspace_root()]);
 }
 
 // cargo[verify root.walk+3]
@@ -567,7 +738,7 @@ async fn roots_ignore_a_manifest_under_the_target_directory() {
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(roots, [project.cargo_root("")]);
+    assert_eq!(roots, [project.workspace_root()]);
 }
 
 // cargo[verify root.discover]
@@ -581,7 +752,10 @@ async fn roots_of_a_project_with_a_standalone_package_name_both() {
 
     assert_eq!(
         roots,
-        [project.cargo_root(""), project.binary_root("tools/harness")]
+        [
+            project.workspace_root(),
+            project.binary_root("tools/harness")
+        ]
     );
 }
 
@@ -605,7 +779,9 @@ async fn roots_of_a_workspace_name_no_member() {
     let roots = project.roots().await.expect("the test discovers the roots");
 
     assert!(
-        !roots.contains(&project.cargo_root("a")),
+        !roots
+            .iter()
+            .any(|root| root.directory() == &project.root().get().join("a")),
         "expected no member among the roots, got {roots:?}"
     );
 }
@@ -617,7 +793,7 @@ async fn roots_of_a_workspace_name_the_workspace_once() {
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(roots, [project.cargo_root("")]);
+    assert_eq!(roots, [project.workspace_root()]);
 }
 
 // cargo[verify root.contained]

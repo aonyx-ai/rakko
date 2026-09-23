@@ -101,6 +101,39 @@ documentation of an item that only a maintainer reads are all built and
 examined. It documents no dependency, because the documentation of a
 dependency belongs to the project that publishes it.
 
+Cargo documents the packages of a workspace in parallel, and it writes the
+documentation of a target to a directory that the crate name of the target
+names. A package shares a crate name with another package when a documented
+target of each has that name, such as a binary that carries the name of a
+library of another package. Then two runs of rustdoc write one directory at
+once, and one of them can fail with an error that depends on timing. The
+discovery of the roots states which packages share a crate name, so a run
+documents each of them in a cargo run of its own, and the other packages of
+the workspace together in one more. A workspace without a shared name keeps
+its one cargo run. The order of the runs does not matter, because the action
+examines the documentation and does not publish it.
+
+A workspace that takes several cargo runs changes one more thing. Cargo
+builds the dependencies of a run with the features that the packages of that
+run ask for. Only a run that selects the whole workspace unites the features
+of all its packages. A package that uses a feature which only a package of
+another run enables therefore fails. This happens in a run of its own and in
+the run of the other packages alike. The package fails in the same way when a
+contributor builds it alone.
+
+The same rule changes what the compiler reports about a library of the
+workspace that a run compiles for another package. The run compiles the
+library with fewer features than a single run does. The compiler can then
+report a warning that a single run does not, such as an import that only code
+behind a feature uses. It can also miss a warning that a single run reports,
+such as one in code behind a feature.
+
+Cargo compiles a library of the workspace for every run that documents a
+package which uses it, and the compiler reports the warnings of the library
+in each of those runs. A diagnostic that several runs at one root report is
+one problem, so it becomes one finding. Within one cargo run, the shared
+reading of the report already counts each diagnostic once.
+
 The documentation goes where cargo builds, and the sources of the project stay
 as they are, whatever the run finds. The action asks cargo for its report as
 JSON, because it reads the report as data. This selects the presentation of
@@ -121,10 +154,17 @@ behind a green result.
 buildinternaldocs[build.sources]
 A run MUST NOT change a source of the project.
 
-buildinternaldocs[build.operation]
-A run MUST ask rustdoc to document every package of the workspace, with every
-feature, with the private items, and without the dependencies, and MUST ask
-cargo for its report as JSON. It MUST NOT change any other option of rustdoc.
+buildinternaldocs[build.operation+2]
+A run MUST ask rustdoc to document every package of the workspace once, with
+every feature, with the private items, and without the dependencies, and MUST
+ask cargo for each report as JSON. It MUST NOT change any other option of
+rustdoc.
+
+buildinternaldocs[build.shared]
+A run MUST document each package that shares a crate name with another
+package of the workspace in a cargo run of its own, and every other package of
+the workspace in one cargo run. A workspace in which no package shares a crate
+name MUST take one cargo run.
 
 buildinternaldocs[build.passed]
 A run whose rustdoc reports no diagnostic at any root MUST pass, and the
@@ -138,6 +178,10 @@ with the path relative to the project root.
 buildinternaldocs[build.failed]
 A run whose rustdoc reports a diagnostic at any root MUST fail, and the
 outcome MUST hold one finding per diagnostic.
+
+buildinternaldocs[build.once]
+A diagnostic that more than one cargo run at a root reports MUST produce one
+finding.
 
 buildinternaldocs[build.unrecognized]
 A cargo run that ends without success and reports no diagnostic, or that ends
