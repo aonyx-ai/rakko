@@ -52,7 +52,7 @@ oxlint = "1.83.0"
 # file to no Windows download, so the pin names the backend that installs
 # from the package index instead and works on every platform.
 "pipx:pre-commit" = "4.6.2"
-"npm:prettier" = "3.9.6"
+"npm:prettier" = "3.9.9"
 taplo = "0.10.0"
 
 # The releases of tracey lag behind its main branch, so the pin names a Git
