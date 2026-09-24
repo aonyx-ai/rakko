@@ -6,9 +6,9 @@
 # available. With cargo-binstall, it downloads a prebuilt binary instead.
 cargo-binstall = "1.23.0"
 
-# Prettier, oxfmt, and tsc all run on node, and mise puts no node on the path
-# for a tool of its npm backend, so the pin below is what lets the actions that
-# wrap them start any of the three.
+# Prettier, oxfmt, tsc, and the validator of Renovate all run on node, and mise
+# puts no node on the path for a tool of its npm backend, so the pin below is
+# what lets the actions that wrap them start any of the four.
 # The build script of tracey bundles a web dashboard with node and pnpm, and
 # the install of tracey below is the only consumer of the second pin.
 node = "24.21.0"
@@ -59,6 +59,10 @@ oxlint = "1.83.0"
 # from the package index instead and works on every platform.
 "pipx:pre-commit" = "4.6.2"
 "npm:prettier" = "3.9.9"
+# Renovate publishes several releases a day. The shared preset of Renovate that
+# this repository extends moves the pin once a week, so that the releases
+# arrive as one pull request per week and not as several per day.
+"npm:renovate" = "44.111.3"
 taplo = "0.10.0"
 
 # The releases of tracey lag behind its main branch, so the pin names a Git
