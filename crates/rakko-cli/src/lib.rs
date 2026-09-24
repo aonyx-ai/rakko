@@ -36,6 +36,8 @@
 
 /// The command line that a harness builds and runs
 mod builder;
+/// An error and every cause behind it, as a reader sees them
+mod chain;
 /// The command that a harness writes for an activity that does not fit an
 /// action
 mod command;

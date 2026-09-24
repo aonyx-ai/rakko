@@ -14,7 +14,8 @@ use serde::{Serialize, Serializer};
 /// returned, and it is what a run hands to the command line. Every way of
 /// showing a run reads this one value: [`Display`] writes the text that a
 /// reader at a terminal gets, and [`Serialize`] writes the JSON that a
-/// machine gets.
+/// machine gets. The report of an action that stopped shows the error and
+/// every cause of it, in text and in JSON.
 ///
 /// An action produces none of this. It returns an outcome, and the report
 /// decides how that outcome reaches a reader, so the output of every project
@@ -64,14 +65,14 @@ impl Report {
 // cli[impl report.findings]
 // cli[impl report.repairs]
 // cli[impl report.skipped]
-// cli[impl report.errored]
+// cli[impl report.errored+2]
 impl fmt::Display for Report {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         self::text::render(self, formatter)
     }
 }
 
-// cli[impl report.json]
+// cli[impl report.json+2]
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self::schema::Payload::of(self).serialize(serializer)
