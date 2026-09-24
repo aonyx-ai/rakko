@@ -593,6 +593,7 @@ name = "rakko-baseline"
 version = "0.1.0"
 dependencies = [
  "rakko-action",
+ "rakko-check-renovate-config",
  "rakko-format-json",
  "rakko-format-markdown",
  "rakko-format-toml",
@@ -674,6 +675,20 @@ dependencies = [
  "rakko-cargo",
  "rakko-tool",
  "thiserror",
+]
+
+[[package]]
+name = "rakko-check-renovate-config"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
