@@ -4,7 +4,7 @@
 [tools]
 # Mise builds a tool of the cargo backend from source, unless cargo-binstall is
 # available. With cargo-binstall, it downloads a prebuilt binary instead.
-cargo-binstall = "1.22.0"
+cargo-binstall = "1.23.0"
 
 # Prettier, oxfmt, and tsc all run on node, and mise puts no node on the path
 # for a tool of its npm backend, so the pin below is what lets the actions that
