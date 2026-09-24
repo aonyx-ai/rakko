@@ -12,4 +12,4 @@ pub mod problem;
 pub use self::format_typescript::{FormatTypeScript, FormatTypeScriptArgs, FormatTypeScriptError};
 pub use self::observation::Observation;
 pub use self::oxfmt::{ObserveOxfmtError, Oxfmt};
-pub use self::problem::{OxfmtProblem, relative_path};
+pub use self::problem::OxfmtProblem;

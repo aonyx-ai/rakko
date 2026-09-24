@@ -180,6 +180,31 @@ action[location.relative]
 The crate MUST refuse a path that is absolute. The refusal MUST report the
 path.
 
+## Reported Path
+
+An action reads the path of a file from the report of a tool, and a location
+names that file relative to the project root. A tool that starts in the root
+writes most paths relative to it, and some tools write `./` in front of them.
+That prefix names the same file, and a reader and a code host expect the path
+without it. Other tools write an absolute path, which starts with the root.
+The root of a context can name the directory of the project through a symbolic
+link, and a tool can write the directory that the link resolves to. Every
+action that reads a report has to make the same path from all of these, so the
+crate makes it once.
+
+action[reported.relative]
+The crate MUST make the path of a file from a relative path that a tool
+reported and that names a file below the project root. That path MUST drop
+every component that names the current directory.
+
+action[reported.absolute]
+The crate MUST make the path of a file from an absolute path below the project
+root. That path MUST start below the root, whether the tool wrote the root as
+the context gives it or as the file system resolves it.
+
+action[reported.foreign]
+The crate MUST refuse an absolute path that is not below the project root.
+
 ## Finding
 
 A finding is one problem that an action found in a project. Findings travel in

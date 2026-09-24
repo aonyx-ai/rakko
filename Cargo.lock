@@ -565,6 +565,7 @@ dependencies = [
  "bon",
  "dunce",
  "getset",
+ "rakko-test-utils",
  "tempfile",
  "thiserror",
  "typed-fields",

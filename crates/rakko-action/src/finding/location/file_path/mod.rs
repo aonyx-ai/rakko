@@ -1,6 +1,9 @@
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
+
+use crate::ProjectRoot;
+use crate::path::canonical;
 
 /// The error type for file path parsing
 mod error;
@@ -13,8 +16,11 @@ pub use self::error::ParseFilePathError;
 /// know where the project lives on disk.
 ///
 /// Construct a file path through [`FromStr`], [`TryFrom<&str>`],
-/// [`TryFrom<String>`], [`TryFrom<&Path>`], or [`TryFrom<PathBuf>`]. Every
-/// constructor refuses an absolute path and returns a [`ParseFilePathError`].
+/// [`TryFrom<String>`], [`TryFrom<&Path>`], or [`TryFrom<PathBuf>`]. Each of
+/// these conversions refuses an absolute path and returns a
+/// [`ParseFilePathError`]. A path that a tool reported can start with the
+/// project root or with `./`, and [`FilePath::within`] makes a file path from
+/// it.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct FilePath(PathBuf);
 
@@ -22,6 +28,60 @@ impl FilePath {
     /// Returns the path of the file
     pub fn get(&self) -> &Path {
         &self.0
+    }
+
+    /// Returns the path of a file that a tool reported, relative to the project
+    /// root
+    ///
+    /// A tool that starts in the root writes a path relative to it, and some
+    /// tools write `./` in front of it. The answer drops every component that
+    /// names the current directory, because a reader and a code host expect
+    /// the path without it.
+    ///
+    /// A tool can also write an absolute path, and the answer then drops the
+    /// root. The root can name the directory of the project through a
+    /// symbolic link, and a tool can write the directory that the link
+    /// resolves to. The answer therefore also drops the root as the file
+    /// system resolves it, which asks the file system and can take time.
+    ///
+    /// Returns `None` when the root does not contain an absolute path. A tool
+    /// that starts in the root reports files below it, so a path that does not
+    /// fit points at a report that the caller misread, or at a file outside the
+    /// project. The caller decides what to do about that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// use rakko_action::{FilePath, ProjectRoot};
+    ///
+    /// let root = ProjectRoot::new(PathBuf::from("project"));
+    ///
+    /// let path = FilePath::within(Path::new("./src/main.rs"), &root);
+    ///
+    /// assert_eq!(path, "src/main.rs".parse().ok());
+    /// ```
+    // action[impl reported.relative]
+    // action[impl reported.absolute]
+    // action[impl reported.foreign]
+    pub fn within(path: &Path, root: &ProjectRoot) -> Option<Self> {
+        let relative = if path.is_relative() {
+            path.to_path_buf()
+        } else if let Ok(stripped) = path.strip_prefix(root.get()) {
+            stripped.to_path_buf()
+        } else {
+            let resolved = canonical(root.get()).ok()?;
+
+            path.strip_prefix(resolved).ok()?.to_path_buf()
+        };
+
+        let plain: PathBuf = relative
+            .components()
+            .filter(|component| *component != Component::CurDir)
+            .collect();
+
+        Self::try_from(plain).ok()
     }
 
     /// Validates that `path` is relative to the project root
@@ -95,7 +155,16 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use std::fs;
+
+    use rakko_test_utils::path;
+
     use super::*;
+
+    /// The root that the paths of a test are reported for
+    fn root() -> ProjectRoot {
+        ProjectRoot::new(path("/home/otter/project"))
+    }
 
     /// A path that the platform of the test reads as absolute
     ///
@@ -221,5 +290,54 @@ mod tests {
                 path: PathBuf::from(ABSOLUTE),
             },
         );
+    }
+
+    // action[verify reported.relative]
+    #[test]
+    fn within_of_a_path_that_names_the_current_directory_drops_it() {
+        let within = FilePath::within(&path("./src/main.rs"), &root());
+
+        assert_eq!(within, Some(FilePath(path("src/main.rs"))));
+    }
+
+    // action[verify reported.relative]
+    #[test]
+    fn within_of_a_relative_path_keeps_it() {
+        let within = FilePath::within(&path("src/main.rs"), &root());
+
+        assert_eq!(within, Some(FilePath(path("src/main.rs"))));
+    }
+
+    // The root names the temporary directory through `sub/..`, so it never
+    // starts the path that the file system resolves. Without that, the
+    // temporary directory of Linux is already resolved, and the test passes
+    // without the resolution that it is about.
+    // action[verify reported.absolute]
+    #[test]
+    fn within_of_an_absolute_path_below_the_resolved_root_drops_the_root() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        fs::create_dir(directory.path().join("sub")).expect("the test creates a directory");
+        let resolved = canonical(directory.path()).expect("the directory exists");
+        let root = ProjectRoot::new(directory.path().join("sub").join(".."));
+
+        let within = FilePath::within(&resolved.join("notes.md"), &root);
+
+        assert_eq!(within, Some(FilePath(path("notes.md"))));
+    }
+
+    // action[verify reported.absolute]
+    #[test]
+    fn within_of_an_absolute_path_below_the_root_drops_the_root() {
+        let within = FilePath::within(&path("/home/otter/project/src/main.rs"), &root());
+
+        assert_eq!(within, Some(FilePath(path("src/main.rs"))));
+    }
+
+    // action[verify reported.foreign]
+    #[test]
+    fn within_of_an_absolute_path_outside_the_root_is_none() {
+        let within = FilePath::within(&path("/home/otter/elsewhere/main.rs"), &root());
+
+        assert_eq!(within, None);
     }
 }

@@ -6,8 +6,6 @@
 
 use std::path::{Path, PathBuf};
 
-use rakko_action::{FilePath, ProjectRoot};
-
 /// One problem that oxfmt reported about a project
 ///
 /// Oxfmt names a problem as precisely as the operation allows, and a variant
@@ -19,7 +17,9 @@ use rakko_action::{FilePath, ProjectRoot};
 ///
 /// A path stands as oxfmt wrote it. A run starts oxfmt in the project root, so
 /// oxfmt reports a path relative to it, and a caller that reports the problem
-/// asks [`relative_path`] for the path that a finding names.
+/// asks [`FilePath::within`][within] for the path that a finding names.
+///
+/// [within]: rakko_action::FilePath::within
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum OxfmtProblem {
     /// Oxfmt could not format the file, and it named the place that stopped it
@@ -69,37 +69,6 @@ impl OxfmtProblem {
     }
 }
 
-/// Returns the path of a file, relative to the project root
-///
-/// Returns `None` when the root does not contain the file. A run names the root
-/// as the place to look, so a path that does not fit points at a report that
-/// the caller misread, and the caller decides what to do about that.
-pub fn relative_path(path: &Path, root: &ProjectRoot) -> Option<FilePath> {
-    FilePath::try_from(strip(path, root)?).ok()
-}
-
-/// Returns the path without the prefix that names where oxfmt started
-///
-/// A run names the current directory as the place to look, so oxfmt reports a
-/// path that is already relative to the project root.
-///
-/// A path that arrives absolute loses the project root instead. The root of a
-/// context can name the same directory through a symbolic link, which is why
-/// the canonical root is tried as well.
-fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
-    if path.is_relative() {
-        return Some(path.to_path_buf());
-    }
-
-    if let Ok(stripped) = path.strip_prefix(root.get()) {
-        return Some(stripped.to_path_buf());
-    }
-
-    let canonical = root.get().canonicalize().ok()?;
-
-    path.strip_prefix(canonical).ok().map(Path::to_path_buf)
-}
-
 #[cfg(test)]
 mod tests {
     // An assertion in a test panics by design. A `# Panics` section on every
@@ -109,11 +78,6 @@ mod tests {
     use rakko_test_utils::path;
 
     use super::*;
-
-    /// The root that the problems of a test belong to
-    fn root() -> ProjectRoot {
-        ProjectRoot::new(path("/home/otter/project"))
-    }
 
     #[test]
     fn path_of_a_failure_without_a_place_names_no_file() {
@@ -131,26 +95,5 @@ mod tests {
         };
 
         assert_eq!(problem.path(), Some(path("src/index.ts").as_path()));
-    }
-
-    #[test]
-    fn relative_path_outside_the_root_names_nothing() {
-        let relative = relative_path(&path("/home/otter/elsewhere/index.ts"), &root());
-
-        assert_eq!(relative, None);
-    }
-
-    #[test]
-    fn relative_path_that_arrived_absolute_drops_the_root() {
-        let relative = relative_path(&path("/home/otter/project/src/index.ts"), &root());
-
-        assert_eq!(relative, FilePath::try_from(path("src/index.ts")).ok());
-    }
-
-    #[test]
-    fn relative_path_that_arrived_relative_names_the_file() {
-        let relative = relative_path(&path("src/index.ts"), &root());
-
-        assert_eq!(relative, FilePath::try_from(path("src/index.ts")).ok());
     }
 }
