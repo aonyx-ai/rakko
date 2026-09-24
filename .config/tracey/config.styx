@@ -114,6 +114,18 @@ specs (
         )
     }
     {
+        name check-renovate-config
+        source_url https://github.com/aonyx-ai/rakko
+        include (actions/rakko-check-renovate-config/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (actions/rakko-check-renovate-config/src/**/*.rs)
+                test_include (actions/rakko-check-renovate-config/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name check-specs
         source_url https://github.com/aonyx-ai/rakko
         include (actions/rakko-check-specs/SPECIFICATION.md)

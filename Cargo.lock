@@ -673,6 +673,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-check-renovate-config"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-test-utils",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-check-specs"
 version = "0.1.0"
 dependencies = [

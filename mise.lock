@@ -98,6 +98,11 @@ version = "3.9.9"
 backend = "npm:prettier"
 specifiers = ["3.9.9"]
 
+[[tools."npm:renovate"]]
+version = "44.111.3"
+backend = "npm:renovate"
+specifiers = ["44.111.3"]
+
 [[tools."npm:typescript"]]
 version = "7.0.2"
 backend = "npm:typescript"
