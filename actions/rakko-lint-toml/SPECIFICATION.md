@@ -81,9 +81,12 @@ project asked it not to do, so the action treats the warning as the end of the
 run.
 
 A report that the action does not recognize stops the run as well. A run that
-ended without success and named no file, and a run that passed without the
-count of the files, both wrote a report that the action could not read, and an
-answer built on such a report would hide every problem behind a green result.
+ended without success and named no file wrote a report that the action cannot
+read. An answer from such a report hides every problem behind a green result.
+
+A run that ended with success passes, with or without the count of its files.
+Taplo can lose the line that carries the count, but no lost line can turn a
+run that found problems into one that found none.
 
 linttoml[check.read]
 A run MUST NOT change the project.

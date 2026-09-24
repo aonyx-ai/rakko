@@ -8,8 +8,9 @@
 //! reported into the outcome of the run.
 //!
 //! A run only reports. Taplo repairs nothing that a validation finds, so the
-//! action takes no argument. It applies to a project that holds TOML files,
-//! and it skips visibly otherwise.
+//! action takes no argument. A project that holds no TOML file passes,
+//! because the run found nothing to report. The action does not skip such a
+//! project, because taplo does not always report that it found no file.
 //!
 //! # Examples
 //!

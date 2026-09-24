@@ -7,9 +7,10 @@
 //! at the version that the project pinned, and translates what taplo
 //! reported into the outcome of the run.
 //!
-//! A run reports by default and rewrites with the `fix` argument. The action
-//! applies to a project that holds TOML files, and it skips visibly
-//! otherwise.
+//! A run reports by default and rewrites with the `fix` argument. A project
+//! that holds no TOML file passes, because the run found nothing to format.
+//! The action does not skip such a project, because taplo does not always
+//! report that it found no file.
 //!
 //! # Examples
 //!
