@@ -31,9 +31,10 @@ pub struct Origin {
 impl Origin {
     /// Returns the path of the file, relative to the project root
     ///
-    /// Returns `None` when the root does not contain the file. A run names the
-    /// root as the project, so a path that does not fit points at a report
-    /// that the caller misread, and the caller decides what to do about that.
+    /// Returns `None` when the root does not contain the file. The
+    /// configuration of a project can include a file from a parent directory,
+    /// and tsc then writes a path that starts with `..`. The caller decides
+    /// what to do about such a file.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }

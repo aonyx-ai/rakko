@@ -59,7 +59,7 @@ const JOIN: char = ' ';
 ///
 /// [unreadable]: ReadReportError::UnreadableLine
 // checktypescript[impl check.elaboration]
-// checktypescript[impl check.diagnostic]
+// checktypescript[impl check.diagnostic+2]
 // checktypescript[impl check.project]
 // checktypescript[impl check.unreadable]
 pub fn read(report: &str) -> Result<Vec<Diagnostic>, ReadReportError> {
@@ -177,7 +177,7 @@ fn stated(origin: Option<Origin>, text: &str) -> Option<Pending> {
 /// diagnostic without a place.
 ///
 /// Returns `None` when the line starts no diagnostic at all.
-// checktypescript[impl check.diagnostic]
+// checktypescript[impl check.diagnostic+2]
 // checktypescript[impl check.project]
 fn start(line: &str) -> Option<Pending> {
     if let Some((place, rest)) = line.split_once(PLACE_CLOSE)
