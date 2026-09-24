@@ -5,7 +5,7 @@
 //! cannot read. This module holds one of those problems: the file, the place
 //! in the file where the validator names one, and what the validator wrote.
 
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, Location, Position, ProjectRoot};
@@ -98,46 +98,8 @@ impl RenovateProblem {
     ///
     /// Returns `None` when the root does not contain the file.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::try_from(strip(&self.path, root)?).ok()
+        FilePath::within(&self.path, root)
     }
-}
-
-/// Returns the path without the prefix that names where the validator started
-///
-/// The validator starts in the project root, so a path that it writes is
-/// relative to the root. A path that the environment of the run named can
-/// start with `./`, which names the same file, and the finding drops it,
-/// because a reader and a code host expect the plain path. A relative path that
-/// climbs above the root with `..` names a file outside the project, and the
-/// answer is `None`.
-///
-/// A path that arrives absolute loses the project root instead. The root of a
-/// context can name the same directory through a symbolic link, which is why
-/// the canonical root is tried as well.
-fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
-    if path.is_relative() {
-        if path
-            .components()
-            .any(|component| component == Component::ParentDir)
-        {
-            return None;
-        }
-
-        let plain: PathBuf = path
-            .components()
-            .filter(|component| *component != Component::CurDir)
-            .collect();
-
-        return Some(plain);
-    }
-
-    if let Ok(stripped) = path.strip_prefix(root.get()) {
-        return Some(stripped.to_path_buf());
-    }
-
-    let canonical = root.get().canonicalize().ok()?;
-
-    path.strip_prefix(canonical).ok().map(Path::to_path_buf)
 }
 
 #[cfg(test)]

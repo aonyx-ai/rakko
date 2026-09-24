@@ -44,10 +44,16 @@ impl FilePath {
     /// resolves to. The answer therefore also drops the root as the file
     /// system resolves it, which asks the file system and can take time.
     ///
-    /// Returns `None` when the root does not contain an absolute path. A tool
-    /// that starts in the root reports files below it, so a path that does not
-    /// fit points at a report that the caller misread, or at a file outside the
-    /// project. The caller decides what to do about that.
+    /// Returns `None` when the path does not name a file below the root. That
+    /// is the case for an absolute path that does not start with the root,
+    /// and for a path that holds `..`. The answer does not resolve `..`,
+    /// because a symbolic link makes a resolution from the text alone wrong.
+    /// It is also the case for a relative path that names a root directory or
+    /// a drive, which a relative path on Windows can do, and for a path that
+    /// names the root itself. A tool that starts in the root reports files
+    /// below it, so a path that does not fit points at a report that the
+    /// caller misread, or at a file outside the project. The caller decides
+    /// what to do about that.
     ///
     /// # Examples
     ///
@@ -65,6 +71,9 @@ impl FilePath {
     // action[impl reported.relative]
     // action[impl reported.absolute]
     // action[impl reported.foreign]
+    // action[impl reported.parent]
+    // action[impl reported.anchored]
+    // action[impl reported.root]
     pub fn within(path: &Path, root: &ProjectRoot) -> Option<Self> {
         let relative = if path.is_relative() {
             path.to_path_buf()
@@ -76,10 +85,19 @@ impl FilePath {
             path.strip_prefix(resolved).ok()?.to_path_buf()
         };
 
-        let plain: PathBuf = relative
-            .components()
-            .filter(|component| *component != Component::CurDir)
-            .collect();
+        let mut plain = PathBuf::new();
+
+        for component in relative.components() {
+            match component {
+                Component::CurDir => {}
+                Component::Normal(name) => plain.push(name),
+                Component::ParentDir | Component::RootDir | Component::Prefix(_) => return None,
+            }
+        }
+
+        if plain.as_os_str().is_empty() {
+            return None;
+        }
 
         Self::try_from(plain).ok()
     }
@@ -292,6 +310,43 @@ mod tests {
         );
     }
 
+    // action[verify reported.parent]
+    #[test]
+    fn within_of_a_path_that_climbs_above_the_root_is_none() {
+        let within = FilePath::within(&path("../elsewhere/main.rs"), &root());
+
+        assert_eq!(within, None);
+    }
+
+    // action[verify reported.parent]
+    #[test]
+    fn within_of_a_path_that_climbs_inside_the_root_is_none() {
+        let within = FilePath::within(&path("src/../main.rs"), &root());
+
+        assert_eq!(within, None);
+    }
+
+    // A path that names a drive or a root directory is relative only on
+    // Windows. Every other platform reads the first as a name and the second
+    // as an absolute path.
+    // action[verify reported.anchored]
+    #[cfg(windows)]
+    #[test]
+    fn within_of_a_path_that_names_a_drive_is_none() {
+        let within = FilePath::within(Path::new("C:main.rs"), &root());
+
+        assert_eq!(within, None);
+    }
+
+    // action[verify reported.anchored]
+    #[cfg(windows)]
+    #[test]
+    fn within_of_a_path_that_names_a_root_directory_is_none() {
+        let within = FilePath::within(Path::new(r"\elsewhere\main.rs"), &root());
+
+        assert_eq!(within, None);
+    }
+
     // action[verify reported.relative]
     #[test]
     fn within_of_a_path_that_names_the_current_directory_drops_it() {
@@ -337,6 +392,30 @@ mod tests {
     #[test]
     fn within_of_an_absolute_path_outside_the_root_is_none() {
         let within = FilePath::within(&path("/home/otter/elsewhere/main.rs"), &root());
+
+        assert_eq!(within, None);
+    }
+
+    // action[verify reported.parent]
+    #[test]
+    fn within_of_an_absolute_path_that_climbs_out_of_the_root_is_none() {
+        let within = FilePath::within(&path("/home/otter/project/../elsewhere/main.rs"), &root());
+
+        assert_eq!(within, None);
+    }
+
+    // action[verify reported.root]
+    #[test]
+    fn within_of_the_current_directory_is_none() {
+        let within = FilePath::within(&path("."), &root());
+
+        assert_eq!(within, None);
+    }
+
+    // action[verify reported.root]
+    #[test]
+    fn within_of_the_root_is_none() {
+        let within = FilePath::within(&path("/home/otter/project"), &root());
 
         assert_eq!(within, None);
     }

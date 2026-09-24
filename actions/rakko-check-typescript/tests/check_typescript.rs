@@ -19,7 +19,7 @@
 #![allow(clippy::expect_used)]
 #![allow(clippy::missing_panics_doc)]
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
@@ -32,6 +32,9 @@ const CONFIGURATION: &str = "{\n  \"include\": [\"src\"]\n}\n";
 
 /// A configuration that selects a directory which the project does not have
 const ELSEWHERE: &str = "{\n  \"include\": [\"elsewhere\"]\n}\n";
+
+/// A configuration that also selects a directory beside the project
+const PARENT: &str = "{\n  \"include\": [\"src\", \"../shared\"]\n}\n";
 
 /// A configuration that writes the output of a build into a directory
 const EMITTING: &str = "{\n  \"compilerOptions\": { \"outDir\": \"dist\" },\n  \"include\": \
@@ -68,8 +71,12 @@ const EXPLAINED: &str = "type Greet = (name: string) => string;\n\nexport const 
 
 /// A project that a test builds in a temporary directory
 struct Project {
-    /// The directory that holds the project
+    /// The temporary directory that holds the project
     directory: TempDir,
+
+    /// The root of the project, which is the temporary directory or a
+    /// directory in it
+    root: PathBuf,
 }
 
 impl Project {
@@ -79,25 +86,44 @@ impl Project {
     /// tool. A test uses this shape when the run must end before the tool runs.
     fn bare() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let root = directory.path().to_path_buf();
 
-        Self { directory }
+        Self { directory, root }
     }
 
-    /// Creates a project with the tsc of this repository
+    /// Returns the project with the tsc of this repository pinned in its root
     ///
-    /// The project copies the `mise.toml` of this repository, so the tsc that
-    /// mise resolves for it is the tsc that the repository pins and installs.
-    /// Mise ignores a configuration that nobody trusts, so the copy is trusted
-    /// right away.
-    fn new() -> Self {
-        let project = Self::bare();
-
+    /// The project copies the `mise.toml` of this repository into its root,
+    /// so the tsc that mise resolves for it is the tsc that the repository
+    /// pins and installs. Mise ignores a configuration that nobody trusts, so
+    /// the copy is trusted right away.
+    fn pinned(self) -> Self {
         let pins = repository().join("mise.toml");
-        let copy = project.directory.path().join("mise.toml");
+        let copy = self.root.join("mise.toml");
         std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
         trust(&copy);
 
-        project
+        self
+    }
+
+    /// Creates a project with the tsc of this repository
+    fn new() -> Self {
+        Self::bare().pinned()
+    }
+
+    /// Creates a project with the tsc of this repository, in a directory of
+    /// the temporary directory
+    ///
+    /// The temporary directory around the project gives a test a place for
+    /// files outside the project, which [`write_beside`][beside] fills.
+    ///
+    /// [beside]: Project::write_beside
+    fn nested() -> Self {
+        let mut project = Self::bare();
+        project.root = project.directory.path().join("project");
+        std::fs::create_dir(&project.root).expect("the test creates the root of the project");
+
+        project.pinned()
     }
 
     /// Creates a project that pins a TypeScript that nothing installed
@@ -108,7 +134,7 @@ impl Project {
     fn without_tsc() -> Self {
         let project = Self::bare();
 
-        let pins = project.directory.path().join("mise.toml");
+        let pins = project.root.join("mise.toml");
         std::fs::write(&pins, "[tools]\n\"npm:typescript\" = \"0.0.1\"\n")
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
@@ -121,21 +147,20 @@ impl Project {
     /// The root is canonical, so the paths that the run reports do not depend
     /// on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
-        let root = ProjectRoot::canonical(self.directory.path())
-            .expect("the test names a directory that exists");
+        let root =
+            ProjectRoot::canonical(&self.root).expect("the test names a directory that exists");
 
         Context::builder().root(root).build()
     }
 
     /// Returns whether the project holds the given path
     fn holds(&self, path: &str) -> bool {
-        self.directory.path().join(path).exists()
+        self.root.join(path).exists()
     }
 
     /// Returns the content of a file of the project
     fn read(&self, path: &str) -> String {
-        std::fs::read_to_string(self.directory.path().join(path))
-            .expect("the test reads a file that it wrote")
+        std::fs::read_to_string(self.root.join(path)).expect("the test reads a file that it wrote")
     }
 
     /// Runs the action against this project
@@ -145,14 +170,28 @@ impl Project {
 
     /// Writes a file of the project, with the directories that lead to it
     fn write(&self, path: &str, content: &str) {
-        let path = self.directory.path().join(path);
-
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).expect("the test creates the directories of a file");
-        }
-
-        std::fs::write(&path, content).expect("the test writes a file of the project");
+        create(&self.root.join(path), content);
     }
+
+    /// Writes a file beside the project, in the temporary directory that
+    /// holds a [nested][nested] project
+    ///
+    /// A project that is not nested is the temporary directory itself, so
+    /// there the file lands in the project.
+    ///
+    /// [nested]: Project::nested
+    fn write_beside(&self, path: &str, content: &str) {
+        create(&self.directory.path().join(path), content);
+    }
+}
+
+/// Writes a file, with the directories that lead to it
+fn create(path: &Path, content: &str) {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).expect("the test creates the directories of a file");
+    }
+
+    std::fs::write(path, content).expect("the test writes a file");
 }
 
 /// Returns the paths that the findings of an outcome name
@@ -202,7 +241,7 @@ impl Drop for Project {
     /// directory above it, so the file has to exist first. A failure stays
     /// quiet, because the test already reported what it was about.
     fn drop(&mut self) {
-        let pins = self.directory.path().join("mise.toml");
+        let pins = self.root.join("mise.toml");
 
         if !pins.exists() {
             return;
@@ -328,7 +367,7 @@ async fn run_of_a_project_that_builds_writes_no_output() {
 
 // A configuration that tsc refuses belongs to the file that states it, so the
 // run reports it where a reader can repair it.
-// checktypescript[verify check.diagnostic]
+// checktypescript[verify check.diagnostic+2]
 #[tokio::test]
 async fn run_with_a_refused_configuration_reports_the_configuration_file() {
     let project = Project::new();
@@ -343,12 +382,32 @@ async fn run_with_a_refused_configuration_reports_the_configuration_file() {
     assert_eq!(locations(findings), [path_text("tsconfig.json")]);
 }
 
+// checktypescript[verify check.foreign]
+#[tokio::test]
+async fn run_with_a_type_error_beside_the_project_names_its_place() {
+    let project = Project::nested();
+    project.write("tsconfig.json", PARENT);
+    project.write("src/index.ts", VALID);
+    project.write_beside("shared/index.ts", WRONG_TYPE);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        findings[0].message().get(),
+        "error TS2322: Type 'string' is not assignable to type 'number'. at \
+         ../shared/index.ts:1:14"
+    );
+}
+
 // The message reads like the line that tsc writes, which it does only because
 // the run asks for the diagnostics without the drawing. A drawn report names
 // the place in another shape, and it carries the source of the file and the
 // marks under it, so this test also fails wherever the environment would make
 // tsc draw.
-// checktypescript[verify check.diagnostic]
+// checktypescript[verify check.diagnostic+2]
 #[tokio::test]
 async fn run_with_a_type_error_carries_the_message_of_tsc() {
     let project = Project::new();
@@ -389,7 +448,7 @@ async fn run_with_a_type_error_reports_a_message_without_color_codes() {
     );
 }
 
-// checktypescript[verify check.diagnostic]
+// checktypescript[verify check.diagnostic+2]
 #[tokio::test]
 async fn run_with_a_type_error_reports_the_position_of_tsc() {
     let project = Project::new();

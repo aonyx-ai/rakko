@@ -192,6 +192,11 @@ link, and a tool can write the directory that the link resolves to. Every
 action that reads a report has to make the same path from all of these, so the
 crate makes it once.
 
+Some paths do not name a file below the root, and the crate refuses them. A
+path that climbs to a parent directory with `..` can leave the project. So can
+a path that Windows reads as relative although it names a root directory or a
+drive. A path that names the root itself names no file.
+
 action[reported.relative]
 The crate MUST make the path of a file from a relative path that a tool
 reported and that names a file below the project root. That path MUST drop
@@ -204,6 +209,19 @@ the context gives it or as the file system resolves it.
 
 action[reported.foreign]
 The crate MUST refuse an absolute path that is not below the project root.
+
+action[reported.parent]
+The crate MUST refuse a path whose part below the project root holds a
+component that names the parent directory. Such a path can name a file
+outside the root, and a symbolic link makes a resolution from the text alone
+wrong.
+
+action[reported.anchored]
+The crate MUST refuse a relative path that names a root directory or a drive,
+which a relative path on Windows can do.
+
+action[reported.root]
+The crate MUST refuse a path that names the project root itself.
 
 ## Finding
 

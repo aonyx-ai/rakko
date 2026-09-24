@@ -160,6 +160,13 @@ A diagnostic names no file when it is about the run rather than about the code.
 Such a diagnostic becomes a finding about the project, because there is no path
 to report it at.
 
+A diagnostic can also name a file outside the project root. The configuration
+of a project can include a file from a parent directory, and tsc then writes a
+path that starts with `..`. A finding names its path relative to the root, and
+such a file has no path there. The diagnostic therefore becomes a finding about
+the project, and the message names the file and the position, so that the
+reader does not lose the place.
+
 A run that ended without success and reported no diagnostic stops the action.
 Tsc reports what it found, so such a run stopped for a reason of its own, and
 the action states that instead of passing a project that the compiler never
@@ -172,10 +179,10 @@ A run MUST NOT change a file that it examined.
 checktypescript[check.passed]
 A run whose tsc reports no diagnostic and ends with success MUST pass.
 
-checktypescript[check.diagnostic]
-A diagnostic that names a file MUST produce a finding at the line and the
-column that tsc marked, and the message MUST hold the kind, the number, and
-what tsc said about it.
+checktypescript[check.diagnostic+2]
+A diagnostic that names a file below the project root MUST produce a finding
+at the line and the column that tsc marked, and the message MUST hold the
+kind, the number, and what tsc said about it.
 
 checktypescript[check.elaboration]
 A diagnostic that tsc explains in further lines MUST produce one finding, and
@@ -183,6 +190,11 @@ the message MUST hold what those lines say.
 
 checktypescript[check.project]
 A diagnostic that names no file MUST produce a finding about the project.
+
+checktypescript[check.foreign]
+A diagnostic that names a file outside the project root MUST produce a finding
+about the project, and the message MUST hold the path, the line, and the
+column that tsc wrote.
 
 checktypescript[check.unreported]
 A run whose tsc ended without success and reported no diagnostic MUST stop, and

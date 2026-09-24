@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
@@ -14,17 +12,6 @@ use crate::tsc::report::ReadReportError;
 /// stops instead of reporting one.
 #[derive(Debug, Error)]
 pub enum CheckTypeScriptError {
-    /// Tsc reported a path that the project root does not contain
-    ///
-    /// A finding names its path relative to the project root, and a path
-    /// outside the root has no such name. A run names the root as the project,
-    /// so this points at a report that the action misread.
-    #[error("tsc reported a path outside the project: {}", path.display())]
-    ForeignPath {
-        /// The path that tsc reported
-        path: PathBuf,
-    },
-
     /// Tsc reported nothing and ended without success
     ///
     /// Tsc reports a diagnostic for everything that it finds, including for a

@@ -17,6 +17,13 @@ pub use self::error::CheckTypeScriptError;
 use crate::diagnostic::Diagnostic;
 use crate::tsc::Tsc;
 
+/// The text between the message of a diagnostic and the place outside the
+/// project that it names
+const PLACE_OPEN: &str = " at ";
+
+/// The character between the path, the line, and the column of a place
+const PLACE_SEPARATOR: char = ':';
+
 /// The numbers of the diagnostic that says tsc found no configuration file
 ///
 /// A project without a `tsconfig.json` at its root is no TypeScript project,
@@ -109,7 +116,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckTypeScriptError> {
     }
 
     Ok(Outcome::Failed {
-        findings: findings(&diagnostics, context.root())?,
+        findings: findings(&diagnostics, context.root()),
         repairs: Vec::new(),
     })
 }
@@ -117,56 +124,49 @@ async fn drive(context: &Context) -> Result<Outcome, CheckTypeScriptError> {
 /// Returns the finding that reports one diagnostic of tsc
 ///
 /// The finding sits at the place that tsc marked, and it belongs to the
-/// project where tsc marked none. The message comes from tsc, so a reader of a
+/// project where tsc marked none. A place outside the project root has no path
+/// that a finding can name, so the finding belongs to the project as well, and
+/// the message names the place. The message comes from tsc, so a reader of a
 /// finding reads what the compiler itself would have told them.
-///
-/// # Errors
-///
-/// Returns [`ForeignPath`][foreign] when the project root does not contain the
-/// path of the diagnostic.
-///
-/// [foreign]: CheckTypeScriptError::ForeignPath
-// checktypescript[impl check.diagnostic]
+// checktypescript[impl check.diagnostic+2]
 // checktypescript[impl check.elaboration]
+// checktypescript[impl check.foreign]
 // checktypescript[impl check.project]
-fn finding(diagnostic: &Diagnostic, root: &ProjectRoot) -> Result<Finding, CheckTypeScriptError> {
-    let location = match diagnostic.origin() {
-        Some(origin) => {
-            let path =
-                origin
-                    .relative_path(root)
-                    .ok_or_else(|| CheckTypeScriptError::ForeignPath {
-                        path: origin.path().clone(),
-                    })?;
+fn finding(diagnostic: &Diagnostic, root: &ProjectRoot) -> Finding {
+    let message = diagnostic.message();
 
-            let position = Position::builder()
-                .line(origin.line())
-                .column(origin.column())
-                .build();
-
-            Location::Position { path, position }
-        }
-        None => Location::Project,
+    let Some(origin) = diagnostic.origin() else {
+        return Finding::builder()
+            .message(message)
+            .location(Location::Project)
+            .build();
     };
 
-    Ok(Finding::builder()
-        .message(diagnostic.message())
-        .location(location)
-        .build())
+    let Some(path) = origin.relative_path(root) else {
+        return Finding::builder()
+            .message(format!(
+                "{message}{PLACE_OPEN}{}{PLACE_SEPARATOR}{}{PLACE_SEPARATOR}{}",
+                origin.path().display(),
+                origin.line(),
+                origin.column()
+            ))
+            .location(Location::Project)
+            .build();
+    };
+
+    let position = Position::builder()
+        .line(origin.line())
+        .column(origin.column())
+        .build();
+
+    Finding::builder()
+        .message(message)
+        .location(Location::Position { path, position })
+        .build()
 }
 
 /// Returns the findings that report the given diagnostics
-///
-/// # Errors
-///
-/// Returns [`ForeignPath`][foreign] when the project root does not contain the
-/// path of a diagnostic.
-///
-/// [foreign]: CheckTypeScriptError::ForeignPath
-fn findings(
-    diagnostics: &[Diagnostic],
-    root: &ProjectRoot,
-) -> Result<Vec<Finding>, CheckTypeScriptError> {
+fn findings(diagnostics: &[Diagnostic], root: &ProjectRoot) -> Vec<Finding> {
     diagnostics
         .iter()
         .map(|diagnostic| finding(diagnostic, root))
@@ -252,15 +252,52 @@ mod tests {
             .build()
     }
 
+    /// Returns a diagnostic about a file in a parent directory of the project
+    fn outside_the_project() -> Diagnostic {
+        Diagnostic::builder()
+            .origin(
+                Origin::builder()
+                    .path(path("../shared/index.ts"))
+                    .line(1)
+                    .column(14)
+                    .build(),
+            )
+            .category(Category::Error)
+            .number("TS2322")
+            .text("Type 'string' is not assignable to type 'number'.")
+            .build()
+    }
+
     /// The root that the diagnostics of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // checktypescript[verify check.diagnostic]
+    // checktypescript[verify check.foreign]
+    #[test]
+    fn finding_of_a_diagnostic_at_an_absolute_path_elsewhere_belongs_to_the_project() {
+        let diagnostic = Diagnostic::builder()
+            .origin(
+                Origin::builder()
+                    .path(path("/home/otter/elsewhere/index.ts"))
+                    .line(1)
+                    .column(14)
+                    .build(),
+            )
+            .category(Category::Error)
+            .number("TS2322")
+            .text("Type 'string' is not assignable to type 'number'.")
+            .build();
+
+        let finding = finding(&diagnostic, &root());
+
+        assert_eq!(finding.location(), &Location::Project);
+    }
+
+    // checktypescript[verify check.diagnostic+2]
     #[test]
     fn finding_of_a_diagnostic_carries_the_message_of_tsc() {
-        let finding = finding(&about_the_code(), &root()).unwrap();
+        let finding = finding(&about_the_code(), &root());
 
         assert_eq!(
             finding.message().get(),
@@ -268,10 +305,32 @@ mod tests {
         );
     }
 
-    // checktypescript[verify check.diagnostic]
+    // checktypescript[verify check.foreign]
+    #[test]
+    fn finding_of_a_diagnostic_outside_the_project_belongs_to_the_project() {
+        let finding = finding(&outside_the_project(), &root());
+
+        assert_eq!(finding.location(), &Location::Project);
+    }
+
+    // checktypescript[verify check.foreign]
+    #[test]
+    fn finding_of_a_diagnostic_outside_the_project_names_the_place() {
+        let finding = finding(&outside_the_project(), &root());
+
+        assert_eq!(
+            finding.message().get(),
+            format!(
+                "error TS2322: Type 'string' is not assignable to type 'number'. at {}:1:14",
+                path("../shared/index.ts").display()
+            )
+        );
+    }
+
+    // checktypescript[verify check.diagnostic+2]
     #[test]
     fn finding_of_a_diagnostic_sits_at_the_position_of_tsc() {
-        let finding = finding(&about_the_code(), &root()).unwrap();
+        let finding = finding(&about_the_code(), &root());
 
         assert_eq!(
             finding.location(),
@@ -298,7 +357,7 @@ mod tests {
             .text("Type '(a: number) => void' is not assignable to type 'F'. Types of parameters 'a' and 'a' are incompatible.")
             .build();
 
-        let finding = finding(&diagnostic, &root()).unwrap();
+        let finding = finding(&diagnostic, &root());
 
         assert_eq!(
             finding.message().get(),
@@ -315,29 +374,9 @@ mod tests {
             "Composite projects may not disable incremental compilation.",
         );
 
-        let finding = finding(&diagnostic, &root()).unwrap();
+        let finding = finding(&diagnostic, &root());
 
         assert_eq!(finding.location(), &Location::Project);
-    }
-
-    #[test]
-    fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let diagnostic = Diagnostic::builder()
-            .origin(
-                Origin::builder()
-                    .path(path("/elsewhere/index.ts"))
-                    .line(1)
-                    .column(1)
-                    .build(),
-            )
-            .category(Category::Error)
-            .number("TS2322")
-            .text("Type 'string' is not assignable to type 'number'.")
-            .build();
-
-        let error = finding(&diagnostic, &root()).unwrap_err();
-
-        assert!(matches!(error, CheckTypeScriptError::ForeignPath { .. }));
     }
 
     // checktypescript[verify check.passed]
