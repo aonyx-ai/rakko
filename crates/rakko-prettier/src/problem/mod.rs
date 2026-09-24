@@ -6,7 +6,7 @@
 /// What prettier reported about a file
 mod detail;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use getset::Getters;
 use rakko_action::{FilePath, ProjectRoot};
@@ -47,29 +47,8 @@ impl PrettierProblem {
     // prettier[impl path.foreign]
     // prettier[impl path.relative]
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::try_from(strip(&self.path, root)?).ok()
+        FilePath::within(&self.path, root)
     }
-}
-
-/// Returns the path without the project root that prefixes it
-///
-/// A path that is already relative is the answer itself, because prettier
-/// starts in the root and names its files from there. A path that arrives
-/// absolute loses the root, and the root of a context can name the same
-/// directory through a symbolic link, which is why the canonical root is
-/// tried as well.
-fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
-    if path.is_relative() {
-        return Some(path.to_path_buf());
-    }
-
-    if let Ok(stripped) = path.strip_prefix(root.get()) {
-        return Some(stripped.to_path_buf());
-    }
-
-    let canonical = root.get().canonicalize().ok()?;
-
-    path.strip_prefix(canonical).ok().map(Path::to_path_buf)
 }
 
 #[cfg(test)]

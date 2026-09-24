@@ -7,7 +7,7 @@
 /// The severity that oxlint gave a diagnostic
 mod severity;
 
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 
 use bon::Builder;
 use getset::{CopyGetters, Getters};
@@ -108,37 +108,8 @@ impl OxlintProblem {
     /// report that the caller misread, and the caller decides what to do about
     /// that.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::try_from(strip(&self.path, root)?).ok()
+        FilePath::within(&self.path, root)
     }
-}
-
-/// Returns the path without the prefix that names where oxlint started
-///
-/// A run names the current directory as the place to look, so oxlint reports a
-/// path that is already relative to the project root. A path that names the
-/// current directory in front of it loses that part, because a reader and a
-/// code host expect the plain path.
-///
-/// A path that arrives absolute loses the project root instead. The root of a
-/// context can name the same directory through a symbolic link, which is why
-/// the canonical root is tried as well.
-fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
-    if path.is_relative() {
-        let plain: PathBuf = path
-            .components()
-            .filter(|component| *component != Component::CurDir)
-            .collect();
-
-        return Some(plain);
-    }
-
-    if let Ok(stripped) = path.strip_prefix(root.get()) {
-        return Some(stripped.to_path_buf());
-    }
-
-    let canonical = root.get().canonicalize().ok()?;
-
-    path.strip_prefix(canonical).ok().map(Path::to_path_buf)
 }
 
 #[cfg(test)]

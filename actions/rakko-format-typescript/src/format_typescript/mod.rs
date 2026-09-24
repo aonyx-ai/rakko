@@ -21,7 +21,7 @@ pub use self::args::FormatTypeScriptArgs;
 pub use self::error::FormatTypeScriptError;
 use crate::observation::Observation;
 use crate::oxfmt::Oxfmt;
-use crate::problem::{OxfmtProblem, relative_path};
+use crate::problem::OxfmtProblem;
 
 /// The reason of a run whose oxfmt found nothing to examine
 ///
@@ -269,7 +269,7 @@ fn finding(
 ///
 /// [foreign]: FormatTypeScriptError::ForeignPath
 fn relative(path: &Path, root: &ProjectRoot) -> Result<FilePath, FormatTypeScriptError> {
-    relative_path(path, root).ok_or_else(|| FormatTypeScriptError::ForeignPath {
+    FilePath::within(path, root).ok_or_else(|| FormatTypeScriptError::ForeignPath {
         path: path.to_path_buf(),
     })
 }

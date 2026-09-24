@@ -14,6 +14,7 @@ thiserror = { workspace = true }
 typed-fields = { workspace = true }
 
 [dev-dependencies]
+rakko-test-utils = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]
