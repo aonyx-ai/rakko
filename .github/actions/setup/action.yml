@@ -1,9 +1,11 @@
 ---
 name: Set up the tools
-description: Install the tools that mise pins, and build tracey for a job that needs it
+description: Clean the checkout, install the tools that mise pins, and build tracey for a job that needs it
 
 # Every job of every workflow provisions the same way, so the steps live here
-# instead of once per job in each workflow.
+# instead of once per job in each workflow. A job checks out the code with
+# `clean: false` and runs this action next, because the first step below takes
+# over the cleaning of the checkout.
 
 inputs:
   tracey:
@@ -14,6 +16,16 @@ inputs:
 runs:
   using: composite
   steps:
+    # A persistent self-hosted runner holds the tree of its last job, and the
+    # checkout used to remove everything in it that git does not track. Every
+    # job then built the harness again, and every job of Rust built the
+    # project from nothing. The step below removes the same files, except the
+    # two directories that cargo builds in, so a job starts from the build
+    # output of the jobs before. On a clean machine it removes nothing.
+    - name: Remove what earlier jobs left in the tree
+      shell: bash
+      run: git clean -ffdx -e /target/ -e /tools/rakko/target/
+
     # A runner of GitHub starts from a clean disk, and the build of tracey
     # takes about twenty minutes. The cache workflow keeps a cache on the
     # default branch that every pull request can reach.

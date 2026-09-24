@@ -44,6 +44,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The setup cleans the tree itself, and keeps the build output that
+          # an earlier job left on a persistent self-hosted runner.
+          clean: false
           persist-credentials: false
 
       - name: Set up the tools
