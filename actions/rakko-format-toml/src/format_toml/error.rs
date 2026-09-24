@@ -48,9 +48,9 @@ pub enum FormatTomlError {
     /// Taplo wrote a report that the action does not recognize
     ///
     /// The shape of the report belongs to a version of taplo. A run that
-    /// ended without success and named no problem wrote something the action
-    /// could not read, and an answer built on such a report would hide
-    /// problems behind a green result.
+    /// ended without success and named no problem wrote a report that the
+    /// action cannot read. An answer from such a report hides problems behind
+    /// a green result, so the run stops instead.
     #[error("taplo wrote a report that the action does not recognize: {stderr}")]
     UnrecognizedReport {
         /// What taplo wrote to its standard error stream

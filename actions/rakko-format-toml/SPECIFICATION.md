@@ -89,18 +89,21 @@ project asked it not to do, so the action treats the warning as the end of
 the run.
 
 A report that the action does not recognize stops the run as well. A run that
-ended without success and named no problem, and a run that passed without the
-count of the files, both wrote a report that the action could not read, and
-an answer built on such a report would hide every problem behind a green
+ended without success and named no problem wrote a report that the action
+cannot read. An answer from such a report hides every problem behind a green
 result.
 
-Taplo can lose the tail of its report when it exits. A run that ended without
-success closes its report with the summary of the failure, and a run that
-passed closes it with the count of the files, so a report without its closing
-line is incomplete, and problems can be missing from it. The action starts
-such a run again, a few times, before it treats the report as one that it
-does not recognize. Repeating is safe, because a check only reads, and a
-rewrite formats files that a previous attempt already formatted.
+Taplo can lose the end of its report when it exits. A run that ended without
+success names at least one problem, so a report of such a run that names none
+is incomplete. The action starts such a run again, a few times, before it
+treats the report as one that it does not recognize. Repeating is safe,
+because a check only reads, and a rewrite formats files that a previous
+attempt already formatted.
+
+A run that ended with success passes, with or without the count of its files.
+Taplo can lose the line that carries the count, but no lost line can turn a
+run that found problems into one that found none. The action starts a run
+that lost the count again, fewer times, and then passes without the count.
 
 formattoml[check.read]
 A run without a true value for `fix` MUST NOT change the project.

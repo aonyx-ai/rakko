@@ -11,10 +11,10 @@ use thiserror::Error;
 pub enum ObserveTaploError {
     /// Every attempt lost part of the report
     ///
-    /// Taplo can lose the tail of its report when it exits, and the problems
-    /// that a report without its closing line holds can be incomplete. The
-    /// run repeats a few times, and this is what remains when no attempt
-    /// answered completely.
+    /// Taplo can lose the end of its report when it exits. A run that ended
+    /// without success names at least one problem, so a report of such a run
+    /// that names none lost the lines that held them. The run repeats a few
+    /// times, and this is what remains when no attempt held an answer.
     #[error("taplo wrote a report that ends before its last line: {stderr}")]
     IncompleteReport {
         /// What taplo wrote to its standard error stream
