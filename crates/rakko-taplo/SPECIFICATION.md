@@ -54,10 +54,11 @@ taplo does to a project comes from the configuration of that project alone.
 Taplo can lose the end of its report when it exits, and the loss reaches
 whatever taplo wrote last. The answer of a run survives it: the exit status
 carries whether taplo found anything, a formatting run names the files that it
-would rewrite on its standard output stream, and a file that taplo read and
-could not accept gets a diagnostic that the loss does not reach. A run that
-ends without success therefore names at least one problem, and a report of
-such a run that names none arrived incomplete.
+would rewrite on its standard output stream, a file that taplo read and could
+not accept gets a diagnostic that the loss does not reach, and the crate reads
+the files of a failed validating run itself to find the ones that taplo could
+not read. A run that ends without success therefore names at least one
+problem, and a report of such a run that names none arrived incomplete.
 
 The count of the files is the one part of a report that no other stream
 carries, and a run that has nothing left to do after it counts loses the count
@@ -111,6 +112,17 @@ A validating run also sums the diagnostics of a file up in a line of its own.
 The summary says less than the diagnostics above it, so it survives only for a
 file that got no diagnostic at all, where it is the whole answer.
 
+A file that a validating run could not read gets that summary line and nothing
+else, and the line comes just before the end of the report, where the loss
+reaches it. The line that counts the files comes early, and it lists each file
+that the run examined. When a validating run ends without success, the crate
+therefore tries to read each of those files itself. A file that the crate
+cannot read, and that no problem names yet, becomes a problem with the message
+of the operating system as its reason. Taplo gives the same message, so the
+problem is the same whether the line survived or not. A run that ended with
+success read every file, and a formatting run names no file that it could not
+read, so the crate reads no file for either.
+
 taplo[report.configuration]
 The crate MUST report what taplo said about a configuration file that taplo
 rejected.
@@ -127,6 +139,12 @@ names the file and no position in it.
 taplo[report.invalid]
 A file that taplo refused MUST become a problem that names the file and holds
 the reason of taplo.
+
+taplo[report.unreadable]
+A file that a validating run examined, and that the crate cannot read, MUST
+become a problem that names the file and holds the message of the operating
+system, when the run ended without success and no other problem names the
+file.
 
 taplo[report.diagnostic]
 A diagnostic of taplo MUST become a problem at the line and the column that
