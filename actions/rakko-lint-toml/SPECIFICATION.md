@@ -75,6 +75,12 @@ never opened gets the reason and nothing else, such as the message of the
 operating system for a file that a run may not read. Both are problems of the
 project, so both travel as findings.
 
+Taplo writes the reason for a file that it never opened on a line that it can
+lose when it exits. The machinery that runs taplo therefore tries to read each
+file of a failed run itself, so a file that nobody can read produces its
+finding whether the line survived or not, with the same message of the
+operating system.
+
 A configuration file that taplo rejects stops the run. Taplo itself warns and
 then runs with its defaults, and a run on the defaults quietly does what the
 project asked it not to do, so the action treats the warning as the end of the

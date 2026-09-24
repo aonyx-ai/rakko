@@ -24,6 +24,9 @@ pub enum ProblemDetail {
     ///
     /// A file that taplo cannot open ends this way: taplo has the reason
     /// and nothing else, because it never read a character of the file.
+    /// Such a file gets this problem even when taplo lost the line that
+    /// named it, with the message of the operating system, which is also
+    /// the reason that taplo gives.
     Invalid {
         /// What taplo said about the file
         reason: String,

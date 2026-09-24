@@ -106,10 +106,12 @@ impl Taplo {
     /// Taplo can lose the end of its report when it exits. The answer of a
     /// run survives that loss: the exit status carries whether taplo found
     /// anything, a formatting run names the files that it would rewrite on
-    /// its standard output stream, and a file that taplo read and could not
-    /// accept gets a diagnostic that the same loss never reaches. A report
-    /// that holds no answer at all lost the lines that carried one, and such
-    /// a run starts again, a few times, before the crate gives up.
+    /// its standard output stream, a file that taplo read and could not
+    /// accept gets a diagnostic that the same loss never reaches, and the
+    /// reading of a failed validating run reads the files of the run itself
+    /// to find the ones that taplo could not read. A report that holds no
+    /// answer at all lost the lines that carried one, and such a run starts
+    /// again, a few times, before the crate gives up.
     ///
     /// The count of the files is the one part that no other stream carries.
     /// An operation starts again to get it, with a budget of its own, and
@@ -137,7 +139,7 @@ impl Taplo {
                 tokio::time::sleep(BACKOFF * attempt).await;
             }
 
-            let observation = Observation::read(&self.start(operation).await?);
+            let observation = Observation::read(&self.start(operation).await?, operation).await;
 
             if !observation.complete() {
                 stderr = observation.stderr().clone();

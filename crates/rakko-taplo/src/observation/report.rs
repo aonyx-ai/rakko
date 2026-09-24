@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::str::Chars;
 
 use super::Observation;
 use crate::problem::{ProblemDetail, TaploProblem};
@@ -19,6 +20,12 @@ const TOTAL_FIELD: &str = "total=";
 /// The field of the count line that holds the files that the configuration
 /// excluded
 const EXCLUDED_FIELD: &str = "excluded=";
+
+/// The field of the count line that lists the files that the run examined
+///
+/// The field carries the bracket that opens the list, so that a path which
+/// holds the name of the field cannot start the reading.
+const FILES_FIELD: &str = "files=[";
 
 /// The marker of the line that reports a file that taplo refused
 ///
@@ -60,6 +67,7 @@ const DIFF_TARGET: &str = "+++ b/";
 pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
     let mut observation = Observation {
         checked: None,
+        examined: Vec::new(),
         problems: Vec::new(),
         rejected_configuration: None,
         stderr: stderr.to_owned(),
@@ -76,6 +84,7 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
         // taplo[impl report.checked+2]
         } else if line.contains(FILES_FOUND) {
             observation.checked = checked(line);
+            observation.examined = examined(line).unwrap_or_default();
         // taplo[impl report.invalid]
         } else if line.contains(INVALID_FILE) {
             if let Some(path) = quoted_path(line) {
@@ -186,6 +195,27 @@ fn diagnostic(header: &str, following: &[&str]) -> Option<TaploProblem> {
     ))
 }
 
+/// Returns the files that the count line lists
+///
+/// Taplo lists the files that it examines as quoted paths between brackets,
+/// in the order in which it examines them. A list that the reading cannot
+/// decode lists no file, and the caller then depends on the lines that taplo
+/// wrote about each file.
+fn examined(line: &str) -> Option<Vec<PathBuf>> {
+    let (_, list) = line.split_once(FILES_FIELD)?;
+    let mut characters = list.chars();
+    let mut files = Vec::new();
+
+    loop {
+        match characters.next()? {
+            ']' => return Some(files),
+            '"' => files.push(PathBuf::from(unquoted(&mut characters)?)),
+            ',' | ' ' => {}
+            _ => return None,
+        }
+    }
+}
+
 /// Returns the number that a field of the count line carries
 fn field(line: &str, name: &str) -> Option<u64> {
     let start = line.find(name)? + name.len();
@@ -198,11 +228,12 @@ fn field(line: &str, name: &str) -> Option<u64> {
 }
 
 /// Returns the path that a report line quotes
+///
+/// Taplo quotes this path the same way as the paths of the count line, so
+/// the two readings name a file with the same path.
 fn quoted_path(line: &str) -> Option<PathBuf> {
-    let start = line.find(PATH_FIELD)? + PATH_FIELD.len();
-    let rest = &line[start..];
-    let end = rest.rfind('"')?;
-    let path = &rest[..end];
+    let (_, rest) = line.split_once(PATH_FIELD)?;
+    let path = unquoted(&mut rest.chars())?;
 
     (!path.is_empty()).then(|| PathBuf::from(path))
 }
@@ -258,6 +289,52 @@ fn summarized(problems: &mut Vec<TaploProblem>) {
     });
 }
 
+/// Returns the character that an escape sequence of a quoted path stands for
+///
+/// The reading starts after the backslash. An escape that stands for no
+/// character, such as a byte of a path that is not valid Unicode, has no
+/// answer.
+fn unescaped(characters: &mut Chars<'_>) -> Option<char> {
+    match characters.next()? {
+        '0' => Some('\0'),
+        'n' => Some('\n'),
+        'r' => Some('\r'),
+        't' => Some('\t'),
+        'u' => {
+            let Some('{') = characters.next() else {
+                return None;
+            };
+            let digits: String = characters
+                .by_ref()
+                .take_while(|character| *character != '}')
+                .collect();
+
+            char::from_u32(u32::from_str_radix(&digits, 16).ok()?)
+        }
+        character @ ('"' | '\'' | '\\') => Some(character),
+        _ => None,
+    }
+}
+
+/// Returns the text of a quoted path, up to the quote that closes it
+///
+/// The reading starts after the opening quote. Taplo quotes a path the way
+/// that Rust prints a path for debugging: a quote, a backslash, and a
+/// character that does not print stand escaped, and the reading turns each
+/// escape back into its character. A path with an escape that the reading
+/// cannot decode, and a path without a closing quote, have no text.
+fn unquoted(characters: &mut Chars<'_>) -> Option<String> {
+    let mut text = String::new();
+
+    loop {
+        match characters.next()? {
+            '"' => return Some(text),
+            '\\' => text.push(unescaped(characters)?),
+            character => text.push(character),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // An assertion in a test panics by design. A `# Panics` section on every
@@ -267,7 +344,7 @@ mod tests {
     use super::*;
 
     /// The report of a run that examined two files and found nothing
-    const CLEAN: &str = " INFO taplo:lint_files:collect_files: found files total=3 excluded=1 files=[\"/home/otter/project/a.toml\"] cwd=\"/home/otter/project\"\n";
+    const CLEAN: &str = " INFO taplo:lint_files:collect_files: found files total=3 excluded=1 files=[\"/home/otter/project/a.toml\", \"/home/otter/project/b.toml\"] cwd=\"/home/otter/project\"\n";
 
     /// The report of a run over a file that taplo cannot parse
     const INVALID: &str = "error: invalid TOML\n  \u{250c}\u{2500} /home/otter/project/broken.toml:2:1\n  \u{2502}\n2 \u{2502} \n  \u{2502} ^ unexpected EOF\n\nERROR taplo:lint_files: invalid file error=syntax errors found path=\"/home/otter/project/broken.toml\"\nERROR operation failed error=some files were not valid\n";
@@ -295,6 +372,36 @@ mod tests {
         problem.detail().clone()
     }
 
+    #[test]
+    fn examined_with_a_path_that_holds_a_quote_keeps_the_quote() {
+        let files = examined(r#"found files total=1 excluded=0 files=["/p/we\"ird.toml"]"#);
+
+        assert_eq!(files, Some(vec![PathBuf::from("/p/we\"ird.toml")]));
+    }
+
+    #[test]
+    fn examined_with_a_unicode_escape_decodes_the_character() {
+        let files = examined(r#"found files total=1 excluded=0 files=["/p/e\u{301}.toml"]"#);
+
+        assert_eq!(files, Some(vec![PathBuf::from("/p/e\u{301}.toml")]));
+    }
+
+    #[test]
+    fn examined_with_an_undecodable_path_lists_nothing() {
+        let files = examined(r#"found files total=1 excluded=0 files=["/p/\xff.toml"]"#);
+
+        assert_eq!(files, None);
+    }
+
+    #[test]
+    fn quoted_path_with_an_escaped_quote_keeps_the_quote() {
+        let path = quoted_path(
+            r#"invalid file error=Is a directory (os error 21) path="/p/we\"ird.toml""#,
+        );
+
+        assert_eq!(path, Some(PathBuf::from("/p/we\"ird.toml")));
+    }
+
     // taplo[verify report.checked+2]
     #[test]
     fn read_clean_report_counts_the_examined_files() {
@@ -308,6 +415,20 @@ mod tests {
         let observation = read("", CLEAN, true);
 
         assert!(observation.problems().is_empty());
+    }
+
+    // taplo[verify report.unreadable]
+    #[test]
+    fn read_clean_report_lists_the_examined_files() {
+        let observation = read("", CLEAN, true);
+
+        assert_eq!(
+            observation.examined,
+            vec![
+                PathBuf::from("/home/otter/project/a.toml"),
+                PathBuf::from("/home/otter/project/b.toml"),
+            ]
+        );
     }
 
     // taplo[verify report.diagnostic]
@@ -368,6 +489,7 @@ mod tests {
             observation,
             Observation {
                 checked: None,
+                examined: Vec::new(),
                 problems: Vec::new(),
                 rejected_configuration: None,
                 stderr: String::new(),
