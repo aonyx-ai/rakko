@@ -162,20 +162,20 @@ backend = "core:rust"
 specifiers = ["1.88.0"]
 
 [[tools.rust]]
-version = "1.98.0"
-backend = "core:rust"
-specifiers = ["1.98.0"]
-
-[tools.rust.options]
-components = "clippy,rust-src,rustfmt"
-
-[[tools.rust]]
 version = "nightly-2026-08-11"
 backend = "core:rust"
 specifiers = ["nightly-2026-08-11"]
 
 [tools.rust.options]
 components = "rustfmt"
+
+[[tools.rust]]
+version = "1.98.1"
+backend = "core:rust"
+specifiers = ["1.98.1"]
+
+[tools.rust.options]
+components = "clippy,rust-src,rustfmt"
 
 [[tools.taplo]]
 version = "0.10.0"
