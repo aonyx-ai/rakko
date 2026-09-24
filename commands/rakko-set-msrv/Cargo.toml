@@ -1,0 +1,24 @@
+[package]
+name = "rakko-set-msrv"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+getset = { workspace = true }
+rakko-action = { workspace = true }
+rakko-cli = { workspace = true }
+rakko-tool = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+toml_edit = { workspace = true }
+typed-fields = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true
