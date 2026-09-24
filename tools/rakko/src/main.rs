@@ -28,6 +28,7 @@ use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
 use rakko_lint_yaml::LintYaml;
 use rakko_pre_commit::PreCommit;
+use rakko_set_msrv::SetMsrv;
 use rakko_test_rust::TestRust;
 use rakko_test_rust_docs::TestRustDocs;
 
@@ -42,7 +43,10 @@ fn main() {
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
         .mount([Box::new(CheckSpecs) as Box<dyn ErasedAction>])
-        .mount_commands([Box::new(pre_commit) as Box<dyn ErasedCommand>])
+        .mount_commands([
+            Box::new(pre_commit) as Box<dyn ErasedCommand>,
+            Box::new(SetMsrv),
+        ])
         .run();
 }
 

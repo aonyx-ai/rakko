@@ -390,6 +390,18 @@ specs (
         )
     }
     {
+        name set-msrv
+        source_url https://github.com/aonyx-ai/rakko
+        include (commands/rakko-set-msrv/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (commands/rakko-set-msrv/src/**/*.rs)
+                test_include (commands/rakko-set-msrv/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name taplo
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-taplo/SPECIFICATION.md)

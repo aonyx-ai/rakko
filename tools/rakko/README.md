@@ -40,6 +40,20 @@ The hook that Git runs before a commit passes `--fix`, so that the formatters
 rewrite the files that they can format. A run without the flag reports what a
 commit has to repair, and it changes nothing.
 
+### `set-msrv`
+
+The command comes from [`rakko-set-msrv`][rakko-set-msrv]. It sets the
+minimum supported Rust version of the repository in the three places that
+must agree: the root `Cargo.toml`, the Rust pin in `mise.toml`, and
+`mise.lock`. The reason replaces the comment above `rust-version`.
+
+```console
+mise run rakko -- set-msrv --msrv 1.89.0 --reason "bon 3.11 requires Rust 1.89"
+```
+
+Then run `mise install` and `mise run rakko -- check-msrv`, which checks the
+code on the new version.
+
 ## Layout
 
 The package sits outside the workspace of the repository, so it resolves its
@@ -48,3 +62,4 @@ dependencies on its own and carries its own `Cargo.lock`. The binary is named
 the `rakko` crate cannot carry that name as well.
 
 [rakko-pre-commit]: ../../commands/rakko-pre-commit/README.md
+[rakko-set-msrv]: ../../commands/rakko-set-msrv/README.md
