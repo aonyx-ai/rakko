@@ -15,12 +15,18 @@ node = "24.20.0"
 pnpm = "11.27.1"
 
 # The first toolchain is the default for builds, Clippy, and the tests. The
-# second is the nightly channel, which rustfmt needs for the unstable options
+# second is a nightly toolchain, which rustfmt needs for the unstable options
 # in `.rustfmt.toml`, and which cargo-udeps needs for the unstable option that
-# records the crates a target loaded. Mise resolves the channel to a dated
-# toolchain and records it in `mise.lock`, so every machine and every job
-# format with the same nightly, and `mise lock --bump` advances it. The third
-# is the oldest toolchain that the crates promise to compile on, and
+# records the crates a target loaded. The pin names the nightly by its date,
+# so every machine and every job format with the same nightly. A pin of the
+# bare channel cannot promise that. Mise links each Rust toolchain that it
+# installs to the directory of rustup, and it takes such a link for a
+# toolchain that a user linked by hand. It then ignores `mise.lock` for Rust,
+# and the channel resolves to the newest nightly that the machine holds, or
+# that rustup offers during an install. Renovate moves the date forward once a
+# week, and it changes `mise.lock` in the same pull request, because an
+# install with `--locked` refuses a pin that the lockfile does not hold. The
+# third is the oldest toolchain that the crates promise to compile on, and
 # `check-msrv` runs the compiler on it. That pin repeats the `rust-version` of
 # the root `Cargo.toml`, because the action reads the version from the
 # manifest and then asks mise for the toolchain, and Rakko installs nothing. A
@@ -35,7 +41,7 @@ rust = [
     "rust-src",
     "rustfmt",
   ] },
-  { version = "nightly", components = [
+  { version = "nightly-2026-08-11", components = [
     "rustfmt",
   ] },
   { version = "1.88.0" },
@@ -70,9 +76,9 @@ yamllint = "1.38.0"
 zizmor = "1.30.1"
 
 [settings]
-# The lockfile records the version that each pin resolved to, which matters
-# for the nightly toolchain: the pin names a channel, and the lockfile names
-# the day.
+# The lockfile records the version that each pin resolved to, and for a tool
+# that mise downloads, the address and the checksum of the file for each
+# platform, so every machine installs the same bytes.
 lockfile = true
 
 # The installer that mise carries lays a package of npm out the way pnpm
