@@ -13,6 +13,7 @@ use std::path::{Component, Path, PathBuf};
 
 use bon::bon;
 use getset::{CopyGetters, Getters};
+use rakko_action::path::canonical;
 use rakko_action::{FilePath, ProjectRoot};
 
 pub use self::documentation::Documentation;
@@ -175,9 +176,9 @@ fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
         return Some(stripped.to_path_buf());
     }
 
-    let canonical = root.get().canonicalize().ok()?;
+    let resolved = canonical(root.get()).ok()?;
 
-    path.strip_prefix(canonical).ok().map(Path::to_path_buf)
+    path.strip_prefix(resolved).ok().map(Path::to_path_buf)
 }
 
 #[cfg(test)]
@@ -300,5 +301,25 @@ mod tests {
         let path = root.relative_path(Path::new("/home/otter/.cargo/registry/a.rs"), &project());
 
         assert_eq!(path, None);
+    }
+
+    // Cargo writes the directory that the file system resolved, and on some
+    // platforms the temporary directory differs from it as text: a symbolic
+    // link on macOS, and a short name on Windows. The resolved root must then
+    // carry the spelling that cargo writes, or no file gets a name.
+    // cargo[verify path.relative]
+    #[test]
+    fn relative_path_of_an_absolute_path_under_the_resolved_root_drops_it() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = ProjectRoot::new(directory.path().to_path_buf());
+        let resolved = canonical(directory.path()).expect("the directory exists");
+        let root = CargoRoot::builder()
+            .directory(resolved.clone())
+            .documentation(Documentation::Testable)
+            .build();
+
+        let path = root.relative_path(&resolved.join("src/main.rs"), &project);
+
+        assert_eq!(path, FilePath::try_from("src/main.rs").ok());
     }
 }

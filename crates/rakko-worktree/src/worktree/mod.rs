@@ -25,6 +25,7 @@ use std::process::Stdio;
 use getset::Getters;
 use kawauso_process::Execution;
 use rakko_action::ProjectRoot;
+use rakko_action::path::canonical;
 use tempfile::TempDir;
 
 pub use self::error::CreateWorktreeError;
@@ -442,7 +443,7 @@ fn names_the_same_directory(top_level: &Path, project: &ProjectRoot) -> bool {
         return true;
     }
 
-    match (top_level.canonicalize(), project.get().canonicalize()) {
+    match (canonical(top_level), canonical(project.get())) {
         (Ok(one), Ok(other)) => one == other,
         _ => false,
     }
@@ -503,9 +504,9 @@ fn strip(path: &Path, project: &ProjectRoot) -> Option<PathBuf> {
         return Some(stripped.to_path_buf());
     }
 
-    let canonical = project.get().canonicalize().ok()?;
+    let resolved = canonical(project.get()).ok()?;
 
-    path.strip_prefix(canonical).ok().map(Path::to_path_buf)
+    path.strip_prefix(resolved).ok().map(Path::to_path_buf)
 }
 
 /// Writes what the project holds at the source to the target
@@ -1007,6 +1008,25 @@ mod tests {
             .expect("expected git to create the copy");
 
         let inside = worktree.path_of(&repository.root().get().join("crates/example"));
+
+        assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
+    }
+
+    // A caller can hold the directory that the file system resolved, and on
+    // some platforms the temporary directory differs from it as text: a
+    // symbolic link on macOS, and a short name on Windows. The resolved root
+    // must then carry the spelling that the caller holds, or no path gets a
+    // name inside the copy.
+    // worktree[verify path.inside]
+    #[tokio::test]
+    async fn path_of_an_absolute_path_under_the_resolved_root_names_the_same_path() {
+        let repository = Repository::new();
+        let worktree = Worktree::create(repository.root())
+            .await
+            .expect("expected git to create the copy");
+        let resolved = canonical(repository.root().get()).expect("the directory exists");
+
+        let inside = worktree.path_of(&resolved.join("crates/example"));
 
         assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
     }
