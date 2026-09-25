@@ -75,6 +75,13 @@ runs:
         version: 2026.9.14
         cache: ${{ steps.earlier.outputs.found != 'true' }}
       env:
+        # When the binary of mise on the runner is not the version above, the
+        # action runs `mise self-update`, which asks the API of GitHub for the
+        # release. Without a token, that call can run into the rate limit of
+        # GitHub, and the action sets its token only after the call. The
+        # token is `GITHUB_TOKEN`, because the action passes
+        # `MISE_GITHUB_TOKEN` to the later steps only when it is not set.
+        GITHUB_TOKEN: ${{ github.token }}
         MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
 
     # The build script of tracey starts node and pnpm by name, and it finds
