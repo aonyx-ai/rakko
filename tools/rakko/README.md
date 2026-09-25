@@ -51,8 +51,9 @@ must agree: the root `Cargo.toml`, the Rust pin in `mise.toml`, and
 mise run rakko -- set-msrv --msrv 1.89.0 --reason "bon 3.11 requires Rust 1.89"
 ```
 
-Then run `mise install` and `mise run rakko -- check-msrv`, which checks the
-code on the new version.
+The run then installs the new toolchain through mise and runs check-msrv on
+it, and it fails when the check does not pass. The files keep the new version
+either way.
 
 ## Layout
 

@@ -4,20 +4,26 @@
 supported Rust version (MSRV) of a project. Three places state that version,
 and all three must agree: the `rust-version` of the root `Cargo.toml`, the
 Rust pin in `mise.toml` that check-msrv runs the compiler on, and the entry of
-that pin in `mise.lock`. The command writes all three in one run.
+that pin in `mise.lock`. The command writes all three in one run, installs
+the new toolchain, and checks the code on it.
 
 ## Usage
 
 Add `rakko-set-msrv` to the harness of the project, and mount the command
-beside the actions:
+beside the actions. The harness gives the command the check that compiles the
+code on the new version, usually the check-msrv action, so the harness depends
+on `rakko-check-msrv` as well:
 
 ```rust
+use rakko_check_msrv::CheckMsrv;
 use rakko_cli::ErasedCommand;
 use rakko_set_msrv::SetMsrv;
 
+let set_msrv = SetMsrv::new(Box::new(CheckMsrv));
+
 rakko_cli::builder()
-    .mount(rakko_baseline::bundle())
-    .mount_commands([Box::new(SetMsrv) as Box<dyn ErasedCommand>])
+    .mount(rakko_rust_library::bundle())
+    .mount_commands([Box::new(set_msrv) as Box<dyn ErasedCommand>])
     .run();
 ```
 
@@ -43,15 +49,24 @@ The run changes three things:
   `mise.lock`. Mise locks every Rust pin, so a pin that names a channel or a
   partial version, such as `nightly` or `1.94`, can move as well.
 
+Then it verifies the new version:
+
+- It asks mise to install the toolchain at the new version, with
+  `mise install rust@<version>`, and nothing else. A hook of the project
+  that mise runs after an install still runs.
+- It runs the check that the harness gave it, and reports its outcome. The
+  run fails when the check found problems, stopped, or skipped.
+
 Everything else in the files stays as it was. In a project whose pins name
 exact versions, the diff shows the version, the comment, the pin, and the
-lock entry. After the run, install the new toolchain and check the code on
-it:
+lock entry.
 
-```console
-mise install
-mise run rakko -- check-msrv
-```
+When a step fails after the run wrote the files, the files stay as the run
+wrote them, and the error names the step. Git is the undo. A check that
+fails on the new version is what the run exists to show: fix the code on the
+branch, and run the check again. When the install fails, for example on a
+machine without a network, fix the cause, and then run the install and the
+check that the error names.
 
 The version must have three parts, such as `1.89.0`. Cargo reads `1.89` as
 `1.89.0`, but mise resolves a pin of `1.89` to the newest `1.89.x`, so the two
