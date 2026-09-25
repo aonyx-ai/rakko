@@ -6,7 +6,8 @@ and all three must agree: the `rust-version` of the root manifest, the Rust
 pin in `mise.toml` that check-msrv runs the compiler on, and the entry of that
 pin in `mise.lock`. When one of them is missed, check-msrv fails, or
 `mise install --locked` refuses the lock. The command writes all three in one
-run.
+run, and then it installs the new toolchain and checks the code on it, so that
+one run tells the user whether the project compiles on its new MSRV.
 
 No external tool makes this edit. `mise use` rewrites the whole list of Rust
 pins, and `cargo msrv set` refuses the root of a workspace. The command
@@ -133,7 +134,8 @@ entry. A pin that names a channel or a partial version, such as `nightly` or
 the run, as it does in every lock of mise.
 
 When mise fails, the files that the run wrote stay as they are. Git is the
-undo, and the user fixes the cause and locks again.
+undo, and the user fixes the cause, locks again, and then installs and
+checks.
 
 setmsrv[lock.update]
 A run in a project that holds a `mise.lock` MUST have mise lock the Rust pins
@@ -146,6 +148,59 @@ setmsrv[lock.failed]
 A run whose mise does not start or does not lock MUST fail, and the failure
 MUST carry the cause: the error that kept mise from starting, or what mise
 reported.
+
+## Install
+
+The new pin names a toolchain that the machine may not hold yet. A run asks
+mise to install it, because provisioning is the job of mise, and the command
+only asks for it. The run asks for the toolchain at the new version and
+nothing else. The check needs no tool that the harness does not already run
+on, and a tool that fails to install would stop a run that has no use for it.
+A hook that the project gives mise runs after the install as it always does,
+and it can do more.
+
+When the install fails, the files that the run wrote stay, and the lock
+stays as mise wrote it. The user fixes the cause, installs again, and checks
+the code.
+
+setmsrv[install.run]
+A run MUST have mise install the Rust toolchain at the value of `msrv` after
+it wrote both files and, in a project that holds a `mise.lock`, after mise
+locked the pins.
+
+setmsrv[install.failed]
+A run whose mise does not start or does not install MUST fail and MUST NOT
+run the check. The failure MUST name the `mise install` that the run started
+and carry the cause: the error that kept mise from starting, or what mise
+reported. When mise started, the failure MUST name the check as the step to
+run next.
+
+## Check
+
+The harness names the actions of a project, so it gives the command the
+check that runs the compiler on the MSRV toolchain, as it gives the
+pre-commit command the actions that guard a commit. The command names no
+check of its own.
+
+A run reports the outcome of the check as the check reported it, and then
+reduces it to success or failure. A check that skipped did not compile the
+code on the new version, so it cannot confirm the version.
+
+setmsrv[check.given]
+The command MUST run the check that the harness gave it, with no arguments,
+after the install.
+
+setmsrv[check.report]
+A run MUST report the outcome of the check as the report of an action. A run
+whose report does not reach the reader MUST fail, and the failure MUST name
+the check.
+
+setmsrv[check.failed]
+A run whose check found problems, stopped, or skipped MUST fail, and the
+failure MUST name the check and the new version.
+
+setmsrv[check.passed]
+A run whose check passed, or repaired what it found, MUST succeed.
 
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/

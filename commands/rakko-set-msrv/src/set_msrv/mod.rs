@@ -6,18 +6,22 @@ mod error;
 mod manifest;
 /// The Rust pins in the configuration of mise
 mod pins;
+/// The steps of a run that mise does
+mod step;
 
+use std::fmt;
 use std::path::Path;
 
-use rakko_action::{Context, Name, action_name};
-use rakko_cli::Command;
+use rakko_action::{ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
 use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
-use rakko_tool::Invocation;
+use rakko_cli::{Command, Report};
+use rakko_tool::{Execution, Invocation};
 use toml_edit::{DocumentMut, Value};
 
 pub use self::args::{Msrv, Reason, SetMsrvArgs};
 pub use self::error::SetMsrvError;
+pub use self::step::MiseStep;
 
 /// The root manifest of a project
 const MANIFEST: &str = "Cargo.toml";
@@ -28,15 +32,12 @@ const CONFIGURATION: &str = "mise.toml";
 /// The lock in which mise records what each pin resolved to
 const LOCK: &str = "mise.lock";
 
-/// The program that locks the pins of a project
+/// The program that locks the pins of a project and installs the toolchain
 ///
 /// The operating system finds it with the rules of the platform. The
 /// canonical way to start a harness enters the environment of mise first, so
 /// a run that reaches the command reaches mise as well.
 const MISE: &str = "mise";
-
-/// The arguments that ask mise to lock the Rust pins of the project again
-const LOCK_RUST: [&str; 2] = ["lock", "rust"];
 
 /// The details of a run of mise that ended without success and wrote nothing
 const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
@@ -48,15 +49,41 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 /// check-msrv runs the compiler on, and the entry of that pin in
 /// `mise.lock`. A run writes the version and its reason to the manifest,
 /// moves the pin that matched the old version, and asks mise to lock the
-/// pins again.
+/// pins again. It then asks mise to install the toolchain at the new version,
+/// and runs the check on it, so that one run tells whether the code compiles
+/// on the new version.
 ///
 /// A run changes only the version, its comment, the pin, and the lock, so a
 /// reviewer reads a diff of a few lines. Mise locks every Rust pin again, so
 /// in a project whose pins name exact versions, only the entry of the moved
-/// pin changes in the lock. It installs nothing. The user runs
-/// `mise install` and check-msrv afterwards.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
-pub struct SetMsrv;
+/// pin changes in the lock.
+pub struct SetMsrv {
+    /// The action that runs the compiler on the toolchain at the new version
+    check: Box<dyn ErasedAction>,
+}
+
+impl SetMsrv {
+    /// Creates the command from the check that confirms a new version
+    ///
+    /// The check is the action that the project runs to compile its code on
+    /// the toolchain that its manifest names, usually `CheckMsrv` of the
+    /// `rakko-check-msrv` crate. The command runs it with no arguments, after
+    /// it installed the toolchain. The check is independent of the mount, so a
+    /// harness that wants a command for the check mounts it as well.
+    pub fn new(check: Box<dyn ErasedAction>) -> Self {
+        Self { check }
+    }
+}
+
+/// Shows the name of the check, because an erased action shows nothing
+impl fmt::Debug for SetMsrv {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("SetMsrv")
+            .field("check", &self.check.name())
+            .finish()
+    }
+}
 
 /// The characters that end a line in a file of the project
 ///
@@ -80,38 +107,49 @@ impl Command for SetMsrv {
         action_name!("set-msrv")
     }
 
-    /// Sets the version in the manifest, the pin, and the lock
+    /// Sets the version in the manifest, the pin, and the lock, installs the
+    /// toolchain, and checks the code on it
+    ///
+    /// Each step starts only when the step before it succeeded. A step that
+    /// fails after the first write leaves the files as the run wrote them.
     ///
     /// # Errors
     ///
     /// Returns an error when a file cannot be read, parsed, or written, when
     /// the manifest declares no version or declares it in an inline table,
-    /// when no pin matches the version of the manifest, and when mise does
-    /// not lock the new pin.
+    /// when no pin matches the version of the manifest, when mise does not
+    /// lock the new pin or install its toolchain, when the check does not
+    /// pass, and when the outcome of the check does not reach the reader.
     async fn run(
         &self,
         project: &Context,
-        _clawless: &ClawlessContext,
+        clawless: &ClawlessContext,
         args: &Self::Args,
     ) -> CommandResult {
-        set(project.root().get(), args).await?;
+        let root = project.root().get();
+
+        set(root, args).await?;
+        lock(root, args.msrv(), self.check.name()).await?;
+        install(root, args.msrv(), self.check.name()).await?;
+        check(self.check.as_ref(), args.msrv(), project, clawless).await?;
 
         Ok(())
     }
 }
 
-/// Sets the version of the project in its root directory
+/// Sets the version in the manifest and the pin in the root directory of the
+/// project
 ///
 /// The run finds everything that it changes before it writes the first file,
 /// so a project that the run refuses stays as it was.
 ///
 /// # Errors
 ///
-/// Returns the errors that [`SetMsrv::run`] describes.
+/// Returns an error when a file cannot be read, parsed, or written, when the
+/// manifest declares no version or declares it in an inline table, and when
+/// no pin matches the version of the manifest.
 // setmsrv[impl files.unreadable]
 // setmsrv[impl pin.unmatched]
-// setmsrv[impl lock.update]
-// setmsrv[impl lock.absent]
 async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
     let manifest_path = root.join(MANIFEST);
     let configuration_path = root.join(CONFIGURATION);
@@ -124,8 +162,28 @@ async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
     }
 
     write(&manifest_path, &manifest, manifest_ending).await?;
-    write(&configuration_path, &configuration, configuration_ending).await?;
+    write(&configuration_path, &configuration, configuration_ending).await
+}
 
+/// Has mise lock the Rust pins of the project again
+///
+/// Mise generates the lock, so it writes the entry of the new pin in its own
+/// format and removes the entry of the old one. It locks every Rust pin of
+/// the project, so a pin that names a channel or a partial version, such as
+/// `nightly` or `1.94`, can move to the newest version that it resolves to.
+///
+/// A project that keeps no lock is left without one. The version and the
+/// check name the steps that a failed lock leaves for the user.
+///
+/// # Errors
+///
+/// Returns [`SetMsrvError::MiseUnavailable`] when mise does not start, and
+/// [`SetMsrvError::UnlockedPin`] with what mise reported when it ends
+/// without success.
+// setmsrv[impl lock.update]
+// setmsrv[impl lock.absent]
+// setmsrv[impl lock.failed]
+async fn lock(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError> {
     // A project that keeps no lock has chosen not to, and mise would create
     // one. A lock whose presence is unknown is locked, because a stale lock
     // makes `mise install --locked` fail.
@@ -133,7 +191,92 @@ async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
         return Ok(());
     }
 
-    lock(root).await
+    let execution = start(root, MiseStep::Lock).await?;
+    if execution.status().success() {
+        return Ok(());
+    }
+
+    Err(SetMsrvError::UnlockedPin {
+        msrv: msrv.clone(),
+        check,
+        details: diagnosis(&execution),
+    })
+}
+
+/// Has mise install the toolchain at the new version
+///
+/// The check needs this toolchain and no other tool, so the run asks mise for
+/// nothing else, and a tool that fails to install cannot stop the run. A hook
+/// that the project gives mise runs after the install as it always does, and
+/// it can do more.
+///
+/// # Errors
+///
+/// Returns [`SetMsrvError::MiseUnavailable`] when mise does not start, and
+/// [`SetMsrvError::UninstalledToolchain`] with what mise reported when it
+/// ends without success.
+// setmsrv[impl install.run]
+// setmsrv[impl install.failed]
+async fn install(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError> {
+    let execution = start(root, MiseStep::Install { msrv: msrv.clone() }).await?;
+    if execution.status().success() {
+        return Ok(());
+    }
+
+    Err(SetMsrvError::UninstalledToolchain {
+        msrv: msrv.clone(),
+        check,
+        details: diagnosis(&execution),
+    })
+}
+
+/// Runs the check on the new version and reports its outcome
+///
+/// The report says what the check found, so the error of a check that did not
+/// pass only names it.
+///
+/// # Errors
+///
+/// Returns [`SetMsrvError::UnreportedOutcome`] when the report does not reach
+/// the reader, and [`SetMsrvError::FailedCheck`] when the check found
+/// problems, stopped, or skipped.
+// setmsrv[impl check.given]
+// setmsrv[impl check.report]
+// setmsrv[impl check.failed]
+// setmsrv[impl check.passed]
+async fn check(
+    check: &dyn ErasedAction,
+    msrv: &Msrv,
+    project: &Context,
+    clawless: &ClawlessContext,
+) -> Result<(), SetMsrvError> {
+    let name = check.name();
+    let outcome = check.run(project, &ArgsValues::empty()).await;
+
+    // A check that skipped did not compile the code on the new version, so it
+    // cannot confirm the version.
+    let confirmed = match outcome {
+        Outcome::Passed { .. } | Outcome::Changed { .. } => true,
+        Outcome::Failed { .. } | Outcome::Errored { .. } | Outcome::Skipped { .. } => false,
+    };
+
+    clawless
+        .output()
+        .artifact(Report::new(name.clone(), outcome))
+        .await
+        .map_err(|source| SetMsrvError::UnreportedOutcome {
+            action: name.clone(),
+            source,
+        })?;
+
+    if confirmed {
+        return Ok(());
+    }
+
+    Err(SetMsrvError::FailedCheck {
+        check: name,
+        msrv: msrv.clone(),
+    })
 }
 
 /// Returns the document in a file of the project and the end of its lines
@@ -195,42 +338,33 @@ async fn write(
         })
 }
 
-/// Has mise lock the Rust pins of the project again
-///
-/// Mise generates the lock, so it writes the entry of the new pin in its own
-/// format and removes the entry of the old one. It locks every Rust pin of
-/// the project, so a pin that names a channel or a partial version, such as
-/// `nightly` or `1.94`, can move to the newest version that it resolves to.
+/// Has mise do a step in the root directory of the project, and returns how
+/// mise ended
 ///
 /// # Errors
 ///
-/// Returns [`SetMsrvError::MiseUnavailable`] when mise does not start, and
-/// [`SetMsrvError::UnlockedPin`] with what mise reported when it ends
-/// without success.
-// setmsrv[impl lock.update]
+/// Returns [`SetMsrvError::MiseUnavailable`] when mise does not start.
 // setmsrv[impl lock.failed]
-async fn lock(root: &Path) -> Result<(), SetMsrvError> {
-    let execution = Invocation::new(MISE)
-        .args(LOCK_RUST)
+// setmsrv[impl install.failed]
+async fn start(root: &Path, step: MiseStep) -> Result<Execution, SetMsrvError> {
+    Invocation::new(MISE)
+        .args(step.arguments())
         .in_directory(root)
         .run()
         .await
-        .map_err(|source| SetMsrvError::MiseUnavailable { source })?;
+        .map_err(|source| SetMsrvError::MiseUnavailable { step, source })
+}
 
-    if execution.status().success() {
-        return Ok(());
-    }
-
+/// Returns what mise reported about a step that ended without success
+fn diagnosis(execution: &Execution) -> String {
     let diagnosis = execution.stderr().to_string_lossy();
     let text = diagnosis.trim();
 
-    Err(SetMsrvError::UnlockedPin {
-        details: if text.is_empty() {
-            NO_DIAGNOSIS.to_owned()
-        } else {
-            text.to_owned()
-        },
-    })
+    if text.is_empty() {
+        NO_DIAGNOSIS.to_owned()
+    } else {
+        text.to_owned()
+    }
 }
 
 /// Replaces a version and keeps the whitespace and the comment around it
@@ -247,13 +381,51 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_action::Action;
+
     use super::*;
+
+    /// An action that the command holds as its check
+    struct Stub;
+
+    impl Action for Stub {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("check-msrv")
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
 
     // setmsrv[verify name]
     #[test]
     fn name_is_set_msrv() {
-        let command = SetMsrv;
+        let command = SetMsrv::new(Box::new(Stub));
 
         assert_eq!(command.name().get(), "set-msrv");
+    }
+
+    // A directory that does not exist keeps any program from starting in it.
+    // setmsrv[verify install.failed]
+    #[tokio::test]
+    async fn start_where_mise_cannot_start_names_the_step() {
+        let root = Path::new("/rakko/a directory that does not exist");
+
+        let error = start(
+            root,
+            MiseStep::Install {
+                msrv: Msrv::new("1.89.0"),
+            },
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "failed to start `mise install rust@1.89.0`"
+        );
     }
 }

@@ -16,6 +16,7 @@
 //! supplies the shortcut.
 
 use rakko_action::ErasedAction;
+use rakko_check_msrv::CheckMsrv;
 use rakko_check_specs::CheckSpecs;
 use rakko_cli::ErasedCommand;
 use rakko_format_json::FormatJson;
@@ -45,7 +46,7 @@ fn main() {
         .mount([Box::new(CheckSpecs) as Box<dyn ErasedAction>])
         .mount_commands([
             Box::new(pre_commit) as Box<dyn ErasedCommand>,
-            Box::new(SetMsrv),
+            Box::new(SetMsrv::new(Box::new(CheckMsrv))),
         ])
         .run();
 }

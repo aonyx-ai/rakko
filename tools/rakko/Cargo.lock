@@ -375,6 +375,7 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-baseline",
+ "rakko-check-msrv",
  "rakko-check-specs",
  "rakko-cli",
  "rakko-format-json",
