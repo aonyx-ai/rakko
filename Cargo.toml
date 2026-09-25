@@ -17,7 +17,7 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 bon = "3"
 clap = "4.3"
-clawless = "0.6.1"
+clawless = "0.7.0"
 dunce = "1.0.4"
 getset = ">=0.1,<1"
 kawauso-process = "0.2.1"

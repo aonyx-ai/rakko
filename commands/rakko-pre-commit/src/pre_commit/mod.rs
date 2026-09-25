@@ -371,7 +371,7 @@ mod tests {
         while let Some(event) = block_on(receiver.recv()) {
             match event {
                 Event::Artifact(artifact) => reports.push(artifact.to_string()),
-                Event::Message(_) | Event::Detail(_) => {}
+                Event::Message(_) | Event::Detail(_) | Event::Process(_) | Event::Prompt(_) => {}
             }
         }
 
