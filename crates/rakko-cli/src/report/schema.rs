@@ -2,6 +2,7 @@ use rakko_action::{Finding, Location, Outcome, Position, Summary};
 use serde::Serialize;
 
 use super::Report;
+use crate::chain::Chain;
 
 /// The value that the schema field carries while the shape can still change
 ///
@@ -32,6 +33,9 @@ pub(super) struct Payload<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<&'a str>,
     /// The error that stopped the action, when it stopped
+    ///
+    /// The text holds the error and every cause of it, joined by a colon, as
+    /// the terminal shows them.
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
     /// The problems that the action found and left in the project
@@ -59,7 +63,7 @@ impl<'a> Payload<'a> {
                 ..Self::new(action, "skipped")
             },
             Outcome::Errored { source } => Self {
-                error: Some(source.to_string()),
+                error: Some(Chain::new(source.as_ref()).to_string()),
                 ..Self::new(action, "errored")
             },
             Outcome::Changed { repairs } => Self {
@@ -218,7 +222,19 @@ mod tests {
         serde_json::to_string(&report).expect("the report serializes")
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
+    #[test]
+    fn payload_of_errored_outcome_carries_every_cause_of_the_error() {
+        let json = payload(Outcome::Errored {
+            source: clawless::Error::msg("the file is not TOML")
+                .context("failed to parse Cargo.toml")
+                .into(),
+        });
+
+        assert!(json.contains(r#""error":"failed to parse Cargo.toml: the file is not TOML""#));
+    }
+
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_errored_outcome_carries_the_error() {
         let json = payload(Outcome::Errored {
@@ -231,7 +247,7 @@ mod tests {
         );
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_changed_outcome_carries_every_repair() {
         let json = payload(Outcome::Changed {
@@ -252,7 +268,7 @@ mod tests {
         );
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_directory_finding_carries_the_level_and_the_path() {
         let json = payload(failure(
@@ -268,7 +284,7 @@ mod tests {
         ));
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_failed_outcome_carries_every_finding_with_its_location() {
         let json = payload(failure(
@@ -285,7 +301,7 @@ mod tests {
         );
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_failed_outcome_carries_the_repairs_beside_the_findings() {
         let json = payload(Outcome::Failed {
@@ -315,7 +331,7 @@ mod tests {
         );
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_file_finding_carries_the_level_and_the_path() {
         let json = payload(failure(
@@ -330,7 +346,7 @@ mod tests {
         ));
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_project_finding_carries_the_level_alone() {
         let json = payload(failure(Location::Project, "the crate serde is banned"));
@@ -338,7 +354,7 @@ mod tests {
         assert!(json.contains(r#"{"level":"project","message":"the crate serde is banned"}"#));
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_span_finding_carries_both_ends_of_the_range() {
         let json = payload(failure(
@@ -357,7 +373,7 @@ mod tests {
         ));
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_passed_outcome_carries_the_state_alone() {
         let json = payload(Outcome::Passed { summary: None });
@@ -381,7 +397,7 @@ mod tests {
         );
     }
 
-    // cli[verify report.json]
+    // cli[verify report.json+2]
     #[test]
     fn payload_of_skipped_outcome_carries_the_reason() {
         let json = payload(Outcome::Skipped {

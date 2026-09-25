@@ -17,6 +17,7 @@ use clawless::runner::CommandRunner;
 use rakko_action::{ArgsValues, Context, ErasedAction, Outcome};
 
 use self::registry::{Mounted, Registry};
+use crate::chain::Chain;
 use crate::erased_command::ErasedCommand;
 use crate::report::Report;
 use crate::root::{self, ResolveProjectRootError};
@@ -232,14 +233,13 @@ impl Builder {
     /// and the process gets an exit code. A run that names nothing ends here
     /// as well: the user gets the commands that the harness mounted, and the
     /// process gets the code of a clean run. A run that failed ends here too:
-    /// the user gets the error, and the process gets the code of a run that
-    /// could not answer, whether the failure stopped an action or a command.
+    /// the user gets the error and every cause of it, and the process gets the
+    /// code of a run that could not answer, whether the failure stopped an
+    /// action or a command.
     ///
     /// The method ends the process itself, so that a harness stays a `main`
     /// that names what the project mounts and returns nothing.
     // cli[impl builder.run]
-    // cli[impl exit.failed]
-    // cli[impl report.failed]
     pub fn run(self) {
         let (matches, mounted) = match self.resolve(std::env::args_os()) {
             Ok(Resolution::Entry(matches, mounted)) => (matches, mounted),
@@ -252,14 +252,7 @@ impl Builder {
 
         match dispatch(matches, mounted) {
             Ok(code) => std::process::exit(i32::from(code)),
-            // The parser exits with the code of a run that could not answer
-            // for every error of this kind, so the message and the code
-            // travel together.
-            Err(error) => clap::Error::raw(
-                ErrorKind::Io,
-                format!("failed to run the {entry}: {error}\n"),
-            )
-            .exit(),
+            Err(error) => run_error(&entry, error.as_ref()).exit(),
         }
     }
 
@@ -506,6 +499,21 @@ fn drive_command(
     })?;
 
     Ok(EXIT_CLEAN)
+}
+
+/// Returns the error of the command line that ends a run that failed
+///
+/// The message carries every cause of the error, because the error of a
+/// command usually states only what failed, and the reason sits in its
+/// source. The parser exits with the code of a run that could not answer for
+/// every error of this kind, so the message and the code travel together.
+// cli[impl exit.failed]
+// cli[impl report.failed+2]
+fn run_error(entry: &str, error: &dyn Error) -> clap::Error {
+    clap::Error::raw(
+        ErrorKind::Io,
+        format!("failed to run the {entry}: {}\n", Chain::new(error)),
+    )
 }
 
 /// Returns the context of the project that a run maintains
@@ -1196,15 +1204,45 @@ mod tests {
         assert_ne!(code, 0);
     }
 
-    // cli[verify exit.failed]
-    // cli[verify report.failed]
+    // cli[verify report.failed+2]
     #[test]
-    fn dispatch_reports_the_error_of_a_command_that_failed() {
-        let Err(error) = result_of(|| Err(clawless::Error::msg("the port is taken"))) else {
+    fn dispatch_reports_every_cause_of_a_command_that_failed() {
+        let Err(error) = result_of(|| {
+            Err(clawless::Error::msg("the port is taken").context("failed to bind the server"))
+        }) else {
             panic!("expected the run to report an error");
         };
 
-        assert!(error.to_string().contains("the port is taken"));
+        let message = run_error("command 'serve'", error.as_ref()).to_string();
+
+        assert_eq!(
+            message,
+            "error: failed to run the command 'serve': failed to bind the server: the port is taken\n"
+        );
+    }
+
+    // cli[verify report.failed+2]
+    #[test]
+    fn dispatch_reports_every_cause_of_a_project_root_that_cannot_be_read() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let missing = directory.path().join("missing");
+        let cause = rakko_action::path::canonical(&missing)
+            .expect_err("the test names a directory that does not exist");
+        let (probe, _ran) = Probe::new("probe");
+        let Err(error) = dispatch(naming(&missing), Mounted::Action(Box::new(probe))) else {
+            panic!("expected the run to report an error");
+        };
+
+        let message = run_error("action 'probe'", error.as_ref()).to_string();
+
+        assert_eq!(
+            message,
+            format!(
+                "error: failed to run the action 'probe': \
+                 failed to read the project root at `{}`: {cause}\n",
+                missing.display()
+            )
+        );
     }
 
     // cli[verify exit.succeeded]
@@ -1388,6 +1426,16 @@ mod tests {
         };
 
         assert_eq!(command.name().get(), "serve");
+    }
+
+    // cli[verify exit.failed]
+    #[test]
+    fn run_error_returns_the_code_of_a_run_that_could_not_answer() {
+        let error = std::io::Error::other("the port is taken");
+
+        let code = run_error("command 'serve'", &error).exit_code();
+
+        assert_eq!(code, i32::from(EXIT_UNANSWERED));
     }
 
     // cli[verify argument.absent]

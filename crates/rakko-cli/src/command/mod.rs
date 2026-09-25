@@ -90,7 +90,11 @@ pub trait Command: Send + Sync {
     /// its end. The command writes what it has to say through the output of
     /// the Clawless context, and it returns an error when it fails. The
     /// command line turns success into a clean exit code and an error into
-    /// the code of a run that could not answer, and it shows the error.
+    /// the code of a run that could not answer. It shows the error and then
+    /// every cause of it from [`source`], so the message of an error states
+    /// what failed and does not repeat its cause.
+    ///
+    /// [`source`]: std::error::Error::source
     // cli[impl written.run]
     // cli[impl written.wait]
     // cli[impl written.send]

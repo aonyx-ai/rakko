@@ -311,6 +311,14 @@ took away. A run that repaired some of the problems that it found shows its
 repairs first. The problems that remain follow them, so that the lines a
 reader has to act on sit next to the summary.
 
+An error shows with every cause behind it, each cause after the one that it
+explains. An error states what failed and carries the reason as its cause, so
+the top of the error alone rarely tells a reader what to fix. The text and the
+JSON of an action that stopped carry the same chain. The message of a run that
+ends in an error instead of a report, such as a written command that failed or
+a project root that cannot be read, carries it too. None of them waits for a
+flag that asks for more.
+
 A pass shows what the run examined when the action said so, the way a skip
 shows its reason. A pass that examined less than the reader expects points to
 a misconfiguration, and the summary is the only place where that shows.
@@ -347,15 +355,20 @@ A run whose action passed with a summary MUST show that summary.
 cli[report.skipped]
 A run whose action does not apply MUST show the reason.
 
-cli[report.errored]
-A run whose action stopped MUST show the error.
+cli[report.errored+2]
+A run whose action stopped MUST show the error and every cause of that error,
+each cause after the one that it explains.
 
-cli[report.json]
+cli[report.json+2]
 A run MUST render its outcome as JSON when the user asks for JSON, and that
-JSON MUST state that its schema is unstable.
+JSON MUST state that its schema is unstable. The JSON of a run whose action
+stopped MUST carry the error and every cause of that error, each cause after
+the one that it explains.
 
-cli[report.failed]
-A run whose written command failed MUST show the error.
+cli[report.failed+2]
+A run that ends in an error instead of a report, such as a written command that
+failed or a project root that cannot be read, MUST show the error and every
+cause of that error, each cause after the one that it explains.
 
 cli[report.written]
 The crate MUST give a written command the report of an action, from the name

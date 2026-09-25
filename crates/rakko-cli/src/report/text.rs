@@ -3,6 +3,7 @@ use std::fmt;
 use rakko_action::{Finding, Location, Outcome, Position};
 
 use super::Report;
+use crate::chain::Chain;
 
 /// Writes a report as the text that a reader at a terminal gets
 ///
@@ -34,18 +35,7 @@ pub(super) fn render(report: &Report, formatter: &mut fmt::Formatter<'_>) -> fmt
         },
         Outcome::Skipped { reason } => write!(formatter, "{action}: skipped, {reason}"),
         Outcome::Errored { source } => {
-            write!(formatter, "{action}: {source}")?;
-
-            // The Display of an error reports its own layer only, and the
-            // layer that a reader needs is usually the innermost one, so the
-            // line carries the whole chain.
-            let mut cause = source.source();
-            while let Some(error) = cause {
-                write!(formatter, ": {error}")?;
-                cause = error.source();
-            }
-
-            Ok(())
+            write!(formatter, "{action}: {}", Chain::new(source.as_ref()))
         }
         Outcome::Changed { repairs } => {
             render_findings(repairs, formatter)?;
@@ -230,7 +220,22 @@ mod tests {
         assert!(text.ends_with("probe: 1 repair"));
     }
 
-    // cli[verify report.errored]
+    // cli[verify report.errored+2]
+    #[test]
+    fn render_errored_outcome_reports_every_cause_of_the_error() {
+        let text = rendered(Outcome::Errored {
+            source: clawless::Error::msg("the file is not TOML")
+                .context("failed to parse Cargo.toml")
+                .into(),
+        });
+
+        assert_eq!(
+            text,
+            "probe: failed to parse Cargo.toml: the file is not TOML"
+        );
+    }
+
+    // cli[verify report.errored+2]
     #[test]
     fn render_errored_outcome_reports_the_error() {
         let text = rendered(Outcome::Errored {
