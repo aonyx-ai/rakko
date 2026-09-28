@@ -167,9 +167,9 @@ backend = "core:rust"
 specifiers = ["1.88.0"]
 
 [[tools.rust]]
-version = "nightly-2026-08-11"
+version = "nightly-2026-09-27"
 backend = "core:rust"
-specifiers = ["nightly-2026-08-11"]
+specifiers = ["nightly-2026-09-27"]
 
 [tools.rust.options]
 components = "rustfmt"
