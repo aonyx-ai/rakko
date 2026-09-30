@@ -11,7 +11,8 @@ the workflows of GitHub Actions, and the configuration of Renovate are the files
 that a project holds before it holds a line of code, so they belong to every
 project of the fleet. Nothing that belongs to one language belongs here. The
 bundle therefore contains no other bundle, and no bundle contains it: a project
-without Rust mounts it alone, and a Rust project mounts it beside a Rust bundle.
+mounts it alone, or beside the bundle of its language, such as a Rust bundle or
+the TypeScript bundle.
 
 The bundle adds nothing to what it exports. It runs no action, it examines no
 project, and it checks no tool, because each action already stops when the tool
