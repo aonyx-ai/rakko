@@ -1084,6 +1084,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-typescript"
+version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "rakko-check-typescript",
+ "rakko-format-typescript",
+ "rakko-lint-typescript",
+ "rakko-test-typescript",
+]
+
+[[package]]
 name = "rakko-worktree"
 version = "0.1.0"
 dependencies = [

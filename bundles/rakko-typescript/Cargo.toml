@@ -1,0 +1,17 @@
+[package]
+name = "rakko-typescript"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+rakko-action = { workspace = true }
+rakko-check-typescript = { path = "../../actions/rakko-check-typescript", version = "0.1.0" }
+rakko-format-typescript = { path = "../../actions/rakko-format-typescript", version = "0.1.0" }
+rakko-lint-typescript = { path = "../../actions/rakko-lint-typescript", version = "0.1.0" }
+rakko-test-typescript = { path = "../../actions/rakko-test-typescript", version = "0.1.0" }
+
+[lints]
+workspace = true

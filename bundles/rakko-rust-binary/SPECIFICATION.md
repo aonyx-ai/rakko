@@ -18,8 +18,8 @@ runs then reaches every such project as a release of this bundle, without an
 edit to the harness of each one.
 
 The bundle contains `rakko-rust`. It contains no other bundle, and it does not
-contain the baseline: the two families sit side by side, so a project without
-Rust mounts the baseline alone and a Rust project mounts two names.
+contain the baseline: the two families sit side by side, so a Rust project
+mounts two names.
 
 A project mounts this bundle or `rakko-rust-library`, never both. Both carry
 the core, and a harness stops when two actions have one name. A workspace that

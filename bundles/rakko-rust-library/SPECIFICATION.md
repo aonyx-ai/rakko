@@ -17,8 +17,7 @@ to the core.
 The bundle contains `rakko-rust`, because a library is a Rust project first and
 formats, lints, tests, and audits what it depends on like any other. It
 contains no other bundle, and it does not contain the baseline: the two
-families sit side by side, so a project without Rust mounts the baseline alone
-and a Rust project mounts two names.
+families sit side by side, so a Rust project mounts two names.
 
 A project mounts this bundle or `rakko-rust-binary`, never both. Both carry the
 core, and a harness stops when two actions have one name. A workspace that

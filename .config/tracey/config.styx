@@ -474,6 +474,18 @@ specs (
         )
     }
     {
+        name typescript
+        source_url https://github.com/aonyx-ai/rakko
+        include (bundles/rakko-typescript/SPECIFICATION.md)
+        impls (
+            {
+                name rust
+                include (bundles/rakko-typescript/src/**/*.rs)
+                test_include (bundles/rakko-typescript/tests/**/*.rs)
+            }
+        )
+    }
+    {
         name worktree
         source_url https://github.com/aonyx-ai/rakko
         include (crates/rakko-worktree/SPECIFICATION.md)

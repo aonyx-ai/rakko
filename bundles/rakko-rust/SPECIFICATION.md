@@ -17,8 +17,8 @@ makes none of those promises.
 
 The bundle is therefore a core that a second bundle contains rather than a
 bundle that a project mounts on its own. It contains no other bundle, and it
-does not contain the baseline: the two families sit side by side, so a project
-without Rust mounts the baseline alone and a Rust project mounts two names.
+does not contain the baseline: the two families sit side by side, so a Rust
+project mounts two names.
 
 The bundle adds nothing to what it exports. It runs no action, it examines no
 project, and it checks no tool, because each action already stops when the tool
