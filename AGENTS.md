@@ -183,6 +183,17 @@ implements it and to the test that verifies it.
   - Minimal formatting or bullet points, plain prose is preferred
   - Full sentences with simple past and present tense
   - Wrap the body at 72 characters
+- Name the outcome in the summary of the primary commit, for whoever the change
+  serves, whether a user, an operator, or a developer of the codebase: the
+  problem that goes away, or what they can do now. The mechanism may come
+  before or after the outcome, but never alone. This summary becomes the title
+  of the pull request and of the squash merge, so write a better one than the
+  title of the issue when that title names only the mechanism. For example,
+  "Give each scratch branch a name of its own", the title of aurel PR 297,
+  names only the mechanism, while "Avoid duplicate scratch branch names" or
+  "Timestamp scratch branch names to avoid collisions" says what it delivers.
+  Judge each such summary against this, and not against a pattern, because a
+  good title has no hard rule.
 - Write commit messages for a reader that has no prior context and no access to
   the session history.
 - Keep commit messages concise. Aim for two or three paragraphs, not more.
