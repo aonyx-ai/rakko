@@ -26,8 +26,3 @@ leaning where there is one. -->
 ## Done when
 
 <!-- The mechanical definition of done. -->
-
-## Size
-
-<!-- The expected size of the change, in one line, so that the pull request
-can be measured against it. -->
