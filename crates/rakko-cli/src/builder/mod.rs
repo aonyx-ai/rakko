@@ -1,21 +1,24 @@
 /// The projection of the arguments of an action into flags
 mod arguments;
+/// The error of a run that the runner ended before it started
+mod error;
 /// The actions that a harness mounted
 mod registry;
 
 use std::error::Error;
 use std::ffi::OsString;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use clap::error::ErrorKind;
 use clap::{Arg, ArgMatches, Command, value_parser};
+use clawless::CommandResult;
 use clawless::context::Context as ClawlessContext;
 use clawless::output::OutputFlags;
 use clawless::runner::CommandRunner;
 use rakko_action::{ArgsValues, Context, ErasedAction, Outcome};
 
+use self::error::RunEntryError;
 use self::registry::{Mounted, Registry};
 use crate::chain::Chain;
 use crate::erased_command::ErasedCommand;
@@ -449,26 +452,20 @@ fn drive_action(
     values: ArgsValues,
     action: Box<dyn ErasedAction>,
 ) -> Result<u8, Box<dyn Error>> {
-    let code = Arc::new(AtomicU8::new(EXIT_UNANSWERED));
-    let reported = Arc::clone(&code);
-
-    CommandRunner::run(matches, move |_matches, context| async move {
+    drive(matches, move |context| async move {
         let project = locate(named, &context)?;
 
         let name = action.name();
         let outcome = action.run(&project, &values).await;
-
-        reported.store(exit_code(&outcome), Ordering::SeqCst);
+        let code = exit_code(&outcome);
 
         context
             .output()
             .artifact(Report::new(name, outcome))
             .await?;
 
-        Ok(())
-    })?;
-
-    Ok(code.load(Ordering::SeqCst))
+        Ok(code)
+    })
 }
 
 /// Runs one command that the harness wrote and returns the code of the run
@@ -492,13 +489,62 @@ fn drive_command(
     values: ArgsValues,
     command: Box<dyn ErasedCommand>,
 ) -> Result<u8, Box<dyn Error>> {
-    CommandRunner::run(matches, move |_matches, context| async move {
+    drive(matches, move |context| async move {
         let project = locate(named, &context)?;
 
-        command.run(&project, &context, &values).await
-    })?;
+        command.run(&project, &context, &values).await?;
 
-    Ok(EXIT_CLEAN)
+        Ok(EXIT_CLEAN)
+    })
+}
+
+/// Runs one entry through the runner of Clawless and returns what it returned
+///
+/// The runner renders everything that the entry sends before it returns, and
+/// it ends every run with an exit of its own. That exit holds an error only
+/// as text, and it holds a code that the process cannot read back. The entry
+/// therefore gives its result back beside the runner, so that the caller gets
+/// the code that the entry chose and an error with every cause.
+///
+/// # Errors
+///
+/// Returns the error of the entry when it failed. Returns
+/// [`RunEntryError::UnstartedRun`] when the runner ended the run before the
+/// entry started.
+fn drive<E, F>(matches: ArgMatches, entry: E) -> Result<u8, Box<dyn Error>>
+where
+    E: FnOnce(ClawlessContext) -> F,
+    F: Future<Output = CommandResult<u8>> + Send + 'static,
+{
+    let result = Arc::new(Mutex::new(None));
+    let returned = Arc::clone(&result);
+
+    let exit = CommandRunner::run(matches, move |_matches, context| {
+        let run = entry(context);
+
+        async move {
+            let outcome = run.await;
+            returned
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .replace(outcome);
+
+            Ok(())
+        }
+    });
+
+    let outcome = result.lock().unwrap_or_else(PoisonError::into_inner).take();
+    let Some(outcome) = outcome else {
+        let reason = exit.text().unwrap_or_default();
+        let reason = reason.strip_prefix("Error: ").unwrap_or(reason).trim_end();
+
+        return Err(RunEntryError::UnstartedRun {
+            reason: reason.to_owned(),
+        }
+        .into());
+    };
+
+    outcome.map_err(Into::into)
 }
 
 /// Returns the error of the command line that ends a run that failed
@@ -564,7 +610,7 @@ mod tests {
 
     use std::path::Path;
     use std::sync::Mutex;
-    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     use clap::builder::{Str, ValueRange};
     use clawless::CommandResult;
