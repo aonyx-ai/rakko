@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use rakko_action::ProjectRoot;
 use rakko_tool::{Execution, Invocation, ResolveToolError, RunCommandError, Tool, ToolName};
 use serde::Deserialize;
+use toml_edit::DocumentMut;
 
 pub use self::error::DiscoverRootsError;
 use crate::root::{CargoPackage, CargoRoot, Documentation, DocumentedNames, MANIFEST, PackageName};
@@ -33,6 +34,23 @@ const TARGET_DIRECTORY: &str = "target";
 /// The directory that a package manager of Node installs packages in, which
 /// the discovery does not read
 const NODE_MODULES_DIRECTORY: &str = "node_modules";
+
+/// The entry that marks the root of a project
+///
+/// A directory below the project root that holds the entry is the root of a
+/// project of its own, such as a second checkout inside the project, and the
+/// discovery does not read it. The presence of the entry is the whole test,
+/// so its content does not matter.
+const MARKER: &str = ".config/rakko.toml";
+
+/// The table of a manifest that configures a workspace
+const WORKSPACE: &str = "workspace";
+
+/// The key of the workspace table that lists the paths outside the workspace
+const EXCLUDE: &str = "exclude";
+
+/// The key of the workspace table that lists the members of the workspace
+const MEMBERS: &str = "members";
 
 /// The arguments that ask cargo to describe the workspace of a manifest
 ///
@@ -152,6 +170,15 @@ impl Cargo {
     /// members need no question of their own, and a root counts once
     /// however many members it has.
     ///
+    /// A workspace can exclude paths below its root with the `exclude` list
+    /// of its manifest, such as the fixtures of its tests. The discovery
+    /// asks cargo about no manifest at or below such a path, so a fixture
+    /// that cargo cannot read does not stop the discovery, and a fixture
+    /// that is a workspace of its own does not become a root. A directory
+    /// below the project root that holds `.config/rakko.toml` is a project
+    /// of its own, such as a second checkout inside the project, and the walk
+    /// does not read it.
+    ///
     /// The discovery starts a process per workspace, so a caller that needs
     /// the roots more than once keeps the answer for the length of the run.
     ///
@@ -161,17 +188,23 @@ impl Cargo {
     /// project cannot be read, [`CargoUnavailable`][unavailable] when cargo
     /// does not run, [`UnreadableManifest`][manifest] when cargo refuses a
     /// manifest, [`UnrecognizedMetadata`][metadata] when cargo describes a
-    /// workspace in a shape that the crate cannot read, and
+    /// workspace in a shape that the crate cannot read,
     /// [`ForeignWorkspace`][foreign] when a manifest belongs to a workspace
-    /// whose root lies outside the project.
+    /// whose root lies outside the project, and
+    /// [`UnreadableExclusions`][exclusions] or
+    /// [`UnrecognizedExclusions`][unrecognized] when the crate cannot read
+    /// the paths that a workspace root excludes.
     ///
     /// [directory]: DiscoverRootsError::UnreadableDirectory
+    /// [exclusions]: DiscoverRootsError::UnreadableExclusions
     /// [foreign]: DiscoverRootsError::ForeignWorkspace
     /// [manifest]: DiscoverRootsError::UnreadableManifest
     /// [metadata]: DiscoverRootsError::UnrecognizedMetadata
     /// [unavailable]: DiscoverRootsError::CargoUnavailable
+    /// [unrecognized]: DiscoverRootsError::UnrecognizedExclusions
     // cargo[impl root.contained]
-    // cargo[impl root.discover]
+    // cargo[impl root.discover+2]
+    // cargo[impl root.excluded]
     // cargo[impl root.member]
     // cargo[impl root.walk+3]
     pub async fn roots(&self) -> Result<Vec<CargoRoot>, DiscoverRootsError> {
@@ -180,10 +213,13 @@ impl Cargo {
 
         let project = canonical(self.root.get()).await;
         let mut claimed: HashSet<PathBuf> = HashSet::new();
+        let mut exclusions: Vec<Exclusions> = Vec::new();
         let mut roots: Vec<CargoRoot> = Vec::new();
 
         for manifest in manifests {
-            if claimed.contains(&canonical(&manifest).await) {
+            let path = canonical(&manifest).await;
+
+            if claimed.contains(&path) || exclusions.iter().any(|root| root.exclude(&path)) {
                 continue;
             }
 
@@ -198,6 +234,7 @@ impl Cargo {
                 });
             }
 
+            exclusions.push(Exclusions::read(&directory).await?);
             claimed.insert(directory.join(MANIFEST));
             for package in &metadata.packages {
                 claimed.insert(canonical(&package.manifest_path).await);
@@ -503,7 +540,11 @@ fn details(execution: &Execution) -> String {
 /// Returns the manifests below a directory
 ///
 /// The walk does not read the `.git` entry, a directory named `target` or
-/// `node_modules`, or a symbolic link.
+/// `node_modules`, a symbolic link, or a directory below the start that holds
+/// `.config/rakko.toml`. The start holds that entry itself when it is the
+/// root of a project, so the test applies only below it. An entry that the
+/// file system does not report on counts as absent, as it does for the
+/// search that finds the project root.
 ///
 /// # Errors
 ///
@@ -512,6 +553,7 @@ fn details(execution: &Execution) -> String {
 ///
 /// [directory]: DiscoverRootsError::UnreadableDirectory
 // cargo[impl root.directory]
+// cargo[impl root.nested]
 // cargo[impl root.walk+3]
 async fn manifests(root: &Path) -> Result<Vec<PathBuf>, DiscoverRootsError> {
     let mut found = Vec::new();
@@ -539,7 +581,11 @@ async fn manifests(root: &Path) -> Result<Vec<PathBuf>, DiscoverRootsError> {
                 .map_err(|source| unreadable(&directory, source))?;
 
             if kind.is_dir() {
-                pending.push(entry.path());
+                let path = entry.path();
+
+                if tokio::fs::metadata(path.join(MARKER)).await.is_err() {
+                    pending.push(path);
+                }
             } else if kind.is_file() && name == MANIFEST {
                 found.push(entry.path());
             }
@@ -547,6 +593,88 @@ async fn manifests(root: &Path) -> Result<Vec<PathBuf>, DiscoverRootsError> {
     }
 
     Ok(found)
+}
+
+/// The paths that one workspace root keeps out of its workspace
+///
+/// Cargo does not report the `exclude` list of a workspace, so the crate
+/// reads it from the manifest of the root, together with the `members` list.
+/// Cargo excludes a manifest whose path starts with an entry of `exclude`,
+/// unless the path also starts with an entry of `members`, because an
+/// explicit member wins over the exclusion, for the member and for every
+/// manifest below it. An entry of either list is a path relative to the
+/// directory of the root. When cargo decides an exclusion, it compares an
+/// entry with the path of a manifest component by component, without
+/// expanding a pattern: `examples/*` names a directory called `*`. This type
+/// compares in the same way, so that it never skips a manifest that cargo
+/// still reads.
+struct Exclusions {
+    /// The paths of the `exclude` list, joined to the directory of the root
+    excluded: Vec<PathBuf>,
+
+    /// The paths of the `members` list, joined to the directory of the root
+    members: Vec<PathBuf>,
+}
+
+impl Exclusions {
+    /// Reads the exclusions of the workspace root in a directory
+    ///
+    /// A root without a workspace table, or a workspace without a list,
+    /// has no entries in that list. Cargo has read the manifest already, so
+    /// an entry that is not a string never reaches this function.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnreadableExclusions`][unreadable] when the manifest cannot
+    /// be read, and [`UnrecognizedExclusions`][unrecognized] when it holds no
+    /// TOML document.
+    ///
+    /// [unreadable]: DiscoverRootsError::UnreadableExclusions
+    /// [unrecognized]: DiscoverRootsError::UnrecognizedExclusions
+    // cargo[impl root.excluded]
+    async fn read(directory: &Path) -> Result<Self, DiscoverRootsError> {
+        let manifest = directory.join(MANIFEST);
+        let content = tokio::fs::read_to_string(&manifest)
+            .await
+            .map_err(|source| DiscoverRootsError::UnreadableExclusions {
+                manifest: manifest.clone(),
+                source,
+            })?;
+        let document: DocumentMut =
+            content
+                .parse()
+                .map_err(|source| DiscoverRootsError::UnrecognizedExclusions {
+                    manifest: manifest.clone(),
+                    source,
+                })?;
+
+        let paths = |key: &str| -> Vec<PathBuf> {
+            document
+                .get(WORKSPACE)
+                .and_then(|workspace| workspace.get(key))
+                .and_then(|list| list.as_array())
+                .into_iter()
+                .flatten()
+                .filter_map(|entry| entry.as_str())
+                .map(|entry| directory.join(entry))
+                .collect()
+        };
+
+        Ok(Self {
+            excluded: paths(EXCLUDE),
+            members: paths(MEMBERS),
+        })
+    }
+
+    /// Returns whether cargo excludes the manifest at a path from this
+    /// workspace
+    // cargo[impl root.excluded]
+    fn exclude(&self, manifest: &Path) -> bool {
+        let below =
+            |prefixes: &[PathBuf]| prefixes.iter().any(|prefix| manifest.starts_with(prefix));
+
+        below(&self.excluded) && !below(&self.members)
+    }
 }
 
 /// Returns the error for a directory that the walk could not read

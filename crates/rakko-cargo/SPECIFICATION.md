@@ -73,9 +73,34 @@ A manifest of the project can belong to a workspace above the project, when
 that workspace lists the manifest as a member. A job at that root would work
 on files outside the project, so such a manifest stops the discovery as well.
 
-cargo[root.discover]
-The crate MUST report every workspace root below the project root, as cargo
-names it, once each, in the order of their paths.
+Not every manifest below the project root belongs to the Rust of the project.
+A directory that holds the marker of a project, `.config/rakko.toml`, is the
+root of a project of its own, such as a second checkout of the project that a
+tool places inside it. A project inside a project is the inner one, so the
+search does not read that directory, and the discovery reports no root inside
+it. The test reads no file: the presence of the marker decides, as it does for
+the search that finds the project root.
+
+A workspace can also exclude paths below its root with the `exclude` list of
+its manifest. A project excludes the fixtures of its tests in this way, and a
+fixture can be a manifest that cargo cannot read, or a package that a job must
+not build. Cargo does not report the list, so here the crate reads the
+`exclude` and `members` lists of the manifest itself, instead of asking cargo.
+It skips an excluded manifest before it asks cargo about it, because cargo can
+refuse the manifest even when it is excluded: in a worktree inside another
+checkout, cargo searches past the root that excludes the manifest and reaches
+the workspace of the outer checkout. The crate matches an entry as cargo does,
+as a path relative to the directory of the root, and the path of a manifest
+matches when it starts with the entry, component by component. An explicit
+member wins over the exclusion, so a manifest whose path also starts with an
+entry of the `members` list stays in. When cargo decides an exclusion, it
+compares an entry of either list as a literal prefix and expands no pattern in
+it, and the crate does the same, so that it never skips a manifest that cargo
+still reads.
+
+cargo[root.discover+2]
+The crate MUST report every workspace root that cargo names for a manifest
+that the discovery asks it about, once each, in the order of their paths.
 
 cargo[root.member]
 A manifest that belongs to a workspace that the crate found MUST NOT count as
@@ -91,6 +116,17 @@ The discovery MUST search the project for files named `Cargo.toml`. It MUST
 read hidden directories, because a project can keep a package in one, and it
 MUST NOT read the `.git` entry, a directory named `target` or `node_modules`,
 or a symbolic link.
+
+cargo[root.nested]
+The discovery MUST NOT read a directory below the project root that holds
+`.config/rakko.toml`, and it MUST NOT read the entry to decide.
+
+cargo[root.excluded]
+The discovery MUST NOT ask cargo about a manifest whose path starts, component
+by component, with an entry of the `exclude` list of a workspace root that it
+found, joined to the directory of that root, unless the path also starts with
+an entry of the `members` list of that root, joined in the same way. It MUST
+NOT expand a pattern in an entry.
 
 cargo[root.directory]
 A directory that the discovery cannot read MUST stop the discovery, and the

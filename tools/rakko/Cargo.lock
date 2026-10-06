@@ -629,6 +629,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "toml_edit",
  "typed-fields",
 ]
 

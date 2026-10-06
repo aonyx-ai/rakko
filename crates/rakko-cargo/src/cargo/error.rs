@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use rakko_tool::RunCommandError;
 use thiserror::Error;
+use toml_edit::TomlError;
 
 /// An error that stops the discovery of the workspace roots of a project
 ///
@@ -67,6 +68,42 @@ pub enum DiscoverRootsError {
 
         /// What cargo wrote about the manifest
         details: String,
+    },
+
+    /// The paths that a workspace root excludes could not be read
+    ///
+    /// Cargo does not report them, so the discovery reads the manifest of the
+    /// root itself. Cargo has read the manifest a moment before, so a change
+    /// of the file system in between is the usual case.
+    #[error(
+        "failed to read the manifest {} for the paths that its workspace excludes",
+        manifest.display()
+    )]
+    UnreadableExclusions {
+        /// The manifest of the workspace root
+        manifest: PathBuf,
+
+        /// The cause of the failure
+        source: std::io::Error,
+    },
+
+    /// The manifest that holds the paths that a workspace root excludes is
+    /// no TOML document that the crate recognizes
+    ///
+    /// Cargo has accepted the manifest a moment before. A change of the file
+    /// in between is one cause. A version of the TOML parser of the crate that
+    /// is older than the one of cargo, and rejects syntax that cargo accepts,
+    /// is the other.
+    #[error(
+        "failed to parse the manifest {} for the paths that its workspace excludes",
+        manifest.display()
+    )]
+    UnrecognizedExclusions {
+        /// The manifest of the workspace root
+        manifest: PathBuf,
+
+        /// The cause of the failure
+        source: TomlError,
     },
 
     /// Cargo described a manifest in a shape that the crate does not
