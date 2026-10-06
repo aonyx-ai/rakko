@@ -1,7 +1,7 @@
 use std::io;
 use std::path::PathBuf;
 
-use kawauso_project::error::LoadProjectError;
+use kawauso_project::error::{LoadProjectError, ParseApplicationNameError};
 use thiserror::Error;
 
 /// An error that occurs when a run resolves the root of its project
@@ -11,6 +11,17 @@ use thiserror::Error;
 /// a directory that it guessed.
 #[derive(Debug, Error)]
 pub(crate) enum ResolveProjectRootError {
+    /// The name that identifies Rakko to the search is not a valid name
+    ///
+    /// The name is a constant of the source, so only a change to the source
+    /// causes this error. The run reports it instead of a panic, so that a
+    /// user who meets it sees the rules that the name breaks.
+    #[error("failed to name Rakko to the search for the project root")]
+    MalformedApplicationName {
+        /// The cause of the failure
+        source: ParseApplicationNameError,
+    },
+
     /// No directory at or above the start of the search marks a project
     ///
     /// The user runs the harness outside a project, or inside a project that

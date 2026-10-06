@@ -20,6 +20,7 @@ mod error;
 use std::path::{Path, PathBuf};
 
 use kawauso_project::error::{DiscoverProjectError, LoadProjectError};
+use kawauso_project::project::ApplicationName;
 use kawauso_project::{Project, Search};
 use rakko_action::ProjectRoot;
 
@@ -30,6 +31,10 @@ pub(crate) use self::error::ResolveProjectRootError;
 /// The search derives the conventional location of a configuration file from
 /// this name. A run reads no configuration today, so the name reaches nothing
 /// but a path that stays unused.
+///
+/// The search accepts only a name that it has checked, so a run parses this
+/// value before every search. The value is valid, and the tests of
+/// [`discover`] fail if a change makes it invalid.
 const APPLICATION: &str = "rakko";
 
 /// The entry that marks the root of a project
@@ -90,13 +95,18 @@ fn canonical(root: PathBuf) -> Result<ProjectRoot, ResolveProjectRootError> {
 ///
 /// Returns an error when no directory at or above `start` holds the marker,
 /// and when the file system refuses to report on a directory of the walk.
+/// Returns an error as well when the name of Rakko is not a valid application
+/// name, which only a change to the source can cause.
 // cli[impl root.marker]
 // cli[impl root.unmarked]
 fn discover(start: &Path) -> Result<ProjectRoot, ResolveProjectRootError> {
+    let application: ApplicationName = APPLICATION
+        .parse()
+        .map_err(|source| ResolveProjectRootError::MalformedApplicationName { source })?;
     let search = Search::start(start).marker(MARKER);
 
     let project: Project = Project::builder()
-        .application(APPLICATION)
+        .application(application)
         .without_configuration()
         .load(&search)
         .map_err(|source| classify(source, start))?;
