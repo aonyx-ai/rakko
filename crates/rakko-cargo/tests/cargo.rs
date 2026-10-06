@@ -37,8 +37,29 @@ const WORKSPACE: &str = "[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"3\"
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
+/// The manifest of a package that belongs to no workspace and excludes the
+/// fixtures below it
+///
+/// The fixtures are not part of the workspace of the package, and a path that
+/// the manifest excludes is relative to the directory of the manifest.
+const STANDALONE_EXCLUDING: &str = "[workspace]\nexclude = [\"fixtures\"]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// The manifest of a workspace whose only member sits in a directory that the
+/// workspace excludes
+///
+/// Cargo lets an explicit member win over the exclusion, for the member and
+/// for every manifest below it.
+const EXCLUDING_A_MEMBER: &str =
+    "[workspace]\nmembers = [\"fixtures/real\"]\nexclude = [\"fixtures\"]\nresolver = \"3\"\n";
+
+/// The manifest of the member of that workspace
+const REAL: &str = "[package]\nname = \"real\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
 /// A manifest that cargo cannot read
 const BROKEN: &str = "this is not a manifest\n";
+
+/// The marker of a project, which Rakko never reads
+const MARKER: &str = ".config/rakko.toml";
 
 /// The manifest of a package whose library builds a C library
 ///
@@ -158,6 +179,22 @@ impl Project {
     fn workspace() -> Self {
         let project = Self::new();
         project.write("Cargo.toml", WORKSPACE);
+        project.package("a");
+        project.package("b");
+
+        project
+    }
+
+    /// Creates a project with a workspace of two members that excludes the
+    /// given path
+    fn workspace_excluding(path: &str) -> Self {
+        let project = Self::new();
+        project.write(
+            "Cargo.toml",
+            &format!(
+                "[workspace]\nmembers = [\"a\", \"b\"]\nexclude = [\"{path}\"]\nresolver = \"3\"\n"
+            ),
+        );
         project.package("a");
         project.package("b");
 
@@ -741,7 +778,167 @@ async fn roots_ignore_a_manifest_under_the_target_directory() {
     assert_eq!(roots, [project.workspace_root()]);
 }
 
-// cargo[verify root.discover]
+// cargo[verify root.excluded]
+#[tokio::test]
+async fn roots_ignore_a_manifest_that_another_root_excludes() {
+    let project = Project::workspace();
+    project.write("tools/harness/Cargo.toml", STANDALONE_EXCLUDING);
+    project.write("tools/harness/src/main.rs", "fn main() {}\n");
+    project.write("tools/harness/fixtures/Cargo.toml", BROKEN);
+
+    let roots = project.roots().await;
+
+    assert!(
+        matches!(
+            &roots,
+            Ok(found) if found == &[project.workspace_root(), project.binary_root("tools/harness")]
+        ),
+        "expected the workspace and the harness, got {roots:?}"
+    );
+}
+
+// cargo[verify root.excluded]
+#[tokio::test]
+async fn roots_ignore_a_manifest_that_the_workspace_excludes() {
+    let project = Project::workspace_excluding("fixtures");
+    project.write("fixtures/broken/Cargo.toml", BROKEN);
+    project.write("fixtures/own/Cargo.toml", STANDALONE);
+    project.write("fixtures/own/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await;
+
+    assert!(
+        matches!(&roots, Ok(found) if found == &[project.workspace_root()]),
+        "expected only the workspace, got {roots:?}"
+    );
+}
+
+// cargo[verify root.excluded]
+#[tokio::test]
+async fn roots_of_a_workspace_that_excludes_a_member_name_a_workspace_below_the_member() {
+    let project = Project::new();
+    project.write("Cargo.toml", EXCLUDING_A_MEMBER);
+    project.write("fixtures/real/Cargo.toml", REAL);
+    project.write("fixtures/real/src/lib.rs", "");
+    project.write("fixtures/real/own/Cargo.toml", STANDALONE);
+    project.write("fixtures/real/own/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots,
+        [
+            CargoRoot::builder()
+                .directory(project.root().get().to_path_buf())
+                .documentation(Documentation::Testable)
+                .packages(vec![package("real", DocumentedNames::Unique)])
+                .build(),
+            project.binary_root("fixtures/real/own")
+        ]
+    );
+}
+
+// cargo[verify root.excluded]
+#[tokio::test]
+async fn roots_of_a_workspace_that_excludes_a_pattern_name_the_package_it_matches() {
+    let project = Project::workspace_excluding("examples/*");
+    project.write("examples/sample/Cargo.toml", STANDALONE);
+    project.write("examples/sample/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots,
+        [
+            project.workspace_root(),
+            project.binary_root("examples/sample")
+        ]
+    );
+}
+
+// cargo[verify root.excluded]
+#[tokio::test]
+async fn roots_of_a_workspace_that_excludes_a_prefix_name_the_package_it_shares_letters_with() {
+    let project = Project::workspace_excluding("fix");
+    project.write("fixtures/Cargo.toml", STANDALONE);
+    project.write("fixtures/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots,
+        [project.workspace_root(), project.binary_root("fixtures")]
+    );
+}
+
+// cargo[verify root.nested]
+#[tokio::test]
+async fn roots_ignore_a_nested_project() {
+    let project = Project::workspace();
+    project.write(&format!(".claude/worktrees/feature/{MARKER}"), "");
+    project.write(".claude/worktrees/feature/Cargo.toml", BROKEN);
+
+    let roots = project.roots().await;
+
+    assert!(
+        matches!(&roots, Ok(found) if found == &[project.workspace_root()]),
+        "expected only the workspace, got {roots:?}"
+    );
+}
+
+// A marker that is a directory cannot be read as a file, so the test fails
+// when the discovery decides by reading the marker instead of by its presence.
+// cargo[verify root.nested]
+#[tokio::test]
+async fn roots_ignore_a_nested_project_whose_marker_is_a_directory() {
+    let project = Project::workspace();
+    std::fs::create_dir_all(project.root.join("nested").join(MARKER))
+        .expect("the test creates the marker as a directory");
+    project.write("nested/Cargo.toml", BROKEN);
+
+    let roots = project.roots().await;
+
+    assert!(
+        matches!(&roots, Ok(found) if found == &[project.workspace_root()]),
+        "expected only the workspace, got {roots:?}"
+    );
+}
+
+// cargo[verify root.nested]
+#[cfg(unix)]
+#[tokio::test]
+async fn roots_ignore_an_unreadable_directory_of_a_nested_project() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::workspace();
+    project.write(&format!("nested/{MARKER}"), "");
+    project.write("nested/closed/README.md", "# Project\n");
+    let closed = project.root.join("nested/closed");
+    std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a directory");
+
+    let roots = project.roots().await;
+
+    std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o755))
+        .expect("the test restores the permissions of a directory");
+    assert!(
+        matches!(&roots, Ok(found) if found == &[project.workspace_root()]),
+        "expected only the workspace, got {roots:?}"
+    );
+}
+
+// cargo[verify root.nested]
+#[tokio::test]
+async fn roots_of_a_project_that_holds_the_marker_name_its_workspace() {
+    let project = Project::workspace();
+    project.write(MARKER, "");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(roots, [project.workspace_root()]);
+}
+
+// cargo[verify root.discover+2]
 #[tokio::test]
 async fn roots_of_a_project_with_a_standalone_package_name_both() {
     let project = Project::workspace();
@@ -759,7 +956,7 @@ async fn roots_of_a_project_with_a_standalone_package_name_both() {
     );
 }
 
-// cargo[verify root.discover]
+// cargo[verify root.discover+2]
 #[tokio::test]
 async fn roots_of_a_project_without_a_workspace_name_the_package() {
     let project = Project::new();
@@ -786,7 +983,7 @@ async fn roots_of_a_workspace_name_no_member() {
     );
 }
 
-// cargo[verify root.discover]
+// cargo[verify root.discover+2]
 #[tokio::test]
 async fn roots_of_a_workspace_name_the_workspace_once() {
     let project = Project::workspace();

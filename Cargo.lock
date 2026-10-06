@@ -614,6 +614,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "toml_edit",
  "typed-fields",
 ]
 
