@@ -134,9 +134,9 @@ url = "https://github.com/oxc-project/oxc/releases/download/apps_v1.83.0/oxlint-
 url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/563328400"
 
 [[tools."pipx:pre-commit"]]
-version = "4.6.2"
+version = "4.7.0"
 backend = "pipx:pre-commit"
-specifiers = ["4.6.2"]
+specifiers = ["4.7.0"]
 
 [[tools.pnpm]]
 version = "12.11.2"
