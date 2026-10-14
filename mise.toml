@@ -11,7 +11,7 @@ cargo-binstall = "1.25.3"
 # what lets the actions that wrap them start any of the four.
 # The build script of tracey bundles a web dashboard with node and pnpm, and
 # the install of tracey below is the only consumer of the second pin.
-node = "24.21.0"
+node = "24.22.0"
 pnpm = "12.11.2"
 
 # The first toolchain is the default for builds, Clippy, and the tests. The
