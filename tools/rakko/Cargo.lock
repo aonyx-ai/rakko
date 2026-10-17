@@ -597,6 +597,7 @@ name = "rakko-baseline"
 version = "0.1.0"
 dependencies = [
  "rakko-action",
+ "rakko-check-mise-lock",
  "rakko-check-renovate-config",
  "rakko-format-json",
  "rakko-format-markdown",
@@ -670,6 +671,23 @@ dependencies = [
  "rakko-tool",
  "rakko-worktree",
  "thiserror",
+]
+
+[[package]]
+name = "rakko-check-mise-lock"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "rakko-worktree",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "toml_edit",
+ "typed-fields",
 ]
 
 [[package]]
@@ -1217,6 +1235,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1340ea94a5856333492c9064b02c778b191dd2c853778d9609debdcdfea3a614"
 dependencies = [
  "indexmap",
+ "serde_core",
+ "serde_spanned",
  "toml_datetime",
  "toml_parser",
  "toml_writer",

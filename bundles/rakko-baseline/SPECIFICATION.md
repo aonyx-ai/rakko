@@ -7,9 +7,11 @@ whole set with one dependency and one line in its harness, and a release of the
 bundle rolls a change across every project that mounts it.
 
 Membership is the decision that this crate carries. JSON, Markdown, TOML, YAML,
-the workflows of GitHub Actions, and the configuration of Renovate are the files
-that a project holds before it holds a line of code, so they belong to every
-project of the fleet. Nothing that belongs to one language belongs here. The
+the workflows of GitHub Actions, the configuration of Renovate, and the lockfile
+of mise are the files that a project holds before it holds a line of code, so
+they belong to every project of the fleet. Mise installs the tools of every
+project, and every project runs its harness through mise, so the lockfile of
+mise is such a file. Nothing that belongs to one language belongs here. The
 bundle therefore contains no other bundle, and no bundle contains it: a project
 mounts it alone, or beside the bundle of its language, such as a Rust bundle or
 the TypeScript bundle.
@@ -28,10 +30,10 @@ MUST has the meaning that [RFC 2119] defines.
 The list that the bundle exports is what a harness mounts, so the names in it
 are the commands that a project gains.
 
-baseline[actions+2]
-The bundle MUST export the actions `check-renovate-config`, `format-json`,
-`format-markdown`, `format-toml`, `format-yaml`, `lint-github-actions`,
-`lint-markdown`, `lint-toml`, and `lint-yaml`.
+baseline[actions+3]
+The bundle MUST export the actions `check-mise-lock`, `check-renovate-config`,
+`format-json`, `format-markdown`, `format-toml`, `format-yaml`,
+`lint-github-actions`, `lint-markdown`, `lint-toml`, and `lint-yaml`.
 
 [rfc 2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/

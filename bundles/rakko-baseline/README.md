@@ -25,8 +25,12 @@ bundle but one action filters the list, because the list is an ordinary value.
 
 ## Actions
 
-The bundle exports nine actions:
+The bundle exports ten actions:
 
+- `check-mise-lock` checks that `mise lock` would leave the lockfile of [mise]
+  as it is, so that the lockfile holds an entry for each tool on each platform
+  that the project names, and an install in locked mode does not stop on a new
+  machine.
 - `check-renovate-config` checks the configuration of [Renovate] with
   [renovate-config-validator], the validator that Renovate ships.
 - `format-json` formats the JSON files with [prettier].
@@ -43,6 +47,20 @@ The validator of Renovate also reads the global configuration that a
 self-hosted Renovate starts with: `config.js` in the root of the project, or
 the file that `RENOVATE_CONFIG_FILE` names. A project whose `config.js` is not
 a configuration of Renovate can therefore fail or stop `check-renovate-config`.
+
+`check-mise-lock` checks the platforms that the setting `lockfile_platforms`
+names in a configuration file of mise of the project, such as `mise.toml`, and
+the platform of the machine that runs it. Each project names its own
+platforms: those of its CI jobs and those of the machines of its contributors.
+The action cannot see the workflows of a project, so a pull request that adds
+a platform to CI adds it to `lockfile_platforms` too. Without the setting, mise
+checks the platforms that the lockfile already records.
+
+`check-mise-lock` fails on each entry that `mise lock` would add, change, or
+remove, such as an entry of a tool that the project no longer pins. A project
+that pins tools and has no lockfile therefore fails on every entry. Such a
+project creates its lockfile with `check-mise-lock --fix`, which writes what
+`mise lock` locks into the project and reports each repair.
 
 ## Tools
 
@@ -61,6 +79,12 @@ mounts this bundle pins these tools in its `mise.toml`:
 - `taplo`, for `format-toml` and `lint-toml`.
 - `yamllint`, for `lint-yaml`.
 - `zizmor`, for `lint-github-actions`.
+
+`check-mise-lock` runs mise itself, so it needs no pin. `mise lock` asks the
+API of GitHub for the downloads of the tools of the `aqua` and `github`
+backends, though, so the action needs the network. A token of GitHub, such as
+`GITHUB_TOKEN` or a login of `gh`, keeps mise below the rate limit of GitHub.
+A run that reaches the limit stops with the warning of mise.
 
 Renovate publishes several releases a day, so the pin of `npm:renovate` would
 bring several update pull requests a day. The shared preset
