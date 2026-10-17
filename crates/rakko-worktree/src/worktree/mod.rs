@@ -182,12 +182,6 @@ impl Worktree {
     /// [path]: CreateWorktreeError::UnsyncedPath
     /// [status]: CreateWorktreeError::UnreadableStatus
     /// [worktree]: CreateWorktreeError::WorktreeUnavailable
-    // worktree[impl worktree.detached]
-    // worktree[impl worktree.temporary]
-    // worktree[impl worktree.unavailable]
-    // worktree[impl repository.missing]
-    // worktree[impl repository.toplevel]
-    // worktree[impl project.untouched]
     pub async fn create(project: ProjectRoot) -> Result<Self, CreateWorktreeError> {
         let top_level = top_level(&project).await?;
 
@@ -250,9 +244,6 @@ impl Worktree {
     /// # Ok(())
     /// # }
     /// ```
-    // worktree[impl path.inside]
-    // worktree[impl path.foreign]
-    // worktree[impl path.parent]
     pub fn path_of(&self, path: &Path) -> Option<PathBuf> {
         let absolute = if path.is_absolute() {
             path.to_path_buf()
@@ -309,9 +300,6 @@ impl Worktree {
     ///
     /// Returns an error when the crate cannot read what changed, and when a
     /// path does not reach the copy.
-    // worktree[impl sync.changed]
-    // worktree[impl sync.ignored]
-    // worktree[impl sync.modified]
     async fn sync(&self) -> Result<(), CreateWorktreeError> {
         for path in self.changed().await? {
             self.sync_path(&path)
@@ -369,7 +357,6 @@ impl Worktree {
 /// still goes with the value, and `git worktree prune` forgets the entry that
 /// it leaves.
 impl Drop for Worktree {
-    // worktree[impl remove.drop]
     fn drop(&mut self) {
         let _ = self::git::blocking_command(self.project.get())
             .arg(WORKTREE)
@@ -456,7 +443,6 @@ fn names_the_same_directory(top_level: &Path, project: &ProjectRoot) -> bool {
 /// its parents answers for the wrong directory, so the climb is resolved
 /// first. The resolution is lexical: a component that is a symbolic link
 /// resolves as a directory, which is how the caller wrote the path.
-// worktree[impl path.parent]
 fn normalize(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
 
@@ -497,8 +483,6 @@ fn remove(target: &Path) -> IoResult<()> {
 /// The root of a project can name the same directory through a symbolic link,
 /// and a caller can hold the directory that the link resolves to, which is why
 /// the canonical root is tried as well.
-// worktree[impl path.inside]
-// worktree[impl path.foreign]
 fn strip(path: &Path, project: &ProjectRoot) -> Option<PathBuf> {
     if let Ok(stripped) = path.strip_prefix(project.get()) {
         return Some(stripped.to_path_buf());
@@ -693,7 +677,6 @@ mod tests {
         fs::read_to_string(worktree.root().get().join(path)).ok()
     }
 
-    // worktree[verify repository.toplevel]
     #[tokio::test]
     async fn create_below_the_top_level_names_both_directories() {
         let repository = Repository::new();
@@ -706,7 +689,6 @@ mod tests {
         assert!(error.to_string().contains("is not the top level"));
     }
 
-    // worktree[verify worktree.detached]
     #[tokio::test]
     async fn create_checks_out_a_detached_head() {
         let repository = Repository::new();
@@ -725,7 +707,6 @@ mod tests {
         );
     }
 
-    // worktree[verify worktree.detached]
     #[tokio::test]
     async fn create_checks_out_the_commit_of_the_project() {
         let repository = Repository::new();
@@ -748,7 +729,6 @@ mod tests {
         );
     }
 
-    // worktree[verify sync.changed]
     #[tokio::test]
     async fn create_copies_a_changed_file() {
         let repository = Repository::new();
@@ -778,7 +758,6 @@ mod tests {
         assert!(worktree.root().get().join("link.txt").is_symlink());
     }
 
-    // worktree[verify sync.changed]
     #[tokio::test]
     async fn create_copies_a_staged_file() {
         let repository = Repository::new();
@@ -792,7 +771,6 @@ mod tests {
         assert_eq!(content(&worktree, "staged.txt").as_deref(), Some("staged"));
     }
 
-    // worktree[verify sync.changed]
     #[tokio::test]
     async fn create_copies_an_untracked_file_in_a_new_directory() {
         let repository = Repository::new();
@@ -808,7 +786,6 @@ mod tests {
         );
     }
 
-    // worktree[verify sync.ignored]
     #[tokio::test]
     async fn create_ignores_a_file_that_git_ignores() {
         let repository = Repository::new();
@@ -824,7 +801,6 @@ mod tests {
         assert_eq!(content(&worktree, "target/artifact.bin"), None);
     }
 
-    // worktree[verify sync.modified]
     #[tokio::test]
     async fn create_in_a_clean_project_reports_the_copy_as_unmodified() {
         let repository = Repository::new();
@@ -836,7 +812,6 @@ mod tests {
         assert!(!Repository::is_modified(worktree.root().get()));
     }
 
-    // worktree[verify sync.modified]
     #[tokio::test]
     async fn create_in_a_modified_project_reports_the_copy_as_modified() {
         let repository = Repository::new();
@@ -849,7 +824,6 @@ mod tests {
         assert!(Repository::is_modified(worktree.root().get()));
     }
 
-    // worktree[verify project.untouched]
     #[tokio::test]
     async fn create_leaves_the_project_as_it_was() {
         let repository = Repository::new();
@@ -866,7 +840,6 @@ mod tests {
         assert_eq!(repository.state(), before);
     }
 
-    // worktree[verify worktree.temporary]
     #[tokio::test]
     async fn create_puts_the_copy_outside_the_project() {
         let repository = Repository::new();
@@ -878,7 +851,6 @@ mod tests {
         assert!(!worktree.root().get().starts_with(repository.root().get()));
     }
 
-    // worktree[verify worktree.temporary]
     #[tokio::test]
     async fn create_puts_the_copy_under_the_temporary_directory() {
         let repository = Repository::new();
@@ -890,7 +862,6 @@ mod tests {
         assert!(worktree.root().get().starts_with(env::temp_dir()));
     }
 
-    // worktree[verify sync.changed]
     #[tokio::test]
     async fn create_removes_a_file_that_the_project_deleted() {
         let repository = Repository::new();
@@ -903,7 +874,6 @@ mod tests {
         assert_eq!(content(&worktree, "tracked.txt"), None);
     }
 
-    // worktree[verify worktree.unavailable]
     #[tokio::test]
     async fn create_without_a_commit_holds_what_git_wrote() {
         let repository = Repository::empty();
@@ -915,7 +885,6 @@ mod tests {
         assert!(error.to_string().contains("HEAD"));
     }
 
-    // worktree[verify repository.missing]
     #[tokio::test]
     async fn create_without_a_repository_names_the_project() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -928,7 +897,6 @@ mod tests {
         assert!(error.to_string().contains("is not in a git repository"));
     }
 
-    // worktree[verify remove.drop]
     #[tokio::test]
     async fn drop_removes_the_directory_of_the_copy() {
         let repository = Repository::new();
@@ -942,7 +910,6 @@ mod tests {
         assert!(!root.exists());
     }
 
-    // worktree[verify remove.drop]
     #[tokio::test]
     async fn drop_removes_the_worktree_of_the_repository() {
         let repository = Repository::new();
@@ -960,7 +927,6 @@ mod tests {
         );
     }
 
-    // worktree[verify path.foreign]
     #[tokio::test]
     async fn path_of_a_path_outside_the_project_names_nothing() {
         let repository = Repository::new();
@@ -973,7 +939,6 @@ mod tests {
         assert_eq!(inside, None);
     }
 
-    // worktree[verify path.parent]
     #[tokio::test]
     async fn path_of_a_path_that_climbs_out_of_the_project_names_nothing() {
         let repository = Repository::new();
@@ -986,7 +951,6 @@ mod tests {
         assert_eq!(inside, None);
     }
 
-    // worktree[verify path.parent]
     #[tokio::test]
     async fn path_of_a_path_that_climbs_within_the_project_resolves_the_climb() {
         let repository = Repository::new();
@@ -999,7 +963,6 @@ mod tests {
         assert_eq!(inside, Some(worktree.root().get().join("crates/other")));
     }
 
-    // worktree[verify path.inside]
     #[tokio::test]
     async fn path_of_an_absolute_path_of_the_project_names_the_same_path() {
         let repository = Repository::new();
@@ -1017,7 +980,6 @@ mod tests {
     // symbolic link on macOS, and a short name on Windows. The resolved root
     // must then carry the spelling that the caller holds, or no path gets a
     // name inside the copy.
-    // worktree[verify path.inside]
     #[tokio::test]
     async fn path_of_an_absolute_path_under_the_resolved_root_names_the_same_path() {
         let repository = Repository::new();
@@ -1031,7 +993,6 @@ mod tests {
         assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
     }
 
-    // worktree[verify path.inside]
     #[tokio::test]
     async fn path_of_a_relative_path_of_the_project_names_the_same_path() {
         let repository = Repository::new();

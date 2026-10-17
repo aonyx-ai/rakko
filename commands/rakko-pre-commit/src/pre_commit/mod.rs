@@ -75,7 +75,6 @@ impl fmt::Debug for PreCommit {
 impl Command for PreCommit {
     type Args = PreCommitArgs;
 
-    // precommit[impl name]
     fn name(&self) -> Name {
         action_name!("pre-commit")
     }
@@ -93,10 +92,6 @@ impl Command for PreCommit {
     /// Returns an error when an action found problems or stopped, so that the
     /// commit waits for whoever started it. Returns an error as well when a
     /// report does not reach the reader.
-    // precommit[impl lists.order]
-    // precommit[impl lists.fix]
-    // precommit[impl result.failed]
-    // precommit[impl result.succeeded]
     async fn run(
         &self,
         project: &Context,
@@ -132,8 +127,6 @@ impl Command for PreCommit {
 /// every other run passes nothing. Which actions receive it is the code above:
 /// the actions that only read repair nothing, and they take no argument at
 /// all.
-// precommit[impl lists.fix]
-// precommit[impl args.absent]
 fn repairs(args: &PreCommitArgs) -> ArgsValues {
     if args.fix() {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
@@ -155,11 +148,6 @@ fn repairs(args: &PreCommitArgs) -> ArgsValues {
 /// # Errors
 ///
 /// Returns an error when the report of an action does not reach the reader.
-// precommit[impl lists.order]
-// precommit[impl lists.sequential]
-// precommit[impl report.each]
-// precommit[impl report.unreported]
-// precommit[impl result.continue]
 async fn drive(
     actions: &[Box<dyn ErasedAction>],
     values: &ArgsValues,
@@ -393,7 +381,6 @@ mod tests {
         .await;
     }
 
-    // precommit[verify name]
     #[test]
     fn name_is_the_name_of_the_hook() {
         let command = PreCommit::new([], []);
@@ -401,7 +388,6 @@ mod tests {
         assert_eq!(command.name().get(), "pre-commit");
     }
 
-    // precommit[verify lists.fix]
     #[test]
     fn repairs_of_a_run_that_asks_for_a_repair_carry_the_fix_argument() {
         let args = PreCommitArgs::from_values(&ArgsValues::new([(
@@ -418,7 +404,6 @@ mod tests {
         );
     }
 
-    // precommit[verify args.absent]
     #[test]
     fn repairs_of_a_run_that_asks_for_a_report_are_empty() {
         let args = PreCommitArgs::default();
@@ -428,7 +413,6 @@ mod tests {
         assert_eq!(values, ArgsValues::empty());
     }
 
-    // precommit[verify lists.order]
     #[test]
     fn run_drives_the_actions_that_write_first_and_each_list_in_order() {
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -439,7 +423,7 @@ mod tests {
             ],
             [
                 passing(action_name!("lint-yaml"), &log),
-                passing(action_name!("check-specs"), &log),
+                passing(action_name!("lint-toml"), &log),
             ],
         );
 
@@ -447,11 +431,10 @@ mod tests {
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
-            ["format-yaml", "format-json", "lint-yaml", "check-specs"]
+            ["format-yaml", "format-json", "lint-yaml", "lint-toml"]
         );
     }
 
-    // precommit[verify report.each]
     #[test]
     fn run_reports_each_action_in_the_order_of_the_run() {
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -459,7 +442,7 @@ mod tests {
             [passing(action_name!("format-yaml"), &log)],
             [
                 passing(action_name!("lint-yaml"), &log),
-                passing(action_name!("check-specs"), &log),
+                passing(action_name!("lint-toml"), &log),
             ],
         );
 
@@ -470,12 +453,11 @@ mod tests {
             [
                 "format-yaml: passed",
                 "lint-yaml: passed",
-                "check-specs: passed"
+                "lint-toml: passed"
             ]
         );
     }
 
-    // precommit[verify lists.fix]
     #[test]
     fn run_that_asks_for_a_repair_gives_fix_to_the_actions_that_write_alone() {
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -497,7 +479,6 @@ mod tests {
         );
     }
 
-    // precommit[verify lists.sequential]
     #[test]
     fn run_waits_for_an_action_before_it_drives_the_next() {
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -523,7 +504,6 @@ mod tests {
         );
     }
 
-    // precommit[verify result.failed]
     #[test]
     fn run_with_actions_that_found_problems_counts_them() {
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -531,7 +511,7 @@ mod tests {
             [passing(action_name!("format-yaml"), &log)],
             [
                 failing(action_name!("lint-yaml"), &log),
-                failing(action_name!("check-specs"), &log),
+                failing(action_name!("lint-toml"), &log),
             ],
         );
 
@@ -543,7 +523,6 @@ mod tests {
         );
     }
 
-    // precommit[verify result.continue]
     #[test]
     fn run_with_an_action_that_found_problems_drives_the_actions_after_it() {
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -563,7 +542,6 @@ mod tests {
         );
     }
 
-    // precommit[verify result.succeeded]
     #[test]
     fn run_with_clean_actions_succeeds() {
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -577,7 +555,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // precommit[verify report.unreported]
     #[test]
     fn run_without_a_reader_fails_at_the_report_of_the_first_action() {
         let log = Arc::new(Mutex::new(Vec::new()));

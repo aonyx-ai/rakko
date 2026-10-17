@@ -66,8 +66,6 @@ impl From<ObserveTscError> for CheckTypeScriptError {
     ///
     /// The machinery that runs tsc names the same three conditions that the
     /// action reports, so the conversion renames them and adds nothing.
-    // checktypescript[impl check.unreadable]
-    // checktypescript[impl check.unreported]
     fn from(error: ObserveTscError) -> Self {
         match error {
             ObserveTscError::MissingReport { details } => Self::MissingReport { details },
@@ -93,7 +91,6 @@ mod tests {
     /// What tsc wrote in a run whose report the action could not read
     const REPORT: &str = "tsc: The TypeScript Compiler - Version 7.0.2";
 
-    // checktypescript[verify check.unreported]
     #[test]
     fn error_of_a_silent_run_holds_what_tsc_wrote() {
         let error = CheckTypeScriptError::from(ObserveTscError::MissingReport {
@@ -106,7 +103,6 @@ mod tests {
         );
     }
 
-    // checktypescript[verify check.unreadable]
     #[test]
     fn error_of_an_unreadable_report_holds_what_tsc_wrote() {
         let error = CheckTypeScriptError::from(ObserveTscError::UnreadableReport {

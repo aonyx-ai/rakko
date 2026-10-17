@@ -33,7 +33,6 @@ impl DependencyKind {
     ///
     /// The word is the singular of the table that declares the dependency,
     /// so that a reader of a finding can search the manifest for it.
-    // checkunuseddeps[impl check.finding]
     pub fn label(self) -> &'static str {
         match self {
             Self::Normal => DEPENDENCY,
@@ -51,7 +50,6 @@ mod tests {
 
     use super::*;
 
-    // checkunuseddeps[verify check.finding]
     #[test]
     fn label_of_a_build_dependency_names_its_table() {
         let label = DependencyKind::Build.label();
@@ -59,7 +57,6 @@ mod tests {
         assert_eq!(label, "build-dependency");
     }
 
-    // checkunuseddeps[verify check.finding]
     #[test]
     fn label_of_a_development_dependency_names_its_table() {
         let label = DependencyKind::Development.label();
@@ -67,7 +64,6 @@ mod tests {
         assert_eq!(label, "dev-dependency");
     }
 
-    // checkunuseddeps[verify check.finding]
     #[test]
     fn label_of_a_normal_dependency_names_no_table() {
         let label = DependencyKind::Normal.label();

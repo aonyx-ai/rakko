@@ -59,10 +59,8 @@ const UNFORMATTED: &str = "the file is not properly formatted";
 pub struct LintToml;
 
 impl Action for LintToml {
-    // linttoml[impl args.none]
     type Args = ();
 
-    // linttoml[impl name]
     fn name(&self) -> Name {
         action_name!("lint-toml")
     }
@@ -70,7 +68,6 @@ impl Action for LintToml {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // linttoml[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -89,16 +86,12 @@ impl Action for LintToml {
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, the taplo run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintTomlError> {
-    // linttoml[impl tool.taplo]
-    // linttoml[impl tool.missing]
     let taplo = Taplo::resolve(context.root().clone())
         .await
         .map_err(|source| LintTomlError::UnresolvedTool { source })?;
 
-    // linttoml[impl check.read]
     let observation = taplo.observe(Operation::Lint).await?;
 
-    // linttoml[impl check.configuration]
     if let Some(details) = observation.rejected_configuration() {
         return Err(LintTomlError::RejectedConfiguration {
             details: details.clone(),
@@ -109,8 +102,6 @@ async fn drive(context: &Context) -> Result<Outcome, LintTomlError> {
         return Ok(passed(&observation));
     }
 
-    // linttoml[impl check.diagnostic]
-    // linttoml[impl check.refused]
     Ok(Outcome::Failed {
         findings: findings(observation.problems(), context.root())?,
         repairs: Vec::new(),
@@ -181,7 +172,6 @@ fn findings(problems: &[TaploProblem], root: &ProjectRoot) -> Result<Vec<Finding
 /// count, and a pass without it stays a pass: taplo ended the run with
 /// success, and no line that a report loses can turn a run that found
 /// problems into one that found none.
-// linttoml[impl check.passed+2]
 fn passed(observation: &Observation) -> Outcome {
     Outcome::Passed {
         summary: observation.checked().map(summary),
@@ -189,7 +179,6 @@ fn passed(observation: &Observation) -> Outcome {
 }
 
 /// Returns the summary that tells how many files taplo checked
-// linttoml[impl check.passed+2]
 fn summary(checked: u64) -> Summary {
     if checked == 1 {
         Summary::new("checked 1 file")
@@ -206,7 +195,6 @@ mod tests {
 
     use super::*;
 
-    // linttoml[verify check.passed+2]
     #[test]
     fn passed_of_a_run_that_counted_one_file_says_so() {
         let observation = Observation::builder().checked(1).succeeded(true).build();
@@ -219,7 +207,6 @@ mod tests {
         );
     }
 
-    // linttoml[verify check.passed+2]
     #[test]
     fn passed_of_a_run_without_a_count_says_nothing() {
         let observation = Observation::builder().succeeded(true).build();

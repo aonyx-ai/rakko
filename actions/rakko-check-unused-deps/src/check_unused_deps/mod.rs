@@ -82,10 +82,8 @@ const UDEPS: [&str; 6] = [
 pub struct CheckUnusedDeps;
 
 impl Action for CheckUnusedDeps {
-    // checkunuseddeps[impl args.none]
     type Args = ();
 
-    // checkunuseddeps[impl name]
     fn name(&self) -> Name {
         action_name!("check-unused-deps")
     }
@@ -93,9 +91,6 @@ impl Action for CheckUnusedDeps {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // checkunuseddeps[impl roots.error]
-            // checkunuseddeps[impl tool.missing]
-            // checkunuseddeps[impl tool.unpinned]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -115,25 +110,19 @@ impl Action for CheckUnusedDeps {
 /// the tool or of the toolchain, the discovery of the workspaces, a run of
 /// cargo, or the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
-    // checkunuseddeps[impl tool.cargo]
-    // checkunuseddeps[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| CheckUnusedDepsError::UnresolvedTool { source })?;
 
-    // checkunuseddeps[impl tool.toolchain]
-    // checkunuseddeps[impl tool.unpinned]
     let toolchain = Toolchain::resolve(Channel::new(NIGHTLY), context.root())
         .await
         .map_err(|source| CheckUnusedDepsError::UnresolvedToolchain { source })?;
 
-    // checkunuseddeps[impl roots.error]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| CheckUnusedDepsError::UndiscoveredRoots { source })?;
 
-    // checkunuseddeps[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
@@ -142,18 +131,15 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
 
     let mut findings = Vec::new();
 
-    // checkunuseddeps[impl roots.every]
     for root in &roots {
         findings.extend(check(&cargo, root, &toolchain, context).await?);
     }
 
     if findings.is_empty() {
-        // checkunuseddeps[impl check.passed]
         Ok(Outcome::Passed {
             summary: Some(summary(roots.len())),
         })
     } else {
-        // checkunuseddeps[impl check.failed]
         Ok(Outcome::Failed {
             findings,
             repairs: Vec::new(),
@@ -179,8 +165,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
 ///
 /// [unavailable]: CheckUnusedDepsError::CargoUnavailable
 /// [unrecognized]: CheckUnusedDepsError::UnrecognizedReport
-// checkunuseddeps[impl check.operation]
-// checkunuseddeps[impl check.read]
 async fn check(
     cargo: &Cargo,
     root: &CargoRoot,
@@ -196,7 +180,6 @@ async fn check(
 
     let stdout = execution.stdout().to_string_lossy();
 
-    // checkunuseddeps[impl check.unreadable]
     let build = CargoReport::read(&stdout).map_err(|source| {
         CheckUnusedDepsError::UnreadableCargoReport {
             root: root.directory().clone(),
@@ -204,7 +187,6 @@ async fn check(
         }
     })?;
 
-    // checkunuseddeps[impl check.unreadable]
     let report = UdepsReport::read(&stdout).map_err(|source| {
         CheckUnusedDepsError::UnreadableUdepsReport {
             root: root.directory().clone(),
@@ -212,7 +194,6 @@ async fn check(
         }
     })?;
 
-    // checkunuseddeps[impl check.unrecognized]
     if !recognized(report.as_ref(), &build, &execution) {
         return Err(CheckUnusedDepsError::UnrecognizedReport {
             root: root.directory().clone(),
@@ -220,7 +201,6 @@ async fn check(
         });
     }
 
-    // checkunuseddeps[impl check.diagnostic]
     let Some(report) = report else {
         return Ok(build
             .diagnostics()
@@ -229,9 +209,6 @@ async fn check(
             .collect());
     };
 
-    // checkunuseddeps[impl check.failed]
-    // checkunuseddeps[impl check.finding]
-    // checkunuseddeps[impl check.foreign]
     Ok(report
         .dependencies()
         .iter()
@@ -246,7 +223,6 @@ async fn check(
 /// with an unused dependency. A run without that report answers only when it
 /// ended without success and the compiler said why, because that is a build
 /// that did not finish. Anything else leaves the action without an answer.
-// checkunuseddeps[impl check.unrecognized]
 fn recognized(report: Option<&UdepsReport>, build: &CargoReport, execution: &Execution) -> bool {
     if report.is_some() {
         return true;
@@ -256,7 +232,6 @@ fn recognized(report: Option<&UdepsReport>, build: &CargoReport, execution: &Exe
 }
 
 /// Returns the summary that tells how many workspaces the run examined
-// checkunuseddeps[impl check.passed]
 fn summary(roots: usize) -> Summary {
     if roots == 1 {
         Summary::new("examined 1 workspace")
@@ -273,7 +248,6 @@ mod tests {
 
     use super::*;
 
-    // checkunuseddeps[verify check.passed]
     #[test]
     fn summary_of_one_workspace_says_so() {
         let summary = summary(1);
@@ -281,7 +255,6 @@ mod tests {
         assert_eq!(summary.get(), "examined 1 workspace");
     }
 
-    // checkunuseddeps[verify check.passed]
     #[test]
     fn summary_of_two_workspaces_counts_them() {
         let summary = summary(2);

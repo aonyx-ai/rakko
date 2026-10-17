@@ -59,14 +59,11 @@ pub use self::values::{ArgsValues, ArgumentValue};
 ///     }
 /// }
 /// ```
-// action[impl args.send]
-// action[impl args.sync]
 pub trait Args: Send + Sync + Sized {
     /// Returns the description of the arguments
     ///
     /// A projection calls this before a run exists, so the description belongs
     /// to the type and not to a value of it.
-    // action[impl args.schema]
     fn schema() -> ArgsSchema;
 
     /// Builds the arguments from the values that the machinery parsed
@@ -75,11 +72,9 @@ pub trait Args: Send + Sync + Sized {
     ///
     /// Returns a [`ReadArgsError`] when a value that the arguments require is
     /// absent, or when a value does not convert to the type of its field.
-    // action[impl args.values]
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError>;
 }
 
-// action[impl args.empty]
 impl Args for () {
     fn schema() -> ArgsSchema {
         ArgsSchema::empty()
@@ -111,19 +106,16 @@ mod tests {
         assert_sync::<A>();
     }
 
-    // action[verify args.send]
     #[test]
     fn args_are_send() {
         require_args_send::<()>();
     }
 
-    // action[verify args.sync]
     #[test]
     fn args_are_sync() {
         require_args_sync::<()>();
     }
 
-    // action[verify args.empty]
     #[test]
     fn unit_builds_from_values() {
         let values = ArgsValues::empty();
@@ -133,7 +125,6 @@ mod tests {
         assert_eq!(args, Ok(()));
     }
 
-    // action[verify args.empty]
     #[test]
     fn unit_describes_no_arguments() {
         let schema = <() as Args>::schema();

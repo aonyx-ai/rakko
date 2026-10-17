@@ -39,8 +39,6 @@ impl TaploProblem {
     /// in the root and reports what it found below it, so a path that does
     /// not fit points at a report that the caller misread, and the caller
     /// decides what to do about that.
-    // taplo[impl path.relative]
-    // taplo[impl path.foreign]
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
@@ -59,7 +57,6 @@ mod tests {
         TaploProblem::new(PathBuf::from(path), ProblemDetail::Unformatted)
     }
 
-    // taplo[verify path.foreign]
     #[test]
     fn relative_path_outside_the_root_names_nothing() {
         let problem = problem("/home/otter/elsewhere/a.toml");
@@ -69,7 +66,6 @@ mod tests {
         assert_eq!(path, None);
     }
 
-    // taplo[verify path.relative]
     #[test]
     fn relative_path_under_the_root_drops_the_root() {
         let problem = problem("/home/otter/project/sub/a.toml");

@@ -42,8 +42,6 @@ use crate::outcome::Outcome;
 /// ```
 ///
 /// [`run`]: Action::run
-// action[impl action.send]
-// action[impl action.sync]
 pub trait Action: Send + Sync {
     /// The arguments that a run of the action reads
     ///
@@ -53,11 +51,9 @@ pub trait Action: Send + Sync {
     /// parsed. An action that reads no arguments uses the unit type.
     ///
     /// [`run`]: Action::run
-    // action[impl action.args]
     type Args: Args;
 
     /// Returns the name that identifies the action
-    // action[impl action.name]
     fn name(&self) -> Name;
 
     /// Runs the action against the project that the context names
@@ -68,9 +64,6 @@ pub trait Action: Send + Sync {
     /// repaired travel as repairs in [`Outcome::Changed`], and an error that
     /// stops the run travels in [`Outcome::Errored`]. The method itself has no
     /// error type.
-    // action[impl run.outcome]
-    // action[impl run.wait]
-    // action[impl run.send]
     fn run(&self, context: &Context, args: &Self::Args) -> impl Future<Output = Outcome> + Send;
 }
 
@@ -150,31 +143,26 @@ mod tests {
         require_send(action.run(context, args));
     }
 
-    // action[verify action.send]
     #[test]
     fn action_is_send() {
         require_action_send::<Probe>();
     }
 
-    // action[verify action.sync]
     #[test]
     fn action_is_sync() {
         require_action_sync::<Probe>();
     }
 
-    // action[verify action.args]
     #[test]
     fn args_are_send() {
         require_args_send::<Probe>();
     }
 
-    // action[verify action.args]
     #[test]
     fn args_are_sync() {
         require_args_sync::<Probe>();
     }
 
-    // action[verify action.name]
     #[test]
     fn name_returns_what_the_action_declares() {
         let action = Probe;
@@ -182,7 +170,6 @@ mod tests {
         assert_eq!(action.name().get(), "probe");
     }
 
-    // action[verify run.send]
     #[test]
     fn run_is_send() {
         let action = Probe;
@@ -192,7 +179,6 @@ mod tests {
         require_run_send(&action, &context, &args);
     }
 
-    // action[verify run.outcome]
     #[test]
     fn run_produces_the_outcome_when_driven_again() {
         let action = Probe;
@@ -209,7 +195,6 @@ mod tests {
         assert!(matches!(outcome, Poll::Ready(Outcome::Passed { .. })));
     }
 
-    // action[verify run.wait]
     #[test]
     fn run_returns_control_while_it_waits() {
         let action = Probe;

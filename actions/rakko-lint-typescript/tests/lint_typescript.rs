@@ -197,7 +197,6 @@ impl Drop for Project {
     }
 }
 
-// linttypescript[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<LintTypeScript as Action>::Args as Args>::schema();
@@ -209,7 +208,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// linttypescript[verify name]
 #[test]
 fn action_identifies_itself_as_lint_typescript() {
     let name = LintTypeScript.name();
@@ -217,8 +215,6 @@ fn action_identifies_itself_as_lint_typescript() {
     assert_eq!(name.get(), "lint-typescript");
 }
 
-// linttypescript[verify check.passed]
-// linttypescript[verify tool.oxlint]
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
@@ -232,7 +228,6 @@ async fn run_in_a_valid_project_passes() {
     );
 }
 
-// linttypescript[verify check.passed]
 #[tokio::test]
 async fn run_in_a_valid_project_says_how_many_files_oxlint_examined() {
     let project = Project::new();
@@ -246,7 +241,6 @@ async fn run_in_a_valid_project_says_how_many_files_oxlint_examined() {
     assert_eq!(it.get(), "checked 1 file");
 }
 
-// linttypescript[verify check.read]
 #[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
@@ -257,7 +251,6 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     assert_eq!(project.read("index.ts"), DEBUGGER);
 }
 
-// linttypescript[verify run.project]
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
@@ -272,7 +265,6 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
     assert_eq!(locations(findings), [path_text("deep/sub/broken.ts")]);
 }
 
-// linttypescript[verify check.configuration]
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
@@ -287,8 +279,6 @@ async fn run_reads_the_configuration_of_the_project() {
     );
 }
 
-// linttypescript[verify check.configuration]
-// linttypescript[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_broken_rule_at_the_error_severity_reports_it() {
     let project = Project::new();
@@ -307,8 +297,6 @@ async fn run_with_a_broken_rule_at_the_error_severity_reports_it() {
     );
 }
 
-// linttypescript[verify check.diagnostic]
-// linttypescript[verify run.structured]
 #[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_oxlint() {
     let project = Project::new();
@@ -326,7 +314,6 @@ async fn run_with_a_broken_rule_carries_the_message_of_oxlint() {
     );
 }
 
-// linttypescript[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_broken_rule_names_the_file() {
     let project = Project::new();
@@ -340,7 +327,6 @@ async fn run_with_a_broken_rule_names_the_file() {
     assert_eq!(locations(findings), [path_text("src/index.ts")]);
 }
 
-// linttypescript[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_broken_rule_reports_the_position_of_oxlint() {
     let project = Project::new();
@@ -360,7 +346,6 @@ async fn run_with_a_broken_rule_reports_the_position_of_oxlint() {
     );
 }
 
-// linttypescript[verify check.unreported]
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::new();
@@ -377,7 +362,6 @@ async fn run_with_a_refused_configuration_stops() {
 
 // A rule that oxlint weighs as a warning leaves it ending with success, so a
 // run that answered from the status of the process would pass this project.
-// linttypescript[verify check.severity]
 #[tokio::test]
 async fn run_with_a_warning_fails() {
     let project = Project::new();
@@ -391,7 +375,6 @@ async fn run_with_a_warning_fails() {
     );
 }
 
-// linttypescript[verify skip.unexamined]
 #[tokio::test]
 async fn run_whose_oxlint_examined_nothing_skips() {
     let project = Project::new();
@@ -412,7 +395,6 @@ async fn run_whose_oxlint_examined_nothing_skips() {
 // A project that holds no TypeScript is the project that this action skips, and
 // oxlint reports that it found nothing to lint rather than that it found no
 // problem.
-// linttypescript[verify skip.unexamined]
 #[tokio::test]
 async fn run_without_a_file_that_oxlint_lints_skips() {
     let project = Project::new();
@@ -426,7 +408,6 @@ async fn run_without_a_file_that_oxlint_lints_skips() {
     );
 }
 
-// linttypescript[verify tool.missing]
 #[tokio::test]
 async fn run_without_an_oxlint_stops() {
     let project = Project::without_oxlint();

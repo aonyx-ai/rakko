@@ -122,8 +122,6 @@ impl Cargo {
     ///
     /// [resolve]: Cargo::resolve
     /// [with]: Cargo::invocation_with_toolchain
-    // cargo[impl run.directory]
-    // cargo[impl tool.resolve]
     pub fn invocation(&self, root: &CargoRoot) -> Invocation {
         self.tool
             .invocation()
@@ -138,7 +136,6 @@ impl Cargo {
     /// it changes nothing about what that cargo does.
     ///
     /// [invocation]: Cargo::invocation
-    // cargo[impl run.toolchain]
     pub fn invocation_with_toolchain(&self, root: &CargoRoot, toolchain: &Toolchain) -> Invocation {
         self.invocation(root).arg(toolchain.argument())
     }
@@ -153,8 +150,6 @@ impl Cargo {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no cargo for the
     /// project.
-    // cargo[impl tool.missing]
-    // cargo[impl tool.resolve]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(CARGO), root.clone()).await?;
 
@@ -202,11 +197,6 @@ impl Cargo {
     /// [metadata]: DiscoverRootsError::UnrecognizedMetadata
     /// [unavailable]: DiscoverRootsError::CargoUnavailable
     /// [unrecognized]: DiscoverRootsError::UnrecognizedExclusions
-    // cargo[impl root.contained]
-    // cargo[impl root.discover+2]
-    // cargo[impl root.excluded]
-    // cargo[impl root.member]
-    // cargo[impl root.walk+3]
     pub async fn roots(&self) -> Result<Vec<CargoRoot>, DiscoverRootsError> {
         let mut manifests = manifests(self.root.get()).await?;
         manifests.sort_by_key(|manifest| (manifest.components().count(), manifest.clone()));
@@ -304,7 +294,6 @@ impl Cargo {
     /// [manifest]: DiscoverRootsError::UnreadableManifest
     /// [metadata]: DiscoverRootsError::UnrecognizedMetadata
     /// [unavailable]: DiscoverRootsError::CargoUnavailable
-    // cargo[impl root.manifest]
     async fn metadata(&self, manifest: &Path) -> Result<Metadata, DiscoverRootsError> {
         self.describe(manifest)
             .await
@@ -375,8 +364,6 @@ impl Metadata {
     /// directory, so it does not count. Two targets of one package count
     /// once, because the common case, a binary that carries the name of the
     /// library of its own package, is one that cargo skips.
-    // cargo[impl package.all]
-    // cargo[impl package.shared]
     fn cargo_packages(&self) -> Vec<CargoPackage> {
         let mut owners: HashMap<String, HashSet<&str>> = HashMap::new();
 
@@ -419,7 +406,6 @@ impl Metadata {
     /// Cargo compiles a workspace as one unit, so the highest declaration of
     /// its packages answers, and a workspace whose packages declare nothing
     /// answers `None`.
-    // cargo[impl version.declared+2]
     fn rust_version(&self) -> Option<RustVersion> {
         RustVersion::highest(
             self.packages
@@ -431,7 +417,6 @@ impl Metadata {
 
     /// Returns whether cargo can test the examples in the documentation of
     /// the workspace
-    // cargo[impl doctest.library]
     fn documentation(&self) -> Documentation {
         if self
             .packages
@@ -485,7 +470,6 @@ impl Target {
     /// the name that its manifest states, which can hold a hyphen. The
     /// compiler replaces every hyphen with an underscore, and rustdoc names
     /// the directory of the documentation after the result.
-    // cargo[impl package.shared]
     fn crate_name(&self) -> String {
         self.name.replace('-', "_")
     }
@@ -496,7 +480,6 @@ impl Target {
     /// what decides whether rustdoc can link an example against it. A target
     /// that builds in several forms answers yes when one of them supports
     /// the examples.
-    // cargo[impl doctest.library]
     fn doctested(&self) -> bool {
         self.crate_types
             .iter()
@@ -552,9 +535,6 @@ fn details(execution: &Execution) -> String {
 /// cannot be read.
 ///
 /// [directory]: DiscoverRootsError::UnreadableDirectory
-// cargo[impl root.directory]
-// cargo[impl root.nested]
-// cargo[impl root.walk+3]
 async fn manifests(root: &Path) -> Result<Vec<PathBuf>, DiscoverRootsError> {
     let mut found = Vec::new();
     let mut pending = vec![root.to_path_buf()];
@@ -631,7 +611,6 @@ impl Exclusions {
     ///
     /// [unreadable]: DiscoverRootsError::UnreadableExclusions
     /// [unrecognized]: DiscoverRootsError::UnrecognizedExclusions
-    // cargo[impl root.excluded]
     async fn read(directory: &Path) -> Result<Self, DiscoverRootsError> {
         let manifest = directory.join(MANIFEST);
         let content = tokio::fs::read_to_string(&manifest)
@@ -668,7 +647,6 @@ impl Exclusions {
 
     /// Returns whether cargo excludes the manifest at a path from this
     /// workspace
-    // cargo[impl root.excluded]
     fn exclude(&self, manifest: &Path) -> bool {
         let below =
             |prefixes: &[PathBuf]| prefixes.iter().any(|prefix| manifest.starts_with(prefix));

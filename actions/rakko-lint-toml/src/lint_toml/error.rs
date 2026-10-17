@@ -75,7 +75,6 @@ impl From<ObserveTaploError> for LintTomlError {
     /// action reports, so the conversion renames them and adds nothing. A
     /// report that never arrived complete is one that the action cannot
     /// read, whatever kept it from arriving.
-    // linttoml[impl check.unrecognized]
     fn from(error: ObserveTaploError) -> Self {
         match error {
             ObserveTaploError::IncompleteReport { stderr } => Self::UnrecognizedReport { stderr },
@@ -95,7 +94,6 @@ mod tests {
     /// What taplo wrote in a run that no attempt could read
     const REPORT: &str = "ERROR operation failed error=something new\n";
 
-    // linttoml[verify check.unrecognized]
     #[test]
     fn error_of_an_incomplete_report_holds_what_taplo_wrote() {
         let error = LintTomlError::from(ObserveTaploError::IncompleteReport {

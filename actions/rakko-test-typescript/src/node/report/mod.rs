@@ -115,7 +115,6 @@ pub struct Report {
 /// [counts]: ReadReportError::MissingCounts
 /// [header]: ReadReportError::MissingHeader
 /// [unreadable]: ReadReportError::UnreadableLine
-// testtypescript[impl report.unreadable]
 pub fn read(report: &str) -> Result<Report, ReadReportError> {
     let lines: Vec<&str> = report.lines().collect();
 
@@ -325,7 +324,6 @@ fn start(line: &str) -> Option<Pending> {
         name: unescape(name),
         // A directive excuses whatever the test did, and the runner counts
         // such a test as neither passed nor failed.
-        // testtypescript[impl result.excused]
         failed: failed && directive.is_none(),
         origin: None,
         reason: None,
@@ -359,7 +357,6 @@ fn split_directive(named: &str) -> (&str, Option<&str>) {
 
 /// Returns the error of a line that is no part of a report that this crate
 /// reads
-// testtypescript[impl report.unreadable]
 fn unreadable(line: &str) -> ReadReportError {
     ReadReportError::UnreadableLine {
         line: line.trim().to_owned(),
@@ -394,7 +391,6 @@ impl Pending {
     /// A result that passed adds nothing. Neither does one that failed only
     /// because a test below it failed, because that test is in the list
     /// already, at the place where a reader repairs it.
-    // testtypescript[impl result.subtests]
     fn collect(self, failures: &mut Vec<Failure>) {
         if !self.failed || self.kind.as_deref() == Some(SUBTESTS_FAILED) {
             return;
@@ -410,9 +406,6 @@ impl Pending {
     }
 
     /// Takes the place, the reason, and the kind out of the block of a result
-    // testtypescript[impl result.message]
-    // testtypescript[impl result.position]
-    // testtypescript[impl result.project]
     fn describe(&mut self, block: &Block) {
         self.origin = block.value(LOCATION).and_then(Scalar::place);
         self.reason = block.value(REASON).map(Scalar::flattened);
@@ -481,7 +474,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify result.passed]
     #[test]
     fn read_of_a_report_of_a_run_that_passed_counts_its_tests() {
         let report = read(PASSED).unwrap();
@@ -489,7 +481,6 @@ mod tests {
         assert_eq!(report.tests(), 2);
     }
 
-    // testtypescript[verify skip.untested]
     #[test]
     fn read_of_a_report_of_a_run_without_a_test_counts_none() {
         let report = read(UNTESTED).unwrap();
@@ -497,7 +488,6 @@ mod tests {
         assert_eq!(report.tests(), 0);
     }
 
-    // testtypescript[verify result.failed]
     #[test]
     fn read_of_a_report_of_a_test_that_failed_names_the_test() {
         let report = read(FAILED).unwrap();
@@ -505,7 +495,6 @@ mod tests {
         assert_eq!(report.failures()[0].name(), "counts");
     }
 
-    // testtypescript[verify result.message]
     #[test]
     fn read_of_a_report_of_a_test_that_failed_carries_the_reason_on_one_line() {
         let report = read(FAILED).unwrap();
@@ -516,7 +505,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify result.position]
     #[test]
     fn read_of_a_report_of_a_test_that_failed_carries_its_place() {
         let report = read(FAILED).unwrap();
@@ -533,7 +521,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify result.project]
     #[test]
     fn read_of_a_report_of_a_test_without_a_place_carries_none() {
         let report = read(&one("not ok 1 - counts", "  error: 'test failed'\n")).unwrap();
@@ -541,7 +528,6 @@ mod tests {
         assert_eq!(report.failures()[0].origin(), &None);
     }
 
-    // testtypescript[verify result.subtests]
     #[test]
     fn read_of_a_report_of_a_suite_reports_only_the_test_below_it() {
         let report = read(NESTED).unwrap();
@@ -556,7 +542,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify result.excused]
     #[test]
     fn read_of_a_report_of_a_test_that_is_still_to_do_reports_no_failure() {
         let report = read(&one(
@@ -574,7 +559,6 @@ mod tests {
 
     // The report escapes the character that opens a directive inside a name,
     // so a name that holds one is no directive and the test still counts.
-    // testtypescript[verify result.excused]
     #[test]
     fn read_of_a_report_of_a_test_whose_name_holds_a_hash_reports_the_failure() {
         let report = read(&one(
@@ -602,7 +586,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify report.unreadable]
     #[test]
     fn read_of_text_that_opens_no_report_stops() {
         let error = read("node: bad option: --test-reporter=tap\n").unwrap_err();
@@ -610,7 +593,6 @@ mod tests {
         assert_eq!(error, ReadReportError::MissingHeader);
     }
 
-    // testtypescript[verify report.unreadable]
     #[test]
     fn read_of_a_report_without_the_counts_of_the_run_stops() {
         let error = read("TAP version 13\n# Subtest: adds\nok 1 - adds\n1..1\n").unwrap_err();
@@ -618,7 +600,6 @@ mod tests {
         assert_eq!(error, ReadReportError::MissingCounts);
     }
 
-    // testtypescript[verify report.unreadable]
     #[test]
     fn read_of_a_report_with_a_line_that_states_no_result_stops() {
         let report = PASSED.replace("ok 1 - adds", "PASS adds");

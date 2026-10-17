@@ -265,7 +265,6 @@ impl Drop for Project {
     }
 }
 
-// lintgithubactions[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<LintGitHubActions as Action>::Args as Args>::schema();
@@ -277,7 +276,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// lintgithubactions[verify name]
 #[test]
 fn action_identifies_itself_as_lint_github_actions() {
     let name = LintGitHubActions.name();
@@ -285,8 +283,6 @@ fn action_identifies_itself_as_lint_github_actions() {
     assert_eq!(name.get(), "lint-github-actions");
 }
 
-// lintgithubactions[verify check.passed]
-// lintgithubactions[verify tool.zizmor]
 #[tokio::test]
 async fn run_in_a_clean_project_passes() {
     let project = Project::new();
@@ -300,7 +296,6 @@ async fn run_in_a_clean_project_passes() {
     );
 }
 
-// lintgithubactions[verify check.read]
 #[tokio::test]
 async fn run_leaves_a_workflow_with_a_finding_unchanged() {
     let project = Project::new();
@@ -311,7 +306,6 @@ async fn run_leaves_a_workflow_with_a_finding_unchanged() {
     assert_eq!(project.read(".github/workflows/injection.yml"), INJECTION);
 }
 
-// lintgithubactions[verify run.project]
 #[tokio::test]
 async fn run_names_the_project_and_reports_the_path_below_it() {
     let project = Project::new();
@@ -331,7 +325,6 @@ async fn run_names_the_project_and_reports_the_path_below_it() {
     );
 }
 
-// lintgithubactions[verify run.persona]
 #[tokio::test]
 async fn run_reports_a_finding_of_the_pedantic_persona() {
     let project = Project::new();
@@ -351,7 +344,6 @@ async fn run_reports_a_finding_of_the_pedantic_persona() {
     );
 }
 
-// lintgithubactions[verify run.structured]
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
@@ -366,8 +358,6 @@ async fn run_reads_the_configuration_of_the_project() {
     );
 }
 
-// lintgithubactions[verify check.finding]
-// lintgithubactions[verify check.severity]
 #[tokio::test]
 async fn run_with_a_finding_carries_the_message_of_zizmor() {
     let project = Project::new();
@@ -388,7 +378,6 @@ async fn run_with_a_finding_carries_the_message_of_zizmor() {
     );
 }
 
-// lintgithubactions[verify check.finding]
 #[tokio::test]
 async fn run_with_a_finding_covers_the_range_of_zizmor() {
     let project = Project::new();
@@ -415,7 +404,6 @@ async fn run_with_a_finding_covers_the_range_of_zizmor() {
     );
 }
 
-// lintgithubactions[verify check.finding]
 #[tokio::test]
 async fn run_with_a_finding_reports_every_place_that_zizmor_named() {
     let project = Project::new();
@@ -437,7 +425,6 @@ async fn run_with_a_finding_reports_every_place_that_zizmor_named() {
     );
 }
 
-// lintgithubactions[verify check.configuration]
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::new();
@@ -452,8 +439,6 @@ async fn run_with_a_refused_configuration_stops() {
     );
 }
 
-// lintgithubactions[verify check.incomplete]
-// lintgithubactions[verify run.strict]
 #[tokio::test]
 async fn run_with_a_workflow_that_zizmor_cannot_read_stops() {
     let project = Project::new();
@@ -468,7 +453,6 @@ async fn run_with_a_workflow_that_zizmor_cannot_read_stops() {
     );
 }
 
-// lintgithubactions[verify skip.uncollected]
 #[tokio::test]
 async fn run_whose_zizmor_collects_nothing_skips() {
     let project = Project::new();
@@ -483,7 +467,6 @@ async fn run_whose_zizmor_collects_nothing_skips() {
     assert_eq!(reason.get(), "zizmor found no file to audit");
 }
 
-// lintgithubactions[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_zizmor_stops() {
     let project = Project::without_zizmor();

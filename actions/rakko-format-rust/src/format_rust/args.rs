@@ -20,7 +20,6 @@ pub struct FormatRustArgs {
 }
 
 impl Args for FormatRustArgs {
-    // formatrust[impl args.fix]
     fn schema() -> ArgsSchema {
         ArgsSchema::new([Argument::builder()
             .name(argument_name!("fix"))
@@ -29,7 +28,6 @@ impl Args for FormatRustArgs {
             .build()])
     }
 
-    // formatrust[impl args.value]
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let name = argument_name!("fix");
         let fix = match values.get(&name) {
@@ -62,7 +60,6 @@ mod tests {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new(fix))])
     }
 
-    // formatrust[verify args.value]
     #[test]
     fn from_values_with_an_unreadable_value_reports_the_argument() {
         let error = FormatRustArgs::from_values(&values("maybe")).unwrap_err();
@@ -73,7 +70,6 @@ mod tests {
         ));
     }
 
-    // formatrust[verify args.fix]
     #[test]
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = FormatRustArgs::from_values(&values("true")).unwrap();
@@ -81,7 +77,6 @@ mod tests {
         assert!(args.fix());
     }
 
-    // formatrust[verify args.fix]
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = FormatRustArgs::from_values(&ArgsValues::empty()).unwrap();
@@ -89,7 +84,6 @@ mod tests {
         assert!(!args.fix());
     }
 
-    // formatrust[verify args.fix]
     #[test]
     fn schema_declares_the_fix_argument() {
         let schema = FormatRustArgs::schema();
@@ -103,7 +97,6 @@ mod tests {
         assert_eq!(names, ["fix"]);
     }
 
-    // formatrust[verify args.fix]
     #[test]
     fn schema_documents_the_fix_argument() {
         let schema = FormatRustArgs::schema();
@@ -116,7 +109,6 @@ mod tests {
         assert_eq!(documentation, Some(FIX_DOCUMENTATION));
     }
 
-    // formatrust[verify args.fix]
     #[test]
     fn schema_gives_fix_a_boolean_shape() {
         let schema = FormatRustArgs::schema();

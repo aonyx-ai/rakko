@@ -50,10 +50,6 @@ impl Failure {
     /// A failure that Node reported no place for, and one whose place lies
     /// outside the project, get a finding at the level of the project, because
     /// there is no path in the project to report them at.
-    // testtypescript[impl result.failed]
-    // testtypescript[impl result.message]
-    // testtypescript[impl result.position]
-    // testtypescript[impl result.project]
     pub fn finding(&self, root: &ProjectRoot) -> Finding {
         let stated = self
             .reason
@@ -117,7 +113,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // testtypescript[verify result.failed]
     #[test]
     fn finding_names_the_test() {
         let finding = located().finding(&root());
@@ -129,7 +124,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify result.message]
     #[test]
     fn finding_carries_what_node_said() {
         let finding = located().finding(&root());
@@ -168,7 +162,6 @@ mod tests {
         assert_eq!(finding.message().get(), "test `counts` failed");
     }
 
-    // testtypescript[verify result.position]
     #[test]
     fn finding_sits_where_the_project_declares_the_test() {
         let finding = located().finding(&root());
@@ -182,7 +175,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify result.project]
     #[test]
     fn finding_of_a_failure_without_a_place_belongs_to_the_project() {
         let failure = Failure::builder()

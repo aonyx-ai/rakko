@@ -1,13 +1,10 @@
-//! Tests that drive the action against real projects
+//! Tests of the action that need no installation of tracey
 //!
-//! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken specification sits in
-//! this repository, where the checks of the repository itself would fight it.
-//!
-//! The tests run the tracey that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
-//! without a change to them.
+//! The tests cover what the action declares, the run that stops when the
+//! project pins a tracey that nothing installed, and the comparison of a pull
+//! request with its base, which only runs git. A test that needs files builds
+//! a project in a temporary directory, so no fixture with a deliberately
+//! changed specification sits in this repository.
 
 // An assertion in a test panics by design, and the helpers of this file exist
 // only for tests. The lints that guard production code do not apply.
@@ -17,9 +14,8 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Location, Outcome, ProjectRoot};
+use rakko_action::{Action, Args, Context, Outcome, ProjectRoot};
 use rakko_check_specs::{CheckSpecs, Comparison};
-use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// The configuration that points tracey at the files of a project
@@ -50,13 +46,6 @@ const CHANGED: &str = "# Probe\n\nprobe[alpha]\nThe thing MUST do alpha and gamm
 /// Code that implements the requirement of the specification
 const IMPLEMENTATION: &str = "// probe[impl alpha]\npub fn alpha() {}\n";
 
-/// Code that references a requirement which the specification does not hold
-const UNKNOWN: &str =
-    "// probe[impl alpha]\npub fn alpha() {}\n\n// probe[impl beta]\npub fn beta() {}\n";
-
-/// A test that verifies the requirement of the specification
-const VERIFICATION: &str = "// probe[verify alpha]\n#[test]\nfn alpha_works() {}\n";
-
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -64,48 +53,14 @@ struct Project {
 }
 
 impl Project {
-    /// Creates a project without a tracey to resolve
+    /// Creates an empty project without a tracey to resolve
     ///
     /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when the run must end before the tool
-    /// runs.
+    /// tool.
     fn bare() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
 
         Self { directory }
-    }
-
-    /// Creates a project with the tracey of this repository and a valid spec
-    fn new() -> Self {
-        let project = Self::bare();
-
-        let pins = repository().join("mise.toml");
-        let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
-        trust(&copy);
-
-        project.write(".config/tracey/config.styx", CONFIGURATION);
-        project.write("SPECIFICATION.md", SPECIFICATION);
-        project.write("src/lib.rs", IMPLEMENTATION);
-        project.write("tests/probe.rs", VERIFICATION);
-
-        project
-    }
-
-    /// Creates a project with the tracey of this repository and no
-    /// specification
-    ///
-    /// The project resolves the tool, and tracey then reports a project that
-    /// tracks no requirement. A test uses this shape for the run that skips.
-    fn unconfigured() -> Self {
-        let project = Self::bare();
-
-        let pins = repository().join("mise.toml");
-        let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
-        trust(&copy);
-
-        project
     }
 
     /// Creates a project that pins a tracey that nothing installed
@@ -133,12 +88,6 @@ impl Project {
     /// on the symbolic links of the temporary directory.
     fn context(&self) -> Context {
         Context::builder().root(self.root()).build()
-    }
-
-    /// Returns the content of a file of the project
-    fn read(&self, path: &str) -> String {
-        std::fs::read_to_string(self.directory.path().join(path))
-            .expect("the test reads a file that it wrote")
     }
 
     /// Returns the canonical root of the project
@@ -231,16 +180,6 @@ impl Drop for Project {
     }
 }
 
-/// Returns the root of the repository that the tests run in
-fn repository() -> &'static Path {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-
-    manifest
-        .parent()
-        .and_then(Path::parent)
-        .expect("the crate lives two directories below the root of the repository")
-}
-
 /// Trusts a mise configuration, so that mise reads it
 fn trust(configuration: &Path) {
     let trusted = Command::new("mise")
@@ -256,7 +195,6 @@ fn trust(configuration: &Path) {
     );
 }
 
-// checkspecs[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<CheckSpecs as Action>::Args as Args>::schema();
@@ -268,7 +206,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// checkspecs[verify name]
 #[test]
 fn action_identifies_itself_as_check_specs() {
     let name = CheckSpecs.name();
@@ -276,159 +213,8 @@ fn action_identifies_itself_as_check_specs() {
     assert_eq!(name.get(), "check-specs");
 }
 
-// checkspecs[verify coverage.summary]
-// checkspecs[verify daemon.absent]
-// checkspecs[verify tool.tracey]
-#[tokio::test]
-async fn run_in_a_valid_project_passes() {
-    let project = Project::new();
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-// checkspecs[verify coverage.summary]
-#[tokio::test]
-async fn run_in_a_valid_project_counts_the_requirements() {
-    let project = Project::new();
-
-    let outcome = project.run().await;
-
-    let Outcome::Passed {
-        summary: Some(summary),
-    } = &outcome
-    else {
-        panic!("expected the run to pass with a summary, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.get(),
-        "checked 1 requirement, 1 implemented and 1 verified"
-    );
-}
-
-// checkspecs[verify check.read]
-#[tokio::test]
-async fn run_leaves_the_specification_unchanged() {
-    let project = Project::new();
-
-    project.run().await;
-
-    assert_eq!(project.read("SPECIFICATION.md"), SPECIFICATION);
-}
-
-// checkspecs[verify check.diagnostic]
-#[tokio::test]
-async fn run_with_an_unknown_reference_carries_the_message_of_tracey() {
-    let project = Project::new();
-    project.write("src/lib.rs", UNKNOWN);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings[0].message().get().contains("beta"),
-        "expected the message of tracey, got {:?}",
-        findings[0].message()
-    );
-}
-
-// checkspecs[verify check.diagnostic]
-#[tokio::test]
-async fn run_with_an_unknown_reference_reports_the_position() {
-    let project = Project::new();
-    project.write("src/lib.rs", UNKNOWN);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    let Location::Position { path, position } = findings[0].location() else {
-        panic!("expected a finding at a position, got {:?}", findings[0]);
-    };
-    assert_eq!(
-        (path.to_string(), position.line().get()),
-        (path_text("src/lib.rs"), 4)
-    );
-}
-
-// checkspecs[verify coverage.open]
-#[tokio::test]
-async fn run_with_a_requirement_that_nothing_answers_passes() {
-    let project = Project::new();
-    project.write(
-        "SPECIFICATION.md",
-        "# Probe\n\nprobe[alpha]\nThe thing MUST do alpha.\n\nprobe[beta]\nThe thing MUST do beta.\n",
-    );
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected an unanswered requirement to pass, got {outcome:?}"
-    );
-}
-
-// checkspecs[verify skip.unconfigured]
-#[tokio::test]
-async fn run_without_a_configuration_skips() {
-    let project = Project::unconfigured();
-    project.write("README.md", "# Project\n");
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-// checkspecs[verify tool.missing]
-#[tokio::test]
-async fn run_without_a_tracey_stops() {
-    let project = Project::without_tracey();
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
-// checkspecs[verify version.staged]
-#[tokio::test]
-async fn run_with_a_changed_requirement_that_carries_no_bump_fails() {
-    let project = Project::new();
-    project.git(&["init", "--quiet", "."]);
-    project.git(&["add", "-A"]);
-    project.git(&["commit", "--quiet", "-m", "base"]);
-    project.write("SPECIFICATION.md", CHANGED);
-    project.git(&["add", "SPECIFICATION.md"]);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings.iter().any(|finding| {
-            matches!(finding.location(), Location::Project)
-                && finding.message().get().contains("alpha")
-        }),
-        "expected a finding about the requirement, got {findings:?}"
-    );
-}
-
 // A code host checks out a merge commit of the branch and its base, and stages
 // nothing, so a comparison of that index with that HEAD finds no change at all.
-// checkspecs[verify version.base]
 #[tokio::test]
 async fn comparison_of_a_merge_commit_stages_the_pull_request() {
     let project = merged();
@@ -445,7 +231,6 @@ async fn comparison_of_a_merge_commit_stages_the_pull_request() {
     assert_eq!(staged, "SPECIFICATION.md");
 }
 
-// checkspecs[verify version.checkout]
 #[tokio::test]
 async fn comparison_leaves_the_commit_of_the_checkout_alone() {
     let project = merged();
@@ -459,7 +244,6 @@ async fn comparison_leaves_the_commit_of_the_checkout_alone() {
     assert_eq!(project.git(&["rev-parse", "HEAD"]), before);
 }
 
-// checkspecs[verify version.checkout]
 #[tokio::test]
 async fn comparison_leaves_the_index_of_the_checkout_alone() {
     let project = merged();
@@ -473,7 +257,6 @@ async fn comparison_leaves_the_index_of_the_checkout_alone() {
 }
 
 // A run that no environment calls a pull request compares the checkout itself.
-// checkspecs[verify version.base]
 #[tokio::test]
 async fn comparison_that_nothing_asked_for_is_none() {
     let project = merged();
@@ -485,12 +268,26 @@ async fn comparison_that_nothing_asked_for_is_none() {
     assert!(comparison.is_none(), "expected no comparison");
 }
 
+#[tokio::test]
+async fn run_without_a_tracey_stops() {
+    let project = Project::without_tracey();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
 /// Returns a project whose checkout is a merge commit of a pull request
 ///
 /// The branch changes the text of a requirement and bumps no version, which is
-/// what the comparison of a pull request has to find.
+/// what the comparison of a pull request has to find. The comparison only
+/// runs git, so the project holds the specification and nothing else.
 fn merged() -> Project {
-    let project = Project::new();
+    let project = Project::bare();
+    project.write("SPECIFICATION.md", SPECIFICATION);
 
     project.git(&["init", "--quiet", "--initial-branch", "main", "."]);
     project.git(&["add", "-A"]);

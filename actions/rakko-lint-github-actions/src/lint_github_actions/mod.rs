@@ -67,10 +67,8 @@ const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 pub struct LintGitHubActions;
 
 impl Action for LintGitHubActions {
-    // lintgithubactions[impl args.none]
     type Args = ();
 
-    // lintgithubactions[impl name]
     fn name(&self) -> Name {
         action_name!("lint-github-actions")
     }
@@ -78,7 +76,6 @@ impl Action for LintGitHubActions {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // lintgithubactions[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -101,29 +98,22 @@ impl Action for LintGitHubActions {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the zizmor run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintGitHubActionsError> {
-    // lintgithubactions[impl tool.missing]
-    // lintgithubactions[impl tool.zizmor]
     let zizmor = Zizmor::resolve(context.root().clone())
         .await
         .map_err(|source| LintGitHubActionsError::UnresolvedTool { source })?;
 
-    // lintgithubactions[impl check.read]
     let observation = zizmor.observe().await?;
 
-    // lintgithubactions[impl skip.uncollected]
     if !observation.collected() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_AUDIT),
         });
     }
 
-    // lintgithubactions[impl check.passed]
     if observation.problems().is_empty() {
         return Ok(Outcome::Passed { summary: None });
     }
 
-    // lintgithubactions[impl check.finding]
-    // lintgithubactions[impl check.severity]
     Ok(Outcome::Failed {
         findings: findings(observation.problems(), context.root())?,
         repairs: Vec::new(),
@@ -143,8 +133,6 @@ async fn drive(context: &Context) -> Result<Outcome, LintGitHubActionsError> {
 /// path of the problem.
 ///
 /// [foreign]: LintGitHubActionsError::ForeignPath
-// lintgithubactions[impl check.finding]
-// lintgithubactions[impl check.severity]
 fn finding(problem: &ZizmorProblem, root: &ProjectRoot) -> Result<Finding, LintGitHubActionsError> {
     let path = problem
         .relative_path(root)
@@ -218,7 +206,6 @@ mod tests {
             .build()
     }
 
-    // lintgithubactions[verify check.finding]
     #[test]
     fn finding_of_a_problem_carries_the_message_of_zizmor() {
         let finding = finding(&problem(Severity::High), &root()).unwrap();
@@ -230,7 +217,6 @@ mod tests {
         );
     }
 
-    // lintgithubactions[verify check.finding]
     #[test]
     fn finding_of_a_problem_covers_the_range_of_zizmor() {
         let finding = finding(&problem(Severity::High), &root()).unwrap();
@@ -260,7 +246,6 @@ mod tests {
         assert!(matches!(error, LintGitHubActionsError::ForeignPath { .. }));
     }
 
-    // lintgithubactions[verify check.severity]
     #[test]
     fn finding_of_an_informational_problem_names_the_informational_severity() {
         let finding = finding(&problem(Severity::Informational), &root()).unwrap();
@@ -272,7 +257,6 @@ mod tests {
         );
     }
 
-    // lintgithubactions[verify check.finding]
     #[test]
     fn findings_report_every_place_of_the_observation() {
         let problems = vec![problem(Severity::High), problem(Severity::Low)];

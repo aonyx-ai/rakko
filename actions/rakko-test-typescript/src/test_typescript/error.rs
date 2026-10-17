@@ -65,8 +65,6 @@ impl From<ObserveNodeError> for TestTypeScriptError {
     ///
     /// The machinery that runs node names the same three conditions that the
     /// action reports, so the conversion renames them and adds nothing.
-    // testtypescript[impl report.unreadable]
-    // testtypescript[impl report.unreported]
     fn from(error: ObserveNodeError) -> Self {
         match error {
             ObserveNodeError::MissingFailure { details } => Self::MissingFailure { details },
@@ -92,7 +90,6 @@ mod tests {
     /// What node wrote in a run whose report the action could not read
     const REPORT: &str = "v24.20.0";
 
-    // testtypescript[verify report.unreported]
     #[test]
     fn error_of_a_silent_run_holds_what_node_wrote() {
         let error = TestTypeScriptError::from(ObserveNodeError::MissingFailure {
@@ -105,7 +102,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify report.unreadable]
     #[test]
     fn error_of_an_unreadable_report_holds_what_node_wrote() {
         let error = TestTypeScriptError::from(ObserveNodeError::UnreadableReport {

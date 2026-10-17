@@ -105,7 +105,6 @@ impl Observation {
     /// takes the operation, because a rewrite states how long each file took
     /// and marks the files that it left alone, while a report names paths and
     /// nothing else.
-    // prettier[impl report.status]
     pub fn read(execution: &Execution, operation: Operation) -> Self {
         self::report::read(
             &execution.stdout().to_string_lossy(),

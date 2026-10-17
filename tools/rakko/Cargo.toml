@@ -15,7 +15,6 @@ path = "src/main.rs"
 rakko-action = { path = "../../crates/rakko-action" }
 rakko-baseline = { path = "../../bundles/rakko-baseline" }
 rakko-check-msrv = { path = "../../actions/rakko-check-msrv" }
-rakko-check-specs = { path = "../../actions/rakko-check-specs" }
 rakko-cli = { path = "../../crates/rakko-cli" }
 rakko-format-json = { path = "../../actions/rakko-format-json" }
 rakko-format-markdown = { path = "../../actions/rakko-format-markdown" }

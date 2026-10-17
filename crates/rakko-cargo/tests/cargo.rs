@@ -393,7 +393,6 @@ impl Drop for Project {
 // The pins of the project name two toolchains that no machine installs, so
 // the choice among them surfaces as the toolchain that the failure names.
 // That keeps the test free of whichever versions this repository installs.
-// cargo[verify toolchain.newest]
 #[tokio::test]
 async fn newest_in_a_project_that_pins_several_versions_names_the_highest() {
     let project = Project::with_rust("[\"1.71.0\", \"1.70.0\"]");
@@ -410,7 +409,6 @@ async fn newest_in_a_project_that_pins_several_versions_names_the_highest() {
     );
 }
 
-// cargo[verify toolchain.newest]
 #[tokio::test]
 async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
     let selected = selected_rust();
@@ -420,7 +418,6 @@ async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
     assert_eq!(toolchain.ok(), Some(Toolchain::new(selected)));
 }
 
-// cargo[verify doctest.library]
 #[tokio::test]
 async fn roots_of_a_workspace_of_binaries_say_that_nothing_documents_an_example() {
     let project = Project::new();
@@ -435,7 +432,6 @@ async fn roots_of_a_workspace_of_binaries_say_that_nothing_documents_an_example(
     );
 }
 
-// cargo[verify doctest.library]
 #[tokio::test]
 async fn roots_of_a_workspace_with_a_library_say_that_its_examples_are_testable() {
     let project = Project::workspace();
@@ -448,7 +444,6 @@ async fn roots_of_a_workspace_with_a_library_say_that_its_examples_are_testable(
     );
 }
 
-// cargo[verify package.all]
 #[tokio::test]
 async fn roots_of_a_workspace_name_its_packages() {
     let project = Project::workspace();
@@ -464,7 +459,6 @@ async fn roots_of_a_workspace_name_its_packages() {
     );
 }
 
-// cargo[verify package.all]
 #[tokio::test]
 async fn roots_of_a_workspace_name_its_packages_in_the_order_of_their_names() {
     let project = Project::new();
@@ -491,7 +485,6 @@ async fn roots_of_a_workspace_name_its_packages_in_the_order_of_their_names() {
     );
 }
 
-// cargo[verify package.shared]
 #[tokio::test]
 async fn roots_of_a_workspace_whose_binary_shares_the_name_of_a_library_say_both_share_it() {
     let project = Project::sharing_a_name(DEMO_CLI);
@@ -507,7 +500,6 @@ async fn roots_of_a_workspace_whose_binary_shares_the_name_of_a_library_say_both
     );
 }
 
-// cargo[verify package.shared]
 #[tokio::test]
 async fn roots_of_a_workspace_whose_binary_shares_the_name_of_its_own_library_say_none_shares_it() {
     let project = Project::workspace();
@@ -524,7 +516,6 @@ async fn roots_of_a_workspace_whose_binary_shares_the_name_of_its_own_library_sa
     );
 }
 
-// cargo[verify package.shared]
 #[tokio::test]
 async fn roots_of_a_workspace_whose_hyphenated_binary_shares_a_name_say_both_share_it() {
     let project = Project::new();
@@ -544,7 +535,6 @@ async fn roots_of_a_workspace_whose_hyphenated_binary_shares_a_name_say_both_sha
     );
 }
 
-// cargo[verify package.shared]
 #[tokio::test]
 async fn roots_of_a_workspace_whose_undocumented_binary_shares_a_name_say_none_shares_it() {
     let project = Project::sharing_a_name(UNDOCUMENTED_CLI);
@@ -560,7 +550,6 @@ async fn roots_of_a_workspace_whose_undocumented_binary_shares_a_name_say_none_s
     );
 }
 
-// cargo[verify version.declared+2]
 #[tokio::test]
 async fn roots_of_a_workspace_that_declares_a_version_answer_the_highest() {
     let project = Project::new();
@@ -576,7 +565,6 @@ async fn roots_of_a_workspace_that_declares_a_version_answer_the_highest() {
     );
 }
 
-// cargo[verify version.declared+2]
 #[tokio::test]
 async fn roots_of_a_workspace_without_a_declaration_answer_no_version() {
     let project = Project::workspace();
@@ -589,7 +577,6 @@ async fn roots_of_a_workspace_without_a_declaration_answer_no_version() {
     );
 }
 
-// cargo[verify doctest.library]
 #[tokio::test]
 async fn roots_with_a_library_of_another_form_say_that_nothing_documents_an_example() {
     let project = Project::new();
@@ -604,7 +591,6 @@ async fn roots_with_a_library_of_another_form_say_that_nothing_documents_an_exam
     );
 }
 
-// cargo[verify run.directory]
 #[tokio::test]
 async fn invocation_runs_in_the_directory_of_the_root() {
     let project = Project::workspace();
@@ -621,7 +607,6 @@ async fn invocation_runs_in_the_directory_of_the_root() {
     );
 }
 
-// cargo[verify tool.resolve]
 #[tokio::test]
 async fn invocation_starts_the_program_that_mise_reported() {
     let project = Project::workspace();
@@ -636,7 +621,6 @@ async fn invocation_starts_the_program_that_mise_reported() {
     );
 }
 
-// cargo[verify run.toolchain]
 #[tokio::test]
 async fn invocation_with_toolchain_names_the_toolchain_first() {
     let project = Project::workspace();
@@ -655,8 +639,6 @@ async fn invocation_with_toolchain_names_the_toolchain_first() {
     assert_eq!(arguments, ["+nightly-2026-08-11", "fmt"]);
 }
 
-// cargo[verify diagnostic.finished]
-// cargo[verify diagnostic.read]
 #[tokio::test]
 async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
     let project = Project::workspace();
@@ -684,7 +666,6 @@ async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
     );
 }
 
-// cargo[verify tool.resolve]
 #[tokio::test]
 async fn resolve_in_a_project_that_pins_rust_finds_the_program() {
     let project = Project::new();
@@ -694,7 +675,6 @@ async fn resolve_in_a_project_that_pins_rust_finds_the_program() {
     assert!(cargo.is_ok(), "expected a cargo, got {cargo:?}");
 }
 
-// cargo[verify tool.missing]
 #[tokio::test]
 async fn resolve_without_a_cargo_reports_the_tool() {
     let project = Project::with_rust("\"0.0.1\"");
@@ -710,7 +690,6 @@ async fn resolve_without_a_cargo_reports_the_tool() {
     );
 }
 
-// cargo[verify root.walk+3]
 #[cfg(unix)]
 #[tokio::test]
 async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
@@ -726,7 +705,6 @@ async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
     assert_eq!(roots, [project.workspace_root()]);
 }
 
-// cargo[verify root.walk+3]
 #[tokio::test]
 async fn roots_find_a_manifest_in_a_hidden_directory() {
     let project = Project::workspace();
@@ -744,7 +722,6 @@ async fn roots_find_a_manifest_in_a_hidden_directory() {
     );
 }
 
-// cargo[verify root.walk+3]
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_git_directory() {
     let project = Project::workspace();
@@ -755,7 +732,6 @@ async fn roots_ignore_a_manifest_under_the_git_directory() {
     assert_eq!(roots, [project.workspace_root()]);
 }
 
-// cargo[verify root.walk+3]
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_node_modules_directory() {
     let project = Project::workspace();
@@ -767,7 +743,6 @@ async fn roots_ignore_a_manifest_under_the_node_modules_directory() {
     assert_eq!(roots, [project.workspace_root()]);
 }
 
-// cargo[verify root.walk+3]
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_target_directory() {
     let project = Project::workspace();
@@ -778,7 +753,6 @@ async fn roots_ignore_a_manifest_under_the_target_directory() {
     assert_eq!(roots, [project.workspace_root()]);
 }
 
-// cargo[verify root.excluded]
 #[tokio::test]
 async fn roots_ignore_a_manifest_that_another_root_excludes() {
     let project = Project::workspace();
@@ -797,7 +771,6 @@ async fn roots_ignore_a_manifest_that_another_root_excludes() {
     );
 }
 
-// cargo[verify root.excluded]
 #[tokio::test]
 async fn roots_ignore_a_manifest_that_the_workspace_excludes() {
     let project = Project::workspace_excluding("fixtures");
@@ -813,7 +786,6 @@ async fn roots_ignore_a_manifest_that_the_workspace_excludes() {
     );
 }
 
-// cargo[verify root.excluded]
 #[tokio::test]
 async fn roots_of_a_workspace_that_excludes_a_member_name_a_workspace_below_the_member() {
     let project = Project::new();
@@ -838,7 +810,6 @@ async fn roots_of_a_workspace_that_excludes_a_member_name_a_workspace_below_the_
     );
 }
 
-// cargo[verify root.excluded]
 #[tokio::test]
 async fn roots_of_a_workspace_that_excludes_a_pattern_name_the_package_it_matches() {
     let project = Project::workspace_excluding("examples/*");
@@ -856,7 +827,6 @@ async fn roots_of_a_workspace_that_excludes_a_pattern_name_the_package_it_matche
     );
 }
 
-// cargo[verify root.excluded]
 #[tokio::test]
 async fn roots_of_a_workspace_that_excludes_a_prefix_name_the_package_it_shares_letters_with() {
     let project = Project::workspace_excluding("fix");
@@ -871,7 +841,6 @@ async fn roots_of_a_workspace_that_excludes_a_prefix_name_the_package_it_shares_
     );
 }
 
-// cargo[verify root.nested]
 #[tokio::test]
 async fn roots_ignore_a_nested_project() {
     let project = Project::workspace();
@@ -888,7 +857,6 @@ async fn roots_ignore_a_nested_project() {
 
 // A marker that is a directory cannot be read as a file, so the test fails
 // when the discovery decides by reading the marker instead of by its presence.
-// cargo[verify root.nested]
 #[tokio::test]
 async fn roots_ignore_a_nested_project_whose_marker_is_a_directory() {
     let project = Project::workspace();
@@ -904,7 +872,6 @@ async fn roots_ignore_a_nested_project_whose_marker_is_a_directory() {
     );
 }
 
-// cargo[verify root.nested]
 #[cfg(unix)]
 #[tokio::test]
 async fn roots_ignore_an_unreadable_directory_of_a_nested_project() {
@@ -927,7 +894,6 @@ async fn roots_ignore_an_unreadable_directory_of_a_nested_project() {
     );
 }
 
-// cargo[verify root.nested]
 #[tokio::test]
 async fn roots_of_a_project_that_holds_the_marker_name_its_workspace() {
     let project = Project::workspace();
@@ -938,7 +904,6 @@ async fn roots_of_a_project_that_holds_the_marker_name_its_workspace() {
     assert_eq!(roots, [project.workspace_root()]);
 }
 
-// cargo[verify root.discover+2]
 #[tokio::test]
 async fn roots_of_a_project_with_a_standalone_package_name_both() {
     let project = Project::workspace();
@@ -956,7 +921,6 @@ async fn roots_of_a_project_with_a_standalone_package_name_both() {
     );
 }
 
-// cargo[verify root.discover+2]
 #[tokio::test]
 async fn roots_of_a_project_without_a_workspace_name_the_package() {
     let project = Project::new();
@@ -968,7 +932,6 @@ async fn roots_of_a_project_without_a_workspace_name_the_package() {
     assert_eq!(roots, [project.binary_root("")]);
 }
 
-// cargo[verify root.member]
 #[tokio::test]
 async fn roots_of_a_workspace_name_no_member() {
     let project = Project::workspace();
@@ -983,7 +946,6 @@ async fn roots_of_a_workspace_name_no_member() {
     );
 }
 
-// cargo[verify root.discover+2]
 #[tokio::test]
 async fn roots_of_a_workspace_name_the_workspace_once() {
     let project = Project::workspace();
@@ -993,7 +955,6 @@ async fn roots_of_a_workspace_name_the_workspace_once() {
     assert_eq!(roots, [project.workspace_root()]);
 }
 
-// cargo[verify root.contained]
 #[tokio::test]
 async fn roots_with_a_manifest_of_an_outer_workspace_name_the_workspace() {
     let project = Project::inside_a_workspace();
@@ -1011,7 +972,6 @@ async fn roots_with_a_manifest_of_an_outer_workspace_name_the_workspace() {
     );
 }
 
-// cargo[verify root.manifest]
 #[tokio::test]
 async fn roots_with_a_manifest_that_cargo_cannot_read_hold_what_cargo_said() {
     let project = Project::new();
@@ -1028,7 +988,6 @@ async fn roots_with_a_manifest_that_cargo_cannot_read_hold_what_cargo_said() {
     );
 }
 
-// cargo[verify root.manifest]
 #[tokio::test]
 async fn roots_with_a_manifest_that_cargo_cannot_read_name_the_manifest() {
     let project = Project::new();
@@ -1046,7 +1005,6 @@ async fn roots_with_a_manifest_that_cargo_cannot_read_name_the_manifest() {
     );
 }
 
-// cargo[verify root.directory]
 #[cfg(unix)]
 #[tokio::test]
 async fn roots_with_an_unreadable_directory_name_the_directory() {
@@ -1072,7 +1030,6 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
     );
 }
 
-// cargo[verify toolchain.uninstalled]
 #[tokio::test]
 async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
     let pin = pinned_rust().await;
@@ -1090,7 +1047,6 @@ async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
     );
 }
 
-// cargo[verify toolchain.resolve]
 #[tokio::test]
 async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
     let pin = pinned_rust().await;
@@ -1101,7 +1057,6 @@ async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
     assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
 }
 
-// cargo[verify toolchain.unpinned]
 #[tokio::test]
 async fn toolchain_resolve_an_unpinned_channel_names_the_channel() {
     let project = Project::new();
@@ -1119,7 +1074,6 @@ async fn toolchain_resolve_an_unpinned_channel_names_the_channel() {
     );
 }
 
-// cargo[verify toolchain.report]
 #[tokio::test]
 async fn toolchain_resolve_outside_a_project_reports_what_mise_wrote() {
     let project = Project::bare();

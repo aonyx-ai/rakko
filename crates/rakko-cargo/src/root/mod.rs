@@ -77,10 +77,6 @@ impl CargoRoot {
     /// A root whose packages declare no `rust-version` carries none. A root
     /// built without its packages names none, so no package of it shares a
     /// crate name, and a caller treats the workspace as one whole.
-    // cargo[impl doctest.library]
-    // cargo[impl package.all]
-    // cargo[impl package.shared]
-    // cargo[impl version.declared+2]
     #[builder]
     pub fn new(
         directory: PathBuf,
@@ -110,8 +106,6 @@ impl CargoRoot {
     ///
     /// The directory of the project root itself has no name, and the empty
     /// path is that name: joining a file to it yields the file.
-    // cargo[impl path.relative]
-    // cargo[impl path.foreign]
     pub fn relative_directory(&self, root: &ProjectRoot) -> Option<PathBuf> {
         strip(&self.directory, root)
     }
@@ -128,9 +122,6 @@ impl CargoRoot {
     /// happens for a diagnostic in a dependency that lives elsewhere on the
     /// machine. A path that climbs through its parents is resolved first, so
     /// a path that leaves the project that way gets no name either.
-    // cargo[impl path.relative]
-    // cargo[impl path.foreign]
-    // cargo[impl path.parent]
     pub fn relative_path(&self, path: &Path, root: &ProjectRoot) -> Option<FilePath> {
         let absolute = if path.is_absolute() {
             path.to_path_buf()
@@ -149,7 +140,6 @@ impl CargoRoot {
 /// wrong directory, so the climb is resolved first. The resolution is
 /// lexical: a component that is a symbolic link resolves as a directory,
 /// which is how cargo wrote the path.
-// cargo[impl path.parent]
 fn normalize(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
 
@@ -214,7 +204,6 @@ mod tests {
         );
     }
 
-    // cargo[verify path.relative]
     #[test]
     fn relative_directory_of_the_project_root_is_empty() {
         let root = CargoRoot::builder()
@@ -227,7 +216,6 @@ mod tests {
         assert_eq!(directory, Some(PathBuf::new()));
     }
 
-    // cargo[verify path.foreign]
     #[test]
     fn relative_directory_outside_the_project_names_nothing() {
         let root = CargoRoot::builder()
@@ -240,7 +228,6 @@ mod tests {
         assert_eq!(directory, None);
     }
 
-    // cargo[verify path.relative]
     #[test]
     fn relative_directory_under_the_project_drops_the_project_root() {
         let root = nested();
@@ -250,7 +237,6 @@ mod tests {
         assert_eq!(directory, Some(PathBuf::from("tools/harness")));
     }
 
-    // cargo[verify path.parent]
     #[test]
     fn relative_path_of_a_path_that_climbs_out_of_the_project_names_nothing() {
         let root = nested();
@@ -260,7 +246,6 @@ mod tests {
         assert_eq!(path, None);
     }
 
-    // cargo[verify path.parent]
     #[test]
     fn relative_path_of_a_path_that_climbs_within_the_project_resolves_the_climb() {
         let root = nested();
@@ -270,7 +255,6 @@ mod tests {
         assert_eq!(path, FilePath::try_from("tools/other/src/lib.rs").ok());
     }
 
-    // cargo[verify path.relative]
     #[test]
     fn relative_path_of_a_relative_path_joins_the_root() {
         let root = nested();
@@ -280,7 +264,6 @@ mod tests {
         assert_eq!(path, FilePath::try_from("tools/harness/src/main.rs").ok());
     }
 
-    // cargo[verify path.relative]
     #[test]
     fn relative_path_of_an_absolute_path_drops_the_project_root() {
         let root = nested();
@@ -293,7 +276,6 @@ mod tests {
         assert_eq!(path, FilePath::try_from("tools/harness/src/main.rs").ok());
     }
 
-    // cargo[verify path.foreign]
     #[test]
     fn relative_path_of_an_absolute_path_outside_the_project_names_nothing() {
         let root = nested();
@@ -307,7 +289,6 @@ mod tests {
     // platforms the temporary directory differs from it as text: a symbolic
     // link on macOS, and a short name on Windows. The resolved root must then
     // carry the spelling that cargo writes, or no file gets a name.
-    // cargo[verify path.relative]
     #[test]
     fn relative_path_of_an_absolute_path_under_the_resolved_root_drops_it() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");

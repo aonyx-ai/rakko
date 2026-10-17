@@ -112,7 +112,6 @@ mod tests {
             .expect("the test reads a report that holds one problem")
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn problems_of_a_problem_name_the_column_of_yamllint() {
         let problem = problem(ERROR);
@@ -120,7 +119,6 @@ mod tests {
         assert_eq!(problem.column(), 5);
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn problems_of_a_problem_name_the_file() {
         let problem = problem(ERROR);
@@ -128,7 +126,6 @@ mod tests {
         assert_eq!(problem.path(), &PathBuf::from("./sub/a.yaml"));
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn problems_of_a_problem_sit_on_the_line_of_yamllint() {
         let problem = problem(ERROR);
@@ -136,7 +133,6 @@ mod tests {
         assert_eq!(problem.line(), 3);
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn problems_of_a_problem_carry_the_description_of_yamllint() {
         let problem = problem(ERROR);
@@ -144,7 +140,6 @@ mod tests {
         assert_eq!(problem.description(), "trailing spaces (trailing-spaces)");
     }
 
-    // lintyaml[verify check.level]
     #[test]
     fn problems_of_a_warning_carry_the_warning_level() {
         let problem = problem(WARNING);
@@ -152,7 +147,6 @@ mod tests {
         assert_eq!(problem.level(), ProblemLevel::Warning);
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn problems_of_a_syntax_error_keep_the_whole_description() {
         let problem = problem(SYNTAX);
@@ -163,7 +157,6 @@ mod tests {
         );
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn problems_of_a_report_hold_one_problem_per_line() {
         let report = format!("{ERROR}\n{WARNING}\n");
@@ -173,7 +166,6 @@ mod tests {
         assert_eq!(problems.len(), 2);
     }
 
-    // lintyaml[verify check.passed]
     #[test]
     fn problems_of_an_empty_report_hold_nothing() {
         let problems = problems("  \n").expect("the test reads the report of a run that passed");
@@ -181,7 +173,6 @@ mod tests {
         assert!(problems.is_empty(), "expected no problem, got {problems:?}");
     }
 
-    // lintyaml[verify check.unreadable]
     #[test]
     fn problems_of_a_line_that_reports_nothing_stop_the_reading() {
         let problems = problems(UNREADABLE);
@@ -192,7 +183,6 @@ mod tests {
         );
     }
 
-    // lintyaml[verify check.unreadable]
     #[test]
     fn problems_of_an_unknown_level_stop_the_reading() {
         let problems = problems("./a.yaml:1:1: [notice] a level of a later yamllint (rule)");

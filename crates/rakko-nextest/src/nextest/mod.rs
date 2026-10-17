@@ -125,8 +125,6 @@ impl Nextest {
     /// an answer.
     ///
     /// [unavailable]: ObserveNextestError::CargoUnavailable
-    // nextest[impl run.consent]
-    // nextest[impl run.operation+2]
     pub async fn observe(
         &self,
         root: &CargoRoot,
@@ -138,7 +136,6 @@ impl Nextest {
             .env(CONSENT_VARIABLE, CONSENT_VALUE)
             .args(NEXTEST);
 
-        // nextest[impl run.lockfile]
         let invocation = match self.lockfile {
             Lockfile::Writable => invocation,
             Lockfile::Locked => invocation.arg(LOCKED),

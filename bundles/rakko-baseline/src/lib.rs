@@ -20,7 +20,6 @@ use rakko_lint_yaml::LintYaml;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
-// baseline[impl actions+3]
 #[must_use]
 pub fn bundle() -> Bundle {
     Bundle::new(vec![
@@ -45,7 +44,6 @@ mod tests {
 
     use super::*;
 
-    // baseline[verify actions+3]
     #[test]
     fn bundle_exports_the_actions_that_any_project_runs() {
         let names: Vec<String> = bundle()

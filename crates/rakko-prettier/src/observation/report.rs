@@ -60,12 +60,10 @@ pub(super) fn read(
 
     for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
         match operation {
-            // prettier[impl report.unformatted]
             Operation::Report => observation.problems.push(PrettierProblem::new(
                 PathBuf::from(line),
                 ProblemDetail::Unformatted,
             )),
-            // prettier[impl report.rewritten]
             Operation::Rewrite => {
                 if let Some(path) = rewritten(line) {
                     observation.rewritten.push(PathBuf::from(path));
@@ -77,7 +75,6 @@ pub(super) fn read(
     let lines: Vec<&str> = stderr.lines().collect();
 
     for (index, line) in lines.iter().enumerate() {
-        // prettier[impl report.configuration]
         if let Some(warning) = line.strip_prefix(WARNING_PREFIX) {
             if warning.starts_with(IGNORED_OPTION) && observation.rejected_configuration.is_none() {
                 observation.rejected_configuration = Some(warning.trim().to_owned());
@@ -90,15 +87,12 @@ pub(super) fn read(
             continue;
         };
 
-        // prettier[impl report.configuration]
         if report.starts_with(INVALID_CONFIGURATION) {
             if observation.rejected_configuration.is_none() {
                 observation.rejected_configuration = Some(rejection(report, &lines[index + 1..]));
             }
-        // prettier[impl report.pattern]
         } else if report.starts_with(UNMATCHED_PATTERN) {
             observation.unmatched_pattern = true;
-        // prettier[impl report.unreadable]
         } else if let Some(path) = quoted_path(report, UNREADABLE) {
             let detail = ProblemDetail::Unreadable {
                 reason: reason(&lines[index + 1..]),
@@ -107,7 +101,6 @@ pub(super) fn read(
             observation
                 .problems
                 .push(PrettierProblem::new(path, detail));
-        // prettier[impl report.diagnostic]
         } else if let Some(problem) = diagnostic(report) {
             observation.problems.push(problem);
         }
@@ -264,7 +257,6 @@ mod tests {
         assert!(observation.problems.is_empty());
     }
 
-    // prettier[verify report.diagnostic]
     #[test]
     fn read_a_diagnostic_places_it_in_the_file() {
         let detail = detail(INVALID);
@@ -279,7 +271,6 @@ mod tests {
         );
     }
 
-    // prettier[verify report.status]
     #[test]
     fn read_a_failed_run_reports_the_failure() {
         let observation = read("", INVALID, false, Operation::Report);
@@ -287,7 +278,6 @@ mod tests {
         assert!(!observation.succeeded);
     }
 
-    // prettier[verify report.pattern]
     #[test]
     fn read_a_pattern_without_a_match_reports_it() {
         let observation = read("", UNMATCHED, false, Operation::Report);
@@ -295,7 +285,6 @@ mod tests {
         assert!(observation.unmatched_pattern);
     }
 
-    // prettier[verify report.configuration]
     #[test]
     fn read_a_rejected_configuration_reports_what_prettier_said() {
         let observation = read("", REJECTED, false, Operation::Report);
@@ -308,7 +297,6 @@ mod tests {
         );
     }
 
-    // prettier[verify report.unformatted]
     #[test]
     fn read_a_report_names_the_files_that_differ() {
         let observation = read(DIFFERENT, "", false, Operation::Report);
@@ -325,7 +313,6 @@ mod tests {
         );
     }
 
-    // prettier[verify report.rewritten]
     #[test]
     fn read_a_rewrite_names_the_files_that_changed() {
         let observation = read(WRITTEN, "", true, Operation::Rewrite);
@@ -333,7 +320,6 @@ mod tests {
         assert_eq!(observation.rewritten, [PathBuf::from("sub/messy.md")]);
     }
 
-    // prettier[verify report.rewritten]
     #[test]
     fn read_a_rewrite_reports_no_problem_of_its_own() {
         let observation = read(WRITTEN, "", true, Operation::Rewrite);
@@ -341,7 +327,6 @@ mod tests {
         assert!(observation.problems.is_empty());
     }
 
-    // prettier[verify report.configuration]
     #[test]
     fn read_an_ignored_option_reports_what_prettier_said() {
         let observation = read("", IGNORED, true, Operation::Report);
@@ -352,7 +337,6 @@ mod tests {
         );
     }
 
-    // prettier[verify report.unreadable]
     #[test]
     fn read_an_unreadable_file_holds_the_reason() {
         let detail = detail(REFUSED);

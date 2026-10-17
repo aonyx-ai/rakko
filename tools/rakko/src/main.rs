@@ -17,7 +17,6 @@
 
 use rakko_action::ErasedAction;
 use rakko_check_msrv::CheckMsrv;
-use rakko_check_specs::CheckSpecs;
 use rakko_cli::ErasedCommand;
 use rakko_format_json::FormatJson;
 use rakko_format_markdown::FormatMarkdown;
@@ -43,7 +42,6 @@ fn main() {
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
-        .mount([Box::new(CheckSpecs) as Box<dyn ErasedAction>])
         .mount_commands([
             Box::new(pre_commit) as Box<dyn ErasedCommand>,
             Box::new(SetMsrv::new(Box::new(CheckMsrv))),
@@ -73,7 +71,6 @@ fn actions_that_write() -> Vec<Box<dyn ErasedAction>> {
 /// again, belongs in a scheduled job and not in front of every commit.
 fn actions_that_read() -> Vec<Box<dyn ErasedAction>> {
     vec![
-        Box::new(CheckSpecs),
         Box::new(LintGitHubActions),
         Box::new(LintMarkdown),
         Box::new(LintRust),

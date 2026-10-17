@@ -203,7 +203,6 @@ impl Drop for Project {
     }
 }
 
-// formattypescript[verify args.fix]
 #[test]
 fn action_declares_the_fix_argument() {
     let schema = <<FormatTypeScript as Action>::Args as Args>::schema();
@@ -217,7 +216,6 @@ fn action_declares_the_fix_argument() {
     assert_eq!(names, ["fix"]);
 }
 
-// formattypescript[verify name]
 #[test]
 fn action_identifies_itself_as_format_typescript() {
     let name = FormatTypeScript.name();
@@ -225,7 +223,6 @@ fn action_identifies_itself_as_format_typescript() {
     assert_eq!(name.get(), "format-typescript");
 }
 
-// formattypescript[verify files.extensions]
 #[tokio::test]
 async fn fixing_run_leaves_the_other_languages_of_a_project_alone() {
     let project = Project::new();
@@ -237,7 +234,6 @@ async fn fixing_run_leaves_the_other_languages_of_a_project_alone() {
     assert_eq!(project.read("docs/guide.md"), UNFORMATTED_MARKDOWN);
 }
 
-// formattypescript[verify fix.changed]
 #[tokio::test]
 async fn fixing_run_reports_the_file_that_it_rewrote() {
     let project = Project::new();
@@ -251,7 +247,6 @@ async fn fixing_run_reports_the_file_that_it_rewrote() {
     assert_eq!(locations(&repairs), ["src/index.ts"]);
 }
 
-// formattypescript[verify fix.write]
 #[tokio::test]
 async fn fixing_run_rewrites_an_unformatted_file() {
     let project = Project::new();
@@ -262,7 +257,6 @@ async fn fixing_run_rewrites_an_unformatted_file() {
     assert_eq!(project.read("src/index.ts"), FORMATTED);
 }
 
-// formattypescript[verify fix.partial]
 #[tokio::test]
 async fn fixing_run_that_left_a_problem_fails() {
     let project = Project::new();
@@ -277,7 +271,6 @@ async fn fixing_run_that_left_a_problem_fails() {
     );
 }
 
-// formattypescript[verify fix.partial]
 #[tokio::test]
 async fn fixing_run_that_left_a_problem_holds_the_repairs_beside_it() {
     let project = Project::new();
@@ -292,8 +285,6 @@ async fn fixing_run_that_left_a_problem_holds_the_repairs_beside_it() {
     assert_eq!(locations(&repairs), ["src/index.ts"]);
 }
 
-// formattypescript[verify check.decorated]
-// formattypescript[verify check.invalid]
 #[tokio::test]
 async fn report_of_a_file_that_oxfmt_cannot_parse_sits_at_the_place_of_oxfmt() {
     let project = Project::new();
@@ -313,9 +304,6 @@ async fn report_of_a_file_that_oxfmt_cannot_parse_sits_at_the_place_of_oxfmt() {
     );
 }
 
-// formattypescript[verify check.operation]
-// formattypescript[verify check.passed]
-// formattypescript[verify tool.oxfmt]
 #[tokio::test]
 async fn report_of_a_formatted_project_passes() {
     let project = Project::new();
@@ -329,7 +317,6 @@ async fn report_of_a_formatted_project_passes() {
     );
 }
 
-// formattypescript[verify tool.missing]
 #[tokio::test]
 async fn report_of_a_project_whose_oxfmt_mise_does_not_report_holds_the_error() {
     let project = Project::without_oxfmt();
@@ -343,7 +330,6 @@ async fn report_of_a_project_whose_oxfmt_mise_does_not_report_holds_the_error() 
     );
 }
 
-// formattypescript[verify skip.unmatched]
 #[tokio::test]
 async fn report_of_a_project_without_typescript_names_the_tool() {
     let project = Project::new();
@@ -360,7 +346,6 @@ async fn report_of_a_project_without_typescript_names_the_tool() {
     );
 }
 
-// formattypescript[verify skip.unmatched]
 #[tokio::test]
 async fn report_of_a_project_without_typescript_skips() {
     let project = Project::new();
@@ -374,7 +359,6 @@ async fn report_of_a_project_without_typescript_skips() {
     );
 }
 
-// formattypescript[verify check.configuration]
 #[tokio::test]
 async fn report_of_a_refused_configuration_holds_what_oxfmt_reported() {
     let project = Project::new();
@@ -392,7 +376,6 @@ async fn report_of_a_refused_configuration_holds_what_oxfmt_reported() {
     );
 }
 
-// formattypescript[verify check.read]
 #[tokio::test]
 async fn report_of_an_unformatted_file_leaves_it_alone() {
     let project = Project::new();
@@ -403,7 +386,6 @@ async fn report_of_an_unformatted_file_leaves_it_alone() {
     assert_eq!(project.read("src/index.ts"), UNFORMATTED);
 }
 
-// formattypescript[verify check.unformatted]
 #[tokio::test]
 async fn report_of_an_unformatted_file_names_it() {
     let project = Project::new();

@@ -83,7 +83,6 @@ impl DenyProblem {
     /// A run fails over a problem that answers `true`, and passes over one
     /// that answers `false`. The weight comes from the configuration of the
     /// project, so this asks what the project already decided.
-    // checkdependencies[impl check.warning]
     pub fn denied(&self) -> bool {
         self.severity >= Severity::Error
     }
@@ -95,7 +94,6 @@ impl DenyProblem {
     /// the entry is about. A problem that names no package ends with the
     /// sentence of cargo-deny, because empty parentheses tell a reader
     /// nothing.
-    // checkdependencies[impl check.finding]
     pub fn description(&self) -> String {
         let head = format!("{CHECK_OPEN}{}{CHECK_CLOSE}{}", self.check, self.message);
 
@@ -130,7 +128,6 @@ mod tests {
         )
     }
 
-    // checkdependencies[verify check.warning]
     #[test]
     fn denied_of_a_warning_reports_a_shape_that_the_project_reads_about() {
         let denied = problem(Severity::Warning).denied();
@@ -138,7 +135,6 @@ mod tests {
         assert!(!denied, "expected the warning to leave a run passing");
     }
 
-    // checkdependencies[verify check.warning]
     #[test]
     fn denied_of_an_error_reports_a_shape_that_must_not_appear() {
         let denied = problem(Severity::Error).denied();
@@ -146,7 +142,6 @@ mod tests {
         assert!(denied, "expected the error to fail a run");
     }
 
-    // checkdependencies[verify check.finding]
     #[test]
     fn description_holds_the_check_and_the_words_of_cargo_deny() {
         let description = problem(Severity::Error).description();
@@ -157,7 +152,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.finding]
     #[test]
     fn description_of_a_problem_about_no_package_ends_with_the_words_of_cargo_deny() {
         let problem = DenyProblem::new(
@@ -175,7 +169,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.finding]
     #[test]
     fn description_of_a_problem_about_several_packages_names_every_one() {
         let problem = DenyProblem::new(

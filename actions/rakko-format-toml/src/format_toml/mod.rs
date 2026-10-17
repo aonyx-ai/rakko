@@ -67,7 +67,6 @@ pub struct FormatToml;
 impl Action for FormatToml {
     type Args = FormatTomlArgs;
 
-    // formattoml[impl name]
     fn name(&self) -> Name {
         action_name!("format-toml")
     }
@@ -75,7 +74,6 @@ impl Action for FormatToml {
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
-            // formattoml[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -94,16 +92,12 @@ impl Action for FormatToml {
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, a taplo run, or the reading of the report.
 async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, FormatTomlError> {
-    // formattoml[impl tool.taplo]
-    // formattoml[impl tool.missing]
     let taplo = Taplo::resolve(context.root().clone())
         .await
         .map_err(|source| FormatTomlError::UnresolvedTool { source })?;
 
-    // formattoml[impl check.read]
     let observation = taplo.observe(Operation::CheckFormat).await?;
 
-    // formattoml[impl check.configuration]
     rejected(&observation)?;
 
     if observation.problems().is_empty() {
@@ -113,8 +107,6 @@ async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, Form
     if args.fix() {
         fix(&taplo, observation.problems(), context.root()).await
     } else {
-        // formattoml[impl check.unformatted]
-        // formattoml[impl check.invalid]
         Ok(Outcome::Failed {
             findings: findings(observation.problems(), context.root())?,
             repairs: Vec::new(),
@@ -203,7 +195,6 @@ fn findings(
 /// Returns the error of a rewrite that could not finish: taplo did not run,
 /// it rejected a configuration file, it wrote a report that the action does
 /// not recognize, or it reported a path outside the project.
-// formattoml[impl fix.write]
 async fn fix(
     taplo: &Taplo,
     problems: &[TaploProblem],
@@ -211,7 +202,6 @@ async fn fix(
 ) -> Result<Outcome, FormatTomlError> {
     let observation = taplo.observe(Operation::Format).await?;
 
-    // formattoml[impl check.configuration]
     rejected(&observation)?;
 
     let remaining: HashSet<&PathBuf> = observation
@@ -228,10 +218,8 @@ async fn fix(
     let findings = findings(observation.problems(), root)?;
 
     if findings.is_empty() {
-        // formattoml[impl fix.changed]
         Ok(Outcome::Changed { repairs })
     } else {
-        // formattoml[impl fix.partial]
         Ok(Outcome::Failed { findings, repairs })
     }
 }
@@ -243,7 +231,6 @@ async fn fix(
 /// count, and a pass without it stays a pass: taplo ended the check with
 /// success, and no line that a report loses can turn a check that found
 /// problems into one that found none.
-// formattoml[impl check.passed+2]
 fn passed(observation: &Observation) -> Outcome {
     Outcome::Passed {
         summary: observation.checked().map(summary),
@@ -261,7 +248,6 @@ fn passed(observation: &Observation) -> Outcome {
 /// configuration file.
 ///
 /// [rejected]: FormatTomlError::RejectedConfiguration
-// formattoml[impl check.configuration]
 fn rejected(observation: &Observation) -> Result<(), FormatTomlError> {
     match observation.rejected_configuration() {
         Some(details) => Err(FormatTomlError::RejectedConfiguration {
@@ -272,7 +258,6 @@ fn rejected(observation: &Observation) -> Result<(), FormatTomlError> {
 }
 
 /// Returns the summary that tells how many files taplo checked
-// formattoml[impl check.passed+2]
 fn summary(checked: u64) -> Summary {
     if checked == 1 {
         Summary::new("checked 1 file")

@@ -15,7 +15,6 @@ use super::args::Msrv;
 /// only pin at that version moves with the minimum supported version.
 ///
 /// Returns whether a pin matched the current version.
-// setmsrv[impl pin.version]
 pub(crate) fn set(configuration: &mut DocumentMut, current: &Msrv, msrv: &Msrv) -> bool {
     let Some(pins) = configuration
         .get_mut("tools")

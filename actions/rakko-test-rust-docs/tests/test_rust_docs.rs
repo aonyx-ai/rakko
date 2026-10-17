@@ -220,7 +220,6 @@ impl Drop for Project {
     }
 }
 
-// testrustdocs[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <TestRustDocs as Action>::Args::schema();
@@ -228,7 +227,6 @@ fn action_declares_no_argument() {
     assert!(schema.arguments().is_empty());
 }
 
-// testrustdocs[verify name]
 #[test]
 fn action_identifies_itself_as_test_rust_docs() {
     let name = TestRustDocs.name();
@@ -236,7 +234,6 @@ fn action_identifies_itself_as_test_rust_docs() {
     assert_eq!(name.get(), "test-rust-docs");
 }
 
-// testrustdocs[verify run.failed]
 #[tokio::test]
 async fn run_with_a_failing_example_fails() {
     let project = Project::with_library(FAILING);
@@ -249,7 +246,6 @@ async fn run_with_a_failing_example_fails() {
     );
 }
 
-// testrustdocs[verify run.failed]
 #[tokio::test]
 async fn run_with_a_failing_example_holds_its_finding() {
     let project = Project::with_library(FAILING);
@@ -267,7 +263,6 @@ async fn run_with_a_failing_example_holds_its_finding() {
     );
 }
 
-// testrustdocs[verify finding.position]
 #[tokio::test]
 async fn run_with_a_failing_example_names_the_file_that_documents_it() {
     let project = Project::with_library(FAILING);
@@ -280,7 +275,6 @@ async fn run_with_a_failing_example_names_the_file_that_documents_it() {
     assert_eq!(locations(findings), [path_text("src/lib.rs")]);
 }
 
-// testrustdocs[verify run.failed]
 #[tokio::test]
 async fn run_with_an_example_the_compiler_refuses_holds_what_it_wrote() {
     let project = Project::with_library(REFUSED);
@@ -298,7 +292,6 @@ async fn run_with_an_example_the_compiler_refuses_holds_what_it_wrote() {
     );
 }
 
-// testrustdocs[verify run.operation]
 #[tokio::test]
 async fn run_with_an_example_behind_a_feature_runs_it() {
     let project = Project::new();
@@ -313,7 +306,6 @@ async fn run_with_an_example_behind_a_feature_runs_it() {
     );
 }
 
-// testrustdocs[verify run.operation]
 #[tokio::test]
 async fn run_with_two_failing_packages_holds_the_findings_of_both() {
     let project = Project::new();
@@ -343,7 +335,6 @@ async fn run_with_two_failing_packages_holds_the_findings_of_both() {
     );
 }
 
-// testrustdocs[verify run.build]
 #[tokio::test]
 async fn run_with_a_compiler_error_fails_with_a_finding() {
     let project = Project::with_library(BROKEN);
@@ -361,7 +352,6 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
     );
 }
 
-// testrustdocs[verify finding.build]
 #[tokio::test]
 async fn run_with_a_compiler_error_names_the_file_of_the_diagnostic() {
     let project = Project::with_library(BROKEN);
@@ -374,7 +364,6 @@ async fn run_with_a_compiler_error_names_the_file_of_the_diagnostic() {
     assert_eq!(locations(findings), [path_text("src/lib.rs")]);
 }
 
-// testrustdocs[verify run.read]
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_library(FAILING);
@@ -384,8 +373,6 @@ async fn run_leaves_the_project_unchanged() {
     assert_eq!(project.read("src/lib.rs"), FAILING);
 }
 
-// testrustdocs[verify run.passed]
-// testrustdocs[verify tool.cargo]
 #[tokio::test]
 async fn run_in_a_project_with_a_passing_example_passes() {
     let project = Project::with_library(PASSING);
@@ -398,7 +385,6 @@ async fn run_in_a_project_with_a_passing_example_passes() {
     );
 }
 
-// testrustdocs[verify run.passed]
 #[tokio::test]
 async fn run_in_a_project_with_a_passing_example_counts_it() {
     let project = Project::with_library(PASSING);
@@ -414,7 +400,6 @@ async fn run_in_a_project_with_a_passing_example_counts_it() {
     );
 }
 
-// testrustdocs[verify run.none]
 #[tokio::test]
 async fn run_in_a_workspace_without_an_example_counts_zero() {
     let project = Project::with_library(UNDOCUMENTED);
@@ -430,7 +415,6 @@ async fn run_in_a_workspace_without_an_example_counts_zero() {
     );
 }
 
-// testrustdocs[verify run.none]
 #[tokio::test]
 async fn run_in_a_workspace_without_an_example_passes() {
     let project = Project::with_library(UNDOCUMENTED);
@@ -443,7 +427,6 @@ async fn run_in_a_workspace_without_an_example_passes() {
     );
 }
 
-// testrustdocs[verify roots.all]
 #[tokio::test]
 async fn run_with_a_failing_example_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
@@ -461,7 +444,6 @@ async fn run_with_a_failing_example_in_a_second_workspace_names_its_path() {
     assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
-// testrustdocs[verify roots.all]
 #[tokio::test]
 async fn run_with_two_workspaces_sums_the_examples() {
     let project = Project::with_library(PASSING);
@@ -482,7 +464,6 @@ async fn run_with_two_workspaces_sums_the_examples() {
     );
 }
 
-// testrustdocs[verify roots.all]
 #[tokio::test]
 async fn run_with_a_workspace_of_binaries_leaves_it_alone() {
     let project = Project::with_library(PASSING);
@@ -500,7 +481,6 @@ async fn run_with_a_workspace_of_binaries_leaves_it_alone() {
     );
 }
 
-// testrustdocs[verify skip.libraries]
 #[tokio::test]
 async fn run_in_a_project_of_binaries_says_that_it_holds_no_library() {
     let project = Project::new();
@@ -518,7 +498,6 @@ async fn run_in_a_project_of_binaries_says_that_it_holds_no_library() {
     );
 }
 
-// testrustdocs[verify skip.undiscovered]
 #[tokio::test]
 async fn run_in_a_project_without_a_manifest_says_that_cargo_found_none() {
     let project = Project::new();
@@ -535,7 +514,6 @@ async fn run_in_a_project_without_a_manifest_says_that_cargo_found_none() {
     );
 }
 
-// testrustdocs[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -549,7 +527,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
-// testrustdocs[verify run.error]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -565,7 +542,6 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// testrustdocs[verify report.unrecognized]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     let project = Project::new();
@@ -584,7 +560,6 @@ async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     );
 }
 
-// testrustdocs[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();

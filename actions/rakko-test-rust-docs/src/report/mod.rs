@@ -102,9 +102,6 @@ impl DoctestReport {
     /// skipped such a line would answer with a count that is too low.
     ///
     /// [unreadable]: ReadDoctestReportError::UnreadableSummary
-    // testrustdocs[impl report.failures]
-    // testrustdocs[impl report.ran]
-    // testrustdocs[impl report.unreadable]
     pub fn read(stdout: &str) -> Result<Self, ReadDoctestReportError> {
         let mut names: Vec<&str> = Vec::new();
         let mut blocks: Vec<(&str, String)> = Vec::new();
@@ -149,7 +146,6 @@ impl DoctestReport {
 /// examples of that name. Each block therefore answers one name once, in the
 /// order that the harness wrote them, and an example without a block keeps
 /// its name and no output.
-// testrustdocs[impl report.failures]
 fn failures(names: Vec<&str>, mut blocks: Vec<(&str, String)>) -> Vec<DoctestFailure> {
     names
         .into_iter()
@@ -173,8 +169,6 @@ fn failures(names: Vec<&str>, mut blocks: Vec<(&str, String)>) -> Vec<DoctestFai
 /// word in front of each of them, so a word that a new version adds changes
 /// nothing. An example that the harness left out ran as little as one that a
 /// filter removed, so neither counts.
-// testrustdocs[impl report.ran]
-// testrustdocs[impl report.unreadable]
 fn examples(counts: &str) -> Option<u64> {
     let mut ran = 0;
     let mut passed = false;
@@ -195,14 +189,12 @@ fn examples(counts: &str) -> Option<u64> {
 }
 
 /// Returns the name of the example that a line reports as failed
-// testrustdocs[impl report.failures]
 fn failed(line: &str) -> Option<&str> {
     line.strip_prefix(EXAMPLE_OPENS)?
         .strip_suffix(EXAMPLE_FAILED)
 }
 
 /// Returns the name of the example whose output a line opens
-// testrustdocs[impl report.failures]
 fn opens_output(line: &str) -> Option<&str> {
     line.strip_prefix(OUTPUT_OPENS)?.strip_suffix(OUTPUT_CLOSES)
 }
@@ -223,7 +215,6 @@ mod tests {
     /// panicked and one that passed
     const FAILING: &str = "running 2 tests\ntest src/lib.rs - add (line 5) ... FAILED\ntest src/lib.rs - sub (line 16) ... ok\n\nfailures:\n\n---- src/lib.rs - add (line 5) stdout ----\nTest executable failed (exit status: 101).\n\nstderr:\n\nthread 'main' panicked at src/lib.rs:5:1:\nassertion failed: false\n\n\nfailures:\n    src/lib.rs - add (line 5)\n\ntest result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s\n";
 
-    // testrustdocs[verify report.ran]
     #[test]
     fn read_a_report_of_two_packages_sums_their_examples() {
         let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
@@ -231,7 +222,6 @@ mod tests {
         assert_eq!(report.map(|report| report.ran()).ok(), Some(2));
     }
 
-    // testrustdocs[verify report.ran]
     #[test]
     fn read_a_report_of_two_packages_counts_their_summaries() {
         let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
@@ -239,7 +229,6 @@ mod tests {
         assert_eq!(report.map(|report| report.summaries()).ok(), Some(2));
     }
 
-    // testrustdocs[verify report.ran]
     #[test]
     fn read_a_report_beside_the_records_of_cargo_counts_the_examples() {
         let report = DoctestReport::read(PASSING);
@@ -247,7 +236,6 @@ mod tests {
         assert_eq!(report.map(|report| report.ran()).ok(), Some(1));
     }
 
-    // testrustdocs[verify report.ran]
     #[test]
     fn read_a_report_of_a_failing_run_counts_the_example_that_failed() {
         let report = DoctestReport::read(FAILING);
@@ -255,7 +243,6 @@ mod tests {
         assert_eq!(report.map(|report| report.ran()).ok(), Some(2));
     }
 
-    // testrustdocs[verify report.failures]
     #[test]
     fn read_a_report_of_a_failing_run_names_the_example() {
         let report = DoctestReport::read(FAILING);
@@ -275,7 +262,6 @@ mod tests {
         );
     }
 
-    // testrustdocs[verify report.failures]
     #[test]
     fn read_a_report_of_a_passing_run_names_no_example() {
         let report = DoctestReport::read(PASSING);
@@ -283,7 +269,6 @@ mod tests {
         assert_eq!(report.map(|report| report.failures().len()).ok(), Some(0));
     }
 
-    // testrustdocs[verify report.failures]
     #[test]
     fn read_a_report_whose_example_wrote_nothing_holds_the_name() {
         let stdout = "running 1 test\ntest src/lib.rs - add (line 5) ... FAILED\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n";
@@ -299,7 +284,6 @@ mod tests {
         );
     }
 
-    // testrustdocs[verify report.ran]
     #[test]
     fn read_a_stream_without_a_summary_counts_nothing() {
         let report = DoctestReport::read(r#"{"reason":"build-finished","success":false}"#);
@@ -307,7 +291,6 @@ mod tests {
         assert_eq!(report.map(|report| report.summaries()).ok(), Some(0));
     }
 
-    // testrustdocs[verify report.unreadable]
     #[test]
     fn read_a_summary_that_counts_nothing_holds_the_line() {
         let line = "test result: ok. everything went fine";

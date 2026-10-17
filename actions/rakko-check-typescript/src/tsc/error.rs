@@ -55,7 +55,6 @@ impl ObserveTscError {
     /// Tsc writes what it has to say on its standard output stream, so that is
     /// what the details carry. A run that wrote nothing there leaves its
     /// reason on the standard error stream, or says nothing at all.
-    // checktypescript[impl check.unreported]
     pub(super) fn silent(stdout: &str, stderr: &str) -> Self {
         Self::MissingReport {
             details: diagnosis(stdout, stderr),
@@ -87,7 +86,6 @@ mod tests {
 
     use super::*;
 
-    // checktypescript[verify check.unreported]
     #[test]
     fn error_of_a_silent_run_holds_what_tsc_wrote() {
         let error = ObserveTscError::silent("out of memory", "");
@@ -98,7 +96,6 @@ mod tests {
         );
     }
 
-    // checktypescript[verify check.unreported]
     #[test]
     fn error_of_a_silent_run_that_wrote_nothing_holds_the_other_stream() {
         let error = ObserveTscError::silent("", "killed");

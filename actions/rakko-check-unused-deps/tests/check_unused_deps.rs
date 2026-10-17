@@ -293,7 +293,6 @@ fn trust(configuration: &Path) {
     );
 }
 
-// checkunuseddeps[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <CheckUnusedDeps as Action>::Args::schema();
@@ -301,7 +300,6 @@ fn action_declares_no_argument() {
     assert!(schema.arguments().is_empty());
 }
 
-// checkunuseddeps[verify name]
 #[test]
 fn action_identifies_itself_as_check_unused_deps() {
     let name = CheckUnusedDeps.name();
@@ -309,7 +307,6 @@ fn action_identifies_itself_as_check_unused_deps() {
     assert_eq!(name.get(), "check-unused-deps");
 }
 
-// checkunuseddeps[verify check.passed]
 #[tokio::test]
 async fn run_in_a_project_that_uses_every_dependency_counts_the_workspaces() {
     let project = Project::with_dependency(NORMAL, USES_HELPER);
@@ -322,9 +319,6 @@ async fn run_in_a_project_that_uses_every_dependency_counts_the_workspaces() {
 // A run of cargo-udeps needs an unstable option of the compiler, and a
 // stable toolchain refuses it and reports nothing, so a run that answers at
 // all ran on the nightly toolchain that mise pins for the project.
-// checkunuseddeps[verify check.passed]
-// checkunuseddeps[verify tool.cargo]
-// checkunuseddeps[verify tool.toolchain]
 #[tokio::test]
 async fn run_in_a_project_that_uses_every_dependency_passes() {
     let project = Project::with_dependency(NORMAL, USES_HELPER);
@@ -337,7 +331,6 @@ async fn run_in_a_project_that_uses_every_dependency_passes() {
     );
 }
 
-// checkunuseddeps[verify check.read]
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_dependency(NORMAL, CLEAN);
@@ -347,7 +340,6 @@ async fn run_leaves_the_project_unchanged() {
     assert_eq!(project.read("Cargo.toml"), workspace(NORMAL));
 }
 
-// checkunuseddeps[verify check.unrecognized]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::with_dependency(NORMAL, USES_HELPER);
@@ -365,7 +357,6 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// checkunuseddeps[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_compiler_error_names_the_file() {
     let project = Project::with_dependency(NORMAL, BROKEN);
@@ -375,7 +366,6 @@ async fn run_with_a_compiler_error_names_the_file() {
     assert_eq!(paths(&outcome), vec![path_text("src/lib.rs")]);
 }
 
-// checkunuseddeps[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_compiler_error_reports_the_diagnostic() {
     let project = Project::with_dependency(NORMAL, BROKEN);
@@ -390,7 +380,6 @@ async fn run_with_a_compiler_error_reports_the_diagnostic() {
     );
 }
 
-// checkunuseddeps[verify check.operation]
 #[tokio::test]
 async fn run_with_a_development_dependency_that_a_test_uses_passes() {
     let project = Project::with_dependency(DEVELOPMENT, CLEAN);
@@ -407,7 +396,6 @@ async fn run_with_a_development_dependency_that_a_test_uses_passes() {
     );
 }
 
-// checkunuseddeps[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -423,7 +411,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
 
 // A warning of the compiler belongs to the action that lints the code. The
 // build finished, so the answer of this run is the report of cargo-udeps.
-// checkunuseddeps[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_warning_reports_no_diagnostic() {
     let project = Project::with_dependency(NORMAL, &format!("{USES_HELPER}{WARNED}"));
@@ -436,7 +423,6 @@ async fn run_with_a_warning_reports_no_diagnostic() {
     );
 }
 
-// checkunuseddeps[verify check.failed]
 #[tokio::test]
 async fn run_with_an_unused_dependency_fails() {
     let project = Project::with_dependency(NORMAL, CLEAN);
@@ -449,7 +435,6 @@ async fn run_with_an_unused_dependency_fails() {
     );
 }
 
-// checkunuseddeps[verify roots.every]
 #[tokio::test]
 async fn run_with_an_unused_dependency_in_a_second_workspace_names_its_manifest() {
     let project = Project::with_dependency(NORMAL, USES_HELPER);
@@ -464,7 +449,6 @@ async fn run_with_an_unused_dependency_in_a_second_workspace_names_its_manifest(
     assert_eq!(paths(&outcome), vec![path_text("tools/harness/Cargo.toml")]);
 }
 
-// checkunuseddeps[verify check.finding]
 #[tokio::test]
 async fn run_with_an_unused_dependency_names_the_dependency() {
     let project = Project::with_dependency(NORMAL, CLEAN);
@@ -477,7 +461,6 @@ async fn run_with_an_unused_dependency_names_the_dependency() {
     );
 }
 
-// checkunuseddeps[verify check.finding]
 #[tokio::test]
 async fn run_with_an_unused_dependency_names_the_manifest() {
     let project = Project::with_dependency(NORMAL, CLEAN);
@@ -490,7 +473,6 @@ async fn run_with_an_unused_dependency_names_the_manifest() {
 // The bare cargo-udeps that this action replaces examines the default
 // targets, which leaves a dependency of the tests uncompiled and therefore
 // unexamined.
-// checkunuseddeps[verify check.operation]
 #[tokio::test]
 async fn run_with_an_unused_development_dependency_names_its_kind() {
     let project = Project::with_dependency(DEVELOPMENT, CLEAN);
@@ -506,7 +488,6 @@ async fn run_with_an_unused_development_dependency_names_its_kind() {
 // The bare cargo-udeps that this action replaces examines the default
 // features, which leaves a dependency behind a feature uncompiled and
 // therefore unexamined.
-// checkunuseddeps[verify check.operation]
 #[tokio::test]
 async fn run_with_an_unused_optional_dependency_names_it() {
     let project = Project::with_dependency(OPTIONAL, CLEAN);
@@ -519,7 +500,6 @@ async fn run_with_an_unused_optional_dependency_names_it() {
     );
 }
 
-// checkunuseddeps[verify roots.every]
 #[tokio::test]
 async fn run_with_two_workspaces_counts_both() {
     let project = Project::with_dependency(NORMAL, USES_HELPER);
@@ -534,7 +514,6 @@ async fn run_with_two_workspaces_counts_both() {
     assert_eq!(summary(&outcome), Some("examined 2 workspaces"));
 }
 
-// checkunuseddeps[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
@@ -551,7 +530,6 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// checkunuseddeps[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
@@ -565,7 +543,6 @@ async fn run_without_a_manifest_skips() {
     );
 }
 
-// checkunuseddeps[verify tool.unpinned]
 #[tokio::test]
 async fn run_without_a_pinned_nightly_stops() {
     let project = Project::without_nightly();

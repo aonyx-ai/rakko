@@ -45,7 +45,6 @@ const PREFIX: &[u8] = b"GIT_";
 /// A drop cannot wait for a future, and the crate that describes a command
 /// runs one only as a future, so the removal of a copy describes its own
 /// command and waits for it on the thread that dropped the value.
-// worktree[impl project.environment]
 pub(super) fn blocking_command(directory: &Path) -> Command {
     let mut command = Command::new(GIT);
 
@@ -63,7 +62,6 @@ pub(super) fn blocking_command(directory: &Path) -> Command {
 /// The caller adds the arguments of the operation that it wants, and then runs
 /// the command. Nothing starts until it does, so a caller can name the command
 /// in a log line or in an error first.
-// worktree[impl project.environment]
 pub(super) fn command(directory: &Path) -> Invocation {
     let names = reserved(std::env::vars_os().map(|(name, _)| name));
 
@@ -121,7 +119,6 @@ mod tests {
 
     // The variable that a hook exports is the one that would send every
     // command of the crate at the repository of the hook.
-    // worktree[verify project.environment]
     #[test]
     fn reserved_names_a_variable_of_git() {
         assert_eq!(dropped(&["GIT_DIR"]), vec!["GIT_DIR"]);
@@ -129,7 +126,6 @@ mod tests {
 
     // A name that nobody has heard of yet is what the prefix is for: it goes
     // without anybody adding it to a list.
-    // worktree[verify project.environment]
     #[test]
     fn reserved_names_a_variable_that_git_has_yet_to_add() {
         assert_eq!(dropped(&["GIT_SOMETHING_NEW"]), vec!["GIT_SOMETHING_NEW"]);
@@ -137,7 +133,6 @@ mod tests {
 
     // The underscore of the prefix keeps the variables of other programs, and
     // this is the name that a prefix without it would take away.
-    // worktree[verify project.environment]
     #[test]
     fn reserved_keeps_a_variable_of_another_program() {
         assert_eq!(

@@ -317,7 +317,6 @@ fn trust(configuration: &Path) {
     );
 }
 
-// checkdependencies[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<CheckDependencies as Action>::Args as Args>::schema();
@@ -329,7 +328,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// checkdependencies[verify name]
 #[test]
 fn action_identifies_itself_as_check_dependencies() {
     let name = CheckDependencies.name();
@@ -337,7 +335,6 @@ fn action_identifies_itself_as_check_dependencies() {
     assert_eq!(name.get(), "check-dependencies");
 }
 
-// checkdependencies[verify roots.all]
 #[tokio::test]
 async fn run_checks_every_workspace_of_the_project() {
     let project = two_workspaces(ALLOW_APACHE);
@@ -347,7 +344,6 @@ async fn run_checks_every_workspace_of_the_project() {
     assert_eq!(summary(&outcome), "checked 2 workspaces");
 }
 
-// checkdependencies[verify run.checks]
 #[tokio::test]
 async fn run_does_not_ask_for_the_advisories_check() {
     let project = Project::with_configuration(UNREACHABLE_ADVISORIES);
@@ -360,7 +356,6 @@ async fn run_does_not_ask_for_the_advisories_check() {
     );
 }
 
-// checkdependencies[verify check.passed]
 #[tokio::test]
 async fn run_in_a_clean_project_counts_the_workspace_that_it_checked() {
     let project = Project::with_configuration(ALLOW_MIT);
@@ -370,9 +365,6 @@ async fn run_in_a_clean_project_counts_the_workspace_that_it_checked() {
     assert_eq!(summary(&outcome), "checked 1 workspace");
 }
 
-// checkdependencies[verify check.passed]
-// checkdependencies[verify tool.cargo]
-// checkdependencies[verify tool.deny]
 #[tokio::test]
 async fn run_in_a_clean_project_passes() {
     let project = Project::with_configuration(ALLOW_MIT);
@@ -385,7 +377,6 @@ async fn run_in_a_clean_project_passes() {
     );
 }
 
-// checkdependencies[verify skip.undiscovered]
 #[tokio::test]
 async fn run_in_a_project_without_a_manifest_skips() {
     let project = Project::new();
@@ -399,7 +390,6 @@ async fn run_in_a_project_without_a_manifest_skips() {
     );
 }
 
-// checkdependencies[verify check.read]
 #[tokio::test]
 async fn run_leaves_the_manifest_of_a_refused_package_unchanged() {
     let project = Project::with_configuration(ALLOW_APACHE);
@@ -409,7 +399,6 @@ async fn run_leaves_the_manifest_of_a_refused_package_unchanged() {
     assert_eq!(project.read("Cargo.toml"), PACKAGE);
 }
 
-// checkdependencies[verify roots.members]
 #[tokio::test]
 async fn run_reaches_a_member_that_no_other_member_depends_on() {
     let project = Project::new();
@@ -429,7 +418,6 @@ async fn run_reaches_a_member_that_no_other_member_depends_on() {
     );
 }
 
-// checkdependencies[verify run.directory]
 #[tokio::test]
 async fn run_reads_the_configuration_that_lies_closest_to_a_workspace() {
     let project = two_workspaces(ALLOW_APACHE);
@@ -443,7 +431,6 @@ async fn run_reads_the_configuration_that_lies_closest_to_a_workspace() {
     );
 }
 
-// checkdependencies[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -457,7 +444,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
-// checkdependencies[verify check.configuration]
 #[tokio::test]
 async fn run_with_a_refused_configuration_holds_what_cargo_deny_wrote() {
     let project = Project::with_configuration(BROKEN);
@@ -473,8 +459,6 @@ async fn run_with_a_refused_configuration_holds_what_cargo_deny_wrote() {
     );
 }
 
-// checkdependencies[verify check.configuration]
-// checkdependencies[verify check.incomplete]
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::with_configuration(BROKEN);
@@ -487,7 +471,6 @@ async fn run_with_a_refused_configuration_stops() {
     );
 }
 
-// checkdependencies[verify check.location]
 #[tokio::test]
 async fn run_with_a_refused_license_at_the_project_root_names_the_project() {
     let project = Project::with_configuration(ALLOW_APACHE);
@@ -506,7 +489,6 @@ async fn run_with_a_refused_license_at_the_project_root_names_the_project() {
     );
 }
 
-// checkdependencies[verify check.location]
 #[tokio::test]
 async fn run_with_a_refused_license_below_the_project_root_names_the_workspace() {
     let project = two_workspaces(ALLOW_MIT);
@@ -524,7 +506,6 @@ async fn run_with_a_refused_license_below_the_project_root_names_the_workspace()
     );
 }
 
-// checkdependencies[verify check.failed]
 #[tokio::test]
 async fn run_with_a_refused_license_fails() {
     let project = Project::with_configuration(ALLOW_APACHE);
@@ -537,8 +518,6 @@ async fn run_with_a_refused_license_fails() {
     );
 }
 
-// checkdependencies[verify check.finding]
-// checkdependencies[verify run.structured]
 #[tokio::test]
 async fn run_with_a_refused_license_names_the_check_the_words_and_the_package() {
     let project = Project::with_configuration(ALLOW_APACHE);
@@ -553,8 +532,6 @@ async fn run_with_a_refused_license_names_the_check_the_words_and_the_package() 
     );
 }
 
-// checkdependencies[verify check.passed]
-// checkdependencies[verify check.warning]
 #[tokio::test]
 async fn run_with_a_warning_counts_it() {
     let project = Project::with_configuration(UNUSED);
@@ -564,7 +541,6 @@ async fn run_with_a_warning_counts_it() {
     assert_eq!(summary(&outcome), "checked 1 workspace, 1 warning");
 }
 
-// checkdependencies[verify check.warning]
 #[tokio::test]
 async fn run_with_a_warning_passes() {
     let project = Project::with_configuration(UNUSED);
@@ -577,7 +553,6 @@ async fn run_with_a_warning_passes() {
     );
 }
 
-// checkdependencies[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_deny_stops() {
     let project = Project::without_deny();

@@ -18,7 +18,6 @@ const TRUE: &str = "true";
 /// argument. The projection gives no short flag: one letter is a name that
 /// only one argument in the whole fleet can hold, and no action has a claim
 /// on it.
-// cli[impl argument.flag]
 pub(super) fn render(schema: &ArgsSchema) -> Vec<Arg> {
     schema.arguments().iter().map(flag).collect()
 }
@@ -34,7 +33,6 @@ pub(super) fn render(schema: &ArgsSchema) -> Vec<Arg> {
 ///
 /// Panics when the matches did not come from the flags that [`render`] built
 /// for this schema.
-// cli[impl argument.values]
 pub(super) fn collect(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
     ArgsValues::new(schema.arguments().iter().filter_map(|argument| {
         value(argument, matches).map(|value| (argument.name().clone(), value))
@@ -53,7 +51,6 @@ pub(super) fn collect(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
 ///
 /// Panics when an argument of an action or a command carries the name of a
 /// flag of the command line, and reports the entry and the argument.
-// cli[impl mount.reserved+2]
 pub(super) fn refuse_reserved(entries: &[Mounted]) {
     let reserved = reserved();
 
@@ -71,10 +68,6 @@ pub(super) fn refuse_reserved(entries: &[Mounted]) {
 }
 
 /// Returns the flag that renders one argument
-// cli[impl argument.flag]
-// cli[impl argument.help]
-// cli[impl argument.switch]
-// cli[impl argument.value]
 fn flag(argument: &Argument) -> Arg {
     let name = argument.name().get().to_owned();
     let flag = Arg::new(name.clone())
@@ -101,7 +94,6 @@ fn flag(argument: &Argument) -> Arg {
 /// # Errors
 ///
 /// Returns an error when the value is not a whole number.
-// cli[impl argument.integer]
 fn integer(value: &str) -> Result<String, ParseIntError> {
     value.parse::<i64>()?;
 
@@ -138,8 +130,6 @@ fn reserved() -> BTreeSet<String> {
 ///
 /// Panics when the matches did not come from the flag that [`flag`] built for
 /// this argument.
-// cli[impl argument.values]
-// cli[impl argument.absent]
 fn value(argument: &Argument, matches: &ArgMatches) -> Option<ArgumentValue> {
     let name = argument.name().get();
 

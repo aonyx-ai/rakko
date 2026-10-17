@@ -48,19 +48,14 @@ use crate::outcome::Outcome;
 ///
 /// assert_eq!(actions[0].name().get(), "line-count");
 /// ```
-// action[impl erased.object]
-// action[impl erased.send]
-// action[impl erased.sync]
 pub trait ErasedAction: Send + Sync {
     /// Returns the name that identifies the action
-    // action[impl erased.name]
     fn name(&self) -> Name;
 
     /// Returns the description of the arguments that the action reads
     ///
     /// A projection reads the description to build a command before a run
     /// exists.
-    // action[impl erased.arguments]
     fn arguments(&self) -> ArgsSchema;
 
     /// Runs the action against the project that the context names
@@ -69,8 +64,6 @@ pub trait ErasedAction: Send + Sync {
     /// action. The run converts them into the arguments of the action, and a
     /// conversion that fails travels in [`Outcome::Errored`], so this method
     /// has no error type of its own.
-    // action[impl erased.run]
-    // action[impl erased.unreadable]
     fn run<'a>(
         &'a self,
         context: &'a Context,
@@ -78,7 +71,6 @@ pub trait ErasedAction: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Outcome> + Send + 'a>>;
 }
 
-// action[impl erased.total]
 impl<A: Action> ErasedAction for A {
     fn name(&self) -> Name {
         Action::name(self)
@@ -187,7 +179,6 @@ mod tests {
         Box::new(action)
     }
 
-    // action[verify erased.arguments]
     #[test]
     fn arguments_returns_the_schema_of_the_arguments() {
         let action = Unbuildable;
@@ -197,7 +188,6 @@ mod tests {
         assert_eq!(schema.arguments().len(), 1);
     }
 
-    // action[verify erased.arguments]
     #[test]
     fn arguments_of_an_action_without_arguments_is_empty() {
         let action = Probe;
@@ -207,8 +197,6 @@ mod tests {
         assert!(schema.arguments().is_empty());
     }
 
-    // action[verify erased.object]
-    // action[verify erased.total]
     #[test]
     fn every_action_becomes_a_trait_object() {
         let erased = require_erased(Probe);
@@ -216,7 +204,6 @@ mod tests {
         assert_eq!(erased.name().get(), "probe");
     }
 
-    // action[verify erased.name]
     #[test]
     fn name_returns_the_name_of_the_action() {
         let action = Probe;
@@ -226,7 +213,6 @@ mod tests {
         assert_eq!(name.get(), "probe");
     }
 
-    // action[verify erased.run]
     #[test]
     fn run_produces_the_outcome_of_the_action() {
         let action = Probe;
@@ -237,7 +223,6 @@ mod tests {
         assert!(matches!(outcome, Outcome::Passed { .. }));
     }
 
-    // action[verify erased.unreadable]
     #[test]
     fn run_reports_arguments_that_it_cannot_read() {
         let action = Unbuildable;
@@ -248,7 +233,6 @@ mod tests {
         assert!(matches!(outcome, Outcome::Errored { .. }));
     }
 
-    // action[verify erased.send]
     #[test]
     fn trait_object_is_send() {
         fn assert_send<T: Send + ?Sized>() {}
@@ -256,7 +240,6 @@ mod tests {
         assert_send::<dyn ErasedAction>();
     }
 
-    // action[verify erased.sync]
     #[test]
     fn trait_object_is_sync() {
         fn assert_sync<T: Sync + ?Sized>() {}

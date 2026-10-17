@@ -79,10 +79,6 @@ impl NextestReport {
     /// such a line would let a run pass with its failures unread.
     ///
     /// [unrecognized]: ReadNextestReportError::UnrecognizedRecord
-    // nextest[impl report.failures]
-    // nextest[impl report.none]
-    // nextest[impl report.ran]
-    // nextest[impl report.unreadable]
     pub fn read(stdout: &str) -> Result<Self, ReadNextestReportError> {
         let mut failures = Vec::new();
         let mut ran = 0;
@@ -162,7 +158,6 @@ struct Record {
 /// the shape of the record.
 ///
 /// [unrecognized]: ReadNextestReportError::UnrecognizedRecord
-// nextest[impl report.unreadable]
 fn decode<T: DeserializeOwned>(line: &str) -> Result<T, ReadNextestReportError> {
     serde_json::from_str(line).map_err(|source| ReadNextestReportError::UnrecognizedRecord {
         line: line.to_owned(),
@@ -217,7 +212,6 @@ mod tests {
             .expect("the test reads a report that nextest could write")
     }
 
-    // nextest[verify report.failures]
     #[test]
     fn read_a_failed_test_keeps_its_name() {
         let report = read(&[FAILED_TEST, FAILED_SUITE]);
@@ -228,7 +222,6 @@ mod tests {
         );
     }
 
-    // nextest[verify report.failures]
     #[test]
     fn read_a_failed_test_keeps_what_it_wrote() {
         let report = read(&[FAILED_TEST, FAILED_SUITE]);
@@ -243,7 +236,6 @@ mod tests {
         );
     }
 
-    // nextest[verify report.failures]
     #[test]
     fn read_a_line_of_cargo_ignores_it() {
         let report = read(&[ARTIFACT, PASSED_SUITE]);
@@ -251,7 +243,6 @@ mod tests {
         assert!(report.failures().is_empty());
     }
 
-    // nextest[verify report.failures]
     #[test]
     fn read_a_passed_test_keeps_no_failure() {
         let report = read(&[STARTED_TEST, PASSED_TEST, PASSED_SUITE]);
@@ -259,7 +250,6 @@ mod tests {
         assert!(report.failures().is_empty());
     }
 
-    // nextest[verify report.unreadable]
     #[test]
     fn read_a_test_line_it_cannot_read_stops_with_the_line() {
         let report = NextestReport::read(&output(&[MISSHAPEN, PASSED_SUITE]));
@@ -273,7 +263,6 @@ mod tests {
         );
     }
 
-    // nextest[verify report.none]
     #[test]
     fn read_an_empty_report_ran_nothing() {
         let report = read(&[]);
@@ -281,7 +270,6 @@ mod tests {
         assert_eq!(report.ran(), 0);
     }
 
-    // nextest[verify report.ran]
     #[test]
     fn read_sums_the_tests_that_passed_and_failed_over_the_binaries() {
         let report = read(&[PASSED_SUITE, FAILED_TEST, FAILED_SUITE]);

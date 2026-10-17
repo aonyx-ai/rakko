@@ -91,7 +91,6 @@ struct Krate {
 
 impl Diagnostic {
     /// Returns the problem that this record reports
-    // checkdependencies[impl check.finding]
     fn into_problem(self) -> DenyProblem {
         let packages = self
             .graphs
@@ -110,7 +109,6 @@ impl Diagnostic {
 /// Returns the error of a record that is not one that cargo-deny writes. A
 /// reading that skipped such a record would drop a problem of the project
 /// without a word, so the caller stops instead.
-// checkdependencies[impl check.unreadable]
 pub(super) fn read(record: &str) -> Result<Entry, serde_json::Error> {
     Ok(match serde_json::from_str::<Record>(record)? {
         Record::Diagnostic { fields } => Entry::Problem(fields.into_problem()),
@@ -159,7 +157,6 @@ mod tests {
         problem
     }
 
-    // checkdependencies[verify check.finding]
     #[test]
     fn read_a_diagnostic_holds_the_check_and_the_words_of_cargo_deny() {
         let problem = problem(REJECTED);
@@ -170,7 +167,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.finding]
     #[test]
     fn read_a_diagnostic_names_the_package_at_the_root_of_every_graph() {
         let problem = problem(DUPLICATE);
@@ -185,7 +181,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.finding]
     #[test]
     fn read_a_diagnostic_without_a_graph_names_no_package() {
         let problem = problem(UNENCOUNTERED);
@@ -197,7 +192,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.warning]
     #[test]
     fn read_a_diagnostic_carries_the_weight_of_the_project() {
         let problem = problem(DUPLICATE);
@@ -205,7 +199,6 @@ mod tests {
         assert_eq!(problem.severity(), Severity::Warning);
     }
 
-    // checkdependencies[verify check.incomplete]
     #[test]
     fn read_the_summary_reports_a_run_that_finished_its_checks() {
         let entry = read(SUMMARY).expect("the test reads a record that cargo-deny could write");
@@ -236,7 +229,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.unreadable]
     #[test]
     fn read_a_diagnostic_in_a_shape_the_crate_does_not_know_stops_the_reading() {
         let entry = read(r#"{"fields":{"code":"rejected"},"type":"diagnostic"}"#);

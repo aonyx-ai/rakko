@@ -87,7 +87,6 @@ pub struct CheckMiseLock;
 impl Action for CheckMiseLock {
     type Args = CheckMiseLockArgs;
 
-    // checkmiselock[impl name]
     fn name(&self) -> Name {
         action_name!("check-mise-lock")
     }
@@ -95,9 +94,6 @@ impl Action for CheckMiseLock {
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
-            // checkmiselock[impl copy.unavailable]
-            // checkmiselock[impl lockfiles.unreadable]
-            // checkmiselock[impl tool.failed]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -131,26 +127,19 @@ impl Action for CheckMiseLock {
 async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, CheckMiseLockError> {
     let project = Mise::new(context.root().clone(), Trust::Inherited);
 
-    // checkmiselock[impl fix.write]
-    // checkmiselock[impl copy.disposable]
-    // checkmiselock[impl copy.uncommitted]
-    // checkmiselock[impl copy.unavailable]
     let (mise, before, _worktree) = if args.fix() {
         let before = project.lockfiles().await?;
 
         (project, before, None)
     } else {
-        // checkmiselock[impl copy.trust]
         project.list().await?;
 
         let worktree = Worktree::create(context.root().clone())
             .await
             .map_err(|source| CheckMiseLockError::CopyUnavailable { source })?;
 
-        // checkmiselock[impl copy.trust]
         let copy = Mise::new(worktree.root().clone(), Trust::Granted);
 
-        // checkmiselock[impl copy.compared]
         let before = copy.lockfiles().await?;
 
         (copy, before, Some(worktree))
@@ -158,27 +147,23 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
 
     let targets = match mise.lock().await? {
         Lock::Written { targets } => targets,
-        // checkmiselock[impl skip.unconfigured]
         Lock::Unconfigured { reason } => return Ok(Outcome::Skipped { reason }),
     };
 
     let after = mise.lockfiles().await?;
     let differences = differences(&before, &after);
 
-    // checkmiselock[impl lock.untargeted]
     if let Some(path) = untargeted(&after, &targets) {
         return Err(CheckMiseLockError::UntargetedLockfile {
             path: path.get().to_path_buf(),
         });
     }
 
-    // checkmiselock[impl lock.unaddressed]
     if let Some(parts) = unaddressed(&after, &targets) {
         return Err(CheckMiseLockError::UnaddressedPlatforms { parts });
     }
 
     if differences.is_empty() {
-        // checkmiselock[impl compare.passed]
         let compared = before.keys().chain(after.keys()).collect::<BTreeSet<_>>();
 
         return Ok(Outcome::Passed {
@@ -187,15 +172,10 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
     }
 
     if args.fix() {
-        // checkmiselock[impl fix.changed]
         Ok(Outcome::Changed {
             repairs: findings(&differences, Difference::repair),
         })
     } else {
-        // checkmiselock[impl compare.added]
-        // checkmiselock[impl compare.changed]
-        // checkmiselock[impl compare.removed]
-        // checkmiselock[impl compare.missing]
         Ok(Outcome::Failed {
             findings: findings(&differences, Difference::finding),
             repairs: Vec::new(),
@@ -208,8 +188,6 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
 /// A lockfile that only one side holds counts as a lockfile without parts on
 /// the other side, so a lockfile that `mise lock` created gives a difference
 /// for each of its parts.
-// checkmiselock[impl lockfiles.listed]
-// checkmiselock[impl compare.missing]
 fn differences(
     before: &BTreeMap<FilePath, Lockfile>,
     after: &BTreeMap<FilePath, Lockfile>,
@@ -238,7 +216,6 @@ fn differences(
 /// Without them, the run cannot tell an entry of a targeted platform from an
 /// old one, so a lockfile with any platform and without targets stops the
 /// run rather than pass it.
-// checkmiselock[impl lock.untargeted]
 fn untargeted<'a>(
     after: &'a BTreeMap<FilePath, Lockfile>,
     targets: &BTreeMap<FilePath, BTreeSet<Platform>>,
@@ -258,7 +235,6 @@ fn untargeted<'a>(
 /// lock` leaves the entries of a platform that it does not target as they
 /// were, so an old entry without an address for such a platform says nothing
 /// about the run.
-// checkmiselock[impl lock.unaddressed]
 fn unaddressed(
     after: &BTreeMap<FilePath, Lockfile>,
     targets: &BTreeMap<FilePath, BTreeSet<Platform>>,
@@ -307,7 +283,6 @@ fn findings(
 }
 
 /// Returns the summary of a run that compared the given number of lockfiles
-// checkmiselock[impl compare.passed]
 fn summary(compared: usize) -> Summary {
     if compared == 1 {
         Summary::new("compared 1 lockfile")
@@ -349,7 +324,6 @@ mod tests {
             .collect()
     }
 
-    // checkmiselock[verify lockfiles.listed]
     #[test]
     fn differences_with_a_lockfile_that_only_the_project_held_name_its_parts() {
         let before = lockfiles(&[("mise.lock", LOCKFILE)]);
@@ -360,7 +334,6 @@ mod tests {
         assert_eq!(differences.len(), 1);
     }
 
-    // checkmiselock[verify compare.missing]
     #[test]
     fn differences_with_a_lockfile_that_only_the_run_wrote_name_its_parts() {
         let before = lockfiles(&[]);
@@ -371,7 +344,6 @@ mod tests {
         assert_eq!(differences.len(), 1);
     }
 
-    // checkmiselock[verify lockfiles.listed]
     #[test]
     fn differences_with_several_lockfiles_name_the_lockfile_of_each() {
         let before = lockfiles(&[("mise.lock", ""), (".config/mise.lock", "")]);
@@ -391,7 +363,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify compare.passed]
     #[test]
     fn summary_of_one_lockfile_names_one_lockfile() {
         let summary = summary(1);
@@ -399,7 +370,6 @@ mod tests {
         assert_eq!(summary.get(), "compared 1 lockfile");
     }
 
-    // checkmiselock[verify compare.passed]
     #[test]
     fn summary_of_several_lockfiles_names_their_number() {
         let summary = summary(2);
@@ -407,7 +377,6 @@ mod tests {
         assert_eq!(summary.get(), "compared 2 lockfiles");
     }
 
-    // checkmiselock[verify lock.unaddressed]
     #[test]
     fn unaddressed_with_a_targeted_platform_without_an_address_names_it() {
         let text = LOCKFILE.replace("url = ", "provenance = ");
@@ -419,7 +388,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.unaddressed]
     #[test]
     fn unaddressed_with_an_untargeted_platform_without_an_address_names_nothing() {
         let after = lockfiles(&[("mise.lock", &format!("{LOCKFILE}{STALE}"))]);
@@ -427,7 +395,6 @@ mod tests {
         assert_eq!(unaddressed(&after, &targets(&["linux-x64"])), None);
     }
 
-    // checkmiselock[verify lock.unaddressed]
     #[test]
     fn unaddressed_with_complete_targeted_platforms_names_nothing() {
         let after = lockfiles(&[("mise.lock", LOCKFILE)]);
@@ -435,7 +402,6 @@ mod tests {
         assert_eq!(unaddressed(&after, &targets(&["linux-x64"])), None);
     }
 
-    // checkmiselock[verify lock.untargeted]
     #[test]
     fn untargeted_with_a_lockfile_without_platforms_names_nothing() {
         let after = lockfiles(&[("mise.lock", "[[tools.rust]]\nversion = \"1.99.1\"\n")]);
@@ -443,7 +409,6 @@ mod tests {
         assert_eq!(untargeted(&after, &BTreeMap::new()), None);
     }
 
-    // checkmiselock[verify lock.untargeted]
     #[test]
     fn untargeted_with_a_lockfile_without_targets_names_it() {
         let after = lockfiles(&[("mise.lock", LOCKFILE)]);
@@ -454,7 +419,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.untargeted]
     #[test]
     fn untargeted_with_targets_names_nothing() {
         let after = lockfiles(&[("mise.lock", LOCKFILE)]);

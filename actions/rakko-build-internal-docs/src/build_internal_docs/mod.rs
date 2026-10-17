@@ -96,10 +96,8 @@ const PACKAGE: &str = "--package";
 pub struct BuildInternalDocs;
 
 impl Action for BuildInternalDocs {
-    // buildinternaldocs[impl args.none]
     type Args = ();
 
-    // buildinternaldocs[impl name]
     fn name(&self) -> Name {
         action_name!("build-internal-docs")
     }
@@ -107,8 +105,6 @@ impl Action for BuildInternalDocs {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // buildinternaldocs[impl roots.error]
-            // buildinternaldocs[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -128,19 +124,15 @@ impl Action for BuildInternalDocs {
 /// the tool, the discovery of the workspaces, a cargo run, or the reading
 /// of a report.
 async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
-    // buildinternaldocs[impl tool.cargo]
-    // buildinternaldocs[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| BuildInternalDocsError::UnresolvedTool { source })?;
 
-    // buildinternaldocs[impl roots.error]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| BuildInternalDocsError::UndiscoveredRoots { source })?;
 
-    // buildinternaldocs[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
@@ -149,12 +141,10 @@ async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
 
     let mut findings = Vec::new();
 
-    // buildinternaldocs[impl roots.all]
     for root in &roots {
         let mut earlier: HashSet<Finding> = HashSet::new();
 
         for selection in selections(root) {
-            // buildinternaldocs[impl build.once]
             let fresh: Vec<Finding> = document(&cargo, root, selection, context)
                 .await?
                 .into_iter()
@@ -167,12 +157,10 @@ async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
     }
 
     if findings.is_empty() {
-        // buildinternaldocs[impl build.passed]
         Ok(Outcome::Passed {
             summary: Some(summary(roots.len())),
         })
     } else {
-        // buildinternaldocs[impl build.failed]
         Ok(Outcome::Failed {
             findings,
             repairs: Vec::new(),
@@ -190,8 +178,6 @@ async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
 /// workspace without a shared name keeps its one run, and a workspace whose
 /// every package shares a name has no run for the rest, because cargo
 /// refuses a run that excludes every package.
-// buildinternaldocs[impl build.operation+2]
-// buildinternaldocs[impl build.shared]
 fn selections(root: &CargoRoot) -> Vec<Vec<&str>> {
     let (shared, unique): (Vec<&CargoPackage>, Vec<&CargoPackage>) = root
         .packages()
@@ -232,9 +218,6 @@ fn selections(root: &CargoRoot) -> Vec<Vec<&str>> {
 ///
 /// [unavailable]: BuildInternalDocsError::CargoUnavailable
 /// [unrecognized]: BuildInternalDocsError::UnrecognizedReport
-// buildinternaldocs[impl build.diagnostic]
-// buildinternaldocs[impl build.operation+2]
-// buildinternaldocs[impl build.sources]
 async fn document(
     cargo: &Cargo,
     root: &CargoRoot,
@@ -251,7 +234,6 @@ async fn document(
 
     let report = read(root, &execution.stdout().to_string_lossy())?;
 
-    // buildinternaldocs[impl build.unrecognized]
     if !recognized(&report, &execution) {
         return Err(BuildInternalDocsError::UnrecognizedReport {
             root: root.directory().clone(),
@@ -272,7 +254,6 @@ async fn document(
 /// ended with success without saying that the build finished, both wrote a
 /// report that the action cannot read, and an answer built on such a report
 /// would hide problems behind a green result.
-// buildinternaldocs[impl build.unrecognized]
 fn recognized(report: &CargoReport, execution: &Execution) -> bool {
     if execution.status().success() {
         report.finished() == Some(true)
@@ -291,7 +272,6 @@ fn recognized(report: &CargoReport, execution: &Execution) -> bool {
 /// would hide problems behind a green result.
 ///
 /// [unreadable]: BuildInternalDocsError::UnreadableReport
-// buildinternaldocs[impl build.unreadable]
 fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, BuildInternalDocsError> {
     CargoReport::read(stdout).map_err(|source| BuildInternalDocsError::UnreadableReport {
         root: root.directory().clone(),
@@ -300,7 +280,6 @@ fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, BuildInternalDocs
 }
 
 /// Returns the summary that tells how many workspaces the run documented
-// buildinternaldocs[impl build.passed]
 fn summary(roots: usize) -> Summary {
     if roots == 1 {
         Summary::new("documented 1 workspace")
@@ -337,7 +316,6 @@ mod tests {
             .build()
     }
 
-    // buildinternaldocs[verify build.unreadable]
     #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
         let root = CargoRoot::builder()
@@ -360,7 +338,6 @@ mod tests {
         );
     }
 
-    // buildinternaldocs[verify build.shared]
     #[test]
     fn selections_of_a_workspace_whose_every_package_shares_a_name_select_each_alone() {
         let root = workspace(&[
@@ -376,7 +353,6 @@ mod tests {
         );
     }
 
-    // buildinternaldocs[verify build.shared]
     #[test]
     fn selections_of_a_workspace_with_a_shared_name_select_the_rest_and_each_sharing_package() {
         let root = workspace(&[
@@ -397,7 +373,6 @@ mod tests {
         );
     }
 
-    // buildinternaldocs[verify build.shared]
     #[test]
     fn selections_of_a_workspace_without_a_shared_name_select_the_workspace() {
         let root = workspace(&[
@@ -410,7 +385,6 @@ mod tests {
         assert_eq!(selections, [vec!["--workspace"]]);
     }
 
-    // buildinternaldocs[verify build.passed]
     #[test]
     fn summary_of_one_workspace_says_so() {
         let summary = summary(1);
@@ -418,7 +392,6 @@ mod tests {
         assert_eq!(summary.get(), "documented 1 workspace");
     }
 
-    // buildinternaldocs[verify build.passed]
     #[test]
     fn summary_of_two_workspaces_counts_them() {
         let summary = summary(2);

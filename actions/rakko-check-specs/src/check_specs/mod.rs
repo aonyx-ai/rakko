@@ -64,10 +64,8 @@ const BASE_REF: &str = "GITHUB_BASE_REF";
 pub struct CheckSpecs;
 
 impl Action for CheckSpecs {
-    // checkspecs[impl args.none]
     type Args = ();
 
-    // checkspecs[impl name]
     fn name(&self) -> Name {
         action_name!("check-specs")
     }
@@ -75,7 +73,6 @@ impl Action for CheckSpecs {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // checkspecs[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -95,40 +92,29 @@ impl Action for CheckSpecs {
 /// tool, a question that tracey left unanswered, or the comparison that a pull
 /// request needs.
 async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
-    // checkspecs[impl tool.tracey]
-    // checkspecs[impl tool.missing]
     let tracey = Tracey::resolve(context.root().clone())
         .await
         .map_err(|source| CheckSpecsError::UnresolvedTool { source })?;
 
-    // checkspecs[impl daemon.stop]
-    // checkspecs[impl daemon.absent]
     tracey.stop().await?;
 
-    // checkspecs[impl coverage.open]
-    // checkspecs[impl coverage.summary]
     let coverage = tracey.coverage().await?;
 
-    // checkspecs[impl skip.unconfigured]
     if coverage.total == 0 {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_SPECIFICATIONS),
         });
     }
 
-    // checkspecs[impl check.read]
     let problems = tracey.validate().await?;
     let mut findings = findings(&problems)?;
 
-    // checkspecs[impl version.base]
-    // checkspecs[impl version.checkout]
     let pull_request = std::env::var_os(BASE_REF).is_some();
     let comparison = Comparison::prepare(context.root(), pull_request).await?;
     let directory = comparison
         .as_ref()
         .map_or(context.root().get(), Comparison::directory);
 
-    // checkspecs[impl version.staged]
     if let Some(details) = tracey.versions(directory).await? {
         findings.push(
             Finding::builder()
@@ -161,7 +147,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
 /// that a finding can name.
 ///
 /// [foreign]: CheckSpecsError::ForeignPath
-// checkspecs[impl check.diagnostic]
 fn finding(problem: &TraceyProblem) -> Result<Finding, CheckSpecsError> {
     let path =
         problem
@@ -201,7 +186,6 @@ fn findings(problems: &[TraceyProblem]) -> Result<Vec<Finding>, CheckSpecsError>
 ///
 /// A pass needs the counts, so that a reader can question a pass over a
 /// project whose specifications nothing answers yet.
-// checkspecs[impl coverage.summary]
 fn summary(coverage: Coverage) -> Summary {
     let requirements = if coverage.total == 1 {
         "1 requirement".to_owned()
@@ -223,7 +207,6 @@ mod tests {
 
     use super::*;
 
-    // checkspecs[verify coverage.summary]
     #[test]
     fn summary_of_one_requirement_says_so() {
         let summary = summary(Coverage {
@@ -238,7 +221,6 @@ mod tests {
         );
     }
 
-    // checkspecs[verify coverage.summary]
     #[test]
     fn summary_reports_the_counts_of_the_project() {
         let summary = summary(Coverage {

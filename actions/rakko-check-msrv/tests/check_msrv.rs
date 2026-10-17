@@ -243,7 +243,6 @@ impl Drop for Project {
     }
 }
 
-// checkmsrv[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <CheckMsrv as Action>::Args::schema();
@@ -251,7 +250,6 @@ fn action_declares_no_argument() {
     assert!(schema.arguments().is_empty());
 }
 
-// checkmsrv[verify name]
 #[test]
 fn action_identifies_itself_as_check_msrv() {
     let name = CheckMsrv.name();
@@ -259,10 +257,6 @@ fn action_identifies_itself_as_check_msrv() {
     assert_eq!(name.get(), "check-msrv");
 }
 
-// checkmsrv[verify check.operation]
-// checkmsrv[verify check.passed]
-// checkmsrv[verify tool.cargo]
-// checkmsrv[verify tool.toolchain]
 #[tokio::test]
 async fn run_in_a_clean_project_passes() {
     let project = Project::with_library(CLEAN);
@@ -275,7 +269,6 @@ async fn run_in_a_clean_project_passes() {
     );
 }
 
-// checkmsrv[verify check.passed]
 #[tokio::test]
 async fn run_in_a_clean_project_counts_the_workspaces() {
     let project = Project::with_library(CLEAN);
@@ -291,7 +284,6 @@ async fn run_in_a_clean_project_counts_the_workspaces() {
     );
 }
 
-// checkmsrv[verify check.operation]
 #[tokio::test]
 async fn run_examines_the_tests_of_a_package() {
     let project = Project::with_library(CLEAN);
@@ -305,7 +297,6 @@ async fn run_examines_the_tests_of_a_package() {
     );
 }
 
-// checkmsrv[verify check.read]
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_library(WARNED);
@@ -315,7 +306,6 @@ async fn run_leaves_the_project_unchanged() {
     assert_eq!(project.read("src/lib.rs"), WARNED);
 }
 
-// checkmsrv[verify tool.toolchain]
 #[tokio::test]
 async fn run_reports_what_the_declared_toolchain_refuses() {
     let project = Project::with_library(UNSTABLE);
@@ -333,7 +323,6 @@ async fn run_reports_what_the_declared_toolchain_refuses() {
     );
 }
 
-// checkmsrv[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_warning_carries_the_code_in_the_message() {
     let project = Project::with_library(WARNED);
@@ -351,7 +340,6 @@ async fn run_with_a_warning_carries_the_code_in_the_message() {
     );
 }
 
-// checkmsrv[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_warning_reports_the_range() {
     let project = Project::with_library(WARNED);
@@ -373,7 +361,6 @@ async fn run_with_a_warning_reports_the_range() {
     );
 }
 
-// checkmsrv[verify check.failed]
 #[tokio::test]
 async fn run_with_a_warning_fails() {
     let project = Project::with_library(WARNED);
@@ -386,7 +373,6 @@ async fn run_with_a_warning_fails() {
     );
 }
 
-// checkmsrv[verify check.failed]
 #[tokio::test]
 async fn run_with_a_compiler_error_fails_with_a_finding() {
     let project = Project::with_library(BROKEN);
@@ -404,7 +390,6 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
     );
 }
 
-// checkmsrv[verify roots.declared]
 #[tokio::test]
 async fn run_with_a_warning_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(CLEAN);
@@ -425,7 +410,6 @@ async fn run_with_a_warning_in_a_second_workspace_names_its_path() {
     );
 }
 
-// checkmsrv[verify roots.declared]
 #[tokio::test]
 async fn run_with_two_declaring_workspaces_counts_both() {
     let project = Project::with_library(CLEAN);
@@ -446,7 +430,6 @@ async fn run_with_two_declaring_workspaces_counts_both() {
     );
 }
 
-// checkmsrv[verify roots.declared]
 #[tokio::test]
 async fn run_with_a_workspace_that_declares_nothing_passes_over_it() {
     let project = Project::with_library(CLEAN);
@@ -467,7 +450,6 @@ async fn run_with_a_workspace_that_declares_nothing_passes_over_it() {
     );
 }
 
-// checkmsrv[verify roots.error+2]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -481,7 +463,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
-// checkmsrv[verify check.unrecognized]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -503,7 +484,6 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// checkmsrv[verify check.unrecognized]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     let project = Project::new();
@@ -528,7 +508,6 @@ async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     );
 }
 
-// checkmsrv[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
@@ -543,7 +522,6 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// checkmsrv[verify tool.unpinned]
 #[tokio::test]
 async fn run_without_a_pinned_toolchain_stops() {
     let project = Project::new();
@@ -558,7 +536,6 @@ async fn run_without_a_pinned_toolchain_stops() {
     );
 }
 
-// checkmsrv[verify tool.unpinned]
 #[tokio::test]
 async fn run_without_a_pinned_toolchain_names_the_version() {
     let project = Project::new();
@@ -576,7 +553,6 @@ async fn run_without_a_pinned_toolchain_names_the_version() {
     );
 }
 
-// checkmsrv[verify skip.undeclared]
 #[tokio::test]
 async fn run_without_a_declaration_skips() {
     let project = Project::new();
@@ -591,7 +567,6 @@ async fn run_without_a_declaration_skips() {
     );
 }
 
-// checkmsrv[verify skip.undeclared]
 #[tokio::test]
 async fn run_without_a_declaration_names_what_it_looked_for() {
     let project = Project::new();
@@ -609,7 +584,6 @@ async fn run_without_a_declaration_names_what_it_looked_for() {
     );
 }
 
-// checkmsrv[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();

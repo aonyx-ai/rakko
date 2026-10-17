@@ -1,17 +1,11 @@
 ---
 name: Set up the tools
-description: Clean the checkout, install the tools that mise pins, and build tracey for a job that needs it
+description: Clean the checkout and install the tools that mise pins
 
 # Every job of every workflow provisions the same way, so the steps live here
 # instead of once per job in each workflow. A job checks out the code with
 # `clean: false` and runs this action next, because the first step below takes
 # over the cleaning of the checkout.
-
-inputs:
-  tracey:
-    description: Whether the job runs something that reaches tracey
-    required: false
-    default: "false"
 
 runs:
   using: composite
@@ -25,13 +19,6 @@ runs:
     - name: Remove what earlier jobs left in the tree
       shell: bash
       run: git clean -ffdx -e /target/ -e /tools/rakko/target/
-
-    # A runner of GitHub starts from a clean disk, and the build of tracey
-    # takes about twenty minutes. The cache workflow keeps a cache on the
-    # default branch that every pull request can reach.
-    - name: Restore tracey
-      if: inputs.tracey == 'true'
-      uses: $/.github/actions/restore-tracey
 
     # A runner of GitHub starts from a clean disk, and so does a runner that a
     # service starts for a single job. A persistent self-hosted runner keeps
@@ -60,10 +47,6 @@ runs:
             echo "found=false" >> "${GITHUB_OUTPUT}"
         fi
 
-    # Tracey stays out of this installation even in a job that reaches it,
-    # because a tool of the cargo backend builds without the other tools of
-    # mise on its path, and the build script of tracey needs two of them. The
-    # steps below build it with those two on the path instead.
     - name: Install the tools
       uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
       with:
@@ -82,30 +65,6 @@ runs:
         # token is `GITHUB_TOKEN`, because the action passes
         # `MISE_GITHUB_TOKEN` to the later steps only when it is not set.
         GITHUB_TOKEN: ${{ github.token }}
-        MISE_DISABLE_TOOLS: cargo:https://github.com/bearcove/tracey
-
-    # The build script of tracey starts node and pnpm by name, and it finds
-    # neither through mise: a tool of the cargo backend builds without the
-    # other tools of mise on its path. The directory below carries both under
-    # names that belong to no tool of mise, so the build reaches the versions
-    # that this repository pins. The versions that they print stop the job
-    # here instead of after the nine minutes that the dependencies take.
-    - name: Build tracey
-      if: inputs.tracey == 'true'
-      shell: bash
-      env:
-        MISE_DISABLE_TOOLS: ""
-      run: |
-        tools="${RUNNER_TEMP}/tracey-build-tools"
-        mkdir -p "${tools}"
-        ln -sf "$(mise where node)/bin/node" "${tools}/node"
-        ln -sf "$(mise where pnpm)/pnpm" "${tools}/pnpm"
-        export PATH="${tools}:${PATH}"
-
-        node --version
-        pnpm --version
-
-        mise install "cargo:https://github.com/bearcove/tracey"
 
     # The installation runs the task that downloads the toolchains which mise
     # only recorded, but a failed task is only a warning there. The task runs

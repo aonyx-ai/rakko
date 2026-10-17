@@ -56,19 +56,14 @@ use crate::command::Command;
 ///
 /// assert_eq!(commands[0].name().get(), "serve");
 /// ```
-// cli[impl erased.object]
-// cli[impl erased.send]
-// cli[impl erased.sync]
 pub trait ErasedCommand: Send + Sync {
     /// Returns the name that identifies the command
-    // cli[impl erased.name]
     fn name(&self) -> Name;
 
     /// Returns the description of the arguments that the command reads
     ///
     /// The projection reads the description to build the flags of the command
     /// before a run exists.
-    // cli[impl erased.arguments]
     fn arguments(&self) -> ArgsSchema;
 
     /// Runs the command against the project that the context names
@@ -77,8 +72,6 @@ pub trait ErasedCommand: Send + Sync {
     /// command. The run converts them into the arguments of the command, and
     /// a conversion that fails is an error of the run, so a user who gave a
     /// value that the command cannot read learns which argument it was.
-    // cli[impl erased.run]
-    // cli[impl erased.unreadable]
     fn run<'a>(
         &'a self,
         project: &'a Context,
@@ -87,7 +80,6 @@ pub trait ErasedCommand: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>>;
 }
 
-// cli[impl erased.total]
 impl<C: Command> ErasedCommand for C {
     fn name(&self) -> Name {
         Command::name(self)
@@ -229,7 +221,6 @@ mod tests {
         Box::new(command)
     }
 
-    // cli[verify erased.arguments]
     #[test]
     fn arguments_returns_the_description_of_the_command() {
         let command: &dyn ErasedCommand = &Demanding;
@@ -239,7 +230,6 @@ mod tests {
         assert_eq!(schema, Unreadable::schema());
     }
 
-    // cli[verify erased.object]
     #[test]
     fn commands_of_different_types_share_one_collection() {
         let commands: Vec<Box<dyn ErasedCommand>> = vec![Box::new(Probe), Box::new(Demanding)];
@@ -252,19 +242,16 @@ mod tests {
         assert_eq!(names, ["probe", "demanding"]);
     }
 
-    // cli[verify erased.send]
     #[test]
     fn erased_command_is_send() {
         assert_send::<Box<dyn ErasedCommand>>();
     }
 
-    // cli[verify erased.sync]
     #[test]
     fn erased_command_is_sync() {
         assert_sync::<Box<dyn ErasedCommand>>();
     }
 
-    // cli[verify erased.total]
     #[test]
     fn every_command_has_an_erased_view() {
         let command = erase(Probe);
@@ -272,7 +259,6 @@ mod tests {
         assert_eq!(command.name().get(), "probe");
     }
 
-    // cli[verify erased.name]
     #[test]
     fn name_returns_the_name_of_the_command() {
         let command: &dyn ErasedCommand = &Probe;
@@ -280,7 +266,6 @@ mod tests {
         assert_eq!(command.name().get(), "probe");
     }
 
-    // cli[verify erased.run]
     #[test]
     fn run_produces_the_result_of_the_command() {
         let result = drive(&Probe);
@@ -288,7 +273,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // cli[verify erased.unreadable]
     #[test]
     fn run_with_values_that_build_no_arguments_reports_the_argument() {
         let Err(error) = drive(&Demanding) else {

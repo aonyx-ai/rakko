@@ -125,11 +125,6 @@ impl Deny {
     /// [incomplete]: CheckWorkspaceError::IncompleteCheck
     /// [unavailable]: CheckWorkspaceError::DenyUnavailable
     /// [unreadable]: CheckWorkspaceError::UnreadableReport
-    // checkdependencies[impl check.read]
-    // checkdependencies[impl roots.members]
-    // checkdependencies[impl run.checks]
-    // checkdependencies[impl run.directory]
-    // checkdependencies[impl run.structured]
     pub async fn check(&self, root: &CargoRoot) -> Result<Vec<DenyProblem>, CheckWorkspaceError> {
         let execution = self
             .tool
@@ -153,7 +148,6 @@ impl Deny {
         let mut checked = false;
 
         for record in report.lines().filter(|line| !line.trim().is_empty()) {
-            // checkdependencies[impl check.unreadable]
             let entry = self::report::read(record).map_err(|source| {
                 CheckWorkspaceError::UnreadableReport {
                     root: root.directory().clone(),
@@ -169,8 +163,6 @@ impl Deny {
             }
         }
 
-        // checkdependencies[impl check.configuration]
-        // checkdependencies[impl check.incomplete]
         if !checked {
             return Err(CheckWorkspaceError::IncompleteCheck {
                 root: root.directory().clone(),
@@ -191,8 +183,6 @@ impl Deny {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no cargo-deny for the
     /// project.
-    // checkdependencies[impl tool.deny]
-    // checkdependencies[impl tool.missing]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(CARGO_DENY), root).await?;
 
@@ -206,7 +196,6 @@ impl Deny {
 /// that stopped wrote its reason into that log. The whole stream is the
 /// answer, because the reason can arrive as one record or as several, and a
 /// stream that says nothing gets a sentence that says so.
-// checkdependencies[impl check.incomplete]
 fn details(report: &str) -> String {
     let details = report.trim();
 
@@ -225,7 +214,6 @@ mod tests {
 
     use super::*;
 
-    // checkdependencies[verify check.incomplete]
     #[test]
     fn details_of_a_run_that_wrote_nothing_says_so() {
         let details = details("   \n");
@@ -233,7 +221,6 @@ mod tests {
         assert_eq!(details, NO_DIAGNOSIS);
     }
 
-    // checkdependencies[verify check.incomplete]
     #[test]
     fn details_of_a_run_that_stopped_holds_what_cargo_deny_wrote() {
         let details = details("  failed to deserialize config from 'deny.toml'\n");

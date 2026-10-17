@@ -84,8 +84,6 @@ impl RenovateProblem {
     ///
     /// The sentence starts with the topic and ends with the detail. A problem
     /// without a detail is its topic alone.
-    // checkrenovateconfig[impl check.error]
-    // checkrenovateconfig[impl check.warning]
     pub fn message(&self) -> String {
         if self.detail.is_empty() {
             return self.topic.clone();
@@ -174,8 +172,6 @@ mod tests {
         assert_eq!(location, None);
     }
 
-    // checkrenovateconfig[verify check.error]
-    // checkrenovateconfig[verify check.warning]
     #[test]
     fn message_holds_the_topic_and_the_detail() {
         let message = problem(path("renovate.json")).message();

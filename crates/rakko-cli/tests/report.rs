@@ -12,7 +12,6 @@
 use rakko_action::{FilePath, Finding, Location, Outcome, Summary, action_name};
 use rakko_cli::Report;
 
-// cli[verify report.written]
 #[test]
 fn report_of_a_failed_action_shows_what_it_found() {
     let location = Location::File {
@@ -35,7 +34,6 @@ fn report_of_a_failed_action_shows_what_it_found() {
     );
 }
 
-// cli[verify report.written]
 #[test]
 fn report_of_a_passing_action_shows_the_action_and_its_summary() {
     let outcome = Outcome::Passed {

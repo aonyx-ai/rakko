@@ -113,9 +113,6 @@ impl From<CheckWorkspaceError> for CheckDependenciesError {
     /// The machinery that runs cargo-deny names the same three conditions
     /// that the action reports, so the conversion renames them and adds
     /// nothing.
-    // checkdependencies[impl check.configuration]
-    // checkdependencies[impl check.incomplete]
-    // checkdependencies[impl check.unreadable]
     fn from(error: CheckWorkspaceError) -> Self {
         match error {
             CheckWorkspaceError::DenyUnavailable { root, source } => {
@@ -158,8 +155,6 @@ mod tests {
         PathBuf::from("/home/otter/project")
     }
 
-    // checkdependencies[verify check.configuration]
-    // checkdependencies[verify check.incomplete]
     #[test]
     fn error_of_a_run_that_stopped_holds_what_cargo_deny_wrote() {
         let error = CheckDependenciesError::from(CheckWorkspaceError::IncompleteCheck {
@@ -173,7 +168,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.unreadable]
     #[test]
     fn error_of_an_unreadable_record_names_the_workspace_root() {
         let source = serde_json::from_str::<Vec<u8>>(RECORD)

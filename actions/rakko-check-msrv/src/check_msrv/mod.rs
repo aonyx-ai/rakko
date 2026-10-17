@@ -75,10 +75,8 @@ const CHECK: [&str; 4] = [
 pub struct CheckMsrv;
 
 impl Action for CheckMsrv {
-    // checkmsrv[impl args.none]
     type Args = ();
 
-    // checkmsrv[impl name]
     fn name(&self) -> Name {
         action_name!("check-msrv")
     }
@@ -86,9 +84,6 @@ impl Action for CheckMsrv {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // checkmsrv[impl roots.error+2]
-            // checkmsrv[impl tool.missing]
-            // checkmsrv[impl tool.unpinned]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -109,19 +104,15 @@ impl Action for CheckMsrv {
 /// the tool or of a toolchain, the discovery of the workspaces, the reading
 /// of a declaration, a cargo run, or the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
-    // checkmsrv[impl tool.cargo]
-    // checkmsrv[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| CheckMsrvError::UnresolvedTool { source })?;
 
-    // checkmsrv[impl roots.error+2]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| CheckMsrvError::UndiscoveredRoots { source })?;
 
-    // checkmsrv[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
@@ -130,7 +121,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
 
     let declared = declarations(&roots);
 
-    // checkmsrv[impl skip.undeclared]
     if declared.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_DECLARATION),
@@ -139,18 +129,15 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
 
     let mut findings = Vec::new();
 
-    // checkmsrv[impl roots.declared]
     for (root, version) in &declared {
         findings.extend(check(&cargo, root, version, context).await?);
     }
 
     if findings.is_empty() {
-        // checkmsrv[impl check.passed]
         Ok(Outcome::Passed {
             summary: Some(summary(declared.len())),
         })
     } else {
-        // checkmsrv[impl check.failed]
         Ok(Outcome::Failed {
             findings,
             repairs: Vec::new(),
@@ -173,17 +160,12 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
 /// [toolchain]: CheckMsrvError::UnresolvedToolchain
 /// [unavailable]: CheckMsrvError::CargoUnavailable
 /// [unrecognized]: CheckMsrvError::UnrecognizedReport
-// checkmsrv[impl check.diagnostic]
-// checkmsrv[impl check.operation]
-// checkmsrv[impl check.read]
 async fn check(
     cargo: &Cargo,
     root: &CargoRoot,
     version: &RustVersion,
     context: &Context,
 ) -> Result<Vec<Finding>, CheckMsrvError> {
-    // checkmsrv[impl tool.toolchain]
-    // checkmsrv[impl tool.unpinned]
     let toolchain = Toolchain::resolve(Channel::new(version.get()), context.root())
         .await
         .map_err(|source| CheckMsrvError::UnresolvedToolchain {
@@ -200,7 +182,6 @@ async fn check(
 
     let report = read(root, &execution.stdout().to_string_lossy())?;
 
-    // checkmsrv[impl check.unrecognized]
     if !recognized(&report, &execution) {
         return Err(CheckMsrvError::UnrecognizedReport {
             root: root.directory().clone(),
@@ -221,8 +202,6 @@ async fn check(
 /// A root that declares none is passed over, because it promises nothing
 /// that a compiler can confirm. The discovery of the roots read the
 /// declarations, so nothing here asks cargo.
-// checkmsrv[impl roots.declared]
-// checkmsrv[impl skip.undeclared]
 fn declarations(roots: &[CargoRoot]) -> Vec<(CargoRoot, RustVersion)> {
     roots
         .iter()
@@ -240,7 +219,6 @@ fn declarations(roots: &[CargoRoot]) -> Vec<(CargoRoot, RustVersion)> {
 /// ended with success without saying that the build finished, both wrote a
 /// report that the action cannot read, and an answer built on such a report
 /// would hide problems behind a green result.
-// checkmsrv[impl check.unrecognized]
 fn recognized(report: &CargoReport, execution: &Execution) -> bool {
     if execution.status().success() {
         report.finished() == Some(true)
@@ -259,7 +237,6 @@ fn recognized(report: &CargoReport, execution: &Execution) -> bool {
 /// would hide problems behind a green result.
 ///
 /// [unreadable]: CheckMsrvError::UnreadableReport
-// checkmsrv[impl check.unreadable]
 fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, CheckMsrvError> {
     CargoReport::read(stdout).map_err(|source| CheckMsrvError::UnreadableReport {
         root: root.directory().clone(),
@@ -268,7 +245,6 @@ fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, CheckMsrvError> {
 }
 
 /// Returns the summary that tells how many workspaces the run checked
-// checkmsrv[impl check.passed]
 fn summary(roots: usize) -> Summary {
     if roots == 1 {
         Summary::new("checked 1 workspace")
@@ -289,7 +265,6 @@ mod tests {
 
     use super::*;
 
-    // checkmsrv[verify check.unreadable]
     #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
         let root = CargoRoot::builder()
@@ -312,7 +287,6 @@ mod tests {
         );
     }
 
-    // checkmsrv[verify check.passed]
     #[test]
     fn summary_of_one_workspace_says_so() {
         let summary = summary(1);
@@ -320,7 +294,6 @@ mod tests {
         assert_eq!(summary.get(), "checked 1 workspace");
     }
 
-    // checkmsrv[verify check.passed]
     #[test]
     fn summary_of_two_workspaces_counts_them() {
         let summary = summary(2);

@@ -29,7 +29,6 @@ pub(crate) use self::kebab_case::kebab_case_name;
 ///
 /// let name = action_name!("format--toml");
 /// ```
-// action[impl name.literal]
 #[macro_export]
 macro_rules! action_name {
     ($input:expr) => {
@@ -37,8 +36,6 @@ macro_rules! action_name {
     };
 }
 
-// action[impl name.accepts]
-// action[impl name.text]
 kebab_case_name! {
     /// The name of an action
     ///
@@ -66,7 +63,6 @@ mod tests {
 
     use super::*;
 
-    // action[verify name.literal]
     #[test]
     fn action_name_with_valid_literal_returns_name() {
         let name = action_name!("format-toml");
@@ -74,7 +70,6 @@ mod tests {
         assert_eq!(name.get(), "format-toml");
     }
 
-    // action[verify name.text]
     #[test]
     fn display_shows_the_text_that_the_name_was_made_from() {
         let name: Name = "fmt".parse().unwrap();
@@ -82,7 +77,6 @@ mod tests {
         assert_eq!(name.to_string(), "fmt");
     }
 
-    // action[verify name.literal]
     #[test]
     fn from_static_accepts_valid_name() {
         let name = Name::from_static("format-toml");
@@ -90,35 +84,30 @@ mod tests {
         assert_eq!(name.get(), "format-toml");
     }
 
-    // action[verify name.literal]
     #[test]
     #[should_panic(expected = "name contains consecutive hyphens")]
     fn from_static_with_consecutive_hyphens_panics() {
         Name::from_static("bad--name");
     }
 
-    // action[verify name.literal]
     #[test]
     #[should_panic(expected = "name is empty")]
     fn from_static_with_empty_string_panics() {
         Name::from_static("");
     }
 
-    // action[verify name.literal]
     #[test]
     #[should_panic(expected = "name contains an invalid character")]
     fn from_static_with_invalid_character_panics() {
         Name::from_static("hello.world");
     }
 
-    // action[verify name.literal]
     #[test]
     #[should_panic(expected = "name starts with an invalid character")]
     fn from_static_with_leading_digit_panics() {
         Name::from_static("1check");
     }
 
-    // action[verify name.literal]
     #[test]
     #[should_panic(expected = "name ends with a hyphen")]
     fn from_static_with_trailing_hyphen_panics() {
@@ -146,7 +135,6 @@ mod tests {
         assert_eq!(name.get(), "a");
     }
 
-    // action[verify name.accepts]
     #[test]
     fn from_str_accepts_valid_name() {
         let name: Name = "validate".parse().unwrap();
@@ -154,7 +142,6 @@ mod tests {
         assert_eq!(name.get(), "validate");
     }
 
-    // action[verify name.hyphens]
     #[test]
     fn from_str_with_consecutive_hyphens_returns_error() {
         let err = "bad--name".parse::<Name>().unwrap_err();
@@ -169,7 +156,6 @@ mod tests {
         assert_eq!(err, ParseNameError::ConsecutiveHyphens { position: 2 });
     }
 
-    // action[verify name.empty]
     #[test]
     fn from_str_with_empty_string_returns_error() {
         let err = "".parse::<Name>().unwrap_err();
@@ -190,7 +176,6 @@ mod tests {
         );
     }
 
-    // action[verify name.character]
     #[test]
     fn from_str_with_invalid_character_in_middle_returns_error() {
         let err = "hello.world".parse::<Name>().unwrap_err();
@@ -204,7 +189,6 @@ mod tests {
         );
     }
 
-    // action[verify name.start]
     #[test]
     fn from_str_with_leading_digit_returns_error() {
         let err = "1check".parse::<Name>().unwrap_err();
@@ -233,7 +217,6 @@ mod tests {
         assert_eq!(err, ParseNameError::InvalidStart { character: 'C' });
     }
 
-    // action[verify name.end]
     #[test]
     fn from_str_with_trailing_hyphen_returns_error() {
         let err = "trailing-".parse::<Name>().unwrap_err();
@@ -254,7 +237,6 @@ mod tests {
         );
     }
 
-    // action[verify name.text]
     #[test]
     fn get_returns_the_text_that_the_name_was_made_from() {
         let name: Name = "fmt".parse().unwrap();

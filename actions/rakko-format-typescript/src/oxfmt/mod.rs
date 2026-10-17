@@ -89,9 +89,6 @@ impl Oxfmt {
     /// Returns [`OxfmtUnavailable`][unavailable] when oxfmt does not run.
     ///
     /// [unavailable]: ObserveOxfmtError::OxfmtUnavailable
-    // formattypescript[impl check.operation]
-    // formattypescript[impl check.read]
-    // formattypescript[impl files.extensions]
     pub async fn list(&self) -> Result<Observation, ObserveOxfmtError> {
         self.observe(LIST).await
     }
@@ -106,8 +103,6 @@ impl Oxfmt {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no oxfmt for the
     /// project.
-    // formattypescript[impl tool.missing]
-    // formattypescript[impl tool.oxfmt]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(OXFMT), root).await?;
 
@@ -125,8 +120,6 @@ impl Oxfmt {
     /// Returns [`OxfmtUnavailable`][unavailable] when oxfmt does not run.
     ///
     /// [unavailable]: ObserveOxfmtError::OxfmtUnavailable
-    // formattypescript[impl files.extensions]
-    // formattypescript[impl fix.write]
     pub async fn rewrite(&self) -> Result<Observation, ObserveOxfmtError> {
         self.observe(WRITE).await
     }

@@ -64,7 +64,6 @@ const NAME: &str = "rakko";
 /// ```no_run
 /// rakko_cli::builder().run();
 /// ```
-// cli[impl builder.create]
 #[must_use]
 pub fn builder() -> Builder {
     Builder {
@@ -143,22 +142,20 @@ impl Builder {
     /// #         Bundle::new(vec![Box::new(FormatJson)])
     /// #     }
     /// # }
-    /// # struct CheckSpecs;
-    /// # impl Action for CheckSpecs {
+    /// # struct CheckMsrv;
+    /// # impl Action for CheckMsrv {
     /// #     type Args = ();
-    /// #     fn name(&self) -> Name { action_name!("check-specs") }
+    /// #     fn name(&self) -> Name { action_name!("check-msrv") }
     /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
     /// #         Outcome::Passed { summary: None }
     /// #     }
     /// # }
     /// let command_line = rakko_cli::builder()
     ///     .mount(rakko_baseline::bundle())
-    ///     .mount([Box::new(CheckSpecs) as Box<dyn ErasedAction>]);
+    ///     .mount([Box::new(CheckMsrv) as Box<dyn ErasedAction>]);
     /// ```
     ///
     /// [`Bundle`]: rakko_action::Bundle
-    // cli[impl mount.list]
-    // cli[impl mount.collision+2]
     #[must_use]
     pub fn mount(mut self, actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
         self.add(actions.into_iter().map(Mounted::Action));
@@ -205,8 +202,6 @@ impl Builder {
     /// let command_line =
     ///     rakko_cli::builder().mount_commands([Box::new(Serve) as Box<dyn ErasedCommand>]);
     /// ```
-    // cli[impl mount.commands]
-    // cli[impl mount.collision+2]
     #[must_use]
     pub fn mount_commands(
         mut self,
@@ -242,7 +237,6 @@ impl Builder {
     ///
     /// The method ends the process itself, so that a harness stays a `main`
     /// that names what the project mounts and returns nothing.
-    // cli[impl builder.run]
     pub fn run(self) {
         let (matches, mounted) = match self.resolve(std::env::args_os()) {
             Ok(Resolution::Entry(matches, mounted)) => (matches, mounted),
@@ -275,8 +269,6 @@ impl Builder {
     /// run, and when the user asked for help. Returns an error for a run that
     /// names no action and no command of the registry, which the command tree
     /// already prevents.
-    // cli[impl command.action+2]
-    // cli[impl command.help+2]
     fn resolve<I, T>(mut self, arguments: I) -> Result<Resolution, clap::Error>
     where
         I: IntoIterator<Item = T>,
@@ -316,12 +308,6 @@ impl Builder {
     /// The command of an action and the command that a harness wrote take the
     /// same shape here: a name, the flags of the arguments, and a place
     /// directly under the command line.
-    // cli[impl command.action+2]
-    // cli[impl command.help+2]
-    // cli[impl command.output]
-    // cli[impl mount.flat+2]
-    // cli[impl mount.commands]
-    // cli[impl written.flags]
     fn command(&self) -> Command {
         let mut command = shell();
 
@@ -363,8 +349,6 @@ enum Resolution {
 /// A reader that closed the stream loses the list. The parser drops its own
 /// output in that case as well, and the run answers with its code either
 /// way.
-// cli[impl command.help+2]
-// cli[impl exit.help]
 fn show_commands(command: &mut Command) -> u8 {
     let _ = command.print_help();
 
@@ -392,7 +376,6 @@ fn shell() -> Command {
 /// The argument is global, so it reads the same before and after the name of
 /// an action. A user reaches for it when the search cannot answer, which is
 /// why the help describes what it replaces.
-// cli[impl root.named]
 fn project_root() -> Arg {
     Arg::new(PROJECT_ROOT)
         .long(PROJECT_ROOT)
@@ -418,9 +401,6 @@ fn project_root() -> Arg {
 /// because a run that receives a guessed root reports paths that mean nothing.
 /// Returns the error of a command that failed, and the error of a report that
 /// cannot reach the reader.
-// cli[impl argument.values]
-// cli[impl root.named]
-// cli[impl written.flags]
 fn dispatch(matches: ArgMatches, mounted: Mounted) -> Result<u8, Box<dyn Error>> {
     let named = matches.get_one::<PathBuf>(PROJECT_ROOT).cloned();
     let values = matches
@@ -445,7 +425,6 @@ fn dispatch(matches: ArgMatches, mounted: Mounted) -> Result<u8, Box<dyn Error>>
 /// # Errors
 ///
 /// Returns the errors that [`dispatch`] describes.
-// cli[impl run.action]
 fn drive_action(
     matches: ArgMatches,
     named: Option<PathBuf>,
@@ -480,9 +459,6 @@ fn drive_action(
 /// # Errors
 ///
 /// Returns the errors that [`dispatch`] describes.
-// cli[impl run.command]
-// cli[impl exit.succeeded]
-// cli[impl exit.failed]
 fn drive_command(
     matches: ArgMatches,
     named: Option<PathBuf>,
@@ -553,8 +529,6 @@ where
 /// command usually states only what failed, and the reason sits in its
 /// source. The parser exits with the code of a run that could not answer for
 /// every error of this kind, so the message and the code travel together.
-// cli[impl exit.failed]
-// cli[impl report.failed+2]
 fn run_error(entry: &str, error: &dyn Error) -> clap::Error {
     clap::Error::raw(
         ErrorKind::Io,
@@ -571,7 +545,6 @@ fn run_error(entry: &str, error: &dyn Error) -> clap::Error {
 /// # Errors
 ///
 /// Returns an error when the run names no root and stands in no project.
-// cli[impl root.named]
 fn locate(
     named: Option<PathBuf>,
     context: &ClawlessContext,
@@ -590,10 +563,6 @@ fn locate(
 /// step that runs a fix in CI must not go red over its success. A run that
 /// repaired some of what it found still has a problem, so it takes the code
 /// for a problem.
-// cli[impl exit.clean]
-// cli[impl exit.changed+2]
-// cli[impl exit.findings]
-// cli[impl exit.unanswered]
 fn exit_code(outcome: &Outcome) -> u8 {
     match outcome {
         Outcome::Passed { .. } | Outcome::Changed { .. } | Outcome::Skipped { .. } => EXIT_CLEAN,
@@ -1051,7 +1020,6 @@ mod tests {
         Box::new(written)
     }
 
-    // cli[verify builder.create]
     #[test]
     fn builder_returns_a_builder_of_a_command_line() {
         let builder = builder();
@@ -1061,7 +1029,6 @@ mod tests {
         assert_eq!(name, NAME);
     }
 
-    // cli[verify argument.switch]
     #[test]
     fn command_gives_a_boolean_argument_no_value() {
         let flag = flag_of("fix");
@@ -1071,7 +1038,6 @@ mod tests {
         assert_eq!(values, Some(ValueRange::EMPTY));
     }
 
-    // cli[verify argument.flag]
     #[test]
     fn command_gives_an_argument_a_long_flag() {
         let flag = flag_of("fix");
@@ -1081,7 +1047,6 @@ mod tests {
         assert_eq!(long, Some("fix"));
     }
 
-    // cli[verify written.flags]
     #[test]
     fn command_gives_an_argument_of_a_command_a_long_flag() {
         let mut command = builder().mount_commands([written("serve")]).command();
@@ -1099,7 +1064,6 @@ mod tests {
         assert_eq!(long, Some("extension"));
     }
 
-    // cli[verify argument.value]
     #[test]
     fn command_gives_an_argument_that_holds_a_number_a_value() {
         let flag = flag_of("jobs");
@@ -1109,7 +1073,6 @@ mod tests {
         assert_eq!(values, Some(ValueRange::SINGLE));
     }
 
-    // cli[verify argument.value]
     #[test]
     fn command_names_the_value_of_an_argument_after_the_argument() {
         let flag = flag_of("extension");
@@ -1124,7 +1087,6 @@ mod tests {
         assert_eq!(value, ["EXTENSION"]);
     }
 
-    // cli[verify argument.integer]
     #[test]
     fn command_refuses_a_value_that_is_not_a_number() {
         let builder = builder().mount([reader()]);
@@ -1136,7 +1098,6 @@ mod tests {
         assert_eq!(error.kind(), ErrorKind::ValueValidation);
     }
 
-    // cli[verify argument.help]
     #[test]
     fn command_shows_the_documentation_of_an_argument() {
         let flag = flag_of("fix");
@@ -1146,7 +1107,6 @@ mod tests {
         assert_eq!(help, Some(FIX.to_owned()));
     }
 
-    // cli[verify command.action+2]
     #[test]
     fn command_refuses_a_run_that_gives_an_argument_and_names_no_action() {
         let kind = error_kind(&["rakko", "--json"]);
@@ -1154,7 +1114,6 @@ mod tests {
         assert_eq!(kind, ErrorKind::MissingSubcommand);
     }
 
-    // cli[verify command.output]
     #[test]
     fn command_carries_the_flags_that_control_the_output() {
         let command = builder().command();
@@ -1171,7 +1130,6 @@ mod tests {
         );
     }
 
-    // cli[verify root.named]
     #[test]
     fn dispatch_gives_the_action_the_project_root_that_the_user_names() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -1192,8 +1150,6 @@ mod tests {
         assert_eq!(root, Some(named));
     }
 
-    // cli[verify root.named]
-    // cli[verify run.command]
     #[test]
     fn dispatch_gives_the_command_the_project_root_that_the_user_names() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -1215,7 +1171,6 @@ mod tests {
         assert_eq!(root, Some(named));
     }
 
-    // cli[verify exit.findings]
     #[test]
     fn dispatch_reports_a_nonzero_code_for_an_action_that_found_problems() {
         let code = code_for(|| Outcome::Failed {
@@ -1226,7 +1181,6 @@ mod tests {
         assert_ne!(code, 0);
     }
 
-    // cli[verify exit.unanswered]
     #[test]
     fn dispatch_reports_another_code_for_an_action_that_stopped() {
         let findings = code_for(|| Outcome::Failed {
@@ -1240,7 +1194,6 @@ mod tests {
         assert_ne!(findings, stopped);
     }
 
-    // cli[verify exit.unanswered]
     #[test]
     fn dispatch_reports_a_nonzero_code_for_an_action_that_stopped() {
         let code = code_for(|| Outcome::Errored {
@@ -1250,7 +1203,6 @@ mod tests {
         assert_ne!(code, 0);
     }
 
-    // cli[verify report.failed+2]
     #[test]
     fn dispatch_reports_every_cause_of_a_command_that_failed() {
         let Err(error) = result_of(|| {
@@ -1267,7 +1219,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.failed+2]
     #[test]
     fn dispatch_reports_every_cause_of_a_project_root_that_cannot_be_read() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -1291,7 +1242,6 @@ mod tests {
         );
     }
 
-    // cli[verify exit.succeeded]
     #[test]
     fn dispatch_reports_zero_for_a_command_that_succeeded() {
         let code = result_of(|| Ok(())).expect("expected the command line to drive the command");
@@ -1299,7 +1249,6 @@ mod tests {
         assert_eq!(code, 0);
     }
 
-    // cli[verify exit.clean]
     #[test]
     fn dispatch_reports_zero_for_a_passed_action() {
         let code = code_for(|| Outcome::Passed { summary: None });
@@ -1307,7 +1256,6 @@ mod tests {
         assert_eq!(code, 0);
     }
 
-    // cli[verify exit.clean]
     #[test]
     fn dispatch_reports_zero_for_an_action_that_does_not_apply() {
         let code = code_for(|| Outcome::Skipped {
@@ -1317,7 +1265,6 @@ mod tests {
         assert_eq!(code, 0);
     }
 
-    // cli[verify exit.changed+2]
     #[test]
     fn dispatch_reports_zero_for_an_action_that_repaired_the_project() {
         let code = code_for(|| Outcome::Changed {
@@ -1327,7 +1274,6 @@ mod tests {
         assert_eq!(code, 0);
     }
 
-    // cli[verify run.action]
     #[test]
     fn dispatch_runs_the_action_that_it_gets() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -1339,7 +1285,6 @@ mod tests {
         assert!(ran.load(Ordering::SeqCst));
     }
 
-    // cli[verify run.command]
     #[test]
     fn dispatch_runs_the_command_that_it_gets() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -1354,7 +1299,6 @@ mod tests {
         assert!(witness.ran.load(Ordering::SeqCst));
     }
 
-    // cli[verify mount.flat+2]
     #[test]
     fn mount_commands_builds_a_flat_command_tree() {
         let command = builder()
@@ -1368,7 +1312,6 @@ mod tests {
         assert!(!nested);
     }
 
-    // cli[verify mount.commands]
     #[test]
     fn mount_commands_gives_each_command_a_place_beside_the_actions() {
         let command = builder()
@@ -1381,14 +1324,12 @@ mod tests {
         assert_eq!(names, ["format-all", "lint-rust", "serve"]);
     }
 
-    // cli[verify mount.reserved+2]
     #[test]
     #[should_panic(expected = "json")]
     fn mount_commands_refuses_a_command_whose_argument_the_command_line_carries() {
         let _builder = builder().mount_commands([Box::new(Reserving) as Box<dyn ErasedCommand>]);
     }
 
-    // cli[verify mount.collision+2]
     #[test]
     #[should_panic(expected = "format-toml")]
     fn mount_commands_refuses_a_command_with_the_name_of_an_action() {
@@ -1397,14 +1338,12 @@ mod tests {
             .mount_commands([written("format-toml")]);
     }
 
-    // cli[verify mount.collision+2]
     #[test]
     #[should_panic(expected = "serve")]
     fn mount_commands_refuses_two_commands_with_one_name() {
         let _builder = builder().mount_commands([written("serve"), written("serve")]);
     }
 
-    // cli[verify mount.list]
     #[test]
     fn mount_gives_each_action_a_command() {
         let command = builder()
@@ -1416,7 +1355,6 @@ mod tests {
         assert_eq!(names, ["format-toml", "lint-rust"]);
     }
 
-    // cli[verify mount.flat+2]
     #[test]
     fn mount_builds_a_flat_command_tree() {
         let command = builder()
@@ -1430,21 +1368,18 @@ mod tests {
         assert!(!nested);
     }
 
-    // cli[verify mount.collision+2]
     #[test]
     #[should_panic(expected = "format-toml")]
     fn mount_refuses_two_actions_with_one_name() {
         let _builder = builder().mount([probe("format-toml"), probe("format-toml")]);
     }
 
-    // cli[verify mount.reserved+2]
     #[test]
     #[should_panic(expected = "json")]
     fn mount_refuses_an_action_whose_argument_the_command_line_carries() {
         let _builder = builder().mount([Box::new(Colliding) as Box<dyn ErasedAction>]);
     }
 
-    // cli[verify mount.list]
     #[test]
     fn resolve_returns_the_action_that_the_run_names() {
         let builder = builder().mount([probe("format-toml"), probe("lint-rust")]);
@@ -1458,7 +1393,6 @@ mod tests {
         assert_eq!(action.name().get(), "lint-rust");
     }
 
-    // cli[verify mount.commands]
     #[test]
     fn resolve_returns_the_command_that_the_run_names() {
         let builder = builder()
@@ -1474,7 +1408,6 @@ mod tests {
         assert_eq!(command.name().get(), "serve");
     }
 
-    // cli[verify exit.failed]
     #[test]
     fn run_error_returns_the_code_of_a_run_that_could_not_answer() {
         let error = std::io::Error::other("the port is taken");
@@ -1484,7 +1417,6 @@ mod tests {
         assert_eq!(code, i32::from(EXIT_UNANSWERED));
     }
 
-    // cli[verify argument.absent]
     #[test]
     fn run_gives_the_action_no_value_for_a_boolean_that_the_user_left_out() {
         let values = values_of(&[READER]);
@@ -1494,7 +1426,6 @@ mod tests {
         assert_eq!(value, None);
     }
 
-    // cli[verify argument.absent]
     #[test]
     fn run_gives_the_action_no_value_for_a_flag_that_the_user_left_out() {
         let values = values_of(&[READER]);
@@ -1504,7 +1435,6 @@ mod tests {
         assert_eq!(value, None);
     }
 
-    // cli[verify argument.values]
     #[test]
     fn run_gives_the_action_the_path_that_the_user_wrote() {
         let values = values_of(&[READER, "--report", "target/report.json"]);
@@ -1514,7 +1444,6 @@ mod tests {
         assert_eq!(value, Some(&ArgumentValue::new("target/report.json")));
     }
 
-    // cli[verify argument.values]
     #[test]
     fn run_gives_the_action_the_text_that_the_user_wrote() {
         let values = values_of(&[READER, "--jobs", "007"]);
@@ -1524,7 +1453,6 @@ mod tests {
         assert_eq!(value, Some(&ArgumentValue::new("007")));
     }
 
-    // cli[verify written.flags]
     #[test]
     fn run_gives_the_command_the_text_that_the_user_wrote() {
         let values = values_of_command(&["serve", "--extension", "md"]);
@@ -1534,7 +1462,6 @@ mod tests {
         assert_eq!(value, Some(&ArgumentValue::new("md")));
     }
 
-    // cli[verify argument.values]
     #[test]
     fn run_gives_the_action_true_for_a_boolean_that_the_user_gave() {
         let values = values_of(&[READER, "--fix"]);
@@ -1544,7 +1471,6 @@ mod tests {
         assert_eq!(value, Some(&ArgumentValue::new("true")));
     }
 
-    // cli[verify command.help+2]
     #[test]
     fn resolve_shows_the_help_for_a_run_without_arguments() {
         let Ok(Resolution::Commands(mut command)) = builder().resolve(["rakko"]) else {
@@ -1556,7 +1482,6 @@ mod tests {
         assert!(help.contains(ABOUT));
     }
 
-    // cli[verify builder.run]
     #[test]
     fn resolve_reports_a_run_that_it_cannot_read() {
         let kind = error_kind(&["rakko", "--unknown"]);
@@ -1564,7 +1489,6 @@ mod tests {
         assert_eq!(kind, ErrorKind::UnknownArgument);
     }
 
-    // cli[verify exit.help]
     #[test]
     fn show_commands_reports_a_clean_run() {
         let mut command = builder().command();

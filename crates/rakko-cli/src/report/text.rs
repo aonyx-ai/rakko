@@ -28,7 +28,6 @@ pub(super) fn render(report: &Report, formatter: &mut fmt::Formatter<'_>) -> fmt
     let action = &report.action;
 
     match &report.outcome {
-        // cli[impl report.passed]
         Outcome::Passed { summary } => match summary {
             Some(summary) => write!(formatter, "{action}: passed, {summary}"),
             None => write!(formatter, "{action}: passed"),
@@ -177,7 +176,6 @@ mod tests {
         Report::new("probe".parse().expect("the test names an action"), outcome).to_string()
     }
 
-    // cli[verify report.repairs]
     #[test]
     fn render_changed_outcome_reports_every_repair_with_its_location() {
         let text = rendered(Outcome::Changed {
@@ -205,7 +203,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.repairs]
     #[test]
     fn render_changed_outcome_with_one_repair_reports_it_in_the_singular() {
         let text = rendered(Outcome::Changed {
@@ -220,7 +217,6 @@ mod tests {
         assert!(text.ends_with("probe: 1 repair"));
     }
 
-    // cli[verify report.errored+2]
     #[test]
     fn render_errored_outcome_reports_every_cause_of_the_error() {
         let text = rendered(Outcome::Errored {
@@ -235,7 +231,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.errored+2]
     #[test]
     fn render_errored_outcome_reports_the_error() {
         let text = rendered(Outcome::Errored {
@@ -245,7 +240,6 @@ mod tests {
         assert_eq!(text, "probe: failed to read Cargo.toml");
     }
 
-    // cli[verify report.findings]
     #[test]
     fn render_failed_outcome_reports_every_finding_with_its_location() {
         let text = rendered(Outcome::Failed {
@@ -275,7 +269,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.repairs]
     #[test]
     fn render_failed_outcome_reports_the_repairs_before_the_findings() {
         let text = rendered(Outcome::Failed {
@@ -301,7 +294,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.findings]
     #[test]
     fn render_failed_outcome_with_one_finding_reports_it_in_the_singular() {
         let text = rendered(Outcome::Failed {
@@ -317,7 +309,6 @@ mod tests {
         assert!(text.ends_with("probe: 1 finding"));
     }
 
-    // cli[verify report.findings]
     #[test]
     fn render_finding_over_a_directory_reports_the_directory() {
         let text = rendered(Outcome::Failed {
@@ -326,15 +317,14 @@ mod tests {
                     path: DirectoryPath::try_from("crates/rakko")
                         .expect("the test names a relative path"),
                 },
-                "the directory has no specification",
+                "the directory has no README",
             )],
             repairs: Vec::new(),
         });
 
-        assert!(text.starts_with("crates/rakko: the directory has no specification"));
+        assert!(text.starts_with("crates/rakko: the directory has no README"));
     }
 
-    // cli[verify report.findings]
     #[test]
     fn render_finding_over_a_span_reports_the_start_of_the_range() {
         let text = rendered(Outcome::Failed {
@@ -354,7 +344,6 @@ mod tests {
         assert!(text.starts_with("src/lib.rs:1:1: the block is not formatted"));
     }
 
-    // cli[verify report.findings]
     #[test]
     fn render_finding_over_the_project_reports_the_message_alone() {
         let text = rendered(Outcome::Failed {
@@ -365,7 +354,6 @@ mod tests {
         assert!(text.starts_with("the crate serde is banned"));
     }
 
-    // cli[verify report.findings]
     #[test]
     fn render_finding_without_a_column_reports_the_line() {
         let text = rendered(Outcome::Failed {
@@ -389,7 +377,6 @@ mod tests {
         assert_eq!(text, "probe: passed");
     }
 
-    // cli[verify report.passed]
     #[test]
     fn render_passed_outcome_reports_the_summary() {
         let text = rendered(Outcome::Passed {
@@ -399,7 +386,6 @@ mod tests {
         assert_eq!(text, "probe: passed, checked 0 files");
     }
 
-    // cli[verify report.skipped]
     #[test]
     fn render_skipped_outcome_reports_the_reason() {
         let text = rendered(Outcome::Skipped {

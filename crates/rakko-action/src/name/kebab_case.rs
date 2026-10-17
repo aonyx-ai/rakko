@@ -88,8 +88,6 @@ pub(crate) use kebab_case_name;
 ///
 /// Panics when `input` does not satisfy the rules for a name. In a constant
 /// context, the panic becomes a compile error.
-// action[impl args.literal]
-// action[impl name.literal]
 pub(crate) const fn assert_valid(input: &str) {
     let bytes = input.as_bytes();
 
@@ -124,35 +122,29 @@ pub(crate) const fn assert_valid(input: &str) {
 ///
 /// Returns a [`ParseNameError`] when `input` does not satisfy the rules for a
 /// name.
-// action[impl args.name]
 pub(crate) fn validate(input: &str) -> Result<(), ParseNameError> {
-    // action[impl name.empty]
     let Some(first) = input.chars().next() else {
         return Err(ParseNameError::Empty);
     };
 
-    // action[impl name.start]
     if !first.is_ascii_lowercase() {
         return Err(ParseNameError::InvalidStart { character: first });
     }
 
     let mut prev_was_hyphen = false;
     for (pos, c) in input.char_indices() {
-        // action[impl name.character]
         if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-' {
             return Err(ParseNameError::InvalidCharacter {
                 character: c,
                 position: pos,
             });
         }
-        // action[impl name.hyphens]
         if c == '-' && prev_was_hyphen {
             return Err(ParseNameError::ConsecutiveHyphens { position: pos });
         }
         prev_was_hyphen = c == '-';
     }
 
-    // action[impl name.end]
     if input.ends_with('-') {
         return Err(ParseNameError::TrailingHyphen);
     }

@@ -76,16 +76,13 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
     let lines: Vec<&str> = observation.stderr.lines().collect();
 
     for (index, line) in lines.iter().enumerate() {
-        // taplo[impl report.configuration]
         if line.contains(CONFIG_REJECTED) {
             if observation.rejected_configuration.is_none() {
                 observation.rejected_configuration = Some(rejection(line));
             }
-        // taplo[impl report.checked+2]
         } else if line.contains(FILES_FOUND) {
             observation.checked = checked(line);
             observation.examined = examined(line).unwrap_or_default();
-        // taplo[impl report.invalid]
         } else if line.contains(INVALID_FILE) {
             if let Some(path) = quoted_path(line) {
                 let detail = ProblemDetail::Invalid {
@@ -94,7 +91,6 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
 
                 observation.problems.push(TaploProblem::new(path, detail));
             }
-        // taplo[impl report.diagnostic]
         } else if let Some(header) = line.strip_prefix(DIAGNOSTIC)
             && let Some(problem) = diagnostic(header, &lines[index + 1..])
         {
@@ -102,7 +98,6 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
         }
     }
 
-    // taplo[impl report.unformatted+2]
     for line in stdout.lines() {
         if let Some(path) = diff_target(line) {
             observation
@@ -275,7 +270,6 @@ fn rejection(line: &str) -> String {
 /// said, at a level that says less, so it survives only for a file that got
 /// no diagnostic at all — a file that taplo could not open, where the
 /// summary is the whole answer.
-// taplo[impl report.summarized]
 fn summarized(problems: &mut Vec<TaploProblem>) {
     let positioned: HashSet<PathBuf> = problems
         .iter()
@@ -402,7 +396,6 @@ mod tests {
         assert_eq!(path, Some(PathBuf::from("/p/we\"ird.toml")));
     }
 
-    // taplo[verify report.checked+2]
     #[test]
     fn read_clean_report_counts_the_examined_files() {
         let observation = read("", CLEAN, true);
@@ -417,7 +410,6 @@ mod tests {
         assert!(observation.problems().is_empty());
     }
 
-    // taplo[verify report.unreadable]
     #[test]
     fn read_clean_report_lists_the_examined_files() {
         let observation = read("", CLEAN, true);
@@ -431,7 +423,6 @@ mod tests {
         );
     }
 
-    // taplo[verify report.diagnostic]
     #[test]
     fn read_diagnostic_reads_the_position() {
         let observation = read("", INVALID, false);
@@ -446,7 +437,6 @@ mod tests {
         );
     }
 
-    // taplo[verify report.diagnostic]
     #[test]
     fn read_diagnostic_reads_the_path() {
         let observation = read("", INVALID, false);
@@ -467,7 +457,6 @@ mod tests {
         assert_eq!(message, "invalid TOML");
     }
 
-    // taplo[verify report.unformatted+2]
     #[test]
     fn read_difference_names_the_file_that_it_would_rewrite() {
         let observation = read(DIFFERENCE, "", false);
@@ -498,7 +487,6 @@ mod tests {
         );
     }
 
-    // taplo[verify report.invalid]
     #[test]
     fn read_refused_file_keeps_the_reason_of_taplo() {
         let detail = detail(REFUSED);
@@ -511,7 +499,6 @@ mod tests {
         );
     }
 
-    // taplo[verify report.invalid]
     #[test]
     fn read_refused_file_reads_the_path() {
         let observation = read("", REFUSED, false);
@@ -522,7 +509,6 @@ mod tests {
         );
     }
 
-    // taplo[verify report.configuration]
     #[test]
     fn read_rejected_configuration_keeps_the_diagnosis() {
         let observation = read("", REJECTED, true);
@@ -533,7 +519,6 @@ mod tests {
         );
     }
 
-    // taplo[verify report.summarized]
     #[test]
     fn read_summary_of_a_file_with_a_diagnostic_drops_out() {
         let observation = read("", INVALID, false);

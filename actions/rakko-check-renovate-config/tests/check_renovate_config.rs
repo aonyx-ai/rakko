@@ -240,7 +240,6 @@ fn trust(configuration: &Path) {
     );
 }
 
-// checkrenovateconfig[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<CheckRenovateConfig as Action>::Args as Args>::schema();
@@ -252,7 +251,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// checkrenovateconfig[verify name]
 #[test]
 fn action_identifies_itself_as_check_renovate_config() {
     let name = CheckRenovateConfig.name();
@@ -260,7 +258,6 @@ fn action_identifies_itself_as_check_renovate_config() {
     assert_eq!(name.get(), "check-renovate-config");
 }
 
-// checkrenovateconfig[verify check.read]
 #[tokio::test]
 async fn run_leaves_a_configuration_with_a_problem_unchanged() {
     let project = Project::new();
@@ -271,7 +268,6 @@ async fn run_leaves_a_configuration_with_a_problem_unchanged() {
     assert_eq!(project.read("renovate.json"), MIGRATION);
 }
 
-// checkrenovateconfig[verify check.error]
 #[tokio::test]
 async fn run_with_a_denied_header_reports_the_error_at_the_file() {
     let project = Project::new();
@@ -282,8 +278,6 @@ async fn run_with_a_denied_header_reports_the_error_at_the_file() {
     assert_eq!(paths(findings(&outcome)), [path_text("renovate.json")]);
 }
 
-// checkrenovateconfig[verify check.error]
-// checkrenovateconfig[verify run.project]
 #[tokio::test]
 async fn run_with_a_file_named_like_the_global_configuration_reports_it() {
     let project = Project::new();
@@ -297,7 +291,6 @@ async fn run_with_a_file_named_like_the_global_configuration_reports_it() {
     );
 }
 
-// checkrenovateconfig[verify check.aborted]
 #[tokio::test]
 async fn run_with_a_global_configuration_that_does_not_parse_stops() {
     let project = Project::new();
@@ -317,7 +310,7 @@ async fn run_with_a_global_configuration_that_does_not_parse_stops() {
 
 // The validator migrates the global configuration before it validates it, and
 // it fails no run for the migration, so the action passes as the validator
-// does. The specification states this limit.
+// does. The action keeps this limit of the validator.
 #[tokio::test]
 async fn run_with_a_global_configuration_that_needs_a_migration_passes() {
     let project = Project::new();
@@ -331,7 +324,6 @@ async fn run_with_a_global_configuration_that_needs_a_migration_passes() {
     );
 }
 
-// checkrenovateconfig[verify check.migration]
 #[tokio::test]
 async fn run_with_a_needed_migration_names_the_option_that_it_changes() {
     let project = Project::new();
@@ -345,7 +337,6 @@ async fn run_with_a_needed_migration_names_the_option_that_it_changes() {
     );
 }
 
-// checkrenovateconfig[verify check.embedded]
 #[tokio::test]
 async fn run_with_a_problem_in_package_json_reports_package_json() {
     let project = Project::new();
@@ -356,7 +347,6 @@ async fn run_with_a_problem_in_package_json_reports_package_json() {
     assert_eq!(paths(findings(&outcome)), [path_text("package.json")]);
 }
 
-// checkrenovateconfig[verify check.unparsable]
 #[tokio::test]
 async fn run_with_a_syntax_error_reports_the_position_of_the_error() {
     let project = Project::new();
@@ -378,8 +368,6 @@ async fn run_with_a_syntax_error_reports_the_position_of_the_error() {
     );
 }
 
-// checkrenovateconfig[verify check.passed]
-// checkrenovateconfig[verify tool.validator]
 #[tokio::test]
 async fn run_with_a_valid_configuration_passes() {
     let project = Project::new();
@@ -393,7 +381,6 @@ async fn run_with_a_valid_configuration_passes() {
     );
 }
 
-// checkrenovateconfig[verify check.error]
 #[tokio::test]
 async fn run_with_an_unknown_option_reports_the_error_at_the_file() {
     let project = Project::new();
@@ -417,7 +404,6 @@ async fn run_with_an_unknown_option_reports_the_error_at_the_file() {
     );
 }
 
-// checkrenovateconfig[verify check.warning]
 #[tokio::test]
 async fn run_with_only_a_warning_fails_with_the_warning() {
     let project = Project::new();
@@ -447,7 +433,6 @@ async fn run_with_only_a_warning_fails_with_the_warning() {
     );
 }
 
-// checkrenovateconfig[verify run.project]
 #[tokio::test]
 async fn run_with_two_broken_configurations_reports_both_files() {
     let project = Project::new();
@@ -467,7 +452,6 @@ async fn run_with_two_broken_configurations_reports_both_files() {
     );
 }
 
-// checkrenovateconfig[verify check.summary]
 #[tokio::test]
 async fn run_with_two_presets_in_package_json_counts_both() {
     let project = Project::new();
@@ -484,8 +468,6 @@ async fn run_with_two_presets_in_package_json_counts_both() {
     );
 }
 
-// checkrenovateconfig[verify check.summary]
-// checkrenovateconfig[verify run.project]
 #[tokio::test]
 async fn run_with_two_valid_configurations_names_both_in_the_summary() {
     let project = Project::new();
@@ -503,7 +485,6 @@ async fn run_with_two_valid_configurations_names_both_in_the_summary() {
     );
 }
 
-// checkrenovateconfig[verify skip.unconfigured]
 #[tokio::test]
 async fn run_without_a_configuration_skips_with_the_words_of_the_validator() {
     let project = Project::new();
@@ -519,7 +500,6 @@ async fn run_without_a_configuration_skips_with_the_words_of_the_validator() {
     );
 }
 
-// checkrenovateconfig[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_validator_stops() {
     let project = Project::without_validator();

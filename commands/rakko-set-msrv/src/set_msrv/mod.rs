@@ -102,7 +102,6 @@ enum LineEnding {
 impl Command for SetMsrv {
     type Args = SetMsrvArgs;
 
-    // setmsrv[impl name]
     fn name(&self) -> Name {
         action_name!("set-msrv")
     }
@@ -148,8 +147,6 @@ impl Command for SetMsrv {
 /// Returns an error when a file cannot be read, parsed, or written, when the
 /// manifest declares no version or declares it in an inline table, and when
 /// no pin matches the version of the manifest.
-// setmsrv[impl files.unreadable]
-// setmsrv[impl pin.unmatched]
 async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
     let manifest_path = root.join(MANIFEST);
     let configuration_path = root.join(CONFIGURATION);
@@ -180,9 +177,6 @@ async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
 /// Returns [`SetMsrvError::MiseUnavailable`] when mise does not start, and
 /// [`SetMsrvError::UnlockedPin`] with what mise reported when it ends
 /// without success.
-// setmsrv[impl lock.update]
-// setmsrv[impl lock.absent]
-// setmsrv[impl lock.failed]
 async fn lock(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError> {
     // A project that keeps no lock has chosen not to, and mise would create
     // one. A lock whose presence is unknown is locked, because a stale lock
@@ -215,8 +209,6 @@ async fn lock(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError>
 /// Returns [`SetMsrvError::MiseUnavailable`] when mise does not start, and
 /// [`SetMsrvError::UninstalledToolchain`] with what mise reported when it
 /// ends without success.
-// setmsrv[impl install.run]
-// setmsrv[impl install.failed]
 async fn install(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError> {
     let execution = start(root, MiseStep::Install { msrv: msrv.clone() }).await?;
     if execution.status().success() {
@@ -240,10 +232,6 @@ async fn install(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvErr
 /// Returns [`SetMsrvError::UnreportedOutcome`] when the report does not reach
 /// the reader, and [`SetMsrvError::FailedCheck`] when the check found
 /// problems, stopped, or skipped.
-// setmsrv[impl check.given]
-// setmsrv[impl check.report]
-// setmsrv[impl check.failed]
-// setmsrv[impl check.passed]
 async fn check(
     check: &dyn ErasedAction,
     msrv: &Msrv,
@@ -316,7 +304,6 @@ async fn read(path: &Path) -> Result<(DocumentMut, LineEnding), SetMsrvError> {
 /// # Errors
 ///
 /// Returns [`SetMsrvError::UnwritableFile`] when the file cannot be written.
-// setmsrv[impl files.layout]
 async fn write(
     path: &Path,
     document: &DocumentMut,
@@ -344,8 +331,6 @@ async fn write(
 /// # Errors
 ///
 /// Returns [`SetMsrvError::MiseUnavailable`] when mise does not start.
-// setmsrv[impl lock.failed]
-// setmsrv[impl install.failed]
 async fn start(root: &Path, step: MiseStep) -> Result<Execution, SetMsrvError> {
     Invocation::new(MISE)
         .args(step.arguments())
@@ -368,7 +353,6 @@ fn diagnosis(execution: &Execution) -> String {
 }
 
 /// Replaces a version and keeps the whitespace and the comment around it
-// setmsrv[impl files.layout]
 fn replace(value: &mut Value, msrv: &Msrv) {
     let decor = value.decor().clone();
     *value = Value::from(msrv.get());
@@ -400,7 +384,6 @@ mod tests {
         }
     }
 
-    // setmsrv[verify name]
     #[test]
     fn name_is_set_msrv() {
         let command = SetMsrv::new(Box::new(Stub));
@@ -409,7 +392,6 @@ mod tests {
     }
 
     // A directory that does not exist keeps any program from starting in it.
-    // setmsrv[verify install.failed]
     #[tokio::test]
     async fn start_where_mise_cannot_start_names_the_step() {
         let root = Path::new("/rakko/a directory that does not exist");

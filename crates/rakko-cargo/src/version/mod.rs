@@ -70,7 +70,6 @@ impl RustVersion {
     /// assert_eq!(RustVersion::parse("1.88.0"), Some(RustVersion::new("1.88.0")));
     /// assert_eq!(RustVersion::parse("nightly-2026-08-11"), None);
     /// ```
-    // cargo[impl version.parse]
     pub fn parse(name: &str) -> Option<Self> {
         let numeric = !name.is_empty()
             && name
@@ -94,7 +93,6 @@ impl RustVersion {
     ///
     /// assert_eq!(RustVersion::highest([]), None);
     /// ```
-    // cargo[impl version.highest]
     pub fn highest(versions: impl IntoIterator<Item = Self>) -> Option<Self> {
         versions.into_iter().max_by(compare)
     }
@@ -110,7 +108,6 @@ impl std::fmt::Display for RustVersion {
 ///
 /// The comparison reads the parts as numbers, because `1.9` comes before
 /// `1.88` as text and after it as a version.
-// cargo[impl version.compare]
 fn compare(left: &RustVersion, right: &RustVersion) -> Ordering {
     let (left, right) = (parts(left), parts(right));
 
@@ -128,7 +125,6 @@ fn compare(left: &RustVersion, right: &RustVersion) -> Ordering {
 ///
 /// A version can leave the parts behind the first one out, and `1.88` and
 /// `1.88.0` name one toolchain, so a part that is not there is a zero.
-// cargo[impl version.compare]
 fn part(parts: &[u64], index: usize) -> u64 {
     parts.get(index).copied().unwrap_or(0)
 }
@@ -139,7 +135,6 @@ fn part(parts: &[u64], index: usize) -> u64 {
 /// that is not a number cannot come from a manifest that cargo read. Such a
 /// part counts as zero, so that the comparison answers for every value that
 /// a caller can build.
-// cargo[impl version.compare]
 fn parts(version: &RustVersion) -> Vec<u64> {
     version
         .0
@@ -156,7 +151,6 @@ mod tests {
 
     use super::*;
 
-    // cargo[verify version.parse]
     #[test]
     fn parse_a_name_that_is_not_a_version_answers_nothing() {
         let version = RustVersion::parse("nightly-2026-08-11");
@@ -164,7 +158,6 @@ mod tests {
         assert_eq!(version, None);
     }
 
-    // cargo[verify version.parse]
     #[test]
     fn parse_a_version_answers_it() {
         let version = RustVersion::parse("1.88.0");
@@ -172,7 +165,6 @@ mod tests {
         assert_eq!(version, Some(RustVersion::new("1.88.0")));
     }
 
-    // cargo[verify version.highest]
     #[test]
     fn highest_of_no_version_answers_nothing() {
         let highest = RustVersion::highest([]);
@@ -180,7 +172,6 @@ mod tests {
         assert_eq!(highest, None);
     }
 
-    // cargo[verify version.highest]
     #[test]
     fn highest_of_several_versions_answers_the_newest() {
         let versions = [
@@ -194,7 +185,6 @@ mod tests {
         assert_eq!(highest, Some(RustVersion::new("1.88.0")));
     }
 
-    // cargo[verify version.compare]
     #[test]
     fn highest_reads_a_part_as_a_number_and_not_as_text() {
         let versions = [RustVersion::new("1.9.0"), RustVersion::new("1.88.0")];
@@ -204,7 +194,6 @@ mod tests {
         assert_eq!(highest, Some(RustVersion::new("1.88.0")));
     }
 
-    // cargo[verify version.compare]
     #[test]
     fn highest_counts_a_part_that_a_version_leaves_out_as_zero() {
         let versions = [RustVersion::new("1.88"), RustVersion::new("1.88.1")];

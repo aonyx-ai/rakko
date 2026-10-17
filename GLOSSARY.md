@@ -109,7 +109,7 @@ from the design discussions to the terms that replaced them.
   The scheduler computes a conflict graph from the access declarations
   before any action runs.
 - **Tool** — An external program that an action uses, for example prettier
-  or tracey. Mise provisions tools. In Rakko documentation, "tool" always
+  or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.
 - **Wrapping** — The execution of an external tool as a subprocess of an
   action. Wrapping is the normal integration path, and Rakko makes it a

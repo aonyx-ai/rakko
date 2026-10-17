@@ -39,7 +39,6 @@ impl Record {
     /// outcome of Rakko has no place for, so each place becomes a problem of
     /// its own. The audit and the severity travel with each of them, so that
     /// a reader sees which problems came from the same finding.
-    // lintgithubactions[impl check.finding]
     fn into_problems(self) -> Vec<ZizmorProblem> {
         let severity = self.determinations.severity;
 
@@ -153,7 +152,6 @@ impl Point {
 /// Returns the error of a report that is not the array that zizmor writes. A
 /// reading that tolerated such a report would let a run pass while the
 /// findings of the run went unread.
-// lintgithubactions[impl check.finding]
 pub(super) fn problems(report: &str) -> Result<Vec<ZizmorProblem>, serde_json::Error> {
     let text = report.trim();
 
@@ -210,7 +208,6 @@ mod tests {
             .expect("the test reads a report that holds one problem")
     }
 
-    // lintgithubactions[verify check.finding]
     #[test]
     fn problems_of_a_finding_carry_the_words_of_zizmor() {
         let problem = problem(SINGLE);
@@ -222,7 +219,6 @@ mod tests {
         );
     }
 
-    // lintgithubactions[verify check.finding]
     #[test]
     fn problems_of_a_finding_cover_the_range_of_zizmor() {
         let problem = problem(SINGLE);
@@ -236,7 +232,6 @@ mod tests {
         );
     }
 
-    // lintgithubactions[verify check.finding]
     #[test]
     fn problems_of_a_finding_name_the_file() {
         let problem = problem(SINGLE);
@@ -244,7 +239,6 @@ mod tests {
         assert_eq!(problem.path(), &PathBuf::from("./.github/workflows/ci.yml"));
     }
 
-    // lintgithubactions[verify check.finding]
     #[test]
     fn problems_of_a_finding_with_two_places_hold_one_problem_each() {
         let problems = problems(PAIRED).expect("the test reads a report that zizmor could write");
@@ -258,7 +252,6 @@ mod tests {
         );
     }
 
-    // lintgithubactions[verify check.passed]
     #[test]
     fn problems_of_an_empty_report_hold_nothing() {
         let problems = problems("[]").expect("the test reads the report of a run that passed");
@@ -266,7 +259,6 @@ mod tests {
         assert!(problems.is_empty(), "expected no problem, got {problems:?}");
     }
 
-    // lintgithubactions[verify check.unreadable]
     #[test]
     fn problems_of_a_report_that_is_not_a_report_stop_the_reading() {
         let problems = problems(DIAGNOSIS);
@@ -277,7 +269,6 @@ mod tests {
         );
     }
 
-    // lintgithubactions[verify check.unreadable]
     #[test]
     fn problems_of_a_finding_in_a_remote_repository_stop_the_reading() {
         let problems = problems(REMOTE);

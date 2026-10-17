@@ -209,7 +209,6 @@ impl Drop for Project {
     }
 }
 
-// testrust[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <TestRust as Action>::Args::schema();
@@ -217,7 +216,6 @@ fn action_declares_no_argument() {
     assert!(schema.arguments().is_empty());
 }
 
-// testrust[verify name]
 #[test]
 fn action_identifies_itself_as_test_rust() {
     let name = TestRust.name();
@@ -225,7 +223,6 @@ fn action_identifies_itself_as_test_rust() {
     assert_eq!(name.get(), "test-rust");
 }
 
-// testrust[verify run.failed+2]
 #[tokio::test]
 async fn run_with_a_failing_test_fails() {
     let project = Project::with_library(FAILING);
@@ -238,7 +235,6 @@ async fn run_with_a_failing_test_fails() {
     );
 }
 
-// testrust[verify run.failed+2]
 #[tokio::test]
 async fn run_with_a_failing_test_holds_its_finding() {
     let project = Project::with_library(FAILING);
@@ -256,7 +252,6 @@ async fn run_with_a_failing_test_holds_its_finding() {
     );
 }
 
-// testrust[verify run.build+2]
 #[tokio::test]
 async fn run_with_a_compiler_error_fails_with_a_finding() {
     let project = Project::with_library(BROKEN);
@@ -274,7 +269,6 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
     );
 }
 
-// testrust[verify run.read]
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_library(FAILING);
@@ -284,8 +278,6 @@ async fn run_leaves_the_project_unchanged() {
     assert_eq!(project.read("src/lib.rs"), FAILING);
 }
 
-// testrust[verify run.passed]
-// testrust[verify tool.cargo]
 #[tokio::test]
 async fn run_in_a_project_with_a_passing_test_passes() {
     let project = Project::with_library(PASSING);
@@ -298,7 +290,6 @@ async fn run_in_a_project_with_a_passing_test_passes() {
     );
 }
 
-// testrust[verify run.passed]
 #[tokio::test]
 async fn run_in_a_project_with_a_passing_test_counts_it() {
     let project = Project::with_library(PASSING);
@@ -314,7 +305,6 @@ async fn run_in_a_project_with_a_passing_test_counts_it() {
     );
 }
 
-// testrust[verify run.none]
 #[tokio::test]
 async fn run_in_a_workspace_without_tests_counts_zero() {
     let project = Project::with_library(UNTESTED);
@@ -330,7 +320,6 @@ async fn run_in_a_workspace_without_tests_counts_zero() {
     );
 }
 
-// testrust[verify run.none]
 #[tokio::test]
 async fn run_in_a_workspace_without_tests_passes() {
     let project = Project::with_library(UNTESTED);
@@ -343,7 +332,6 @@ async fn run_in_a_workspace_without_tests_passes() {
     );
 }
 
-// testrust[verify roots.all]
 #[tokio::test]
 async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
@@ -358,7 +346,6 @@ async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
-// testrust[verify roots.all]
 #[tokio::test]
 async fn run_with_two_workspaces_sums_the_tests() {
     let project = Project::with_library(PASSING);
@@ -376,7 +363,6 @@ async fn run_with_two_workspaces_sums_the_tests() {
     );
 }
 
-// testrust[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -390,7 +376,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
-// testrust[verify run.error]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -406,7 +391,6 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// testrust[verify run.error]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
     let project = Project::new();
@@ -425,7 +409,6 @@ async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
     );
 }
 
-// testrust[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
@@ -438,7 +421,6 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// testrust[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();

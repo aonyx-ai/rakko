@@ -14,7 +14,6 @@ use rakko_test_typescript::TestTypeScript;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
-// typescript[impl actions]
 #[must_use]
 pub fn bundle() -> Bundle {
     Bundle::new(vec![
@@ -33,7 +32,6 @@ mod tests {
 
     use super::*;
 
-    // typescript[verify actions]
     #[test]
     fn bundle_exports_the_actions_that_any_typescript_project_runs() {
         let names: Vec<String> = bundle()

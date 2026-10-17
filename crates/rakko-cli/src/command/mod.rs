@@ -68,8 +68,6 @@ use rakko_action::{Args, Context, Name};
 ///
 /// [`Action`]: rakko_action::Action
 /// [`run`]: Command::run
-// cli[impl written.send]
-// cli[impl written.sync]
 pub trait Command: Send + Sync {
     /// The arguments that a run of the command reads
     ///
@@ -77,11 +75,9 @@ pub trait Command: Send + Sync {
     /// the projection renders the arguments of a command as it renders the
     /// arguments of an action. A command that reads no arguments uses the
     /// unit type.
-    // cli[impl written.args]
     type Args: Args;
 
     /// Returns the name that identifies the command
-    // cli[impl written.name]
     fn name(&self) -> Name;
 
     /// Runs the command against the project that the context names
@@ -95,9 +91,6 @@ pub trait Command: Send + Sync {
     /// what failed and does not repeat its cause.
     ///
     /// [`source`]: std::error::Error::source
-    // cli[impl written.run]
-    // cli[impl written.wait]
-    // cli[impl written.send]
     fn run(
         &self,
         project: &Context,
@@ -216,7 +209,6 @@ mod tests {
         <C::Args as Args>::schema()
     }
 
-    // cli[verify written.args]
     #[test]
     fn args_describe_themselves_in_the_vocabulary() {
         let schema = schema_of::<Probe>();
@@ -224,19 +216,16 @@ mod tests {
         assert!(schema.arguments().is_empty());
     }
 
-    // cli[verify written.send]
     #[test]
     fn command_is_send() {
         require_command_send::<Probe>();
     }
 
-    // cli[verify written.sync]
     #[test]
     fn command_is_sync() {
         require_command_sync::<Probe>();
     }
 
-    // cli[verify written.name]
     #[test]
     fn name_returns_what_the_command_declares() {
         let command = Probe::default();
@@ -244,7 +233,6 @@ mod tests {
         assert_eq!(command.name().get(), "probe");
     }
 
-    // cli[verify written.send]
     #[test]
     fn run_is_send() {
         let command = Probe::default();
@@ -254,7 +242,6 @@ mod tests {
         require_run_send(&command, &project, &clawless, &());
     }
 
-    // cli[verify written.run]
     #[test]
     fn run_produces_the_result_when_driven_again() {
         let command = Probe::default();
@@ -271,7 +258,6 @@ mod tests {
         assert!(matches!(result, Poll::Ready(Ok(()))));
     }
 
-    // cli[verify written.run]
     #[test]
     fn run_receives_the_root_of_the_project() {
         let command = Probe::default();
@@ -287,7 +273,6 @@ mod tests {
         assert_eq!(root.as_deref(), Some(Path::new("/tmp/project")));
     }
 
-    // cli[verify written.wait]
     #[test]
     fn run_returns_control_while_it_waits() {
         let command = Probe::default();

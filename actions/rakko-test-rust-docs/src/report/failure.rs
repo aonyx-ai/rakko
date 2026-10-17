@@ -56,8 +56,6 @@ impl DoctestFailure {
     ///
     /// An example whose name carries no line, and an example in a file
     /// outside the project, get a finding at the level of the project.
-    // testrustdocs[impl finding.failed]
-    // testrustdocs[impl finding.position]
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = match self.diagnosis() {
             Some(diagnosis) => format!("example `{}` failed: {diagnosis}", self.name),
@@ -77,7 +75,6 @@ impl DoctestFailure {
     /// panicked, and the harness wrote the location of the panic and its
     /// message. The reading takes the message of the panic when the output
     /// names one, and the first line of the output otherwise.
-    // testrustdocs[impl finding.failed]
     fn diagnosis(&self) -> Option<String> {
         let mut lines = self.output.lines();
 
@@ -107,7 +104,6 @@ impl DoctestFailure {
     /// then names a file of that program. The name of the example names the
     /// file of the project instead, relative to the workspace that cargo
     /// tested.
-    // testrustdocs[impl finding.position]
     fn location(&self, root: &CargoRoot, project: &ProjectRoot) -> Location {
         let Some((path, line)) = documented(&self.name) else {
             return Location::Project;
@@ -128,7 +124,6 @@ impl DoctestFailure {
 /// A name reads `file - item (line 5)`, and the item is empty for an example
 /// in the documentation of a crate. The reading starts from the end, because
 /// a file can hold the words that open the item of another name.
-// testrustdocs[impl finding.position]
 fn documented(name: &str) -> Option<(PathBuf, u32)> {
     let (documenting, line) = name.rsplit_once(LINE_OPENS)?;
     let line = line.strip_suffix(')')?.parse().ok()?;
@@ -170,7 +165,6 @@ mod tests {
         ProjectRoot::new(PathBuf::from("/home/otter/project"))
     }
 
-    // testrustdocs[verify finding.failed]
     #[test]
     fn finding_of_a_refused_example_carries_what_the_compiler_wrote() {
         let failure = DoctestFailure::new("probe/src/lib.rs - sub (line 14)", REFUSED);
@@ -183,7 +177,6 @@ mod tests {
         );
     }
 
-    // testrustdocs[verify finding.failed]
     #[test]
     fn finding_of_an_example_that_panicked_carries_the_message() {
         let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
@@ -196,7 +189,6 @@ mod tests {
         );
     }
 
-    // testrustdocs[verify finding.failed]
     #[test]
     fn finding_of_an_example_that_wrote_nothing_names_it() {
         let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", "");
@@ -209,7 +201,6 @@ mod tests {
         );
     }
 
-    // testrustdocs[verify finding.position]
     #[test]
     fn finding_of_an_example_is_at_the_line_that_documents_it() {
         let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
@@ -225,7 +216,6 @@ mod tests {
         );
     }
 
-    // testrustdocs[verify finding.position]
     #[test]
     fn finding_of_an_example_of_a_crate_reads_the_file_without_an_item() {
         let failure = DoctestFailure::new("probe/src/lib.rs - (line 3)", PANICKED);
@@ -241,7 +231,6 @@ mod tests {
         );
     }
 
-    // testrustdocs[verify finding.position]
     #[test]
     fn finding_of_an_example_whose_name_carries_no_line_is_at_the_project() {
         let failure = DoctestFailure::new("probe/src/lib.rs - add", PANICKED);
@@ -251,7 +240,6 @@ mod tests {
         assert_eq!(finding.location(), &Location::Project);
     }
 
-    // testrustdocs[verify finding.position]
     #[test]
     fn finding_of_an_example_outside_the_project_is_at_the_project() {
         let failure = DoctestFailure::new("/elsewhere/src/lib.rs - add (line 5)", PANICKED);

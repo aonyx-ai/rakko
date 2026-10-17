@@ -20,7 +20,6 @@ pub struct CheckMiseLockArgs {
 }
 
 impl Args for CheckMiseLockArgs {
-    // checkmiselock[impl args.fix]
     fn schema() -> ArgsSchema {
         ArgsSchema::new([Argument::builder()
             .name(argument_name!("fix"))
@@ -29,7 +28,6 @@ impl Args for CheckMiseLockArgs {
             .build()])
     }
 
-    // checkmiselock[impl args.value]
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let name = argument_name!("fix");
         let fix = match values.get(&name) {
@@ -62,7 +60,6 @@ mod tests {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new(fix))])
     }
 
-    // checkmiselock[verify args.value]
     #[test]
     fn from_values_with_an_unreadable_value_reports_the_argument() {
         let error = CheckMiseLockArgs::from_values(&values("maybe")).unwrap_err();
@@ -73,7 +70,6 @@ mod tests {
         ));
     }
 
-    // checkmiselock[verify args.fix]
     #[test]
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = CheckMiseLockArgs::from_values(&values("true")).unwrap();
@@ -81,7 +77,6 @@ mod tests {
         assert!(args.fix());
     }
 
-    // checkmiselock[verify args.fix]
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = CheckMiseLockArgs::from_values(&ArgsValues::empty()).unwrap();
@@ -89,7 +84,6 @@ mod tests {
         assert!(!args.fix());
     }
 
-    // checkmiselock[verify args.fix]
     #[test]
     fn schema_declares_the_fix_argument() {
         let schema = CheckMiseLockArgs::schema();
@@ -103,7 +97,6 @@ mod tests {
         assert_eq!(names, ["fix"]);
     }
 
-    // checkmiselock[verify args.fix]
     #[test]
     fn schema_documents_the_fix_argument() {
         let schema = CheckMiseLockArgs::schema();
@@ -116,7 +109,6 @@ mod tests {
         assert_eq!(documentation, Some(FIX_DOCUMENTATION));
     }
 
-    // checkmiselock[verify args.fix]
     #[test]
     fn schema_gives_fix_a_boolean_shape() {
         let schema = CheckMiseLockArgs::schema();

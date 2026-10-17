@@ -129,7 +129,6 @@ impl Taplo {
     ///
     /// [incomplete]: ObserveTaploError::IncompleteReport
     /// [unavailable]: ObserveTaploError::TaploUnavailable
-    // taplo[impl run.complete+2]
     pub async fn observe(&self, operation: Operation) -> Result<Observation, ObserveTaploError> {
         let mut stderr = String::new();
         let mut answered: Option<Observation> = None;
@@ -166,8 +165,6 @@ impl Taplo {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no taplo for the
     /// project.
-    // taplo[impl tool.missing]
-    // taplo[impl tool.resolve]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(TAPLO), root).await?;
 
@@ -181,8 +178,6 @@ impl Taplo {
     /// Returns [`TaploUnavailable`][unavailable] when taplo does not run.
     ///
     /// [unavailable]: ObserveTaploError::TaploUnavailable
-    // taplo[impl run.operation]
-    // taplo[impl run.plain]
     async fn start(&self, operation: Operation) -> Result<Execution, ObserveTaploError> {
         self.tool
             .invocation()
@@ -196,7 +191,6 @@ impl Taplo {
 }
 
 /// Returns the command line of one operation of taplo
-// taplo[impl run.operation]
 fn arguments(operation: Operation) -> &'static [&'static str] {
     match operation {
         Operation::CheckFormat => &[FORMAT, CHECK, DIFF],
@@ -213,7 +207,6 @@ mod tests {
 
     use super::*;
 
-    // taplo[verify run.operation]
     #[test]
     fn arguments_of_a_format_check_report_instead_of_rewriting() {
         let selected = arguments(Operation::CheckFormat);
@@ -221,7 +214,6 @@ mod tests {
         assert_eq!(selected, ["fmt", "--check", "--diff"]);
     }
 
-    // taplo[verify run.operation]
     #[test]
     fn arguments_of_a_format_rewrite_the_project() {
         let selected = arguments(Operation::Format);
@@ -229,7 +221,6 @@ mod tests {
         assert_eq!(selected, ["fmt"]);
     }
 
-    // taplo[verify run.operation]
     #[test]
     fn arguments_of_a_lint_validate_the_project() {
         let selected = arguments(Operation::Lint);

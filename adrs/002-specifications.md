@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-016]
 
 ## Context
 
@@ -112,5 +112,6 @@ industries. They are too much process for a small team.
   revision is a deliberate task.
 
 [adr-001]: 001-adrs.md
+[adr-016]: 016-requirement-tracing.md
 [rfc-2119]: https://www.rfc-editor.org/rfc/rfc2119
 [tracey]: https://tracey.bearcove.eu/

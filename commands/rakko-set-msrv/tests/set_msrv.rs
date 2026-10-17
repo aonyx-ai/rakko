@@ -328,7 +328,6 @@ fn locked(lock: &str) -> Vec<(String, String)> {
 
 // A root that is a package and a workspace at once inherits the version of
 // the workspace, so the version of the workspace is the one to change.
-// setmsrv[verify manifest.version]
 #[tokio::test]
 async fn run_in_a_package_of_a_workspace_sets_the_version_of_the_workspace() {
     let project = Project::new(
@@ -344,8 +343,6 @@ async fn run_in_a_package_of_a_workspace_sets_the_version_of_the_workspace() {
     );
 }
 
-// setmsrv[verify manifest.version]
-// setmsrv[verify manifest.comment]
 #[tokio::test]
 async fn run_in_a_package_sets_the_version_of_the_package() {
     let project = Project::new(PACKAGE, TEXTS);
@@ -365,9 +362,6 @@ rust-version = "1.89.0"
     );
 }
 
-// setmsrv[verify manifest.version]
-// setmsrv[verify manifest.comment]
-// setmsrv[verify files.layout]
 #[tokio::test]
 async fn run_in_a_workspace_sets_the_version_and_its_comment() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -379,7 +373,6 @@ async fn run_in_a_workspace_sets_the_version_and_its_comment() {
 
 // A workspace that declares no version leaves the version of the package in
 // charge.
-// setmsrv[verify manifest.version]
 #[tokio::test]
 async fn run_in_a_workspace_without_a_version_sets_the_version_of_the_package() {
     let project = Project::new(
@@ -395,7 +388,6 @@ async fn run_in_a_workspace_without_a_version_sets_the_version_of_the_package() 
     );
 }
 
-// setmsrv[verify files.layout]
 #[tokio::test]
 async fn run_on_files_that_end_lines_with_carriage_returns_keeps_them() {
     let project = Project::new(&WORKSPACE.replace('\n', "\r\n"), TEXTS);
@@ -408,7 +400,6 @@ async fn run_on_files_that_end_lines_with_carriage_returns_keeps_them() {
     );
 }
 
-// setmsrv[verify check.report]
 #[tokio::test]
 async fn run_reports_the_outcome_of_the_check() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);
@@ -420,8 +411,6 @@ async fn run_reports_the_outcome_of_the_check() {
     assert_eq!(run.reports, ["check-msrv: passed"]);
 }
 
-// setmsrv[verify install.run]
-// setmsrv[verify check.given]
 #[tokio::test]
 async fn run_runs_the_check_once_after_the_install() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);
@@ -433,7 +422,6 @@ async fn run_runs_the_check_once_after_the_install() {
     assert_eq!(run.checks, 1);
 }
 
-// setmsrv[verify pin.version]
 #[tokio::test]
 async fn run_sets_a_single_pin() {
     let project = Project::new(WORKSPACE, "[tools]\nrust = \"1.88.0\"\n");
@@ -445,7 +433,6 @@ async fn run_sets_a_single_pin() {
 
 // A project whose default toolchain is its MSRV pins the version twice. The
 // first pin is the default, and it stays.
-// setmsrv[verify pin.version]
 #[tokio::test]
 async fn run_sets_the_last_matching_pin() {
     let project = Project::new(WORKSPACE, "[tools]\nrust = [\"1.88.0\", \"1.88.0\"]\n");
@@ -458,7 +445,6 @@ async fn run_sets_the_last_matching_pin() {
     );
 }
 
-// setmsrv[verify pin.version]
 #[tokio::test]
 async fn run_sets_the_matching_pin_of_an_array_of_tables() {
     let project = Project::new(
@@ -474,8 +460,6 @@ async fn run_sets_the_matching_pin_of_an_array_of_tables() {
     );
 }
 
-// setmsrv[verify pin.version]
-// setmsrv[verify files.layout]
 #[tokio::test]
 async fn run_sets_the_matching_pin_of_tables() {
     let project = Project::new(WORKSPACE, TABLES);
@@ -491,7 +475,6 @@ async fn run_sets_the_matching_pin_of_tables() {
     );
 }
 
-// setmsrv[verify pin.version]
 #[tokio::test]
 async fn run_sets_the_matching_pin_of_texts() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -504,7 +487,6 @@ async fn run_sets_the_matching_pin_of_texts() {
     );
 }
 
-// setmsrv[verify pin.version]
 #[tokio::test]
 async fn run_sets_the_pin_of_a_table() {
     let project = Project::new(WORKSPACE, "[tools.rust]\nversion = \"1.88.0\"\n");
@@ -517,7 +499,6 @@ async fn run_sets_the_pin_of_a_table() {
     );
 }
 
-// setmsrv[verify check.failed]
 #[tokio::test]
 async fn run_whose_check_fails_names_the_check_and_the_version() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);
@@ -534,7 +515,6 @@ async fn run_whose_check_fails_names_the_check_and_the_version() {
     );
 }
 
-// setmsrv[verify check.passed]
 #[tokio::test]
 async fn run_whose_check_passes_succeeds() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);
@@ -546,7 +526,6 @@ async fn run_whose_check_passes_succeeds() {
     assert!(run.result.is_ok());
 }
 
-// setmsrv[verify check.passed]
 #[tokio::test]
 async fn run_whose_check_repairs_succeeds() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);
@@ -559,7 +538,6 @@ async fn run_whose_check_repairs_succeeds() {
 }
 
 // A check that skipped did not compile the code on the new version.
-// setmsrv[verify check.failed]
 #[tokio::test]
 async fn run_whose_check_skips_fails() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);
@@ -576,7 +554,6 @@ async fn run_whose_check_skips_fails() {
     );
 }
 
-// setmsrv[verify check.failed]
 #[tokio::test]
 async fn run_whose_check_stops_fails() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);
@@ -593,7 +570,6 @@ async fn run_whose_check_stops_fails() {
     );
 }
 
-// setmsrv[verify install.failed]
 #[tokio::test]
 async fn run_whose_mise_does_not_install_keeps_the_files() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -609,8 +585,6 @@ async fn run_whose_mise_does_not_install_keeps_the_files() {
     );
 }
 
-// setmsrv[verify install.run]
-// setmsrv[verify install.failed]
 #[tokio::test]
 async fn run_whose_mise_does_not_install_reports_what_mise_said() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -623,7 +597,6 @@ async fn run_whose_mise_does_not_install_reports_what_mise_said() {
     ));
 }
 
-// setmsrv[verify install.failed]
 #[tokio::test]
 async fn run_whose_mise_does_not_install_runs_no_check() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -635,7 +608,6 @@ async fn run_whose_mise_does_not_install_runs_no_check() {
     assert_eq!(run.checks, 0);
 }
 
-// setmsrv[verify install.failed]
 #[tokio::test]
 async fn run_whose_mise_does_not_install_says_what_to_run() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -647,7 +619,6 @@ async fn run_whose_mise_does_not_install_says_what_to_run() {
     ));
 }
 
-// setmsrv[verify lock.failed]
 #[tokio::test]
 async fn run_whose_mise_refuses_to_lock_reports_what_mise_said() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -661,7 +632,6 @@ async fn run_whose_mise_refuses_to_lock_reports_what_mise_said() {
     ));
 }
 
-// setmsrv[verify lock.failed]
 #[tokio::test]
 async fn run_whose_mise_refuses_to_lock_says_what_to_run() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -674,7 +644,6 @@ async fn run_whose_mise_refuses_to_lock_says_what_to_run() {
     ));
 }
 
-// setmsrv[verify lock.update]
 #[tokio::test]
 async fn run_with_a_lock_locks_the_new_pin() {
     let project = Project::installable(OLD_PACKAGE, &TEXTS.replace("1.88.0", "1.0.0"));
@@ -690,7 +659,6 @@ async fn run_with_a_lock_locks_the_new_pin() {
     assert_eq!(locked(&project.read("mise.lock")), expected);
 }
 
-// setmsrv[verify files.unreadable]
 #[tokio::test]
 async fn run_with_a_malformed_manifest_names_it() {
     let project = Project::new("[package\n", TEXTS);
@@ -703,7 +671,6 @@ async fn run_with_a_malformed_manifest_names_it() {
     );
 }
 
-// setmsrv[verify files.unreadable]
 #[tokio::test]
 async fn run_with_a_malformed_mise_toml_names_it() {
     let project = Project::new(WORKSPACE, "[tools\n");
@@ -716,7 +683,6 @@ async fn run_with_a_malformed_mise_toml_names_it() {
     );
 }
 
-// setmsrv[verify manifest.inline]
 #[tokio::test]
 async fn run_with_a_version_in_an_inline_table_names_the_manifest() {
     let project = Project::new(
@@ -735,7 +701,6 @@ async fn run_with_a_version_in_an_inline_table_names_the_manifest() {
     );
 }
 
-// setmsrv[verify manifest.undeclared]
 #[tokio::test]
 async fn run_without_a_declared_version_names_the_manifest() {
     let project = Project::new("[package]\nname = \"otter\"\n", TEXTS);
@@ -751,7 +716,6 @@ async fn run_without_a_declared_version_names_the_manifest() {
     );
 }
 
-// setmsrv[verify lock.absent]
 #[tokio::test]
 async fn run_without_a_lock_creates_none() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);
@@ -761,7 +725,6 @@ async fn run_without_a_lock_creates_none() {
     assert!(!project.path("mise.lock").exists());
 }
 
-// setmsrv[verify pin.unmatched]
 #[tokio::test]
 async fn run_without_a_matching_pin_changes_no_file() {
     let project = Project::new(WORKSPACE, "[tools]\nrust = \"1.98.1\"\n");
@@ -777,7 +740,6 @@ async fn run_without_a_matching_pin_changes_no_file() {
     );
 }
 
-// setmsrv[verify pin.unmatched]
 #[tokio::test]
 async fn run_without_a_matching_pin_names_the_version() {
     let project = Project::new(WORKSPACE, "[tools]\nrust = \"1.98.1\"\n");
@@ -790,7 +752,6 @@ async fn run_without_a_matching_pin_names_the_version() {
     );
 }
 
-// setmsrv[verify files.unreadable]
 #[tokio::test]
 async fn run_without_a_mise_toml_changes_no_file() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -801,7 +762,6 @@ async fn run_without_a_mise_toml_changes_no_file() {
     assert_eq!(project.read("Cargo.toml"), WORKSPACE);
 }
 
-// setmsrv[verify files.unreadable]
 #[tokio::test]
 async fn run_without_a_mise_toml_names_it() {
     let project = Project::new(WORKSPACE, TEXTS);
@@ -815,7 +775,6 @@ async fn run_without_a_mise_toml_names_it() {
     );
 }
 
-// setmsrv[verify check.report]
 #[tokio::test]
 async fn run_without_a_reader_names_the_check() {
     let project = Project::installable(OLD_PACKAGE, OLD_PIN);

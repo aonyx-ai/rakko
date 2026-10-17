@@ -54,10 +54,8 @@ use crate::validator::Validator;
 pub struct CheckRenovateConfig;
 
 impl Action for CheckRenovateConfig {
-    // checkrenovateconfig[impl args.none]
     type Args = ();
 
-    // checkrenovateconfig[impl name]
     fn name(&self) -> Name {
         action_name!("check-renovate-config")
     }
@@ -65,7 +63,6 @@ impl Action for CheckRenovateConfig {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // checkrenovateconfig[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -84,24 +81,18 @@ impl Action for CheckRenovateConfig {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the run of the validator, or the reading of its log.
 async fn drive(context: &Context) -> Result<Outcome, CheckRenovateConfigError> {
-    // checkrenovateconfig[impl tool.missing]
-    // checkrenovateconfig[impl tool.validator]
     let validator = Validator::resolve(context.root().clone())
         .await
         .map_err(|source| CheckRenovateConfigError::UnresolvedTool { source })?;
 
-    // checkrenovateconfig[impl check.read]
     let observation = validator.observe().await?;
 
-    // checkrenovateconfig[impl skip.unconfigured]
     if let Some(words) = observation.unconfigured() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(words.clone()),
         });
     }
 
-    // checkrenovateconfig[impl check.passed]
-    // checkrenovateconfig[impl check.summary]
     if observation.problems().is_empty() {
         return Ok(Outcome::Passed {
             summary: Some(summary(observation.validated())),
@@ -126,10 +117,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckRenovateConfigError> {
 /// file of the problem.
 ///
 /// [foreign]: CheckRenovateConfigError::ForeignPath
-// checkrenovateconfig[impl check.error]
-// checkrenovateconfig[impl check.migration]
-// checkrenovateconfig[impl check.unparsable]
-// checkrenovateconfig[impl check.warning]
 fn finding(
     problem: &RenovateProblem,
     root: &ProjectRoot,
@@ -166,7 +153,6 @@ fn findings(
 
 /// Returns the summary of a run that validated the given number of
 /// configurations
-// checkrenovateconfig[impl check.summary]
 fn summary(validated: u32) -> Summary {
     if validated == 1 {
         Summary::new("validated 1 configuration")
@@ -213,7 +199,6 @@ mod tests {
         ));
     }
 
-    // checkrenovateconfig[verify check.unparsable]
     #[test]
     fn finding_of_a_problem_at_a_position_sits_at_the_position() {
         let position = Position::builder().line(2).column(1).build();
@@ -235,7 +220,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.error]
     #[test]
     fn finding_of_a_problem_carries_the_message_of_the_validator() {
         let finding = finding(&problem(path("renovate.json")), &root()).unwrap();
@@ -246,7 +230,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.error]
     #[test]
     fn findings_report_every_problem_of_the_observation() {
         let problems = vec![problem(path("renovate.json")), problem(path(".renovaterc"))];
@@ -256,7 +239,6 @@ mod tests {
         assert_eq!(findings.len(), 2);
     }
 
-    // checkrenovateconfig[verify check.summary]
     #[test]
     fn summary_of_one_configuration_names_one_configuration() {
         let summary = summary(1);
@@ -264,7 +246,6 @@ mod tests {
         assert_eq!(summary.get(), "validated 1 configuration");
     }
 
-    // checkrenovateconfig[verify check.summary]
     #[test]
     fn summary_of_several_configurations_names_their_number() {
         let summary = summary(3);

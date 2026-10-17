@@ -92,7 +92,6 @@ impl Tracey {
     ///
     /// [unavailable]: ObserveTraceyError::TraceyUnavailable
     /// [unreadable]: ObserveTraceyError::UnreadableReport
-    // checkspecs[impl coverage.summary]
     pub async fn coverage(&self) -> Result<Coverage, ObserveTraceyError> {
         let execution = self.start(Question::Coverage).await?;
         let status: Status = parse(&execution.stdout().to_string_lossy(), || {
@@ -112,8 +111,6 @@ impl Tracey {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no tracey for the
     /// project.
-    // checkspecs[impl tool.tracey]
-    // checkspecs[impl tool.missing]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(TRACEY), root).await?;
 
@@ -135,8 +132,6 @@ impl Tracey {
     /// Returns [`TraceyUnavailable`][unavailable] when tracey does not run.
     ///
     /// [unavailable]: ObserveTraceyError::TraceyUnavailable
-    // checkspecs[impl daemon.stop]
-    // checkspecs[impl daemon.absent]
     pub async fn stop(&self) -> Result<(), ObserveTraceyError> {
         self.start(Question::Daemon).await?;
 
@@ -156,10 +151,6 @@ impl Tracey {
     ///
     /// [unavailable]: ObserveTraceyError::TraceyUnavailable
     /// [unreadable]: ObserveTraceyError::UnreadableReport
-    // checkspecs[impl check.read]
-    // checkspecs[impl check.structured]
-    // checkspecs[impl check.warnings]
-    // checkspecs[impl check.unreadable]
     pub async fn validate(&self) -> Result<Vec<TraceyProblem>, ObserveTraceyError> {
         let execution = self.start(Question::References).await?;
         let validations: Vec<Validation> = parse(&execution.stdout().to_string_lossy(), || {
@@ -184,7 +175,6 @@ impl Tracey {
     /// Returns [`TraceyUnavailable`][unavailable] when tracey does not run.
     ///
     /// [unavailable]: ObserveTraceyError::TraceyUnavailable
-    // checkspecs[impl version.staged]
     pub async fn versions(&self, directory: &Path) -> Result<Option<String>, ObserveTraceyError> {
         let execution = self
             .invocation()
@@ -207,7 +197,6 @@ impl Tracey {
     /// it starts git to do so. A run inside a git hook would hand it the
     /// repository of the hook, whatever directory the command names, so the
     /// variables that git reads for itself leave the command.
-    // checkspecs[impl version.checkout]
     fn invocation(&self) -> Invocation {
         inherited().fold(self.tool.invocation(), Invocation::env_remove)
     }
@@ -246,10 +235,6 @@ enum Question {
 }
 
 /// Returns the command line of one question to tracey
-// checkspecs[impl check.structured]
-// checkspecs[impl check.warnings]
-// checkspecs[impl coverage.summary]
-// checkspecs[impl daemon.stop]
 fn arguments(question: Question) -> &'static [&'static str] {
     match question {
         Question::Coverage => &[QUERY, JSON, STATUS],
@@ -289,7 +274,6 @@ fn diagnosis(execution: &Execution) -> String {
 /// the crate reads.
 ///
 /// [unreadable]: ObserveTraceyError::UnreadableReport
-// checkspecs[impl check.unreadable]
 fn parse<T: serde::de::DeserializeOwned>(
     report: &str,
     diagnosis: impl FnOnce() -> String,
@@ -308,7 +292,6 @@ mod tests {
 
     use super::*;
 
-    // checkspecs[verify check.structured]
     #[test]
     fn arguments_of_every_report_ask_for_data() {
         let reports = [Question::Coverage, Question::References];
@@ -320,7 +303,6 @@ mod tests {
         assert!(structured, "expected every report to be asked for as data");
     }
 
-    // checkspecs[verify check.warnings]
     #[test]
     fn arguments_of_a_validation_deny_warnings() {
         let selected = arguments(Question::References);
@@ -331,7 +313,6 @@ mod tests {
         );
     }
 
-    // checkspecs[verify daemon.stop]
     #[test]
     fn arguments_of_a_daemon_question_stop_it() {
         let selected = arguments(Question::Daemon);
@@ -339,7 +320,6 @@ mod tests {
         assert_eq!(selected, ["kill"]);
     }
 
-    // checkspecs[verify check.unreadable]
     #[test]
     fn parse_of_a_report_that_is_not_data_holds_what_tracey_wrote() {
         let report = "tracey: something new happened";

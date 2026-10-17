@@ -23,7 +23,6 @@ use crate::name::kebab_case_name;
 ///
 /// let name = argument_name!("--fix");
 /// ```
-// action[impl args.literal]
 #[macro_export]
 macro_rules! argument_name {
     ($input:expr) => {
@@ -31,7 +30,6 @@ macro_rules! argument_name {
     };
 }
 
-// action[impl args.name]
 kebab_case_name! {
     /// The name of one argument in an argument set
     ///
@@ -67,7 +65,6 @@ mod tests {
     use super::*;
     use crate::name::ParseNameError;
 
-    // action[verify args.literal]
     #[test]
     fn argument_name_with_a_valid_literal_returns_a_name() {
         let name = argument_name!("fix");
@@ -75,14 +72,12 @@ mod tests {
         assert_eq!(name.get(), "fix");
     }
 
-    // action[verify args.literal]
     #[test]
     #[should_panic(expected = "name starts with an invalid character")]
     fn from_static_with_a_name_that_starts_with_a_hyphen_panics() {
         ArgumentName::from_static("-fix");
     }
 
-    // action[verify args.literal]
     #[test]
     fn from_static_with_a_valid_name_returns_a_name() {
         let name = ArgumentName::from_static("format-only");
@@ -90,7 +85,6 @@ mod tests {
         assert_eq!(name.get(), "format-only");
     }
 
-    // action[verify args.name]
     #[test]
     fn parse_with_a_name_that_holds_a_space_reports_the_character() {
         let result: Result<ArgumentName, _> = "fix all".parse();
@@ -104,7 +98,6 @@ mod tests {
         );
     }
 
-    // action[verify args.name]
     #[test]
     fn parse_with_a_valid_name_returns_a_name() {
         let name: ArgumentName = "fix".parse().expect("the test names an argument correctly");
@@ -112,7 +105,6 @@ mod tests {
         assert_eq!(name.get(), "fix");
     }
 
-    // action[verify args.name]
     #[test]
     fn parse_without_characters_reports_that_the_name_is_empty() {
         let result: Result<ArgumentName, _> = "".parse();

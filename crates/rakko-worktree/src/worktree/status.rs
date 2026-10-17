@@ -122,7 +122,6 @@ mod tests {
 
     use super::*;
 
-    // worktree[verify sync.changed]
     #[test]
     fn changed_paths_of_a_modified_file_names_it() {
         let report = b" M src/lib.rs\0";
@@ -132,7 +131,6 @@ mod tests {
         assert_eq!(paths, Ok(vec![PathBuf::from("src/lib.rs")]));
     }
 
-    // worktree[verify sync.changed]
     #[test]
     fn changed_paths_of_a_rename_names_both_paths() {
         let report = b"R  src/new.rs\0src/old.rs\0";
@@ -184,7 +182,6 @@ mod tests {
         assert!(paths.is_err());
     }
 
-    // worktree[verify sync.changed]
     #[test]
     fn changed_paths_of_a_path_with_a_space_keeps_the_path_whole() {
         let report = b"?? two words.txt\0";

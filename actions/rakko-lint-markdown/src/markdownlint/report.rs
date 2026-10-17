@@ -135,7 +135,6 @@ mod tests {
             .expect("the test reads a report that holds one problem")
     }
 
-    // lintmarkdown[verify check.column]
     #[test]
     fn problems_of_a_ranged_result_take_the_column_of_the_range() {
         let problem = problem(RANGED);
@@ -143,7 +142,6 @@ mod tests {
         assert_eq!(problem.column(), Some(1));
     }
 
-    // lintmarkdown[verify check.violation]
     #[test]
     fn problems_of_a_result_name_the_file() {
         let problem = problem(RANGED);
@@ -151,7 +149,6 @@ mod tests {
         assert_eq!(problem.path(), &PathBuf::from("sub/notes.md"));
     }
 
-    // lintmarkdown[verify check.violation]
     #[test]
     fn problems_of_a_result_sit_on_the_line_of_markdownlint() {
         let problem = problem(RANGED);
@@ -159,7 +156,6 @@ mod tests {
         assert_eq!(problem.line(), 3);
     }
 
-    // lintmarkdown[verify check.violation]
     #[test]
     fn problems_of_a_result_with_a_detail_read_like_markdownlint() {
         let problem = problem(RANGED);
@@ -170,7 +166,6 @@ mod tests {
         );
     }
 
-    // lintmarkdown[verify check.violation]
     #[test]
     fn problems_of_a_result_with_a_context_quote_it_like_markdownlint() {
         let problem = problem(UNRANGED);
@@ -181,7 +176,6 @@ mod tests {
         );
     }
 
-    // lintmarkdown[verify check.column]
     #[test]
     fn problems_of_an_unranged_result_name_no_column() {
         let problem = problem(UNRANGED);
@@ -189,7 +183,6 @@ mod tests {
         assert_eq!(problem.column(), None);
     }
 
-    // lintmarkdown[verify check.passed]
     #[test]
     fn problems_of_an_empty_report_hold_nothing() {
         let problems = problems("  \n").expect("the test reads the report of a run that passed");
@@ -197,7 +190,6 @@ mod tests {
         assert!(problems.is_empty(), "expected no problem, got {problems:?}");
     }
 
-    // lintmarkdown[verify check.unreadable]
     #[test]
     fn problems_of_a_report_that_is_not_a_report_stop_the_reading() {
         let problems = problems(STACK_TRACE);
