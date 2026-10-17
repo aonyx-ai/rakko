@@ -578,6 +578,7 @@ name = "rakko-baseline"
 version = "0.1.0"
 dependencies = [
  "rakko-action",
+ "rakko-check-mise-lock",
  "rakko-check-renovate-config",
  "rakko-format-json",
  "rakko-format-markdown",

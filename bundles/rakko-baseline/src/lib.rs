@@ -1,6 +1,7 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
 use rakko_action::Bundle;
+use rakko_check_mise_lock::CheckMiseLock;
 use rakko_check_renovate_config::CheckRenovateConfig;
 use rakko_format_json::FormatJson;
 use rakko_format_markdown::FormatMarkdown;
@@ -19,10 +20,11 @@ use rakko_lint_yaml::LintYaml;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
-// baseline[impl actions+2]
+// baseline[impl actions+3]
 #[must_use]
 pub fn bundle() -> Bundle {
     Bundle::new(vec![
+        Box::new(CheckMiseLock),
         Box::new(CheckRenovateConfig),
         Box::new(FormatJson),
         Box::new(FormatMarkdown),
@@ -43,7 +45,7 @@ mod tests {
 
     use super::*;
 
-    // baseline[verify actions+2]
+    // baseline[verify actions+3]
     #[test]
     fn bundle_exports_the_actions_that_any_project_runs() {
         let names: Vec<String> = bundle()
@@ -55,6 +57,7 @@ mod tests {
         assert_eq!(
             names,
             [
+                "check-mise-lock",
                 "check-renovate-config",
                 "format-json",
                 "format-markdown",
