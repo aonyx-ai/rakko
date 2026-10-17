@@ -74,6 +74,16 @@ checkmiselock[tool.unanswered]
 A run MUST start every run of mise without the variable `MISE_YES` of its
 environment.
 
+Mise also trusts every configuration, without a question and without a record,
+when the environment holds `CI` or `GITHUB_ACTIONS`, which every job of GitHub
+Actions sets. The action takes both variables out of the environment of each
+run of mise as well, so that a project that nobody trusted stops the run on a
+job of CI too.
+
+checkmiselock[tool.unattended]
+A run MUST start every run of mise without the variables `CI` and
+`GITHUB_ACTIONS` of its environment.
+
 checkmiselock[tool.failed]
 A run whose mise does not start or ends without success MUST stop, and the
 outcome MUST hold what mise wrote.

@@ -70,6 +70,16 @@ const VERBOSITY: [(&str, &str); 3] = [
 // checkmiselock[impl tool.unanswered]
 const YES: &str = "MISE_YES";
 
+/// The variables with which an environment says that it is a job of CI
+///
+/// Mise trusts a configuration that nobody trusted, without a question and
+/// without a record, when either of them is set. Every run of mise takes them
+/// out of its environment, so that a project that nobody trusted stops the
+/// run on a job of CI as well. A project that a job checks stays trusted
+/// through the directories that `MISE_TRUSTED_CONFIG_PATHS` names.
+// checkmiselock[impl tool.unattended]
+const CI: [&str; 2] = ["CI", "GITHUB_ACTIONS"];
+
 /// The variable that names the directories that mise trusts for one run
 const TRUSTED_CONFIG_PATHS: &str = "MISE_TRUSTED_CONFIG_PATHS";
 
@@ -302,14 +312,20 @@ impl Mise {
     /// A directory that the run trusts gets the variable that tells mise so,
     /// for this one run of mise. The command takes the variable that answers
     /// the questions of mise out of its environment, so that mise asks no
-    /// question that the environment answers in the place of the contributor.
+    /// question that the environment answers in the place of the contributor,
+    /// and the variables that tell mise it runs on a job of CI, with which it
+    /// trusts every configuration.
     // checkmiselock[impl tool.mise]
     // checkmiselock[impl tool.unanswered]
+    // checkmiselock[impl tool.unattended]
     // checkmiselock[impl copy.trust]
     fn invocation(&self) -> Invocation {
-        let invocation = Invocation::new(MISE)
-            .in_directory(self.root.get())
-            .env_remove(YES);
+        let invocation = CI.into_iter().fold(
+            Invocation::new(MISE)
+                .in_directory(self.root.get())
+                .env_remove(YES),
+            Invocation::env_remove,
+        );
 
         match self.trust {
             Trust::Inherited => invocation,
@@ -602,7 +618,22 @@ mod tests {
             .map(|name| name.get().to_string_lossy().into_owned())
             .collect();
 
-        assert_eq!(removed, [YES]);
+        assert_eq!(removed[..1], [YES]);
+    }
+
+    // checkmiselock[verify tool.unattended]
+    #[test]
+    fn invocation_takes_the_signs_of_ci_out() {
+        let mise = Mise::new(root(), Trust::Granted);
+
+        let removed: Vec<String> = mise
+            .invocation()
+            .removals()
+            .iter()
+            .map(|name| name.get().to_string_lossy().into_owned())
+            .collect();
+
+        assert_eq!(removed[1..], CI);
     }
 
     // checkmiselock[verify lockfiles.unreadable]
