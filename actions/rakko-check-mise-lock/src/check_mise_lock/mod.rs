@@ -1,0 +1,464 @@
+//! The action that checks whether the lockfile of mise is complete
+//!
+//! This module holds the action, its arguments, and the error that stops a
+//! run. The action reads the lockfiles of the project, runs `mise lock` in a
+//! copy of the project or, with `fix`, in the project itself, and reads the
+//! lockfiles again. Each part that the run added, changed, or removed becomes
+//! a finding or a repair.
+
+/// The arguments that a run reads
+mod args;
+/// The error that stops a run of the action
+mod error;
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use rakko_action::{
+    Action, Context, FilePath, Finding, Location, Name, Outcome, Summary, action_name,
+};
+use rakko_worktree::Worktree;
+
+pub use self::args::CheckMiseLockArgs;
+pub use self::error::CheckMiseLockError;
+use crate::difference::Difference;
+use crate::lockfile::Lockfile;
+use crate::mise::{Lock, Mise, Trust};
+use crate::part::Platform;
+
+/// The action that checks whether the lockfile of mise is complete
+///
+/// A lockfile of [mise] records, for each tool that mise downloads, the
+/// address and the checksum of the file for each platform. An install in
+/// locked mode stops when the lockfile has no entry for the platform of the
+/// machine, and it examines only that one platform, so a gap stays hidden
+/// until a new machine installs the tool. Mise has no operation that only
+/// checks, so the action runs `mise lock` and compares the lockfiles before
+/// and after the run.
+///
+/// `mise lock` targets the platforms that the setting `lockfile_platforms` of
+/// the project names, and the platform of the machine that runs it as well. A
+/// project therefore names every platform that its jobs and its contributors
+/// use, or a run on a machine of another platform reports the entries of that
+/// platform. The lockfile also depends on the version of mise, and the
+/// version in CI decides when a contributor gets another answer.
+///
+/// A run reports by default, and it then runs `mise lock` in a disposable
+/// copy of the project, so the checkout of a contributor stays as it was. The
+/// copy holds the changes that are not committed, so a run answers for the
+/// tree that the contributor works on. It holds no file that git ignores, so a
+/// configuration such as an ignored `mise.local.toml` does not reach the run.
+/// It lies in the temporary directory of the system, so a configuration of
+/// mise in a directory above the project does not reach it either. No run of
+/// mise inherits `MISE_YES`, with which an environment such as CI answers the
+/// questions of mise in advance, so a project that nobody trusted stops the
+/// run, and the action trusts nothing in the place of its owner. Mise still
+/// reads every lockfile of the project when the run asks it for them there,
+/// so an ignored lockfile that mise cannot read stops the run. With `fix`, the
+/// run runs `mise lock` in the project, and its result stays there, also when
+/// the run stops after `mise lock`. Such a run also compares and keeps what
+/// `mise lock` writes to an ignored lockfile, such as `mise.local.lock`.
+///
+/// Each tool, version, and platform that `mise lock` adds, changes, or removes
+/// becomes one finding at its lockfile, or one repair with `fix`. A project
+/// that configures no tool to lock skips visibly. A run stops with an error
+/// when mise does not start or ends without success, when `mise lock` gives a
+/// warning that can mean an unresolved tool, when a lockfile records a
+/// platform that mise targeted without the address of its download after
+/// `mise lock`, when a lockfile has a shape that the action cannot read, and
+/// when the copy cannot be created. A warning of mise can be temporary, such
+/// as one of the network, or last, such as a release without the attestations
+/// that mise checks, and the words of mise in the error say which.
+///
+/// # Examples
+///
+/// A harness mounts the action:
+///
+/// ```
+/// use rakko_action::ErasedAction;
+/// use rakko_check_mise_lock::CheckMiseLock;
+///
+/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckMiseLock)];
+/// ```
+///
+/// [mise]: https://mise.jdx.dev
+#[derive(Copy, Clone, Debug, Default)]
+pub struct CheckMiseLock;
+
+impl Action for CheckMiseLock {
+    type Args = CheckMiseLockArgs;
+
+    // checkmiselock[impl name]
+    fn name(&self) -> Name {
+        action_name!("check-mise-lock")
+    }
+
+    async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
+        match drive(context, args).await {
+            Ok(outcome) => outcome,
+            // checkmiselock[impl copy.unavailable]
+            // checkmiselock[impl lockfiles.unreadable]
+            // checkmiselock[impl tool.failed]
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        }
+    }
+}
+
+/// Runs the action against the project of the context
+///
+/// The run asks mise for the lockfiles of the project first. Mise refuses
+/// that question for a project that nobody trusted, so such a project stops
+/// before anything else happens. The run then locks the project, in a copy
+/// without `fix` and in the project with it, and reads the lockfiles where it
+/// locks, before and after. A run without `fix` only lists the lockfiles of
+/// the project, because the copy holds no file that git ignores, and a
+/// lockfile that only the checkout holds gives no difference.
+///
+/// The copy lives until this function returns, and the drop takes it with it,
+/// so a run that ends with an answer and a run that stops with an error clear
+/// it alike.
+///
+/// # Errors
+///
+/// Returns the error of the step that could not finish: a run of mise, the
+/// reading of a lockfile, or the creation of the copy. Returns
+/// [`UnaddressedPlatforms`][unaddressed] when a lockfile records a platform
+/// that mise targeted without the address of its download after
+/// `mise lock`.
+///
+/// [unaddressed]: CheckMiseLockError::UnaddressedPlatforms
+async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, CheckMiseLockError> {
+    let project = Mise::new(context.root().clone(), Trust::Inherited);
+
+    // checkmiselock[impl fix.write]
+    // checkmiselock[impl copy.disposable]
+    // checkmiselock[impl copy.uncommitted]
+    // checkmiselock[impl copy.unavailable]
+    let (mise, before, _worktree) = if args.fix() {
+        let before = project.lockfiles().await?;
+
+        (project, before, None)
+    } else {
+        // checkmiselock[impl copy.trust]
+        project.list().await?;
+
+        let worktree = Worktree::create(context.root().clone())
+            .await
+            .map_err(|source| CheckMiseLockError::CopyUnavailable { source })?;
+
+        // checkmiselock[impl copy.trust]
+        let copy = Mise::new(worktree.root().clone(), Trust::Granted);
+
+        // checkmiselock[impl copy.compared]
+        let before = copy.lockfiles().await?;
+
+        (copy, before, Some(worktree))
+    };
+
+    let targets = match mise.lock().await? {
+        Lock::Written { targets } => targets,
+        // checkmiselock[impl skip.unconfigured]
+        Lock::Unconfigured { reason } => return Ok(Outcome::Skipped { reason }),
+    };
+
+    let after = mise.lockfiles().await?;
+    let differences = differences(&before, &after);
+
+    // checkmiselock[impl lock.untargeted]
+    if let Some(path) = untargeted(&after, &targets) {
+        return Err(CheckMiseLockError::UntargetedLockfile {
+            path: path.get().to_path_buf(),
+        });
+    }
+
+    // checkmiselock[impl lock.unaddressed]
+    if let Some(parts) = unaddressed(&after, &targets) {
+        return Err(CheckMiseLockError::UnaddressedPlatforms { parts });
+    }
+
+    if differences.is_empty() {
+        // checkmiselock[impl compare.passed]
+        let compared = before.keys().chain(after.keys()).collect::<BTreeSet<_>>();
+
+        return Ok(Outcome::Passed {
+            summary: Some(summary(compared.len())),
+        });
+    }
+
+    if args.fix() {
+        // checkmiselock[impl fix.changed]
+        Ok(Outcome::Changed {
+            repairs: findings(&differences, Difference::repair),
+        })
+    } else {
+        // checkmiselock[impl compare.added]
+        // checkmiselock[impl compare.changed]
+        // checkmiselock[impl compare.removed]
+        // checkmiselock[impl compare.missing]
+        Ok(Outcome::Failed {
+            findings: findings(&differences, Difference::finding),
+            repairs: Vec::new(),
+        })
+    }
+}
+
+/// Returns the differences of every lockfile, by the path of the lockfile
+///
+/// A lockfile that only one side holds counts as a lockfile without parts on
+/// the other side, so a lockfile that `mise lock` created gives a difference
+/// for each of its parts.
+// checkmiselock[impl lockfiles.listed]
+// checkmiselock[impl compare.missing]
+fn differences(
+    before: &BTreeMap<FilePath, Lockfile>,
+    after: &BTreeMap<FilePath, Lockfile>,
+) -> Vec<(FilePath, Difference)> {
+    let empty = Lockfile::default();
+    let paths: BTreeSet<&FilePath> = before.keys().chain(after.keys()).collect();
+
+    paths
+        .into_iter()
+        .flat_map(|path| {
+            let earlier = before.get(path).unwrap_or(&empty);
+            let later = after.get(path).unwrap_or(&empty);
+
+            earlier
+                .differences(later)
+                .into_iter()
+                .map(|difference| (path.clone(), difference))
+        })
+        .collect()
+}
+
+/// Returns the first lockfile that records a platform while mise named no
+/// platform that it targeted for it, if there is one
+///
+/// Mise names the platforms that it targets for each lockfile that it locks.
+/// Without them, the run cannot tell an entry of a targeted platform from an
+/// old one, so a lockfile with any platform and without targets stops the
+/// run rather than pass it.
+// checkmiselock[impl lock.untargeted]
+fn untargeted<'a>(
+    after: &'a BTreeMap<FilePath, Lockfile>,
+    targets: &BTreeMap<FilePath, BTreeSet<Platform>>,
+) -> Option<&'a FilePath> {
+    after
+        .iter()
+        .find(|(path, lockfile)| lockfile.records_platforms() && !targets.contains_key(*path))
+        .map(|(path, _)| path)
+}
+
+/// Returns the parts of a targeted platform that the lockfiles hold without
+/// the address of their download after the run, each with its lockfile, if
+/// they hold any
+///
+/// A part counts when mise targeted its platform for its lockfile, whether or
+/// not the run changed it, because locked mode refuses it either way. `mise
+/// lock` leaves the entries of a platform that it does not target as they
+/// were, so an old entry without an address for such a platform says nothing
+/// about the run.
+// checkmiselock[impl lock.unaddressed]
+fn unaddressed(
+    after: &BTreeMap<FilePath, Lockfile>,
+    targets: &BTreeMap<FilePath, BTreeSet<Platform>>,
+) -> Option<String> {
+    let parts: Vec<String> = after
+        .iter()
+        .flat_map(|(path, lockfile)| {
+            lockfile
+                .unaddressed()
+                .into_iter()
+                .filter(|part| {
+                    let targeted = targets.get(path);
+
+                    part.platform()
+                        .as_ref()
+                        .is_some_and(|platform| targeted.is_some_and(|set| set.contains(platform)))
+                })
+                .map(move |part| format!("{part} in {path}"))
+        })
+        .collect();
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(", "))
+    }
+}
+
+/// Returns a finding at its lockfile for each difference
+///
+/// The message comes from the difference, in the words of a finding or of a
+/// repair.
+fn findings(
+    differences: &[(FilePath, Difference)],
+    message: fn(&Difference) -> String,
+) -> Vec<Finding> {
+    differences
+        .iter()
+        .map(|(path, difference)| {
+            Finding::builder()
+                .message(message(difference))
+                .location(Location::File { path: path.clone() })
+                .build()
+        })
+        .collect()
+}
+
+/// Returns the summary of a run that compared the given number of lockfiles
+// checkmiselock[impl compare.passed]
+fn summary(compared: usize) -> Summary {
+    if compared == 1 {
+        Summary::new("compared 1 lockfile")
+    } else {
+        Summary::new(format!("compared {compared} lockfiles"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // An assertion in a test panics by design. A `# Panics` section on every
+    // test would repeat that and give the reader no information.
+    #![allow(clippy::missing_panics_doc)]
+
+    use super::*;
+
+    /// A lockfile with one tool on one platform
+    const LOCKFILE: &str = "[[tools.jq]]\nversion = \"1.8.1\"\n\n[tools.jq.\"platforms.linux-x64\"]\nurl = \"https://example.com/jq\"\n";
+
+    /// The old table of a platform that mise does not target, without an
+    /// address
+    const STALE: &str =
+        "\n[tools.jq.\"platforms.linux-x64-musl\"]\nprovenance = \"github-attestations\"\n";
+
+    /// Returns the targets of a run that targeted the given platforms for
+    /// `mise.lock`
+    fn targets(platforms: &[&str]) -> BTreeMap<FilePath, BTreeSet<Platform>> {
+        BTreeMap::from([(
+            "mise.lock".parse().unwrap(),
+            platforms.iter().copied().map(Platform::new).collect(),
+        )])
+    }
+
+    /// Returns the given lockfiles, by their paths
+    fn lockfiles(entries: &[(&str, &str)]) -> BTreeMap<FilePath, Lockfile> {
+        entries
+            .iter()
+            .map(|(path, text)| (path.parse().unwrap(), Lockfile::parse(text).unwrap()))
+            .collect()
+    }
+
+    // checkmiselock[verify lockfiles.listed]
+    #[test]
+    fn differences_with_a_lockfile_that_only_the_project_held_name_its_parts() {
+        let before = lockfiles(&[("mise.lock", LOCKFILE)]);
+        let after = lockfiles(&[]);
+
+        let differences = differences(&before, &after);
+
+        assert_eq!(differences.len(), 1);
+    }
+
+    // checkmiselock[verify compare.missing]
+    #[test]
+    fn differences_with_a_lockfile_that_only_the_run_wrote_name_its_parts() {
+        let before = lockfiles(&[]);
+        let after = lockfiles(&[("mise.lock", LOCKFILE)]);
+
+        let differences = differences(&before, &after);
+
+        assert_eq!(differences.len(), 1);
+    }
+
+    // checkmiselock[verify lockfiles.listed]
+    #[test]
+    fn differences_with_several_lockfiles_name_the_lockfile_of_each() {
+        let before = lockfiles(&[("mise.lock", ""), (".config/mise.lock", "")]);
+        let after = lockfiles(&[("mise.lock", LOCKFILE), (".config/mise.lock", LOCKFILE)]);
+
+        let paths: Vec<String> = differences(&before, &after)
+            .iter()
+            .map(|(path, _)| path.to_string())
+            .collect();
+
+        assert_eq!(
+            paths,
+            [
+                rakko_test_utils::path_text(".config/mise.lock"),
+                "mise.lock".to_owned(),
+            ]
+        );
+    }
+
+    // checkmiselock[verify compare.passed]
+    #[test]
+    fn summary_of_one_lockfile_names_one_lockfile() {
+        let summary = summary(1);
+
+        assert_eq!(summary.get(), "compared 1 lockfile");
+    }
+
+    // checkmiselock[verify compare.passed]
+    #[test]
+    fn summary_of_several_lockfiles_names_their_number() {
+        let summary = summary(2);
+
+        assert_eq!(summary.get(), "compared 2 lockfiles");
+    }
+
+    // checkmiselock[verify lock.unaddressed]
+    #[test]
+    fn unaddressed_with_a_targeted_platform_without_an_address_names_it() {
+        let text = LOCKFILE.replace("url = ", "provenance = ");
+        let after = lockfiles(&[("mise.lock", &text)]);
+
+        assert_eq!(
+            unaddressed(&after, &targets(&["linux-x64"])).as_deref(),
+            Some("jq 1.8.1 for linux-x64 in mise.lock")
+        );
+    }
+
+    // checkmiselock[verify lock.unaddressed]
+    #[test]
+    fn unaddressed_with_an_untargeted_platform_without_an_address_names_nothing() {
+        let after = lockfiles(&[("mise.lock", &format!("{LOCKFILE}{STALE}"))]);
+
+        assert_eq!(unaddressed(&after, &targets(&["linux-x64"])), None);
+    }
+
+    // checkmiselock[verify lock.unaddressed]
+    #[test]
+    fn unaddressed_with_complete_targeted_platforms_names_nothing() {
+        let after = lockfiles(&[("mise.lock", LOCKFILE)]);
+
+        assert_eq!(unaddressed(&after, &targets(&["linux-x64"])), None);
+    }
+
+    // checkmiselock[verify lock.untargeted]
+    #[test]
+    fn untargeted_with_a_lockfile_without_platforms_names_nothing() {
+        let after = lockfiles(&[("mise.lock", "[[tools.rust]]\nversion = \"1.99.1\"\n")]);
+
+        assert_eq!(untargeted(&after, &BTreeMap::new()), None);
+    }
+
+    // checkmiselock[verify lock.untargeted]
+    #[test]
+    fn untargeted_with_a_lockfile_without_targets_names_it() {
+        let after = lockfiles(&[("mise.lock", LOCKFILE)]);
+
+        assert_eq!(
+            untargeted(&after, &BTreeMap::new()).map(ToString::to_string),
+            Some("mise.lock".to_owned())
+        );
+    }
+
+    // checkmiselock[verify lock.untargeted]
+    #[test]
+    fn untargeted_with_targets_names_nothing() {
+        let after = lockfiles(&[("mise.lock", LOCKFILE)]);
+
+        assert_eq!(untargeted(&after, &targets(&["linux-x64"])), None);
+    }
+}
