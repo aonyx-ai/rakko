@@ -51,10 +51,11 @@ pub fn canonical(path: &Path) -> IoResult<PathBuf> {
 /// device of the platform, keeps the verbatim spelling, which is the spelling
 /// that reaches the file behind it.
 ///
-/// A path that the caller did not resolve arrives back unchanged, because
-/// only the resolution of the file system produces the verbatim spelling.
-/// Every platform but Windows has one spelling, so there the path arrives
-/// back unchanged as well.
+/// A path that nothing resolved arrives back unchanged, because only the
+/// resolution of the file system produces the verbatim spelling. A tool that
+/// resolved a path can write it in that spelling, and such a path loses the
+/// prefix as well. Every platform but Windows has one spelling, so there the
+/// path arrives back unchanged as well.
 ///
 /// # Examples
 ///

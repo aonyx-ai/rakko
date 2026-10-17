@@ -50,28 +50,35 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_test_utils::path;
+
     use super::*;
 
-    /// Returns a problem about the given path
-    fn problem(path: &str) -> TaploProblem {
-        TaploProblem::new(PathBuf::from(path), ProblemDetail::Unformatted)
+    /// Returns a problem about the path that a literal names on this platform
+    fn problem(literal: &str) -> TaploProblem {
+        TaploProblem::new(path(literal), ProblemDetail::Unformatted)
+    }
+
+    /// Returns the root of the project that the tests place their problems in
+    fn root() -> ProjectRoot {
+        ProjectRoot::new(path("/home/otter/project"))
     }
 
     #[test]
     fn relative_path_outside_the_root_names_nothing() {
         let problem = problem("/home/otter/elsewhere/a.toml");
 
-        let path = problem.relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem.relative_path(&root());
 
-        assert_eq!(path, None);
+        assert_eq!(relative, None);
     }
 
     #[test]
     fn relative_path_under_the_root_drops_the_root() {
         let problem = problem("/home/otter/project/sub/a.toml");
 
-        let path = problem.relative_path(&ProjectRoot::new(PathBuf::from("/home/otter/project")));
+        let relative = problem.relative_path(&root());
 
-        assert_eq!(path, FilePath::try_from("sub/a.toml").ok());
+        assert_eq!(relative, FilePath::try_from(path("sub/a.toml")).ok());
     }
 }
