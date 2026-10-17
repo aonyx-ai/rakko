@@ -29,8 +29,6 @@ pub struct Finding {
 #[bon]
 impl Finding {
     /// Creates a finding from a message and a location
-    // action[impl finding.message]
-    // action[impl finding.location]
     #[builder]
     pub fn new(
         #[builder(into)] message: FindingMessage,
@@ -48,7 +46,6 @@ mod tests {
 
     use super::*;
 
-    // action[verify finding.location]
     #[test]
     fn location_returns_given_location() {
         let location = Location::File {
@@ -62,7 +59,6 @@ mod tests {
         assert_eq!(finding.location(), &location);
     }
 
-    // action[verify finding.message]
     #[test]
     fn message_returns_given_message() {
         let finding = Finding::builder()

@@ -89,7 +89,6 @@ impl From<ListFilesError> for LintYamlError {
     ///
     /// The machinery that lists the files names the same two conditions that
     /// the action reports, so the conversion renames them and adds nothing.
-    // lintyaml[impl check.configuration]
     fn from(error: ListFilesError) -> Self {
         match error {
             ListFilesError::RejectedConfiguration { details } => {
@@ -105,7 +104,6 @@ impl From<ObserveYamllintError> for LintYamlError {
     ///
     /// The machinery that runs yamllint names the same two conditions that
     /// the action reports, so the conversion renames them and adds nothing.
-    // lintyaml[impl check.unreadable]
     fn from(error: ObserveYamllintError) -> Self {
         match error {
             ObserveYamllintError::UnreadableReport { report, source } => {
@@ -132,7 +130,6 @@ mod tests {
     /// What yamllint wrote in a run whose report the crate could not read
     const REPORT: &str = "Traceback (most recent call last):";
 
-    // lintyaml[verify check.configuration]
     #[test]
     fn error_of_a_refused_configuration_holds_what_yamllint_wrote() {
         let error = LintYamlError::from(ListFilesError::RejectedConfiguration {
@@ -145,7 +142,6 @@ mod tests {
         );
     }
 
-    // lintyaml[verify check.unreadable]
     #[test]
     fn error_of_an_unreadable_report_holds_what_yamllint_wrote() {
         let error = LintYamlError::from(ObserveYamllintError::UnreadableReport {

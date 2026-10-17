@@ -15,7 +15,6 @@ pub enum PreCommitError {
     ///
     /// The run reported every action before it, so the message counts them
     /// instead of repeating what they said.
-    // precommit[impl result.failed]
     #[error("{problems} of {total} actions found problems or stopped")]
     FailedActions {
         /// How many actions found problems or stopped
@@ -30,7 +29,6 @@ pub enum PreCommitError {
     /// The run writes each report as it arrives, and it stops at a report that
     /// nothing takes, because the reader would learn nothing about the actions
     /// that follow either.
-    // precommit[impl report.unreported]
     #[error("failed to report the outcome of the {action} action")]
     UnreportedOutcome {
         /// The action whose outcome the run could not report
@@ -52,7 +50,6 @@ mod tests {
 
     use super::*;
 
-    // precommit[verify result.failed]
     #[test]
     fn failed_actions_counts_the_actions_that_did_not_pass() {
         let error = PreCommitError::FailedActions {
@@ -66,7 +63,6 @@ mod tests {
         );
     }
 
-    // precommit[verify report.unreported]
     #[test]
     fn unreported_outcome_names_the_action() {
         let error = PreCommitError::UnreportedOutcome {

@@ -182,7 +182,6 @@ impl Drop for Project {
     }
 }
 
-// linttoml[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<LintToml as Action>::Args as Args>::schema();
@@ -194,7 +193,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// linttoml[verify name]
 #[test]
 fn action_identifies_itself_as_lint_toml() {
     let name = LintToml.name();
@@ -202,7 +200,6 @@ fn action_identifies_itself_as_lint_toml() {
     assert_eq!(name.get(), "lint-toml");
 }
 
-// linttoml[verify check.read]
 #[tokio::test]
 async fn run_leaves_an_unformatted_file_unchanged() {
     let project = Project::new();
@@ -213,7 +210,6 @@ async fn run_leaves_an_unformatted_file_unchanged() {
     assert_eq!(project.read("messy.toml"), UNFORMATTED);
 }
 
-// linttoml[verify check.passed+2]
 #[tokio::test]
 async fn run_in_a_valid_project_counts_the_files() {
     let project = Project::new();
@@ -231,8 +227,6 @@ async fn run_in_a_valid_project_counts_the_files() {
     );
 }
 
-// linttoml[verify check.passed+2]
-// linttoml[verify tool.taplo]
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
@@ -246,7 +240,6 @@ async fn run_in_a_valid_project_passes() {
     );
 }
 
-// linttoml[verify check.configuration]
 #[tokio::test]
 async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
     let project = Project::new();
@@ -264,7 +257,6 @@ async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
     );
 }
 
-// linttoml[verify check.configuration]
 #[tokio::test]
 async fn run_with_a_rejected_configuration_stops() {
     let project = Project::new();
@@ -279,7 +271,6 @@ async fn run_with_a_rejected_configuration_stops() {
     );
 }
 
-// linttoml[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     let project = Project::new();
@@ -297,7 +288,6 @@ async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     );
 }
 
-// linttoml[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
@@ -320,7 +310,6 @@ async fn run_with_an_invalid_file_reports_the_position() {
     );
 }
 
-// linttoml[verify check.refused]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_carries_the_reason_of_taplo() {
@@ -346,7 +335,6 @@ async fn run_with_an_unreadable_file_carries_the_reason_of_taplo() {
     );
 }
 
-// linttoml[verify check.refused]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_names_the_file() {
@@ -368,7 +356,6 @@ async fn run_with_an_unreadable_file_names_the_file() {
     assert_eq!(locations(findings), ["secret.toml"]);
 }
 
-// linttoml[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_taplo_stops() {
     let project = Project::without_taplo();

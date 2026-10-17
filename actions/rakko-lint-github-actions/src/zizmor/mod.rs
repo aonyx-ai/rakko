@@ -134,11 +134,6 @@ impl Zizmor {
     /// [incomplete]: ObserveZizmorError::IncompleteAudit
     /// [unavailable]: ObserveZizmorError::ZizmorUnavailable
     /// [unreadable]: ObserveZizmorError::UnreadableReport
-    // lintgithubactions[impl check.read]
-    // lintgithubactions[impl run.persona]
-    // lintgithubactions[impl run.project]
-    // lintgithubactions[impl run.strict]
-    // lintgithubactions[impl run.structured]
     pub async fn observe(&self) -> Result<Observation, ObserveZizmorError> {
         let execution = self
             .tool
@@ -153,22 +148,18 @@ impl Zizmor {
             .await
             .map_err(|source| ObserveZizmorError::ZizmorUnavailable { source })?;
 
-        // lintgithubactions[impl check.configuration]
-        // lintgithubactions[impl check.incomplete]
         let Some(status) = audited(execution.status().code()) else {
             return Err(ObserveZizmorError::IncompleteAudit {
                 details: execution.stderr().to_string_lossy().trim().to_owned(),
             });
         };
 
-        // lintgithubactions[impl skip.uncollected]
         if status == Collection::Empty {
             return Ok(Observation::builder().collected(false).build());
         }
 
         let stdout = execution.stdout().to_string_lossy();
 
-        // lintgithubactions[impl check.unreadable]
         let problems = self::report::problems(&stdout).map_err(|source| {
             ObserveZizmorError::UnreadableReport {
                 report: stdout.to_string(),
@@ -189,8 +180,6 @@ impl Zizmor {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no zizmor for the
     /// project.
-    // lintgithubactions[impl tool.missing]
-    // lintgithubactions[impl tool.zizmor]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(ZIZMOR), root).await?;
 
@@ -219,7 +208,6 @@ enum Collection {
 /// report. It ends with its own status when it collected no file. Every other
 /// status, and a run that no status ended, belongs to a zizmor that stopped
 /// before it had audited the project.
-// lintgithubactions[impl check.incomplete]
 fn audited(status: Option<i32>) -> Option<Collection> {
     match status? {
         CLEAN => Some(Collection::Audited),
@@ -237,7 +225,6 @@ mod tests {
 
     use super::*;
 
-    // lintgithubactions[verify check.incomplete]
     #[test]
     fn audited_of_a_clean_run_reports_an_audit() {
         let collection = audited(Some(CLEAN));
@@ -245,7 +232,6 @@ mod tests {
         assert_eq!(collection, Some(Collection::Audited));
     }
 
-    // lintgithubactions[verify check.incomplete]
     #[test]
     fn audited_of_a_run_that_no_status_ended_reports_nothing() {
         let collection = audited(None);
@@ -253,7 +239,6 @@ mod tests {
         assert_eq!(collection, None);
     }
 
-    // lintgithubactions[verify check.incomplete]
     #[test]
     fn audited_of_a_run_that_reported_a_finding_reports_an_audit() {
         let collection = audited(Some(HIGHEST_FINDING));
@@ -261,7 +246,6 @@ mod tests {
         assert_eq!(collection, Some(Collection::Audited));
     }
 
-    // lintgithubactions[verify check.incomplete]
     #[test]
     fn audited_of_a_run_that_stopped_reports_nothing() {
         let collection = audited(Some(1));
@@ -269,7 +253,6 @@ mod tests {
         assert_eq!(collection, None);
     }
 
-    // lintgithubactions[verify skip.uncollected]
     #[test]
     fn audited_of_a_run_without_an_input_reports_an_empty_collection() {
         let collection = audited(Some(NOTHING_COLLECTED));

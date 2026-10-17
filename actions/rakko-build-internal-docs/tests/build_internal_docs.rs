@@ -289,7 +289,6 @@ impl Drop for Project {
     }
 }
 
-// buildinternaldocs[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <BuildInternalDocs as Action>::Args::schema();
@@ -297,7 +296,6 @@ fn action_declares_no_argument() {
     assert!(schema.arguments().is_empty());
 }
 
-// buildinternaldocs[verify name]
 #[test]
 fn action_identifies_itself_as_build_internal_docs() {
     let name = BuildInternalDocs.name();
@@ -305,7 +303,6 @@ fn action_identifies_itself_as_build_internal_docs() {
     assert_eq!(name.get(), "build-internal-docs");
 }
 
-// buildinternaldocs[verify build.passed]
 #[tokio::test]
 async fn run_in_a_clean_project_counts_the_workspaces() {
     let project = Project::with_library(CLEAN);
@@ -321,9 +318,6 @@ async fn run_in_a_clean_project_counts_the_workspaces() {
     );
 }
 
-// buildinternaldocs[verify build.operation+2]
-// buildinternaldocs[verify build.passed]
-// buildinternaldocs[verify tool.cargo]
 #[tokio::test]
 async fn run_in_a_clean_project_passes() {
     let project = Project::with_library(CLEAN);
@@ -336,7 +330,6 @@ async fn run_in_a_clean_project_passes() {
     );
 }
 
-// buildinternaldocs[verify build.sources]
 #[tokio::test]
 async fn run_leaves_the_sources_unchanged() {
     let project = Project::with_library(BROKEN_LINK);
@@ -349,8 +342,6 @@ async fn run_leaves_the_sources_unchanged() {
 // The race that the split prevents depends on timing, so this test cannot
 // show the split itself. It shows that both packages are still documented,
 // and that the warning of the library which two runs compile counts once.
-// buildinternaldocs[verify build.once]
-// buildinternaldocs[verify build.operation+2]
 #[tokio::test]
 async fn run_with_a_binary_that_shares_the_name_of_a_library_documents_both_packages() {
     let project = Project::new();
@@ -388,7 +379,6 @@ async fn run_with_a_binary_that_shares_the_name_of_a_library_documents_both_pack
     );
 }
 
-// buildinternaldocs[verify build.operation+2]
 #[tokio::test]
 async fn run_with_a_broken_link_behind_a_feature_fails() {
     let project = Project::with_manifest(FEATURED, GATED_LINK);
@@ -401,7 +391,6 @@ async fn run_with_a_broken_link_behind_a_feature_fails() {
     );
 }
 
-// buildinternaldocs[verify build.diagnostic]
 #[tokio::test]
 async fn run_with_a_broken_link_carries_the_code_in_the_message() {
     let project = Project::with_library(BROKEN_LINK);
@@ -420,7 +409,6 @@ async fn run_with_a_broken_link_carries_the_code_in_the_message() {
     );
 }
 
-// buildinternaldocs[verify build.failed]
 #[tokio::test]
 async fn run_with_a_broken_link_fails() {
     let project = Project::with_library(BROKEN_LINK);
@@ -433,7 +421,6 @@ async fn run_with_a_broken_link_fails() {
     );
 }
 
-// buildinternaldocs[verify build.operation+2]
 #[tokio::test]
 async fn run_with_a_broken_link_in_a_private_item_fails() {
     let project = Project::with_library(PRIVATE_LINK);
@@ -446,7 +433,6 @@ async fn run_with_a_broken_link_in_a_private_item_fails() {
     );
 }
 
-// buildinternaldocs[verify roots.all]
 #[tokio::test]
 async fn run_with_a_broken_link_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(CLEAN);
@@ -464,7 +450,6 @@ async fn run_with_a_broken_link_in_a_second_workspace_names_its_path() {
     );
 }
 
-// buildinternaldocs[verify build.diagnostic]
 #[tokio::test]
 async fn run_with_a_broken_link_reports_the_range() {
     let project = Project::with_library(BROKEN_LINK);
@@ -486,7 +471,6 @@ async fn run_with_a_broken_link_reports_the_range() {
     );
 }
 
-// buildinternaldocs[verify build.unrecognized]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     let project = Project::new();
@@ -505,7 +489,6 @@ async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     );
 }
 
-// buildinternaldocs[verify build.unrecognized]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -521,7 +504,6 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// buildinternaldocs[verify build.failed]
 #[tokio::test]
 async fn run_with_a_compiler_error_fails_with_a_finding() {
     let project = Project::with_library(BROKEN);
@@ -539,7 +521,6 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
     );
 }
 
-// buildinternaldocs[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -556,7 +537,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
 // A single run turns every feature of the library on, and the link resolves.
 // The run of the other packages leaves the library out and builds it with the
 // features that those packages ask for, so only a split breaks the link.
-// buildinternaldocs[verify build.shared]
 #[tokio::test]
 async fn run_with_a_shared_name_documents_the_rest_without_the_features_of_the_sharing_packages() {
     let project = Project::new();
@@ -576,7 +556,6 @@ async fn run_with_a_shared_name_documents_the_rest_without_the_features_of_the_s
     assert_eq!(locations(findings), [path_text("extra/src/lib.rs")]);
 }
 
-// buildinternaldocs[verify roots.all]
 #[tokio::test]
 async fn run_with_two_workspaces_counts_both() {
     let project = Project::with_library(CLEAN);
@@ -594,7 +573,6 @@ async fn run_with_two_workspaces_counts_both() {
     );
 }
 
-// buildinternaldocs[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
@@ -609,7 +587,6 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// buildinternaldocs[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();

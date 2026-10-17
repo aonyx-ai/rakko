@@ -22,10 +22,6 @@ const COMMENT: char = '#';
 /// version, and [`SetMsrvError::InlineMsrv`] when it declares the version in
 /// an inline table. The TOML that Cargo reads allows no comment inside an
 /// inline table, so the reason has no place there.
-// setmsrv[impl manifest.version]
-// setmsrv[impl manifest.comment]
-// setmsrv[impl manifest.undeclared]
-// setmsrv[impl manifest.inline]
 pub(crate) fn set(
     manifest: &mut DocumentMut,
     path: &Path,

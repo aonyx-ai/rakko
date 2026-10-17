@@ -64,8 +64,6 @@ impl CargoDiagnostic {
     /// the project, such as one in a dependency that a macro pulled in, get
     /// a finding at the level of the project. The message then names the
     /// file and the position, so the place is not lost with the level.
-    // cargo[impl diagnostic.finding]
-    // cargo[impl diagnostic.foreign]
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = match &self.code {
             Some(code) => format!("{} [{code}]", self.message),
@@ -150,7 +148,6 @@ mod tests {
             .build()
     }
 
-    // cargo[verify diagnostic.finding]
     #[test]
     fn finding_covers_the_range_of_the_span() {
         let diagnostic = warning("src/main.rs");
@@ -164,7 +161,6 @@ mod tests {
         );
     }
 
-    // cargo[verify diagnostic.finding]
     #[test]
     fn finding_names_the_path_relative_to_the_project() {
         let diagnostic = warning("src/main.rs");
@@ -181,7 +177,6 @@ mod tests {
         );
     }
 
-    // cargo[verify diagnostic.foreign]
     #[test]
     fn finding_outside_the_project_belongs_to_the_project() {
         let diagnostic = warning("/home/otter/.cargo/registry/dep/src/lib.rs");
@@ -191,7 +186,6 @@ mod tests {
         assert_eq!(finding.location(), &Location::Project);
     }
 
-    // cargo[verify diagnostic.foreign]
     #[test]
     fn finding_outside_the_project_names_the_place_in_the_message() {
         let diagnostic = warning("/home/otter/.cargo/registry/dep/src/lib.rs");
@@ -204,7 +198,6 @@ mod tests {
         );
     }
 
-    // cargo[verify diagnostic.finding]
     #[test]
     fn finding_puts_the_code_behind_the_message() {
         let diagnostic = warning("src/main.rs");
@@ -217,7 +210,6 @@ mod tests {
         );
     }
 
-    // cargo[verify diagnostic.finding]
     #[test]
     fn finding_without_a_code_keeps_the_message() {
         let diagnostic = CargoDiagnostic::builder()
@@ -231,7 +223,6 @@ mod tests {
         assert_eq!(finding.message().get(), "unused variable");
     }
 
-    // cargo[verify diagnostic.foreign]
     #[test]
     fn finding_without_a_span_belongs_to_the_project() {
         let diagnostic = CargoDiagnostic::builder()

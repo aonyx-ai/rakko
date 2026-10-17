@@ -10,7 +10,6 @@ use rakko_action::Bundle;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
-// rustbinary[impl actions]
 #[must_use]
 pub fn bundle() -> Bundle {
     rakko_rust::bundle()
@@ -24,7 +23,6 @@ mod tests {
 
     use super::*;
 
-    // rustbinary[verify actions]
     #[test]
     fn bundle_exports_the_actions_of_the_core_and_no_other() {
         let names: Vec<String> = bundle()

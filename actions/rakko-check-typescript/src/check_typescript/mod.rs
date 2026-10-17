@@ -72,10 +72,8 @@ const UNINHABITED: &str = "TS18003";
 pub struct CheckTypeScript;
 
 impl Action for CheckTypeScript {
-    // checktypescript[impl args.none]
     type Args = ();
 
-    // checktypescript[impl name]
     fn name(&self) -> Name {
         action_name!("check-typescript")
     }
@@ -83,7 +81,6 @@ impl Action for CheckTypeScript {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // checktypescript[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -102,13 +99,10 @@ impl Action for CheckTypeScript {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the tsc run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, CheckTypeScriptError> {
-    // checktypescript[impl tool.missing]
-    // checktypescript[impl tool.tsc]
     let tsc = Tsc::resolve(context.root().clone())
         .await
         .map_err(|source| CheckTypeScriptError::UnresolvedTool { source })?;
 
-    // checktypescript[impl check.read]
     let diagnostics = tsc.observe().await?;
 
     if let Some(outcome) = guard(&diagnostics) {
@@ -128,10 +122,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckTypeScriptError> {
 /// that a finding can name, so the finding belongs to the project as well, and
 /// the message names the place. The message comes from tsc, so a reader of a
 /// finding reads what the compiler itself would have told them.
-// checktypescript[impl check.diagnostic+2]
-// checktypescript[impl check.elaboration]
-// checktypescript[impl check.foreign]
-// checktypescript[impl check.project]
 fn finding(diagnostic: &Diagnostic, root: &ProjectRoot) -> Finding {
     let message = diagnostic.message();
 
@@ -196,7 +186,6 @@ fn guard(diagnostics: &[Diagnostic]) -> Option<Outcome> {
         return None;
     }
 
-    // checktypescript[impl check.passed]
     Some(Outcome::Passed { summary: None })
 }
 
@@ -204,8 +193,6 @@ fn guard(diagnostics: &[Diagnostic]) -> Option<Outcome> {
 ///
 /// Returns `None` for a diagnostic about the code of the project, which is a
 /// finding and not a reason to skip.
-// checktypescript[impl skip.unconfigured]
-// checktypescript[impl skip.uninhabited]
 fn unexamined(diagnostic: &Diagnostic) -> Option<SkipReason> {
     let number = diagnostic.number().as_str();
 
@@ -273,7 +260,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // checktypescript[verify check.foreign]
     #[test]
     fn finding_of_a_diagnostic_at_an_absolute_path_elsewhere_belongs_to_the_project() {
         let diagnostic = Diagnostic::builder()
@@ -294,7 +280,6 @@ mod tests {
         assert_eq!(finding.location(), &Location::Project);
     }
 
-    // checktypescript[verify check.diagnostic+2]
     #[test]
     fn finding_of_a_diagnostic_carries_the_message_of_tsc() {
         let finding = finding(&about_the_code(), &root());
@@ -305,7 +290,6 @@ mod tests {
         );
     }
 
-    // checktypescript[verify check.foreign]
     #[test]
     fn finding_of_a_diagnostic_outside_the_project_belongs_to_the_project() {
         let finding = finding(&outside_the_project(), &root());
@@ -313,7 +297,6 @@ mod tests {
         assert_eq!(finding.location(), &Location::Project);
     }
 
-    // checktypescript[verify check.foreign]
     #[test]
     fn finding_of_a_diagnostic_outside_the_project_names_the_place() {
         let finding = finding(&outside_the_project(), &root());
@@ -327,7 +310,6 @@ mod tests {
         );
     }
 
-    // checktypescript[verify check.diagnostic+2]
     #[test]
     fn finding_of_a_diagnostic_sits_at_the_position_of_tsc() {
         let finding = finding(&about_the_code(), &root());
@@ -341,7 +323,6 @@ mod tests {
         );
     }
 
-    // checktypescript[verify check.elaboration]
     #[test]
     fn finding_of_a_diagnostic_that_tsc_explained_carries_the_explanation() {
         let diagnostic = Diagnostic::builder()
@@ -366,7 +347,6 @@ mod tests {
         );
     }
 
-    // checktypescript[verify check.project]
     #[test]
     fn finding_of_a_diagnostic_without_a_file_belongs_to_the_project() {
         let diagnostic = about_the_run(
@@ -379,7 +359,6 @@ mod tests {
         assert_eq!(finding.location(), &Location::Project);
     }
 
-    // checktypescript[verify check.passed]
     #[test]
     fn guard_of_a_run_that_reported_nothing_passes() {
         let outcome = guard(&[]);
@@ -411,7 +390,6 @@ mod tests {
         assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 
-    // checktypescript[verify skip.unconfigured]
     #[test]
     fn guard_of_a_run_without_a_configuration_file_skips() {
         let diagnostics = [about_the_run(
@@ -432,7 +410,6 @@ mod tests {
         );
     }
 
-    // checktypescript[verify skip.uninhabited]
     #[test]
     fn guard_of_a_run_whose_configuration_selected_nothing_skips() {
         let diagnostics = [about_the_run(

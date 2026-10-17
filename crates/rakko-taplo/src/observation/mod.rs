@@ -119,7 +119,6 @@ impl Observation {
     /// names at least one problem. A report of such a run that names none
     /// lost the lines that held them, and the caller must not read a silent
     /// failure as an empty one.
-    // taplo[impl run.complete+2]
     pub fn complete(&self) -> bool {
         self.succeeded || !self.problems.is_empty()
     }
@@ -160,7 +159,6 @@ impl Observation {
     ///
     /// A run that ended with success read every file, so nothing is read for
     /// it.
-    // taplo[impl report.unreadable]
     async fn with_unreadable_files(mut self) -> Self {
         if self.succeeded {
             return self;
@@ -249,7 +247,6 @@ mod tests {
         )
     }
 
-    // taplo[verify run.complete+2]
     #[test]
     fn failed_run_that_named_a_problem_is_complete() {
         let observation = observation(false, vec![problem()]);
@@ -257,7 +254,6 @@ mod tests {
         assert!(observation.complete());
     }
 
-    // taplo[verify run.complete+2]
     #[test]
     fn failed_run_without_a_problem_is_incomplete() {
         let observation = observation(false, Vec::new());
@@ -265,7 +261,6 @@ mod tests {
         assert!(!observation.complete());
     }
 
-    // taplo[verify run.complete+2]
     #[test]
     fn passing_run_without_a_count_is_complete() {
         let observation = observation(true, Vec::new());
@@ -273,7 +268,6 @@ mod tests {
         assert!(observation.complete());
     }
 
-    // taplo[verify report.unreadable]
     #[tokio::test]
     async fn with_unreadable_files_of_a_failed_run_reports_the_file() {
         let (_directory, readable, missing) = files();
@@ -284,7 +278,6 @@ mod tests {
         assert_eq!(observation.problems(), &vec![unreadable(&missing)]);
     }
 
-    // taplo[verify report.unreadable]
     #[tokio::test]
     async fn with_unreadable_files_of_a_file_that_a_problem_names_keeps_that_problem() {
         let (_directory, _readable, missing) = files();
@@ -301,7 +294,6 @@ mod tests {
         assert_eq!(observation.problems(), &vec![named]);
     }
 
-    // taplo[verify report.unreadable]
     #[tokio::test]
     async fn with_unreadable_files_of_a_passing_run_reads_nothing() {
         let (_directory, _readable, missing) = files();
@@ -315,8 +307,6 @@ mod tests {
         assert!(observation.problems().is_empty());
     }
 
-    // taplo[verify report.unreadable]
-    // taplo[verify run.complete+2]
     #[tokio::test]
     async fn with_unreadable_files_of_a_report_that_lost_the_line_is_complete() {
         let (directory, readable, missing) = files();

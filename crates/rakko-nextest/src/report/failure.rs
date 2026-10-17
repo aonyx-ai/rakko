@@ -49,8 +49,6 @@ impl TestFailure {
     ///
     /// A test whose output names no panic, and a test that panicked in a
     /// file outside the project, get a finding at the level of the project.
-    // nextest[impl finding.failed]
-    // nextest[impl finding.position]
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let Some(panic) = self.panic() else {
             return Finding::builder()
@@ -88,8 +86,6 @@ impl TestFailure {
     /// the note about the backtrace. A test that ended another way, such as
     /// one that the process killed, wrote no such line, and the method
     /// answers `None`.
-    // nextest[impl finding.failed]
-    // nextest[impl finding.position]
     pub fn panic(&self) -> Option<Panic> {
         let mut lines = self.output.lines();
         let header = lines.find(|line| line.contains(PANICKED_AT))?;
@@ -142,7 +138,6 @@ mod tests {
     /// What a test that panicked without a message wrote
     const BARE: &str = "thread 'fails' panicked at src/lib.rs:6:9:\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n";
 
-    // nextest[verify finding.failed]
     #[test]
     fn panic_joins_the_lines_of_the_message() {
         let failure = TestFailure::new("probe::suite$fails", ASSERTION);
@@ -158,7 +153,6 @@ mod tests {
         );
     }
 
-    // nextest[verify finding.position]
     #[test]
     fn panic_reads_the_location() {
         let failure = TestFailure::new("probe::suite$fails", ASSERTION);
@@ -171,7 +165,6 @@ mod tests {
         );
     }
 
-    // nextest[verify finding.failed]
     #[test]
     fn panic_without_a_message_has_none() {
         let failure = TestFailure::new("probe::probe$tests::fails", BARE);
@@ -181,7 +174,6 @@ mod tests {
         assert_eq!(panic.and_then(|panic| panic.message().clone()), None);
     }
 
-    // nextest[verify finding.position]
     #[test]
     fn panic_without_a_location_is_none() {
         let failure = TestFailure::new("probe::suite$killed", "the process was killed\n");

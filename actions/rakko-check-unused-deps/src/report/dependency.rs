@@ -54,8 +54,6 @@ impl UnusedDependency {
     /// A manifest that lies outside the project gets a finding at the level
     /// of the project. The message then names the manifest, so the place is
     /// not lost with the level.
-    // checkunuseddeps[impl check.finding]
-    // checkunuseddeps[impl check.foreign]
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = format!("{UNUSED} {}: {}", self.kind.label(), self.name);
 
@@ -102,7 +100,6 @@ mod tests {
         UnusedDependency::new(kind, "serde".to_owned(), PathBuf::from(manifest))
     }
 
-    // checkunuseddeps[verify check.finding]
     #[test]
     fn finding_names_the_dependency_and_its_kind() {
         let dependency = unused(
@@ -115,7 +112,6 @@ mod tests {
         assert_eq!(finding.message().get(), "unused dev-dependency: serde");
     }
 
-    // checkunuseddeps[verify check.finding]
     #[test]
     fn finding_names_the_manifest_relative_to_the_project() {
         let dependency = unused(
@@ -135,7 +131,6 @@ mod tests {
         );
     }
 
-    // checkunuseddeps[verify check.foreign]
     #[test]
     fn finding_outside_the_project_belongs_to_the_project() {
         let dependency = unused(DependencyKind::Normal, "/home/otter/elsewhere/Cargo.toml");
@@ -145,7 +140,6 @@ mod tests {
         assert_eq!(finding.location(), &Location::Project);
     }
 
-    // checkunuseddeps[verify check.foreign]
     #[test]
     fn finding_outside_the_project_names_the_manifest_in_the_message() {
         let dependency = unused(DependencyKind::Normal, "/home/otter/elsewhere/Cargo.toml");

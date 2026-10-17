@@ -8,7 +8,6 @@ use crate::args::values::ArgumentValue;
 /// The machinery collects values without knowing the type of the arguments,
 /// so a value can be absent or can fail to convert. An argument set reports
 /// which argument it could not read and why.
-// action[impl args.unreadable]
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 pub enum ReadArgsError {
     /// The run holds no value for an argument that the action requires
@@ -37,7 +36,6 @@ mod tests {
     use super::*;
     use crate::argument_name;
 
-    // action[verify args.unreadable]
     #[test]
     fn missing_value_reports_the_argument() {
         let error = ReadArgsError::MissingValue {
@@ -49,7 +47,6 @@ mod tests {
         assert_eq!(message, "no value for the required argument 'fix'");
     }
 
-    // action[verify args.unreadable]
     #[test]
     fn unreadable_value_reports_the_argument() {
         let error = ReadArgsError::UnreadableValue {

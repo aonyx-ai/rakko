@@ -64,8 +64,6 @@ const SEPARATOR: char = '/';
 /// assert_eq!(path("src/lib.rs"), Path::new("src").join("lib.rs"));
 /// assert!(path("/home/otter/project").is_absolute());
 /// ```
-// testutils[impl path.relative]
-// testutils[impl path.absolute]
 pub fn path(literal: &str) -> PathBuf {
     let Some(rest) = literal.strip_prefix(SEPARATOR) else {
         return literal.split(SEPARATOR).collect();
@@ -94,7 +92,6 @@ pub fn path(literal: &str) -> PathBuf {
 /// ```
 ///
 /// [path]: path()
-// testutils[impl path.text]
 pub fn path_text(literal: &str) -> String {
     path(literal).to_string_lossy().into_owned()
 }
@@ -109,7 +106,6 @@ mod tests {
 
     use super::*;
 
-    // testutils[verify path.absolute]
     #[test]
     fn path_of_a_literal_that_opens_with_a_separator_is_absolute() {
         let path = path("/home/otter/project");
@@ -117,7 +113,6 @@ mod tests {
         assert!(path.is_absolute());
     }
 
-    // testutils[verify path.relative]
     #[test]
     fn path_of_a_literal_joins_its_parts() {
         let path = path("src/lib.rs");
@@ -125,7 +120,6 @@ mod tests {
         assert_eq!(path, Path::new("src").join("lib.rs"));
     }
 
-    // testutils[verify path.relative]
     #[test]
     fn path_of_a_literal_without_a_separator_names_the_literal() {
         let path = path("Cargo.toml");
@@ -133,7 +127,6 @@ mod tests {
         assert_eq!(path, Path::new("Cargo.toml"));
     }
 
-    // testutils[verify path.absolute]
     #[test]
     fn path_of_an_absolute_literal_keeps_its_parts() {
         let path = path("/home/otter/project");
@@ -141,7 +134,6 @@ mod tests {
         assert!(path.ends_with(Path::new("home").join("otter").join("project")));
     }
 
-    // testutils[verify path.text]
     #[test]
     fn path_text_of_a_literal_writes_the_path_of_the_platform() {
         let text = path_text("src/lib.rs");

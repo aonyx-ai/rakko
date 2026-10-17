@@ -54,7 +54,6 @@ impl ObserveNodeError {
     /// The runner writes its report on the standard output stream, so that is
     /// what the details carry. A run that stopped before it wrote one leaves
     /// its reason on the standard error stream, or says nothing at all.
-    // testtypescript[impl report.unreported]
     pub(super) fn silent(stdout: &str, stderr: &str) -> Self {
         Self::MissingFailure {
             details: diagnosis(stdout, stderr),
@@ -86,7 +85,6 @@ mod tests {
 
     use super::*;
 
-    // testtypescript[verify report.unreported]
     #[test]
     fn error_of_a_silent_run_holds_what_node_wrote() {
         let error = ObserveNodeError::silent("", "out of memory");
@@ -97,7 +95,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify report.unreported]
     #[test]
     fn error_of_a_silent_run_that_wrote_nothing_holds_the_other_stream() {
         let error = ObserveNodeError::silent("TAP version 13", "");

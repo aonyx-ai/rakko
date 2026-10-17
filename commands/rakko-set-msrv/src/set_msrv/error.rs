@@ -19,7 +19,6 @@ use super::step::MiseStep;
 #[derive(Debug, Error)]
 pub enum SetMsrvError {
     /// A file of the project could not be read
-    // setmsrv[impl files.unreadable]
     #[error("failed to read {}", path.display())]
     UnreadableFile {
         /// The file that the run tried to read
@@ -30,7 +29,6 @@ pub enum SetMsrvError {
     },
 
     /// A file of the project is not valid TOML
-    // setmsrv[impl files.unreadable]
     #[error("failed to parse {}", path.display())]
     MalformedFile {
         /// The file that the run tried to parse
@@ -41,7 +39,6 @@ pub enum SetMsrvError {
     },
 
     /// The root manifest declares no version to change
-    // setmsrv[impl manifest.undeclared]
     #[error("{} declares no rust-version", path.display())]
     UndeclaredMsrv {
         /// The root manifest
@@ -52,7 +49,6 @@ pub enum SetMsrvError {
     ///
     /// The TOML that Cargo reads allows no comment inside an inline table, so
     /// the reason has no place there.
-    // setmsrv[impl manifest.inline]
     #[error(
         "{} declares rust-version in an inline table, which cannot hold the reason",
         path.display()
@@ -63,7 +59,6 @@ pub enum SetMsrvError {
     },
 
     /// No Rust pin of mise names the version that the manifest declares
-    // setmsrv[impl pin.unmatched]
     #[error("mise.toml pins no Rust toolchain at {version}, the current rust-version")]
     UnmatchedPin {
         /// The version that the root manifest declares
@@ -85,8 +80,6 @@ pub enum SetMsrvError {
     ///
     /// Mise reported nothing, so the cause is the error that kept it from
     /// starting.
-    // setmsrv[impl lock.failed]
-    // setmsrv[impl install.failed]
     #[error("failed to start `{step}`")]
     MiseUnavailable {
         /// The step that the run handed to mise
@@ -98,7 +91,6 @@ pub enum SetMsrvError {
 
     /// Mise refused to lock the new pin, so the install and the check did not
     /// run
-    // setmsrv[impl lock.failed]
     #[error(
         "`{}` did not lock the new pin, so fix the cause, run it again, and then run `{}` and the {check} action; mise reported: {details}",
         MiseStep::Lock,
@@ -117,7 +109,6 @@ pub enum SetMsrvError {
 
     /// Mise refused to install the toolchain at the new version, so the
     /// check did not run
-    // setmsrv[impl install.failed]
     #[error(
         "`{}` did not install the new toolchain, so fix the cause, run it again, and then run the {check} action; mise reported: {details}",
         MiseStep::Install { msrv: msrv.clone() }
@@ -138,7 +129,6 @@ pub enum SetMsrvError {
     /// The check found problems on the toolchain at the new version, stopped,
     /// or skipped. The run reported its outcome before, so the message names
     /// the check instead of repeating what it said.
-    // setmsrv[impl check.failed]
     #[error(
         "the {check} action did not pass on Rust {msrv}, so fix what it reported and run it again"
     )]
@@ -151,7 +141,6 @@ pub enum SetMsrvError {
     },
 
     /// The outcome of the check did not reach the reader
-    // setmsrv[impl check.report]
     #[error("failed to report the outcome of the {action} action")]
     UnreportedOutcome {
         /// The check whose outcome the run could not report

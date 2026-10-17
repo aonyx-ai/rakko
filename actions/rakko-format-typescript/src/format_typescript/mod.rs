@@ -80,7 +80,6 @@ pub struct FormatTypeScript;
 impl Action for FormatTypeScript {
     type Args = FormatTypeScriptArgs;
 
-    // formattypescript[impl name]
     fn name(&self) -> Name {
         action_name!("format-typescript")
     }
@@ -88,7 +87,6 @@ impl Action for FormatTypeScript {
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
-            // formattypescript[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -110,8 +108,6 @@ async fn drive(
     context: &Context,
     args: &FormatTypeScriptArgs,
 ) -> Result<Outcome, FormatTypeScriptError> {
-    // formattypescript[impl tool.missing]
-    // formattypescript[impl tool.oxfmt]
     let oxfmt = Oxfmt::resolve(context.root().clone())
         .await
         .map_err(|source| FormatTypeScriptError::UnresolvedTool { source })?;
@@ -148,11 +144,9 @@ async fn fix(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatTypeScr
     }
 
     if before.problems().is_empty() {
-        // formattypescript[impl check.passed]
         return Ok(Outcome::Passed { summary: None });
     }
 
-    // formattypescript[impl fix.write]
     oxfmt.rewrite().await?;
 
     let after = oxfmt.list().await?;
@@ -165,11 +159,9 @@ async fn fix(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatTypeScr
     let findings = findings(after.problems(), root)?;
 
     if !findings.is_empty() {
-        // formattypescript[impl fix.partial]
         return Ok(Outcome::Failed { findings, repairs });
     }
 
-    // formattypescript[impl fix.changed]
     Ok(Outcome::Changed { repairs })
 }
 
@@ -186,8 +178,6 @@ async fn fix(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatTypeScr
 /// path of a file.
 ///
 /// [foreign]: FormatTypeScriptError::ForeignPath
-// formattypescript[impl fix.changed]
-// formattypescript[impl fix.partial]
 fn repairs(
     before: &Observation,
     after: &Observation,
@@ -230,7 +220,6 @@ fn finding(
     unformatted_message: &str,
 ) -> Result<Finding, FormatTypeScriptError> {
     let finding = match problem {
-        // formattypescript[impl check.invalid]
         OxfmtProblem::Invalid {
             path,
             line,
@@ -243,14 +232,12 @@ fn finding(
                 position: Position::builder().line(*line).column(*column).build(),
             })
             .build(),
-        // formattypescript[impl check.unformatted]
         OxfmtProblem::Unformatted { path } => Finding::builder()
             .message(unformatted_message)
             .location(Location::File {
                 path: relative(path, root)?,
             })
             .build(),
-        // formattypescript[impl check.unplaced]
         OxfmtProblem::Unplaced { message } => Finding::builder()
             .message(message.clone())
             .location(Location::Project)
@@ -313,21 +300,18 @@ fn findings(
 /// [rejected]: FormatTypeScriptError::RejectedConfiguration
 /// [unrecognized]: FormatTypeScriptError::UnrecognizedReport
 fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatTypeScriptError> {
-    // formattypescript[impl check.configuration]
     if let Some(details) = observation.rejected_configuration() {
         return Err(FormatTypeScriptError::RejectedConfiguration {
             details: details.clone(),
         });
     }
 
-    // formattypescript[impl skip.unmatched]
     if observation.unmatched_pattern() {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         }));
     }
 
-    // formattypescript[impl check.unrecognized]
     if observation.problems().is_empty() && !observation.succeeded() {
         return Err(FormatTypeScriptError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
@@ -348,7 +332,6 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatTypeScriptE
 /// Returns the error of a run that could not finish: oxfmt did not run, it
 /// refused a configuration of the project, it wrote a report that the action
 /// does not recognize, or it reported a path outside the project.
-// formattypescript[impl check.read]
 async fn report(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatTypeScriptError> {
     let observation = oxfmt.list().await?;
 
@@ -357,7 +340,6 @@ async fn report(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatType
     }
 
     if observation.problems().is_empty() {
-        // formattypescript[impl check.passed]
         return Ok(Outcome::Passed { summary: None });
     }
 
@@ -385,7 +367,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // formattypescript[verify check.unplaced]
     #[test]
     fn finding_of_a_failure_without_a_place_belongs_to_the_project() {
         let problem = OxfmtProblem::Unplaced {
@@ -397,7 +378,6 @@ mod tests {
         assert_eq!(finding.location(), &Location::Project);
     }
 
-    // formattypescript[verify check.unplaced]
     #[test]
     fn finding_of_a_failure_without_a_place_carries_the_sentence_of_oxfmt() {
         let problem = OxfmtProblem::Unplaced {
@@ -420,7 +400,6 @@ mod tests {
         assert!(matches!(error, FormatTypeScriptError::ForeignPath { .. }));
     }
 
-    // formattypescript[verify check.unrecognized]
     #[test]
     fn guard_of_an_unrecognized_report_holds_what_oxfmt_wrote() {
         let observation = Observation::builder().stderr(UNPLACED).build();

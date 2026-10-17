@@ -78,8 +78,6 @@ impl From<ObserveOxlintError> for LintTypeScriptError {
     ///
     /// The machinery that runs oxlint names the same three conditions that the
     /// action reports, so the conversion renames them and adds nothing.
-    // linttypescript[impl check.unreadable]
-    // linttypescript[impl check.unreported]
     fn from(error: ObserveOxlintError) -> Self {
         match error {
             ObserveOxlintError::MissingReport { details } => Self::MissingReport { details },
@@ -105,7 +103,6 @@ mod tests {
     /// What oxlint wrote in a run whose report the action could not read
     const REPORT: &str = r#"{"diagnostics": "none"}"#;
 
-    // linttypescript[verify check.unreported]
     #[test]
     fn error_of_an_absent_report_holds_what_oxlint_wrote() {
         let error = LintTypeScriptError::from(ObserveOxlintError::MissingReport {
@@ -118,7 +115,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify check.unreadable]
     #[test]
     fn error_of_an_unreadable_report_holds_what_oxlint_wrote() {
         let error = LintTypeScriptError::from(ObserveOxlintError::UnreadableReport {

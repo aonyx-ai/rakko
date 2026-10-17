@@ -9,10 +9,7 @@ cargo-binstall = "1.26.0"
 # Prettier, oxfmt, tsc, and the validator of Renovate all run on node, and mise
 # puts no node on the path for a tool of its npm backend, so the pin below is
 # what lets the actions that wrap them start any of the four.
-# The build script of tracey bundles a web dashboard with node and pnpm, and
-# the install of tracey below is the only consumer of the second pin.
 node = "24.22.0"
-pnpm = "12.14.0"
 
 # The first toolchain is the default for builds, Clippy, and the tests. The
 # second is a nightly toolchain, which rustfmt needs for the unstable options
@@ -64,15 +61,6 @@ oxlint = "1.83.0"
 # arrive as one pull request per week and not as several per day.
 "npm:renovate" = "44.151.1"
 taplo = "0.10.0"
-
-# The releases of tracey lag behind its main branch, so the pin names a Git
-# revision and the cargo backend builds it. Change the revision deliberately:
-# main is a 2.0 release candidate, and its configuration format can still
-# change. The `crate` option names the package to install, because the
-# repository holds a second one that carries a binary of its own, and cargo
-# refuses to choose. A build takes about twenty minutes, so a machine that has
-# none restores one from the cache that the `Cache` workflow keeps warm.
-"cargo:https://github.com/bearcove/tracey" = { version = "rev:7494469c454ea3e93203f2cc860adbf153fe64b9", crate = "tracey" }
 
 "npm:typescript" = "7.0.2"
 

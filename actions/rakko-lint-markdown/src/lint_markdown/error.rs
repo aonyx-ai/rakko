@@ -78,7 +78,6 @@ impl From<ObserveMarkdownlintError> for LintMarkdownError {
     /// The machinery that runs markdownlint names the same two conditions
     /// that the action reports, so the conversion renames them and adds
     /// nothing.
-    // lintmarkdown[impl check.unreadable]
     fn from(error: ObserveMarkdownlintError) -> Self {
         match error {
             ObserveMarkdownlintError::MarkdownlintUnavailable { source } => {
@@ -104,7 +103,6 @@ mod tests {
     /// What markdownlint wrote in a run that the crate could not read
     const REPORT: &str = "Error: EACCES: permission denied, open 'locked.md'\n";
 
-    // lintmarkdown[verify check.unreadable]
     #[test]
     fn error_of_an_unreadable_report_holds_what_markdownlint_wrote() {
         let source = serde_json::from_str::<Vec<u8>>(REPORT)

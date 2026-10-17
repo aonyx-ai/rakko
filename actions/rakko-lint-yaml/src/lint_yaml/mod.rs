@@ -63,10 +63,8 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 pub struct LintYaml;
 
 impl Action for LintYaml {
-    // lintyaml[impl args.none]
     type Args = ();
 
-    // lintyaml[impl name]
     fn name(&self) -> Name {
         action_name!("lint-yaml")
     }
@@ -74,7 +72,6 @@ impl Action for LintYaml {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // lintyaml[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -94,32 +91,24 @@ impl Action for LintYaml {
 /// tool, the listing of the files, the yamllint run, or the reading of the
 /// report.
 async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
-    // lintyaml[impl tool.missing]
-    // lintyaml[impl tool.yamllint]
     let yamllint = Yamllint::resolve(context.root().clone())
         .await
         .map_err(|source| LintYamlError::UnresolvedTool { source })?;
 
-    // lintyaml[impl check.configuration]
-    // lintyaml[impl run.listing]
     let examined = yamllint.list().await?;
 
-    // lintyaml[impl skip.unexamined]
     if examined.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         });
     }
 
-    // lintyaml[impl check.read]
     let observation = yamllint.observe().await?;
 
     if let Some(outcome) = guard(&observation, examined.len())? {
         return Ok(outcome);
     }
 
-    // lintyaml[impl check.level]
-    // lintyaml[impl check.problem]
     Ok(Outcome::Failed {
         findings: findings(observation.problems(), context.root())?,
         repairs: Vec::new(),
@@ -138,8 +127,6 @@ async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
 /// the path of the problem.
 ///
 /// [foreign]: LintYamlError::ForeignPath
-// lintyaml[impl check.level]
-// lintyaml[impl check.problem]
 fn finding(problem: &YamllintProblem, root: &ProjectRoot) -> Result<Finding, LintYamlError> {
     let path = problem
         .relative_path(root)
@@ -193,7 +180,6 @@ fn findings(
 ///
 /// [incomplete]: LintYamlError::IncompleteExamination
 fn guard(observation: &Observation, examined: usize) -> Result<Option<Outcome>, LintYamlError> {
-    // lintyaml[impl check.incomplete]
     if !observation.finished() {
         return Err(LintYamlError::IncompleteExamination {
             details: observation.stderr().clone(),
@@ -204,7 +190,6 @@ fn guard(observation: &Observation, examined: usize) -> Result<Option<Outcome>, 
         return Ok(None);
     }
 
-    // lintyaml[impl check.passed]
     Ok(Some(Outcome::Passed {
         summary: Some(summary(examined)),
     }))
@@ -216,7 +201,6 @@ fn guard(observation: &Observation, examined: usize) -> Result<Option<Outcome>, 
 /// question a pass that examined less than they expect. The configuration of
 /// a project can exclude a file that the reader believes is checked, and the
 /// count is where that shows.
-// lintyaml[impl check.passed]
 fn summary(examined: usize) -> Summary {
     if examined == 1 {
         Summary::new("checked 1 file")
@@ -254,7 +238,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn finding_of_a_problem_carries_the_message_of_yamllint() {
         let finding = finding(&problem(ProblemLevel::Error), &root()).unwrap();
@@ -265,7 +248,6 @@ mod tests {
         );
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn finding_of_a_problem_sits_at_the_position_of_yamllint() {
         let finding = finding(&problem(ProblemLevel::Error), &root()).unwrap();
@@ -279,7 +261,6 @@ mod tests {
         );
     }
 
-    // lintyaml[verify check.level]
     #[test]
     fn finding_of_a_warning_names_the_warning_level() {
         let finding = finding(&problem(ProblemLevel::Warning), &root()).unwrap();
@@ -305,7 +286,6 @@ mod tests {
         assert!(matches!(error, LintYamlError::ForeignPath { .. }));
     }
 
-    // lintyaml[verify check.passed]
     #[test]
     fn guard_of_a_clean_run_passes() {
         let outcome = guard(&Observation::builder().build(), 3).unwrap();
@@ -316,7 +296,6 @@ mod tests {
         );
     }
 
-    // lintyaml[verify check.passed]
     #[test]
     fn guard_of_a_clean_run_says_how_many_files_yamllint_examined() {
         let outcome = guard(&Observation::builder().build(), 3).unwrap();
@@ -327,7 +306,6 @@ mod tests {
         assert_eq!(it.get(), "checked 3 files");
     }
 
-    // lintyaml[verify check.incomplete]
     #[test]
     fn guard_of_a_run_that_stopped_early_stops() {
         let observation = Observation::builder().finished(false).build();
@@ -337,7 +315,6 @@ mod tests {
         assert!(matches!(error, LintYamlError::IncompleteExamination { .. }));
     }
 
-    // lintyaml[verify check.level]
     #[test]
     fn guard_of_a_run_that_reported_a_warning_reports_nothing() {
         let observation = Observation::builder()
@@ -349,7 +326,6 @@ mod tests {
         assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 
-    // lintyaml[verify check.passed]
     #[test]
     fn summary_of_a_single_file_names_it_in_the_singular() {
         let summary = summary(1);

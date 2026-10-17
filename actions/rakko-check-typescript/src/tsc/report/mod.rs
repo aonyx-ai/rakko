@@ -58,10 +58,6 @@ const JOIN: char = ' ';
 /// of a diagnostic nor an explanation of the one above it.
 ///
 /// [unreadable]: ReadReportError::UnreadableLine
-// checktypescript[impl check.elaboration]
-// checktypescript[impl check.diagnostic+2]
-// checktypescript[impl check.project]
-// checktypescript[impl check.unreadable]
 pub fn read(report: &str) -> Result<Vec<Diagnostic>, ReadReportError> {
     let mut diagnostics = Vec::new();
     let mut open: Option<Pending> = None;
@@ -117,7 +113,6 @@ struct Pending {
 
 impl Pending {
     /// Adds a line that tsc wrote to explain the diagnostic
-    // checktypescript[impl check.elaboration]
     fn explain(&mut self, line: &str) {
         self.text.push(JOIN);
         self.text.push_str(line);
@@ -177,8 +172,6 @@ fn stated(origin: Option<Origin>, text: &str) -> Option<Pending> {
 /// diagnostic without a place.
 ///
 /// Returns `None` when the line starts no diagnostic at all.
-// checktypescript[impl check.diagnostic+2]
-// checktypescript[impl check.project]
 fn start(line: &str) -> Option<Pending> {
     if let Some((place, rest)) = line.split_once(PLACE_CLOSE)
         && let Some(pending) = located(place, rest)
@@ -190,7 +183,6 @@ fn start(line: &str) -> Option<Pending> {
 }
 
 /// Returns the error of a line that is no part of a diagnostic
-// checktypescript[impl check.unreadable]
 fn unreadable(line: &str) -> ReadReportError {
     ReadReportError::UnreadableLine {
         line: line.to_owned(),

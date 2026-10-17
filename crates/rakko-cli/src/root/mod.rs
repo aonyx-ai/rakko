@@ -57,7 +57,6 @@ const MARKER: &str = ".config/rakko.toml";
 /// when the file system refuses to report on a directory of the walk. A run
 /// stops in every case, because an action that receives a guessed root reads
 /// the wrong files and reports paths that mean nothing.
-// cli[impl root.named]
 pub(crate) fn resolve(
     named: Option<PathBuf>,
     start: &Path,
@@ -97,8 +96,6 @@ fn canonical(root: PathBuf) -> Result<ProjectRoot, ResolveProjectRootError> {
 /// and when the file system refuses to report on a directory of the walk.
 /// Returns an error as well when the name of Rakko is not a valid application
 /// name, which only a change to the source can cause.
-// cli[impl root.marker]
-// cli[impl root.unmarked]
 fn discover(start: &Path) -> Result<ProjectRoot, ResolveProjectRootError> {
     let application: ApplicationName = APPLICATION
         .parse()
@@ -154,7 +151,6 @@ mod tests {
         project
     }
 
-    // cli[verify root.named]
     #[test]
     fn resolve_with_a_named_root_reports_it_without_a_relative_component() {
         let project = project();
@@ -170,7 +166,6 @@ mod tests {
         );
     }
 
-    // cli[verify root.named]
     #[test]
     fn resolve_with_a_named_root_that_no_directory_answers_reports_the_path() {
         let missing = PathBuf::from("/rakko/does/not/live/here");
@@ -182,7 +177,6 @@ mod tests {
         assert!(error.to_string().contains("/rakko/does/not/live/here"));
     }
 
-    // cli[verify root.marker]
     #[test]
     fn discover_from_a_subdirectory_reports_the_marked_directory() {
         let project = project();
@@ -197,7 +191,6 @@ mod tests {
         );
     }
 
-    // cli[verify root.unmarked]
     #[test]
     fn discover_without_a_marker_reports_the_file_that_marks_a_root() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");

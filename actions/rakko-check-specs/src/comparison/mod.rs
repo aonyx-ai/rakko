@@ -88,8 +88,6 @@ impl Comparison {
     ///
     /// Returns a [`PrepareComparisonError`] when git does not run, or when it
     /// refuses to build the copy.
-    // checkspecs[impl version.base]
-    // checkspecs[impl version.checkout]
     pub async fn prepare(
         root: &ProjectRoot,
         requested: bool,

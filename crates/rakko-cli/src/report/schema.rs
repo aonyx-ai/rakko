@@ -53,7 +53,6 @@ impl<'a> Payload<'a> {
         let action = report.action.get();
 
         match &report.outcome {
-            // cli[impl report.passed]
             Outcome::Passed { summary } => Self {
                 summary: summary.as_ref().map(Summary::get),
                 ..Self::new(action, "passed")
@@ -222,7 +221,6 @@ mod tests {
         serde_json::to_string(&report).expect("the report serializes")
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_errored_outcome_carries_every_cause_of_the_error() {
         let json = payload(Outcome::Errored {
@@ -234,7 +232,6 @@ mod tests {
         assert!(json.contains(r#""error":"failed to parse Cargo.toml: the file is not TOML""#));
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_errored_outcome_carries_the_error() {
         let json = payload(Outcome::Errored {
@@ -247,7 +244,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_changed_outcome_carries_every_repair() {
         let json = payload(Outcome::Changed {
@@ -268,7 +264,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_directory_finding_carries_the_level_and_the_path() {
         let json = payload(failure(
@@ -276,15 +271,14 @@ mod tests {
                 path: DirectoryPath::try_from("crates/rakko")
                     .expect("the test names a relative path"),
             },
-            "the directory has no specification",
+            "the directory has no README",
         ));
 
         assert!(json.contains(
-            r#"{"level":"directory","path":"crates/rakko","message":"the directory has no specification"}"#
+            r#"{"level":"directory","path":"crates/rakko","message":"the directory has no README"}"#
         ));
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_failed_outcome_carries_every_finding_with_its_location() {
         let json = payload(failure(
@@ -301,7 +295,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_failed_outcome_carries_the_repairs_beside_the_findings() {
         let json = payload(Outcome::Failed {
@@ -331,7 +324,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_file_finding_carries_the_level_and_the_path() {
         let json = payload(failure(
@@ -346,7 +338,6 @@ mod tests {
         ));
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_project_finding_carries_the_level_alone() {
         let json = payload(failure(Location::Project, "the crate serde is banned"));
@@ -354,7 +345,6 @@ mod tests {
         assert!(json.contains(r#"{"level":"project","message":"the crate serde is banned"}"#));
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_span_finding_carries_both_ends_of_the_range() {
         let json = payload(failure(
@@ -373,7 +363,6 @@ mod tests {
         ));
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_passed_outcome_carries_the_state_alone() {
         let json = payload(Outcome::Passed { summary: None });
@@ -384,7 +373,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.passed]
     #[test]
     fn payload_of_passed_outcome_carries_the_summary() {
         let json = payload(Outcome::Passed {
@@ -397,7 +385,6 @@ mod tests {
         );
     }
 
-    // cli[verify report.json+2]
     #[test]
     fn payload_of_skipped_outcome_carries_the_reason() {
         let json = payload(Outcome::Skipped {

@@ -53,10 +53,8 @@ const NO_TEST: &str = "node found no test in the project";
 pub struct TestTypeScript;
 
 impl Action for TestTypeScript {
-    // testtypescript[impl args.none]
     type Args = ();
 
-    // testtypescript[impl name]
     fn name(&self) -> Name {
         action_name!("test-typescript")
     }
@@ -64,7 +62,6 @@ impl Action for TestTypeScript {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // testtypescript[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -83,13 +80,10 @@ impl Action for TestTypeScript {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, or the run of node that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, TestTypeScriptError> {
-    // testtypescript[impl tool.missing]
-    // testtypescript[impl tool.node]
     let node = Node::resolve(context.root().clone())
         .await
         .map_err(|source| TestTypeScriptError::UnresolvedTool { source })?;
 
-    // testtypescript[impl run.read]
     let report = node.observe().await?;
 
     Ok(outcome(&report, context.root()))
@@ -99,8 +93,6 @@ async fn drive(context: &Context) -> Result<Outcome, TestTypeScriptError> {
 ///
 /// A run that examined no test at all is an action that does not apply, and
 /// not a project whose tests all passed, so it comes before everything else.
-// testtypescript[impl result.failed]
-// testtypescript[impl skip.untested]
 fn outcome(report: &Report, root: &ProjectRoot) -> Outcome {
     if report.tests() == 0 {
         return Outcome::Skipped {
@@ -115,7 +107,6 @@ fn outcome(report: &Report, root: &ProjectRoot) -> Outcome {
         .collect();
 
     if findings.is_empty() {
-        // testtypescript[impl result.passed]
         return Outcome::Passed {
             summary: Some(summary(report.tests())),
         };
@@ -128,7 +119,6 @@ fn outcome(report: &Report, root: &ProjectRoot) -> Outcome {
 }
 
 /// Returns the summary that tells how many tests a run ran
-// testtypescript[impl result.passed]
 fn summary(tests: u64) -> Summary {
     let counted = match tests {
         1 => "1 test".to_owned(),
@@ -175,7 +165,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // testtypescript[verify result.failed]
     #[test]
     fn outcome_of_a_run_with_a_failure_fails() {
         let outcome = outcome(&report(3, vec![failure("counts")]), &root());
@@ -186,7 +175,6 @@ mod tests {
         assert_eq!(findings.len(), 1);
     }
 
-    // testtypescript[verify result.passed]
     #[test]
     fn outcome_of_a_run_without_a_failure_passes() {
         let outcome = outcome(&report(3, Vec::new()), &root());
@@ -197,7 +185,6 @@ mod tests {
         );
     }
 
-    // testtypescript[verify result.passed]
     #[test]
     fn outcome_of_a_run_without_a_failure_says_how_many_tests_ran() {
         let outcome = outcome(&report(3, Vec::new()), &root());
@@ -216,7 +203,6 @@ mod tests {
         assert_eq!(summary.get(), "ran 1 test");
     }
 
-    // testtypescript[verify skip.untested]
     #[test]
     fn outcome_of_a_run_that_ran_no_test_skips() {
         let outcome = outcome(&report(0, Vec::new()), &root());

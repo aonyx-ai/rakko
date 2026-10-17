@@ -104,11 +104,6 @@ impl Tsc {
     /// [missing]: ObserveTscError::MissingReport
     /// [unavailable]: ObserveTscError::TscUnavailable
     /// [unreadable]: ObserveTscError::UnreadableReport
-    // checktypescript[impl check.configuration]
-    // checktypescript[impl check.read]
-    // checktypescript[impl run.noemit]
-    // checktypescript[impl run.plain]
-    // checktypescript[impl run.project]
     pub async fn observe(&self) -> Result<Vec<Diagnostic>, ObserveTscError> {
         let execution = self
             .tool
@@ -149,8 +144,6 @@ impl Tsc {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no tsc for the
     /// project.
-    // checktypescript[impl tool.missing]
-    // checktypescript[impl tool.tsc]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(TSC), root).await?;
 

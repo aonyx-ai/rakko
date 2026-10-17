@@ -66,10 +66,6 @@ impl Lockfile {
     /// An entry that gains or loses its platforms also loses or gains its
     /// part without a platform. The parts of the platforms name that change,
     /// so the part without a platform gives no difference of its own then.
-    // checkmiselock[impl compare.added]
-    // checkmiselock[impl compare.changed]
-    // checkmiselock[impl compare.removed]
-    // checkmiselock[impl compare.missing]
     pub fn differences(&self, after: &Self) -> Vec<Difference> {
         let parts: BTreeSet<&Part> = self.parts.keys().chain(after.parts.keys()).collect();
 
@@ -92,7 +88,6 @@ impl Lockfile {
             })
             .collect();
 
-        // checkmiselock[impl compare.unplatformed]
         let platformed: BTreeSet<(&ToolName, &Version)> = differences
             .iter()
             .map(Difference::part)
@@ -117,7 +112,6 @@ impl Lockfile {
     /// An install in locked mode refuses a platform whose entry names no
     /// download. `mise lock` writes such an entry when it could not resolve
     /// the tool, such as one that holds only the provenance of the download.
-    // checkmiselock[impl lock.unaddressed]
     pub fn unaddressed(&self) -> Vec<&Part> {
         self.parts
             .iter()
@@ -134,7 +128,6 @@ impl Lockfile {
     }
 
     /// Returns whether the lockfile records any platform
-    // checkmiselock[impl lock.untargeted]
     pub fn records_platforms(&self) -> bool {
         self.parts.keys().any(|part| part.platform().is_some())
     }
@@ -148,7 +141,6 @@ impl Lockfile {
     /// or a platform of an entry have a shape that the action does not know.
     ///
     /// [unparsable]: ReadLockfileError::UnparsableToml
-    // checkmiselock[impl lockfiles.unreadable]
     pub fn parse(text: &str) -> Result<Self, ReadLockfileError> {
         let document: Map<String, Value> = toml_edit::de::from_str(text)
             .map_err(|source| ReadLockfileError::UnparsableToml { source })?;
@@ -195,7 +187,6 @@ impl Lockfile {
     ///
     /// [platform]: ReadLockfileError::MisshapenPlatform
     /// [version]: ReadLockfileError::MissingVersion
-    // checkmiselock[impl compare.unplatformed]
     fn split(
         tool: &ToolName,
         entry: &Map<String, Value>,
@@ -290,7 +281,6 @@ backend = "cargo:cargo-deny"
             .collect()
     }
 
-    // checkmiselock[verify compare.unplatformed]
     #[test]
     fn differences_with_a_changed_entry_without_a_platform_name_the_entry() {
         let after = COMPLETE.replace(
@@ -306,7 +296,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.changed]
     #[test]
     fn differences_with_a_changed_platform_name_the_platform() {
         let after = COMPLETE.replace("jq-linux", "jq-linux-amd64");
@@ -319,7 +308,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.changed]
     #[test]
     fn differences_with_a_changed_shared_field_name_every_platform() {
         let after = COMPLETE.replace("aqua:jqlang/jq", "github:jqlang/jq");
@@ -335,7 +323,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.removed]
     #[test]
     fn differences_with_a_removed_entry_name_its_parts() {
         let after = COMPLETE.replace(
@@ -351,7 +338,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.added]
     #[test]
     fn differences_with_a_second_entry_of_the_same_version_name_its_parts() {
         let after = format!(
@@ -366,7 +352,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.added]
     #[test]
     fn differences_with_an_added_platform_name_the_platform() {
         let before = COMPLETE.replace(
@@ -382,7 +367,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.unplatformed]
     #[test]
     fn differences_with_an_entry_that_gains_its_platforms_name_only_the_platforms() {
         let before = "[[tools.jq]]\nversion = \"1.8.1\"\nbackend = \"aqua:jqlang/jq\"\n";
@@ -398,7 +382,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.missing]
     #[test]
     fn differences_with_no_lockfile_before_name_every_part() {
         let differences = Lockfile::default()
@@ -425,7 +408,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.passed]
     #[test]
     fn differences_with_the_same_lockfile_are_empty() {
         let differences = compare(COMPLETE, COMPLETE);
@@ -436,7 +418,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify compare.removed]
     #[test]
     fn differences_without_the_second_entry_of_the_same_version_name_its_parts() {
         let before = format!(
@@ -451,7 +432,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify lockfiles.unreadable]
     #[test]
     fn parse_with_a_platform_that_is_not_a_table_reports_the_platform() {
         let text = "[[tools.jq]]\nversion = \"1.8.1\"\n\"platforms.linux-x64\" = \"here\"\n";
@@ -464,7 +444,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify lockfiles.unreadable]
     #[test]
     fn parse_with_a_tool_that_is_a_single_table_reports_the_tool() {
         let error = Lockfile::parse("[tools.jq]\nversion = \"1.8.1\"\n").unwrap_err();
@@ -475,7 +454,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify lockfiles.unreadable]
     #[test]
     fn parse_with_an_entry_that_is_not_a_table_reports_the_tool() {
         let error = Lockfile::parse("[tools]\njq = [\"1.8.1\"]\n").unwrap_err();
@@ -486,7 +464,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify lockfiles.unreadable]
     #[test]
     fn parse_with_an_entry_without_a_version_reports_the_tool() {
         let error = Lockfile::parse("[[tools.jq]]\nbackend = \"aqua:jqlang/jq\"\n").unwrap_err();
@@ -497,7 +474,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify lockfiles.unreadable]
     #[test]
     fn parse_with_text_that_is_not_toml_reports_it() {
         let error = Lockfile::parse("this is not toml [[[\n").unwrap_err();
@@ -508,7 +484,6 @@ backend = "cargo:cargo-deny"
         );
     }
 
-    // checkmiselock[verify lockfiles.unreadable]
     #[test]
     fn parse_with_tools_that_are_not_a_table_reports_them() {
         let error = Lockfile::parse("tools = 5\n").unwrap_err();
@@ -526,7 +501,6 @@ backend = "cargo:cargo-deny"
         assert_eq!(lockfile, Lockfile::default());
     }
 
-    // checkmiselock[verify lock.untargeted]
     #[test]
     fn records_platforms_with_a_platform_says_so() {
         let lockfile = Lockfile::parse(COMPLETE).unwrap();
@@ -534,7 +508,6 @@ backend = "cargo:cargo-deny"
         assert!(lockfile.records_platforms());
     }
 
-    // checkmiselock[verify lock.untargeted]
     #[test]
     fn records_platforms_without_a_platform_says_none() {
         let lockfile = Lockfile::parse("[[tools.rust]]\nversion = \"1.99.1\"\n").unwrap();
@@ -542,7 +515,6 @@ backend = "cargo:cargo-deny"
         assert!(!lockfile.records_platforms());
     }
 
-    // checkmiselock[verify lock.unaddressed]
     #[test]
     fn unaddressed_with_a_platform_that_holds_only_its_provenance_names_it() {
         let text = COMPLETE.replace(
@@ -560,7 +532,6 @@ backend = "cargo:cargo-deny"
         assert_eq!(parts, ["jq 1.8.1 for macos-arm64"]);
     }
 
-    // checkmiselock[verify lock.unaddressed]
     #[test]
     fn unaddressed_with_complete_platforms_names_nothing() {
         let lockfile = Lockfile::parse(COMPLETE).unwrap();

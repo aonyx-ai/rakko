@@ -51,7 +51,6 @@ impl Toolchain {
     /// The proxy of rustup reads a toolchain from its first argument when
     /// that argument starts with a plus sign, and it takes that argument
     /// over the environment that mise set for the default toolchain.
-    // cargo[impl run.toolchain]
     pub fn argument(&self) -> String {
         format!("+{}", self.get())
     }
@@ -102,10 +101,6 @@ impl Toolchain {
     /// [uninstalled]: ResolveToolchainError::UninstalledToolchain
     /// [unpinned]: ResolveToolchainError::UnpinnedToolchain
     /// [unreadable]: ResolveToolchainError::UnreadableReport
-    // cargo[impl toolchain.resolve]
-    // cargo[impl toolchain.uninstalled]
-    // cargo[impl toolchain.unpinned]
-    // cargo[impl toolchain.report]
     pub async fn resolve(
         channel: Channel,
         root: &ProjectRoot,
@@ -176,9 +171,6 @@ impl Toolchain {
     /// [unavailable]: ResolveNewestToolchainError::MiseUnavailable
     /// [unpinned]: ResolveNewestToolchainError::UnpinnedToolchain
     /// [unreadable]: ResolveNewestToolchainError::UnreadableReport
-    // cargo[impl toolchain.newest]
-    // cargo[impl toolchain.unversioned]
-    // cargo[impl toolchain.absent]
     pub async fn newest(root: &ProjectRoot) -> Result<Self, ResolveNewestToolchainError> {
         let pins = report(root).await.map_err(|failure| match failure {
             PinsFailure::Unavailable { source } => {
@@ -238,7 +230,6 @@ impl Pin {
     /// channel such as `nightly` to a dated toolchain instead, whose name is
     /// no version, and such a pin says nothing about which compiler the
     /// project builds with.
-    // cargo[impl toolchain.newest]
     fn version(&self) -> Option<RustVersion> {
         RustVersion::parse(&self.version)
     }
@@ -314,9 +305,6 @@ fn pins(execution: &Execution) -> Result<Vec<Pin>, String> {
 ///
 /// [uninstalled]: ResolveNewestToolchainError::UninstalledToolchain
 /// [unpinned]: ResolveNewestToolchainError::UnpinnedToolchain
-// cargo[impl toolchain.newest]
-// cargo[impl toolchain.unversioned]
-// cargo[impl toolchain.absent]
 fn newest_of(pins: &[Pin]) -> Result<Toolchain, ResolveNewestToolchainError> {
     let versioned: Vec<(&Pin, RustVersion)> = pins
         .iter()
@@ -350,9 +338,6 @@ fn newest_of(pins: &[Pin]) -> Result<Toolchain, ResolveNewestToolchainError> {
 ///
 /// [uninstalled]: ResolveToolchainError::UninstalledToolchain
 /// [unpinned]: ResolveToolchainError::UnpinnedToolchain
-// cargo[impl toolchain.resolve]
-// cargo[impl toolchain.uninstalled]
-// cargo[impl toolchain.unpinned]
 fn select(pins: &[Pin], channel: Channel) -> Result<Toolchain, ResolveToolchainError> {
     let Some(pin) = pins.iter().find(|pin| pin.belongs_to(&channel)) else {
         return Err(ResolveToolchainError::UnpinnedToolchain { channel });
@@ -392,7 +377,6 @@ mod tests {
         ]
     }
 
-    // cargo[verify run.toolchain]
     #[test]
     fn argument_puts_a_plus_sign_in_front_of_the_name() {
         let toolchain = Toolchain::new("nightly-2026-08-11");
@@ -402,7 +386,6 @@ mod tests {
         assert_eq!(argument, "+nightly-2026-08-11");
     }
 
-    // cargo[verify toolchain.absent]
     #[test]
     fn newest_of_a_pin_that_nothing_installed_names_the_toolchain() {
         let pins = vec![pin("1.98.0", "1.98.0", false)];
@@ -419,7 +402,6 @@ mod tests {
         );
     }
 
-    // cargo[verify toolchain.newest]
     #[test]
     fn newest_of_pins_ignores_a_channel_that_mise_resolved() {
         let toolchain = newest_of(&pins());
@@ -427,7 +409,6 @@ mod tests {
         assert_eq!(toolchain.ok(), Some(Toolchain::new("1.98.0")));
     }
 
-    // cargo[verify toolchain.newest]
     #[test]
     fn newest_of_a_pin_that_mise_completed_names_the_toolchain_it_resolved_to() {
         let pins = vec![pin("1.85.1", "1.85", true)];
@@ -437,7 +418,6 @@ mod tests {
         assert_eq!(toolchain.ok(), Some(Toolchain::new("1.85.1")));
     }
 
-    // cargo[verify toolchain.newest]
     #[test]
     fn newest_of_pins_in_ascending_order_answers_the_highest() {
         let pins = vec![pin("1.88.0", "1.88.0", true), pin("1.98.0", "1.98.0", true)];
@@ -447,7 +427,6 @@ mod tests {
         assert_eq!(toolchain.ok(), Some(Toolchain::new("1.98.0")));
     }
 
-    // cargo[verify toolchain.newest]
     #[test]
     fn newest_of_pins_in_descending_order_answers_the_highest() {
         let pins = vec![pin("1.98.0", "1.98.0", true), pin("1.88.0", "1.88.0", true)];
@@ -457,7 +436,6 @@ mod tests {
         assert_eq!(toolchain.ok(), Some(Toolchain::new("1.98.0")));
     }
 
-    // cargo[verify toolchain.newest]
     #[test]
     fn newest_of_pins_reads_a_part_as_a_number_and_not_as_text() {
         let pins = vec![pin("1.9.0", "1.9.0", true), pin("1.88.0", "1.88.0", true)];
@@ -467,7 +445,6 @@ mod tests {
         assert_eq!(toolchain.ok(), Some(Toolchain::new("1.88.0")));
     }
 
-    // cargo[verify toolchain.unversioned]
     #[test]
     fn newest_of_pins_that_only_name_channels_reports_no_pin() {
         let pins = vec![pin("nightly-2026-08-11", "nightly", true)];
@@ -483,7 +460,6 @@ mod tests {
         );
     }
 
-    // cargo[verify toolchain.resolve]
     #[test]
     fn select_a_channel_that_a_dated_pin_names_answers_that_toolchain() {
         let pins = vec![pin("nightly-2026-08-11", "nightly-2026-08-11", true)];
@@ -493,7 +469,6 @@ mod tests {
         assert_eq!(toolchain.ok(), Some(Toolchain::new("nightly-2026-08-11")));
     }
 
-    // cargo[verify toolchain.unpinned]
     #[test]
     fn select_a_channel_that_prefixes_another_pin_does_not_match_it() {
         let toolchain = select(&pins(), Channel::new("night"));
@@ -507,7 +482,6 @@ mod tests {
         );
     }
 
-    // cargo[verify toolchain.uninstalled]
     #[test]
     fn select_a_pin_that_nothing_installed_names_the_toolchain() {
         let pins = vec![pin("nightly-2026-08-11", "nightly", false)];
@@ -524,7 +498,6 @@ mod tests {
         );
     }
 
-    // cargo[verify toolchain.resolve]
     #[test]
     fn select_a_pinned_channel_answers_the_toolchain_it_resolved_to() {
         let toolchain = select(&pins(), Channel::new("nightly"));
@@ -532,7 +505,6 @@ mod tests {
         assert_eq!(toolchain.ok(), Some(Toolchain::new("nightly-2026-08-11")));
     }
 
-    // cargo[verify toolchain.unpinned]
     #[test]
     fn select_an_unpinned_channel_names_the_channel() {
         let toolchain = select(&pins(), Channel::new("beta"));

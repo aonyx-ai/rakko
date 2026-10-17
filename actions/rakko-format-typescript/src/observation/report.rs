@@ -62,7 +62,6 @@ const UNMATCHED_PATTERN: &str = "Expected at least one target file";
 /// oxfmt could not do arrives on the standard error stream. The reading walks
 /// both, recognizes what carries an answer, and ignores the rest.
 pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
-    // formattypescript[impl check.decorated]
     let stderr = plain(stderr);
 
     let mut observation = Observation {
@@ -73,7 +72,6 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
         unmatched_pattern: false,
     };
 
-    // formattypescript[impl check.unformatted]
     for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
         observation.problems.push(OxfmtProblem::Unformatted {
             path: PathBuf::from(line.trim()),
@@ -83,7 +81,6 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
     for line in stderr.lines() {
         let line = line.trim_start();
 
-        // formattypescript[impl check.configuration]
         if REFUSED_CONFIGURATION
             .iter()
             .any(|marker| line.starts_with(marker))
@@ -91,7 +88,6 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
             observation.rejected_configuration = Some(stderr.trim().to_owned());
         }
 
-        // formattypescript[impl skip.unmatched]
         if line.starts_with(UNMATCHED_PATTERN) {
             observation.unmatched_pattern = true;
         }
@@ -108,7 +104,6 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
 /// what a build server gets, and it offers no option to stop that. The color
 /// arrives as sequences that carry no text of their own, so removing them
 /// leaves the report that a plain stream would have carried.
-// formattypescript[impl check.decorated]
 fn plain(text: &str) -> String {
     /// Where the reading stands between the characters of the text
     #[derive(Copy, Clone)]
@@ -224,7 +219,6 @@ fn opening(line: &str) -> Option<&str> {
 /// A report that named a place belongs to that place of that file, and a
 /// report that named none belongs to the project, because oxfmt writes the
 /// path of the file into the sentence when it has no place to point at.
-// formattypescript[impl check.invalid]
 fn problem(message: String, place: Option<(PathBuf, u32, u32)>) -> OxfmtProblem {
     match place {
         Some((path, line, column)) => OxfmtProblem::Invalid {
@@ -300,7 +294,6 @@ mod tests {
                                const = ;;;\n   :              ^\n   `----\nError occurred when \
                                checking code style in the above files.\n";
 
-    // formattypescript[verify check.decorated]
     #[test]
     fn read_of_a_drawn_failure_reports_what_the_plain_one_reports() {
         let observation = read("", DRAWN_BLOCK, false);
@@ -311,7 +304,6 @@ mod tests {
         );
     }
 
-    // formattypescript[verify check.invalid]
     #[test]
     fn read_of_a_failure_with_a_suggestion_carries_the_suggestion() {
         let observation = read("", SUGGESTED_BLOCK, false);
@@ -325,7 +317,6 @@ mod tests {
         );
     }
 
-    // formattypescript[verify check.invalid]
     #[test]
     fn read_of_a_failure_without_a_place_reports_the_sentence_of_oxfmt() {
         let observation = read("", UNPLACED_BLOCK, false);
@@ -340,7 +331,6 @@ mod tests {
         );
     }
 
-    // formattypescript[verify check.unformatted]
     #[test]
     fn read_of_a_listed_file_reports_it_as_unformatted() {
         let observation = read("src/index.ts\nsrc/other.ts", "", false);
@@ -358,7 +348,6 @@ mod tests {
         );
     }
 
-    // formattypescript[verify check.invalid]
     #[test]
     fn read_of_a_placed_failure_reports_the_place_that_oxfmt_named() {
         let observation = read("", PLAIN_BLOCK, false);
@@ -374,7 +363,6 @@ mod tests {
         );
     }
 
-    // formattypescript[verify check.configuration]
     #[test]
     fn read_of_a_refused_configuration_holds_what_oxfmt_wrote() {
         let observation = read("", REFUSED_CONFIGURATION, false);
@@ -385,7 +373,6 @@ mod tests {
         );
     }
 
-    // formattypescript[verify skip.unmatched]
     #[test]
     fn read_of_a_run_that_matched_nothing_reports_the_unmatched_pattern() {
         let observation = read("", UNMATCHED, false);

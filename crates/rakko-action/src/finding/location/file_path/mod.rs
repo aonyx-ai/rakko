@@ -68,12 +68,6 @@ impl FilePath {
     ///
     /// assert_eq!(path, "src/main.rs".parse().ok());
     /// ```
-    // action[impl reported.relative]
-    // action[impl reported.absolute]
-    // action[impl reported.foreign]
-    // action[impl reported.parent]
-    // action[impl reported.anchored]
-    // action[impl reported.root]
     pub fn within(path: &Path, root: &ProjectRoot) -> Option<Self> {
         let relative = if path.is_relative() {
             path.to_path_buf()
@@ -107,7 +101,6 @@ impl FilePath {
     /// # Errors
     ///
     /// Returns a [`ParseFilePathError`] when `path` is absolute.
-    // action[impl location.relative]
     fn validate(path: &Path) -> Result<(), ParseFilePathError> {
         if path.is_absolute() {
             return Err(ParseFilePathError::AbsolutePath {
@@ -210,7 +203,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("src/main.rs"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn from_str_with_absolute_path_returns_error() {
         let error = ABSOLUTE.parse::<FilePath>().unwrap_err();
@@ -244,7 +236,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("src/main.rs"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn try_from_path_buf_with_absolute_path_returns_error() {
         let error = FilePath::try_from(PathBuf::from(ABSOLUTE)).unwrap_err();
@@ -257,7 +248,6 @@ mod tests {
         );
     }
 
-    // action[verify location.relative]
     #[test]
     fn try_from_path_with_absolute_path_returns_error() {
         let error = FilePath::try_from(Path::new(ABSOLUTE)).unwrap_err();
@@ -277,7 +267,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("src/main.rs"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn try_from_str_with_absolute_path_returns_error() {
         let error = FilePath::try_from(ABSOLUTE).unwrap_err();
@@ -297,7 +286,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("src/main.rs"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn try_from_string_with_absolute_path_returns_error() {
         let error = FilePath::try_from(ABSOLUTE.to_string()).unwrap_err();
@@ -310,7 +298,6 @@ mod tests {
         );
     }
 
-    // action[verify reported.parent]
     #[test]
     fn within_of_a_path_that_climbs_above_the_root_is_none() {
         let within = FilePath::within(&path("../elsewhere/main.rs"), &root());
@@ -318,7 +305,6 @@ mod tests {
         assert_eq!(within, None);
     }
 
-    // action[verify reported.parent]
     #[test]
     fn within_of_a_path_that_climbs_inside_the_root_is_none() {
         let within = FilePath::within(&path("src/../main.rs"), &root());
@@ -329,7 +315,6 @@ mod tests {
     // A path that names a drive or a root directory is relative only on
     // Windows. Every other platform reads the first as a name and the second
     // as an absolute path.
-    // action[verify reported.anchored]
     #[cfg(windows)]
     #[test]
     fn within_of_a_path_that_names_a_drive_is_none() {
@@ -338,7 +323,6 @@ mod tests {
         assert_eq!(within, None);
     }
 
-    // action[verify reported.anchored]
     #[cfg(windows)]
     #[test]
     fn within_of_a_path_that_names_a_root_directory_is_none() {
@@ -347,7 +331,6 @@ mod tests {
         assert_eq!(within, None);
     }
 
-    // action[verify reported.relative]
     #[test]
     fn within_of_a_path_that_names_the_current_directory_drops_it() {
         let within = FilePath::within(&path("./src/main.rs"), &root());
@@ -355,7 +338,6 @@ mod tests {
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
 
-    // action[verify reported.relative]
     #[test]
     fn within_of_a_relative_path_keeps_it() {
         let within = FilePath::within(&path("src/main.rs"), &root());
@@ -367,7 +349,6 @@ mod tests {
     // starts the path that the file system resolves. Without that, the
     // temporary directory of Linux is already resolved, and the test passes
     // without the resolution that it is about.
-    // action[verify reported.absolute]
     #[test]
     fn within_of_an_absolute_path_below_the_resolved_root_drops_the_root() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -380,7 +361,6 @@ mod tests {
         assert_eq!(within, Some(FilePath(path("notes.md"))));
     }
 
-    // action[verify reported.absolute]
     #[test]
     fn within_of_an_absolute_path_below_the_root_drops_the_root() {
         let within = FilePath::within(&path("/home/otter/project/src/main.rs"), &root());
@@ -388,7 +368,6 @@ mod tests {
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
 
-    // action[verify reported.foreign]
     #[test]
     fn within_of_an_absolute_path_outside_the_root_is_none() {
         let within = FilePath::within(&path("/home/otter/elsewhere/main.rs"), &root());
@@ -396,7 +375,6 @@ mod tests {
         assert_eq!(within, None);
     }
 
-    // action[verify reported.parent]
     #[test]
     fn within_of_an_absolute_path_that_climbs_out_of_the_root_is_none() {
         let within = FilePath::within(&path("/home/otter/project/../elsewhere/main.rs"), &root());
@@ -404,7 +382,6 @@ mod tests {
         assert_eq!(within, None);
     }
 
-    // action[verify reported.root]
     #[test]
     fn within_of_the_current_directory_is_none() {
         let within = FilePath::within(&path("."), &root());
@@ -412,7 +389,6 @@ mod tests {
         assert_eq!(within, None);
     }
 
-    // action[verify reported.root]
     #[test]
     fn within_of_the_root_is_none() {
         let within = FilePath::within(&path("/home/otter/project"), &root());

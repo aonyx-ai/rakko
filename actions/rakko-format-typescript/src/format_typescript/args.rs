@@ -21,7 +21,6 @@ pub struct FormatTypeScriptArgs {
 }
 
 impl Args for FormatTypeScriptArgs {
-    // formattypescript[impl args.fix]
     fn schema() -> ArgsSchema {
         ArgsSchema::new([Argument::builder()
             .name(argument_name!("fix"))
@@ -30,7 +29,6 @@ impl Args for FormatTypeScriptArgs {
             .build()])
     }
 
-    // formattypescript[impl args.value]
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let name = argument_name!("fix");
         let fix = match values.get(&name) {
@@ -63,7 +61,6 @@ mod tests {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new(fix))])
     }
 
-    // formattypescript[verify args.value]
     #[test]
     fn from_values_with_an_unreadable_value_reports_the_argument() {
         let error = FormatTypeScriptArgs::from_values(&values("maybe")).unwrap_err();
@@ -74,7 +71,6 @@ mod tests {
         ));
     }
 
-    // formattypescript[verify args.fix]
     #[test]
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = FormatTypeScriptArgs::from_values(&values("true")).unwrap();
@@ -82,7 +78,6 @@ mod tests {
         assert!(args.fix());
     }
 
-    // formattypescript[verify args.fix]
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = FormatTypeScriptArgs::from_values(&ArgsValues::empty()).unwrap();
@@ -90,7 +85,6 @@ mod tests {
         assert!(!args.fix());
     }
 
-    // formattypescript[verify args.fix]
     #[test]
     fn schema_declares_the_fix_argument() {
         let schema = FormatTypeScriptArgs::schema();
@@ -104,7 +98,6 @@ mod tests {
         assert_eq!(names, ["fix"]);
     }
 
-    // formattypescript[verify args.fix]
     #[test]
     fn schema_documents_the_fix_argument() {
         let schema = FormatTypeScriptArgs::schema();
@@ -117,7 +110,6 @@ mod tests {
         assert_eq!(documentation, Some(FIX_DOCUMENTATION));
     }
 
-    // formattypescript[verify args.fix]
     #[test]
     fn schema_gives_fix_a_boolean_shape() {
         let schema = FormatTypeScriptArgs::schema();

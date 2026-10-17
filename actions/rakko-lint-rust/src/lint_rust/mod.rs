@@ -67,10 +67,8 @@ const CLIPPY: [&str; 4] = [
 pub struct LintRust;
 
 impl Action for LintRust {
-    // lintrust[impl args.none]
     type Args = ();
 
-    // lintrust[impl name]
     fn name(&self) -> Name {
         action_name!("lint-rust")
     }
@@ -78,8 +76,6 @@ impl Action for LintRust {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // lintrust[impl roots.error]
-            // lintrust[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -99,19 +95,15 @@ impl Action for LintRust {
 /// the tool, the discovery of the workspaces, a cargo run, or the reading
 /// of a report.
 async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
-    // lintrust[impl tool.cargo]
-    // lintrust[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| LintRustError::UnresolvedTool { source })?;
 
-    // lintrust[impl roots.error]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| LintRustError::UndiscoveredRoots { source })?;
 
-    // lintrust[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
@@ -120,18 +112,15 @@ async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
 
     let mut findings = Vec::new();
 
-    // lintrust[impl roots.all]
     for root in &roots {
         findings.extend(lint(&cargo, root, context).await?);
     }
 
     if findings.is_empty() {
-        // lintrust[impl check.passed]
         Ok(Outcome::Passed {
             summary: Some(summary(roots.len())),
         })
     } else {
-        // lintrust[impl check.failed]
         Ok(Outcome::Failed {
             findings,
             repairs: Vec::new(),
@@ -149,9 +138,6 @@ async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
 ///
 /// [unavailable]: LintRustError::CargoUnavailable
 /// [unrecognized]: LintRustError::UnrecognizedReport
-// lintrust[impl check.diagnostic]
-// lintrust[impl check.operation]
-// lintrust[impl check.read]
 async fn lint(
     cargo: &Cargo,
     root: &CargoRoot,
@@ -166,7 +152,6 @@ async fn lint(
 
     let report = read(root, &execution.stdout().to_string_lossy())?;
 
-    // lintrust[impl check.unrecognized]
     if !recognized(&report, &execution) {
         return Err(LintRustError::UnrecognizedReport {
             root: root.directory().clone(),
@@ -187,7 +172,6 @@ async fn lint(
 /// ended with success without saying that the build finished, both wrote a
 /// report that the action cannot read, and an answer built on such a report
 /// would hide problems behind a green result.
-// lintrust[impl check.unrecognized]
 fn recognized(report: &CargoReport, execution: &Execution) -> bool {
     if execution.status().success() {
         report.finished() == Some(true)
@@ -206,7 +190,6 @@ fn recognized(report: &CargoReport, execution: &Execution) -> bool {
 /// would hide problems behind a green result.
 ///
 /// [unreadable]: LintRustError::UnreadableReport
-// lintrust[impl check.unreadable]
 fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, LintRustError> {
     CargoReport::read(stdout).map_err(|source| LintRustError::UnreadableReport {
         root: root.directory().clone(),
@@ -215,7 +198,6 @@ fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, LintRustError> {
 }
 
 /// Returns the summary that tells how many workspaces the run checked
-// lintrust[impl check.passed]
 fn summary(roots: usize) -> Summary {
     if roots == 1 {
         Summary::new("checked 1 workspace")
@@ -236,7 +218,6 @@ mod tests {
 
     use super::*;
 
-    // lintrust[verify check.unreadable]
     #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
         let root = CargoRoot::builder()
@@ -259,7 +240,6 @@ mod tests {
         );
     }
 
-    // lintrust[verify check.passed]
     #[test]
     fn summary_of_one_workspace_says_so() {
         let summary = summary(1);
@@ -267,7 +247,6 @@ mod tests {
         assert_eq!(summary.get(), "checked 1 workspace");
     }
 
-    // lintrust[verify check.passed]
     #[test]
     fn summary_of_two_workspaces_counts_them() {
         let summary = summary(2);

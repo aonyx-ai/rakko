@@ -81,7 +81,6 @@ pub struct FormatYaml;
 impl Action for FormatYaml {
     type Args = FormatYamlArgs;
 
-    // formatyaml[impl name]
     fn name(&self) -> Name {
         action_name!("format-yaml")
     }
@@ -89,7 +88,6 @@ impl Action for FormatYaml {
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
-            // formatyaml[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -110,8 +108,6 @@ impl Action for FormatYaml {
 async fn drive(context: &Context, args: &FormatYamlArgs) -> Result<Outcome, FormatYamlError> {
     let filter = filter();
 
-    // formatyaml[impl tool.prettier]
-    // formatyaml[impl tool.missing]
     let prettier = Prettier::resolve(context.root().clone())
         .await
         .map_err(|source| FormatYamlError::UnresolvedTool { source })?;
@@ -212,7 +208,6 @@ fn findings(
 /// Returns the error of a rewrite that could not finish: prettier did not run,
 /// a configuration of the project did not reach it, it wrote a report that the
 /// action does not recognize, or it reported a path outside the project.
-// formatyaml[impl fix.write]
 async fn fix(
     prettier: &Prettier,
     filter: &Filter,
@@ -228,7 +223,6 @@ async fn fix(
     let findings = findings(observation.problems(), root)?;
 
     if !findings.is_empty() {
-        // formatyaml[impl fix.partial]
         return Ok(Outcome::Failed { findings, repairs });
     }
 
@@ -236,7 +230,6 @@ async fn fix(
         return Ok(Outcome::Passed { summary: None });
     }
 
-    // formatyaml[impl fix.changed]
     Ok(Outcome::Changed { repairs })
 }
 
@@ -262,21 +255,18 @@ async fn fix(
 /// [rejected]: FormatYamlError::RejectedConfiguration
 /// [unrecognized]: FormatYamlError::UnrecognizedReport
 fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatYamlError> {
-    // formatyaml[impl check.configuration]
     if let Some(details) = observation.rejected_configuration() {
         return Err(FormatYamlError::RejectedConfiguration {
             details: details.clone(),
         });
     }
 
-    // formatyaml[impl skip.unmatched]
     if observation.unmatched_pattern() {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         }));
     }
 
-    // formatyaml[impl check.unrecognized]
     if observation.problems().is_empty() && !observation.succeeded() {
         return Err(FormatYamlError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
@@ -297,7 +287,6 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatYamlError> 
 /// Returns the error of a run that could not finish: prettier did not run, a
 /// configuration of the project did not reach it, it wrote a report that the
 /// action does not recognize, or it reported a path outside the project.
-// formatyaml[impl check.read]
 async fn report(
     prettier: &Prettier,
     filter: &Filter,
@@ -310,13 +299,9 @@ async fn report(
     }
 
     if observation.problems().is_empty() {
-        // formatyaml[impl check.passed]
         return Ok(Outcome::Passed { summary: None });
     }
 
-    // formatyaml[impl check.invalid]
-    // formatyaml[impl check.unformatted]
-    // formatyaml[impl check.unreadable]
     Ok(Outcome::Failed {
         findings: findings(observation.problems(), root)?,
         repairs: Vec::new(),
@@ -334,7 +319,6 @@ async fn report(
 /// path of a file.
 ///
 /// [foreign]: FormatYamlError::ForeignPath
-// formatyaml[impl fix.changed]
 fn repairs(rewritten: &[PathBuf], root: &ProjectRoot) -> Result<Vec<Finding>, FormatYamlError> {
     rewritten
         .iter()
@@ -361,7 +345,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // formatyaml[verify check.invalid]
     #[test]
     fn finding_of_a_diagnostic_carries_the_message_of_prettier() {
         let problem = PrettierProblem::new(
@@ -378,7 +361,6 @@ mod tests {
         assert_eq!(finding.message().get(), "SyntaxError: Unexpected token");
     }
 
-    // formatyaml[verify check.invalid]
     #[test]
     fn finding_of_a_diagnostic_sits_at_the_position_of_prettier() {
         let problem = PrettierProblem::new(
@@ -411,7 +393,6 @@ mod tests {
         assert!(matches!(error, FormatYamlError::ForeignPath { .. }));
     }
 
-    // formatyaml[verify skip.unmatched]
     #[test]
     fn guard_of_a_run_that_matched_no_file_skips() {
         let observation = Observation::builder()
@@ -427,7 +408,6 @@ mod tests {
         );
     }
 
-    // formatyaml[verify check.unrecognized]
     #[test]
     fn guard_of_a_failed_run_without_a_problem_stops() {
         let observation = Observation::builder().stderr("something new").build();
@@ -437,7 +417,6 @@ mod tests {
         assert!(matches!(error, FormatYamlError::UnrecognizedReport { .. }));
     }
 
-    // formatyaml[verify check.configuration]
     #[test]
     fn guard_of_a_run_without_its_configuration_stops() {
         let observation = Observation::builder()

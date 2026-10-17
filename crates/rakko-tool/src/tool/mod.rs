@@ -111,10 +111,6 @@ impl Tool {
     /// ```
     ///
     /// [resolve]: Tool::resolve
-    // tool[impl run.program]
-    // tool[impl run.root]
-    // tool[impl run.vector]
-    // tool[impl run.capture]
     pub fn invocation(&self) -> Invocation {
         Invocation::new(self.program.clone()).in_directory(self.root.get())
     }
@@ -158,9 +154,6 @@ impl Tool {
     ///
     /// [unavailable]: ResolveToolError::MiseUnavailable
     /// [unresolved]: ResolveToolError::UnresolvedTool
-    // tool[impl resolve]
-    // tool[impl resolve.root]
-    // tool[impl resolve.missing]
     pub async fn resolve(name: ToolName, root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let execution = Invocation::new(MISE)
             .arg(WHICH)
@@ -178,7 +171,6 @@ impl Tool {
             details: details(&execution),
         })?;
 
-        // tool[impl resolve.executable]
         let program = executable(named);
 
         Ok(Self {
@@ -323,7 +315,6 @@ mod tests {
             .expect("expected mise to report the location of a tool that this project pins")
     }
 
-    // tool[verify run.root]
     #[tokio::test]
     async fn invocation_runs_in_the_root_of_the_project() {
         let tool = pinned().await;
@@ -336,7 +327,6 @@ mod tests {
         );
     }
 
-    // tool[verify run.program]
     #[tokio::test]
     async fn invocation_starts_the_program_that_resolution_reported() {
         let tool = pinned().await;
@@ -346,7 +336,6 @@ mod tests {
         assert_eq!(invocation.program(), tool.program());
     }
 
-    // tool[verify resolve]
     #[tokio::test]
     async fn resolve_with_a_pinned_tool_reports_an_installed_program() {
         let tool = pinned().await;
@@ -358,7 +347,6 @@ mod tests {
     // platform, and Windows starts a program by the extension of its file, so
     // this run reaches the tool only when resolution answered with the
     // launcher beside the script.
-    // tool[verify resolve.executable]
     #[tokio::test]
     async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
         let tool = Tool::resolve(ToolName::new(SCRIPTED), root())
@@ -373,7 +361,6 @@ mod tests {
         );
     }
 
-    // tool[verify resolve.missing]
     #[tokio::test]
     async fn resolve_with_an_unknown_tool_names_it() {
         let name = ToolName::new("rakko-pins-no-such-tool");
@@ -385,7 +372,6 @@ mod tests {
         assert!(error.to_string().contains("rakko-pins-no-such-tool"));
     }
 
-    // tool[verify resolve.root]
     #[tokio::test]
     async fn resolve_outside_the_project_reports_no_location() {
         let outside = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -395,7 +381,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // tool[verify run.capture]
     #[tokio::test]
     async fn run_reports_a_tool_that_ended_without_success() {
         let tool = pinned().await;
@@ -411,7 +396,6 @@ mod tests {
         assert!(!execution.status().success());
     }
 
-    // tool[verify run.capture]
     #[tokio::test]
     async fn run_reports_what_the_tool_wrote_to_its_standard_error() {
         let tool = pinned().await;
@@ -432,8 +416,6 @@ mod tests {
         );
     }
 
-    // tool[verify run.capture]
-    // tool[verify run.vector]
     #[tokio::test]
     async fn run_reports_what_the_tool_wrote_to_its_standard_output() {
         let tool = pinned().await;

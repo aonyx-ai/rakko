@@ -94,7 +94,6 @@ pub struct FormatRust;
 impl Action for FormatRust {
     type Args = FormatRustArgs;
 
-    // formatrust[impl name]
     fn name(&self) -> Name {
         action_name!("format-rust")
     }
@@ -102,9 +101,6 @@ impl Action for FormatRust {
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
-            // formatrust[impl roots.error]
-            // formatrust[impl tool.missing]
-            // formatrust[impl tool.unpinned]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -125,25 +121,19 @@ impl Action for FormatRust {
 /// the tool or the toolchain, the discovery of the workspaces, a rustfmt
 /// run, or the reading of a report.
 async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, FormatRustError> {
-    // formatrust[impl tool.cargo]
-    // formatrust[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| FormatRustError::UnresolvedTool { source })?;
 
-    // formatrust[impl tool.toolchain]
-    // formatrust[impl tool.unpinned]
     let toolchain = Toolchain::resolve(Channel::new(NIGHTLY), context.root())
         .await
         .map_err(|source| FormatRustError::UnresolvedToolchain { source })?;
 
-    // formatrust[impl roots.error]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| FormatRustError::UndiscoveredRoots { source })?;
 
-    // formatrust[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
@@ -153,9 +143,7 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
     let mut findings = Vec::new();
     let mut repairs = Vec::new();
 
-    // formatrust[impl roots.all]
     for root in &roots {
-        // formatrust[impl check.read]
         let checked = observe(&cargo, &toolchain, root, &CHECK).await?;
 
         if checked.listed().is_empty() && checked.invalid().is_empty() {
@@ -172,8 +160,6 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
             );
             findings.extend(findings_of(&remaining, root, context)?);
         } else {
-            // formatrust[impl check.invalid]
-            // formatrust[impl check.unformatted]
             findings.extend(findings_of(&checked.problems(), root, context)?);
         }
     }
@@ -261,7 +247,6 @@ fn findings_of(
 /// Returns the error of a rewrite that could not finish: cargo did not run,
 /// rustfmt warned about its configuration, or it wrote a report that the
 /// action does not recognize.
-// formatrust[impl fix.write]
 async fn fix(
     cargo: &Cargo,
     toolchain: &Toolchain,
@@ -289,8 +274,6 @@ async fn fix(
 /// [rejected]: FormatRustError::RejectedConfiguration
 /// [unavailable]: FormatRustError::CargoUnavailable
 /// [unrecognized]: FormatRustError::UnrecognizedReport
-// formatrust[impl check.operation]
-// formatrust[impl tool.toolchain]
 async fn observe(
     cargo: &Cargo,
     toolchain: &Toolchain,
@@ -306,14 +289,12 @@ async fn observe(
 
     let report = RustfmtReport::read(&execution);
 
-    // formatrust[impl check.configuration]
     if let Some(details) = report.warning() {
         return Err(FormatRustError::RejectedConfiguration {
             details: details.clone(),
         });
     }
 
-    // formatrust[impl check.unrecognized]
     if !report.succeeded() && report.listed().is_empty() && report.invalid().is_empty() {
         return Err(FormatRustError::UnrecognizedReport {
             root: root.directory().clone(),
@@ -329,9 +310,6 @@ async fn observe(
 /// A run without findings and without repairs passed, a run that repaired
 /// everything changed the project, and a run with a finding failed, whether
 /// it repaired something on the way or not.
-// formatrust[impl check.passed]
-// formatrust[impl fix.changed]
-// formatrust[impl fix.partial]
 fn outcome(findings: Vec<Finding>, repairs: Vec<Finding>, roots: usize) -> Outcome {
     if !findings.is_empty() {
         Outcome::Failed { findings, repairs }
@@ -345,7 +323,6 @@ fn outcome(findings: Vec<Finding>, repairs: Vec<Finding>, roots: usize) -> Outco
 }
 
 /// Returns the summary that tells how many workspaces the run checked
-// formatrust[impl check.passed]
 fn summary(roots: usize) -> Summary {
     if roots == 1 {
         Summary::new("checked 1 workspace")
@@ -371,7 +348,6 @@ mod tests {
             .build()
     }
 
-    // formatrust[verify fix.partial]
     #[test]
     fn outcome_with_a_finding_and_a_repair_fails() {
         let outcome = outcome(vec![problem()], vec![problem()], 1);
@@ -382,7 +358,6 @@ mod tests {
         );
     }
 
-    // formatrust[verify fix.changed]
     #[test]
     fn outcome_with_only_repairs_reports_the_change() {
         let outcome = outcome(Vec::new(), vec![problem()], 1);
@@ -393,7 +368,6 @@ mod tests {
         );
     }
 
-    // formatrust[verify check.passed]
     #[test]
     fn outcome_without_findings_or_repairs_passes() {
         let outcome = outcome(Vec::new(), Vec::new(), 1);
@@ -404,7 +378,6 @@ mod tests {
         );
     }
 
-    // formatrust[verify check.passed]
     #[test]
     fn summary_of_one_workspace_says_so() {
         let summary = summary(1);
@@ -412,7 +385,6 @@ mod tests {
         assert_eq!(summary.get(), "checked 1 workspace");
     }
 
-    // formatrust[verify check.passed]
     #[test]
     fn summary_of_two_workspaces_counts_them() {
         let summary = summary(2);

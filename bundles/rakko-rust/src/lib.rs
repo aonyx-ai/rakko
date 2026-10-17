@@ -17,7 +17,6 @@ use rakko_test_rust::TestRust;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
-// rust[impl actions]
 #[must_use]
 pub fn bundle() -> Bundle {
     Bundle::new(vec![
@@ -39,7 +38,6 @@ mod tests {
 
     use super::*;
 
-    // rust[verify actions]
     #[test]
     fn bundle_exports_the_actions_that_any_rust_project_runs() {
         let names: Vec<String> = bundle()

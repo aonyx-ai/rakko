@@ -100,8 +100,6 @@ impl Filter {
     ///
     /// Prettier reads a brace list only when it holds more than one entry, so
     /// a single extension stands alone and several stand in braces.
-    // prettier[impl select.any]
-    // prettier[impl select.extensions]
     pub fn pattern(&self) -> String {
         let mut pattern = String::from(EVERY_DIRECTORY);
 
@@ -142,7 +140,6 @@ mod tests {
         Filter::new(extensions.iter().copied().map(FileExtension::new))
     }
 
-    // prettier[verify select.any]
     #[test]
     fn matches_a_file_of_another_extension_without_an_extension_of_its_own() {
         let matched = Filter::any().matches(&PathBuf::from("sub/a.rs"));
@@ -150,7 +147,6 @@ mod tests {
         assert!(matched);
     }
 
-    // prettier[verify select.extensions]
     #[test]
     fn matches_a_file_of_another_extension_reports_no_match() {
         let matched = filter(&["md"]).matches(&PathBuf::from("sub/a.rs"));
@@ -158,7 +154,6 @@ mod tests {
         assert!(!matched);
     }
 
-    // prettier[verify select.extensions]
     #[test]
     fn matches_a_file_of_the_extension_reports_a_match() {
         let matched = filter(&["json", "json5"]).matches(&PathBuf::from("sub/a.json5"));
@@ -166,7 +161,6 @@ mod tests {
         assert!(matched);
     }
 
-    // prettier[verify select.extensions]
     #[test]
     fn matches_a_file_of_the_extension_in_another_case_reports_no_match() {
         let matched = filter(&["md"]).matches(&PathBuf::from("README.MD"));
@@ -174,7 +168,6 @@ mod tests {
         assert!(!matched);
     }
 
-    // prettier[verify select.any]
     #[test]
     fn matches_a_file_without_an_extension_reports_no_match() {
         let matched = Filter::any().matches(&PathBuf::from("LICENSE-MIT"));
@@ -182,7 +175,6 @@ mod tests {
         assert!(!matched);
     }
 
-    // prettier[verify select.any]
     #[test]
     fn pattern_without_an_extension_matches_every_extension() {
         let pattern = Filter::any().pattern();
@@ -190,7 +182,6 @@ mod tests {
         assert_eq!(pattern, "**/*.*");
     }
 
-    // prettier[verify select.extensions]
     #[test]
     fn pattern_with_one_extension_names_it_alone() {
         let pattern = filter(&["md"]).pattern();
@@ -198,7 +189,6 @@ mod tests {
         assert_eq!(pattern, "**/*.md");
     }
 
-    // prettier[verify select.extensions]
     #[test]
     fn pattern_with_several_extensions_names_them_in_braces() {
         let pattern = filter(&["yaml", "yml"]).pattern();

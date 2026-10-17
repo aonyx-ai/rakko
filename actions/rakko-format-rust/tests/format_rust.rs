@@ -237,7 +237,6 @@ impl Drop for Project {
     }
 }
 
-// formatrust[verify name]
 #[test]
 fn action_identifies_itself_as_format_rust() {
     let name = FormatRust.name();
@@ -245,7 +244,6 @@ fn action_identifies_itself_as_format_rust() {
     assert_eq!(name.get(), "format-rust");
 }
 
-// formatrust[verify check.invalid]
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_rustfmt() {
     let project = Project::with_library(INVALID);
@@ -262,7 +260,6 @@ async fn run_with_an_invalid_file_carries_the_message_of_rustfmt() {
     );
 }
 
-// formatrust[verify check.invalid]
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::with_library(INVALID);
@@ -284,7 +281,6 @@ async fn run_with_an_invalid_file_reports_the_position() {
     );
 }
 
-// formatrust[verify check.unformatted]
 #[tokio::test]
 async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::with_library(UNFORMATTED);
@@ -304,7 +300,6 @@ async fn run_with_an_unformatted_file_names_the_file() {
     );
 }
 
-// formatrust[verify check.read]
 #[tokio::test]
 async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::with_library(UNFORMATTED);
@@ -314,7 +309,6 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     assert_eq!(project.read("src/lib.rs"), UNFORMATTED);
 }
 
-// formatrust[verify check.configuration]
 #[tokio::test]
 async fn run_with_an_unknown_option_stops() {
     let project = Project::with_library(FORMATTED);
@@ -328,7 +322,6 @@ async fn run_with_an_unknown_option_stops() {
     );
 }
 
-// formatrust[verify check.configuration]
 #[tokio::test]
 async fn run_with_an_unknown_option_reports_what_rustfmt_said() {
     let project = Project::with_library(FORMATTED);
@@ -345,7 +338,6 @@ async fn run_with_an_unknown_option_reports_what_rustfmt_said() {
     );
 }
 
-// formatrust[verify check.unrecognized]
 #[tokio::test]
 async fn run_with_a_configuration_that_rustfmt_cannot_parse_stops() {
     let project = Project::with_library(FORMATTED);
@@ -359,7 +351,6 @@ async fn run_with_a_configuration_that_rustfmt_cannot_parse_stops() {
     );
 }
 
-// formatrust[verify check.unrecognized]
 #[tokio::test]
 async fn run_with_a_configuration_that_rustfmt_cannot_parse_reports_what_it_wrote() {
     let project = Project::with_library(FORMATTED);
@@ -376,10 +367,6 @@ async fn run_with_a_configuration_that_rustfmt_cannot_parse_reports_what_it_wrot
     );
 }
 
-// formatrust[verify check.operation]
-// formatrust[verify check.passed]
-// formatrust[verify tool.cargo]
-// formatrust[verify tool.toolchain]
 #[tokio::test]
 async fn run_in_a_formatted_project_passes() {
     let project = Project::with_library(FORMATTED);
@@ -392,7 +379,6 @@ async fn run_in_a_formatted_project_passes() {
     );
 }
 
-// formatrust[verify check.passed]
 #[tokio::test]
 async fn run_in_a_formatted_project_counts_the_workspaces() {
     let project = Project::with_library(FORMATTED);
@@ -408,7 +394,6 @@ async fn run_in_a_formatted_project_counts_the_workspaces() {
     );
 }
 
-// formatrust[verify roots.all]
 #[tokio::test]
 async fn run_with_an_unformatted_file_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(FORMATTED);
@@ -423,7 +408,6 @@ async fn run_with_an_unformatted_file_in_a_second_workspace_names_its_path() {
     assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
-// formatrust[verify roots.all]
 #[tokio::test]
 async fn run_with_two_workspaces_counts_both() {
     let project = Project::with_library(FORMATTED);
@@ -441,7 +425,6 @@ async fn run_with_two_workspaces_counts_both() {
     );
 }
 
-// formatrust[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -455,7 +438,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
-// formatrust[verify fix.changed]
 #[tokio::test]
 async fn run_with_fix_holds_one_repair_for_each_file() {
     let project = Project::with_library(UNFORMATTED);
@@ -474,7 +456,6 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
     );
 }
 
-// formatrust[verify fix.changed]
 #[tokio::test]
 async fn run_with_fix_reports_the_change() {
     let project = Project::with_library(UNFORMATTED);
@@ -487,7 +468,6 @@ async fn run_with_fix_reports_the_change() {
     );
 }
 
-// formatrust[verify fix.write]
 #[tokio::test]
 async fn run_with_fix_rewrites_the_file() {
     let project = Project::with_library(UNFORMATTED);
@@ -497,7 +477,6 @@ async fn run_with_fix_rewrites_the_file() {
     assert_eq!(project.read("src/lib.rs"), REWRITTEN);
 }
 
-// formatrust[verify fix.partial]
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_elsewhere_fails() {
     let project = Project::with_library(UNFORMATTED);
@@ -512,7 +491,6 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_fails() {
     );
 }
 
-// formatrust[verify fix.partial]
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_elsewhere_holds_the_repairs() {
     let project = Project::with_library(UNFORMATTED);
@@ -527,7 +505,6 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_holds_the_repairs() {
     assert_eq!(locations(repairs), [path_text("src/lib.rs")]);
 }
 
-// formatrust[verify fix.partial]
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_elsewhere_keeps_the_problem() {
     let project = Project::with_library(UNFORMATTED);
@@ -542,7 +519,6 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_keeps_the_problem() {
     assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
-// formatrust[verify fix.partial]
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_module_keeps_the_package_as_it_is() {
     let project = Project::with_library("pub mod broken;\npub fn messy( ) {}\n");
@@ -559,7 +535,6 @@ async fn run_with_fix_and_an_invalid_module_keeps_the_package_as_it_is() {
     );
 }
 
-// formatrust[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::with_rust("\"0.0.1\"");
@@ -572,7 +547,6 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// formatrust[verify tool.unpinned]
 #[tokio::test]
 async fn run_without_a_nightly_toolchain_names_the_channel() {
     let project = Project::with_rust(&format!("\"{}\"", pinned_rust().await));
@@ -594,7 +568,6 @@ async fn run_without_a_nightly_toolchain_names_the_channel() {
     );
 }
 
-// formatrust[verify tool.unpinned]
 #[tokio::test]
 async fn run_without_a_nightly_toolchain_stops() {
     let project = Project::with_rust(&format!("\"{}\"", pinned_rust().await));
@@ -607,7 +580,6 @@ async fn run_without_a_nightly_toolchain_stops() {
     );
 }
 
-// formatrust[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();

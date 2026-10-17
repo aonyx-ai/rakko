@@ -43,7 +43,6 @@ use serde::{Serialize, Serializer};
 /// ```
 ///
 /// [`Display`]: fmt::Display
-// cli[impl report.written]
 #[derive(Debug)]
 pub struct Report {
     /// The name of the action that the run drove
@@ -55,24 +54,18 @@ pub struct Report {
 impl Report {
     /// Creates a report from the name of an action and what that action
     /// returned
-    // cli[impl report.written]
     #[must_use]
     pub fn new(action: Name, outcome: Outcome) -> Self {
         Self { action, outcome }
     }
 }
 
-// cli[impl report.findings]
-// cli[impl report.repairs]
-// cli[impl report.skipped]
-// cli[impl report.errored+2]
 impl fmt::Display for Report {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         self::text::render(self, formatter)
     }
 }
 
-// cli[impl report.json+2]
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self::schema::Payload::of(self).serialize(serializer)

@@ -193,7 +193,6 @@ impl Drop for Project {
     }
 }
 
-// lintmarkdown[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<LintMarkdown as Action>::Args as Args>::schema();
@@ -205,7 +204,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// lintmarkdown[verify name]
 #[test]
 fn action_identifies_itself_as_lint_markdown() {
     let name = LintMarkdown.name();
@@ -213,7 +211,6 @@ fn action_identifies_itself_as_lint_markdown() {
     assert_eq!(name.get(), "lint-markdown");
 }
 
-// lintmarkdown[verify check.read]
 #[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
@@ -224,7 +221,6 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     assert_eq!(project.read("notes.md"), UNSPACED_HEADING);
 }
 
-// lintmarkdown[verify run.ignored]
 #[tokio::test]
 async fn run_leaves_out_a_directory_that_the_ignore_file_names() {
     let project = Project::new();
@@ -241,7 +237,6 @@ async fn run_leaves_out_a_directory_that_the_ignore_file_names() {
     );
 }
 
-// lintmarkdown[verify run.git]
 #[tokio::test]
 async fn run_leaves_out_the_directories_of_git() {
     let project = Project::new();
@@ -258,8 +253,6 @@ async fn run_leaves_out_the_directories_of_git() {
     );
 }
 
-// lintmarkdown[verify check.passed]
-// lintmarkdown[verify tool.markdownlint]
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
@@ -273,7 +266,6 @@ async fn run_in_a_valid_project_passes() {
     );
 }
 
-// lintmarkdown[verify run.structured+2]
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
@@ -288,8 +280,6 @@ async fn run_reads_the_configuration_of_the_project() {
     );
 }
 
-// lintmarkdown[verify check.violation]
-// lintmarkdown[verify run.structured+2]
 #[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_markdownlint() {
     let project = Project::new();
@@ -307,7 +297,6 @@ async fn run_with_a_broken_rule_carries_the_message_of_markdownlint() {
     );
 }
 
-// lintmarkdown[verify check.violation]
 #[tokio::test]
 async fn run_with_a_broken_rule_names_the_file() {
     let project = Project::new();
@@ -325,7 +314,6 @@ async fn run_with_a_broken_rule_names_the_file() {
     assert_eq!(locations(findings), ["sub/notes.md"]);
 }
 
-// lintmarkdown[verify check.column]
 #[tokio::test]
 async fn run_with_a_rule_that_names_a_column_reports_it() {
     let project = Project::new();
@@ -346,7 +334,6 @@ async fn run_with_a_rule_that_names_a_column_reports_it() {
     );
 }
 
-// lintmarkdown[verify check.column]
 #[tokio::test]
 async fn run_with_a_rule_that_names_no_column_reports_the_line_alone() {
     let project = Project::new();
@@ -366,7 +353,6 @@ async fn run_with_a_rule_that_names_no_column_reports_the_line_alone() {
     );
 }
 
-// lintmarkdown[verify check.unreadable]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_stops() {
@@ -388,7 +374,6 @@ async fn run_with_an_unreadable_file_stops() {
     );
 }
 
-// lintmarkdown[verify skip.unexamined]
 #[tokio::test]
 async fn run_whose_markdownlint_examined_nothing_skips() {
     let project = Project::new();
@@ -406,7 +391,6 @@ async fn run_whose_markdownlint_examined_nothing_skips() {
     );
 }
 
-// lintmarkdown[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_markdownlint_stops() {
     let project = Project::without_markdownlint();
@@ -420,7 +404,6 @@ async fn run_without_a_markdownlint_stops() {
     );
 }
 
-// lintmarkdown[verify skip.unexamined]
 #[tokio::test]
 async fn run_without_markdown_files_skips() {
     let project = Project::new();
@@ -434,7 +417,6 @@ async fn run_without_markdown_files_skips() {
     );
 }
 
-// lintmarkdown[verify run.project]
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
@@ -450,7 +432,6 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
     assert_eq!(locations(findings), ["deep/sub/notes.md"]);
 }
 
-// lintmarkdown[verify run.dot]
 #[tokio::test]
 async fn run_reaches_a_file_in_a_directory_with_a_dot() {
     let project = Project::new();

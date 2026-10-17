@@ -31,7 +31,6 @@ const NO_LIBRARY: &str = "no workspace of the project holds a library";
 /// The report of cargo arrives as JSON, because the action reads it as data.
 /// The format selects the presentation of the report and not the behavior of
 /// the tool.
-// testrustdocs[impl run.operation]
 const TEST: [&str; 6] = [
     "test",
     "--workspace",
@@ -85,10 +84,8 @@ const TEST: [&str; 6] = [
 pub struct TestRustDocs;
 
 impl Action for TestRustDocs {
-    // testrustdocs[impl args.none]
     type Args = ();
 
-    // testrustdocs[impl name]
     fn name(&self) -> Name {
         action_name!("test-rust-docs")
     }
@@ -96,9 +93,6 @@ impl Action for TestRustDocs {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // testrustdocs[impl roots.error]
-            // testrustdocs[impl run.error]
-            // testrustdocs[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -128,19 +122,15 @@ struct Examined {
 /// the tool, the discovery of the workspaces, a run of cargo, or the reading
 /// of a report.
 async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
-    // testrustdocs[impl tool.cargo]
-    // testrustdocs[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| TestRustDocsError::UnresolvedTool { source })?;
 
-    // testrustdocs[impl roots.error]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| TestRustDocsError::UndiscoveredRoots { source })?;
 
-    // testrustdocs[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
@@ -151,7 +141,6 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
     let mut tested = 0;
     let mut ran = 0;
 
-    // testrustdocs[impl roots.all]
     for root in &roots {
         if root.documentation() == Documentation::Untestable {
             continue;
@@ -164,7 +153,6 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
         ran += examined.ran;
     }
 
-    // testrustdocs[impl skip.libraries]
     if tested == 0 {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_LIBRARY),
@@ -172,14 +160,10 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
     }
 
     if findings.is_empty() {
-        // testrustdocs[impl run.none]
-        // testrustdocs[impl run.passed]
         Ok(Outcome::Passed {
             summary: Some(summary(ran, tested)),
         })
     } else {
-        // testrustdocs[impl run.build]
-        // testrustdocs[impl run.failed]
         Ok(Outcome::Failed {
             findings,
             repairs: Vec::new(),
@@ -201,8 +185,6 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
 /// [report]: TestRustDocsError::UnreadableReport
 /// [unavailable]: TestRustDocsError::CargoUnavailable
 /// [unrecognized]: TestRustDocsError::UnrecognizedReport
-// testrustdocs[impl run.operation]
-// testrustdocs[impl run.read]
 async fn examine(
     cargo: &Cargo,
     root: &CargoRoot,
@@ -227,8 +209,6 @@ async fn examine(
             source,
         })?;
 
-    // testrustdocs[impl report.unrecognized]
-    // testrustdocs[impl run.error]
     if !recognized(&report, &build, &execution) {
         return Err(TestRustDocsError::UnrecognizedReport {
             root: root.directory().clone(),
@@ -236,14 +216,12 @@ async fn examine(
         });
     }
 
-    // testrustdocs[impl finding.build]
     let mut findings: Vec<Finding> = build
         .diagnostics()
         .iter()
         .map(|diagnostic| diagnostic.finding(root, context.root()))
         .collect();
 
-    // testrustdocs[impl finding.failed]
     findings.extend(
         report
             .failures()
@@ -264,7 +242,6 @@ async fn examine(
 /// named neither a failed example nor a diagnostic failed for a reason that
 /// the action cannot read, such as a build script that ended badly. An
 /// answer built on either would hide problems behind a green result.
-// testrustdocs[impl report.unrecognized]
 fn recognized(report: &DoctestReport, build: &CargoReport, execution: &Execution) -> bool {
     if execution.status().success() {
         report.summaries() > 0
@@ -275,7 +252,6 @@ fn recognized(report: &DoctestReport, build: &CargoReport, execution: &Execution
 
 /// Returns the summary that tells how many examples ran in how many
 /// workspaces
-// testrustdocs[impl run.passed]
 fn summary(ran: u64, roots: usize) -> Summary {
     let examples = match ran {
         1 => "1 example".to_owned(),
@@ -297,7 +273,6 @@ mod tests {
 
     use super::*;
 
-    // testrustdocs[verify run.passed]
     #[test]
     fn summary_of_many_examples_counts_them() {
         let summary = summary(42, 2);
@@ -305,7 +280,6 @@ mod tests {
         assert_eq!(summary.get(), "ran 42 examples in 2 workspaces");
     }
 
-    // testrustdocs[verify run.none]
     #[test]
     fn summary_of_no_example_counts_zero() {
         let summary = summary(0, 2);
@@ -313,7 +287,6 @@ mod tests {
         assert_eq!(summary.get(), "ran 0 examples in 2 workspaces");
     }
 
-    // testrustdocs[verify run.passed]
     #[test]
     fn summary_of_one_example_in_one_workspace_says_so() {
         let summary = summary(1, 1);

@@ -80,9 +80,6 @@ impl From<ObserveZizmorError> for LintGitHubActionsError {
     ///
     /// The machinery that runs zizmor names the same three conditions that the
     /// action reports, so the conversion renames them and adds nothing.
-    // lintgithubactions[impl check.configuration]
-    // lintgithubactions[impl check.incomplete]
-    // lintgithubactions[impl check.unreadable]
     fn from(error: ObserveZizmorError) -> Self {
         match error {
             ObserveZizmorError::IncompleteAudit { details } => Self::IncompleteAudit { details },
@@ -110,8 +107,6 @@ mod tests {
     /// What zizmor wrote in a run whose report the crate could not read
     const REPORT: &str = "fatal: no audit was performed";
 
-    // lintgithubactions[verify check.configuration]
-    // lintgithubactions[verify check.incomplete]
     #[test]
     fn error_of_a_run_that_stopped_holds_what_zizmor_wrote() {
         let error = LintGitHubActionsError::from(ObserveZizmorError::IncompleteAudit {
@@ -124,7 +119,6 @@ mod tests {
         );
     }
 
-    // lintgithubactions[verify check.unreadable]
     #[test]
     fn error_of_an_unreadable_report_holds_what_zizmor_wrote() {
         let source = serde_json::from_str::<Vec<u8>>(REPORT)

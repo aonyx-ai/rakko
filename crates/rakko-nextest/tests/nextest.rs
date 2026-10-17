@@ -194,7 +194,6 @@ fn trust(configuration: &Path) {
     );
 }
 
-// nextest[verify report.unrecognized]
 #[tokio::test]
 async fn observe_a_build_script_that_fails_holds_what_nextest_wrote() {
     let project = Project::new();
@@ -213,7 +212,6 @@ async fn observe_a_build_script_that_fails_holds_what_nextest_wrote() {
     );
 }
 
-// nextest[verify report.unrecognized]
 #[tokio::test]
 async fn observe_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -232,7 +230,6 @@ async fn observe_a_build_script_that_fails_stops() {
     );
 }
 
-// nextest[verify finding.build]
 #[tokio::test]
 async fn observe_a_compiler_error_reports_the_diagnostic() {
     let project = Project::with_library(BROKEN);
@@ -252,7 +249,6 @@ async fn observe_a_compiler_error_reports_the_diagnostic() {
     );
 }
 
-// nextest[verify finding.failed]
 #[tokio::test]
 async fn observe_a_failing_test_carries_the_message_of_the_panic() {
     let project = Project::with_library(FAILING);
@@ -272,7 +268,6 @@ async fn observe_a_failing_test_carries_the_message_of_the_panic() {
     );
 }
 
-// nextest[verify finding.failed]
 #[tokio::test]
 async fn observe_a_failing_test_names_the_test() {
     let project = Project::with_library(FAILING);
@@ -292,7 +287,6 @@ async fn observe_a_failing_test_names_the_test() {
     );
 }
 
-// nextest[verify finding.position]
 #[tokio::test]
 async fn observe_a_failing_test_reports_where_it_panicked() {
     let project = Project::with_library(FAILING);
@@ -317,9 +311,6 @@ async fn observe_a_failing_test_reports_where_it_panicked() {
     );
 }
 
-// nextest[verify report.ran]
-// nextest[verify run.consent]
-// nextest[verify run.operation+2]
 #[tokio::test]
 async fn observe_a_passing_test_counts_it() {
     let project = Project::with_library(PASSING);
@@ -332,7 +323,6 @@ async fn observe_a_passing_test_counts_it() {
     assert_eq!(observation.ran(), 1);
 }
 
-// nextest[verify run.operation+2]
 #[tokio::test]
 async fn observe_a_passing_test_finds_nothing() {
     let project = Project::with_library(PASSING);
@@ -353,7 +343,6 @@ async fn observe_a_passing_test_finds_nothing() {
 // builds the versions of the lockfile has none to build and refuses. That
 // refusal is a report that the crate cannot answer from, which is what a
 // caller reads when the resolution it asked about is not the one on disk.
-// nextest[verify run.lockfile]
 #[tokio::test]
 async fn observe_a_workspace_without_a_lockfile_with_a_locked_run_stops() {
     let project = Project::with_library(PASSING);
@@ -369,7 +358,6 @@ async fn observe_a_workspace_without_a_lockfile_with_a_locked_run_stops() {
     );
 }
 
-// nextest[verify run.lockfile]
 #[tokio::test]
 async fn observe_a_workspace_without_a_lockfile_with_a_writable_run_resolves_it() {
     let project = Project::with_library(PASSING);
@@ -379,7 +367,6 @@ async fn observe_a_workspace_without_a_lockfile_with_a_writable_run_resolves_it(
     assert!(project.holds("Cargo.lock"));
 }
 
-// nextest[verify report.none]
 #[tokio::test]
 async fn observe_a_workspace_without_a_test_counts_zero() {
     let project = Project::with_library(UNTESTED);
@@ -392,7 +379,6 @@ async fn observe_a_workspace_without_a_test_counts_zero() {
     assert_eq!(observation.ran(), 0);
 }
 
-// nextest[verify report.none]
 #[tokio::test]
 async fn observe_a_workspace_without_a_test_finds_nothing() {
     let project = Project::with_library(UNTESTED);
@@ -409,7 +395,6 @@ async fn observe_a_workspace_without_a_test_finds_nothing() {
     );
 }
 
-// nextest[verify run.consent]
 #[tokio::test]
 async fn observe_gives_consent_to_no_other_process() {
     let project = Project::with_library(PASSING);

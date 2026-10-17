@@ -256,7 +256,6 @@ impl Drop for Project {
     }
 }
 
-// checktypescript[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<CheckTypeScript as Action>::Args as Args>::schema();
@@ -268,7 +267,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// checktypescript[verify name]
 #[test]
 fn action_identifies_itself_as_check_typescript() {
     let name = CheckTypeScript.name();
@@ -276,8 +274,6 @@ fn action_identifies_itself_as_check_typescript() {
     assert_eq!(name.get(), "check-typescript");
 }
 
-// checktypescript[verify check.passed]
-// checktypescript[verify tool.tsc]
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
@@ -292,7 +288,6 @@ async fn run_in_a_valid_project_passes() {
     );
 }
 
-// checktypescript[verify check.read]
 #[tokio::test]
 async fn run_leaves_a_file_with_a_type_error_unchanged() {
     let project = Project::new();
@@ -304,7 +299,6 @@ async fn run_leaves_a_file_with_a_type_error_unchanged() {
     assert_eq!(project.read("src/index.ts"), WRONG_TYPE);
 }
 
-// checktypescript[verify run.project]
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
@@ -320,7 +314,6 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
     assert_eq!(locations(findings), [path_text("src/deep/sub/broken.ts")]);
 }
 
-// checktypescript[verify check.configuration]
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
@@ -335,7 +328,6 @@ async fn run_reads_the_configuration_of_the_project() {
     );
 }
 
-// checktypescript[verify check.configuration]
 #[tokio::test]
 async fn run_without_the_option_of_the_project_passes_the_same_file() {
     let project = Project::new();
@@ -350,7 +342,6 @@ async fn run_without_the_option_of_the_project_passes_the_same_file() {
     );
 }
 
-// checktypescript[verify run.noemit]
 #[tokio::test]
 async fn run_of_a_project_that_builds_writes_no_output() {
     let project = Project::new();
@@ -367,7 +358,6 @@ async fn run_of_a_project_that_builds_writes_no_output() {
 
 // A configuration that tsc refuses belongs to the file that states it, so the
 // run reports it where a reader can repair it.
-// checktypescript[verify check.diagnostic+2]
 #[tokio::test]
 async fn run_with_a_refused_configuration_reports_the_configuration_file() {
     let project = Project::new();
@@ -382,7 +372,6 @@ async fn run_with_a_refused_configuration_reports_the_configuration_file() {
     assert_eq!(locations(findings), [path_text("tsconfig.json")]);
 }
 
-// checktypescript[verify check.foreign]
 #[tokio::test]
 async fn run_with_a_type_error_beside_the_project_names_its_place() {
     let project = Project::nested();
@@ -407,7 +396,6 @@ async fn run_with_a_type_error_beside_the_project_names_its_place() {
 // the place in another shape, and it carries the source of the file and the
 // marks under it, so this test also fails wherever the environment would make
 // tsc draw.
-// checktypescript[verify check.diagnostic+2]
 #[tokio::test]
 async fn run_with_a_type_error_carries_the_message_of_tsc() {
     let project = Project::new();
@@ -429,7 +417,6 @@ async fn run_with_a_type_error_carries_the_message_of_tsc() {
 // environment that states a terminal is capable of color makes it draw without
 // one, which is how a report that reads on a workstation arrives in escape
 // codes on a build server.
-// checktypescript[verify run.plain]
 #[tokio::test]
 async fn run_with_a_type_error_reports_a_message_without_color_codes() {
     let project = Project::new();
@@ -448,7 +435,6 @@ async fn run_with_a_type_error_reports_a_message_without_color_codes() {
     );
 }
 
-// checktypescript[verify check.diagnostic+2]
 #[tokio::test]
 async fn run_with_a_type_error_reports_the_position_of_tsc() {
     let project = Project::new();
@@ -471,7 +457,6 @@ async fn run_with_a_type_error_reports_the_position_of_tsc() {
     );
 }
 
-// checktypescript[verify check.elaboration]
 #[tokio::test]
 async fn run_with_an_explained_diagnostic_carries_the_explanation() {
     let project = Project::new();
@@ -493,7 +478,6 @@ async fn run_with_an_explained_diagnostic_carries_the_explanation() {
     );
 }
 
-// checktypescript[verify check.elaboration]
 #[tokio::test]
 async fn run_with_an_explained_diagnostic_reports_one_finding() {
     let project = Project::new();
@@ -510,7 +494,6 @@ async fn run_with_an_explained_diagnostic_reports_one_finding() {
 
 // A project that holds no configuration of tsc is no TypeScript project, and
 // tsc reports that it found none rather than that it found no problem.
-// checktypescript[verify skip.unconfigured]
 #[tokio::test]
 async fn run_without_a_configuration_file_skips() {
     let project = Project::new();
@@ -527,7 +510,6 @@ async fn run_without_a_configuration_file_skips() {
     );
 }
 
-// checktypescript[verify skip.uninhabited]
 #[tokio::test]
 async fn run_whose_configuration_selected_nothing_skips() {
     let project = Project::new();
@@ -542,7 +524,6 @@ async fn run_whose_configuration_selected_nothing_skips() {
     );
 }
 
-// checktypescript[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_tsc_stops() {
     let project = Project::without_tsc();

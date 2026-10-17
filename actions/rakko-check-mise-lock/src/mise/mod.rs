@@ -52,7 +52,6 @@ const JSON: &str = "--json";
 /// environment, the project, or the global configuration of the contributor
 /// asks for. Each setting selects what mise shows, and not what it locks, and
 /// each of them silences mise on its own, so the run sets all three.
-// checkmiselock[impl lock.warnings]
 const VERBOSITY: [(&str, &str); 3] = [
     ("MISE_QUIET", "false"),
     ("MISE_SILENT", "false"),
@@ -67,7 +66,6 @@ const VERBOSITY: [(&str, &str); 3] = [
 /// Every run of mise takes it out of its environment, so that the action
 /// never trusts a project in the place of whoever owns it, and a project that
 /// nobody trusted stops the run.
-// checkmiselock[impl tool.unanswered]
 const YES: &str = "MISE_YES";
 
 /// The variables with which an environment says that it is a job of CI
@@ -77,7 +75,6 @@ const YES: &str = "MISE_YES";
 /// out of its environment, so that a project that nobody trusted stops the
 /// run on a job of CI as well. A project that a job checks stays trusted
 /// through the directories that `MISE_TRUSTED_CONFIG_PATHS` names.
-// checkmiselock[impl tool.unattended]
 const CI: [&str; 2] = ["CI", "GITHUB_ACTIONS"];
 
 /// The variable that names the directories that mise trusts for one run
@@ -199,8 +196,6 @@ impl Mise {
     /// [unavailable]: CheckMiseLockError::MiseUnavailable
     /// [unlocked]: CheckMiseLockError::UnlockedProject
     /// [unresolved]: CheckMiseLockError::UnexpectedWarnings
-    // checkmiselock[impl lock.operation]
-    // checkmiselock[impl tool.failed]
     pub async fn lock(&self) -> Result<Lock, CheckMiseLockError> {
         let execution = self
             .lock_invocation()
@@ -214,7 +209,6 @@ impl Mise {
             });
         }
 
-        // checkmiselock[impl lock.unresolved]
         let output = plain(&format!(
             "{}\n{}",
             execution.stdout().to_string_lossy(),
@@ -225,7 +219,6 @@ impl Mise {
             return Err(CheckMiseLockError::UnexpectedWarnings { details });
         }
 
-        // checkmiselock[impl skip.unconfigured]
         if let Some(reason) = unconfigured(&execution) {
             return Ok(Lock::Unconfigured { reason });
         }
@@ -251,8 +244,6 @@ impl Mise {
     /// [inaccessible]: CheckMiseLockError::InaccessibleLockfile
     /// [list]: Mise::list
     /// [unreadable]: CheckMiseLockError::UnreadableLockfile
-    // checkmiselock[impl lockfiles.listed]
-    // checkmiselock[impl lockfiles.unreadable]
     pub async fn lockfiles(&self) -> Result<BTreeMap<FilePath, Lockfile>, CheckMiseLockError> {
         let mut lockfiles = BTreeMap::new();
 
@@ -285,9 +276,6 @@ impl Mise {
     /// [listing]: CheckMiseLockError::UnreadableListing
     /// [unavailable]: CheckMiseLockError::MiseUnavailable
     /// [unlisted]: CheckMiseLockError::UnlistedLockfiles
-    // checkmiselock[impl lockfiles.listed]
-    // checkmiselock[impl lockfiles.unreadable]
-    // checkmiselock[impl tool.failed]
     pub async fn list(&self) -> Result<Vec<FilePath>, CheckMiseLockError> {
         let execution = self
             .invocation()
@@ -315,10 +303,6 @@ impl Mise {
     /// question that the environment answers in the place of the contributor,
     /// and the variables that tell mise it runs on a job of CI, with which it
     /// trusts every configuration.
-    // checkmiselock[impl tool.mise]
-    // checkmiselock[impl tool.unanswered]
-    // checkmiselock[impl tool.unattended]
-    // checkmiselock[impl copy.trust]
     fn invocation(&self) -> Invocation {
         let invocation = CI.into_iter().fold(
             Invocation::new(MISE)
@@ -338,8 +322,6 @@ impl Mise {
     /// The command sets the settings that make mise show its warnings in its
     /// environment, because the run reads a warning to learn that mise failed
     /// to resolve a tool.
-    // checkmiselock[impl lock.operation]
-    // checkmiselock[impl lock.warnings]
     fn lock_invocation(&self) -> Invocation {
         VERBOSITY
             .into_iter()
@@ -358,7 +340,6 @@ impl Mise {
     ///
     /// [inaccessible]: CheckMiseLockError::InaccessibleLockfile
     /// [unreadable]: CheckMiseLockError::UnreadableLockfile
-    // checkmiselock[impl lockfiles.unreadable]
     async fn read(&self, path: &FilePath) -> Result<Lockfile, CheckMiseLockError> {
         let text = tokio::fs::read_to_string(self.root.get().join(path.get()))
             .await
@@ -379,7 +360,6 @@ impl Mise {
 /// Mise writes its diagnosis to the standard error stream, so whoever reads
 /// the error reads the answer of mise instead of a sentence that Rakko wrote
 /// about it.
-// checkmiselock[impl tool.failed]
 fn details(execution: &Execution) -> String {
     let diagnosis = plain(&execution.stderr().to_string_lossy());
     let text = diagnosis.trim();
@@ -431,8 +411,6 @@ fn plain(text: &str) -> String {
 /// lockfile of the project and could write outside it.
 ///
 /// [foreign]: CheckMiseLockError::ForeignLockfile
-// checkmiselock[impl lock.unaddressed]
-// checkmiselock[impl lock.foreign]
 fn targets(
     output: &str,
     root: &ProjectRoot,
@@ -481,7 +459,6 @@ fn targets(
 ///
 /// [foreign]: CheckMiseLockError::ForeignLockfile
 /// [listing]: CheckMiseLockError::UnreadableListing
-// checkmiselock[impl lockfiles.unreadable]
 fn listed(listing: &str, root: &ProjectRoot) -> Result<Vec<FilePath>, CheckMiseLockError> {
     let entries: Vec<Listed> =
         serde_json::from_str(listing).map_err(|source| CheckMiseLockError::UnreadableListing {
@@ -509,7 +486,6 @@ fn listed(listing: &str, root: &ProjectRoot) -> Result<Vec<FilePath>, CheckMiseL
 /// resolve it. The answer holds each such warning as a whole, as mise wrote
 /// it, and once, also when mise gave it for several requests. A warning ends
 /// where the next record of mise starts.
-// checkmiselock[impl lock.unresolved]
 fn unresolved(output: &str) -> Option<String> {
     let mut warnings: Vec<Vec<&str>> = Vec::new();
     let mut inside = false;
@@ -553,7 +529,6 @@ fn unresolved(output: &str) -> Option<String> {
 /// Mise writes a warning when the project configures no tool to lock, and it
 /// ends with success. The reason is the line of that warning, without the
 /// mark that starts it, as mise wrote it.
-// checkmiselock[impl skip.unconfigured]
 fn unconfigured(execution: &Execution) -> Option<SkipReason> {
     let stdout = plain(&execution.stdout().to_string_lossy());
     let stderr = plain(&execution.stderr().to_string_lossy());
@@ -590,7 +565,6 @@ mod tests {
             .map(|variable| variable.value().get().to_owned())
     }
 
-    // checkmiselock[verify copy.trust]
     #[test]
     fn invocation_of_a_granted_directory_trusts_the_directory() {
         let mise = Mise::new(root(), Trust::Granted);
@@ -598,7 +572,6 @@ mod tests {
         assert_eq!(trusted(&mise), Some(root().get().as_os_str().to_owned()));
     }
 
-    // checkmiselock[verify copy.trust]
     #[test]
     fn invocation_of_an_inherited_directory_trusts_nothing_of_its_own() {
         let mise = Mise::new(root(), Trust::Inherited);
@@ -606,7 +579,6 @@ mod tests {
         assert_eq!(trusted(&mise), None);
     }
 
-    // checkmiselock[verify tool.unanswered]
     #[test]
     fn invocation_takes_the_answer_of_the_environment_out() {
         let mise = Mise::new(root(), Trust::Granted);
@@ -621,7 +593,6 @@ mod tests {
         assert_eq!(removed[..1], [YES]);
     }
 
-    // checkmiselock[verify tool.unattended]
     #[test]
     fn invocation_takes_the_signs_of_ci_out() {
         let mise = Mise::new(root(), Trust::Granted);
@@ -636,7 +607,6 @@ mod tests {
         assert_eq!(removed[1..], CI);
     }
 
-    // checkmiselock[verify lockfiles.unreadable]
     #[test]
     fn listed_with_a_list_that_is_not_json_reports_the_list() {
         let error = listed("mise.lock", &root()).unwrap_err();
@@ -647,7 +617,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lockfiles.unreadable]
     #[test]
     fn listed_with_a_lockfile_outside_the_directory_reports_it() {
         let lockfile = serde_json::to_string(&path("/elsewhere/mise.lock")).unwrap();
@@ -661,7 +630,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lockfiles.listed]
     #[test]
     fn listed_with_several_lockfiles_names_each_of_them() {
         let listing = r#"[
@@ -680,7 +648,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.warnings]
     #[test]
     fn lock_invocation_makes_mise_show_its_warnings() {
         let mise = Mise::new(root(), Trust::Inherited);
@@ -703,7 +670,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.operation]
     #[test]
     fn lock_invocation_passes_no_option() {
         let mise = Mise::new(root(), Trust::Inherited);
@@ -718,7 +684,6 @@ mod tests {
         assert_eq!(arguments, [LOCK]);
     }
 
-    // checkmiselock[verify skip.unconfigured]
     #[test]
     fn plain_with_colors_drops_them() {
         let text = "\u{1b}[33m!\u{1b}[0m No tools configured to lock in this project";
@@ -726,7 +691,6 @@ mod tests {
         assert_eq!(plain(text), "! No tools configured to lock in this project");
     }
 
-    // checkmiselock[verify lock.unaddressed]
     #[test]
     fn targets_with_a_line_for_a_lockfile_name_its_platforms() {
         let lockfile = root().get().join("mise.lock");
@@ -746,7 +710,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.foreign]
     #[test]
     fn targets_with_a_lockfile_outside_the_directory_report_it() {
         let lockfile = path("/elsewhere/mise.lock");
@@ -763,7 +726,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.unresolved]
     #[test]
     fn unresolved_with_a_failed_query_names_it() {
         let output = "mise WARN  [tamasfe/taplo] failed to fetch version tags for lockfile, URL may be incorrect: error sending request\n";
@@ -778,7 +740,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.unresolved]
     #[test]
     fn unresolved_with_a_failed_resolution_names_it() {
         let output = "→ Processing 1 tool(s): jq@1.8.1\nmise WARN  failed to resolve jq for linux-x64: lock-time provenance verification failed\n";
@@ -793,7 +754,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.unresolved]
     #[test]
     fn unresolved_with_a_failure_that_names_a_harmless_word_names_it() {
         let output =
@@ -807,7 +767,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.unresolved]
     #[test]
     fn unresolved_with_a_limit_of_the_rate_names_it() {
         let output = "mise WARN  GitHub rate limit exceeded. Resets at 2026-10-17 13:28:37 +02:00\nmise WARN  HTTP GET https://api.github.com/repos/jqlang/jq/releases/tags/v1.8.1 attempt 1 failed after 11.8ms (transient): HTTP status client error\n\u{2713} Updated 0 platform entries (2 skipped)\n";
@@ -820,7 +779,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.unresolved]
     #[test]
     fn unresolved_with_a_repeated_warning_names_it_once() {
         let output =
@@ -834,7 +792,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.unresolved]
     #[test]
     fn unresolved_with_a_warning_over_several_lines_names_all_of_them() {
         let output = "mise WARN  failed to resolve python for macos-arm64: No GitHub artifact attestations found for python@3.13.1\nTo disable attestation verification, set MISE_PYTHON_GITHUB_ATTESTATIONS=false\nor add python.github_attestations = false under [settings] (version 3.13.1, and 1 more platform(s))\nmise lock                              \u{2713} 0 platform entries\n\u{2713} Updated 0 platform entries (2 skipped)\n";
@@ -849,7 +806,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify lock.unresolved]
     #[test]
     fn unresolved_with_an_older_lockfile_format_names_nothing() {
         let output = "mise WARN  mise.lock uses lockfile format version 1; run `mise lock --upgrade` to enable the latest lockfile features\n✓ Updated 21 platform entries (42 skipped)\n";
@@ -859,7 +815,6 @@ mod tests {
         assert_eq!(details, None);
     }
 
-    // checkmiselock[verify lock.unresolved]
     #[test]
     fn unresolved_with_harmless_warnings_names_nothing() {
         let output = "mise WARN  yamllint is locked to pipx:yamllint, but the registry now installs it from pypi:yamllint.\nmise WARN  deprecated [ubi]: The ubi backend is deprecated.\nmise WARN  HTTP GET https://example.com attempt 1 failed after 11.8ms (transient): timed out\nmise WARN  mise-versions endpoint=github_release repo=jqlang/jq outcome=failed status=0 fallback=true\nmise WARN  mise version 2026.10.12 available\nmise WARN  self-update is disabled for this install\n";

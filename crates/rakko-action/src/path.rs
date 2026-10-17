@@ -38,7 +38,6 @@ use std::path::{Path, PathBuf};
 /// # Ok(())
 /// # }
 /// ```
-// action[impl path.canonical]
 pub fn canonical(path: &Path) -> IoResult<PathBuf> {
     dunce::canonicalize(path)
 }
@@ -68,7 +67,6 @@ pub fn canonical(path: &Path) -> IoResult<PathBuf> {
 ///
 /// assert_eq!(path, PathBuf::from("notes.md"));
 /// ```
-// action[impl path.plain]
 pub fn plain(path: &Path) -> PathBuf {
     dunce::simplified(path).to_path_buf()
 }
@@ -83,7 +81,6 @@ mod tests {
 
     use super::*;
 
-    // action[verify path.canonical]
     #[test]
     fn canonical_of_a_directory_that_exists_names_it() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -93,7 +90,6 @@ mod tests {
         assert!(resolved.is_dir());
     }
 
-    // action[verify path.canonical]
     #[test]
     fn canonical_of_a_path_that_names_nothing_reports_the_error() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -105,7 +101,6 @@ mod tests {
 
     // The paths that a tool reports carry the plain spelling, so a directory
     // that kept the verbatim one would hold none of the files below it.
-    // action[verify path.plain]
     #[test]
     fn canonical_names_a_directory_in_the_spelling_that_a_program_writes() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -115,7 +110,6 @@ mod tests {
         assert!(!resolved.to_string_lossy().starts_with(r"\\?\"));
     }
 
-    // action[verify path.plain]
     #[test]
     fn plain_of_a_path_that_nothing_resolved_leaves_it_alone() {
         let path = PathBuf::from("sub").join("notes.md");

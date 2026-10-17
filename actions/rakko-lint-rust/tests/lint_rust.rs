@@ -202,7 +202,6 @@ impl Drop for Project {
     }
 }
 
-// lintrust[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <LintRust as Action>::Args::schema();
@@ -210,7 +209,6 @@ fn action_declares_no_argument() {
     assert!(schema.arguments().is_empty());
 }
 
-// lintrust[verify name]
 #[test]
 fn action_identifies_itself_as_lint_rust() {
     let name = LintRust.name();
@@ -218,7 +216,6 @@ fn action_identifies_itself_as_lint_rust() {
     assert_eq!(name.get(), "lint-rust");
 }
 
-// lintrust[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_warning_carries_the_code_in_the_message() {
     let project = Project::with_library(WARNED);
@@ -237,7 +234,6 @@ async fn run_with_a_warning_carries_the_code_in_the_message() {
     );
 }
 
-// lintrust[verify check.diagnostic]
 #[tokio::test]
 async fn run_with_a_warning_reports_the_range() {
     let project = Project::with_library(WARNED);
@@ -259,7 +255,6 @@ async fn run_with_a_warning_reports_the_range() {
     );
 }
 
-// lintrust[verify check.failed]
 #[tokio::test]
 async fn run_with_a_warning_fails() {
     let project = Project::with_library(WARNED);
@@ -272,7 +267,6 @@ async fn run_with_a_warning_fails() {
     );
 }
 
-// lintrust[verify check.failed]
 #[tokio::test]
 async fn run_with_a_compiler_error_fails_with_a_finding() {
     let project = Project::with_library(BROKEN);
@@ -290,7 +284,6 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
     );
 }
 
-// lintrust[verify check.read]
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_library(WARNED);
@@ -300,9 +293,6 @@ async fn run_leaves_the_project_unchanged() {
     assert_eq!(project.read("src/lib.rs"), WARNED);
 }
 
-// lintrust[verify check.operation]
-// lintrust[verify check.passed]
-// lintrust[verify tool.cargo]
 #[tokio::test]
 async fn run_in_a_clean_project_passes() {
     let project = Project::with_library(CLEAN);
@@ -315,7 +305,6 @@ async fn run_in_a_clean_project_passes() {
     );
 }
 
-// lintrust[verify check.operation]
 #[tokio::test]
 async fn run_examines_the_tests_of_a_package() {
     let project = Project::with_library(CLEAN);
@@ -329,7 +318,6 @@ async fn run_examines_the_tests_of_a_package() {
     );
 }
 
-// lintrust[verify check.passed]
 #[tokio::test]
 async fn run_in_a_clean_project_counts_the_workspaces() {
     let project = Project::with_library(CLEAN);
@@ -345,7 +333,6 @@ async fn run_in_a_clean_project_counts_the_workspaces() {
     );
 }
 
-// lintrust[verify roots.all]
 #[tokio::test]
 async fn run_with_a_warning_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(CLEAN);
@@ -363,7 +350,6 @@ async fn run_with_a_warning_in_a_second_workspace_names_its_path() {
     );
 }
 
-// lintrust[verify roots.all]
 #[tokio::test]
 async fn run_with_two_workspaces_counts_both() {
     let project = Project::with_library(CLEAN);
@@ -381,7 +367,6 @@ async fn run_with_two_workspaces_counts_both() {
     );
 }
 
-// lintrust[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -395,7 +380,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
-// lintrust[verify check.unrecognized]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -411,7 +395,6 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// lintrust[verify check.unrecognized]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     let project = Project::new();
@@ -430,7 +413,6 @@ async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     );
 }
 
-// lintrust[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
@@ -445,7 +427,6 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// lintrust[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();

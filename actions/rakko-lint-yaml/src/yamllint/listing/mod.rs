@@ -42,8 +42,6 @@ const HERE: &str = ".";
 ///
 /// [unavailable]: ListFilesError::YamllintUnavailable
 /// [rejected]: ListFilesError::RejectedConfiguration
-// lintyaml[impl run.listing]
-// lintyaml[impl run.project]
 pub async fn files(tool: &Tool) -> Result<Vec<PathBuf>, ListFilesError> {
     let execution = tool
         .invocation()
@@ -53,7 +51,6 @@ pub async fn files(tool: &Tool) -> Result<Vec<PathBuf>, ListFilesError> {
         .await
         .map_err(|source| ListFilesError::YamllintUnavailable { source })?;
 
-    // lintyaml[impl check.configuration]
     if !execution.status().success() {
         return Err(ListFilesError::RejectedConfiguration {
             details: execution.stderr().to_string_lossy().trim().to_owned(),
@@ -84,7 +81,6 @@ mod tests {
 
     use super::*;
 
-    // lintyaml[verify skip.unexamined]
     #[test]
     fn paths_of_an_empty_listing_hold_nothing() {
         let paths = paths("\n");
@@ -92,7 +88,6 @@ mod tests {
         assert!(paths.is_empty(), "expected no path, got {paths:?}");
     }
 
-    // lintyaml[verify check.passed]
     #[test]
     fn paths_of_a_listing_hold_one_path_per_line() {
         let paths = paths("./a.yaml\n./sub/b.yml\n");

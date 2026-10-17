@@ -193,7 +193,6 @@ impl Drop for Project {
     }
 }
 
-// formattoml[verify name]
 #[test]
 fn action_identifies_itself_as_format_toml() {
     let name = FormatToml.name();
@@ -201,7 +200,6 @@ fn action_identifies_itself_as_format_toml() {
     assert_eq!(name.get(), "format-toml");
 }
 
-// formattoml[verify check.invalid]
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     let project = Project::new();
@@ -219,7 +217,6 @@ async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     );
 }
 
-// formattoml[verify check.invalid]
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
@@ -242,7 +239,6 @@ async fn run_with_an_invalid_file_reports_the_position() {
     );
 }
 
-// formattoml[verify check.unformatted]
 #[tokio::test]
 async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::new();
@@ -263,7 +259,6 @@ async fn run_with_an_unformatted_file_names_the_file() {
     );
 }
 
-// formattoml[verify check.read]
 #[tokio::test]
 async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
@@ -274,7 +269,6 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     assert_eq!(project.read("messy.toml"), UNFORMATTED);
 }
 
-// formattoml[verify check.configuration]
 #[tokio::test]
 async fn run_with_a_rejected_configuration_stops() {
     let project = Project::new();
@@ -289,7 +283,6 @@ async fn run_with_a_rejected_configuration_stops() {
     );
 }
 
-// formattoml[verify check.configuration]
 #[tokio::test]
 async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
     let project = Project::new();
@@ -307,7 +300,6 @@ async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
     );
 }
 
-// formattoml[verify check.unrecognized]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_stops() {
@@ -329,8 +321,6 @@ async fn run_with_an_unreadable_file_stops() {
     );
 }
 
-// formattoml[verify check.passed+2]
-// formattoml[verify tool.taplo]
 #[tokio::test]
 async fn run_in_a_formatted_project_passes() {
     let project = Project::new();
@@ -344,7 +334,6 @@ async fn run_in_a_formatted_project_passes() {
     );
 }
 
-// formattoml[verify check.passed+2]
 #[tokio::test]
 async fn run_in_a_formatted_project_counts_the_files() {
     let project = Project::new();
@@ -362,7 +351,6 @@ async fn run_in_a_formatted_project_counts_the_files() {
     );
 }
 
-// formattoml[verify check.passed+2]
 #[tokio::test]
 async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
     let project = Project::new();
@@ -382,7 +370,6 @@ async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
     );
 }
 
-// formattoml[verify check.passed+2]
 #[tokio::test]
 async fn run_whose_configuration_excludes_every_file_passes() {
     let project = Project::new();
@@ -397,7 +384,6 @@ async fn run_whose_configuration_excludes_every_file_passes() {
     );
 }
 
-// formattoml[verify fix.changed]
 #[tokio::test]
 async fn run_with_fix_holds_one_repair_for_each_file() {
     let project = Project::new();
@@ -414,7 +400,6 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
     assert_eq!(repaired, ["messy.toml", "sub/other.toml"]);
 }
 
-// formattoml[verify fix.changed]
 #[tokio::test]
 async fn run_with_fix_reports_the_change() {
     let project = Project::new();
@@ -428,7 +413,6 @@ async fn run_with_fix_reports_the_change() {
     );
 }
 
-// formattoml[verify fix.write]
 #[tokio::test]
 async fn run_with_fix_rewrites_the_file() {
     let project = Project::new();
@@ -439,7 +423,6 @@ async fn run_with_fix_rewrites_the_file() {
     assert_eq!(project.read("messy.toml"), FORMATTED);
 }
 
-// formattoml[verify fix.partial]
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_fails() {
     let project = Project::new();
@@ -454,7 +437,6 @@ async fn run_with_fix_and_an_invalid_file_fails() {
     );
 }
 
-// formattoml[verify fix.partial]
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_holds_the_repairs() {
     let project = Project::new();
@@ -469,7 +451,6 @@ async fn run_with_fix_and_an_invalid_file_holds_the_repairs() {
     assert_eq!(locations(repairs), ["messy.toml"]);
 }
 
-// formattoml[verify fix.partial]
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_keeps_the_problem() {
     let project = Project::new();
@@ -484,7 +465,6 @@ async fn run_with_fix_and_an_invalid_file_keeps_the_problem() {
     assert_eq!(locations(findings), ["broken.toml"]);
 }
 
-// formattoml[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_taplo_stops() {
     let project = Project::without_taplo();

@@ -300,7 +300,6 @@ fn trust(configuration: &Path) {
     );
 }
 
-// checklatestdeps[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <CheckLatestDeps as Action>::Args::schema();
@@ -308,7 +307,6 @@ fn action_declares_no_argument() {
     assert!(schema.arguments().is_empty());
 }
 
-// checklatestdeps[verify name]
 #[test]
 fn action_identifies_itself_as_check_latest_deps() {
     let name = CheckLatestDeps.name();
@@ -316,8 +314,6 @@ fn action_identifies_itself_as_check_latest_deps() {
     assert_eq!(name.get(), "check-latest-deps");
 }
 
-// checklatestdeps[verify tests.passed]
-// checklatestdeps[verify tool.cargo]
 #[tokio::test]
 async fn run_in_a_project_with_a_passing_test_passes() {
     let project = Project::with_library(PASSING);
@@ -330,7 +326,6 @@ async fn run_in_a_project_with_a_passing_test_passes() {
     );
 }
 
-// checklatestdeps[verify tests.passed]
 #[tokio::test]
 async fn run_in_a_project_with_a_passing_test_counts_it() {
     let project = Project::with_library(PASSING);
@@ -346,7 +341,6 @@ async fn run_in_a_project_with_a_passing_test_counts_it() {
     );
 }
 
-// checklatestdeps[verify copy.unavailable]
 #[tokio::test]
 async fn run_in_a_project_without_a_repository_stops() {
     let project = Project::without_repository();
@@ -361,7 +355,6 @@ async fn run_in_a_project_without_a_repository_stops() {
     );
 }
 
-// checklatestdeps[verify tests.none]
 #[tokio::test]
 async fn run_in_a_workspace_without_tests_counts_zero() {
     let project = Project::with_library(UNTESTED);
@@ -380,7 +373,6 @@ async fn run_in_a_workspace_without_tests_counts_zero() {
 // The lockfile of the project is the one file that the recipe this action
 // replaces used to leave rewritten, and the reason that the recipe refused a
 // tree with changes in it.
-// checklatestdeps[verify copy.disposable]
 #[tokio::test]
 async fn run_leaves_the_lockfile_of_the_project_alone() {
     let project = Project::new();
@@ -395,7 +387,6 @@ async fn run_leaves_the_lockfile_of_the_project_alone() {
     assert_eq!(project.read("Cargo.lock"), STALE_LOCK);
 }
 
-// checklatestdeps[verify copy.disposable]
 #[tokio::test]
 async fn run_leaves_the_project_without_a_build_directory() {
     let project = Project::with_library(PASSING);
@@ -405,7 +396,6 @@ async fn run_leaves_the_project_without_a_build_directory() {
     assert!(!project.holds("target"));
 }
 
-// checklatestdeps[verify tests.error]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -421,7 +411,6 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// checklatestdeps[verify tests.failed]
 #[tokio::test]
 async fn run_with_a_compiler_error_fails_with_a_finding() {
     let project = Project::with_library(BROKEN);
@@ -439,7 +428,6 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
     );
 }
 
-// checklatestdeps[verify update.failed]
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_fails_at_the_manifest() {
     let project = Project::new();
@@ -454,7 +442,6 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_fails_at_the_manifest()
     assert_eq!(locations(findings), ["Cargo.toml"]);
 }
 
-// checklatestdeps[verify update.failed]
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote() {
     let project = Project::new();
@@ -475,7 +462,6 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote(
 // A run that tested a workspace whose resolution failed would answer for a
 // lockfile that nobody wrote, so the finding of the update is the only one
 // that such a run reports.
-// checklatestdeps[verify update.failed]
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_runs_no_test() {
     let project = Project::new();
@@ -490,7 +476,6 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_runs_no_test() {
     assert_eq!(findings.len(), 1);
 }
 
-// checklatestdeps[verify tests.failed]
 #[tokio::test]
 async fn run_with_a_failing_test_fails() {
     let project = Project::with_library(FAILING);
@@ -505,7 +490,6 @@ async fn run_with_a_failing_test_fails() {
 
 // The run works in the copy, and the finding still names the file that the
 // contributor can open.
-// checklatestdeps[verify copy.paths]
 #[tokio::test]
 async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
@@ -520,7 +504,6 @@ async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
-// checklatestdeps[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -538,8 +521,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
 // it ends without success. The run passes, which it can only do when the
 // update wrote the member into the lockfile of the copy and the tests built
 // what that lockfile holds.
-// checklatestdeps[verify tests.locked]
-// checklatestdeps[verify update.operation]
 #[tokio::test]
 async fn run_with_a_stale_lockfile_passes() {
     let project = Project::new();
@@ -557,7 +538,6 @@ async fn run_with_a_stale_lockfile_passes() {
     );
 }
 
-// checklatestdeps[verify roots.all]
 #[tokio::test]
 async fn run_with_two_workspaces_sums_the_tests() {
     let project = Project::with_library(PASSING);
@@ -575,7 +555,6 @@ async fn run_with_two_workspaces_sums_the_tests() {
     );
 }
 
-// checklatestdeps[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
@@ -588,7 +567,6 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// checklatestdeps[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();

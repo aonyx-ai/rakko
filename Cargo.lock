@@ -721,7 +721,6 @@ dependencies = [
  "getset",
  "kawauso-process",
  "rakko-action",
- "rakko-test-utils",
  "rakko-tool",
  "serde",
  "serde_json",

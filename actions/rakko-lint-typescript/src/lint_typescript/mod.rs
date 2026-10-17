@@ -62,10 +62,8 @@ const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 pub struct LintTypeScript;
 
 impl Action for LintTypeScript {
-    // linttypescript[impl args.none]
     type Args = ();
 
-    // linttypescript[impl name]
     fn name(&self) -> Name {
         action_name!("lint-typescript")
     }
@@ -73,7 +71,6 @@ impl Action for LintTypeScript {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // linttypescript[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -92,21 +89,16 @@ impl Action for LintTypeScript {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the oxlint run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintTypeScriptError> {
-    // linttypescript[impl tool.missing]
-    // linttypescript[impl tool.oxlint]
     let oxlint = Oxlint::resolve(context.root().clone())
         .await
         .map_err(|source| LintTypeScriptError::UnresolvedTool { source })?;
 
-    // linttypescript[impl check.read]
     let observation = oxlint.observe().await?;
 
     if let Some(outcome) = guard(&observation) {
         return Ok(outcome);
     }
 
-    // linttypescript[impl check.diagnostic]
-    // linttypescript[impl check.severity]
     Ok(Outcome::Failed {
         findings: findings(observation.problems(), context.root())?,
         repairs: Vec::new(),
@@ -125,8 +117,6 @@ async fn drive(context: &Context) -> Result<Outcome, LintTypeScriptError> {
 /// path of the diagnostic.
 ///
 /// [foreign]: LintTypeScriptError::ForeignPath
-// linttypescript[impl check.diagnostic]
-// linttypescript[impl check.severity]
 fn finding(problem: &OxlintProblem, root: &ProjectRoot) -> Result<Finding, LintTypeScriptError> {
     let path = problem
         .relative_path(root)
@@ -173,7 +163,6 @@ fn findings(
 ///
 /// Returns `None` when the caller reports what the run found.
 fn guard(observation: &Observation) -> Option<Outcome> {
-    // linttypescript[impl skip.unexamined]
     if observation.examined() == 0 {
         return Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
@@ -184,7 +173,6 @@ fn guard(observation: &Observation) -> Option<Outcome> {
         return None;
     }
 
-    // linttypescript[impl check.passed]
     Some(Outcome::Passed {
         summary: Some(summary(observation.examined())),
     })
@@ -196,7 +184,6 @@ fn guard(observation: &Observation) -> Option<Outcome> {
 /// question a pass that examined less than they expect. The configuration of a
 /// project can ignore a file that the reader believes is checked, and the count
 /// is where that shows.
-// linttypescript[impl check.passed]
 fn summary(examined: usize) -> Summary {
     if examined == 1 {
         Summary::new("checked 1 file")
@@ -234,7 +221,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // linttypescript[verify check.diagnostic]
     #[test]
     fn finding_of_a_diagnostic_carries_the_message_of_oxlint() {
         let finding = finding(&problem(Severity::Error), &root()).unwrap();
@@ -246,7 +232,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify check.diagnostic]
     #[test]
     fn finding_of_a_diagnostic_sits_at_the_position_of_oxlint() {
         let finding = finding(&problem(Severity::Error), &root()).unwrap();
@@ -276,7 +261,6 @@ mod tests {
         assert!(matches!(error, LintTypeScriptError::ForeignPath { .. }));
     }
 
-    // linttypescript[verify check.severity]
     #[test]
     fn finding_of_a_warning_names_the_warning_severity() {
         let finding = finding(&problem(Severity::Warning), &root()).unwrap();
@@ -288,7 +272,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify check.passed]
     #[test]
     fn guard_of_a_clean_run_passes() {
         let outcome = guard(&Observation::builder().examined(3).build());
@@ -299,7 +282,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify check.passed]
     #[test]
     fn guard_of_a_clean_run_says_how_many_files_oxlint_examined() {
         let outcome = guard(&Observation::builder().examined(3).build());
@@ -310,7 +292,6 @@ mod tests {
         assert_eq!(it.get(), "checked 3 files");
     }
 
-    // linttypescript[verify skip.unexamined]
     #[test]
     fn guard_of_a_run_that_examined_nothing_names_the_tool() {
         let outcome = guard(&Observation::builder().build());
@@ -324,7 +305,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify skip.unexamined]
     #[test]
     fn guard_of_a_run_that_examined_nothing_skips() {
         let outcome = guard(&Observation::builder().build());
@@ -335,7 +315,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify check.severity]
     #[test]
     fn guard_of_a_run_that_reported_a_warning_reports_nothing() {
         let observation = Observation::builder()
@@ -348,7 +327,6 @@ mod tests {
         assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 
-    // linttypescript[verify check.passed]
     #[test]
     fn summary_of_a_single_file_names_it_in_the_singular() {
         let summary = summary(1);

@@ -23,27 +23,6 @@ project mounts, `bundles/` holds the bundles that export a set of actions,
 `crates/` holds the contract, the projection, and the machinery that the
 actions share. [ADR-012] records this decision.
 
-Each crate has a specification in `<crate>/SPECIFICATION.md` that documents
-what the crate does. A specification is a list of requirements with
-identifiers, such as `rakko[placeholder.add]`. The prefix is the name of the
-crate without `rakko-`. [Tracey] links each requirement to the code that
-implements it and to the test that verifies it.
-`mise run rakko -- check-specs` validates these links, and
-`.config/tracey/config.styx` lists the specifications.
-[ADR-002] records this decision.
-
-- Before you implement a crate, read its specification.
-- Put a comment such as `// rakko[impl placeholder.add]` above the code that
-  implements a requirement, and `// rakko[verify placeholder.add]` above the
-  test that verifies it.
-- Do not change the text of a requirement unless the task asks for it. If you
-  change it, stage the file and run `tracey bump`, so that the requirement
-  gets a new version.
-- An implementation task is complete when `tracey query uncovered` and
-  `tracey query untested` list no requirements for the crate.
-- Use `tracey query rule <id>` to read one requirement, and
-  `tracey query status` for an overview of the coverage.
-
 ## Language
 
 - Use American English spelling, e.g. "color" not "colour".
@@ -94,11 +73,11 @@ implements it and to the test that verifies it.
   - **Modules**: Explain the module's role in the system and key concepts.
 - Write documentation for a reader that has no prior context, and especially no
   knowledge of the conversation that led to the creation of the code.
-- Write for a consumer of the published crate. A published crate bundles
-  neither the ADRs nor the specifications, so never reference them from a doc
-  comment. Internal rationale, such as which library a function hides, stays
-  out of the documentation as well. Document what the API does, what it
-  requires of the caller, and how it fails.
+- Write for a consumer of the published crate. A published crate does not
+  bundle the ADRs, so never reference them from a doc comment. Internal
+  rationale, such as which library a function hides, stays out of the
+  documentation as well. Document what the API does, what it requires of the
+  caller, and how it fails.
 - Write function/method docs in third-person singular
   ("Returns the..." not "Return the...").
 - Do not add a trailing period on the title (i.e. the first line).
@@ -202,7 +181,5 @@ implements it and to the test that verifies it.
 - **Never** add yourself as a co-author.
 
 [adr-001]: adrs/001-adrs.md
-[adr-002]: adrs/002-specifications.md
 [adr-012]: adrs/012-repository-layout.md
 [git-style-guide]: https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
-[tracey]: https://tracey.bearcove.eu/

@@ -44,8 +44,6 @@ impl PrettierProblem {
     /// starts in the root and reports what it found below it, so a path that
     /// does not fit points at a report that the caller misread, and the
     /// caller decides what to do about that.
-    // prettier[impl path.foreign]
-    // prettier[impl path.relative]
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
@@ -66,7 +64,6 @@ mod tests {
         PrettierProblem::new(path, ProblemDetail::Unformatted)
     }
 
-    // prettier[verify path.foreign]
     #[test]
     fn relative_path_outside_the_root_names_nothing() {
         let problem = problem(path("/home/otter/elsewhere/a.md"));
@@ -76,7 +73,6 @@ mod tests {
         assert_eq!(relative, None);
     }
 
-    // prettier[verify path.relative]
     #[test]
     fn relative_path_that_arrived_absolute_drops_the_root() {
         let problem = problem(path("/home/otter/project/sub/a.md"));
@@ -86,7 +82,6 @@ mod tests {
         assert_eq!(relative, FilePath::try_from(path("sub/a.md")).ok());
     }
 
-    // prettier[verify path.relative]
     #[test]
     fn relative_path_that_arrived_relative_stands_as_prettier_wrote_it() {
         let problem = problem(path("sub/a.md"));

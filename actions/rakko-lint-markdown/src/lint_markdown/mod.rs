@@ -66,10 +66,8 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 pub struct LintMarkdown;
 
 impl Action for LintMarkdown {
-    // lintmarkdown[impl args.none]
     type Args = ();
 
-    // lintmarkdown[impl name]
     fn name(&self) -> Name {
         action_name!("lint-markdown")
     }
@@ -77,7 +75,6 @@ impl Action for LintMarkdown {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // lintmarkdown[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -96,21 +93,16 @@ impl Action for LintMarkdown {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the markdownlint run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintMarkdownError> {
-    // lintmarkdown[impl tool.markdownlint]
-    // lintmarkdown[impl tool.missing]
     let markdownlint = Markdownlint::resolve(context.root().clone())
         .await
         .map_err(|source| LintMarkdownError::UnresolvedTool { source })?;
 
-    // lintmarkdown[impl check.read]
     let observation = markdownlint.observe().await?;
 
     if let Some(outcome) = guard(&observation)? {
         return Ok(outcome);
     }
 
-    // lintmarkdown[impl check.column]
-    // lintmarkdown[impl check.violation]
     Ok(Outcome::Failed {
         findings: findings(observation.problems(), context.root())?,
         repairs: Vec::new(),
@@ -129,8 +121,6 @@ async fn drive(context: &Context) -> Result<Outcome, LintMarkdownError> {
 /// the path of the problem.
 ///
 /// [foreign]: LintMarkdownError::ForeignPath
-// lintmarkdown[impl check.column]
-// lintmarkdown[impl check.violation]
 fn finding(
     problem: &MarkdownlintProblem,
     root: &ProjectRoot,
@@ -189,7 +179,6 @@ fn findings(
 ///
 /// [unrecognized]: LintMarkdownError::UnrecognizedReport
 fn guard(observation: &Observation) -> Result<Option<Outcome>, LintMarkdownError> {
-    // lintmarkdown[impl skip.unexamined]
     if !observation.examined() {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
@@ -200,14 +189,12 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, LintMarkdownError
         return Ok(None);
     }
 
-    // lintmarkdown[impl check.unrecognized]
     if !observation.succeeded() {
         return Err(LintMarkdownError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
         });
     }
 
-    // lintmarkdown[impl check.passed]
     Ok(Some(Outcome::Passed { summary: None }))
 }
 
@@ -238,7 +225,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // lintmarkdown[verify check.violation]
     #[test]
     fn finding_of_a_problem_carries_the_message_of_markdownlint() {
         let finding = finding(&problem(4, Some(81)), &root()).unwrap();
@@ -249,7 +235,6 @@ mod tests {
         );
     }
 
-    // lintmarkdown[verify check.column]
     #[test]
     fn finding_of_a_problem_with_a_column_sits_at_that_column() {
         let finding = finding(&problem(4, Some(81)), &root()).unwrap();
@@ -263,7 +248,6 @@ mod tests {
         );
     }
 
-    // lintmarkdown[verify check.column]
     #[test]
     fn finding_of_a_problem_without_a_column_sits_on_its_line() {
         let finding = finding(&problem(4, None), &root()).unwrap();
@@ -291,7 +275,6 @@ mod tests {
         assert!(matches!(error, LintMarkdownError::ForeignPath { .. }));
     }
 
-    // lintmarkdown[verify check.passed]
     #[test]
     fn guard_of_a_clean_run_passes() {
         let outcome = guard(&Observation::builder().build()).unwrap();
@@ -302,7 +285,6 @@ mod tests {
         );
     }
 
-    // lintmarkdown[verify check.unrecognized]
     #[test]
     fn guard_of_a_failed_run_without_a_problem_stops() {
         let observation = Observation::builder().succeeded(false).build();
@@ -327,7 +309,6 @@ mod tests {
         assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 
-    // lintmarkdown[verify skip.unexamined]
     #[test]
     fn guard_of_a_run_that_examined_nothing_skips() {
         let observation = Observation::builder().examined(false).build();

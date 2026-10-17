@@ -115,12 +115,6 @@ impl Markdownlint {
     ///
     /// [unavailable]: ObserveMarkdownlintError::MarkdownlintUnavailable
     /// [unreadable]: ObserveMarkdownlintError::UnreadableReport
-    // lintmarkdown[impl check.read]
-    // lintmarkdown[impl run.dot]
-    // lintmarkdown[impl run.git]
-    // lintmarkdown[impl run.ignored]
-    // lintmarkdown[impl run.project]
-    // lintmarkdown[impl run.structured+2]
     pub async fn observe(&self) -> Result<Observation, ObserveMarkdownlintError> {
         let execution = self
             .tool
@@ -137,7 +131,6 @@ impl Markdownlint {
         let stdout = execution.stdout().to_string_lossy();
         let stderr = execution.stderr().to_string_lossy();
 
-        // lintmarkdown[impl check.unreadable]
         let problems = self::report::problems(&stderr).map_err(|source| {
             ObserveMarkdownlintError::UnreadableReport {
                 report: stderr.to_string(),
@@ -147,7 +140,6 @@ impl Markdownlint {
 
         Ok(Observation::builder()
             .problems(problems)
-            // lintmarkdown[impl skip.unexamined]
             .examined(stdout.trim().is_empty())
             .stderr(stderr.into_owned())
             .succeeded(execution.status().success())
@@ -164,8 +156,6 @@ impl Markdownlint {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no markdownlint for
     /// the project.
-    // lintmarkdown[impl tool.markdownlint]
-    // lintmarkdown[impl tool.missing]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(MARKDOWNLINT), root).await?;
 

@@ -21,7 +21,6 @@ pub struct ArgsValues {
 
 impl ArgsValues {
     /// Returns the values of a run that reads no arguments
-    // action[impl args.empty]
     #[must_use]
     pub fn empty() -> Self {
         Self::default()
@@ -31,7 +30,6 @@ impl ArgsValues {
     ///
     /// The method returns [`None`] when the run holds no value for the name,
     /// which is what an argument that the user left out looks like.
-    // action[impl args.values]
     #[must_use]
     pub fn get(&self, name: &ArgumentName) -> Option<&ArgumentValue> {
         self.values.get(name)
@@ -40,7 +38,6 @@ impl ArgsValues {
     /// Creates the values of a run from a name and a value for each argument
     ///
     /// When the same name appears more than once, the last value wins.
-    // action[impl args.values]
     pub fn new(values: impl IntoIterator<Item = (ArgumentName, ArgumentValue)>) -> Self {
         Self {
             values: values.into_iter().collect(),
@@ -57,7 +54,6 @@ mod tests {
     use super::*;
     use crate::argument_name;
 
-    // action[verify args.empty]
     #[test]
     fn empty_holds_no_value() {
         let values = ArgsValues::empty();
@@ -65,7 +61,6 @@ mod tests {
         assert_eq!(values.get(&argument_name!("fix")), None);
     }
 
-    // action[verify args.values]
     #[test]
     fn get_returns_none_for_an_unknown_argument() {
         let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
@@ -75,7 +70,6 @@ mod tests {
         assert_eq!(value, None);
     }
 
-    // action[verify args.values]
     #[test]
     fn get_returns_the_value_of_an_argument() {
         let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);

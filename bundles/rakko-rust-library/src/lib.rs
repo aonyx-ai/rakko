@@ -15,7 +15,6 @@ use rakko_test_rust_docs::TestRustDocs;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
-// rustlibrary[impl actions]
 #[must_use]
 pub fn bundle() -> Bundle {
     let mut actions = rakko_rust::bundle();
@@ -35,7 +34,6 @@ mod tests {
 
     use super::*;
 
-    // rustlibrary[verify actions]
     #[test]
     fn bundle_exports_the_core_and_the_checks_of_a_library() {
         let names: Vec<String> = bundle()

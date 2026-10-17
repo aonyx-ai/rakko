@@ -333,7 +333,6 @@ fn trust(configuration: &Path) {
     );
 }
 
-// checkminimaldeps[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <CheckMinimalDeps as Action>::Args::schema();
@@ -341,7 +340,6 @@ fn action_declares_no_argument() {
     assert!(schema.arguments().is_empty());
 }
 
-// checkminimaldeps[verify name]
 #[test]
 fn action_identifies_itself_as_check_minimal_deps() {
     let name = CheckMinimalDeps.name();
@@ -349,8 +347,6 @@ fn action_identifies_itself_as_check_minimal_deps() {
     assert_eq!(name.get(), "check-minimal-deps");
 }
 
-// checkminimaldeps[verify tests.passed]
-// checkminimaldeps[verify tool.cargo]
 #[tokio::test]
 async fn run_in_a_project_with_a_passing_test_passes() {
     let project = Project::with_library(PASSING);
@@ -363,7 +359,6 @@ async fn run_in_a_project_with_a_passing_test_passes() {
     );
 }
 
-// checkminimaldeps[verify tests.passed]
 #[tokio::test]
 async fn run_in_a_project_with_a_passing_test_counts_it() {
     let project = Project::with_library(PASSING);
@@ -379,7 +374,6 @@ async fn run_in_a_project_with_a_passing_test_counts_it() {
     );
 }
 
-// checkminimaldeps[verify copy.unavailable]
 #[tokio::test]
 async fn run_in_a_project_without_a_repository_stops() {
     let project = Project::without_repository();
@@ -394,7 +388,6 @@ async fn run_in_a_project_without_a_repository_stops() {
     );
 }
 
-// checkminimaldeps[verify tests.none]
 #[tokio::test]
 async fn run_in_a_workspace_without_tests_counts_zero() {
     let project = Project::with_library(UNTESTED);
@@ -413,7 +406,6 @@ async fn run_in_a_workspace_without_tests_counts_zero() {
 // The library reports the toolchain that built it, and the test in it fails
 // when that toolchain is the nightly of the update. The run passes, so the
 // tests built on the toolchain that the project pins.
-// checkminimaldeps[verify tests.toolchain]
 #[tokio::test]
 async fn run_builds_the_tests_on_the_toolchain_of_the_project() {
     let project = Project::with_library(REPORTING_TOOLCHAIN);
@@ -429,7 +421,6 @@ async fn run_builds_the_tests_on_the_toolchain_of_the_project() {
 // The lockfile of the project is the one file that the recipe this action
 // replaces used to leave rewritten, and the reason that the recipe refused a
 // tree with changes in it.
-// checkminimaldeps[verify copy.disposable]
 #[tokio::test]
 async fn run_leaves_the_lockfile_of_the_project_alone() {
     let project = Project::new();
@@ -444,7 +435,6 @@ async fn run_leaves_the_lockfile_of_the_project_alone() {
     assert_eq!(project.read("Cargo.lock"), STALE_LOCK);
 }
 
-// checkminimaldeps[verify copy.disposable]
 #[tokio::test]
 async fn run_leaves_the_project_without_a_build_directory() {
     let project = Project::with_library(PASSING);
@@ -454,7 +444,6 @@ async fn run_leaves_the_project_without_a_build_directory() {
     assert!(!project.holds("target"));
 }
 
-// checkminimaldeps[verify tests.error]
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
@@ -470,7 +459,6 @@ async fn run_with_a_build_script_that_fails_stops() {
     );
 }
 
-// checkminimaldeps[verify tests.failed]
 #[tokio::test]
 async fn run_with_a_compiler_error_fails_with_a_finding() {
     let project = Project::with_library(BROKEN);
@@ -488,7 +476,6 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
     );
 }
 
-// checkminimaldeps[verify update.failed]
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_fails_at_the_manifest() {
     let project = Project::new();
@@ -503,7 +490,6 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_fails_at_the_manifest()
     assert_eq!(locations(findings), ["Cargo.toml"]);
 }
 
-// checkminimaldeps[verify update.failed]
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote() {
     let project = Project::new();
@@ -524,7 +510,6 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote(
 // A run that tested a workspace whose resolution failed would answer for a
 // lockfile that nobody wrote, so the finding of the update is the only one
 // that such a run reports.
-// checkminimaldeps[verify update.failed]
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_runs_no_test() {
     let project = Project::new();
@@ -539,7 +524,6 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_runs_no_test() {
     assert_eq!(findings.len(), 1);
 }
 
-// checkminimaldeps[verify tests.failed]
 #[tokio::test]
 async fn run_with_a_failing_test_fails() {
     let project = Project::with_library(FAILING);
@@ -554,7 +538,6 @@ async fn run_with_a_failing_test_fails() {
 
 // The run works in the copy, and the finding still names the file that the
 // contributor can open.
-// checkminimaldeps[verify copy.paths]
 #[tokio::test]
 async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
@@ -569,7 +552,6 @@ async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
 }
 
-// checkminimaldeps[verify roots.error]
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
@@ -588,9 +570,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
 // update wrote the member into the lockfile of the copy and the tests built
 // what that lockfile holds. Cargo refuses the option of the update on every
 // channel but the nightly, so an update that reached this far ran there.
-// checkminimaldeps[verify tests.locked]
-// checkminimaldeps[verify tool.toolchain]
-// checkminimaldeps[verify update.operation]
 #[tokio::test]
 async fn run_with_a_stale_lockfile_passes() {
     let project = Project::new();
@@ -608,7 +587,6 @@ async fn run_with_a_stale_lockfile_passes() {
     );
 }
 
-// checkminimaldeps[verify roots.all]
 #[tokio::test]
 async fn run_with_two_workspaces_sums_the_tests() {
     let project = Project::with_library(PASSING);
@@ -626,7 +604,6 @@ async fn run_with_two_workspaces_sums_the_tests() {
     );
 }
 
-// checkminimaldeps[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
@@ -639,7 +616,6 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// checkminimaldeps[verify skip.undiscovered]
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
@@ -656,7 +632,6 @@ async fn run_without_a_manifest_skips() {
 // The project pins a cargo, so the run gets past the tool and stops over the
 // channel that the update needs. The message names the nightly, which tells
 // the two conditions apart.
-// checkminimaldeps[verify tool.unpinned]
 #[tokio::test]
 async fn run_without_a_nightly_toolchain_stops() {
     let project = Project::without_nightly().await;

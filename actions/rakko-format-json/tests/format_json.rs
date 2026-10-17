@@ -181,7 +181,6 @@ impl Drop for Project {
     }
 }
 
-// formatjson[verify name]
 #[test]
 fn action_identifies_itself_as_format_json() {
     let name = FormatJson.name();
@@ -189,8 +188,6 @@ fn action_identifies_itself_as_format_json() {
     assert_eq!(name.get(), "format-json");
 }
 
-// formatjson[verify tool.prettier]
-// formatjson[verify check.passed]
 #[tokio::test]
 async fn run_in_a_formatted_project_passes() {
     let project = Project::new();
@@ -204,7 +201,6 @@ async fn run_in_a_formatted_project_passes() {
     );
 }
 
-// formatjson[verify skip.unmatched]
 #[tokio::test]
 async fn run_in_a_project_without_json_skips() {
     let project = Project::new();
@@ -218,7 +214,6 @@ async fn run_in_a_project_without_json_skips() {
     );
 }
 
-// formatjson[verify check.configuration]
 #[tokio::test]
 async fn run_with_a_broken_configuration_stops() {
     let project = Project::new();
@@ -233,7 +228,6 @@ async fn run_with_a_broken_configuration_stops() {
     );
 }
 
-// formatjson[verify check.configuration]
 #[tokio::test]
 async fn run_with_an_ignored_option_reports_what_prettier_said() {
     let project = Project::new();
@@ -251,7 +245,6 @@ async fn run_with_an_ignored_option_reports_what_prettier_said() {
     );
 }
 
-// formatjson[verify fix.partial]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_and_fix_keeps_the_problem() {
@@ -274,7 +267,6 @@ async fn run_with_an_unreadable_file_and_fix_keeps_the_problem() {
     assert_eq!(findings.len(), 1);
 }
 
-// formatjson[verify fix.partial]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_and_fix_reports_the_repair() {
@@ -297,7 +289,6 @@ async fn run_with_an_unreadable_file_and_fix_reports_the_repair() {
     assert_eq!(repairs.len(), 1);
 }
 
-// formatjson[verify check.unreadable]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_carries_the_reason_of_prettier() {
@@ -323,7 +314,6 @@ async fn run_with_an_unreadable_file_carries_the_reason_of_prettier() {
     );
 }
 
-// formatjson[verify check.unreadable]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_names_the_file() {
@@ -352,7 +342,6 @@ async fn run_with_an_unreadable_file_names_the_file() {
     );
 }
 
-// formatjson[verify check.invalid]
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
     let project = Project::new();
@@ -370,7 +359,6 @@ async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
     );
 }
 
-// formatjson[verify check.invalid]
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
@@ -393,7 +381,6 @@ async fn run_with_an_invalid_file_reports_the_position() {
     );
 }
 
-// formatjson[verify check.unformatted]
 #[tokio::test]
 async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::new();
@@ -414,7 +401,6 @@ async fn run_with_an_unformatted_file_names_the_file() {
     );
 }
 
-// formatjson[verify fix.changed]
 #[tokio::test]
 async fn run_with_fix_names_the_file_that_it_repaired() {
     let project = Project::new();
@@ -435,7 +421,6 @@ async fn run_with_fix_names_the_file_that_it_repaired() {
     );
 }
 
-// formatjson[verify fix.write]
 #[tokio::test]
 async fn run_with_fix_rewrites_the_file() {
     let project = Project::new();
@@ -446,7 +431,6 @@ async fn run_with_fix_rewrites_the_file() {
     assert_eq!(project.read("messy.json"), FORMATTED);
 }
 
-// formatjson[verify check.read]
 #[tokio::test]
 async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
@@ -457,7 +441,6 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     assert_eq!(project.read("messy.json"), UNFORMATTED);
 }
 
-// formatjson[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_prettier_stops() {
     let project = Project::without_prettier();

@@ -127,7 +127,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn message_of_a_problem_reads_like_the_line_of_yamllint() {
         let message = problem(path("./notes.yaml")).message();
@@ -152,7 +151,6 @@ mod tests {
         assert_eq!(relative, FilePath::try_from(path("sub/a.yaml")).ok());
     }
 
-    // lintyaml[verify check.problem]
     #[test]
     fn relative_path_that_arrived_relative_drops_the_prefix_of_yamllint() {
         let relative = problem(path("./sub/a.yaml")).relative_path(&root());

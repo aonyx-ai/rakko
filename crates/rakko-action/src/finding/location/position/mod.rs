@@ -28,8 +28,6 @@ pub struct Position {
 #[bon]
 impl Position {
     /// Creates a position from a line and an optional column
-    // action[impl position.line]
-    // action[impl position.column]
     #[builder]
     pub fn new(#[builder(into)] line: Line, #[builder(into)] column: Option<Column>) -> Self {
         Self { line, column }
@@ -44,7 +42,6 @@ mod tests {
 
     use super::*;
 
-    // action[verify position.column]
     #[test]
     fn column_returns_given_column() {
         let position = Position::builder().line(1).column(5).build();
@@ -52,7 +49,6 @@ mod tests {
         assert_eq!(position.column(), &Some(Column::new(5)));
     }
 
-    // action[verify position.column]
     #[test]
     fn column_without_value_returns_none() {
         let position = Position::builder().line(1).build();
@@ -60,7 +56,6 @@ mod tests {
         assert_eq!(position.column(), &None);
     }
 
-    // action[verify position.line]
     #[test]
     fn line_returns_given_line() {
         let position = Position::builder().line(1).build();

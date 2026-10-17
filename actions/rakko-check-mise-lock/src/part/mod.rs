@@ -51,7 +51,6 @@ pub struct Part {
 ///
 /// The text names the tool and the version, and the platform when the part
 /// has one, such as `jq 1.8.1 for linux-x64`.
-// checkmiselock[impl compare.unplatformed]
 impl fmt::Display for Part {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(formatter, "{} {}", self.tool, self.version)?;
@@ -71,7 +70,6 @@ mod tests {
 
     use super::*;
 
-    // checkmiselock[verify compare.added]
     #[test]
     fn display_of_a_part_with_a_platform_names_the_platform() {
         let part = Part::builder()
@@ -83,7 +81,6 @@ mod tests {
         assert_eq!(part.to_string(), "jq 1.8.1 for linux-x64");
     }
 
-    // checkmiselock[verify compare.unplatformed]
     #[test]
     fn display_of_a_part_without_a_platform_names_the_tool_and_the_version() {
         let part = Part::builder()

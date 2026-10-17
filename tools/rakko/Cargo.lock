@@ -377,7 +377,6 @@ dependencies = [
  "rakko-action",
  "rakko-baseline",
  "rakko-check-msrv",
- "rakko-check-specs",
  "rakko-cli",
  "rakko-format-json",
  "rakko-format-markdown",
@@ -710,22 +709,6 @@ dependencies = [
  "rakko-tool",
  "serde",
  "serde_json",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "rakko-check-specs"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "kawauso-process",
- "rakko-action",
- "rakko-tool",
- "serde",
- "serde_json",
- "tempfile",
  "thiserror",
  "tokio",
 ]

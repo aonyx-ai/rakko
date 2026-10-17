@@ -51,9 +51,6 @@ actions that maintain Rakko itself.
 mise install
 ```
 
-The first installation builds [Tracey] from source, which takes several
-minutes. Later installations reuse the binary.
-
 `pre-commit install` installs the Git hook, which runs `rakko pre-commit
 --fix` before every commit. Mise writes the stubs in `bin` once, so a change
 to the tasks of `mise.toml` wants a fresh `mise generate task-stubs`.
@@ -81,5 +78,4 @@ dual licensed as above, without any additional terms or conditions.
 [glossary.md]: ./GLOSSARY.md
 [mise]: https://mise.jdx.dev
 [mise-activate]: https://mise.jdx.dev/getting-started.html#activate-mise
-[tracey]: https://tracey.bearcove.eu/
 [vision.md]: ./VISION.md

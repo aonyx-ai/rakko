@@ -88,9 +88,6 @@ impl Node {
     /// [missing]: ObserveNodeError::MissingFailure
     /// [unavailable]: ObserveNodeError::NodeUnavailable
     /// [unreadable]: ObserveNodeError::UnreadableReport
-    // testtypescript[impl run.project]
-    // testtypescript[impl run.read]
-    // testtypescript[impl run.tap]
     pub async fn observe(&self) -> Result<Report, ObserveNodeError> {
         let execution = self
             .tool
@@ -128,8 +125,6 @@ impl Node {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no node for the
     /// project.
-    // testtypescript[impl tool.missing]
-    // testtypescript[impl tool.node]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(NODE), root).await?;
 

@@ -201,7 +201,6 @@ impl Drop for Project {
     }
 }
 
-// lintyaml[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<LintYaml as Action>::Args as Args>::schema();
@@ -213,7 +212,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// lintyaml[verify name]
 #[test]
 fn action_identifies_itself_as_lint_yaml() {
     let name = LintYaml.name();
@@ -221,8 +219,6 @@ fn action_identifies_itself_as_lint_yaml() {
     assert_eq!(name.get(), "lint-yaml");
 }
 
-// lintyaml[verify check.passed]
-// lintyaml[verify tool.yamllint]
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
@@ -236,8 +232,6 @@ async fn run_in_a_valid_project_passes() {
     );
 }
 
-// lintyaml[verify check.passed]
-// lintyaml[verify run.listing]
 #[tokio::test]
 async fn run_in_a_valid_project_says_how_many_files_yamllint_examined() {
     let project = Project::new();
@@ -251,7 +245,6 @@ async fn run_in_a_valid_project_says_how_many_files_yamllint_examined() {
     assert_eq!(it.get(), "checked 2 files");
 }
 
-// lintyaml[verify check.read]
 #[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
@@ -262,7 +255,6 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     assert_eq!(project.read("notes.yaml"), TRAILING_SPACES);
 }
 
-// lintyaml[verify run.project]
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
@@ -277,7 +269,6 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
     assert_eq!(locations(findings), [path_text("deep/sub/notes.yaml")]);
 }
 
-// lintyaml[verify skip.unexamined]
 #[tokio::test]
 async fn run_reaches_a_file_under_a_hidden_directory() {
     let project = Project::new();
@@ -291,7 +282,6 @@ async fn run_reaches_a_file_under_a_hidden_directory() {
     );
 }
 
-// lintyaml[verify run.structured]
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
@@ -306,8 +296,6 @@ async fn run_reads_the_configuration_of_the_project() {
     );
 }
 
-// lintyaml[verify check.problem]
-// lintyaml[verify run.structured]
 #[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_yamllint() {
     let project = Project::new();
@@ -324,7 +312,6 @@ async fn run_with_a_broken_rule_carries_the_message_of_yamllint() {
     );
 }
 
-// lintyaml[verify check.problem]
 #[tokio::test]
 async fn run_with_a_broken_rule_names_the_file() {
     let project = Project::new();
@@ -338,7 +325,6 @@ async fn run_with_a_broken_rule_names_the_file() {
     assert_eq!(locations(findings), [path_text("sub/notes.yaml")]);
 }
 
-// lintyaml[verify check.problem]
 #[tokio::test]
 async fn run_with_a_broken_rule_reports_the_position_of_yamllint() {
     let project = Project::new();
@@ -360,7 +346,6 @@ async fn run_with_a_broken_rule_reports_the_position_of_yamllint() {
     );
 }
 
-// lintyaml[verify check.configuration]
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::new();
@@ -375,7 +360,6 @@ async fn run_with_a_refused_configuration_stops() {
     );
 }
 
-// lintyaml[verify check.level]
 #[tokio::test]
 async fn run_with_a_warning_fails() {
     let project = Project::new();
@@ -392,7 +376,6 @@ async fn run_with_a_warning_fails() {
     );
 }
 
-// lintyaml[verify check.incomplete]
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_stops() {
@@ -414,7 +397,6 @@ async fn run_with_an_unreadable_file_stops() {
     );
 }
 
-// lintyaml[verify skip.unexamined]
 #[tokio::test]
 async fn run_whose_yamllint_examined_nothing_skips() {
     let project = Project::new();
@@ -432,7 +414,6 @@ async fn run_whose_yamllint_examined_nothing_skips() {
     );
 }
 
-// lintyaml[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_yamllint_stops() {
     let project = Project::without_yamllint();

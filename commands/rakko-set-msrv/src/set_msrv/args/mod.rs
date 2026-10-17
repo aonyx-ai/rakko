@@ -44,7 +44,6 @@ pub struct SetMsrvArgs {
 }
 
 impl Args for SetMsrvArgs {
-    // setmsrv[impl args.declare]
     fn schema() -> ArgsSchema {
         ArgsSchema::new([
             Argument::builder()
@@ -60,9 +59,6 @@ impl Args for SetMsrvArgs {
         ])
     }
 
-    // setmsrv[impl args.missing]
-    // setmsrv[impl args.form]
-    // setmsrv[impl args.reason]
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let msrv = required(values, argument_name!("msrv"))?;
         if !complete(msrv.get()) {
@@ -134,7 +130,6 @@ mod tests {
         ])
     }
 
-    // setmsrv[verify args.reason]
     #[test]
     fn from_values_with_a_blank_reason_reports_the_argument() {
         let error = SetMsrvArgs::from_values(&values("1.89.0", "  ")).unwrap_err();
@@ -148,7 +143,6 @@ mod tests {
         );
     }
 
-    // setmsrv[verify args.form]
     #[test]
     fn from_values_with_a_complete_version_reads_it() {
         let args = SetMsrvArgs::from_values(&values("1.89.0", "bon needs it")).unwrap();
@@ -156,7 +150,6 @@ mod tests {
         assert_eq!(args.msrv(), &Msrv::new("1.89.0"));
     }
 
-    // setmsrv[verify args.form]
     #[test]
     fn from_values_with_a_leading_zero_reports_the_argument() {
         let error = SetMsrvArgs::from_values(&values("1.089.0", "bon needs it")).unwrap_err();
@@ -170,7 +163,6 @@ mod tests {
         );
     }
 
-    // setmsrv[verify args.reason]
     #[test]
     fn from_values_with_a_line_break_in_the_reason_reports_the_argument() {
         let error = SetMsrvArgs::from_values(&values("1.89.0", "bon\nneeds it")).unwrap_err();
@@ -184,7 +176,6 @@ mod tests {
         );
     }
 
-    // setmsrv[verify args.form]
     #[test]
     fn from_values_with_a_version_of_two_parts_reports_the_argument() {
         let error = SetMsrvArgs::from_values(&values("1.89", "bon needs it")).unwrap_err();
@@ -198,7 +189,6 @@ mod tests {
         );
     }
 
-    // setmsrv[verify args.form]
     #[test]
     fn from_values_with_a_version_that_is_no_number_reports_the_argument() {
         let error = SetMsrvArgs::from_values(&values("1.89.x", "bon needs it")).unwrap_err();
@@ -212,7 +202,6 @@ mod tests {
         );
     }
 
-    // setmsrv[verify args.missing]
     #[test]
     fn from_values_without_a_reason_reports_the_argument() {
         let values = ArgsValues::new([(argument_name!("msrv"), ArgumentValue::new("1.89.0"))]);
@@ -227,7 +216,6 @@ mod tests {
         );
     }
 
-    // setmsrv[verify args.missing]
     #[test]
     fn from_values_without_a_version_reports_the_argument() {
         let values = ArgsValues::new([(argument_name!("reason"), ArgumentValue::new("why"))]);
@@ -242,7 +230,6 @@ mod tests {
         );
     }
 
-    // setmsrv[verify args.declare]
     #[test]
     fn schema_declares_two_documented_texts() {
         let schema = SetMsrvArgs::schema();

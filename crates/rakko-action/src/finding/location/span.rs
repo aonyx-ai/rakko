@@ -26,8 +26,6 @@ pub struct Span {
 impl Span {
     /// Creates a span from the position where a range starts and the position
     /// where it ends
-    // action[impl span.start]
-    // action[impl span.end]
     #[builder]
     pub fn new(start: Position, end: Position) -> Self {
         Self { start, end }
@@ -42,7 +40,6 @@ mod tests {
 
     use super::*;
 
-    // action[verify span.end]
     #[test]
     fn end_returns_given_end() {
         let end = Position::builder().line(9).column(2).build();
@@ -55,7 +52,6 @@ mod tests {
         assert_eq!(span.end(), &end);
     }
 
-    // action[verify span.start]
     #[test]
     fn start_returns_given_start() {
         let start = Position::builder().line(7).column(4).build();

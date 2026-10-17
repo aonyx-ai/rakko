@@ -83,10 +83,8 @@ const WARNINGS: &str = "warnings";
 pub struct CheckDependencies;
 
 impl Action for CheckDependencies {
-    // checkdependencies[impl args.none]
     type Args = ();
 
-    // checkdependencies[impl name]
     fn name(&self) -> Name {
         action_name!("check-dependencies")
     }
@@ -94,8 +92,6 @@ impl Action for CheckDependencies {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // checkdependencies[impl roots.error]
-            // checkdependencies[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -115,25 +111,19 @@ impl Action for CheckDependencies {
 /// tool, the discovery of the workspaces, a cargo-deny run, or the reading of
 /// a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
-    // checkdependencies[impl tool.cargo]
-    // checkdependencies[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| CheckDependenciesError::UnresolvedCargo { source })?;
 
-    // checkdependencies[impl tool.deny]
-    // checkdependencies[impl tool.missing]
     let deny = Deny::resolve(context.root().clone())
         .await
         .map_err(|source| CheckDependenciesError::UnresolvedDeny { source })?;
 
-    // checkdependencies[impl roots.error]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| CheckDependenciesError::UndiscoveredRoots { source })?;
 
-    // checkdependencies[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
@@ -143,7 +133,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
     let mut findings = Vec::new();
     let mut warnings = 0_usize;
 
-    // checkdependencies[impl roots.all]
     for root in &roots {
         for problem in deny.check(root).await? {
             if problem.denied() {
@@ -155,13 +144,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
     }
 
     if findings.is_empty() {
-        // checkdependencies[impl check.passed]
-        // checkdependencies[impl check.warning]
         Ok(Outcome::Passed {
             summary: Some(summary(roots.len(), warnings)),
         })
     } else {
-        // checkdependencies[impl check.failed]
         Ok(Outcome::Failed {
             findings,
             repairs: Vec::new(),
@@ -182,7 +168,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
 /// contain the workspace root.
 ///
 /// [foreign]: CheckDependenciesError::ForeignWorkspace
-// checkdependencies[impl check.finding]
 fn finding(
     problem: &DenyProblem,
     root: &CargoRoot,
@@ -207,7 +192,6 @@ fn finding(
 /// contain the workspace root.
 ///
 /// [foreign]: CheckDependenciesError::ForeignWorkspace
-// checkdependencies[impl check.location]
 fn location(root: &CargoRoot, project: &ProjectRoot) -> Result<Location, CheckDependenciesError> {
     let directory = root.relative_directory(project).ok_or_else(|| {
         CheckDependenciesError::ForeignWorkspace {
@@ -235,7 +219,6 @@ fn location(root: &CargoRoot, project: &ProjectRoot) -> Result<Location, CheckDe
 /// because a warning is a shape that the project asked to read about, and a
 /// warning that no outcome carried would be one that nobody reads. A run
 /// without a warning says nothing about warnings.
-// checkdependencies[impl check.passed]
 fn summary(roots: usize, warnings: usize) -> Summary {
     let workspaces = if roots == 1 { WORKSPACE } else { WORKSPACES };
     let checked = format!("checked {roots} {workspaces}");
@@ -293,7 +276,6 @@ mod tests {
             .build()
     }
 
-    // checkdependencies[verify check.finding]
     #[test]
     fn finding_of_a_problem_carries_the_message_of_cargo_deny() {
         let finding = finding(&problem(Severity::Error), &project_workspace(), &root()).unwrap();
@@ -304,7 +286,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.location]
     #[test]
     fn location_of_a_workspace_below_the_project_names_its_directory() {
         let location = location(&tool_workspace(), &root()).unwrap();
@@ -317,7 +298,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.location]
     #[test]
     fn location_of_the_workspace_at_the_project_root_names_the_project() {
         let location = location(&project_workspace(), &root()).unwrap();
@@ -340,7 +320,6 @@ mod tests {
         );
     }
 
-    // checkdependencies[verify check.passed]
     #[test]
     fn summary_of_one_workspace_counts_it_in_the_singular() {
         let summary = summary(1, 0);
@@ -348,7 +327,6 @@ mod tests {
         assert_eq!(summary.get(), "checked 1 workspace");
     }
 
-    // checkdependencies[verify check.passed]
     #[test]
     fn summary_of_several_workspaces_counts_them() {
         let summary = summary(2, 0);
@@ -356,7 +334,6 @@ mod tests {
         assert_eq!(summary.get(), "checked 2 workspaces");
     }
 
-    // checkdependencies[verify check.passed]
     #[test]
     fn summary_with_one_warning_counts_it_in_the_singular() {
         let summary = summary(2, 1);
@@ -364,7 +341,6 @@ mod tests {
         assert_eq!(summary.get(), "checked 2 workspaces, 1 warning");
     }
 
-    // checkdependencies[verify check.passed]
     #[test]
     fn summary_with_several_warnings_counts_them() {
         let summary = summary(2, 3);

@@ -34,7 +34,6 @@ impl DirectoryPath {
     /// # Errors
     ///
     /// Returns a [`ParseDirectoryPathError`] when `path` is absolute.
-    // action[impl location.relative]
     fn validate(path: &Path) -> Result<(), ParseDirectoryPathError> {
         if path.is_absolute() {
             return Err(ParseDirectoryPathError::AbsolutePath {
@@ -124,7 +123,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("crates/rakko"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn from_str_with_absolute_path_returns_error() {
         let error = ABSOLUTE.parse::<DirectoryPath>().unwrap_err();
@@ -151,7 +149,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("crates/rakko"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn try_from_path_buf_with_absolute_path_returns_error() {
         let error = DirectoryPath::try_from(PathBuf::from(ABSOLUTE)).unwrap_err();
@@ -171,7 +168,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("crates/rakko"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn try_from_path_with_absolute_path_returns_error() {
         let error = DirectoryPath::try_from(Path::new(ABSOLUTE)).unwrap_err();
@@ -191,7 +187,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("crates/rakko"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn try_from_str_with_absolute_path_returns_error() {
         let error = DirectoryPath::try_from(ABSOLUTE).unwrap_err();
@@ -211,7 +206,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("crates/rakko"));
     }
 
-    // action[verify location.relative]
     #[test]
     fn try_from_string_with_absolute_path_returns_error() {
         let error = DirectoryPath::try_from(ABSOLUTE.to_string()).unwrap_err();

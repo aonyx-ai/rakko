@@ -100,7 +100,6 @@ impl Yamllint {
     ///
     /// [unavailable]: ListFilesError::YamllintUnavailable
     /// [rejected]: ListFilesError::RejectedConfiguration
-    // lintyaml[impl run.listing]
     pub async fn list(&self) -> Result<Vec<PathBuf>, ListFilesError> {
         self::listing::files(&self.tool).await
     }
@@ -120,9 +119,6 @@ impl Yamllint {
     ///
     /// [unavailable]: ObserveYamllintError::YamllintUnavailable
     /// [unreadable]: ObserveYamllintError::UnreadableReport
-    // lintyaml[impl check.read]
-    // lintyaml[impl run.project]
-    // lintyaml[impl run.structured]
     pub async fn observe(&self) -> Result<Observation, ObserveYamllintError> {
         let execution = self
             .tool
@@ -137,7 +133,6 @@ impl Yamllint {
         let stdout = execution.stdout().to_string_lossy();
         let stderr = execution.stderr().to_string_lossy();
 
-        // lintyaml[impl check.unreadable]
         let problems = self::report::problems(&stdout).map_err(|source| {
             ObserveYamllintError::UnreadableReport {
                 report: stdout.to_string(),
@@ -149,7 +144,6 @@ impl Yamllint {
 
         Ok(Observation::builder()
             .problems(problems)
-            // lintyaml[impl check.incomplete]
             .finished(status.success() || status.code() == Some(PROBLEMS_FOUND))
             .stderr(stderr.trim().to_owned())
             .build())
@@ -165,8 +159,6 @@ impl Yamllint {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no yamllint for the
     /// project.
-    // lintyaml[impl tool.missing]
-    // lintyaml[impl tool.yamllint]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(YAMLLINT), root).await?;
 

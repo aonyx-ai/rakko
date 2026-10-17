@@ -134,7 +134,6 @@ impl Validator {
     /// [missing]: ObserveValidatorError::MissingReport
     /// [unavailable]: ObserveValidatorError::ValidatorUnavailable
     /// [unreadable]: ObserveValidatorError::UnreadableReport
-    // checkrenovateconfig[impl check.read]
     pub async fn observe(&self) -> Result<Observation, ObserveValidatorError> {
         let execution = self
             .invocation()
@@ -159,8 +158,6 @@ impl Validator {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no validator for the
     /// project.
-    // checkrenovateconfig[impl tool.missing]
-    // checkrenovateconfig[impl tool.validator]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(VALIDATOR), root).await?;
 
@@ -168,11 +165,6 @@ impl Validator {
     }
 
     /// Returns the command that runs the validator over the project
-    // checkrenovateconfig[impl run.project]
-    // checkrenovateconfig[impl run.regex]
-    // checkrenovateconfig[impl run.strict]
-    // checkrenovateconfig[impl run.structured]
-    // checkrenovateconfig[impl check.read]
     fn invocation(&self) -> Invocation {
         self.tool
             .invocation()
@@ -205,14 +197,12 @@ fn answer(
     stdout: &str,
     stderr: &str,
 ) -> Result<Observation, ObserveValidatorError> {
-    // checkrenovateconfig[impl check.aborted]
     let Some(status) = status(code) else {
         return Err(ObserveValidatorError::AbortedValidation {
             details: diagnosis(stderr, stdout),
         });
     };
 
-    // checkrenovateconfig[impl check.unreadable]
     let report =
         self::report::read(stdout).map_err(|source| ObserveValidatorError::UnreadableReport {
             report: stdout.to_owned(),
@@ -221,13 +211,11 @@ fn answer(
 
     let observation = match report {
         Report::Finished(observation) => observation,
-        // checkrenovateconfig[impl check.aborted]
         Report::Halted { details } => {
             return Err(ObserveValidatorError::AbortedValidation { details });
         }
     };
 
-    // checkrenovateconfig[impl check.unreported]
     if status == Status::Invalid && observation.problems().is_empty() {
         return Err(ObserveValidatorError::MissingReport {
             details: diagnosis(stderr, stdout),
@@ -268,8 +256,6 @@ fn status(code: Option<i32>) -> Option<Status> {
 /// the standard error stream, so the standard error stream answers first. A
 /// run that wrote nothing there leaves the reason in the log, or says nothing
 /// at all.
-// checkrenovateconfig[impl check.aborted]
-// checkrenovateconfig[impl check.unreported]
 fn diagnosis(stderr: &str, stdout: &str) -> String {
     let written = stderr.trim();
 
@@ -339,7 +325,6 @@ mod tests {
             .expect("expected mise to report the validator that this repository pins")
     }
 
-    // checkrenovateconfig[verify check.aborted]
     #[test]
     fn answer_of_a_crash_stops_with_what_the_validator_wrote() {
         let answer = answer(Some(99), "", "TypeError: boom\n");
@@ -350,7 +335,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.unreported]
     #[test]
     fn answer_of_a_failed_run_without_a_problem_stops() {
         let answer = answer(Some(INVALID), VALID_LOG, "");
@@ -361,7 +345,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.aborted]
     #[test]
     fn answer_of_a_fatal_record_stops() {
         let answer = answer(Some(INVALID), FATAL_LOG, "");
@@ -372,7 +355,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.passed]
     #[test]
     fn answer_of_a_valid_run_holds_the_observation() {
         let answer = answer(Some(VALID), VALID_LOG, "");
@@ -383,7 +365,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.unreadable]
     #[test]
     fn answer_of_an_unreadable_log_stops_with_the_log() {
         let answer = answer(Some(VALID), "Config validated\n", "");
@@ -394,7 +375,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.aborted]
     #[test]
     fn diagnosis_of_a_crash_holds_the_standard_error_stream() {
         let details = diagnosis("TypeError: boom\n", "{\"level\":30}\n");
@@ -402,7 +382,6 @@ mod tests {
         assert_eq!(details, "TypeError: boom");
     }
 
-    // checkrenovateconfig[verify check.unreported]
     #[test]
     fn diagnosis_without_an_error_stream_holds_the_log() {
         let details = diagnosis("", "{\"level\":30}\n");
@@ -410,7 +389,6 @@ mod tests {
         assert_eq!(details, "{\"level\":30}");
     }
 
-    // checkrenovateconfig[verify run.structured]
     #[tokio::test]
     async fn invocation_asks_for_json_records_at_the_level_of_information() {
         let invocation = validator().await.invocation();
@@ -424,7 +402,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify run.strict]
     #[tokio::test]
     async fn invocation_asks_for_strict_validation() {
         let invocation = validator().await.invocation();
@@ -438,7 +415,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify run.regex]
     #[tokio::test]
     async fn invocation_asks_for_the_regular_expressions_of_javascript() {
         let invocation = validator().await.invocation();
@@ -450,7 +426,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify run.project]
     #[tokio::test]
     async fn invocation_names_no_configuration() {
         let invocation = validator().await.invocation();
@@ -458,7 +433,6 @@ mod tests {
         assert_eq!(arguments(&invocation), [STRICT]);
     }
 
-    // checkrenovateconfig[verify check.read]
     #[tokio::test]
     async fn invocation_removes_the_file_of_the_log() {
         let invocation = validator().await.invocation();
@@ -473,7 +447,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify tool.validator]
     #[tokio::test]
     async fn invocation_runs_the_program_that_mise_reports() {
         let validator = validator().await;
@@ -483,7 +456,6 @@ mod tests {
         assert_eq!(invocation.program(), validator.tool.program());
     }
 
-    // checkrenovateconfig[verify check.aborted]
     #[test]
     fn status_of_a_crash_reports_nothing() {
         let status = status(Some(99));
@@ -498,7 +470,6 @@ mod tests {
         assert_eq!(status, Some(Status::Invalid));
     }
 
-    // checkrenovateconfig[verify check.aborted]
     #[test]
     fn status_of_a_run_that_no_status_ended_reports_nothing() {
         let status = status(None);

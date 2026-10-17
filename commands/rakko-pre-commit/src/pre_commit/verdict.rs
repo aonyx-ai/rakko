@@ -26,8 +26,6 @@ impl Verdict {
     /// An action that stopped is a problem, although it says nothing about the
     /// project. A commit that nothing examined is what the hook exists to
     /// prevent.
-    // precommit[impl result.clean]
-    // precommit[impl result.problem]
     pub(crate) fn of(outcome: &Outcome) -> Self {
         match outcome {
             Outcome::Passed { .. } | Outcome::Changed { .. } | Outcome::Skipped { .. } => {
@@ -48,7 +46,6 @@ mod tests {
 
     use super::*;
 
-    // precommit[verify result.clean]
     #[test]
     fn of_a_changed_outcome_is_clean() {
         let outcome = Outcome::Changed {
@@ -60,7 +57,6 @@ mod tests {
         assert_eq!(verdict, Verdict::Clean);
     }
 
-    // precommit[verify result.problem]
     #[test]
     fn of_a_failed_outcome_is_a_problem() {
         let outcome = Outcome::Failed {
@@ -73,7 +69,6 @@ mod tests {
         assert_eq!(verdict, Verdict::Problem);
     }
 
-    // precommit[verify result.clean]
     #[test]
     fn of_a_passed_outcome_is_clean() {
         let outcome = Outcome::Passed { summary: None };
@@ -83,7 +78,6 @@ mod tests {
         assert_eq!(verdict, Verdict::Clean);
     }
 
-    // precommit[verify result.clean]
     #[test]
     fn of_a_skipped_outcome_is_clean() {
         let outcome = Outcome::Skipped {
@@ -95,7 +89,6 @@ mod tests {
         assert_eq!(verdict, Verdict::Clean);
     }
 
-    // precommit[verify result.problem]
     #[test]
     fn of_an_errored_outcome_is_a_problem() {
         let outcome = Outcome::Errored {

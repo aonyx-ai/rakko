@@ -85,10 +85,8 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 pub struct CheckLatestDeps;
 
 impl Action for CheckLatestDeps {
-    // checklatestdeps[impl args.none]
     type Args = ();
 
-    // checklatestdeps[impl name]
     fn name(&self) -> Name {
         action_name!("check-latest-deps")
     }
@@ -96,10 +94,6 @@ impl Action for CheckLatestDeps {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // checklatestdeps[impl copy.unavailable]
-            // checklatestdeps[impl roots.error]
-            // checklatestdeps[impl tests.error]
-            // checklatestdeps[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -125,27 +119,21 @@ impl Action for CheckLatestDeps {
 /// tool, the discovery of the workspaces, the creation of the copy, a run of
 /// cargo, or a run of nextest that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
-    // checklatestdeps[impl tool.cargo]
-    // checklatestdeps[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| CheckLatestDepsError::UnresolvedTool { source })?;
 
-    // checklatestdeps[impl roots.error]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| CheckLatestDepsError::UndiscoveredRoots { source })?;
 
-    // checklatestdeps[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
         });
     }
 
-    // checklatestdeps[impl copy.disposable]
-    // checklatestdeps[impl copy.unavailable]
     let worktree = Worktree::create(context.root().clone())
         .await
         .map_err(|source| CheckLatestDepsError::CopyUnavailable { source })?;
@@ -153,12 +141,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
     let copies = copies(&worktree, &roots)?;
     let mut findings = Vec::new();
 
-    // checklatestdeps[impl roots.all]
     for root in &copies {
         findings.extend(update(&cargo, root, worktree.root()).await?);
     }
 
-    // checklatestdeps[impl update.failed]
     if !findings.is_empty() {
         return Ok(Outcome::Failed {
             findings,
@@ -166,14 +152,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
         });
     }
 
-    // checklatestdeps[impl tests.locked]
     let nextest = Nextest::new(cargo, Lockfile::Locked);
     let mut ran = 0;
 
-    // checklatestdeps[impl roots.all]
     for root in &copies {
-        // checklatestdeps[impl copy.paths]
-        // checklatestdeps[impl tests.error]
         let observation = nextest.observe(root, worktree.root()).await?;
 
         findings.extend(observation.findings().iter().cloned());
@@ -181,13 +163,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
     }
 
     if findings.is_empty() {
-        // checklatestdeps[impl tests.none]
-        // checklatestdeps[impl tests.passed]
         Ok(Outcome::Passed {
             summary: Some(summary(copies.len(), ran)),
         })
     } else {
-        // checklatestdeps[impl tests.failed]
         Ok(Outcome::Failed {
             findings,
             repairs: Vec::new(),
@@ -209,8 +188,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
 /// root of the project, which is a project that moved while the run was on.
 ///
 /// [foreign]: CheckLatestDepsError::ForeignRoot
-// checklatestdeps[impl copy.paths]
-// checklatestdeps[impl roots.error]
 fn copies(
     worktree: &Worktree,
     roots: &[CargoRoot],
@@ -257,8 +234,6 @@ fn details(execution: &Execution) -> String {
 /// that it could not resolve and the reason, and nothing that Rakko could
 /// write about it would say more. The finding belongs to the manifest of the
 /// root, which is the file that states the requirements that cargo read.
-// checklatestdeps[impl copy.paths]
-// checklatestdeps[impl update.failed]
 fn finding(root: &CargoRoot, project: &ProjectRoot, execution: &Execution) -> Finding {
     let message = format!("{NOT_UPDATED} {}", details(execution));
 
@@ -276,7 +251,6 @@ fn finding(root: &CargoRoot, project: &ProjectRoot, execution: &Execution) -> Fi
 
 /// Returns the summary that tells how many workspaces the run updated and how
 /// many tests it ran
-// checklatestdeps[impl tests.passed]
 fn summary(roots: usize, ran: u64) -> Summary {
     let workspaces = match roots {
         1 => "1 workspace".to_owned(),
@@ -302,8 +276,6 @@ fn summary(roots: usize, ran: u64) -> Summary {
 /// Returns [`CargoUnavailable`][unavailable] when cargo does not run.
 ///
 /// [unavailable]: CheckLatestDepsError::CargoUnavailable
-// checklatestdeps[impl copy.disposable]
-// checklatestdeps[impl update.operation]
 async fn update(
     cargo: &Cargo,
     root: &CargoRoot,
@@ -320,7 +292,6 @@ async fn update(
         return Ok(None);
     }
 
-    // checklatestdeps[impl update.failed]
     Ok(Some(finding(root, project, &execution)))
 }
 
@@ -332,7 +303,6 @@ mod tests {
 
     use super::*;
 
-    // checklatestdeps[verify tests.passed]
     #[test]
     fn summary_of_many_tests_counts_them() {
         let summary = summary(2, 354);
@@ -340,7 +310,6 @@ mod tests {
         assert_eq!(summary.get(), "updated 2 workspaces and ran 354 tests");
     }
 
-    // checklatestdeps[verify tests.none]
     #[test]
     fn summary_of_no_test_counts_zero() {
         let summary = summary(2, 0);
@@ -348,7 +317,6 @@ mod tests {
         assert_eq!(summary.get(), "updated 2 workspaces and ran 0 tests");
     }
 
-    // checklatestdeps[verify tests.passed]
     #[test]
     fn summary_of_one_test_in_one_workspace_says_so() {
         let summary = summary(1, 1);

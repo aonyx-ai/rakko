@@ -40,14 +40,6 @@ version = "0.1.61"
 backend = "cargo:cargo-udeps"
 specifiers = ["0.1.61"]
 
-[[tools."cargo:https://github.com/bearcove/tracey"]]
-version = "rev:7494469c454ea3e93203f2cc860adbf153fe64b9"
-backend = "cargo:https://github.com/bearcove/tracey"
-specifiers = ["rev:7494469c454ea3e93203f2cc860adbf153fe64b9"]
-
-[tools."cargo:https://github.com/bearcove/tracey".options]
-crate = "tracey"
-
 [[tools.jq]]
 version = "1.8.2"
 backend = "aqua:jqlang/jq"
@@ -137,29 +129,6 @@ url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/56332840
 version = "4.7.0"
 backend = "pipx:pre-commit"
 specifiers = ["4.7.0"]
-
-[[tools.pnpm]]
-version = "12.14.0"
-backend = "aqua:pnpm/pnpm"
-specifiers = ["12.14.0"]
-
-[tools.pnpm."platforms.linux-x64"]
-checksum = "sha256:3910c3852136bed5bc1511b9137a45fd4357ed6b3970d9d08893641e9005867e"
-url = "https://github.com/pnpm/pnpm/releases/download/v12.14.0/pnpm-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/643957410"
-provenance = "github-attestations"
-
-[tools.pnpm."platforms.macos-arm64"]
-checksum = "sha256:50f48e0e17508952790a3fbf58fcf14f3b82efa5f594ca04ad904e29aaf854b0"
-url = "https://github.com/pnpm/pnpm/releases/download/v12.14.0/pnpm-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/643957413"
-provenance = "github-attestations"
-
-[tools.pnpm."platforms.windows-x64"]
-checksum = "sha256:6f0f38e917c8ce76ef31db528c357e2bfa354a1bcb16464e3cdec39e6530d784"
-url = "https://github.com/pnpm/pnpm/releases/download/v12.14.0/pnpm-win32-x64.zip"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/643957404"
-provenance = "github-attestations"
 
 [[tools.rust]]
 version = "1.88.0"

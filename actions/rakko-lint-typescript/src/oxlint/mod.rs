@@ -100,10 +100,6 @@ impl Oxlint {
     /// [missing]: ObserveOxlintError::MissingReport
     /// [unavailable]: ObserveOxlintError::OxlintUnavailable
     /// [unreadable]: ObserveOxlintError::UnreadableReport
-    // linttypescript[impl check.configuration]
-    // linttypescript[impl check.read]
-    // linttypescript[impl run.project]
-    // linttypescript[impl run.structured]
     pub async fn observe(&self) -> Result<Observation, ObserveOxlintError> {
         let execution = self
             .tool
@@ -132,8 +128,6 @@ impl Oxlint {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no oxlint for the
     /// project.
-    // linttypescript[impl tool.missing]
-    // linttypescript[impl tool.oxlint]
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(OXLINT), root).await?;
 

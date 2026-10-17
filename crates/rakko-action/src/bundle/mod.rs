@@ -104,7 +104,6 @@ use crate::erased_action::ErasedAction;
 /// #     assert_eq!(rakko_rust_library::bundle().actions().len(), 2);
 /// # }
 /// ```
-// action[impl bundle.list]
 #[derive(Getters)]
 pub struct Bundle {
     /// The actions, in the order in which the bundle lists them
@@ -117,13 +116,11 @@ impl Bundle {
     ///
     /// The bundle keeps the order of the actions, and a mount receives them
     /// in that order.
-    // action[impl bundle.list]
     pub fn new(actions: Vec<Box<dyn ErasedAction>>) -> Self {
         Self { actions }
     }
 
     /// Adds an action after the actions that the bundle holds
-    // action[impl bundle.list]
     pub fn push(&mut self, action: Box<dyn ErasedAction>) {
         self.actions.push(action);
     }
@@ -145,7 +142,6 @@ impl fmt::Debug for Bundle {
 ///
 /// A bundle is an iterator of its actions, so a bundle includes another
 /// bundle by extending itself with that bundle.
-// action[impl bundle.contains]
 impl Extend<Box<dyn ErasedAction>> for Bundle {
     fn extend<I: IntoIterator<Item = Box<dyn ErasedAction>>>(&mut self, actions: I) {
         self.actions.extend(actions);
@@ -156,7 +152,6 @@ impl Extend<Box<dyn ErasedAction>> for Bundle {
 ///
 /// A harness that filters the list of a bundle collects what remains into a
 /// new bundle.
-// action[impl bundle.list]
 impl FromIterator<Box<dyn ErasedAction>> for Bundle {
     fn from_iter<I: IntoIterator<Item = Box<dyn ErasedAction>>>(actions: I) -> Self {
         Self::new(actions.into_iter().collect())
@@ -167,7 +162,6 @@ impl FromIterator<Box<dyn ErasedAction>> for Bundle {
 ///
 /// A mount takes an iterator of erased actions, so a harness passes a bundle
 /// to it as it is.
-// action[impl bundle.mount]
 impl IntoIterator for Bundle {
     type Item = Box<dyn ErasedAction>;
     type IntoIter = std::vec::IntoIter<Box<dyn ErasedAction>>;
@@ -243,7 +237,6 @@ mod tests {
             .collect()
     }
 
-    // action[verify bundle.list]
     #[test]
     fn bundle_collects_the_actions_that_remain_after_a_filter() {
         let bundle = Bundle::new(vec![Box::new(FormatJson), Box::new(LintYaml)]);
@@ -256,7 +249,6 @@ mod tests {
         assert_eq!(names(&filtered), ["lint-yaml"]);
     }
 
-    // action[verify bundle.contains]
     #[test]
     fn bundle_holds_the_list_of_another_bundle() {
         let mut bundle = Bundle::new(vec![Box::new(LintYaml)]);
@@ -266,7 +258,6 @@ mod tests {
         assert_eq!(names(&bundle), ["lint-yaml", "format-json"]);
     }
 
-    // action[verify bundle.list]
     #[test]
     fn bundle_holds_the_erased_actions_that_it_exports() {
         let bundle = Bundle::new(vec![Box::new(FormatJson), Box::new(LintYaml)]);
@@ -276,7 +267,6 @@ mod tests {
         assert_eq!(names, ["format-json", "lint-yaml"]);
     }
 
-    // action[verify bundle.mount]
     #[test]
     fn bundle_passes_to_a_mount_as_it_is() {
         let bundle = Bundle::new(vec![Box::new(FormatJson), Box::new(LintYaml)]);
@@ -286,7 +276,6 @@ mod tests {
         assert_eq!(mounted, ["format-json", "lint-yaml"]);
     }
 
-    // action[verify bundle.list]
     #[test]
     fn push_adds_the_action_after_the_others() {
         let mut bundle = Bundle::new(vec![Box::new(FormatJson)]);

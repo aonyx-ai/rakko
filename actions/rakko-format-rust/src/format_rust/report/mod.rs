@@ -81,8 +81,6 @@ impl RustfmtReport {
     }
 
     /// Reads the report of a run from what rustfmt wrote
-    // formatrust[impl check.invalid]
-    // formatrust[impl check.unformatted]
     pub fn read(execution: &Execution) -> Self {
         read(
             &execution.stdout().to_string_lossy(),
@@ -138,9 +136,6 @@ fn header(line: &str) -> Option<&str> {
 }
 
 /// Reads a report from the two streams of a run
-// formatrust[impl check.configuration]
-// formatrust[impl check.invalid]
-// formatrust[impl check.unformatted]
 fn read(stdout: &str, stderr: &str, succeeded: bool) -> RustfmtReport {
     let mut listed = Vec::new();
     let mut seen = HashSet::new();
@@ -201,7 +196,6 @@ mod tests {
     /// What rustfmt writes about an option that it does not know
     const UNKNOWN_OPTION: &str = "Warning: Unknown configuration option `no_such_option`\nWarning: Unknown configuration option `no_such_option`\n";
 
-    // formatrust[verify check.configuration]
     #[test]
     fn read_a_warning_keeps_the_first_one() {
         let report = read("", UNKNOWN_OPTION, false);
@@ -212,7 +206,6 @@ mod tests {
         );
     }
 
-    // formatrust[verify check.invalid]
     #[test]
     fn read_a_diagnostic_reads_the_message() {
         let report = read("", INVALID, false);
@@ -227,7 +220,6 @@ mod tests {
         );
     }
 
-    // formatrust[verify check.invalid]
     #[test]
     fn read_a_diagnostic_reads_the_path() {
         let report = read("", INVALID, false);
@@ -238,7 +230,6 @@ mod tests {
         );
     }
 
-    // formatrust[verify check.unformatted]
     #[test]
     fn read_a_file_listed_twice_keeps_one() {
         let report = read(LISTED, "", false);
@@ -268,7 +259,6 @@ mod tests {
         );
     }
 
-    // formatrust[verify check.unformatted]
     #[test]
     fn problems_of_a_check_name_the_listed_files() {
         let report = read(LISTED, "", false);

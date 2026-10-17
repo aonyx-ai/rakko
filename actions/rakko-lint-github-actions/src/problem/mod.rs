@@ -109,8 +109,6 @@ impl ZizmorProblem {
     /// what zizmor wrote about this place. A reader therefore sees the two
     /// halves that zizmor draws above and below its block of source, and the
     /// places of one finding read as the same finding.
-    // lintgithubactions[impl check.finding]
-    // lintgithubactions[impl check.severity]
     pub fn message(&self) -> String {
         format!(
             "{SEVERITY_OPEN}{}{SEVERITY_CLOSE}{}{AUDIT_CLOSE}{}{ANNOTATION_OPEN}{}{ANNOTATION_CLOSE}",
@@ -165,7 +163,6 @@ mod tests {
             .build()
     }
 
-    // lintgithubactions[verify check.finding]
     #[test]
     fn message_holds_the_words_of_zizmor() {
         let message = problem(path("./.github/workflows/ci.yml")).message();
@@ -177,7 +174,6 @@ mod tests {
         );
     }
 
-    // lintgithubactions[verify check.severity]
     #[test]
     fn message_of_an_informational_finding_names_its_severity() {
         let problem = weighed(path("./.github/workflows/ci.yml"), Severity::Informational);

@@ -74,7 +74,6 @@ impl UdepsReport {
     /// let a workspace pass with its unused dependencies unread.
     ///
     /// [unrecognized]: ReadUdepsReportError::UnrecognizedReport
-    // checkunuseddeps[impl check.unreadable]
     pub fn read(stdout: &str) -> Result<Option<Self>, ReadUdepsReportError> {
         let Some(line) = stdout.lines().find(|line| carries_report(line)) else {
             return Ok(None);
@@ -140,7 +139,6 @@ impl Record {
     /// dependencies of a package in the order that cargo-udeps named them,
     /// so two runs over the same workspace report the same findings in the
     /// same order.
-    // checkunuseddeps[impl check.finding]
     fn into_dependencies(self) -> Vec<UnusedDependency> {
         self.unused_deps
             .into_values()
@@ -152,7 +150,6 @@ impl Record {
 impl Package {
     /// Returns the unused dependencies of this package, by the table that
     /// declares each of them
-    // checkunuseddeps[impl check.finding]
     fn into_dependencies(self) -> Vec<UnusedDependency> {
         let manifest = self.manifest_path;
         let tables = [
@@ -190,7 +187,6 @@ mod tests {
     /// A record that cargo wrote about the build
     const RECORD: &str = r#"{"reason":"build-finished","success":true}"#;
 
-    // checkunuseddeps[verify check.unreadable]
     #[test]
     fn read_a_report_in_a_shape_the_crate_does_not_know_holds_the_line() {
         let line = r#"{"unused_deps":{"probe":{"manifest_path":5}}}"#;
@@ -207,7 +203,6 @@ mod tests {
         );
     }
 
-    // checkunuseddeps[verify check.unrecognized]
     #[test]
     fn read_a_stream_without_a_report_answers_nothing() {
         let report = UdepsReport::read(RECORD);
@@ -215,7 +210,6 @@ mod tests {
         assert_eq!(report.ok(), Some(None));
     }
 
-    // checkunuseddeps[verify check.finding]
     #[test]
     fn read_a_report_beside_the_records_of_cargo_names_every_dependency() {
         let stdout = format!("{RECORD}\n{FOUND}\n");
@@ -247,7 +241,6 @@ mod tests {
         );
     }
 
-    // checkunuseddeps[verify check.passed]
     #[test]
     fn read_a_report_of_a_clean_run_names_no_dependency() {
         let report = UdepsReport::read(r#"{"success":true,"unused_deps":{},"note":null}"#);
@@ -261,7 +254,6 @@ mod tests {
         );
     }
 
-    // checkunuseddeps[verify check.finding]
     #[test]
     fn read_a_report_names_the_manifest_of_the_package() {
         let report = UdepsReport::read(FOUND);

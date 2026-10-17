@@ -81,7 +81,6 @@ pub struct FormatJson;
 impl Action for FormatJson {
     type Args = FormatJsonArgs;
 
-    // formatjson[impl name]
     fn name(&self) -> Name {
         action_name!("format-json")
     }
@@ -89,7 +88,6 @@ impl Action for FormatJson {
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
-            // formatjson[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -110,8 +108,6 @@ impl Action for FormatJson {
 async fn drive(context: &Context, args: &FormatJsonArgs) -> Result<Outcome, FormatJsonError> {
     let filter = filter();
 
-    // formatjson[impl tool.prettier]
-    // formatjson[impl tool.missing]
     let prettier = Prettier::resolve(context.root().clone())
         .await
         .map_err(|source| FormatJsonError::UnresolvedTool { source })?;
@@ -212,7 +208,6 @@ fn findings(
 /// Returns the error of a rewrite that could not finish: prettier did not run,
 /// a configuration of the project did not reach it, it wrote a report that the
 /// action does not recognize, or it reported a path outside the project.
-// formatjson[impl fix.write]
 async fn fix(
     prettier: &Prettier,
     filter: &Filter,
@@ -228,7 +223,6 @@ async fn fix(
     let findings = findings(observation.problems(), root)?;
 
     if !findings.is_empty() {
-        // formatjson[impl fix.partial]
         return Ok(Outcome::Failed { findings, repairs });
     }
 
@@ -236,7 +230,6 @@ async fn fix(
         return Ok(Outcome::Passed { summary: None });
     }
 
-    // formatjson[impl fix.changed]
     Ok(Outcome::Changed { repairs })
 }
 
@@ -262,21 +255,18 @@ async fn fix(
 /// [rejected]: FormatJsonError::RejectedConfiguration
 /// [unrecognized]: FormatJsonError::UnrecognizedReport
 fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatJsonError> {
-    // formatjson[impl check.configuration]
     if let Some(details) = observation.rejected_configuration() {
         return Err(FormatJsonError::RejectedConfiguration {
             details: details.clone(),
         });
     }
 
-    // formatjson[impl skip.unmatched]
     if observation.unmatched_pattern() {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         }));
     }
 
-    // formatjson[impl check.unrecognized]
     if observation.problems().is_empty() && !observation.succeeded() {
         return Err(FormatJsonError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
@@ -297,7 +287,6 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatJsonError> 
 /// Returns the error of a run that could not finish: prettier did not run, a
 /// configuration of the project did not reach it, it wrote a report that the
 /// action does not recognize, or it reported a path outside the project.
-// formatjson[impl check.read]
 async fn report(
     prettier: &Prettier,
     filter: &Filter,
@@ -310,13 +299,9 @@ async fn report(
     }
 
     if observation.problems().is_empty() {
-        // formatjson[impl check.passed]
         return Ok(Outcome::Passed { summary: None });
     }
 
-    // formatjson[impl check.invalid]
-    // formatjson[impl check.unformatted]
-    // formatjson[impl check.unreadable]
     Ok(Outcome::Failed {
         findings: findings(observation.problems(), root)?,
         repairs: Vec::new(),
@@ -334,7 +319,6 @@ async fn report(
 /// path of a file.
 ///
 /// [foreign]: FormatJsonError::ForeignPath
-// formatjson[impl fix.changed]
 fn repairs(rewritten: &[PathBuf], root: &ProjectRoot) -> Result<Vec<Finding>, FormatJsonError> {
     rewritten
         .iter()
@@ -361,7 +345,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // formatjson[verify check.invalid]
     #[test]
     fn finding_of_a_diagnostic_carries_the_message_of_prettier() {
         let problem = PrettierProblem::new(
@@ -378,7 +361,6 @@ mod tests {
         assert_eq!(finding.message().get(), "SyntaxError: Unexpected token");
     }
 
-    // formatjson[verify check.invalid]
     #[test]
     fn finding_of_a_diagnostic_sits_at_the_position_of_prettier() {
         let problem = PrettierProblem::new(
@@ -411,7 +393,6 @@ mod tests {
         assert!(matches!(error, FormatJsonError::ForeignPath { .. }));
     }
 
-    // formatjson[verify skip.unmatched]
     #[test]
     fn guard_of_a_run_that_matched_no_file_skips() {
         let observation = Observation::builder()
@@ -427,7 +408,6 @@ mod tests {
         );
     }
 
-    // formatjson[verify check.unrecognized]
     #[test]
     fn guard_of_a_failed_run_without_a_problem_stops() {
         let observation = Observation::builder().stderr("something new").build();
@@ -437,7 +417,6 @@ mod tests {
         assert!(matches!(error, FormatJsonError::UnrecognizedReport { .. }));
     }
 
-    // formatjson[verify check.configuration]
     #[test]
     fn guard_of_a_run_without_its_configuration_stops() {
         let observation = Observation::builder()

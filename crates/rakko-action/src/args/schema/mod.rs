@@ -24,7 +24,6 @@ pub struct ArgsSchema {
 
 impl ArgsSchema {
     /// Returns the schema of an action that reads no arguments
-    // action[impl args.empty]
     #[must_use]
     pub fn empty() -> Self {
         Self::default()
@@ -34,7 +33,6 @@ impl ArgsSchema {
     ///
     /// The order of the arguments is preserved, because a projection may show
     /// them in the order that the action declares them.
-    // action[impl args.schema]
     pub fn new(arguments: impl IntoIterator<Item = Argument>) -> Self {
         Self {
             arguments: arguments.into_iter().collect(),
@@ -59,7 +57,6 @@ mod tests {
             .build()
     }
 
-    // action[verify args.empty]
     #[test]
     fn empty_returns_schema_without_arguments() {
         let schema = ArgsSchema::empty();
@@ -67,7 +64,6 @@ mod tests {
         assert!(schema.arguments().is_empty());
     }
 
-    // action[verify args.schema]
     #[test]
     fn new_keeps_the_order_of_the_arguments() {
         let expected = vec![argument("fix"), argument("check")];

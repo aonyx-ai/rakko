@@ -14,8 +14,6 @@ pub use self::project_root::ProjectRoot;
 /// A context holds the root directory of the project and the directory layout
 /// of that project. Every action receives a context, so the type stays small
 /// by design.
-// action[impl context.send]
-// action[impl context.sync]
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Context {
     /// The root directory of the project
@@ -32,9 +30,6 @@ impl Context {
     ///
     /// When `layout` is absent the context builds the layout from the project
     /// root with default directory paths.
-    // action[impl context.root]
-    // action[impl context.layout]
-    // action[impl context.derived]
     #[builder]
     pub fn new(#[builder(into)] root: ProjectRoot, layout: Option<Layout>) -> Self {
         let layout = layout.unwrap_or_else(|| Layout::builder().root(root.clone()).build());
@@ -54,19 +49,16 @@ mod tests {
     fn assert_send<T: Send>() {}
     fn assert_sync<T: Sync>() {}
 
-    // action[verify context.send]
     #[test]
     fn context_is_send() {
         assert_send::<Context>();
     }
 
-    // action[verify context.sync]
     #[test]
     fn context_is_sync() {
         assert_sync::<Context>();
     }
 
-    // action[verify context.layout]
     #[test]
     fn layout_returns_given_layout() {
         let layout = Layout::builder()
@@ -83,7 +75,6 @@ mod tests {
         assert_eq!(context.layout(), &layout);
     }
 
-    // action[verify context.root]
     #[test]
     fn root_returns_project_root() {
         let context = Context::builder().root("/tmp/my-project").build();
@@ -94,7 +85,6 @@ mod tests {
         );
     }
 
-    // action[verify context.derived]
     #[test]
     fn without_layout_derives_from_root() {
         let context = Context::builder().root("/tmp/my-project").build();

@@ -239,11 +239,6 @@ enum Meaning {
 /// [malformed]: ReadReportError::MalformedRecord
 /// [unattributed]: ReadReportError::UnattributedMigration
 /// [unrecognized]: ReadReportError::UnrecognizedRecord
-// checkrenovateconfig[impl check.error]
-// checkrenovateconfig[impl check.migration]
-// checkrenovateconfig[impl check.summary]
-// checkrenovateconfig[impl check.unreadable]
-// checkrenovateconfig[impl check.warning]
 pub fn read(log: &str) -> Result<Report, ReadReportError> {
     let mut problems = Vec::new();
     let mut validated = 0;
@@ -280,9 +275,7 @@ pub fn read(log: &str) -> Result<Report, ReadReportError> {
 
                 problems.push(RenovateProblem::new(path, None, topic, options));
             }
-            // checkrenovateconfig[impl skip.unconfigured]
             Meaning::Unconfigured(words) => unconfigured = Some(words),
-            // checkrenovateconfig[impl check.aborted]
             Meaning::Fatal(details) => return Ok(Report::Halted { details }),
             Meaning::Log => {}
         }
@@ -323,7 +316,6 @@ fn meaning(record: Record) -> Option<Meaning> {
             return Some(Meaning::Announcement(file(configuration)));
         }
 
-        // checkrenovateconfig[impl check.summary]
         if let Some(count) = record.msg.strip_prefix(COUNT_OPEN) {
             let count = count.strip_suffix(COUNT_CLOSE)?.parse().ok()?;
 
@@ -357,7 +349,6 @@ fn meaning(record: Record) -> Option<Meaning> {
         return Some(Meaning::Log);
     }
 
-    // checkrenovateconfig[impl check.unparsable]
     if let (Some(configuration), Some(cause)) = (record.file.as_deref(), &record.err) {
         return Some(Meaning::Problems(vec![RenovateProblem::new(
             file(configuration),
@@ -405,7 +396,6 @@ fn fatal(record: &Record) -> String {
 ///
 /// A configuration in a key of `package.json` belongs to that file, because
 /// the key is not a file of its own.
-// checkrenovateconfig[impl check.embedded]
 fn file(configuration: &str) -> PathBuf {
     let name = configuration
         .split_once(KEY_SEPARATOR)
@@ -510,7 +500,6 @@ mod tests {
             .collect()
     }
 
-    // checkrenovateconfig[verify check.embedded]
     #[test]
     fn read_of_a_configuration_in_package_json_names_package_json() {
         let paths = paths(EMBEDDED);
@@ -518,7 +507,6 @@ mod tests {
         assert_eq!(paths, [PathBuf::from("package.json")]);
     }
 
-    // checkrenovateconfig[verify check.unparsable]
     #[test]
     fn read_of_a_configuration_that_the_validator_rejected_holds_its_words() {
         let messages = messages(INVALID);
@@ -526,7 +514,6 @@ mod tests {
         assert_eq!(messages, ["File is not valid Renovate config: boom"]);
     }
 
-    // checkrenovateconfig[verify check.error]
     #[test]
     fn read_of_a_denied_header_reports_the_error_once() {
         let messages = messages(DENIED_HEADER);
@@ -540,7 +527,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.aborted]
     #[test]
     fn read_of_a_fatal_record_reports_that_the_validator_stopped() {
         let report = read(FATAL_LOG).expect("the test reads a log that the validator could write");
@@ -563,7 +549,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.unreadable]
     #[test]
     fn read_of_a_line_that_is_no_record_stops() {
         let report = read("Validating renovate.json");
@@ -574,7 +559,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.migration]
     #[test]
     fn read_of_a_migration_names_each_option_that_it_changes() {
         let messages = messages(MIGRATION);
@@ -585,7 +569,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.migration]
     #[test]
     fn read_of_a_migration_names_the_configuration_that_the_validator_announced() {
         let paths = paths(MIGRATION);
@@ -593,7 +576,6 @@ mod tests {
         assert_eq!(paths, [PathBuf::from("renovate.json")]);
     }
 
-    // checkrenovateconfig[verify check.unreadable]
     #[test]
     fn read_of_a_migration_without_an_announcement_stops() {
         let report = read(UNATTRIBUTED);
@@ -604,7 +586,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify skip.unconfigured]
     #[test]
     fn read_of_a_project_without_a_configuration_holds_the_words_of_the_validator() {
         let unconfigured = observation(UNCONFIGURED_LOG).unconfigured().clone();
@@ -615,7 +596,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.unparsable]
     #[test]
     fn read_of_a_syntax_error_names_the_position() {
         let problems = observation(SYNTAX_ERROR).problems().clone();
@@ -631,7 +611,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.passed]
     #[test]
     fn read_of_a_valid_configuration_holds_no_problem() {
         let observation = observation(VALID);
@@ -642,7 +621,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.summary]
     #[test]
     fn read_of_a_valid_configuration_holds_the_count_of_the_validator() {
         let validated = observation(VALID).validated();
@@ -650,7 +628,6 @@ mod tests {
         assert_eq!(validated, 1);
     }
 
-    // checkrenovateconfig[verify check.warning]
     #[test]
     fn read_of_a_warning_holds_the_words_of_the_validator() {
         let messages = messages(WARNING_ONLY);
@@ -664,7 +641,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.error]
     #[test]
     fn read_of_an_error_holds_the_words_of_the_validator() {
         let messages = messages(ERROR);
@@ -675,7 +651,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.error]
     #[test]
     fn read_of_an_error_names_the_file() {
         let paths = paths(ERROR);
@@ -683,7 +658,6 @@ mod tests {
         assert_eq!(paths, [PathBuf::from("renovate.json")]);
     }
 
-    // checkrenovateconfig[verify check.unreadable]
     #[test]
     fn read_of_an_unknown_warning_stops() {
         let report = read(UNKNOWN_WARNING);
@@ -694,7 +668,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.unreadable]
     #[test]
     fn read_of_an_unreadable_count_stops() {
         let report = read(UNREADABLE_COUNT);
@@ -705,7 +678,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.summary]
     #[test]
     fn read_of_presets_holds_the_count_of_the_validator() {
         let validated = observation(PRESETS).validated();

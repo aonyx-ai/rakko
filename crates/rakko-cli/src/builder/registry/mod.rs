@@ -30,7 +30,6 @@ impl Registry {
     /// already holds, and reports that name. A harness that mounts one name
     /// twice has a defect that only a change of its own code corrects, so the
     /// failure happens where the harness mounts and not where a user runs.
-    // cli[impl mount.collision+2]
     pub(super) fn add(&mut self, entries: impl IntoIterator<Item = Mounted>) {
         for mounted in entries {
             match self.entries.entry(mounted.name()) {

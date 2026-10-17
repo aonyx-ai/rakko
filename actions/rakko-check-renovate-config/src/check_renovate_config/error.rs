@@ -91,9 +91,6 @@ impl From<ObserveValidatorError> for CheckRenovateConfigError {
     ///
     /// The machinery that runs the validator names the same conditions that
     /// the action reports, so the conversion renames them and adds nothing.
-    // checkrenovateconfig[impl check.aborted]
-    // checkrenovateconfig[impl check.unreadable]
-    // checkrenovateconfig[impl check.unreported]
     fn from(error: ObserveValidatorError) -> Self {
         match error {
             ObserveValidatorError::AbortedValidation { details } => {
@@ -135,7 +132,6 @@ mod tests {
         assert_send_and_sync::<CheckRenovateConfigError>();
     }
 
-    // checkrenovateconfig[verify check.aborted]
     #[test]
     fn error_of_a_run_that_stopped_holds_what_the_validator_wrote() {
         let error = CheckRenovateConfigError::from(ObserveValidatorError::AbortedValidation {
@@ -148,7 +144,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.unreported]
     #[test]
     fn error_of_a_silent_failure_holds_what_the_validator_wrote() {
         let error = CheckRenovateConfigError::from(ObserveValidatorError::MissingReport {
@@ -161,7 +156,6 @@ mod tests {
         );
     }
 
-    // checkrenovateconfig[verify check.unreadable]
     #[test]
     fn error_of_an_unreadable_log_holds_what_the_validator_wrote() {
         let error = CheckRenovateConfigError::from(ObserveValidatorError::UnreadableReport {

@@ -40,7 +40,6 @@ impl ProjectRoot {
     /// # Ok(())
     /// # }
     /// ```
-    // action[impl path.root]
     pub fn canonical(path: impl AsRef<Path>) -> IoResult<Self> {
         Ok(Self::new(path::canonical(path.as_ref())?))
     }
@@ -56,7 +55,6 @@ mod tests {
 
     use super::*;
 
-    // action[verify path.root]
     #[test]
     fn canonical_of_a_directory_that_exists_names_it() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -66,7 +64,6 @@ mod tests {
         assert!(root.get().is_dir());
     }
 
-    // action[verify path.root]
     #[test]
     fn canonical_of_a_directory_that_does_not_exist_reports_the_error() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");

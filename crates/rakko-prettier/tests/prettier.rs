@@ -176,7 +176,6 @@ impl Drop for Project {
     }
 }
 
-// prettier[verify run.operation]
 #[tokio::test]
 async fn observe_a_report_changes_nothing() {
     let project = Project::new();
@@ -187,7 +186,6 @@ async fn observe_a_report_changes_nothing() {
     assert_eq!(project.content("messy.md"), UNFORMATTED);
 }
 
-// prettier[verify run.operation]
 #[tokio::test]
 async fn observe_a_report_names_a_file_that_is_not_formatted() {
     let project = Project::new();
@@ -204,7 +202,6 @@ async fn observe_a_report_names_a_file_that_is_not_formatted() {
     );
 }
 
-// prettier[verify run.operation]
 #[tokio::test]
 async fn observe_a_rewrite_formats_the_project() {
     let project = Project::new();
@@ -215,7 +212,6 @@ async fn observe_a_rewrite_formats_the_project() {
     assert_eq!(project.content("messy.md"), FORMATTED);
 }
 
-// prettier[verify run.plain]
 #[tokio::test]
 async fn observe_reads_a_report_without_color_codes() {
     let project = Project::new();
@@ -231,7 +227,6 @@ async fn observe_reads_a_report_without_color_codes() {
     );
 }
 
-// prettier[verify run.plain]
 #[tokio::test]
 async fn observe_reads_the_marker_of_a_line_that_a_color_would_hide() {
     let project = Project::new();
@@ -247,7 +242,6 @@ async fn observe_reads_the_marker_of_a_line_that_a_color_would_hide() {
     );
 }
 
-// prettier[verify select.unknown]
 #[tokio::test]
 async fn observe_with_a_filter_for_every_extension_skips_an_unknown_language() {
     let project = Project::new();
@@ -262,7 +256,6 @@ async fn observe_with_a_filter_for_every_extension_skips_an_unknown_language() {
     );
 }
 
-// prettier[verify tool.resolve]
 #[tokio::test]
 async fn resolve_in_a_project_that_pins_prettier_finds_the_program() {
     let project = Project::new();
@@ -272,7 +265,6 @@ async fn resolve_in_a_project_that_pins_prettier_finds_the_program() {
     assert!(prettier.is_ok(), "expected a prettier, got {prettier:?}");
 }
 
-// prettier[verify tool.missing]
 #[tokio::test]
 async fn resolve_without_a_prettier_reports_the_tool() {
     let project = Project::without_prettier();

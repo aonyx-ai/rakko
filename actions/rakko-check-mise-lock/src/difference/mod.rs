@@ -38,9 +38,6 @@ impl Difference {
     /// The message says what `mise lock` would do to the lockfile, and names
     /// the tool, the version, and the platform of the part, such as
     /// `mise lock adds the entry of jq 1.8.1 for linux-x64`.
-    // checkmiselock[impl compare.added]
-    // checkmiselock[impl compare.changed]
-    // checkmiselock[impl compare.removed]
     pub fn finding(&self) -> String {
         let verb = match self.change {
             Change::Added => "adds",
@@ -55,7 +52,6 @@ impl Difference {
     ///
     /// The message says what `mise lock` did to the lockfile, such as
     /// `mise lock added the entry of jq 1.8.1 for linux-x64`.
-    // checkmiselock[impl fix.changed]
     pub fn repair(&self) -> String {
         let verb = match self.change {
             Change::Added => "added",
@@ -85,7 +81,6 @@ mod tests {
             .build()
     }
 
-    // checkmiselock[verify compare.changed]
     #[test]
     fn finding_of_a_changed_part_says_that_mise_changes_it() {
         let difference = Difference::new(part(), Change::Changed);
@@ -96,7 +91,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify compare.removed]
     #[test]
     fn finding_of_a_removed_part_says_that_mise_removes_it() {
         let difference = Difference::new(part(), Change::Removed);
@@ -107,7 +101,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify compare.added]
     #[test]
     fn finding_of_an_added_part_says_that_mise_adds_it() {
         let difference = Difference::new(part(), Change::Added);
@@ -118,7 +111,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify fix.changed]
     #[test]
     fn repair_of_a_changed_part_says_that_mise_changed_it() {
         let difference = Difference::new(part(), Change::Changed);
@@ -129,7 +121,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify fix.changed]
     #[test]
     fn repair_of_a_removed_part_says_that_mise_removed_it() {
         let difference = Difference::new(part(), Change::Removed);
@@ -140,7 +131,6 @@ mod tests {
         );
     }
 
-    // checkmiselock[verify fix.changed]
     #[test]
     fn repair_of_an_added_part_says_that_mise_added_it() {
         let difference = Difference::new(part(), Change::Added);

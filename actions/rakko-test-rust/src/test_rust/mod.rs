@@ -55,10 +55,8 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 pub struct TestRust;
 
 impl Action for TestRust {
-    // testrust[impl args.none]
     type Args = ();
 
-    // testrust[impl name]
     fn name(&self) -> Name {
         action_name!("test-rust")
     }
@@ -66,9 +64,6 @@ impl Action for TestRust {
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
-            // testrust[impl roots.error]
-            // testrust[impl run.error]
-            // testrust[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -88,19 +83,15 @@ impl Action for TestRust {
 /// the tool, the discovery of the workspaces, or a run of nextest that left
 /// no answer.
 async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
-    // testrust[impl tool.cargo]
-    // testrust[impl tool.missing]
     let cargo = Cargo::resolve(context.root().clone())
         .await
         .map_err(|source| TestRustError::UnresolvedTool { source })?;
 
-    // testrust[impl roots.error]
     let roots = cargo
         .roots()
         .await
         .map_err(|source| TestRustError::UndiscoveredRoots { source })?;
 
-    // testrust[impl skip.undiscovered]
     if roots.is_empty() {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_WORKSPACE),
@@ -111,10 +102,7 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
     let mut findings: Vec<Finding> = Vec::new();
     let mut ran = 0;
 
-    // testrust[impl roots.all]
     for root in &roots {
-        // testrust[impl run.error]
-        // testrust[impl run.read]
         let observation = nextest.observe(root, context.root()).await?;
 
         findings.extend(observation.findings().iter().cloned());
@@ -122,14 +110,10 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
     }
 
     if findings.is_empty() {
-        // testrust[impl run.none]
-        // testrust[impl run.passed]
         Ok(Outcome::Passed {
             summary: Some(summary(ran, roots.len())),
         })
     } else {
-        // testrust[impl run.build+2]
-        // testrust[impl run.failed+2]
         Ok(Outcome::Failed {
             findings,
             repairs: Vec::new(),
@@ -138,7 +122,6 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
 }
 
 /// Returns the summary that tells how many tests ran in how many workspaces
-// testrust[impl run.passed]
 fn summary(ran: u64, roots: usize) -> Summary {
     let tests = match ran {
         1 => "1 test".to_owned(),
@@ -160,7 +143,6 @@ mod tests {
 
     use super::*;
 
-    // testrust[verify run.passed]
     #[test]
     fn summary_of_many_tests_counts_them() {
         let summary = summary(354, 2);
@@ -168,7 +150,6 @@ mod tests {
         assert_eq!(summary.get(), "ran 354 tests in 2 workspaces");
     }
 
-    // testrust[verify run.none]
     #[test]
     fn summary_of_no_test_counts_zero() {
         let summary = summary(0, 2);
@@ -176,7 +157,6 @@ mod tests {
         assert_eq!(summary.get(), "ran 0 tests in 2 workspaces");
     }
 
-    // testrust[verify run.passed]
     #[test]
     fn summary_of_one_test_in_one_workspace_says_so() {
         let summary = summary(1, 1);

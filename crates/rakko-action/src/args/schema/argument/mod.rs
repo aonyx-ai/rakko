@@ -57,9 +57,6 @@ impl Argument {
     ///
     /// assert_eq!(argument.name().get(), "fix");
     /// ```
-    // action[impl args.argument]
-    // action[impl args.shape]
-    // action[impl args.documentation]
     #[builder]
     pub fn new(
         name: ArgumentName,
@@ -92,7 +89,6 @@ mod tests {
             .build()
     }
 
-    // action[verify args.documentation]
     #[test]
     fn documentation_returns_given_documentation() {
         let argument = Argument::builder()
@@ -109,7 +105,6 @@ mod tests {
         );
     }
 
-    // action[verify args.argument]
     #[test]
     fn name_returns_given_name() {
         let argument = argument(ArgumentShape::Boolean);
@@ -119,7 +114,6 @@ mod tests {
         assert_eq!(name.get(), "fix");
     }
 
-    // action[verify args.shape]
     #[test]
     fn shape_returns_a_boolean() {
         let argument = argument(ArgumentShape::Boolean);
@@ -129,7 +123,6 @@ mod tests {
         assert_eq!(shape, &ArgumentShape::Boolean);
     }
 
-    // action[verify args.shape]
     #[test]
     fn shape_returns_a_path() {
         let argument = argument(ArgumentShape::Path);
@@ -139,7 +132,6 @@ mod tests {
         assert_eq!(shape, &ArgumentShape::Path);
     }
 
-    // action[verify args.shape]
     #[test]
     fn shape_returns_a_text() {
         let argument = argument(ArgumentShape::Text);
@@ -149,7 +141,6 @@ mod tests {
         assert_eq!(shape, &ArgumentShape::Text);
     }
 
-    // action[verify args.shape]
     #[test]
     fn shape_returns_a_whole_number() {
         let argument = argument(ArgumentShape::Integer);

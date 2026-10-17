@@ -155,7 +155,6 @@ impl Drop for Project {
     }
 }
 
-// taplo[verify run.operation]
 #[tokio::test]
 async fn observe_a_format_check_reports_a_file_that_is_not_formatted() {
     let project = Project::new();
@@ -172,7 +171,6 @@ async fn observe_a_format_check_reports_a_file_that_is_not_formatted() {
     );
 }
 
-// taplo[verify run.operation]
 #[tokio::test]
 async fn observe_a_format_rewrites_the_project() {
     let project = Project::new();
@@ -185,7 +183,6 @@ async fn observe_a_format_rewrites_the_project() {
     assert_eq!(content, FORMATTED);
 }
 
-// taplo[verify run.operation]
 #[tokio::test]
 async fn observe_a_lint_ignores_a_file_that_is_not_formatted() {
     let project = Project::new();
@@ -200,7 +197,6 @@ async fn observe_a_lint_ignores_a_file_that_is_not_formatted() {
     );
 }
 
-// taplo[verify run.operation]
 #[tokio::test]
 async fn observe_a_lint_reports_a_file_that_taplo_cannot_parse() {
     let project = Project::new();
@@ -221,7 +217,6 @@ async fn observe_a_lint_reports_a_file_that_taplo_cannot_parse() {
     );
 }
 
-// taplo[verify run.plain]
 #[tokio::test]
 async fn observe_reads_a_report_without_color_codes() {
     let project = Project::new();
@@ -236,7 +231,6 @@ async fn observe_reads_a_report_without_color_codes() {
     );
 }
 
-// taplo[verify tool.resolve]
 #[tokio::test]
 async fn resolve_in_a_project_that_pins_taplo_finds_the_program() {
     let project = Project::new();
@@ -246,7 +240,6 @@ async fn resolve_in_a_project_that_pins_taplo_finds_the_program() {
     assert!(taplo.is_ok(), "expected a taplo, got {taplo:?}");
 }
 
-// taplo[verify tool.missing]
 #[tokio::test]
 async fn resolve_without_a_taplo_reports_the_tool() {
     let project = Project::without_taplo();

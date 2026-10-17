@@ -35,13 +35,11 @@ pub enum Location {
     ///
     /// A check of the dependencies of a project reports at this level,
     /// because its answer is about the project and not about one file.
-    // action[impl location.project]
     Project,
     /// The problem belongs to a directory
     ///
     /// A tool that reports per directory rather than per file reports at this
     /// level. A coverage report is one example.
-    // action[impl location.directory]
     Directory {
         /// The path of the directory that the problem is in
         path: DirectoryPath,
@@ -50,7 +48,6 @@ pub enum Location {
     ///
     /// A formatter reports at this level, because it knows that a file
     /// differs from its formatted form and knows no line in it.
-    // action[impl location.file]
     File {
         /// The path of the file that the problem is in
         path: FilePath,
@@ -59,7 +56,6 @@ pub enum Location {
     ///
     /// Most linters report at this level. The position always has a line, and
     /// it has a column when the tool gives one.
-    // action[impl location.position+2]
     Position {
         /// The path of the file that the problem is in
         path: FilePath,
@@ -70,7 +66,6 @@ pub enum Location {
     ///
     /// A compiler and a formatter report at this level, because a problem
     /// that they find can start on one line and end on a later one.
-    // action[impl location.span]
     Span {
         /// The path of the file that the problem is in
         path: FilePath,
@@ -89,7 +84,6 @@ mod tests {
 
     use super::*;
 
-    // action[verify location.directory]
     #[test]
     fn directory_level_holds_directory_path() {
         let location = Location::Directory {
@@ -102,7 +96,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("crates/rakko"));
     }
 
-    // action[verify location.file]
     #[test]
     fn file_level_holds_file_path() {
         let location = Location::File {
@@ -115,7 +108,6 @@ mod tests {
         assert_eq!(path.get(), Path::new("Cargo.toml"));
     }
 
-    // action[verify location.position+2]
     #[test]
     fn position_level_holds_file_path_and_position() {
         let location = Location::Position {
@@ -132,7 +124,6 @@ mod tests {
         );
     }
 
-    // action[verify location.project]
     #[test]
     fn project_level_holds_no_path() {
         let location = Location::Project;
@@ -140,7 +131,6 @@ mod tests {
         assert_eq!(location, Location::Project);
     }
 
-    // action[verify location.span]
     #[test]
     fn span_level_holds_file_path_and_span() {
         let span = Span::builder()

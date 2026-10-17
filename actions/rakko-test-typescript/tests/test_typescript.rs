@@ -217,7 +217,6 @@ impl Drop for Project {
     }
 }
 
-// testtypescript[verify args.none]
 #[test]
 fn action_declares_no_argument() {
     let schema = <<TestTypeScript as Action>::Args as Args>::schema();
@@ -229,7 +228,6 @@ fn action_declares_no_argument() {
     );
 }
 
-// testtypescript[verify name]
 #[test]
 fn action_identifies_itself_as_test_typescript() {
     let name = TestTypeScript.name();
@@ -237,8 +235,6 @@ fn action_identifies_itself_as_test_typescript() {
     assert_eq!(name.get(), "test-typescript");
 }
 
-// testtypescript[verify result.passed]
-// testtypescript[verify tool.node]
 #[tokio::test]
 async fn run_of_a_project_whose_tests_pass_passes() {
     let project = Project::new();
@@ -252,7 +248,6 @@ async fn run_of_a_project_whose_tests_pass_passes() {
     );
 }
 
-// testtypescript[verify result.passed]
 #[tokio::test]
 async fn run_of_a_project_whose_tests_pass_says_how_many_ran() {
     let project = Project::new();
@@ -270,7 +265,6 @@ async fn run_of_a_project_whose_tests_pass_says_how_many_ran() {
     );
 }
 
-// testtypescript[verify result.failed]
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_fails() {
     let project = Project::new();
@@ -284,7 +278,6 @@ async fn run_of_a_project_with_a_failing_test_fails() {
     );
 }
 
-// testtypescript[verify result.failed]
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_names_the_test() {
     let project = Project::new();
@@ -302,7 +295,6 @@ async fn run_of_a_project_with_a_failing_test_names_the_test() {
     );
 }
 
-// testtypescript[verify result.message]
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_carries_what_node_said() {
     let project = Project::new();
@@ -320,7 +312,6 @@ async fn run_of_a_project_with_a_failing_test_carries_what_node_said() {
     );
 }
 
-// testtypescript[verify result.position]
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_reports_where_it_is_declared() {
     let project = Project::new();
@@ -344,7 +335,6 @@ async fn run_of_a_project_with_a_failing_test_reports_where_it_is_declared() {
 
 // Node reports the suite as failed as well as the test inside it, and the test
 // inside it is the one that a reader repairs.
-// testtypescript[verify result.subtests]
 #[tokio::test]
 async fn run_of_a_project_whose_suite_holds_a_failing_test_reports_one_finding() {
     let project = Project::new();
@@ -358,7 +348,6 @@ async fn run_of_a_project_whose_suite_holds_a_failing_test_reports_one_finding()
     assert_eq!(findings.len(), 1);
 }
 
-// testtypescript[verify run.project]
 #[tokio::test]
 async fn run_reaches_a_test_below_a_directory_of_the_project() {
     let project = Project::new();
@@ -375,7 +364,6 @@ async fn run_reaches_a_test_below_a_directory_of_the_project() {
     );
 }
 
-// testtypescript[verify run.read]
 #[tokio::test]
 async fn run_leaves_a_file_with_a_failing_test_unchanged() {
     let project = Project::new();
@@ -390,7 +378,6 @@ async fn run_leaves_a_file_with_a_failing_test_unchanged() {
 // the file shows that the run reached the test at all. Everything else that
 // the project holds afterwards is what it held before, so the action left no
 // report, no cache, and no installed package behind.
-// testtypescript[verify run.read]
 #[tokio::test]
 async fn run_of_a_project_adds_no_file_of_its_own() {
     let project = Project::new();
@@ -401,7 +388,6 @@ async fn run_of_a_project_adds_no_file_of_its_own() {
     assert_eq!(project.entries(), ["mise.toml", "src", "written.txt"]);
 }
 
-// testtypescript[verify result.excused]
 #[tokio::test]
 async fn run_of_a_project_whose_failing_test_is_still_to_do_passes() {
     let project = Project::new();
@@ -418,7 +404,6 @@ async fn run_of_a_project_whose_failing_test_is_still_to_do_passes() {
 // The report reads as TAP only because the run asks for it. The drawing that
 // Node makes for a reader carries a summary that no parse answers, so this
 // test also fails wherever the environment would make Node draw.
-// testtypescript[verify run.tap]
 #[tokio::test]
 async fn run_reads_the_report_of_node_rather_than_its_drawing() {
     let project = Project::new();
@@ -436,7 +421,6 @@ async fn run_reads_the_report_of_node_rather_than_its_drawing() {
     );
 }
 
-// testtypescript[verify skip.untested]
 #[tokio::test]
 async fn run_of_a_project_without_a_test_skips() {
     let project = Project::new();
@@ -453,7 +437,6 @@ async fn run_of_a_project_without_a_test_skips() {
     );
 }
 
-// testtypescript[verify tool.missing]
 #[tokio::test]
 async fn run_without_a_node_stops() {
     let project = Project::without_node();

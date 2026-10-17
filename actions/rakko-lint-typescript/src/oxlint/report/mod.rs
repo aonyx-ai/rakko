@@ -75,7 +75,6 @@ impl Diagnostic {
     /// oxlint marks at least one, so such a report belongs to a version that
     /// this crate does not know, and a problem without a place could only be
     /// reported somewhere it does not belong.
-    // linttypescript[impl check.diagnostic]
     fn into_problem(self) -> Option<OxlintProblem> {
         let first = self.labels.first()?;
 
@@ -125,23 +124,16 @@ struct Span {
 ///
 /// [absent]: ReadReportError::Absent
 /// [unreadable]: ReadReportError::Unreadable
-// linttypescript[impl check.diagnostic]
-// linttypescript[impl check.passed]
-// linttypescript[impl check.severity]
-// linttypescript[impl skip.unexamined]
 pub fn read(output: &str) -> Result<Observation, ReadReportError> {
-    // linttypescript[impl check.unreported]
     let start = output.find(REPORT_OPEN).ok_or(ReadReportError::Absent)?;
 
     let report: Report = serde_json::from_str(output[start..].trim())
-        // linttypescript[impl check.unreadable]
         .map_err(|source| ReadReportError::Unreadable { source })?;
 
     let problems = report
         .diagnostics
         .into_iter()
         .map(Diagnostic::into_problem)
-        // linttypescript[impl check.unreadable]
         .collect::<Option<Vec<_>>>()
         .ok_or(ReadReportError::Unreadable {
             source: serde::de::Error::missing_field("labels"),
@@ -239,7 +231,6 @@ mod tests {
             .clone()
     }
 
-    // linttypescript[verify check.passed]
     #[test]
     fn read_of_a_clean_report_counts_the_files_of_the_run() {
         let observation = read(CLEAN).expect("the test reads the report of a run that passed");
@@ -247,7 +238,6 @@ mod tests {
         assert_eq!(observation.examined(), 2);
     }
 
-    // linttypescript[verify check.passed]
     #[test]
     fn read_of_a_clean_report_holds_no_problem() {
         let observation = read(CLEAN).expect("the test reads the report of a run that passed");
@@ -259,7 +249,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify check.severity]
     #[test]
     fn read_of_a_diagnostic_carries_the_severity_of_oxlint() {
         let problem = problem(BROKEN);
@@ -267,7 +256,6 @@ mod tests {
         assert_eq!(problem.severity(), Severity::Warning);
     }
 
-    // linttypescript[verify check.diagnostic]
     #[test]
     fn read_of_a_diagnostic_carries_the_words_of_oxlint() {
         let problem = problem(BROKEN);
@@ -280,7 +268,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify check.diagnostic]
     #[test]
     fn read_of_a_diagnostic_names_the_file() {
         let problem = problem(BROKEN);
@@ -288,7 +275,6 @@ mod tests {
         assert_eq!(problem.path(), &PathBuf::from("index.ts"));
     }
 
-    // linttypescript[verify check.diagnostic]
     #[test]
     fn read_of_a_diagnostic_sits_at_the_place_that_oxlint_marked() {
         let problem = problem(BROKEN);
@@ -296,7 +282,6 @@ mod tests {
         assert_eq!((problem.line(), problem.column()), (3, 9));
     }
 
-    // linttypescript[verify check.unreadable]
     #[test]
     fn read_of_a_diagnostic_that_marks_no_place_stops_the_reading() {
         let observation = read(UNPLACED);
@@ -307,7 +292,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify check.diagnostic]
     #[test]
     fn read_of_a_diagnostic_that_marks_two_places_holds_one_problem() {
         let observation = read(PAIRED).expect("the test reads a report that oxlint could write");
@@ -315,7 +299,6 @@ mod tests {
         assert_eq!(observation.problems().len(), 1);
     }
 
-    // linttypescript[verify check.diagnostic]
     #[test]
     fn read_of_a_diagnostic_that_marks_two_places_sits_at_the_first() {
         let problem = problem(PAIRED);
@@ -323,7 +306,6 @@ mod tests {
         assert_eq!((problem.line(), problem.column()), (5, 15));
     }
 
-    // linttypescript[verify check.diagnostic]
     #[test]
     fn read_of_a_diagnostic_without_a_suggestion_holds_none() {
         let problem = problem(CURT);
@@ -331,7 +313,6 @@ mod tests {
         assert_eq!(problem.help(), &None);
     }
 
-    // linttypescript[verify check.unreadable]
     #[test]
     fn read_of_a_report_of_another_shape_stops_the_reading() {
         let error = read(STRANGE).expect_err("the test reads a report that oxlint could not write");
@@ -342,7 +323,6 @@ mod tests {
         );
     }
 
-    // linttypescript[verify skip.unexamined]
     #[test]
     fn read_of_a_report_that_a_sentence_precedes_holds_the_report() {
         let observation =
@@ -351,7 +331,6 @@ mod tests {
         assert_eq!(observation.examined(), 0);
     }
 
-    // linttypescript[verify check.unreported]
     #[test]
     fn read_of_an_absent_report_names_the_condition() {
         let error = read(REJECTION).expect_err("the test reads what oxlint wrote instead");

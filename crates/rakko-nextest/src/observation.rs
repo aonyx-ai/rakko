@@ -61,9 +61,6 @@ impl Observation {
     /// [diagnostics]: ObserveNextestError::UnreadableDiagnostics
     /// [report]: ObserveNextestError::UnreadableReport
     /// [unrecognized]: ObserveNextestError::UnrecognizedReport
-    // nextest[impl finding.build]
-    // nextest[impl finding.failed]
-    // nextest[impl report.ran]
     pub fn read(
         execution: &Execution,
         root: &CargoRoot,
@@ -73,7 +70,6 @@ impl Observation {
         let nextest = read_report(root, &stdout)?;
         let diagnostics = read_diagnostics(root, &stdout)?;
 
-        // nextest[impl report.unrecognized]
         if !recognized(&nextest, &diagnostics, execution) {
             return Err(ObserveNextestError::UnrecognizedReport {
                 root: root.directory().clone(),
@@ -81,14 +77,12 @@ impl Observation {
             });
         }
 
-        // nextest[impl finding.build]
         let mut findings: Vec<Finding> = diagnostics
             .diagnostics()
             .iter()
             .map(|diagnostic| diagnostic.finding(root, project))
             .collect();
 
-        // nextest[impl finding.failed]
         findings.extend(
             nextest
                 .failures()
@@ -111,7 +105,6 @@ impl Observation {
 /// record of cargo that the crate cannot read.
 ///
 /// [unreadable]: ObserveNextestError::UnreadableDiagnostics
-// nextest[impl report.unreadable]
 fn read_diagnostics(root: &CargoRoot, stdout: &str) -> Result<CargoReport, ObserveNextestError> {
     CargoReport::read(stdout).map_err(|source| ObserveNextestError::UnreadableDiagnostics {
         root: root.directory().clone(),
@@ -127,7 +120,6 @@ fn read_diagnostics(root: &CargoRoot, stdout: &str) -> Result<CargoReport, Obser
 /// of nextest that the crate cannot read.
 ///
 /// [unreadable]: ObserveNextestError::UnreadableReport
-// nextest[impl report.unreadable]
 fn read_report(root: &CargoRoot, stdout: &str) -> Result<NextestReport, ObserveNextestError> {
     NextestReport::read(stdout).map_err(|source| ObserveNextestError::UnreadableReport {
         root: root.directory().clone(),
@@ -142,8 +134,6 @@ fn read_report(root: &CargoRoot, stdout: &str) -> Result<NextestReport, ObserveN
 /// the absence of tests. Everything else is a report that the crate cannot
 /// read, and an answer built on it would hide failures behind a green
 /// result.
-// nextest[impl report.none]
-// nextest[impl report.unrecognized]
 fn recognized(nextest: &NextestReport, cargo: &CargoReport, execution: &Execution) -> bool {
     execution.status().success()
         || !nextest.failures().is_empty()
@@ -163,7 +153,6 @@ mod tests {
 
     use super::*;
 
-    // nextest[verify report.unreadable]
     #[test]
     fn read_diagnostics_in_a_shape_the_crate_does_not_know_names_the_root() {
         let root = CargoRoot::builder()
@@ -186,7 +175,6 @@ mod tests {
         );
     }
 
-    // nextest[verify report.unreadable]
     #[test]
     fn read_report_in_a_shape_the_crate_does_not_know_names_the_root() {
         let root = CargoRoot::builder()

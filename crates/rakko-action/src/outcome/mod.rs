@@ -20,8 +20,6 @@ use crate::finding::Finding;
 /// it found, and it failed when a problem remains. Both states hold the
 /// repairs, so that whoever started the run learns what it rewrote instead of
 /// finding it in a diff.
-// action[impl outcome.send]
-// action[impl outcome.sync]
 #[derive(Debug)]
 pub enum Outcome {
     /// The action examined the project and found no problem
@@ -30,8 +28,6 @@ pub enum Outcome {
     /// `checked 3 files`. The summary lets a reader question a pass that
     /// examined less than they expect, and an action that has nothing useful
     /// to say gives none.
-    // action[impl outcome.passed]
-    // action[impl outcome.summary]
     Passed {
         /// What the run examined, or `None` when the action gave no summary
         summary: Option<Summary>,
@@ -41,7 +37,6 @@ pub enum Outcome {
     /// This state holds one [`Finding`] for each problem that the action
     /// repaired. The project is clean now, and the working tree of whoever
     /// started the run differs from what they had before it.
-    // action[impl outcome.changed]
     Changed {
         /// The problems that the action repaired
         repairs: Vec<Finding>,
@@ -51,8 +46,6 @@ pub enum Outcome {
     /// This state holds every [`Finding`] that the action produced. An action
     /// that repairs what it finds reports the problems that remain here, and
     /// the ones that it repaired alongside them.
-    // action[impl outcome.failed]
-    // action[impl outcome.repairs]
     Failed {
         /// The findings that the action produced
         findings: Vec<Finding>,
@@ -64,7 +57,6 @@ pub enum Outcome {
     /// The action does not apply to the project
     ///
     /// This state holds the reason why the action does not apply.
-    // action[impl outcome.skipped]
     Skipped {
         /// The reason why the action does not apply
         reason: SkipReason,
@@ -72,7 +64,6 @@ pub enum Outcome {
     /// The action stopped before it got a result
     ///
     /// This state holds the error that stopped the action.
-    // action[impl outcome.errored]
     Errored {
         /// The error that stopped the action
         source: Box<dyn Error + Send + Sync>,
@@ -91,7 +82,6 @@ mod tests {
     fn assert_send<T: Send>() {}
     fn assert_sync<T: Sync>() {}
 
-    // action[verify outcome.changed]
     #[test]
     fn changed_variant_holds_repairs() {
         let location = Location::File {
@@ -113,7 +103,6 @@ mod tests {
         assert_eq!(repairs, expected);
     }
 
-    // action[verify outcome.errored]
     #[test]
     fn errored_variant_holds_error() {
         let outcome = Outcome::Errored {
@@ -126,7 +115,6 @@ mod tests {
         assert_eq!(source.to_string(), "boom");
     }
 
-    // action[verify outcome.failed]
     #[test]
     fn failed_variant_holds_findings() {
         let location = Location::File {
@@ -149,7 +137,6 @@ mod tests {
         assert_eq!(findings, expected);
     }
 
-    // action[verify outcome.repairs]
     #[test]
     fn failed_variant_holds_repairs() {
         let location = Location::File {
@@ -172,19 +159,16 @@ mod tests {
         assert_eq!(repairs, expected);
     }
 
-    // action[verify outcome.send]
     #[test]
     fn outcome_is_send() {
         assert_send::<Outcome>();
     }
 
-    // action[verify outcome.sync]
     #[test]
     fn outcome_is_sync() {
         assert_sync::<Outcome>();
     }
 
-    // action[verify outcome.passed]
     #[test]
     fn passed_variant_exists() {
         let outcome = Outcome::Passed { summary: None };
@@ -192,7 +176,6 @@ mod tests {
         assert!(matches!(outcome, Outcome::Passed { .. }));
     }
 
-    // action[verify outcome.summary]
     #[test]
     fn passed_variant_holds_summary() {
         let outcome = Outcome::Passed {
@@ -205,7 +188,6 @@ mod tests {
         assert_eq!(summary.as_ref().map(Summary::get), Some("checked 3 files"));
     }
 
-    // action[verify outcome.summary]
     #[test]
     fn passed_variant_without_a_summary_reports_none() {
         let outcome = Outcome::Passed { summary: None };
@@ -216,7 +198,6 @@ mod tests {
         assert_eq!(*summary, None);
     }
 
-    // action[verify outcome.skipped]
     #[test]
     fn skipped_variant_holds_reason() {
         let outcome = Outcome::Skipped {

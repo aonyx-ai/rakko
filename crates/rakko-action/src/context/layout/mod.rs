@@ -32,9 +32,6 @@ impl Layout {
     /// When `config` is absent the layout uses the default path: `.config`
     /// inside the project root. When `cache` is absent the layout uses the
     /// default path: `target/rakko` inside the project root.
-    // action[impl layout.config]
-    // action[impl layout.cache]
-    // action[impl layout.override]
     #[builder]
     pub fn new(
         #[builder(into)] root: ProjectRoot,
@@ -59,7 +56,6 @@ mod tests {
 
     use super::*;
 
-    // action[verify layout.cache]
     #[test]
     fn cache_default_is_target_rakko_in_root() {
         let layout = Layout::builder().root("/tmp/my-project").build();
@@ -70,7 +66,6 @@ mod tests {
         );
     }
 
-    // action[verify layout.config]
     #[test]
     fn config_default_is_dot_config_in_root() {
         let layout = Layout::builder().root("/tmp/my-project").build();
@@ -91,7 +86,6 @@ mod tests {
         assert_eq!(layout.cache().get(), &PathBuf::from("/tmp/other/cache"));
     }
 
-    // action[verify layout.override]
     #[test]
     fn override_accepts_custom_config_directory() {
         let layout = Layout::builder()

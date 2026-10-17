@@ -386,7 +386,6 @@ fn platforms(lockfile: &str) -> Vec<String> {
         .collect()
 }
 
-// checkmiselock[verify name]
 #[test]
 fn action_identifies_itself_as_check_mise_lock() {
     let name = CheckMiseLock.name();
@@ -396,7 +395,6 @@ fn action_identifies_itself_as_check_mise_lock() {
 
 // The platforms come from the report that mise writes, so this test reads the
 // report of the mise that the tests run.
-// checkmiselock[verify lock.unaddressed]
 #[tokio::test]
 async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
     let project = Project::locked(PINNED);
@@ -418,7 +416,6 @@ async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
 
 // A lockfile with a stale entry is one that `mise lock` rewrites, also in a
 // run that then stops, so the lockfile shows where the run locked.
-// checkmiselock[verify copy.disposable]
 #[tokio::test]
 async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
     let project = Project::locked(PINNED);
@@ -443,7 +440,6 @@ async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
 // A field that the entry shares changes every part of the entry, the old
 // table of an untargeted platform among them, and that table still stops
 // nothing.
-// checkmiselock[verify lock.unaddressed]
 #[tokio::test]
 async fn run_with_a_changed_shared_field_next_to_an_untargeted_platform_fails() {
     let project = Project::locked(PINNED);
@@ -469,9 +465,6 @@ async fn run_with_a_changed_shared_field_next_to_an_untargeted_platform_fails() 
     );
 }
 
-// checkmiselock[verify compare.passed]
-// checkmiselock[verify lock.operation]
-// checkmiselock[verify tool.mise]
 #[tokio::test]
 async fn run_with_a_complete_lockfile_passes() {
     let project = Project::locked(PINNED);
@@ -484,7 +477,6 @@ async fn run_with_a_complete_lockfile_passes() {
     );
 }
 
-// checkmiselock[verify lockfiles.listed]
 #[tokio::test]
 async fn run_with_a_configuration_in_a_directory_reports_its_lockfile() {
     let project = Project::at(".config/mise.toml", PINNED);
@@ -507,7 +499,6 @@ async fn run_with_a_configuration_in_a_directory_reports_its_lockfile() {
     assert_eq!(reported, expected);
 }
 
-// checkmiselock[verify tool.failed]
 #[tokio::test]
 async fn run_with_a_mise_that_fails_stops_with_what_it_wrote() {
     let project = Project::new(UNSATISFIABLE);
@@ -525,7 +516,6 @@ async fn run_with_a_mise_that_fails_stops_with_what_it_wrote() {
 
 // The lockfile holds the version of jq, so mise needs the network only for
 // the platforms, and only those fail.
-// checkmiselock[verify lock.unresolved]
 #[tokio::test]
 async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote() {
     let project = Project::locked(PINNED);
@@ -546,7 +536,6 @@ async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote
     );
 }
 
-// checkmiselock[verify lock.warnings]
 #[tokio::test]
 async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
     let project = Project::locked(PINNED);
@@ -567,7 +556,6 @@ async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
     );
 }
 
-// checkmiselock[verify compare.removed]
 #[tokio::test]
 async fn run_with_a_stale_entry_reports_its_removal() {
     let project = Project::locked(PINNED);
@@ -585,7 +573,6 @@ async fn run_with_a_stale_entry_reports_its_removal() {
     );
 }
 
-// checkmiselock[verify tool.failed]
 #[tokio::test]
 async fn run_with_a_tool_that_mise_cannot_lock_stops_with_what_it_wrote() {
     let project = Project::new(UNKNOWN);
@@ -604,7 +591,6 @@ async fn run_with_a_tool_that_mise_cannot_lock_stops_with_what_it_wrote() {
     );
 }
 
-// checkmiselock[verify compare.changed]
 #[tokio::test]
 async fn run_with_a_wrong_checksum_reports_the_change() {
     let project = Project::locked(PINNED);
@@ -630,7 +616,6 @@ async fn run_with_a_wrong_checksum_reports_the_change() {
     );
 }
 
-// checkmiselock[verify copy.compared]
 #[tokio::test]
 async fn run_with_an_ignored_local_configuration_passes() {
     let project = Project::locked(PINNED);
@@ -648,7 +633,6 @@ async fn run_with_an_ignored_local_configuration_passes() {
 
 // The question for the lockfiles in the project makes mise read a lockfile
 // that only the checkout holds, and mise refuses one that is not TOML.
-// checkmiselock[verify copy.trust]
 #[tokio::test]
 async fn run_with_an_ignored_lockfile_that_mise_cannot_read_stops() {
     let project = Project::locked(PINNED);
@@ -670,7 +654,6 @@ async fn run_with_an_ignored_lockfile_that_mise_cannot_read_stops() {
     );
 }
 
-// checkmiselock[verify copy.trust]
 #[tokio::test]
 async fn run_with_an_ignored_lockfile_that_the_action_cannot_read_passes() {
     let project = Project::locked(PINNED);
@@ -686,7 +669,6 @@ async fn run_with_an_ignored_lockfile_that_the_action_cannot_read_passes() {
     );
 }
 
-// checkmiselock[verify copy.uncommitted]
 #[tokio::test]
 async fn run_with_an_uncommitted_tool_reports_its_entries() {
     let project = Project::locked(PINNED);
@@ -706,7 +688,6 @@ async fn run_with_an_uncommitted_tool_reports_its_entries() {
     );
 }
 
-// checkmiselock[verify lockfiles.unreadable]
 #[tokio::test]
 async fn run_with_an_unreadable_lockfile_stops() {
     let project = Project::new(PINNED);
@@ -728,7 +709,6 @@ async fn run_with_an_unreadable_lockfile_stops() {
 
 // `mise lock` leaves the entries of a platform that the project does not
 // target as they were, such as the old ones of the musl platforms.
-// checkmiselock[verify lock.unaddressed]
 #[tokio::test]
 async fn run_with_an_untargeted_platform_without_an_address_passes() {
     let project = Project::locked(PINNED);
@@ -748,7 +728,6 @@ async fn run_with_an_untargeted_platform_without_an_address_passes() {
     );
 }
 
-// checkmiselock[verify compare.passed]
 #[tokio::test]
 async fn run_with_fix_and_a_complete_lockfile_passes() {
     let project = Project::locked(PINNED);
@@ -761,7 +740,6 @@ async fn run_with_fix_and_a_complete_lockfile_passes() {
     );
 }
 
-// checkmiselock[verify fix.changed]
 #[tokio::test]
 async fn run_with_fix_and_missing_platforms_reports_a_repair_for_each() {
     let project = Project::locked(PINNED);
@@ -775,7 +753,6 @@ async fn run_with_fix_and_missing_platforms_reports_a_repair_for_each() {
     assert_eq!(messages(&repairs), reports("added", &platforms));
 }
 
-// checkmiselock[verify fix.write]
 #[tokio::test]
 async fn run_with_fix_and_missing_platforms_writes_them() {
     let project = Project::locked(PINNED);
@@ -787,7 +764,6 @@ async fn run_with_fix_and_missing_platforms_writes_them() {
     assert_eq!(project.read("mise.lock"), complete);
 }
 
-// checkmiselock[verify copy.disposable]
 #[tokio::test]
 async fn run_with_missing_platforms_leaves_the_lockfile_as_it_was() {
     let project = Project::locked(PINNED);
@@ -799,8 +775,6 @@ async fn run_with_missing_platforms_leaves_the_lockfile_as_it_was() {
     assert_eq!(project.read("mise.lock"), stripped);
 }
 
-// checkmiselock[verify compare.added]
-// checkmiselock[verify lock.operation]
 #[tokio::test]
 async fn run_with_missing_platforms_reports_a_finding_for_each() {
     let project = Project::locked(PINNED);
@@ -817,7 +791,6 @@ async fn run_with_missing_platforms_reports_a_finding_for_each() {
 // The second gap that the parent of this action, the issue "Catch gaps in mise
 // lockfiles in CI", names: the tables of the platforms held only `provenance`,
 // with no address and no checksum.
-// checkmiselock[verify compare.changed]
 #[tokio::test]
 async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
     let project = Project::locked(PINNED);
@@ -853,7 +826,6 @@ async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
 // GitHub about the release as well, and when that API limits the rate of the
 // machine, mise warns, and the warning stops the run first. Either stop is
 // the answer, and the unit tests of the two checks tell them apart.
-// checkmiselock[verify lock.unaddressed]
 #[tokio::test]
 async fn run_with_targeted_platforms_without_an_address_stops() {
     let project = Project::new(PHANTOM);
@@ -876,7 +848,6 @@ async fn run_with_targeted_platforms_without_an_address_stops() {
     );
 }
 
-// checkmiselock[verify copy.disposable]
 #[tokio::test]
 async fn run_without_a_lockfile_creates_none() {
     let project = Project::new(PINNED);
@@ -886,7 +857,6 @@ async fn run_without_a_lockfile_creates_none() {
     assert!(!project.holds("mise.lock"));
 }
 
-// checkmiselock[verify compare.missing]
 #[tokio::test]
 async fn run_without_a_lockfile_reports_a_finding_for_each_part() {
     let project = Project::new(PINNED);
@@ -903,7 +873,6 @@ async fn run_without_a_lockfile_reports_a_finding_for_each_part() {
     );
 }
 
-// checkmiselock[verify copy.unavailable]
 #[tokio::test]
 async fn run_without_a_repository_stops() {
     let project = Project::without_repository(PINNED);
@@ -922,7 +891,6 @@ async fn run_without_a_repository_stops() {
     );
 }
 
-// checkmiselock[verify skip.unconfigured]
 #[tokio::test]
 async fn run_without_a_tool_skips_with_what_mise_wrote() {
     let project = Project::new(UNPINNED);
@@ -935,7 +903,6 @@ async fn run_without_a_tool_skips_with_what_mise_wrote() {
     );
 }
 
-// checkmiselock[verify copy.trust]
 #[tokio::test]
 async fn run_without_trust_stops_before_the_copy() {
     let project = Project::untrusted(PINNED);

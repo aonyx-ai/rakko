@@ -78,7 +78,6 @@ pub struct FormatMarkdown;
 impl Action for FormatMarkdown {
     type Args = FormatMarkdownArgs;
 
-    // formatmarkdown[impl name]
     fn name(&self) -> Name {
         action_name!("format-markdown")
     }
@@ -86,7 +85,6 @@ impl Action for FormatMarkdown {
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
-            // formatmarkdown[impl tool.missing]
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -110,8 +108,6 @@ async fn drive(
 ) -> Result<Outcome, FormatMarkdownError> {
     let filter = filter();
 
-    // formatmarkdown[impl tool.prettier]
-    // formatmarkdown[impl tool.missing]
     let prettier = Prettier::resolve(context.root().clone())
         .await
         .map_err(|source| FormatMarkdownError::UnresolvedTool { source })?;
@@ -209,7 +205,6 @@ fn findings(
 /// Returns the error of a rewrite that could not finish: prettier did not run,
 /// a configuration of the project did not reach it, it wrote a report that the
 /// action does not recognize, or it reported a path outside the project.
-// formatmarkdown[impl fix.write]
 async fn fix(
     prettier: &Prettier,
     filter: &Filter,
@@ -225,7 +220,6 @@ async fn fix(
     let findings = findings(observation.problems(), root)?;
 
     if !findings.is_empty() {
-        // formatmarkdown[impl fix.partial]
         return Ok(Outcome::Failed { findings, repairs });
     }
 
@@ -233,7 +227,6 @@ async fn fix(
         return Ok(Outcome::Passed { summary: None });
     }
 
-    // formatmarkdown[impl fix.changed]
     Ok(Outcome::Changed { repairs })
 }
 
@@ -259,21 +252,18 @@ async fn fix(
 /// [rejected]: FormatMarkdownError::RejectedConfiguration
 /// [unrecognized]: FormatMarkdownError::UnrecognizedReport
 fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatMarkdownError> {
-    // formatmarkdown[impl check.configuration]
     if let Some(details) = observation.rejected_configuration() {
         return Err(FormatMarkdownError::RejectedConfiguration {
             details: details.clone(),
         });
     }
 
-    // formatmarkdown[impl skip.unmatched]
     if observation.unmatched_pattern() {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         }));
     }
 
-    // formatmarkdown[impl check.unrecognized]
     if observation.problems().is_empty() && !observation.succeeded() {
         return Err(FormatMarkdownError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
@@ -294,7 +284,6 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatMarkdownErr
 /// Returns the error of a run that could not finish: prettier did not run, a
 /// configuration of the project did not reach it, it wrote a report that the
 /// action does not recognize, or it reported a path outside the project.
-// formatmarkdown[impl check.read]
 async fn report(
     prettier: &Prettier,
     filter: &Filter,
@@ -307,13 +296,9 @@ async fn report(
     }
 
     if observation.problems().is_empty() {
-        // formatmarkdown[impl check.passed]
         return Ok(Outcome::Passed { summary: None });
     }
 
-    // formatmarkdown[impl check.invalid]
-    // formatmarkdown[impl check.unformatted]
-    // formatmarkdown[impl check.unreadable]
     Ok(Outcome::Failed {
         findings: findings(observation.problems(), root)?,
         repairs: Vec::new(),
@@ -331,7 +316,6 @@ async fn report(
 /// path of a file.
 ///
 /// [foreign]: FormatMarkdownError::ForeignPath
-// formatmarkdown[impl fix.changed]
 fn repairs(rewritten: &[PathBuf], root: &ProjectRoot) -> Result<Vec<Finding>, FormatMarkdownError> {
     rewritten
         .iter()
@@ -358,7 +342,6 @@ mod tests {
         ProjectRoot::new(path("/home/otter/project"))
     }
 
-    // formatmarkdown[verify check.invalid]
     #[test]
     fn finding_of_a_diagnostic_carries_the_message_of_prettier() {
         let problem = PrettierProblem::new(
@@ -375,7 +358,6 @@ mod tests {
         assert_eq!(finding.message().get(), "SyntaxError: Unexpected token");
     }
 
-    // formatmarkdown[verify check.invalid]
     #[test]
     fn finding_of_a_diagnostic_sits_at_the_position_of_prettier() {
         let problem = PrettierProblem::new(
@@ -407,7 +389,6 @@ mod tests {
         assert!(matches!(error, FormatMarkdownError::ForeignPath { .. }));
     }
 
-    // formatmarkdown[verify skip.unmatched]
     #[test]
     fn guard_of_a_run_that_matched_no_file_skips() {
         let observation = Observation::builder()
@@ -423,7 +404,6 @@ mod tests {
         );
     }
 
-    // formatmarkdown[verify check.unrecognized]
     #[test]
     fn guard_of_a_failed_run_without_a_problem_stops() {
         let observation = Observation::builder().stderr("something new").build();
@@ -436,7 +416,6 @@ mod tests {
         ));
     }
 
-    // formatmarkdown[verify check.configuration]
     #[test]
     fn guard_of_a_run_without_its_configuration_stops() {
         let observation = Observation::builder()
