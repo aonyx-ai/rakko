@@ -290,8 +290,6 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
     #![allow(clippy::unwrap_used)]
 
-    use rakko_test_utils::path;
-
     use super::*;
 
     /// Returns a block that read the given lines, which stand two characters
@@ -412,7 +410,7 @@ mod tests {
             block.value("location").unwrap().place(),
             Some(
                 Origin::builder()
-                    .path(path("/home/otter/project/src/add.test.ts"))
+                    .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
                     .line(5)
                     .column(1)
                     .build()

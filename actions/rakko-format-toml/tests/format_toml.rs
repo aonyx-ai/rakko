@@ -23,6 +23,7 @@ use rakko_action::{
     ProjectRoot, Summary, argument_name,
 };
 use rakko_format_toml::{FormatToml, FormatTomlArgs};
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// A TOML document that taplo leaves alone
@@ -397,7 +398,10 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
     };
     let mut repaired = locations(repairs);
     repaired.sort();
-    assert_eq!(repaired, ["messy.toml", "sub/other.toml"]);
+    assert_eq!(
+        repaired,
+        ["messy.toml".to_owned(), path_text("sub/other.toml")]
+    );
 }
 
 #[tokio::test]

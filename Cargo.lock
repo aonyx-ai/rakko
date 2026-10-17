@@ -822,6 +822,7 @@ dependencies = [
  "getset",
  "rakko-action",
  "rakko-taplo",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",
@@ -907,6 +908,7 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-taplo",
+ "rakko-test-utils",
  "rakko-tool",
  "tempfile",
  "thiserror",

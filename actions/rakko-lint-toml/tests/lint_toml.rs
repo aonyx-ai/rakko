@@ -22,6 +22,7 @@ use std::process::Command;
 use rakko_action::Finding;
 use rakko_action::{Action, Args, Context, Location, Outcome, Position, ProjectRoot, Summary};
 use rakko_lint_toml::LintToml;
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// A TOML document that taplo accepts
@@ -304,7 +305,7 @@ async fn run_with_an_invalid_file_reports_the_position() {
     assert_eq!(
         (path.to_string(), *position),
         (
-            "sub/broken.toml".to_owned(),
+            path_text("sub/broken.toml"),
             Position::builder().line(2).column(1).build()
         )
     );

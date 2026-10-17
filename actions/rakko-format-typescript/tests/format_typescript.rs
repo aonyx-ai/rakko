@@ -24,6 +24,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_format_typescript::{FormatTypeScript, FormatTypeScriptArgs};
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// TypeScript that oxfmt would rewrite
@@ -244,7 +245,7 @@ async fn fixing_run_reports_the_file_that_it_rewrote() {
     let Outcome::Changed { repairs } = outcome else {
         panic!("expected the run to report a change, got {outcome:?}");
     };
-    assert_eq!(locations(&repairs), ["src/index.ts"]);
+    assert_eq!(locations(&repairs), [path_text("src/index.ts")]);
 }
 
 #[tokio::test]
@@ -282,7 +283,7 @@ async fn fixing_run_that_left_a_problem_holds_the_repairs_beside_it() {
     let Outcome::Failed { repairs, .. } = outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(&repairs), ["src/index.ts"]);
+    assert_eq!(locations(&repairs), [path_text("src/index.ts")]);
 }
 
 #[tokio::test]
@@ -396,5 +397,5 @@ async fn report_of_an_unformatted_file_names_it() {
     let Outcome::Failed { findings, .. } = outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(&findings), ["src/index.ts"]);
+    assert_eq!(locations(&findings), [path_text("src/index.ts")]);
 }

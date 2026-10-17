@@ -420,7 +420,7 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
     #![allow(clippy::unwrap_used)]
 
-    use rakko_test_utils::path;
+    use std::path::PathBuf;
 
     use super::*;
 
@@ -513,7 +513,7 @@ mod tests {
             report.failures()[0].origin(),
             &Some(
                 Origin::builder()
-                    .path(path("/home/otter/project/src/add.test.ts"))
+                    .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
                     .line(5)
                     .column(1)
                     .build()
