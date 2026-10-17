@@ -107,8 +107,9 @@ jobs:
   # that is where an assumption about a platform shows up, so the commands
   # that run the tests run on more than one platform. Every other command
   # answers the same on all of them and runs on one, which is why this job is
-  # separate from the matrix above. Windows belongs in this matrix as well,
-  # and issue #24 tracks its addition.
+  # separate from the matrix above. Every platform of the matrix gates a
+  # merge, because a platform that only reports is a platform that nobody
+  # fixes.
   tests:
     name: ${{ matrix.command }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -122,7 +123,7 @@ jobs:
       fail-fast: false
       matrix:
         command: ${{ fromJson(needs.commands.outputs.tests) }}
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - name: Checkout code
@@ -136,7 +137,11 @@ jobs:
       - name: Set up the tools
         uses: $/.github/actions/setup
 
+      # The default shell of a step on Windows is PowerShell, which reads
+      # `$COMMAND` as a variable of its own and not as the variable of the
+      # environment, so the step names the shell that every platform has.
       - name: Run the command
+        shell: bash
         env:
           COMMAND: ${{ matrix.command }}
         run: mise run rakko -- "$COMMAND"

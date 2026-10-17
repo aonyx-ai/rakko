@@ -316,11 +316,16 @@ mod tests {
         )])
     }
 
-    /// Returns the given lockfiles, by their paths
+    /// Returns the given lockfiles, by the paths that their literals name on
+    /// this platform
     fn lockfiles(entries: &[(&str, &str)]) -> BTreeMap<FilePath, Lockfile> {
         entries
             .iter()
-            .map(|(path, text)| (path.parse().unwrap(), Lockfile::parse(text).unwrap()))
+            .map(|(literal, text)| {
+                let path = FilePath::try_from(rakko_test_utils::path(literal)).unwrap();
+
+                (path, Lockfile::parse(text).unwrap())
+            })
             .collect()
     }
 

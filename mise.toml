@@ -74,11 +74,11 @@ zizmor = "1.31.1"
 lockfile = true
 
 # `mise lock` records the tools for these platforms. The jobs of CI run on
-# `linux-x64` and `macos-arm64`, and the machines of the contributors run on
-# `macos-arm64`. The tooling must also work on Windows, so `windows-x64` is in
-# the list before a job of CI runs there. CI installs in locked mode, which
-# fails on a platform that the lockfile does not record. So before a job of CI
-# runs on a new platform, add the platform here and run `mise lock`. A tool
+# `linux-x64` and `macos-arm64`, the jobs that run the tests also run on
+# `windows-x64`, and the machines of the contributors run on `macos-arm64`.
+# CI installs in locked mode, which fails on a platform that the lockfile does
+# not record. So before a job of CI runs on a new platform, add the platform
+# here and run `mise lock`. A tool
 # without a build for a platform of the list gets no entry for that platform,
 # and `mise lock` does not fail.
 lockfile_platforms = ["linux-x64", "macos-arm64", "windows-x64"]
