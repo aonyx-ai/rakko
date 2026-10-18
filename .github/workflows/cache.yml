@@ -1,0 +1,55 @@
+---
+name: Cache
+
+# The installation of the tools in the setup saves its cache under the ref of
+# the run. A pull request can restore a cache from its own ref or from main,
+# but never from another pull request, and CI runs only for pull requests. So
+# without a run on main, the first run of every pull request installs every
+# tool from nothing, which takes most of a job on Windows. This workflow is
+# that run.
+#
+# Every push to main runs it, with no filter on the paths, because a run also
+# reads the entry, and GitHub removes an entry that nothing reads for seven
+# days. A pull request reads the entry only when it leaves the configuration
+# of mise and the version of mise that the setup pins unchanged, because the
+# key holds both and the installation restores only an exact key.
+"on":
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Warm the cache on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: read
+
+    # The key of the cache names the target and the image of the runner, so
+    # every platform needs an entry of its own. The labels are those of CI,
+    # because only the same labels give the same key.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    # The setup chooses the key of the cache, so the job gives it no input
+    # and runs nothing after it.
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The setup cleans the tree itself, and keeps the build output that
+          # an earlier job left on a persistent self-hosted runner.
+          clean: false
+          persist-credentials: false
+
+      - name: Set up the tools
+        uses: $/.github/actions/setup
