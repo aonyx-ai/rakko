@@ -5,8 +5,8 @@ name: Cache
 # the run. A pull request can restore a cache from its own ref or from main,
 # but never from another pull request, and CI runs only for pull requests. So
 # without a run on main, the first run of every pull request installs every
-# tool from nothing, which takes most of a job on Windows. This workflow is
-# that run.
+# tool from nothing, which on Windows takes about half a minute more than a
+# restore of the cache. This workflow is that run.
 #
 # Every push to main runs it, with no filter on the paths, because a run also
 # reads the entry, and GitHub removes an entry that nothing reads for seven
