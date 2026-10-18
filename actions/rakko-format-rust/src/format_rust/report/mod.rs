@@ -3,14 +3,22 @@
 //! Rustfmt reports as text on both of its streams, and this module reads
 //! that text. The shape of the text belongs to a version of rustfmt, and
 //! this module is the one place that knows it.
+//!
+//! On Windows, rustfmt names a file in the verbatim spelling, which opens
+//! with `\\?\`. A root of the project holds the plain spelling, so this
+//! module turns every path that it reads into the plain spelling. A path
+//! that the plain spelling cannot describe, such as one that is longer than
+//! Windows allows in it, keeps the verbatim spelling, as the root of a
+//! project does.
 
 /// One problem that rustfmt reported about a file
 mod problem;
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use getset::{CopyGetters, Getters};
+use rakko_action::path::plain;
 use rakko_tool::Execution;
 
 pub use self::problem::{RustfmtProblem, RustfmtProblemDetail};
@@ -100,7 +108,7 @@ fn coordinates(location: &str) -> Option<(PathBuf, u32, u32)> {
     let line = parts.next()?.parse().ok()?;
     let path = parts.next()?;
 
-    (!path.is_empty()).then(|| (PathBuf::from(path), line, column))
+    (!path.is_empty()).then(|| (plain(Path::new(path)), line, column))
 }
 
 /// Returns the diagnostic that a header line and the lines below it describe
@@ -145,7 +153,7 @@ fn read(stdout: &str, stderr: &str, succeeded: bool) -> RustfmtReport {
         .map(str::trim)
         .filter(|line| !line.is_empty())
     {
-        let path = PathBuf::from(line);
+        let path = plain(Path::new(line));
 
         if seen.insert(path.clone()) {
             listed.push(path);

@@ -19,6 +19,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_lint_markdown::LintMarkdown;
+use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
 /// A Markdown document that markdownlint accepts
@@ -308,10 +309,9 @@ async fn run_with_a_broken_rule_names_the_file() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    // Markdownlint writes a path with the separator that it chose, and the
-    // action reports what the tool wrote, so this literal stands on every
-    // platform.
-    assert_eq!(locations(findings), ["sub/notes.md"]);
+    // Markdownlint writes a path with a forward slash on every platform, and
+    // the action rebuilds it with the separator of the platform.
+    assert_eq!(locations(findings), [path_text("sub/notes.md")]);
 }
 
 #[tokio::test]
@@ -429,7 +429,7 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), ["deep/sub/notes.md"]);
+    assert_eq!(locations(findings), [path_text("deep/sub/notes.md")]);
 }
 
 #[tokio::test]
@@ -444,5 +444,5 @@ async fn run_reaches_a_file_in_a_directory_with_a_dot() {
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    assert_eq!(locations(findings), [".changeset/notes.md"]);
+    assert_eq!(locations(findings), [path_text(".changeset/notes.md")]);
 }
