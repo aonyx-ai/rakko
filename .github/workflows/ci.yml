@@ -105,10 +105,11 @@ jobs:
 
   # An action starts a subprocess and reads the paths that it reported, and
   # that is where an assumption about a platform shows up, so the commands
-  # that run the tests run on more than one platform. Every other command
-  # answers the same on all of them and runs on one, which is why this job is
-  # separate from the matrix above. Windows belongs in this matrix as well,
-  # and issue #24 tracks its addition.
+  # that run the tests run on every platform that Rakko supports. The tests
+  # of each action start its tool on that platform, so the other commands
+  # run on one platform only, which is why this job is separate from the
+  # matrix above. Every platform of the matrix gates a merge, because a
+  # platform that only reports is a platform that nobody fixes.
   tests:
     name: ${{ matrix.command }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -122,7 +123,7 @@ jobs:
       fail-fast: false
       matrix:
         command: ${{ fromJson(needs.commands.outputs.tests) }}
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - name: Checkout code
@@ -136,10 +137,17 @@ jobs:
       - name: Set up the tools
         uses: $/.github/actions/setup
 
+      # PowerShell is the shell that a contributor on Windows types the
+      # command into, so the leg on Windows runs the command the way that
+      # contributor does. Every runner carries it, so one spelling of the
+      # command serves the whole matrix. The default shell of a step on
+      # Windows is PowerShell too, but it reads `$COMMAND` as a variable of its
+      # own, so the step reads the variable of the environment.
       - name: Run the command
+        shell: pwsh
         env:
           COMMAND: ${{ matrix.command }}
-        run: mise run rakko -- "$COMMAND"
+        run: mise run rakko -- $env:COMMAND
 
   success:
     name: All checks succeeded
