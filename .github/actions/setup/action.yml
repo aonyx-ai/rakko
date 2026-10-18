@@ -20,6 +20,48 @@ runs:
       shell: bash
       run: git clean -ffdx -e /target/ -e /tools/rakko/target/
 
+    # A runner of GitHub on Windows has two disks. Mise, npm, rustup, and the
+    # temporary files write to the home directory on `C:`, the disk of the
+    # operating system, which is several times slower for small files than
+    # `D:`, the disk of the checkout and of the temporary directory of the
+    # runner. The installation writes tens of thousands of small files, and
+    # the restore of the cache writes them all again, so on `C:` the setup
+    # took most of a job on Windows. The step below moves each of these
+    # directories to `D:`, before anything reads or writes them.
+    #
+    # The new home of rustup holds no configuration, and the download of the
+    # toolchains below installs the components of the profile that rustup is
+    # configured with. So the step sets the minimal profile, which the image
+    # of the runner configures in the home that it replaces. The step runs the
+    # rustup of the image to do that, so it needs an image that carries
+    # rustup, as the image of GitHub does.
+    #
+    # The cache restores an entry only to the path that saved it, so the
+    # directory of mise has to be the same in every run, on main and in every
+    # pull request. The temporary directory of the runner has the same path in
+    # every job. The runner empties it at the start and at the end of each
+    # job, so on Windows the look for the tools of an earlier job finds none,
+    # and every job restores the cache.
+    - name: Keep the tools on the faster disk on Windows
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        base="${RUNNER_TEMP}"
+        mkdir -p "${base}/tmp"
+
+        {
+            echo "MISE_DATA_DIR=${base}\\mise"
+            echo "MISE_CACHE_DIR=${base}\\mise-cache"
+            echo "RUSTUP_HOME=${base}\\rustup"
+            echo "npm_config_cache=${base}\\npm-cache"
+            echo "TEMP=${base}\\tmp"
+            echo "TMP=${base}\\tmp"
+        } >> "${GITHUB_ENV}"
+
+        RUSTUP_HOME="${base}\\rustup" rustup set profile minimal
+
     # A runner of GitHub starts from a clean disk, and so does a runner that a
     # service starts for a single job. A persistent self-hosted runner keeps
     # its home directory between jobs, so the tools of the jobs before are
