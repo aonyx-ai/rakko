@@ -91,9 +91,9 @@ backend = "npm:prettier"
 specifiers = ["3.9.10"]
 
 [[tools."npm:renovate"]]
-version = "44.151.1"
+version = "44.167.5"
 backend = "npm:renovate"
-specifiers = ["44.151.1"]
+specifiers = ["44.167.5"]
 
 [[tools."npm:typescript"]]
 version = "7.0.2"
