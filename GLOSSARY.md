@@ -6,18 +6,23 @@ from the design discussions to the terms that replaced them.
 
 ## Terms
 
-- **Access** — (Planned.) The declaration of whether a run of an action
-  reads or writes the project. An action declares it after its arguments
-  are bound and before it runs. The declaration is a function of the
-  arguments and the context, so a `--fix` flag changes it, and it does no
-  I/O. A write is exclusive access to what it names, and a read is shared
-  access. In the first version, a declaration names the whole project. The
-  default declaration is exclusive access to the full project. The
-  scheduler and the sandbox derive their behavior from these declarations.
+- **Access** — The declaration of whether a run of an action reads or
+  writes the project. An action declares it after its arguments are bound
+  and before it runs. The declaration is a function of the arguments and
+  the context, so a `--fix` flag changes it, and it does no I/O. A write is
+  exclusive access to what it names, and a read is shared access. In the
+  first version, a declaration names the whole project. The default
+  declaration is exclusive access to the full project. The scheduler and
+  the sandbox, which are still planned, derive their behavior from these
+  declarations.
 - **Action** — The unit of maintenance work. An action is a library crate
   that implements the `Action` trait. An action depends on the contract
   crate and on the helper crates that it uses. It never depends on the
   projection or on Clawless.
+- **Bound action** — An erased action together with the arguments of one
+  run. The machinery binds the values of a run to the arguments of the
+  action once. Then the bound action declares its access and runs, and both
+  see the same arguments.
 - **Bundle** — A meta-crate that exports a list of actions. A bundle defines
   what a word such as "recommended" means, as a dependency. Bundles can
   contain other bundles. A bundle release starts a rollout.

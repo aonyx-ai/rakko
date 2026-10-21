@@ -1,4 +1,10 @@
-//! What the tests of Rakko need on more than one platform
+//! What the tests of Rakko share
+//!
+//! The crate holds two kinds of help. The first lets a test name a path that
+//! reads the same on every platform. The second lets a test run an action and
+//! check that the action keeps its declaration of how it uses the project.
+//!
+//! # Paths
 //!
 //! A test that names a file compares a path, and a path reads differently on
 //! each platform: Windows separates the parts of one with a different
@@ -12,6 +18,13 @@
 //! states a path twice. [`path`][path] answers with the path, and
 //! [`path_text`][path_text] with the text of that path, which is what a
 //! program writes and what a test that reads a report compares.
+//!
+//! # Access
+//!
+//! An action declares whether a run reads or writes the project, and nothing
+//! enforces the declaration yet. [`run_checking_access`][run_checking_access]
+//! runs an action and fails the test when a run that declares a read changed
+//! a file of the project, so a test of an action keeps its declaration honest.
 //!
 //! A crate depends on this one as a development dependency, so nothing that a
 //! project runs carries it.
@@ -29,8 +42,14 @@
 //!
 //! [path]: path()
 //! [path_text]: path_text()
+//! [run_checking_access]: run_checking_access()
+
+/// The check that a run keeps its declaration of access
+mod access;
 
 use std::path::PathBuf;
+
+pub use self::access::run_checking_access;
 
 /// The root of the file system that Windows reads as absolute
 ///
