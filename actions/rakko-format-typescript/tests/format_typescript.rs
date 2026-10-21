@@ -24,7 +24,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_format_typescript::{FormatTypeScript, FormatTypeScriptArgs};
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// TypeScript that oxfmt would rewrite
@@ -385,6 +385,21 @@ async fn report_of_an_unformatted_file_leaves_it_alone() {
     project.report().await;
 
     assert_eq!(project.read("src/index.ts"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn report_of_an_unformatted_file_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("src/index.ts", UNFORMATTED);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(
+        &FormatTypeScript,
+        &project.context(),
+        &FormatTypeScriptArgs::default(),
+    )
+    .await;
 }
 
 #[tokio::test]

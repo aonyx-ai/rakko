@@ -15,7 +15,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary, action_name,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary,
+    action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
@@ -43,6 +44,10 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// rewrites the files that it can format, and the outcome carries one repair
 /// for each file that it rewrote, next to the problems that remain.
 ///
+/// A run that reports declares a read of the project, and a run with `fix`
+/// declares a write. A caller that orders runs by their declarations can
+/// then run a rewrite before the actions that read.
+///
 /// A project that holds no TOML file passes, having formatted nothing. A run stops
 /// with an error when mise reports no taplo,
 /// when taplo rejects a configuration file of the project, and when taplo
@@ -69,6 +74,14 @@ impl Action for FormatToml {
 
     fn name(&self) -> Name {
         action_name!("format-toml")
+    }
+
+    fn access(&self, _context: &Context, args: &Self::Args) -> Access {
+        if args.fix() {
+            Access::Write
+        } else {
+            Access::Read
+        }
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
@@ -263,5 +276,47 @@ fn summary(checked: u64) -> Summary {
         Summary::new("checked 1 file")
     } else {
         Summary::new(format!("checked {checked} files"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // An assertion in a test panics by design. A `# Panics` section on every
+    // test would repeat that and give the reader no information.
+    #![allow(clippy::missing_panics_doc)]
+
+    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+
+    use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns the arguments of a run that asks for a repair
+    fn fixing() -> FormatTomlArgs {
+        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+
+        FormatTomlArgs::from_values(&values).unwrap()
+    }
+
+    #[test]
+    fn access_with_fix_is_write() {
+        let args = fixing();
+
+        let access = FormatToml.access(&context(), &args);
+
+        assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn access_without_fix_is_read() {
+        let args = FormatTomlArgs::default();
+
+        let access = FormatToml.access(&context(), &args);
+
+        assert_eq!(access, Access::Read);
     }
 }

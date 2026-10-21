@@ -23,7 +23,7 @@ use rakko_action::{
     ProjectRoot, Summary, argument_name,
 };
 use rakko_format_toml::{FormatToml, FormatTomlArgs};
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A TOML document that taplo leaves alone
@@ -268,6 +268,16 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     project.run(false).await;
 
     assert_eq!(project.read("messy.toml"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("messy.toml", UNFORMATTED);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&FormatToml, &project.context(), &FormatTomlArgs::default()).await;
 }
 
 #[tokio::test]

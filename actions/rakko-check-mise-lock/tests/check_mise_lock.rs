@@ -30,7 +30,7 @@ use rakko_action::{
 use rakko_check_mise_lock::{
     CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError, Lock, Mise, Platform, Trust,
 };
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The configuration of a project that pins one tool that mise downloads
@@ -773,6 +773,21 @@ async fn run_with_missing_platforms_leaves_the_lockfile_as_it_was() {
     project.run().await;
 
     assert_eq!(project.read("mise.lock"), stripped);
+}
+
+#[tokio::test]
+async fn run_with_missing_platforms_leaves_the_project_unchanged() {
+    let project = Project::locked(PINNED);
+    project.strip();
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(
+        &CheckMiseLock,
+        &project.context(),
+        &CheckMiseLockArgs::default(),
+    )
+    .await;
 }
 
 #[tokio::test]

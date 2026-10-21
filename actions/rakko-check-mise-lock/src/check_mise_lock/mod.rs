@@ -14,7 +14,7 @@ mod error;
 use std::collections::{BTreeMap, BTreeSet};
 
 use rakko_action::{
-    Action, Context, FilePath, Finding, Location, Name, Outcome, Summary, action_name,
+    Access, Action, Context, FilePath, Finding, Location, Name, Outcome, Summary, action_name,
 };
 use rakko_worktree::Worktree;
 
@@ -58,6 +58,10 @@ use crate::part::Platform;
 /// the run stops after `mise lock`. Such a run also compares and keeps what
 /// `mise lock` writes to an ignored lockfile, such as `mise.local.lock`.
 ///
+/// A run that reports declares a read of the project, because its copy
+/// changes the project only inside `.git`, where git records the copy. A run
+/// with `fix` declares a write.
+///
 /// Each tool, version, and platform that `mise lock` adds, changes, or removes
 /// becomes one finding at its lockfile, or one repair with `fix`. A project
 /// that configures no tool to lock skips visibly. A run stops with an error
@@ -89,6 +93,14 @@ impl Action for CheckMiseLock {
 
     fn name(&self) -> Name {
         action_name!("check-mise-lock")
+    }
+
+    fn access(&self, _context: &Context, args: &Self::Args) -> Access {
+        if args.fix() {
+            Access::Write
+        } else {
+            Access::Read
+        }
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
@@ -297,6 +309,8 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+
     use super::*;
 
     /// A lockfile with one tool on one platform
@@ -327,6 +341,37 @@ mod tests {
                 (path, Lockfile::parse(text).unwrap())
             })
             .collect()
+    }
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns the arguments of a run that asks for a repair
+    fn fixing() -> CheckMiseLockArgs {
+        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+
+        CheckMiseLockArgs::from_values(&values).unwrap()
+    }
+
+    #[test]
+    fn access_with_fix_is_write() {
+        let args = fixing();
+
+        let access = CheckMiseLock.access(&context(), &args);
+
+        assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn access_without_fix_is_read() {
+        let args = CheckMiseLockArgs::default();
+
+        let access = CheckMiseLock.access(&context(), &args);
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]

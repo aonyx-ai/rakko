@@ -26,6 +26,7 @@ use rakko_action::{
     argument_name,
 };
 use rakko_format_json::{FormatJson, FormatJsonArgs};
+use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
 /// A JSON document that prettier leaves alone
@@ -439,6 +440,16 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     project.run(false).await;
 
     assert_eq!(project.read("messy.json"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("messy.json", UNFORMATTED);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&FormatJson, &project.context(), &FormatJsonArgs::default()).await;
 }
 
 #[tokio::test]

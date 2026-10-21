@@ -17,7 +17,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary, action_name,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary,
+    action_name,
 };
 use rakko_cargo::{Cargo, CargoRoot, Channel, Toolchain};
 
@@ -69,6 +70,10 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// remain. A run formats every workspace of the project, because the harness
 /// of a project is a package of its own.
 ///
+/// A run that reports declares a read of the project, and a run with `fix`
+/// declares a write. A caller that orders runs by their declarations can
+/// then run a rewrite before the actions that read.
+///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
 /// A run stops with an error when mise reports no
 /// cargo or no nightly toolchain, when the workspaces of the project cannot
@@ -96,6 +101,14 @@ impl Action for FormatRust {
 
     fn name(&self) -> Name {
         action_name!("format-rust")
+    }
+
+    fn access(&self, _context: &Context, args: &Self::Args) -> Access {
+        if args.fix() {
+            Access::Write
+        } else {
+            Access::Read
+        }
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
@@ -337,6 +350,8 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+
     use super::*;
 
     /// Returns a finding at the level of the project, for the tests of the
@@ -346,6 +361,37 @@ mod tests {
             .message("a problem")
             .location(Location::Project)
             .build()
+    }
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns the arguments of a run that asks for a repair
+    fn fixing() -> FormatRustArgs {
+        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+
+        FormatRustArgs::from_values(&values).unwrap()
+    }
+
+    #[test]
+    fn access_with_fix_is_write() {
+        let args = fixing();
+
+        let access = FormatRust.access(&context(), &args);
+
+        assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn access_without_fix_is_read() {
+        let args = FormatRustArgs::default();
+
+        let access = FormatRust.access(&context(), &args);
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]
