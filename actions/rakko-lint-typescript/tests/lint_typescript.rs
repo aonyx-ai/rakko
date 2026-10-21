@@ -24,7 +24,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_lint_typescript::LintTypeScript;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// TypeScript that breaks no rule that oxlint enables by itself
@@ -312,6 +312,16 @@ async fn run_with_a_broken_rule_carries_the_message_of_oxlint() {
         "[warning] eslint(no-debugger): `debugger` statement is not allowed \
          help: Remove the debugger statement"
     );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("index.ts", DEBUGGER);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&LintTypeScript, &project.context(), &()).await;
 }
 
 #[tokio::test]

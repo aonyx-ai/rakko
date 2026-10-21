@@ -12,7 +12,7 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
+    Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
     action_name,
 };
 use rakko_cargo::{Cargo, CargoRoot, Channel, Toolchain};
@@ -83,6 +83,11 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// project cannot be discovered, and when nextest writes a report that the run
 /// cannot answer from.
 ///
+/// A run declares a read of the project, because it builds in a temporary
+/// worktree outside the project. Git records that worktree only under `.git`,
+/// and a change there does not count as a write. A caller that orders runs by
+/// their declarations runs it after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -104,6 +109,10 @@ impl Action for CheckMinimalDeps {
 
     fn name(&self) -> Name {
         action_name!("check-minimal-deps")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -324,6 +333,19 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = CheckMinimalDeps.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
 
     #[test]
     fn summary_of_many_tests_counts_them() {

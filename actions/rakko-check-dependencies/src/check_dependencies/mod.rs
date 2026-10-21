@@ -10,8 +10,8 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, DirectoryPath, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    Summary, action_name,
+    Access, Action, Context, DirectoryPath, Finding, Location, Name, Outcome, ProjectRoot,
+    SkipReason, Summary, action_name,
 };
 use rakko_cargo::{Cargo, CargoRoot};
 
@@ -68,6 +68,10 @@ const WARNINGS: &str = "warnings";
 /// has checked a workspace, and when it writes a record that the action
 /// cannot read.
 ///
+/// A run declares a read of the project. It holds cargo-deny to the lockfile of
+/// each workspace, so the run leaves every lockfile as it is. A caller that
+/// orders runs by their declarations runs it after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -89,6 +93,10 @@ impl Action for CheckDependencies {
 
     fn name(&self) -> Name {
         action_name!("check-dependencies")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -247,6 +255,12 @@ mod tests {
     use super::*;
     use crate::problem::Package;
 
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
     /// Returns the workspace root that lies at the root of the project
     fn project_workspace() -> CargoRoot {
         CargoRoot::builder()
@@ -276,6 +290,13 @@ mod tests {
             .directory(PathBuf::from("/home/otter/project/tools/harness"))
             .documentation(Documentation::Testable)
             .build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = CheckDependencies.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]

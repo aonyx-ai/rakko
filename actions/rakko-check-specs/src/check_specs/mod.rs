@@ -9,7 +9,8 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary, action_name,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary,
+    action_name,
 };
 
 pub use self::error::CheckSpecsError;
@@ -47,6 +48,13 @@ const BASE_REF: &str = "GITHUB_BASE_REF";
 ///
 /// A project whose tracey tracks no requirement skips visibly, and says so.
 ///
+/// A run declares a read of the project. Tracey keeps state of its own in the
+/// `.tracey` directory, which only tracey reads. On a pull request, the run
+/// compares the specifications in a temporary worktree outside the project,
+/// which git records only under `.git`. Neither change counts as a write. A
+/// caller that orders runs by their declarations runs it after the actions that
+/// write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -68,6 +76,10 @@ impl Action for CheckSpecs {
 
     fn name(&self) -> Name {
         action_name!("check-specs")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -206,6 +218,19 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = CheckSpecs.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
 
     #[test]
     fn summary_of_one_requirement_says_so() {

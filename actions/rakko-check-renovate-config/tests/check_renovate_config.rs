@@ -22,7 +22,7 @@ use rakko_action::{
     Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Summary,
 };
 use rakko_check_renovate_config::{CheckRenovateConfig, CheckRenovateConfigError};
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A configuration that Renovate accepts
@@ -322,6 +322,16 @@ async fn run_with_a_global_configuration_that_needs_a_migration_passes() {
         matches!(outcome, Outcome::Passed { .. }),
         "expected the run to pass as the validator does, got {outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn run_with_a_needed_migration_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("renovate.json", MIGRATION);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&CheckRenovateConfig, &project.context(), &()).await;
 }
 
 #[tokio::test]

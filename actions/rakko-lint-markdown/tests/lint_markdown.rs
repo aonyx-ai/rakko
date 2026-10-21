@@ -19,7 +19,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_lint_markdown::LintMarkdown;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A Markdown document that markdownlint accepts
@@ -296,6 +296,16 @@ async fn run_with_a_broken_rule_carries_the_message_of_markdownlint() {
         findings[0].message().get(),
         "MD018/no-missing-space-atx No space after hash on atx style heading [Context: \"#Notes\"]"
     );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("notes.md", UNSPACED_HEADING);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&LintMarkdown, &project.context(), &()).await;
 }
 
 #[tokio::test]

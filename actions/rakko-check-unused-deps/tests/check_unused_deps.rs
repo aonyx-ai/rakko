@@ -27,7 +27,7 @@ use std::process::Command;
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_cargo::Cargo;
 use rakko_check_unused_deps::{CheckUnusedDeps, CheckUnusedDepsError};
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A source file that the compiler refuses
@@ -373,10 +373,11 @@ async fn run_in_a_project_that_uses_every_dependency_passes() {
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_dependency(NORMAL, CLEAN);
+    project.lock().await;
 
-    project.run().await;
-
-    assert_eq!(project.read("Cargo.toml"), workspace(NORMAL));
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&CheckUnusedDeps, &project.context(), &()).await;
 }
 
 #[tokio::test]

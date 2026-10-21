@@ -20,7 +20,7 @@ use std::process::Command;
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_build_internal_docs::{BuildInternalDocs, BuildInternalDocsError};
 use rakko_cargo::Cargo;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The manifest of a package that rustdoc documents
@@ -501,6 +501,16 @@ async fn run_with_a_broken_link_in_a_second_workspace_names_its_path() {
         locations(findings)[0],
         path_text("tools/harness/src/lib.rs")
     );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_link_leaves_the_project_unchanged() {
+    let project = Project::with_library(BROKEN_LINK);
+    project.lock().await;
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&BuildInternalDocs, &project.context(), &()).await;
 }
 
 #[tokio::test]

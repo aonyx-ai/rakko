@@ -9,7 +9,7 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary, action_name,
+    Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary, action_name,
 };
 
 pub use self::error::TestTypeScriptError;
@@ -36,6 +36,11 @@ const NO_TEST: &str = "node found no test in the project";
 /// node, when node reports no failure and ends without success, and when node
 /// writes a report that the action cannot read.
 ///
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write. The declaration covers the
+/// action and its tool, and not the tests of the project, which can write files
+/// of their own.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -57,6 +62,10 @@ impl Action for TestTypeScript {
 
     fn name(&self) -> Name {
         action_name!("test-typescript")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -139,6 +148,12 @@ mod tests {
     use super::*;
     use crate::failure::{Failure, Origin};
 
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
     /// Returns a failure of a test that the project declares in a file
     fn failure(name: &str) -> Failure {
         Failure::builder()
@@ -163,6 +178,13 @@ mod tests {
     /// The root that the failures of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = TestTypeScript.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]

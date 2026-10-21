@@ -24,7 +24,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_check_typescript::CheckTypeScript;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A configuration that selects the source directory of the project
@@ -326,6 +326,17 @@ async fn run_reads_the_configuration_of_the_project() {
         matches!(outcome, Outcome::Failed { .. }),
         "expected the options of the project to answer, got {outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn run_with_a_type_error_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("tsconfig.json", CONFIGURATION);
+    project.write("src/index.ts", WRONG_TYPE);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&CheckTypeScript, &project.context(), &()).await;
 }
 
 #[tokio::test]

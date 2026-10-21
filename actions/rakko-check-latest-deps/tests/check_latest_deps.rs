@@ -28,7 +28,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_check_latest_deps::CheckLatestDeps;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The manifest of a package that nextest tests
@@ -515,6 +515,20 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn run_with_a_stale_lockfile_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("Cargo.toml", WITH_MEMBER);
+    project.write("src/lib.rs", PASSING_THROUGH_MEMBER);
+    project.write("dep/Cargo.toml", MEMBER);
+    project.write("dep/src/lib.rs", MEMBER_LIBRARY);
+    project.write("Cargo.lock", STALE_LOCK);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&CheckLatestDeps, &project.context(), &()).await;
 }
 
 // The lockfile of the project names no member, so a build that holds cargo to

@@ -9,7 +9,8 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary, action_name,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary,
+    action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
@@ -42,6 +43,9 @@ const UNFORMATTED: &str = "the file is not properly formatted";
 /// when taplo rejects a configuration file of the project, and when taplo
 /// writes a report that the action does not recognize.
 ///
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -63,6 +67,10 @@ impl Action for LintToml {
 
     fn name(&self) -> Name {
         action_name!("lint-toml")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -194,6 +202,19 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = LintToml.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
 
     #[test]
     fn passed_of_a_run_that_counted_one_file_says_so() {
