@@ -9,7 +9,7 @@ cargo-binstall = "1.26.0"
 # Prettier, oxfmt, tsc, and the validator of Renovate all run on node, and mise
 # puts no node on the path for a tool of its npm backend, so the pin below is
 # what lets the actions that wrap them start any of the four.
-node = "24.22.0"
+node = "24.22.1"
 
 # The first toolchain is the default for builds, Clippy, and the tests. The
 # second is a nightly toolchain, which rustfmt needs for the unstable options
