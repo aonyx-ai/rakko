@@ -6,11 +6,14 @@ from the design discussions to the terms that replaced them.
 
 ## Terms
 
-- **Access** — The declaration of the files that an action reads and writes.
-  The declaration is a function of the action's arguments, so a `--fix` flag
-  changes it. The default declaration is exclusive access to the full
-  project. The scheduler and the sandbox derive their behavior from these
-  declarations.
+- **Access** — (Planned.) The declaration of whether a run of an action
+  reads or writes the project. An action declares it after its arguments
+  are bound and before it runs. The declaration is a function of the
+  arguments and the context, so a `--fix` flag changes it, and it does no
+  I/O. A write is exclusive access to what it names, and a read is shared
+  access. In the first version, a declaration names the whole project. The
+  default declaration is exclusive access to the full project. The
+  scheduler and the sandbox derive their behavior from these declarations.
 - **Action** — The unit of maintenance work. An action is a library crate
   that implements the `Action` trait. An action depends on the contract
   crate and on the helper crates that it uses. It never depends on the
