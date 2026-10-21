@@ -13,8 +13,8 @@ mod error;
 use std::path::Path;
 
 use rakko_action::{
-    Action, Context, FilePath, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    action_name,
+    Access, Action, Context, FilePath, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    SkipReason, action_name,
 };
 
 pub use self::args::FormatTypeScriptArgs;
@@ -56,6 +56,10 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// rewrites the files that it can format, and the outcome carries one repair
 /// for each file that changed, next to the problems that remain.
 ///
+/// A run that reports declares a read of the project, and a run with `fix`
+/// declares a write. A caller that orders runs by their declarations can
+/// then run a rewrite before the actions that read.
+///
 /// A run whose oxfmt found no file of the language skips visibly, and says so.
 /// A run stops with an error when mise reports no oxfmt, when oxfmt refused a
 /// configuration of the project, and when oxfmt writes a report that the
@@ -82,6 +86,14 @@ impl Action for FormatTypeScript {
 
     fn name(&self) -> Name {
         action_name!("format-typescript")
+    }
+
+    fn access(&self, _context: &Context, args: &Self::Args) -> Access {
+        if args.fix() {
+            Access::Write
+        } else {
+            Access::Read
+        }
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
@@ -355,6 +367,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
     use rakko_test_utils::path;
 
     use super::*;
@@ -365,6 +378,37 @@ mod tests {
     /// The root that the problems of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns the arguments of a run that asks for a repair
+    fn fixing() -> FormatTypeScriptArgs {
+        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+
+        FormatTypeScriptArgs::from_values(&values).unwrap()
+    }
+
+    #[test]
+    fn access_with_fix_is_write() {
+        let args = fixing();
+
+        let access = FormatTypeScript.access(&context(), &args);
+
+        assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn access_without_fix_is_read() {
+        let args = FormatTypeScriptArgs::default();
+
+        let access = FormatTypeScript.access(&context(), &args);
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]

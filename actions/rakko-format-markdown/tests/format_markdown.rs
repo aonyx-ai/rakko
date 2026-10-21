@@ -25,6 +25,7 @@ use rakko_action::{
     Action, Args, ArgsValues, ArgumentValue, Context, Location, Outcome, ProjectRoot, argument_name,
 };
 use rakko_format_markdown::{FormatMarkdown, FormatMarkdownArgs};
+use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
 /// A Markdown document that prettier leaves alone
@@ -394,6 +395,21 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     project.run(false).await;
 
     assert_eq!(project.read("messy.md"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("messy.md", UNFORMATTED);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(
+        &FormatMarkdown,
+        &project.context(),
+        &FormatMarkdownArgs::default(),
+    )
+    .await;
 }
 
 #[tokio::test]

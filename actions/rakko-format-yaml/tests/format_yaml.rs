@@ -26,6 +26,7 @@ use rakko_action::{
     argument_name,
 };
 use rakko_format_yaml::{FormatYaml, FormatYamlArgs};
+use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
 /// A YAML document that prettier leaves alone
@@ -439,6 +440,16 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     project.run(false).await;
 
     assert_eq!(project.read("messy.yaml"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("messy.yaml", UNFORMATTED);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&FormatYaml, &project.context(), &FormatYamlArgs::default()).await;
 }
 
 #[tokio::test]

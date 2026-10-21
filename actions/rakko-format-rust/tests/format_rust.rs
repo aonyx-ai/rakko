@@ -25,7 +25,7 @@ use rakko_action::{
 };
 use rakko_cargo::Toolchain;
 use rakko_format_rust::{FormatRust, FormatRustArgs};
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The manifest of a package that rustfmt formats
@@ -307,6 +307,15 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     project.run(false).await;
 
     assert_eq!(project.read("src/lib.rs"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_project_unchanged() {
+    let project = Project::with_library(UNFORMATTED);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&FormatRust, &project.context(), &FormatRustArgs::default()).await;
 }
 
 #[tokio::test]
