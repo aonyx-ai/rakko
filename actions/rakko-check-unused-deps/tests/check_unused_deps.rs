@@ -25,7 +25,8 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
-use rakko_check_unused_deps::CheckUnusedDeps;
+use rakko_cargo::Cargo;
+use rakko_check_unused_deps::{CheckUnusedDeps, CheckUnusedDepsError};
 use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
@@ -51,6 +52,9 @@ const HELPER: &str = "[package]\nname = \"helper\"\nversion = \"0.1.0\"\nedition
 
 /// The library of that package
 const HELPER_LIBRARY: &str = "pub fn help() {}\n";
+
+/// A lockfile that records the package and not the helper
+const LOCKFILE: &str = "version = 4\n\n[[package]]\nname = \"probe\"\nversion = \"0.1.0\"\n";
 
 /// The table that declares the helper as a dependency of the library
 const NORMAL: &str = "\n[dependencies]\nhelper = { path = \"helper\" }\n";
@@ -120,6 +124,15 @@ impl Project {
         project
     }
 
+    /// Creates a project whose lockfile does not record the helper that the
+    /// manifest declares
+    fn stale() -> Self {
+        let project = Self::with_dependency(NORMAL, USES_HELPER);
+        project.write("Cargo.lock", LOCKFILE);
+
+        project
+    }
+
     /// Creates a project that pins no nightly toolchain
     ///
     /// The pin names the toolchain that this repository builds with, so mise
@@ -162,14 +175,40 @@ impl Project {
         trust(&path);
     }
 
+    /// Writes the lockfile of every workspace of the project that has none
+    ///
+    /// The action holds cargo to the lockfile of a workspace, and cargo
+    /// refuses a workspace without one, as a project that commits its
+    /// lockfile never is. A test that writes a workspace therefore gets the
+    /// lockfile that a first build would write. A project in which cargo
+    /// cannot find its workspaces stays as it is, so that the run reports
+    /// what stops it.
+    async fn lock(&self) {
+        let Ok(cargo) = Cargo::resolve(self.context().root().clone()).await else {
+            return;
+        };
+        let Ok(roots) = cargo.roots().await else {
+            return;
+        };
+
+        for root in roots {
+            if !root.directory().join("Cargo.lock").exists() {
+                let _ = cargo.invocation(&root).arg("generate-lockfile").run().await;
+            }
+        }
+    }
+
     /// Returns the content of a file of the project
     fn read(&self, path: &str) -> String {
         std::fs::read_to_string(self.directory.path().join(path))
             .expect("the test reads a file that it wrote")
     }
 
-    /// Runs the action against this project
+    /// Runs the action against this project, after it wrote the lockfiles
+    /// that the project lacks
     async fn run(&self) -> Outcome {
+        self.lock().await;
+
         CheckUnusedDeps.run(&self.context(), &()).await
     }
 
@@ -515,6 +554,33 @@ async fn run_with_two_workspaces_counts_both() {
 }
 
 #[tokio::test]
+async fn run_with_a_stale_lockfile_leaves_it_unchanged() {
+    let project = Project::stale();
+
+    project.run().await;
+
+    assert_eq!(project.read("Cargo.lock"), LOCKFILE);
+}
+
+#[tokio::test]
+async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
+    let project = Project::stale();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        matches!(
+            source.downcast_ref::<CheckUnusedDepsError>(),
+            Some(CheckUnusedDepsError::StaleLockfile { .. })
+        ),
+        "expected a lockfile that needs an update, got {source:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
     project.write("Cargo.toml", &workspace(NORMAL));
@@ -527,6 +593,27 @@ async fn run_without_a_cargo_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
+    );
+}
+
+// A workspace that never ran a build has no lockfile, and the action holds
+// cargo to one, so the run stops. The test runs the action directly, because
+// the helper that runs it writes the lockfile first.
+#[tokio::test]
+async fn run_without_a_lockfile_says_that_it_needs_an_update() {
+    let project = Project::with_dependency(NORMAL, USES_HELPER);
+
+    let outcome = CheckUnusedDeps.run(&project.context(), &()).await;
+
+    let Outcome::Errored { source } = outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        matches!(
+            source.downcast_ref::<CheckUnusedDepsError>(),
+            Some(CheckUnusedDepsError::StaleLockfile { .. })
+        ),
+        "expected a lockfile that needs an update, got {source:?}"
     );
 }
 

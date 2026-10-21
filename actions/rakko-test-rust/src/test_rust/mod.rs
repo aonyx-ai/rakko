@@ -26,7 +26,9 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// version that the project pinned, and the action installs nothing.
 ///
 /// A run only reports, and it takes no argument. It tests every workspace of
-/// the project, because the harness of a project is a package of its own. A
+/// the project, because the harness of a project is a package of its own. It
+/// builds the versions that the lockfile of a workspace holds, and it leaves
+/// the lockfile as it is. A
 /// test that failed becomes a finding that names the test and carries the
 /// message of the panic, at the position where the test panicked. A build
 /// that does not finish becomes findings from the diagnostics of the
@@ -35,8 +37,9 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
 /// A run stops with an error when mise reports no
-/// cargo, when the workspaces of the project cannot be discovered, and when
-/// nextest writes a report that the run cannot answer from.
+/// cargo, when the workspaces of the project cannot be discovered, when the
+/// lockfile of a workspace needs an update, and when nextest writes a report
+/// that the run cannot answer from.
 ///
 /// # Examples
 ///
@@ -98,7 +101,7 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
         });
     }
 
-    let nextest = Nextest::new(cargo, Lockfile::Writable);
+    let nextest = Nextest::new(cargo, Lockfile::Locked);
     let mut findings: Vec<Finding> = Vec::new();
     let mut ran = 0;
 

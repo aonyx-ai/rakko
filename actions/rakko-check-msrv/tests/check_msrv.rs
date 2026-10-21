@@ -20,7 +20,8 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
-use rakko_check_msrv::CheckMsrv;
+use rakko_cargo::Cargo;
+use rakko_check_msrv::{CheckMsrv, CheckMsrvError};
 use rakko_test_utils::path_text;
 use tempfile::TempDir;
 
@@ -46,6 +47,12 @@ const BROKEN: &str = "pub fn broken() -> i32 {\n    \"no\"\n}\n";
 /// asks for another one.
 const UNSTABLE: &str =
     "pub fn unstable() {\n    let _ = std::path::Path::new(\"a.tar.gz\").file_prefix();\n}\n";
+
+/// The manifest of the dependency that the lockfile does not record
+const HELPER: &str = "[package]\nname = \"helper\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// A lockfile that records the package and not its dependency
+const LOCKFILE: &str = "version = 4\n\n[[package]]\nname = \"probe\"\nversion = \"0.1.0\"\n";
 
 /// A build script that fails
 ///
@@ -107,6 +114,19 @@ impl Project {
         project
     }
 
+    /// Creates a project whose lockfile does not record a dependency that
+    /// the manifest declares
+    fn stale() -> Self {
+        let project = Self::new();
+        project.write("Cargo.toml", &stale_manifest(&declared_rust()));
+        project.write("Cargo.lock", LOCKFILE);
+        project.write("src/lib.rs", CLEAN);
+        project.write("helper/Cargo.toml", HELPER);
+        project.write("helper/src/lib.rs", CLEAN);
+
+        project
+    }
+
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
     /// The pin names a version that no machine installs, so mise reports no
@@ -134,14 +154,40 @@ impl Project {
         Context::builder().root(root).build()
     }
 
+    /// Writes the lockfile of every workspace of the project that has none
+    ///
+    /// The action holds cargo to the lockfile of a workspace, and cargo
+    /// refuses a workspace without one, as a project that commits its
+    /// lockfile never is. A test that writes a workspace therefore gets the
+    /// lockfile that a first build would write. A project in which cargo
+    /// cannot find its workspaces stays as it is, so that the run reports
+    /// what stops it.
+    async fn lock(&self) {
+        let Ok(cargo) = Cargo::resolve(self.context().root().clone()).await else {
+            return;
+        };
+        let Ok(roots) = cargo.roots().await else {
+            return;
+        };
+
+        for root in roots {
+            if !root.directory().join("Cargo.lock").exists() {
+                let _ = cargo.invocation(&root).arg("generate-lockfile").run().await;
+            }
+        }
+    }
+
     /// Returns the content of a file of the project
     fn read(&self, path: &str) -> String {
         std::fs::read_to_string(self.directory.path().join(path))
             .expect("the test reads a file that it wrote")
     }
 
-    /// Runs the action against this project
+    /// Runs the action against this project, after it wrote the lockfiles
+    /// that the project lacks
     async fn run(&self) -> Outcome {
+        self.lock().await;
+
         CheckMsrv.run(&self.context(), &()).await
     }
 
@@ -209,6 +255,18 @@ fn repository() -> &'static Path {
 /// list it.
 fn standalone(name: &str, version: &str) -> String {
     format!("[workspace]\n\n{}", package(name, version))
+}
+
+/// Returns the manifest of a package that declares the given Rust version
+/// and a dependency that the lockfile does not record
+///
+/// The workspace table makes the dependency below the package a member of
+/// its workspace, so that the project holds one workspace and one lockfile.
+fn stale_manifest(version: &str) -> String {
+    format!(
+        "{}\n[dependencies]\nhelper = {{ path = \"helper\" }}\n",
+        standalone("probe", version)
+    )
 }
 
 /// Trusts a mise configuration, so that mise reads it
@@ -505,6 +563,33 @@ async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     assert!(
         source.to_string().contains("custom build command"),
         "expected the diagnosis of cargo, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_stale_lockfile_leaves_it_unchanged() {
+    let project = Project::stale();
+
+    project.run().await;
+
+    assert_eq!(project.read("Cargo.lock"), LOCKFILE);
+}
+
+#[tokio::test]
+async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
+    let project = Project::stale();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        matches!(
+            source.downcast_ref::<CheckMsrvError>(),
+            Some(CheckMsrvError::StaleLockfile { .. })
+        ),
+        "expected a lockfile that needs an update, got {source:?}"
     );
 }
 

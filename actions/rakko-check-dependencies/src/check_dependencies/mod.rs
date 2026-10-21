@@ -46,7 +46,8 @@ const WARNINGS: &str = "warnings";
 ///
 /// A run only reports, and it takes no argument. It checks every workspace of
 /// the project, because the harness of a project is a package of its own, and
-/// it asks cargo for those workspaces.
+/// it asks cargo for those workspaces. It checks the versions that the
+/// lockfile of a workspace holds, and it leaves the lockfile as it is.
 ///
 /// Cargo-deny weighs everything that it reports with the level that the
 /// configuration of the project gave the check. An error is a shape that the
@@ -62,9 +63,10 @@ const WARNINGS: &str = "warnings";
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
 /// A run stops with an error when mise reports no
-/// tool, when the workspaces of the project cannot be discovered, when
-/// cargo-deny stops before it has checked a workspace, and when it writes a
-/// record that the action cannot read.
+/// tool, when the workspaces of the project cannot be discovered, when the
+/// lockfile of a workspace needs an update, when cargo-deny stops before it
+/// has checked a workspace, and when it writes a record that the action
+/// cannot read.
 ///
 /// # Examples
 ///

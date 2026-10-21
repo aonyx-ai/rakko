@@ -11,6 +11,7 @@ mod error;
 use std::collections::HashSet;
 
 use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoPackage, CargoReport, CargoRoot, DocumentedNames};
 use rakko_tool::Execution;
 
@@ -24,14 +25,17 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// The private items belong to the internal documentation, and a feature
 /// that is off by default can carry documentation of its own, so the run
 /// covers both. The dependencies stay out, because the documentation of a
-/// dependency belongs to the project that publishes it.
+/// dependency belongs to the project that publishes it. Cargo builds the
+/// versions that the lockfile holds and does not write the lockfile, because
+/// the action only examines the project.
 ///
 /// The report arrives as JSON, because the action reads it as data. The
 /// format selects the presentation of the report and not the behavior of the
 /// tool: which lints apply, and at which level, comes from the configuration
 /// of the project alone.
-const DOC: [&str; 5] = [
+const DOC: [&str; 6] = [
     "doc",
+    LOCKED,
     "--no-deps",
     "--document-private-items",
     "--all-features",
@@ -72,12 +76,14 @@ const PACKAGE: &str = "--package";
 /// another run enables then fails. The compiler can also report other
 /// warnings for a library of the workspace than a single run does. A
 /// diagnostic that several runs report becomes one finding. The
-/// documentation goes where cargo builds, and the sources stay as they are.
+/// documentation goes where cargo builds, and the sources and the lockfile
+/// stay as they are.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
 /// A run stops with an error when mise reports no
-/// cargo, when the workspaces of the project cannot be discovered, and when
-/// cargo writes a report that the action does not recognize.
+/// cargo, when the workspaces of the project cannot be discovered, when the
+/// lockfile of a workspace needs an update, and when cargo writes a report
+/// that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -212,10 +218,12 @@ fn selections(root: &CargoRoot) -> Vec<Vec<&str>> {
 ///
 /// # Errors
 ///
-/// Returns [`CargoUnavailable`][unavailable] when cargo does not run, and
-/// [`UnrecognizedReport`][unrecognized] when cargo writes a report that the
-/// action cannot answer from.
+/// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
+/// [`StaleLockfile`][stale] when cargo refused to document because the
+/// lockfile needs an update, and [`UnrecognizedReport`][unrecognized] when
+/// cargo writes a report that the action cannot answer from.
 ///
+/// [stale]: BuildInternalDocsError::StaleLockfile
 /// [unavailable]: BuildInternalDocsError::CargoUnavailable
 /// [unrecognized]: BuildInternalDocsError::UnrecognizedReport
 async fn document(
@@ -231,6 +239,12 @@ async fn document(
         .run()
         .await
         .map_err(|source| BuildInternalDocsError::CargoUnavailable { source })?;
+
+    if lockfile::refused(&execution.stderr().to_string_lossy()) {
+        return Err(BuildInternalDocsError::StaleLockfile {
+            root: root.directory().clone(),
+        });
+    }
 
     let report = read(root, &execution.stdout().to_string_lossy())?;
 

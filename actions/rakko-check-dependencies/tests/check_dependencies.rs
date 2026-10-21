@@ -23,7 +23,8 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko_action::{Action, Args, Context, DirectoryPath, Finding, Location, Outcome, ProjectRoot};
-use rakko_check_dependencies::CheckDependencies;
+use rakko_cargo::Cargo;
+use rakko_check_dependencies::{CheckDependencies, CheckDependenciesError};
 use tempfile::TempDir;
 
 /// A package whose license the tests accept
@@ -106,6 +107,35 @@ db-path = \"/nonexistent/rakko-advisory-db\"
 db-urls = [\"https://example.invalid/advisory-db\"]
 ";
 
+/// A package with a dependency that the lockfile does not record
+///
+/// The workspace table makes the dependency below the package a member of
+/// its workspace, so that the project holds one workspace and one lockfile.
+const STALE: &str = "\
+[workspace]
+
+[package]
+name = \"otter\"
+version = \"0.1.0\"
+edition = \"2024\"
+license = \"MIT\"
+
+[dependencies]
+helper = { path = \"helper\" }
+";
+
+/// The dependency that the lockfile does not record
+const HELPER: &str = "\
+[package]
+name = \"helper\"
+version = \"0.1.0\"
+edition = \"2024\"
+license = \"MIT\"
+";
+
+/// A lockfile that records the package and not its dependency
+const LOCKFILE: &str = "version = 4\n\n[[package]]\nname = \"otter\"\nversion = \"0.1.0\"\n";
+
 /// The directory that holds the second workspace of a project
 const TOOLS: &str = "tools/harness";
 
@@ -152,6 +182,20 @@ impl Project {
         project
     }
 
+    /// Creates a project whose lockfile does not record a dependency that
+    /// the manifest declares
+    fn stale() -> Self {
+        let project = Self::new();
+        project.write("Cargo.toml", STALE);
+        project.write("Cargo.lock", LOCKFILE);
+        project.write("src/lib.rs", LIBRARY);
+        project.write("helper/Cargo.toml", HELPER);
+        project.write("helper/src/lib.rs", LIBRARY);
+        project.write("deny.toml", ALLOW_MIT);
+
+        project
+    }
+
     /// Creates a project that pins a cargo-deny that nothing installed
     ///
     /// The pin names a version that no machine installs, so mise reports no
@@ -193,14 +237,40 @@ impl Project {
         trust(&path);
     }
 
+    /// Writes the lockfile of every workspace of the project that has none
+    ///
+    /// The action holds cargo to the lockfile of a workspace, and cargo
+    /// refuses a workspace without one, as a project that commits its
+    /// lockfile never is. A test that writes a workspace therefore gets the
+    /// lockfile that a first build would write. A project in which cargo
+    /// cannot find its workspaces stays as it is, so that the run reports
+    /// what stops it.
+    async fn lock(&self) {
+        let Ok(cargo) = Cargo::resolve(self.context().root().clone()).await else {
+            return;
+        };
+        let Ok(roots) = cargo.roots().await else {
+            return;
+        };
+
+        for root in roots {
+            if !root.directory().join("Cargo.lock").exists() {
+                let _ = cargo.invocation(&root).arg("generate-lockfile").run().await;
+            }
+        }
+    }
+
     /// Returns the content of a file of the project
     fn read(&self, path: &str) -> String {
         std::fs::read_to_string(self.directory.path().join(path))
             .expect("the test reads a file that it wrote")
     }
 
-    /// Runs the action against this project
+    /// Runs the action against this project, after it wrote the lockfiles
+    /// that the project lacks
     async fn run(&self) -> Outcome {
+        self.lock().await;
+
         CheckDependencies.run(&self.context(), &()).await
     }
 
@@ -533,6 +603,33 @@ async fn run_with_a_refused_license_names_the_check_the_words_and_the_package() 
 }
 
 #[tokio::test]
+async fn run_with_a_stale_lockfile_leaves_it_unchanged() {
+    let project = Project::stale();
+
+    project.run().await;
+
+    assert_eq!(project.read("Cargo.lock"), LOCKFILE);
+}
+
+#[tokio::test]
+async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
+    let project = Project::stale();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        matches!(
+            source.downcast_ref::<CheckDependenciesError>(),
+            Some(CheckDependenciesError::StaleLockfile { .. })
+        ),
+        "expected a lockfile that needs an update, got {source:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_a_warning_counts_it() {
     let project = Project::with_configuration(UNUSED);
 
@@ -565,5 +662,26 @@ async fn run_without_a_cargo_deny_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
+    );
+}
+
+// A workspace that never ran a build has no lockfile, and the action holds
+// cargo to one, so the run stops. The test runs the action directly, because
+// the helper that runs it writes the lockfile first.
+#[tokio::test]
+async fn run_without_a_lockfile_says_that_it_needs_an_update() {
+    let project = Project::with_configuration(ALLOW_MIT);
+
+    let outcome = CheckDependencies.run(&project.context(), &()).await;
+
+    let Outcome::Errored { source } = outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        matches!(
+            source.downcast_ref::<CheckDependenciesError>(),
+            Some(CheckDependenciesError::StaleLockfile { .. })
+        ),
+        "expected a lockfile that needs an update, got {source:?}"
     );
 }
