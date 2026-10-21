@@ -40,6 +40,19 @@ pub enum CheckWorkspaceError {
         details: String,
     },
 
+    /// The lockfile of a workspace needs an update
+    ///
+    /// The manifests of the workspace ask for something that the lockfile does
+    /// not hold, such as a new dependency or a new version of a member, or the
+    /// workspace has no lockfile. Cargo-deny checks the versions that the
+    /// lockfile holds and never lets cargo write it, so cargo refused to
+    /// describe the workspace. A build of the workspace writes the lockfile.
+    #[error("the lockfile of the workspace in {} needs an update", root.display())]
+    StaleLockfile {
+        /// The workspace root whose lockfile needs an update
+        root: PathBuf,
+    },
+
     /// Cargo-deny wrote a record that the crate cannot read
     ///
     /// The shape of a record belongs to a version of cargo-deny. A record

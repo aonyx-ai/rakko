@@ -9,6 +9,7 @@
 mod error;
 
 use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot};
 use rakko_tool::Execution;
 
@@ -19,12 +20,16 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The arguments that ask cargo to lint every target with every feature
 ///
+/// Cargo lints the versions that the lockfile holds and does not write the
+/// lockfile, because the action only examines the project.
+///
 /// The report arrives as JSON, because the action reads it as data. The
 /// format selects the presentation of the report and not the behavior of the
 /// tool: which lints apply, and at which level, comes from the configuration
 /// of the project alone.
-const CLIPPY: [&str; 4] = [
+const CLIPPY: [&str; 5] = [
     "clippy",
+    LOCKED,
     "--all-targets",
     "--all-features",
     "--message-format=json",
@@ -41,14 +46,17 @@ const CLIPPY: [&str; 4] = [
 ///
 /// A run only reports, and it takes no argument. It lints every workspace of
 /// the project, because the harness of a project is a package of its own.
+/// It lints the versions that the lockfile of a workspace holds, and it
+/// leaves the lockfile as it is.
 /// Every diagnostic becomes a finding at the range that the compiler named,
 /// with the message of the compiler and the code of the lint, and a run with
 /// a finding fails, whether the project warns about the lint or denies it.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
 /// A run stops with an error when mise reports no
-/// cargo, when the workspaces of the project cannot be discovered, and when
-/// cargo writes a report that the action does not recognize.
+/// cargo, when the workspaces of the project cannot be discovered, when the
+/// lockfile of a workspace needs an update, and when cargo writes a report
+/// that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -132,10 +140,12 @@ async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
 ///
 /// # Errors
 ///
-/// Returns [`CargoUnavailable`][unavailable] when cargo does not run, and
-/// [`UnrecognizedReport`][unrecognized] when cargo writes a report that the
-/// action cannot answer from.
+/// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
+/// [`StaleLockfile`][stale] when cargo refused to lint because the lockfile
+/// needs an update, and [`UnrecognizedReport`][unrecognized] when cargo
+/// writes a report that the action cannot answer from.
 ///
+/// [stale]: LintRustError::StaleLockfile
 /// [unavailable]: LintRustError::CargoUnavailable
 /// [unrecognized]: LintRustError::UnrecognizedReport
 async fn lint(
@@ -149,6 +159,12 @@ async fn lint(
         .run()
         .await
         .map_err(|source| LintRustError::CargoUnavailable { source })?;
+
+    if lockfile::refused(&execution.stderr().to_string_lossy()) {
+        return Err(LintRustError::StaleLockfile {
+            root: root.directory().clone(),
+        });
+    }
 
     let report = read(root, &execution.stdout().to_string_lossy())?;
 

@@ -25,6 +25,19 @@ pub enum CheckUnusedDepsError {
         source: RunCommandError,
     },
 
+    /// The lockfile of a workspace needs an update
+    ///
+    /// The manifests of the workspace ask for something that the lockfile does
+    /// not hold, such as a new dependency or a new version of a member, or the
+    /// workspace has no lockfile. The action examines the versions that the
+    /// lockfile holds and never writes it, so cargo refused the run. A build of
+    /// the workspace writes the lockfile.
+    #[error("the lockfile of the workspace in {} needs an update", root.display())]
+    StaleLockfile {
+        /// The workspace root whose lockfile needs an update
+        root: PathBuf,
+    },
+
     /// The workspaces of the project could not be discovered
     ///
     /// A run examines every workspace, and a run that does not know them all

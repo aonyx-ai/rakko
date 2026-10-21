@@ -56,6 +56,19 @@ pub enum CheckDependenciesError {
         details: String,
     },
 
+    /// The lockfile of a workspace needs an update
+    ///
+    /// The manifests of the workspace ask for something that the lockfile does
+    /// not hold, such as a new dependency or a new version of a member, or the
+    /// workspace has no lockfile. The action checks the versions that the
+    /// lockfile holds and never writes it, so cargo refused to describe the
+    /// workspace to cargo-deny. A build of the workspace writes the lockfile.
+    #[error("the lockfile of the workspace in {} needs an update", root.display())]
+    StaleLockfile {
+        /// The workspace root whose lockfile needs an update
+        root: PathBuf,
+    },
+
     /// The workspaces of the project could not be discovered
     ///
     /// A run checks every workspace of the project, so a run that does not
@@ -110,7 +123,7 @@ pub enum CheckDependenciesError {
 impl From<CheckWorkspaceError> for CheckDependenciesError {
     /// Turns the failure of a workspace check into the error of the action
     ///
-    /// The machinery that runs cargo-deny names the same three conditions
+    /// The machinery that runs cargo-deny names the same four conditions
     /// that the action reports, so the conversion renames them and adds
     /// nothing.
     fn from(error: CheckWorkspaceError) -> Self {
@@ -121,6 +134,7 @@ impl From<CheckWorkspaceError> for CheckDependenciesError {
             CheckWorkspaceError::IncompleteCheck { root, details } => {
                 Self::IncompleteCheck { root, details }
             }
+            CheckWorkspaceError::StaleLockfile { root } => Self::StaleLockfile { root },
             CheckWorkspaceError::UnreadableReport {
                 root,
                 record,

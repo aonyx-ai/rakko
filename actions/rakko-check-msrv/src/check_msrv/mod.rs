@@ -9,6 +9,7 @@
 mod error;
 
 use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Channel, RustVersion, Toolchain};
 use rakko_tool::Execution;
 
@@ -25,12 +26,15 @@ const NO_DECLARATION: &str =
 /// feature
 ///
 /// The check produces no binary, because the question is whether the older
-/// toolchain accepts the code. The report arrives as JSON, because the
+/// toolchain accepts the code. Cargo checks the versions that the lockfile
+/// holds and does not write the lockfile, because the action only examines
+/// the project. The report arrives as JSON, because the
 /// action reads it as data. The format selects the presentation of the
 /// report and not the behavior of the tool: which lints apply, and at which
 /// level, comes from the configuration of the project alone.
-const CHECK: [&str; 4] = [
+const CHECK: [&str; 5] = [
     "check",
+    LOCKED,
     "--all-targets",
     "--all-features",
     "--message-format=json",
@@ -56,8 +60,9 @@ const CHECK: [&str; 4] = [
 /// declare no Rust version, skip visibly and say so. A run
 /// stops with an error when mise reports no cargo or no declared toolchain,
 /// when the workspaces of the project cannot be discovered, when a
-/// declaration cannot be read, and when cargo writes a report that the
-/// action does not recognize.
+/// declaration cannot be read, when the lockfile of a workspace needs an
+/// update, and when cargo writes a report that the action does not
+/// recognize.
 ///
 /// # Examples
 ///
@@ -154,9 +159,11 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
 ///
 /// Returns [`UnresolvedToolchain`][toolchain] when mise reports no toolchain
 /// for the declared version, [`CargoUnavailable`][unavailable] when cargo
-/// does not run, and [`UnrecognizedReport`][unrecognized] when cargo writes a
-/// report that the action cannot answer from.
+/// does not run, [`StaleLockfile`][stale] when cargo refused to check because
+/// the lockfile needs an update, and [`UnrecognizedReport`][unrecognized]
+/// when cargo writes a report that the action cannot answer from.
 ///
+/// [stale]: CheckMsrvError::StaleLockfile
 /// [toolchain]: CheckMsrvError::UnresolvedToolchain
 /// [unavailable]: CheckMsrvError::CargoUnavailable
 /// [unrecognized]: CheckMsrvError::UnrecognizedReport
@@ -179,6 +186,12 @@ async fn check(
         .run()
         .await
         .map_err(|source| CheckMsrvError::CargoUnavailable { source })?;
+
+    if lockfile::refused(&execution.stderr().to_string_lossy()) {
+        return Err(CheckMsrvError::StaleLockfile {
+            root: root.directory().clone(),
+        });
+    }
 
     let report = read(root, &execution.stdout().to_string_lossy())?;
 

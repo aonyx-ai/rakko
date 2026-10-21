@@ -9,6 +9,7 @@
 mod error;
 
 use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Documentation};
 use rakko_tool::Execution;
 
@@ -28,11 +29,15 @@ const NO_LIBRARY: &str = "no workspace of the project holds a library";
 /// whose examples fail unless a run asks it to continue, and a run that
 /// stopped there would leave the packages behind that one unexamined.
 ///
+/// Cargo builds the versions that the lockfile holds and does not write the
+/// lockfile, because the action only examines the project.
+///
 /// The report of cargo arrives as JSON, because the action reads it as data.
 /// The format selects the presentation of the report and not the behavior of
 /// the tool.
-const TEST: [&str; 6] = [
+const TEST: [&str; 7] = [
     "test",
+    LOCKED,
     "--workspace",
     "--doc",
     "--all-features",
@@ -53,7 +58,9 @@ const TEST: [&str; 6] = [
 /// leaves the examples out. A run only reports, and it takes no argument. It
 /// tests every workspace of the project that holds a library, because the
 /// harness of a project is a package of its own, and cargo can test the
-/// documentation of a library and of nothing else.
+/// documentation of a library and of nothing else. It builds the versions
+/// that the lockfile of a workspace holds, and it leaves the lockfile as it
+/// is.
 ///
 /// An example that failed becomes a finding at the line that documents it,
 /// which carries the message of the panic for an example that ran, and what
@@ -65,7 +72,8 @@ const TEST: [&str; 6] = [
 /// A project whose cargo discovers no workspace skips visibly, and so does a
 /// project whose workspaces hold no library. A run stops with an error when
 /// mise reports no cargo, when the workspaces of the project cannot be
-/// discovered, and when a run of cargo leaves the action without an answer.
+/// discovered, when the lockfile of a workspace needs an update, and when a
+/// run of cargo leaves the action without an answer.
 ///
 /// # Examples
 ///
@@ -176,13 +184,15 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
 /// # Errors
 ///
 /// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
-/// [`UnreadableDiagnostics`][diagnostics] and [`UnreadableReport`][report]
-/// when the action cannot read what cargo or the harness wrote, and
-/// [`UnrecognizedReport`][unrecognized] when the run leaves the action
-/// without an answer.
+/// [`StaleLockfile`][stale] when cargo refused to build because the
+/// lockfile needs an update, [`UnreadableDiagnostics`][diagnostics] and
+/// [`UnreadableReport`][report] when the action cannot read what cargo or
+/// the harness wrote, and [`UnrecognizedReport`][unrecognized] when the run
+/// leaves the action without an answer.
 ///
 /// [diagnostics]: TestRustDocsError::UnreadableDiagnostics
 /// [report]: TestRustDocsError::UnreadableReport
+/// [stale]: TestRustDocsError::StaleLockfile
 /// [unavailable]: TestRustDocsError::CargoUnavailable
 /// [unrecognized]: TestRustDocsError::UnrecognizedReport
 async fn examine(
@@ -196,6 +206,12 @@ async fn examine(
         .run()
         .await
         .map_err(|source| TestRustDocsError::CargoUnavailable { source })?;
+
+    if lockfile::refused(&execution.stderr().to_string_lossy()) {
+        return Err(TestRustDocsError::StaleLockfile {
+            root: root.directory().clone(),
+        });
+    }
 
     let stdout = execution.stdout().to_string_lossy();
     let build =

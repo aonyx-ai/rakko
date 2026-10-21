@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rakko_cargo::{DiscoverRootsError, ReadReportError};
+use rakko_cargo::{DiscoverRootsError, ReadReportError, lockfile};
 use rakko_nextest::{ObserveNextestError, ReadNextestReportError};
 use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
@@ -21,6 +21,19 @@ pub enum TestRustError {
     CargoUnavailable {
         /// The cause of the failure
         source: RunCommandError,
+    },
+
+    /// The lockfile of a workspace needs an update
+    ///
+    /// The manifests of the workspace ask for something that the lockfile does
+    /// not hold, such as a new dependency or a new version of a member, or the
+    /// workspace has no lockfile. The action tests the versions that the
+    /// lockfile holds and never writes it, so cargo refused the run. A build of
+    /// the workspace writes the lockfile.
+    #[error("the lockfile of the workspace in {} needs an update", root.display())]
+    StaleLockfile {
+        /// The workspace root whose lockfile needs an update
+        root: PathBuf,
     },
 
     /// The workspaces of the project could not be discovered
@@ -96,7 +109,10 @@ impl From<ObserveNextestError> for TestRustError {
     /// Turns the failure of a nextest run into the error of the action
     ///
     /// The machinery that runs nextest names the conditions that the action
-    /// reports, so the conversion renames them and adds nothing.
+    /// reports, so the conversion renames them. The one exception is a report
+    /// that the machinery does not recognize because cargo refused to write
+    /// the lockfile, which the action names as a lockfile that needs an
+    /// update.
     fn from(error: ObserveNextestError) -> Self {
         match error {
             ObserveNextestError::CargoUnavailable { source } => Self::CargoUnavailable { source },
@@ -107,7 +123,11 @@ impl From<ObserveNextestError> for TestRustError {
                 Self::UnreadableReport { root, source }
             }
             ObserveNextestError::UnrecognizedReport { root, stderr } => {
-                Self::UnrecognizedReport { root, stderr }
+                if lockfile::refused(&stderr) {
+                    Self::StaleLockfile { root }
+                } else {
+                    Self::UnrecognizedReport { root, stderr }
+                }
             }
         }
     }

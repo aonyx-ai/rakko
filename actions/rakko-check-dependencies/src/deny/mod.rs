@@ -10,7 +10,7 @@ mod error;
 mod report;
 
 use rakko_action::ProjectRoot;
-use rakko_cargo::CargoRoot;
+use rakko_cargo::{CargoRoot, lockfile};
 use rakko_tool::{ResolveToolError, Tool, ToolName};
 
 pub use self::error::CheckWorkspaceError;
@@ -44,6 +44,16 @@ const JSON: &str = "json";
 /// workspace the run covers, and it changes nothing about what cargo-deny
 /// does with what it collected.
 const WORKSPACE: &str = "--workspace";
+
+/// The option that asks cargo-deny to leave the lockfile of a workspace as it
+/// is
+///
+/// Cargo-deny asks cargo to describe the workspace, and cargo resolves the
+/// dependencies again and rewrites the lockfile when the manifests ask for
+/// something that the lockfile does not record. The option hands cargo the
+/// flag that forbids the rewrite, so cargo refuses instead, and a run checks
+/// the versions that the project committed.
+const LOCKED: &str = "--locked";
 
 /// The subcommand that examines the dependencies of a workspace
 const CHECK: &str = "check";
@@ -104,7 +114,8 @@ impl Deny {
     /// reads the manifests of that workspace and looks for its configuration
     /// from that directory upwards. It asks for the bans, the licenses, and
     /// the sources check, for every member of the workspace, and for the
-    /// report as data.
+    /// report as data. It checks the versions that the lockfile of the
+    /// workspace holds, and it leaves the lockfile as it is.
     ///
     /// Cargo-deny writes its report on the standard error stream, one record
     /// per line, and it logs what it is doing on the same stream. The reading
@@ -118,11 +129,14 @@ impl Deny {
     /// # Errors
     ///
     /// Returns [`DenyUnavailable`][unavailable] when cargo-deny does not run,
-    /// [`IncompleteCheck`][incomplete] when it stopped before it had checked
-    /// the workspace, and [`UnreadableReport`][unreadable] when it wrote a
-    /// record that this crate cannot read.
+    /// [`StaleLockfile`][stale] when cargo refused to describe the workspace
+    /// because the lockfile needs an update, [`IncompleteCheck`][incomplete]
+    /// when cargo-deny stopped for another reason before it had checked the
+    /// workspace, and [`UnreadableReport`][unreadable] when it wrote a record
+    /// that this crate cannot read.
     ///
     /// [incomplete]: CheckWorkspaceError::IncompleteCheck
+    /// [stale]: CheckWorkspaceError::StaleLockfile
     /// [unavailable]: CheckWorkspaceError::DenyUnavailable
     /// [unreadable]: CheckWorkspaceError::UnreadableReport
     pub async fn check(&self, root: &CargoRoot) -> Result<Vec<DenyProblem>, CheckWorkspaceError> {
@@ -133,6 +147,7 @@ impl Deny {
             .arg(FORMAT)
             .arg(JSON)
             .arg(WORKSPACE)
+            .arg(LOCKED)
             .arg(CHECK)
             .args(CHECKS)
             .run()
@@ -164,6 +179,12 @@ impl Deny {
         }
 
         if !checked {
+            if lockfile::refused(&report) {
+                return Err(CheckWorkspaceError::StaleLockfile {
+                    root: root.directory().clone(),
+                });
+            }
+
             return Err(CheckWorkspaceError::IncompleteCheck {
                 root: root.directory().clone(),
                 details: details(&report),

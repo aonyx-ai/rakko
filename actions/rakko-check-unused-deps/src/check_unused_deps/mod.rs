@@ -9,6 +9,7 @@
 mod error;
 
 use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Channel, Toolchain};
 use rakko_tool::Execution;
 
@@ -29,13 +30,16 @@ const NIGHTLY: &str = "nightly";
 ///
 /// A dependency that only a test reaches, and a dependency that only a
 /// feature reaches, are used as much as one that the library reaches, so a
-/// run that examined less would call them unused. The reports of cargo-udeps
+/// run that examined less would call them unused. Cargo builds the versions
+/// that the lockfile holds and does not write the lockfile, because the
+/// action only examines the project. The reports of cargo-udeps
 /// and of cargo arrive as JSON, because the action reads them as data. The
 /// formats select the presentation of the reports and not the behavior of
 /// the tools: which dependencies a run passes over comes from the
 /// configuration of the project alone.
-const UDEPS: [&str; 6] = [
+const UDEPS: [&str; 7] = [
     "udeps",
+    LOCKED,
     "--workspace",
     "--all-targets",
     "--all-features",
@@ -62,8 +66,8 @@ const UDEPS: [&str; 6] = [
 /// A project whose cargo discovers no workspace skips visibly, and says so.
 /// A run stops with an error when mise reports no
 /// cargo or no nightly toolchain, when the workspaces of the project cannot
-/// be discovered, and when the tools write a report that the action does not
-/// recognize.
+/// be discovered, when the lockfile of a workspace needs an update, and when
+/// the tools write a report that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -159,10 +163,12 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
 /// # Errors
 ///
 /// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
-/// [`UnrecognizedReport`][unrecognized] when the run wrote no report that
-/// the action can answer from, and the reading errors when a report holds a
-/// record that the action cannot read.
+/// [`StaleLockfile`][stale] when cargo refused to build because the lockfile
+/// needs an update, [`UnrecognizedReport`][unrecognized] when the run wrote
+/// no report that the action can answer from, and the reading errors when a
+/// report holds a record that the action cannot read.
 ///
+/// [stale]: CheckUnusedDepsError::StaleLockfile
 /// [unavailable]: CheckUnusedDepsError::CargoUnavailable
 /// [unrecognized]: CheckUnusedDepsError::UnrecognizedReport
 async fn check(
@@ -177,6 +183,12 @@ async fn check(
         .run()
         .await
         .map_err(|source| CheckUnusedDepsError::CargoUnavailable { source })?;
+
+    if lockfile::refused(&execution.stderr().to_string_lossy()) {
+        return Err(CheckUnusedDepsError::StaleLockfile {
+            root: root.directory().clone(),
+        });
+    }
 
     let stdout = execution.stdout().to_string_lossy();
 
