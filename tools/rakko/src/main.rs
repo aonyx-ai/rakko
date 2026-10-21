@@ -37,7 +37,7 @@ use rakko_test_rust_docs::TestRustDocs;
 /// The call ends the process itself, so a harness stays a `main` that names
 /// what the repository mounts and returns nothing.
 fn main() {
-    let pre_commit = PreCommit::new(actions_that_write(), actions_that_read());
+    let pre_commit = PreCommit::new(actions_that_guard_a_commit());
 
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
@@ -49,28 +49,24 @@ fn main() {
         .run();
 }
 
-/// Returns the actions that write to the tree before a commit, in their order
+/// Returns the actions that guard a commit
 ///
-/// The order is the one in which this repository formatted before the
+/// The list is shorter than the list that the harness mounts. An action such
+/// as `check-latest-deps`, which resolves the dependencies of the project
+/// again, belongs in a scheduled job and not in front of every commit.
+///
+/// The pre-commit command runs the actions that write before the actions that
+/// read, so the list needs no order between the two. The order among the
+/// formatters is the one in which this repository formatted before the
 /// pre-commit command existed. The formatters overlap in the files that they
 /// write, so the last formatter that writes a file decides its content.
-fn actions_that_write() -> Vec<Box<dyn ErasedAction>> {
+fn actions_that_guard_a_commit() -> Vec<Box<dyn ErasedAction>> {
     vec![
         Box::new(FormatJson),
         Box::new(FormatMarkdown),
         Box::new(FormatYaml),
         Box::new(FormatToml),
         Box::new(FormatRust),
-    ]
-}
-
-/// Returns the actions that only read the tree before a commit, in their order
-///
-/// The list is shorter than the list that the harness mounts. An action such
-/// as `check-latest-deps`, which resolves the dependencies of the project
-/// again, belongs in a scheduled job and not in front of every commit.
-fn actions_that_read() -> Vec<Box<dyn ErasedAction>> {
-    vec![
         Box::new(LintGitHubActions),
         Box::new(LintMarkdown),
         Box::new(LintRust),

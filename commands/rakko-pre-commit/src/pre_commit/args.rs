@@ -9,11 +9,12 @@ const FIX_DOCUMENTATION: &str = "Let the actions of the run repair what they can
 /// The arguments that a run of the pre-commit command reads
 ///
 /// The command reads one argument. A run reports by default, and `fix` lets
-/// the actions that write repair what they find.
-/// Reporting is the safe default, because a run that was started in order to
-/// look must not change the tree that its caller holds. The hook that guards
-/// a commit asks for the repair, and a contributor who wants to know what a
-/// commit would report runs the command without the flag.
+/// the actions of the run repair what they find. Reporting is the safe
+/// default, because a run that was started in order to look should not change
+/// the tree that its caller holds. An action that writes whatever its
+/// arguments still writes in such a run. The hook that guards a commit asks
+/// for the repair, and a contributor who wants to know what a commit would
+/// report runs the command without the flag.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct PreCommitArgs {
     /// Whether the actions of the run repair what they find
