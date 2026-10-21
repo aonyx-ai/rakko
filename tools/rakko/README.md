@@ -27,10 +27,11 @@ command.
 ### `pre-commit`
 
 The command comes from [`rakko-pre-commit`][rakko-pre-commit]. It runs the
-actions that guard a commit: the formatters first, in the order in which they
-rewrite the tree, and then the checks that read what they wrote. `src/main.rs`
-names both lists, and the README of the crate describes what a run does and
-when it fails.
+actions that guard a commit. `src/main.rs` names them in one list, and the
+command runs the actions that write before the actions that read. With
+`--fix`, the formatters write, so they run first, in the order of the list, and
+the checks then read what they wrote. The README of the crate describes what a
+run does and when it fails.
 
 ```console
 mise run rakko -- pre-commit --fix

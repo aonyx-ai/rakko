@@ -2,13 +2,15 @@
 mod args;
 /// The errors that stop a run of the command
 mod error;
+/// One action of a run, bound to the values of the run
+mod step;
 /// What the outcome of one action means for the commit
 mod verdict;
 
 use std::fmt;
 
 use rakko_action::{
-    ArgsValues, ArgumentValue, Context, ErasedAction, Name, Outcome, action_name, argument_name,
+    Access, ArgsValues, ArgumentValue, Context, ErasedAction, Name, action_name, argument_name,
 };
 use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
@@ -16,6 +18,7 @@ use rakko_cli::{Command, Report};
 
 pub use self::args::PreCommitArgs;
 pub use self::error::PreCommitError;
+use self::step::Step;
 use self::verdict::Verdict;
 
 /// The command that runs the actions that guard a commit
@@ -28,35 +31,31 @@ use self::verdict::Verdict;
 ///
 /// The command names no action of its own. Which activities guard a commit is
 /// a decision of the project, so the harness names the actions and gives them
-/// to the command in two lists: the actions that write to the tree, and the
-/// actions that only read it.
+/// to the command in one list. Each action declares whether a run reads or
+/// writes the project, and the command orders the run from these
+/// declarations.
 pub struct PreCommit {
-    /// The actions that write to the tree, in the order in which they run
-    actions_that_write: Vec<Box<dyn ErasedAction>>,
-
-    /// The actions that only read the tree, in the order in which they run
-    actions_that_read: Vec<Box<dyn ErasedAction>>,
+    /// The actions that guard a commit, in the order of the list that the
+    /// harness gave
+    actions: Vec<Box<dyn ErasedAction>>,
 }
 
 impl PreCommit {
     /// Creates the command from the actions that it runs before a commit
     ///
-    /// An action that writes to the tree belongs in the first list, whether
-    /// it repairs a file or generates one from files that another action
-    /// formats. An action that only reads the tree belongs in the second list.
-    /// Only the actions that write receive the `fix` argument of a run.
+    /// The list can hold the actions in any order. A run asks each action how
+    /// it uses the project, and drives every action that writes before the
+    /// first action that reads. An action that declares nothing writes. Among
+    /// the actions that write, and among the actions that read, the run keeps
+    /// the order of the list. This order matters when two actions that write
+    /// touch the same files. Two formatters can do this, and so can a
+    /// generator that reads the files that a formatter writes.
     ///
-    /// The command keeps the order of each list, and a run drives every action
-    /// that writes before the first action that reads. The lists are
-    /// independent of the mount, so a harness that wants a command for one of
-    /// these actions mounts that action as well.
-    pub fn new(
-        actions_that_write: impl IntoIterator<Item = Box<dyn ErasedAction>>,
-        actions_that_read: impl IntoIterator<Item = Box<dyn ErasedAction>>,
-    ) -> Self {
+    /// The list is independent of the mount, so a harness that wants a command
+    /// for one of these actions mounts that action as well.
+    pub fn new(actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
         Self {
-            actions_that_write: actions_that_write.into_iter().collect(),
-            actions_that_read: actions_that_read.into_iter().collect(),
+            actions: actions.into_iter().collect(),
         }
     }
 }
@@ -66,8 +65,7 @@ impl fmt::Debug for PreCommit {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("PreCommit")
-            .field("actions_that_write", &names(&self.actions_that_write))
-            .field("actions_that_read", &names(&self.actions_that_read))
+            .field("actions", &names(&self.actions))
             .finish()
     }
 }
@@ -81,11 +79,12 @@ impl Command for PreCommit {
 
     /// Runs the actions that guard a commit, one after another
     ///
-    /// The actions that write run first, so that what the other actions read
-    /// is what the commit will contain. They can write the same files, so no
-    /// two of them run at once. The actions that read run one after another as
-    /// well, until an action declares what it reads and writes and a
-    /// scheduler can overlap them.
+    /// The run binds the values of the run to every action first, and asks
+    /// each bound action how it uses the project. The actions that write run
+    /// first, so that what the other actions read is what the commit will
+    /// contain. They can write the same files, so no two of them run at once.
+    /// The actions that read run one after another as well, until a scheduler
+    /// can overlap them.
     ///
     /// # Errors
     ///
@@ -98,19 +97,24 @@ impl Command for PreCommit {
         clawless: &ClawlessContext,
         args: &Self::Args,
     ) -> CommandResult {
-        let total = self.actions_that_write.len() + self.actions_that_read.len();
+        let total = self.actions.len();
+        let values = repairs(args);
+
+        // The declaration of an action depends on its arguments, so every
+        // action is bound before the run is ordered.
+        let (writes, reads): (Vec<Step<'_>>, Vec<Step<'_>>) = self
+            .actions
+            .iter()
+            .map(|action| Step::bind(action.as_ref(), &values))
+            .partition(|step| match step.access(project) {
+                Access::Write => true,
+                Access::Read => false,
+            });
 
         // The actions that write run to their end before the first action that
         // reads starts, so that what it reads is what the commit will contain.
-        let mut problems =
-            drive(&self.actions_that_write, &repairs(args), project, clawless).await?;
-        problems += drive(
-            &self.actions_that_read,
-            &ArgsValues::empty(),
-            project,
-            clawless,
-        )
-        .await?;
+        let mut problems = drive(writes, project, clawless).await?;
+        problems += drive(reads, project, clawless).await?;
 
         if problems > 0 {
             return Err(PreCommitError::FailedActions { problems, total }.into());
@@ -120,13 +124,13 @@ impl Command for PreCommit {
     }
 }
 
-/// Returns the values that the actions which repair receive
+/// Returns the values that every action of a run receives
 ///
-/// The command carries one flag, and the actions that write take an argument
-/// of that name, so a run that was asked to repair passes the flag on and
-/// every other run passes nothing. Which actions receive it is the code above:
-/// the actions that only read repair nothing, and they take no argument at
-/// all.
+/// The command carries one flag, so a run that was asked to repair passes the
+/// flag on as the `fix` argument, and every other run passes nothing. Every
+/// action receives these values. An action that takes no `fix` argument
+/// ignores the value, and an action that takes it declares a write only when
+/// a run gives it.
 fn repairs(args: &PreCommitArgs) -> ArgsValues {
     if args.fix() {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
@@ -135,14 +139,12 @@ fn repairs(args: &PreCommitArgs) -> ArgsValues {
     }
 }
 
-/// Runs a list of actions in order and returns how many of them did not pass
+/// Runs a list of steps in order and returns how many of them did not pass
 ///
-/// Every action receives the same values and the same context. The values
-/// are bound to the arguments of each action before it runs, and values that
-/// do not convert stop that action with the error of the conversion, as a
-/// problem of the run. The run
-/// reports an action as soon as that action finishes, so a reader learns what
-/// one action found while the next one runs, and no two reports interleave.
+/// A step whose values did not convert stops with the error of the
+/// conversion, as a problem of the run. The run reports an action as soon as
+/// that action finishes, so a reader learns what one action found while the
+/// next one runs, and no two reports interleave.
 ///
 /// An action that found problems or stopped does not end the run. A run that
 /// stopped at the first problem would hide the ones after it, and whoever
@@ -152,21 +154,15 @@ fn repairs(args: &PreCommitArgs) -> ArgsValues {
 ///
 /// Returns an error when the report of an action does not reach the reader.
 async fn drive(
-    actions: &[Box<dyn ErasedAction>],
-    values: &ArgsValues,
+    steps: Vec<Step<'_>>,
     project: &Context,
     clawless: &ClawlessContext,
 ) -> Result<usize, PreCommitError> {
     let mut problems = 0;
 
-    for action in actions {
-        let name = action.name();
-        let outcome = match action.bind(values) {
-            Ok(bound) => bound.run(project).await,
-            Err(error) => Outcome::Errored {
-                source: Box::new(error),
-            },
-        };
+    for step in steps {
+        let name = step.name();
+        let outcome = step.run(project).await;
         let verdict = Verdict::of(&outcome);
 
         clawless
@@ -204,7 +200,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::task::{Context as TaskContext, Poll, Waker};
 
-    use rakko_action::{Action, Args, ArgsSchema, ReadArgsError};
+    use rakko_action::{Action, Args, ArgsSchema, Outcome, ReadArgsError};
     use rakko_cli::clawless::event::{Event, EventReceiver, event_channel};
     use rakko_cli::clawless::prelude::Output;
 
@@ -217,6 +213,18 @@ mod tests {
 
         /// The action found a problem
         Fail,
+    }
+
+    /// How a recorder declares that a run uses the project
+    enum Declaration {
+        /// Every run reads
+        Read,
+
+        /// Every run writes
+        Write,
+
+        /// A run writes only when it receives `fix`, as a formatter does
+        WriteOnFix,
     }
 
     /// The arguments of a recorder, which keep the value of `fix` that a run
@@ -238,8 +246,8 @@ mod tests {
         }
     }
 
-    /// An action that writes into a log when it runs, and answers as the test
-    /// asks
+    /// An action that writes into a log when it runs, and declares and answers
+    /// as the test asks
     ///
     /// The action returns control to the driver of the run once before it
     /// answers. A run that drives two actions at once therefore starts the next
@@ -247,6 +255,9 @@ mod tests {
     struct Recorder {
         /// The name that the action reports and writes into the log
         name: Name,
+
+        /// How the action declares that a run uses the project
+        declaration: Declaration,
 
         /// What the action answers
         answer: Answer,
@@ -261,6 +272,13 @@ mod tests {
 
         fn name(&self) -> Name {
             self.name.clone()
+        }
+
+        fn access(&self, _context: &Context, args: &Self::Args) -> Access {
+            match (&self.declaration, &args.fix) {
+                (Declaration::Read, _) | (Declaration::WriteOnFix, None) => Access::Read,
+                (Declaration::Write, _) | (Declaration::WriteOnFix, Some(_)) => Access::Write,
+            }
         }
 
         async fn run(&self, _context: &Context, args: &Self::Args) -> Outcome {
@@ -283,6 +301,25 @@ mod tests {
                     repairs: Vec::new(),
                 },
             }
+        }
+    }
+
+    /// An action that declares nothing about how a run uses the project, and
+    /// otherwise runs as the recorder that it wraps
+    struct Undeclared {
+        /// The recorder that names the action and runs it
+        recorder: Recorder,
+    }
+
+    impl Action for Undeclared {
+        type Args = Received;
+
+        fn name(&self) -> Name {
+            Action::name(&self.recorder)
+        }
+
+        async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
+            Action::run(&self.recorder, context, args).await
         }
     }
 
@@ -358,29 +395,52 @@ mod tests {
         block_on(command.run(&project(), &clawless, args))
     }
 
-    /// Returns an action with the given name that found a problem, and that
-    /// writes into the given log
+    /// Returns an action with the given name that reads and found a problem,
+    /// and that writes into the given log
     fn failing(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
-        Box::new(Recorder {
-            name,
-            answer: Answer::Fail,
-            log: Arc::clone(log),
-        })
+        recorder(name, Declaration::Read, Answer::Fail, log)
     }
 
-    /// Returns an action with the given name that passes, and that writes into
-    /// the given log
-    fn passing(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
-        Box::new(Recorder {
-            name,
-            answer: Answer::Pass,
-            log: Arc::clone(log),
-        })
+    /// Returns the arguments of a run that asks for a repair
+    fn fixing() -> PreCommitArgs {
+        PreCommitArgs::from_values(&ArgsValues::new([(
+            argument_name!("fix"),
+            ArgumentValue::new("true"),
+        )]))
+        .expect("the test gives the fix argument a value that it reads")
+    }
+
+    /// Returns an action with the given name that writes only when a run gives
+    /// it `fix`, that passes, and that writes into the given log
+    fn formatter(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
+        recorder(name, Declaration::WriteOnFix, Answer::Pass, log)
     }
 
     /// Returns the context of the project that a run maintains
     fn project() -> Context {
         Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns an action with the given name that reads and passes, and that
+    /// writes into the given log
+    fn reader(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
+        recorder(name, Declaration::Read, Answer::Pass, log)
+    }
+
+    /// Returns a recorder with the given name, declaration, and answer, which
+    /// writes into the given log
+    fn recorder(
+        name: Name,
+        declaration: Declaration,
+        answer: Answer,
+        log: &Arc<Mutex<Vec<String>>>,
+    ) -> Box<dyn ErasedAction> {
+        Box::new(Recorder {
+            name,
+            declaration,
+            answer,
+            log: Arc::clone(log),
+        })
     }
 
     /// Drives a run of the command to its end and returns the text of each
@@ -404,6 +464,25 @@ mod tests {
         reports
     }
 
+    /// Returns an action with the given name that declares nothing and
+    /// passes, and that writes into the given log
+    fn undeclared(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
+        Box::new(Undeclared {
+            recorder: Recorder {
+                name,
+                declaration: Declaration::Read,
+                answer: Answer::Pass,
+                log: Arc::clone(log),
+            },
+        })
+    }
+
+    /// Returns an action with the given name that writes and passes, and that
+    /// writes into the given log
+    fn writer(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
+        recorder(name, Declaration::Write, Answer::Pass, log)
+    }
+
     /// Returns control to the driver of a future once, and then resolves
     async fn yield_once() {
         let mut yielded = false;
@@ -421,18 +500,14 @@ mod tests {
 
     #[test]
     fn name_is_the_name_of_the_hook() {
-        let command = PreCommit::new([], []);
+        let command = PreCommit::new([]);
 
         assert_eq!(command.name().get(), "pre-commit");
     }
 
     #[test]
     fn repairs_of_a_run_that_asks_for_a_repair_carry_the_fix_argument() {
-        let args = PreCommitArgs::from_values(&ArgsValues::new([(
-            argument_name!("fix"),
-            ArgumentValue::new("true"),
-        )]))
-        .expect("the test gives the fix argument a value that it reads");
+        let args = fixing();
 
         let values = repairs(&args);
 
@@ -452,18 +527,46 @@ mod tests {
     }
 
     #[test]
-    fn run_drives_the_actions_that_write_first_and_each_list_in_order() {
+    fn run_drives_a_writer_that_the_list_names_after_a_reader_first() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [
-                passing(action_name!("format-yaml"), &log),
-                passing(action_name!("format-json"), &log),
-            ],
-            [
-                passing(action_name!("lint-yaml"), &log),
-                passing(action_name!("lint-toml"), &log),
-            ],
+        let command = PreCommit::new([
+            reader(action_name!("lint-yaml"), &log),
+            writer(action_name!("format-yaml"), &log),
+        ]);
+
+        complete(&command, &PreCommitArgs::default()).expect("every action of the test passes");
+
+        assert_eq!(
+            *log.lock().expect("the run has ended"),
+            ["format-yaml", "lint-yaml"]
         );
+    }
+
+    #[test]
+    fn run_drives_an_action_that_declares_nothing_among_the_writers() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let command = PreCommit::new([
+            reader(action_name!("lint-yaml"), &log),
+            undeclared(action_name!("generate-sdk"), &log),
+        ]);
+
+        complete(&command, &PreCommitArgs::default()).expect("every action of the test passes");
+
+        assert_eq!(
+            *log.lock().expect("the run has ended"),
+            ["generate-sdk", "lint-yaml"]
+        );
+    }
+
+    #[test]
+    fn run_keeps_the_order_of_the_list_among_the_writers_and_among_the_readers() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let command = PreCommit::new([
+            reader(action_name!("lint-yaml"), &log),
+            writer(action_name!("format-yaml"), &log),
+            reader(action_name!("lint-toml"), &log),
+            writer(action_name!("format-json"), &log),
+        ]);
 
         complete(&command, &PreCommitArgs::default()).expect("every action of the test passes");
 
@@ -474,15 +577,32 @@ mod tests {
     }
 
     #[test]
+    fn run_reports_an_action_whose_values_do_not_convert_among_the_writers() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let command = PreCommit::new([
+            reader(action_name!("lint-yaml"), &log),
+            Box::new(Unbuildable) as Box<dyn ErasedAction>,
+        ]);
+
+        let reports = reports(&command);
+
+        assert_eq!(
+            reports,
+            [
+                "unbuildable: no value for the required argument 'fix'",
+                "lint-yaml: passed"
+            ]
+        );
+    }
+
+    #[test]
     fn run_reports_each_action_in_the_order_of_the_run() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [passing(action_name!("format-yaml"), &log)],
-            [
-                passing(action_name!("lint-yaml"), &log),
-                passing(action_name!("lint-toml"), &log),
-            ],
-        );
+        let command = PreCommit::new([
+            reader(action_name!("lint-yaml"), &log),
+            writer(action_name!("format-yaml"), &log),
+            reader(action_name!("lint-toml"), &log),
+        ]);
 
         let reports = reports(&command);
 
@@ -497,36 +617,61 @@ mod tests {
     }
 
     #[test]
-    fn run_that_asks_for_a_repair_gives_fix_to_the_actions_that_write_alone() {
+    fn run_that_asks_for_a_repair_drives_a_formatter_among_the_writers() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [passing(action_name!("format-yaml"), &log)],
-            [passing(action_name!("lint-yaml"), &log)],
-        );
-        let args = PreCommitArgs::from_values(&ArgsValues::new([(
-            argument_name!("fix"),
-            ArgumentValue::new("true"),
-        )]))
-        .expect("the test gives the fix argument a value that it reads");
+        let command = PreCommit::new([
+            reader(action_name!("lint-yaml"), &log),
+            formatter(action_name!("format-yaml"), &log),
+        ]);
 
-        complete(&command, &args).expect("every action of the test passes");
+        complete(&command, &fixing()).expect("every action of the test passes");
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
-            ["format-yaml fix=true", "lint-yaml"]
+            ["format-yaml fix=true", "lint-yaml fix=true"]
+        );
+    }
+
+    #[test]
+    fn run_that_asks_for_a_repair_gives_fix_to_every_action() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let command = PreCommit::new([
+            writer(action_name!("format-yaml"), &log),
+            reader(action_name!("lint-yaml"), &log),
+        ]);
+
+        complete(&command, &fixing()).expect("every action of the test passes");
+
+        assert_eq!(
+            *log.lock().expect("the run has ended"),
+            ["format-yaml fix=true", "lint-yaml fix=true"]
+        );
+    }
+
+    #[test]
+    fn run_that_asks_for_a_report_drives_a_formatter_among_the_readers() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let command = PreCommit::new([
+            formatter(action_name!("format-yaml"), &log),
+            writer(action_name!("generate-sdk"), &log),
+        ]);
+
+        complete(&command, &PreCommitArgs::default()).expect("every action of the test passes");
+
+        assert_eq!(
+            *log.lock().expect("the run has ended"),
+            ["generate-sdk", "format-yaml"]
         );
     }
 
     #[test]
     fn run_waits_for_an_action_before_it_drives_the_next() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [
-                passing(action_name!("format-yaml"), &log),
-                passing(action_name!("format-json"), &log),
-            ],
-            [passing(action_name!("lint-yaml"), &log)],
-        );
+        let command = PreCommit::new([
+            writer(action_name!("format-yaml"), &log),
+            writer(action_name!("format-json"), &log),
+            reader(action_name!("lint-yaml"), &log),
+        ]);
         let project = project();
         let (clawless, _receiver) = clawless();
         let args = PreCommitArgs::default();
@@ -545,13 +690,11 @@ mod tests {
     #[test]
     fn run_with_actions_that_found_problems_counts_them() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [passing(action_name!("format-yaml"), &log)],
-            [
-                failing(action_name!("lint-yaml"), &log),
-                failing(action_name!("lint-toml"), &log),
-            ],
-        );
+        let command = PreCommit::new([
+            writer(action_name!("format-yaml"), &log),
+            failing(action_name!("lint-yaml"), &log),
+            failing(action_name!("lint-toml"), &log),
+        ]);
 
         let error = complete(&command, &PreCommitArgs::default()).unwrap_err();
 
@@ -564,29 +707,27 @@ mod tests {
     #[test]
     fn run_with_an_action_that_found_problems_drives_the_actions_after_it() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [
-                failing(action_name!("format-yaml"), &log),
-                passing(action_name!("format-json"), &log),
-            ],
-            [passing(action_name!("lint-yaml"), &log)],
-        );
+        let command = PreCommit::new([
+            writer(action_name!("format-yaml"), &log),
+            failing(action_name!("lint-yaml"), &log),
+            reader(action_name!("lint-toml"), &log),
+        ]);
 
         let _result = complete(&command, &PreCommitArgs::default());
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
-            ["format-yaml", "format-json", "lint-yaml"]
+            ["format-yaml", "lint-yaml", "lint-toml"]
         );
     }
 
     #[test]
     fn run_with_an_action_whose_values_do_not_convert_counts_it() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [Box::new(Unbuildable) as Box<dyn ErasedAction>],
-            [passing(action_name!("lint-yaml"), &log)],
-        );
+        let command = PreCommit::new([
+            Box::new(Unbuildable) as Box<dyn ErasedAction>,
+            reader(action_name!("lint-yaml"), &log),
+        ]);
 
         let error = complete(&command, &PreCommitArgs::default()).unwrap_err();
 
@@ -599,10 +740,10 @@ mod tests {
     #[test]
     fn run_with_clean_actions_succeeds() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [passing(action_name!("format-yaml"), &log)],
-            [passing(action_name!("lint-yaml"), &log)],
-        );
+        let command = PreCommit::new([
+            writer(action_name!("format-yaml"), &log),
+            reader(action_name!("lint-yaml"), &log),
+        ]);
 
         let result = complete(&command, &PreCommitArgs::default());
 
@@ -612,10 +753,10 @@ mod tests {
     #[test]
     fn run_without_a_reader_fails_at_the_report_of_the_first_action() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new(
-            [passing(action_name!("format-yaml"), &log)],
-            [passing(action_name!("lint-yaml"), &log)],
-        );
+        let command = PreCommit::new([
+            reader(action_name!("lint-yaml"), &log),
+            writer(action_name!("format-yaml"), &log),
+        ]);
         let (clawless, receiver) = clawless();
         drop(receiver);
 

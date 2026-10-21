@@ -1,15 +1,16 @@
 # Rakko Pre-Commit
 
 `rakko-pre-commit` provides the `pre-commit` command, which runs the actions
-that guard a commit. A harness gives the command two lists: the actions that
-write to the tree, and the actions that only read it. The harness names the
-actions, and the command drives them. The harness therefore contains no loop
-over actions and no code that reports them.
+that guard a commit. A harness gives the command one list of these actions, in
+any order. The harness names the actions, and the command orders and drives
+them. The harness therefore contains no loop over actions, no code that
+reports them, and no split into the actions that write and the actions that
+read.
 
 ## Usage
 
 Add `rakko-pre-commit` to the harness of the project. Then let the `main` of
-the harness give the command its two lists, and mount the command beside the
+the harness give the command its list, and mount the command beside the
 actions:
 
 ```rust
@@ -19,10 +20,10 @@ use rakko_format_toml::FormatToml;
 use rakko_lint_toml::LintToml;
 use rakko_pre_commit::PreCommit;
 
-let pre_commit = PreCommit::new(
-    [Box::new(FormatToml) as Box<dyn ErasedAction>],
-    [Box::new(LintToml) as Box<dyn ErasedAction>],
-);
+let pre_commit = PreCommit::new([
+    Box::new(LintToml) as Box<dyn ErasedAction>,
+    Box::new(FormatToml),
+]);
 
 rakko_cli::builder()
     .mount(rakko_baseline::bundle())
@@ -30,30 +31,37 @@ rakko_cli::builder()
     .run();
 ```
 
-Each list holds its actions in the order in which they run. A list is any
-iterator of erased actions. The lists are independent of the mount, so a
-harness that wants a command for one of these actions mounts that action as
-well.
+A list is any iterator of erased actions. The list is independent of the
+mount, so a harness that wants a command for one of these actions mounts that
+action as well.
 
-An action that writes is not only a formatter. A generator whose output
-derives from formatted files writes as well, and it goes in the first list,
-after the formatters.
+Each action declares whether a run reads or writes the project, and the
+command orders the run from these declarations. A declaration can depend on
+the arguments of the run: a formatter writes only when the run asks it to
+repair. An action that declares nothing writes. The list decides the order of
+two actions that write. This order matters when they touch the same files. Two
+formatters can do this, and so can a generator whose output derives from
+formatted files.
 
 ## Run
 
-A run drives the actions that write, one after another and in the order of
-their list. Then it drives the actions that read in the same way. Each action
-reports when it ends, as a run of that action alone reports. An action that
-found problems does not end the run, so one run reports every problem of the
-tree.
+A run binds the values of the run to every action, and asks each action how
+the run uses the project. Then it drives the actions that write, one after
+another and in the order of the list. Then it drives the actions that read in
+the same way. Each action reports when it ends, as a run of that action alone
+reports. An action that found problems does not end the run, so one run
+reports every problem of the tree.
 
 ```console
 mise run rakko -- pre-commit --fix
 ```
 
-The `--fix` flag lets the actions that write repair what they find, and only
-these actions receive it. A run without the flag reports what a commit has to
-repair, and it changes nothing.
+The `--fix` flag lets the actions repair what they find, and every action
+receives it. An action that takes no `fix` argument ignores it. A formatter
+writes only with the flag, so a run without the flag drives the formatters
+among the actions that read. Such a run reports what a commit has to repair.
+An action that writes whatever its arguments, such as an action that declares
+nothing, still writes in a run without the flag.
 
 The command fails when an action found problems or stopped, so the commit
 waits. A run in which the actions that write repaired everything that they
