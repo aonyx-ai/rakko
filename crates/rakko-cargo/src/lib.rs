@@ -58,6 +58,8 @@
 
 /// Types for the cargo that a project runs
 pub mod cargo;
+/// The flag that holds cargo to the lockfile of a workspace
+pub mod lockfile;
 /// Types for what cargo reported about a build
 pub mod report;
 /// Types for one workspace root of a project
