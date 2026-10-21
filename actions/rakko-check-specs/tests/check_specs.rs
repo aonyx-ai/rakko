@@ -16,6 +16,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Outcome, ProjectRoot};
 use rakko_check_specs::{CheckSpecs, Comparison};
+use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
 /// The configuration that points tracey at the files of a project
@@ -266,6 +267,15 @@ async fn comparison_that_nothing_asked_for_is_none() {
         .expect("the test asks for no comparison");
 
     assert!(comparison.is_none(), "expected no comparison");
+}
+
+#[tokio::test]
+async fn run_without_a_tracey_leaves_the_project_unchanged() {
+    let project = Project::without_tracey();
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&CheckSpecs, &project.context(), &()).await;
 }
 
 #[tokio::test]

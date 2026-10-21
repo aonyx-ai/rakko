@@ -19,6 +19,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+rakko-test-utils = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
 

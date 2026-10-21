@@ -26,7 +26,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_lint_yaml::LintYaml;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A YAML document that yamllint accepts
@@ -310,6 +310,16 @@ async fn run_with_a_broken_rule_carries_the_message_of_yamllint() {
         findings[0].message().get(),
         "[error] trailing spaces (trailing-spaces)"
     );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("notes.yaml", TRAILING_SPACES);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&LintYaml, &project.context(), &()).await;
 }
 
 #[tokio::test]

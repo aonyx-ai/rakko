@@ -25,6 +25,7 @@ use std::process::Command;
 use rakko_action::{Action, Args, Context, DirectoryPath, Finding, Location, Outcome, ProjectRoot};
 use rakko_cargo::Cargo;
 use rakko_check_dependencies::{CheckDependencies, CheckDependenciesError};
+use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
 /// A package whose license the tests accept
@@ -586,6 +587,16 @@ async fn run_with_a_refused_license_fails() {
         matches!(outcome, Outcome::Failed { .. }),
         "expected the run to fail, got {outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn run_with_a_refused_license_leaves_the_project_unchanged() {
+    let project = Project::with_configuration(ALLOW_APACHE);
+    project.lock().await;
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&CheckDependencies, &project.context(), &()).await;
 }
 
 #[tokio::test]

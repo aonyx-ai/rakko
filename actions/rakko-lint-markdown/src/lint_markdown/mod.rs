@@ -9,7 +9,7 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
     action_name,
 };
 
@@ -49,6 +49,9 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 /// markdownlint, and when markdownlint writes a report that the action cannot
 /// read.
 ///
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -70,6 +73,10 @@ impl Action for LintMarkdown {
 
     fn name(&self) -> Name {
         action_name!("lint-markdown")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -210,6 +217,12 @@ mod tests {
 
     use super::*;
 
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
     /// Returns a problem at the given position of a file of the project
     fn problem(line: u32, column: Option<u32>) -> MarkdownlintProblem {
         MarkdownlintProblem::new(
@@ -223,6 +236,13 @@ mod tests {
     /// The root that the problems of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = LintMarkdown.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]

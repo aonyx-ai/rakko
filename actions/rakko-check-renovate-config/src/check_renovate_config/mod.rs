@@ -9,7 +9,7 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary, action_name,
+    Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary, action_name,
 };
 
 pub use self::error::CheckRenovateConfigError;
@@ -37,6 +37,9 @@ use crate::validator::Validator;
 /// validator, when the validator stops before it has validated the project,
 /// and when the validator writes a log that the action cannot read.
 ///
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -58,6 +61,10 @@ impl Action for CheckRenovateConfig {
 
     fn name(&self) -> Name {
         action_name!("check-renovate-config")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -174,6 +181,12 @@ mod tests {
 
     use super::*;
 
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
     /// Returns an error of the validator about the given path
     fn problem(path: PathBuf) -> RenovateProblem {
         RenovateProblem::new(
@@ -187,6 +200,13 @@ mod tests {
     /// The root that the problems of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = CheckRenovateConfig.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]

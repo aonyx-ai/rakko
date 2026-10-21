@@ -20,7 +20,7 @@ use std::process::Command;
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_cargo::Cargo;
 use rakko_test_rust::{TestRust, TestRustError};
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The manifest of a package that nextest tests
@@ -325,10 +325,11 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_library(FAILING);
+    project.lock().await;
 
-    project.run().await;
-
-    assert_eq!(project.read("src/lib.rs"), FAILING);
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&TestRust, &project.context(), &()).await;
 }
 
 #[tokio::test]

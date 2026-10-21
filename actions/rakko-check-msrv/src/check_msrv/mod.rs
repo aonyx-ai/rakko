@@ -8,7 +8,9 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko_action::{
+    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name,
+};
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Channel, RustVersion, Toolchain};
 use rakko_tool::Execution;
@@ -64,6 +66,13 @@ const CHECK: [&str; 5] = [
 /// update, and when cargo writes a report that the action does not
 /// recognize.
 ///
+/// A run declares a read of the project. It holds cargo to the lockfile of each
+/// workspace, and cargo writes what it builds into the `target` directory,
+/// which cargo locks against parallel use itself. The declaration covers the
+/// action and cargo, and not the build scripts and procedural macros of the
+/// project, which can write files of their own. A caller that orders runs by
+/// their declarations runs it after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -84,6 +93,10 @@ impl Action for CheckMsrv {
 
     fn name(&self) -> Name {
         action_name!("check-msrv")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -277,6 +290,19 @@ mod tests {
     use rakko_cargo::Documentation;
 
     use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = CheckMsrv.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
 
     #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {

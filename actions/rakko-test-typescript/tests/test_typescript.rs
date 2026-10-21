@@ -23,7 +23,7 @@ use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_test_typescript::TestTypeScript;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A test that passes
@@ -276,6 +276,16 @@ async fn run_of_a_project_with_a_failing_test_fails() {
         matches!(outcome, Outcome::Failed { .. }),
         "expected the run to fail, got {outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn run_of_a_project_with_a_failing_test_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("src/add.test.ts", FAILING);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&TestTypeScript, &project.context(), &()).await;
 }
 
 #[tokio::test]

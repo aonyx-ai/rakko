@@ -10,7 +10,9 @@ mod error;
 
 use std::collections::HashSet;
 
-use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko_action::{
+    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name,
+};
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoPackage, CargoReport, CargoRoot, DocumentedNames};
 use rakko_tool::Execution;
@@ -85,6 +87,13 @@ const PACKAGE: &str = "--package";
 /// lockfile of a workspace needs an update, and when cargo writes a report
 /// that the action does not recognize.
 ///
+/// A run declares a read of the project. It holds cargo to the lockfile of each
+/// workspace, and cargo writes what it builds into the `target` directory,
+/// which cargo locks against parallel use itself. The declaration covers the
+/// action and cargo, and not the build scripts and procedural macros of the
+/// project, which can write files of their own. A caller that orders runs by
+/// their declarations runs it after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -106,6 +115,10 @@ impl Action for BuildInternalDocs {
 
     fn name(&self) -> Name {
         action_name!("build-internal-docs")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -314,6 +327,12 @@ mod tests {
 
     use super::*;
 
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
     /// Returns a root with the given packages
     fn workspace(packages: &[(&str, DocumentedNames)]) -> CargoRoot {
         CargoRoot::builder()
@@ -328,6 +347,13 @@ mod tests {
                     .collect(),
             )
             .build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = BuildInternalDocs.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]

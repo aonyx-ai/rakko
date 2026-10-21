@@ -9,7 +9,7 @@
 mod error;
 
 use rakko_action::{
-    Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
     action_name,
 };
 
@@ -55,6 +55,11 @@ const UNINHABITED: &str = "TS18003";
 /// tsc, when tsc reports nothing and ends without success, and when tsc writes
 /// a report that the action cannot read.
 ///
+/// A run declares a read of the project. The TypeScript compiler can write a
+/// `.tsbuildinfo` file, which only the compiler reads, so that file does not
+/// count as a write. A caller that orders runs by their declarations runs it
+/// after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -76,6 +81,10 @@ impl Action for CheckTypeScript {
 
     fn name(&self) -> Name {
         action_name!("check-typescript")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -214,6 +223,12 @@ mod tests {
     use super::*;
     use crate::diagnostic::{Category, Origin};
 
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
     /// Returns a diagnostic about the code of a file of the project
     fn about_the_code() -> Diagnostic {
         Diagnostic::builder()
@@ -258,6 +273,13 @@ mod tests {
     /// The root that the diagnostics of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = CheckTypeScript.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
     }
 
     #[test]

@@ -25,7 +25,7 @@ use rakko_action::{
     Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Span,
 };
 use rakko_lint_github_actions::LintGitHubActions;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A workflow that no audit of the pedantic persona reports
@@ -402,6 +402,16 @@ async fn run_with_a_finding_covers_the_range_of_zizmor() {
         "expected the range of zizmor, got {:?}",
         findings.iter().map(Finding::location).collect::<Vec<_>>()
     );
+}
+
+#[tokio::test]
+async fn run_with_a_finding_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.workflow("injection.yml", INJECTION);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&LintGitHubActions, &project.context(), &()).await;
 }
 
 #[tokio::test]

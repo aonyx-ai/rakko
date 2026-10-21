@@ -8,7 +8,9 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko_action::{
+    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name,
+};
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Documentation};
 use rakko_tool::Execution;
@@ -75,6 +77,13 @@ const TEST: [&str; 7] = [
 /// discovered, when the lockfile of a workspace needs an update, and when a
 /// run of cargo leaves the action without an answer.
 ///
+/// A run declares a read of the project. It holds cargo to the lockfile of each
+/// workspace, and cargo writes what it builds into the `target` directory,
+/// which cargo locks against parallel use itself. The declaration covers the
+/// action and cargo, and not the tests, build scripts, and procedural macros of
+/// the project, which can write files of their own. A caller that orders runs
+/// by their declarations runs it after the actions that write.
+///
 /// # Examples
 ///
 /// A harness mounts the action:
@@ -96,6 +105,10 @@ impl Action for TestRustDocs {
 
     fn name(&self) -> Name {
         action_name!("test-rust-docs")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -288,6 +301,19 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = TestRustDocs.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
 
     #[test]
     fn summary_of_many_examples_counts_them() {

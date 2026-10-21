@@ -22,7 +22,7 @@ use std::process::Command;
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_cargo::Cargo;
 use rakko_check_msrv::{CheckMsrv, CheckMsrvError};
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The manifest of a package that declares no Rust version
@@ -358,10 +358,11 @@ async fn run_examines_the_tests_of_a_package() {
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_library(WARNED);
+    project.lock().await;
 
-    project.run().await;
-
-    assert_eq!(project.read("src/lib.rs"), WARNED);
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&CheckMsrv, &project.context(), &()).await;
 }
 
 #[tokio::test]

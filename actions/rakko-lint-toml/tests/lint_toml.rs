@@ -22,7 +22,7 @@ use std::process::Command;
 use rakko_action::Finding;
 use rakko_action::{Action, Args, Context, Location, Outcome, Position, ProjectRoot, Summary};
 use rakko_lint_toml::LintToml;
-use rakko_test_utils::path_text;
+use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A TOML document that taplo accepts
@@ -287,6 +287,16 @@ async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
         "expected the message of taplo, got {:?}",
         findings[0].message()
     );
+}
+
+#[tokio::test]
+async fn run_with_an_invalid_file_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("broken.toml", INVALID);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&LintToml, &project.context(), &()).await;
 }
 
 #[tokio::test]
