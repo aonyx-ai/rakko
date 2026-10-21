@@ -1093,6 +1093,10 @@ dependencies = [
 [[package]]
 name = "rakko-test-utils"
 version = "0.1.0"
+dependencies = [
+ "rakko-action",
+ "tempfile",
+]
 
 [[package]]
 name = "rakko-tool"

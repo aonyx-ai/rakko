@@ -1,5 +1,6 @@
 use std::future::Future;
 
+use crate::access::Access;
 use crate::args::Args;
 use crate::context::Context;
 use crate::name::Name;
@@ -9,8 +10,13 @@ use crate::outcome::Outcome;
 ///
 /// An action examines a project and reports what it found as an [`Outcome`].
 /// The trait describes the action as data: the name that identifies it and
-/// the type of the arguments that a run reads. The machinery reads this data without running the action, for
-/// example to show the action in a list.
+/// the type of the arguments that a run reads. The machinery reads this data
+/// without running the action, for example to show the action in a list.
+///
+/// Before a run, the machinery can ask the action how that run uses the
+/// project, with the arguments of the run. An action that does not answer
+/// writes the whole project. That answer is always safe and can be slow: a
+/// caller that reads it never runs the action beside another action.
 ///
 /// A scheduler can run many actions in parallel and can move each run to a
 /// different thread. The trait therefore requires [`Send`] and [`Sync`] of
@@ -55,6 +61,27 @@ pub trait Action: Send + Sync {
 
     /// Returns the name that identifies the action
     fn name(&self) -> Name;
+
+    /// Returns how a run with the given arguments uses the project
+    ///
+    /// The machinery asks before the run, with the arguments and the context
+    /// that the run receives. So the answer describes that run. Some actions
+    /// write only when an argument asks for it, such as a formatter with a
+    /// `fix` argument. Such an action answers [`Access::Read`] for a run
+    /// without that argument.
+    ///
+    /// The method must not read a file or start a tool, because the answer
+    /// has to be ready before the run starts. When only the configuration of
+    /// the project can settle the answer, the action answers
+    /// [`Access::Write`].
+    ///
+    /// An action that does not implement the method answers [`Access::Write`]
+    /// for every run. That answer is safe, because a write gets the project
+    /// to itself. But a caller that orders runs by their declarations then
+    /// makes an action that only reads wait for the actions that write.
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Write
+    }
 
     /// Runs the action against the project that the context names
     ///
@@ -141,6 +168,16 @@ mod tests {
     fn require_run_send<A: Action>(action: &A, context: &Context, args: &A::Args) {
         fn require_send<T: Send>(_: T) {}
         require_send(action.run(context, args));
+    }
+
+    #[test]
+    fn access_of_an_action_that_declares_nothing_is_write() {
+        let action = Probe;
+        let context = Context::builder().root("/tmp/project").build();
+
+        let access = action.access(&context, &());
+
+        assert_eq!(access, Access::Write);
     }
 
     #[test]

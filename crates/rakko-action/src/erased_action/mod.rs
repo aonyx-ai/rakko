@@ -1,8 +1,10 @@
 use std::future::Future;
 use std::pin::Pin;
 
+use crate::access::Access;
 use crate::action::Action;
-use crate::args::{Args, ArgsSchema, ArgsValues};
+use crate::args::{Args, ArgsSchema, ArgsValues, ReadArgsError};
+use crate::bound_action::BoundAction;
 use crate::context::Context;
 use crate::name::Name;
 use crate::outcome::Outcome;
@@ -17,9 +19,10 @@ use crate::outcome::Outcome;
 /// An erased action answers everything that the machinery needs without
 /// naming the type of the action: the name that identifies it, the
 /// description of the arguments that a projection turns into a command, and a
-/// run that takes the values of that command. The conversion from those values
-/// into the arguments of the action happens inside, where the type is still
-/// known.
+/// bind that takes the values of that command. The conversion from those
+/// values into the arguments of the action happens inside, where the type is
+/// still known. The bind returns a [`BoundAction`], which declares how the run
+/// uses the project and then runs with the same arguments.
 ///
 /// Every action has an erased view, because this trait is implemented for all
 /// of them. An action author never writes this implementation and never names
@@ -58,17 +61,40 @@ pub trait ErasedAction: Send + Sync {
     /// exists.
     fn arguments(&self) -> ArgsSchema;
 
-    /// Runs the action against the project that the context names
+    /// Converts the values of a run into the arguments of the action
     ///
     /// The values hold what the machinery parsed for the arguments of the
-    /// action. The run converts them into the arguments of the action, and a
-    /// conversion that fails travels in [`Outcome::Errored`], so this method
-    /// has no error type of its own.
+    /// action. The answer holds the action together with its arguments, so a
+    /// caller can ask it how the run uses the project and then run it, and
+    /// both see the same arguments.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ReadArgsError`] when the values do not convert into the
+    /// arguments of the action. A caller that reports runs reports this
+    /// error as the outcome of the run, in [`Outcome::Errored`], as
+    /// [`run`][ErasedAction::run] does.
+    fn bind<'a>(&'a self, values: &ArgsValues) -> Result<Box<dyn BoundAction + 'a>, ReadArgsError>;
+
+    /// Binds the values of a run and runs the action with them
+    ///
+    /// This is the shorthand for a caller that does not ask how the run uses
+    /// the project. A conversion of the values that fails travels in
+    /// [`Outcome::Errored`], so this method has no error type of its own.
     fn run<'a>(
         &'a self,
         context: &'a Context,
         values: &'a ArgsValues,
-    ) -> Pin<Box<dyn Future<Output = Outcome> + Send + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Outcome> + Send + 'a>> {
+        Box::pin(async move {
+            match self.bind(values) {
+                Ok(bound) => bound.run(context).await,
+                Err(error) => Outcome::Errored {
+                    source: Box::new(error),
+                },
+            }
+        })
+    }
 }
 
 impl<A: Action> ErasedAction for A {
@@ -80,19 +106,32 @@ impl<A: Action> ErasedAction for A {
         <A::Args as Args>::schema()
     }
 
+    fn bind<'a>(&'a self, values: &ArgsValues) -> Result<Box<dyn BoundAction + 'a>, ReadArgsError> {
+        let args = <A::Args as Args>::from_values(values)?;
+
+        Ok(Box::new(Bound { action: self, args }))
+    }
+}
+
+/// An action and the arguments of one run, as the bind of [`ErasedAction`]
+/// returns them
+struct Bound<'a, A: Action> {
+    /// The action that runs
+    action: &'a A,
+    /// The arguments that the declaration and the run both see
+    args: A::Args,
+}
+
+impl<A: Action> BoundAction for Bound<'_, A> {
+    fn access(&self, context: &Context) -> Access {
+        Action::access(self.action, context, &self.args)
+    }
+
     fn run<'a>(
         &'a self,
         context: &'a Context,
-        values: &'a ArgsValues,
     ) -> Pin<Box<dyn Future<Output = Outcome> + Send + 'a>> {
-        Box::pin(async move {
-            match <A::Args as Args>::from_values(values) {
-                Ok(args) => Action::run(self, context, &args).await,
-                Err(error) => Outcome::Errored {
-                    source: Box::new(error),
-                },
-            }
-        })
+        Box::pin(Action::run(self.action, context, &self.args))
     }
 }
 
@@ -106,8 +145,53 @@ mod tests {
     use std::task::{Context as TaskContext, Poll, Waker};
 
     use super::*;
-    use crate::args::{Argument, ArgumentShape, ReadArgsError};
+    use crate::args::{Argument, ArgumentShape, ArgumentValue};
     use crate::{action_name, argument_name};
+
+    /// The arguments of the formatter: whether the run repairs what it finds
+    struct Fix {
+        /// Whether the run rewrites the files that it can format
+        fix: bool,
+    }
+
+    impl Args for Fix {
+        fn schema() -> ArgsSchema {
+            ArgsSchema::new([Argument::builder()
+                .name(argument_name!("fix"))
+                .shape(ArgumentShape::Boolean)
+                .documentation("Rewrite the files that the tool can format")
+                .build()])
+        }
+
+        fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
+            Ok(Self {
+                fix: values.get(&argument_name!("fix")).is_some(),
+            })
+        }
+    }
+
+    /// An action that writes only when its arguments ask for a repair
+    struct Formatter;
+
+    impl Action for Formatter {
+        type Args = Fix;
+
+        fn name(&self) -> Name {
+            action_name!("formatter")
+        }
+
+        fn access(&self, _context: &Context, args: &Self::Args) -> Access {
+            if args.fix {
+                Access::Write
+            } else {
+                Access::Read
+            }
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
 
     /// An action that reads no arguments and passes
     struct Probe;
@@ -174,6 +258,23 @@ mod tests {
         }
     }
 
+    /// Drives a bound run to its outcome without a runtime
+    fn drive_bound(bound: &dyn BoundAction) -> Outcome {
+        let context = context();
+        let mut future = pin!(bound.run(&context));
+        let mut task_context = TaskContext::from_waker(Waker::noop());
+        loop {
+            if let Poll::Ready(outcome) = future.as_mut().poll(&mut task_context) {
+                return outcome;
+            }
+        }
+    }
+
+    /// Returns the values of a run that asks for a repair
+    fn fixing() -> ArgsValues {
+        ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
+    }
+
     /// Compiles only when every action has an erased view
     fn require_erased<A: Action + 'static>(action: A) -> Box<dyn ErasedAction> {
         Box::new(action)
@@ -195,6 +296,74 @@ mod tests {
         let schema = ErasedAction::arguments(&action);
 
         assert!(schema.arguments().is_empty());
+    }
+
+    #[test]
+    fn bind_reports_arguments_that_it_cannot_read() {
+        let action = Unbuildable;
+        let values = ArgsValues::empty();
+
+        let bound = ErasedAction::bind(&action, &values);
+
+        assert!(matches!(bound, Err(ReadArgsError::MissingValue { .. })));
+    }
+
+    #[test]
+    fn bound_access_of_an_action_that_declares_a_read_is_read() {
+        let action = Formatter;
+        let values = ArgsValues::empty();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        let access = bound.access(&context());
+
+        assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn bound_access_of_an_action_that_declares_nothing_is_write() {
+        let action = Probe;
+        let values = ArgsValues::empty();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        let access = bound.access(&context());
+
+        assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn bound_access_reads_the_arguments_that_the_action_was_bound_to() {
+        let action = Formatter;
+        let values = fixing();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        let access = bound.access(&context());
+
+        assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn bound_run_produces_the_outcome_of_the_action() {
+        let action = Probe;
+        let values = ArgsValues::empty();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        let outcome = drive_bound(bound.as_ref());
+
+        assert!(matches!(outcome, Outcome::Passed { .. }));
+    }
+
+    #[test]
+    fn bound_trait_object_is_send() {
+        fn assert_send<T: Send + ?Sized>() {}
+
+        assert_send::<dyn BoundAction>();
+    }
+
+    #[test]
+    fn bound_trait_object_is_sync() {
+        fn assert_sync<T: Sync + ?Sized>() {}
+
+        assert_sync::<dyn BoundAction>();
     }
 
     #[test]

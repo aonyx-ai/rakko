@@ -417,6 +417,10 @@ fn dispatch(matches: ArgMatches, mounted: Mounted) -> Result<u8, Box<dyn Error>>
 
 /// Runs one action and returns the code of the run
 ///
+/// The values of the run are bound to the arguments of the action first, and
+/// the bound action runs. Values that do not convert into the arguments end
+/// the run as an action that stopped, with the error of the conversion.
+///
 /// What the action returned reaches the reader as one report, and the flags
 /// of the run decide whether that report renders as text or as JSON. The
 /// report travels as the result of the command and not as a message, so the
@@ -435,7 +439,12 @@ fn drive_action(
         let project = locate(named, &context)?;
 
         let name = action.name();
-        let outcome = action.run(&project, &values).await;
+        let outcome = match action.bind(&values) {
+            Ok(bound) => bound.run(&project).await,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        };
         let code = exit_code(&outcome);
 
         context
@@ -780,6 +789,38 @@ mod tests {
             _args: &Self::Args,
         ) -> CommandResult {
             Ok(())
+        }
+    }
+
+    /// An action whose arguments never convert from the values of a run
+    struct Unbuildable;
+
+    impl Action for Unbuildable {
+        type Args = Unreadable;
+
+        fn name(&self) -> Name {
+            "unbuildable"
+                .parse()
+                .expect("the test names an action correctly")
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// The arguments of an action that no value converts into
+    struct Unreadable;
+
+    impl Args for Unreadable {
+        fn schema() -> ArgsSchema {
+            ArgsSchema::empty()
+        }
+
+        fn from_values(_values: &ArgsValues) -> Result<Self, ReadArgsError> {
+            Err(ReadArgsError::MissingValue {
+                name: argument_name!("fix"),
+            })
         }
     }
 
@@ -1201,6 +1242,19 @@ mod tests {
         });
 
         assert_ne!(code, 0);
+    }
+
+    #[test]
+    fn dispatch_reports_an_action_whose_values_do_not_convert_as_stopped() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let code = dispatch(
+            naming(directory.path()),
+            Mounted::Action(Box::new(Unbuildable)),
+        )
+        .expect("expected the command line to drive the action");
+
+        assert_eq!(code, EXIT_UNANSWERED);
     }
 
     #[test]
