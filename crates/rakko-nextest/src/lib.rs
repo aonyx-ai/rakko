@@ -14,10 +14,12 @@
 //! runs nextest bare.
 //!
 //! The caller also decides what a run does with the lockfile of the
-//! workspace. An action that tests the project as it stands lets cargo
-//! resolve the dependencies of the build. An action that first resolved the
-//! dependencies itself holds cargo to that resolution instead, so that a
-//! version which nobody chose cannot join the build unannounced.
+//! workspace. An action that only examines the project, whether it tests the
+//! committed resolution or one that it resolved itself first, holds cargo to
+//! the lockfile. Cargo then refuses a build that would have to write it, so a
+//! version that nobody chose cannot join the build unannounced. A run that
+//! may change the project can let cargo resolve the dependencies and write
+//! the lockfile instead.
 //!
 //! Nextest reports the tests as JSON, and cargo reports the diagnostics of
 //! the build as JSON as well. The shape of the two reports belongs to a
@@ -45,7 +47,7 @@
 //! let root = ProjectRoot::new("/home/otter/project".into());
 //! let cargo = Cargo::resolve(root.clone()).await?;
 //! let roots = cargo.roots().await?;
-//! let nextest = Nextest::new(cargo, Lockfile::Writable);
+//! let nextest = Nextest::new(cargo, Lockfile::Locked);
 //!
 //! for workspace in &roots {
 //!     let observation = nextest.observe(workspace, &root).await?;

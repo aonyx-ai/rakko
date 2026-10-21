@@ -61,9 +61,9 @@ const CONSENT_VALUE: &str = "1";
 /// the answers mean for its outcome.
 ///
 /// The caller also decides what a run does with the lockfile of the
-/// workspace. A run that answers for the project as it stands lets cargo
-/// resolve the dependencies, and a run that answers for a resolution which
-/// another job produced holds cargo to it.
+/// workspace. A run that only examines the project holds cargo to the
+/// lockfile, and a run that may change the project can let cargo resolve
+/// the dependencies and write it.
 ///
 /// # Examples
 ///
@@ -77,7 +77,7 @@ const CONSENT_VALUE: &str = "1";
 /// let root = ProjectRoot::new("/home/otter/project".into());
 /// let cargo = Cargo::resolve(root.clone()).await?;
 /// let roots = cargo.roots().await?;
-/// let nextest = Nextest::new(cargo, Lockfile::Writable);
+/// let nextest = Nextest::new(cargo, Lockfile::Locked);
 ///
 /// for workspace in &roots {
 ///     let observation = nextest.observe(workspace, &root).await?;

@@ -22,7 +22,7 @@ use rakko_action::ProjectRoot;
 use rakko_cargo::{
     Cargo, CargoPackage, CargoReport, CargoRoot, Channel, DiscoverRootsError, Documentation,
     DocumentedNames, PackageName, ResolveNewestToolchainError, ResolveToolchainError, RustVersion,
-    Toolchain,
+    Toolchain, lockfile,
 };
 use tempfile::TempDir;
 
@@ -637,6 +637,53 @@ async fn invocation_with_toolchain_names_the_toolchain_first() {
         .map(|argument| argument.get().to_string_lossy().into_owned())
         .collect();
     assert_eq!(arguments, ["+nightly-2026-08-11", "fmt"]);
+}
+
+#[tokio::test]
+async fn lockfile_refused_by_a_locked_check_of_a_stale_workspace_answers_yes() {
+    let project = Project::workspace();
+    let cargo = project.resolve().await;
+    let root = project.cargo_root("");
+    cargo
+        .invocation(&root)
+        .arg("generate-lockfile")
+        .run()
+        .await
+        .expect("the test writes the lockfile of the workspace");
+    project.write(
+        "b/Cargo.toml",
+        "[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\na = { path = \"../a\" }\n",
+    );
+
+    let execution = cargo
+        .invocation(&root)
+        .args(["check", lockfile::LOCKED])
+        .run()
+        .await
+        .expect("the test runs cargo");
+
+    assert!(
+        lockfile::refused(&execution.stderr().to_string_lossy()),
+        "expected a refusal, got {execution:?}"
+    );
+}
+
+#[tokio::test]
+async fn lockfile_refused_by_a_locked_check_without_a_lockfile_answers_yes() {
+    let project = Project::workspace();
+    let cargo = project.resolve().await;
+
+    let execution = cargo
+        .invocation(&project.cargo_root(""))
+        .args(["check", lockfile::LOCKED])
+        .run()
+        .await
+        .expect("the test runs cargo");
+
+    assert!(
+        lockfile::refused(&execution.stderr().to_string_lossy()),
+        "expected a refusal, got {execution:?}"
+    );
 }
 
 #[tokio::test]
