@@ -8,7 +8,7 @@ mod verdict;
 use std::fmt;
 
 use rakko_action::{
-    ArgsValues, ArgumentValue, Context, ErasedAction, Name, action_name, argument_name,
+    ArgsValues, ArgumentValue, Context, ErasedAction, Name, Outcome, action_name, argument_name,
 };
 use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
@@ -137,7 +137,10 @@ fn repairs(args: &PreCommitArgs) -> ArgsValues {
 
 /// Runs a list of actions in order and returns how many of them did not pass
 ///
-/// Every action receives the same values and the same context. The run
+/// Every action receives the same values and the same context. The values
+/// are bound to the arguments of each action before it runs, and values that
+/// do not convert stop that action with the error of the conversion, as a
+/// problem of the run. The run
 /// reports an action as soon as that action finishes, so a reader learns what
 /// one action found while the next one runs, and no two reports interleave.
 ///
@@ -158,7 +161,12 @@ async fn drive(
 
     for action in actions {
         let name = action.name();
-        let outcome = action.run(project, values).await;
+        let outcome = match action.bind(values) {
+            Ok(bound) => bound.run(project).await,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        };
         let verdict = Verdict::of(&outcome);
 
         clawless
@@ -196,7 +204,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::task::{Context as TaskContext, Poll, Waker};
 
-    use rakko_action::{Action, Args, ArgsSchema, Outcome, ReadArgsError};
+    use rakko_action::{Action, Args, ArgsSchema, ReadArgsError};
     use rakko_cli::clawless::event::{Event, EventReceiver, event_channel};
     use rakko_cli::clawless::prelude::Output;
 
@@ -275,6 +283,36 @@ mod tests {
                     repairs: Vec::new(),
                 },
             }
+        }
+    }
+
+    /// An action whose arguments never convert from the values of a run
+    struct Unbuildable;
+
+    impl Action for Unbuildable {
+        type Args = Unreadable;
+
+        fn name(&self) -> Name {
+            action_name!("unbuildable")
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// The arguments of an action that no value converts into
+    struct Unreadable;
+
+    impl Args for Unreadable {
+        fn schema() -> ArgsSchema {
+            ArgsSchema::empty()
+        }
+
+        fn from_values(_values: &ArgsValues) -> Result<Self, ReadArgsError> {
+            Err(ReadArgsError::MissingValue {
+                name: argument_name!("fix"),
+            })
         }
     }
 
@@ -539,6 +577,22 @@ mod tests {
         assert_eq!(
             *log.lock().expect("the run has ended"),
             ["format-yaml", "format-json", "lint-yaml"]
+        );
+    }
+
+    #[test]
+    fn run_with_an_action_whose_values_do_not_convert_counts_it() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let command = PreCommit::new(
+            [Box::new(Unbuildable) as Box<dyn ErasedAction>],
+            [passing(action_name!("lint-yaml"), &log)],
+        );
+
+        let error = complete(&command, &PreCommitArgs::default()).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "1 of 2 actions found problems or stopped"
         );
     }
 
