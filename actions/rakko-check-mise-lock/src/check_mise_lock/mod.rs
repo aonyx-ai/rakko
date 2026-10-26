@@ -36,11 +36,13 @@ use crate::part::Platform;
 /// and after the run.
 ///
 /// `mise lock` targets the platforms that the setting `lockfile_platforms` of
-/// the project names, and the platform of the machine that runs it as well. A
-/// project therefore names every platform that its jobs and its contributors
-/// use, or a run on a machine of another platform reports the entries of that
-/// platform. The lockfile also depends on the version of mise, and the
-/// version in CI decides when a contributor gets another answer.
+/// the project names, and the platform of the machine that runs it as well,
+/// and in the default mode of mise it removes the entries of every other
+/// platform. A project therefore names every platform on which something
+/// locks it, that of a bot that moves its pins among them. Otherwise a run on
+/// a machine of another platform reports the entries of that platform, as
+/// added or as removed. The lockfile also depends on the version of mise, and
+/// the version in CI decides when a contributor gets another answer.
 ///
 /// A run reports by default, and it then runs `mise lock` in a disposable
 /// copy of the project, so the checkout of a contributor stays as it was. The
@@ -243,10 +245,10 @@ fn untargeted<'a>(
 /// they hold any
 ///
 /// A part counts when mise targeted its platform for its lockfile, whether or
-/// not the run changed it, because locked mode refuses it either way. `mise
-/// lock` leaves the entries of a platform that it does not target as they
-/// were, so an old entry without an address for such a platform says nothing
-/// about the run.
+/// not the run changed it, because locked mode refuses it either way. An
+/// entry of a platform that mise does not target says nothing about the run:
+/// mise removes it in its default mode, and leaves it as it was in the mode
+/// `merge`.
 fn unaddressed(
     after: &BTreeMap<FilePath, Lockfile>,
     targets: &BTreeMap<FilePath, BTreeSet<Platform>>,

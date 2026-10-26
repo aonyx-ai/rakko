@@ -18,14 +18,20 @@
 //! configures no tool to lock skips visibly.
 //!
 //! `mise lock` targets the platforms that the setting `lockfile_platforms` of
-//! the project names, and the platform of the machine that runs it as well. A
-//! project therefore names every platform that its jobs and its contributors
-//! use. The lockfile also depends on the version of mise, and when a
-//! contributor gets another answer than CI, CI decides.
+//! the project names, and the platform of the machine that runs it as well. In
+//! the default mode of mise, it also removes the entries of every other
+//! platform. A project therefore names every platform on which something
+//! locks it: its jobs, its contributors, and a bot that moves its pins, such
+//! as Renovate. Otherwise the entries that one machine writes are entries that
+//! the next run on another machine removes. The lockfile also depends on the
+//! version of mise, and when a contributor gets another answer than CI, CI
+//! decides.
 //!
 //! `mise lock` asks the network for the downloads of each platform. When a
-//! download or a query fails, mise leaves the entry as it was and warns, and
-//! the run stops with each warning, because the comparison would pass over a
+//! download fails in the default mode of mise, mise ends with an error, and
+//! the run stops with the words of mise. Mise can also leave an entry as it
+//! was and warn, as it does for a failed download in the mode `merge`. The
+//! run then stops with each warning, because the comparison would pass over a
 //! gap in that entry. Only a few kinds of warning that say nothing about what
 //! mise locked, such as the notice of an older format of the lockfile, stop
 //! nothing. A failure of the network is temporary, and a second run answers

@@ -14,6 +14,12 @@
 //! downloads, so the tests need it. A project that a test needs with a
 //! complete lockfile gets that lockfile from `mise lock` itself, so the
 //! platform of the machine that runs the tests is always in it.
+//!
+//! Mise locks in one of two modes. In its default mode, `mise lock` rebuilds
+//! the lockfile for the platforms that it targets. In the mode `merge`, it
+//! changes the entries that it locks and keeps the others. A test whose
+//! answer depends on the mode names the mode in its configuration, so that
+//! the answer does not change with the default of the mise on the machine.
 
 // An assertion in a test panics by design, and the helpers of this file
 // exist only for tests. The lints that guard production code do not apply.
@@ -49,13 +55,25 @@ const PINNED: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nlo
 /// does.
 const PINNED_TWICE: &str = "[tools]\njq = \"1.8.1\"\ntaplo = \"0.10.0\"\n\n[settings]\nlockfile = true\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\naqua.github_attestations = false\naqua.slsa = false\naqua.cosign = false\naqua.minisign = false\n";
 
+/// The configuration of a project that pins one tool, in the mode `merge`
+///
+/// In this mode, `mise lock` leaves the entries of a platform that it does
+/// not target as they were, and it completes an entry of a targeted platform
+/// that holds only the provenance of its download. The default mode of mise
+/// gives other answers for both, and not the same answers on every machine,
+/// so the tests that build such entries name this mode. The configuration
+/// turns off the checks of provenance, as the first one does.
+const PINNED_AND_MERGED: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nlockfile_mode = \"merge\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\naqua.github_attestations = false\naqua.slsa = false\naqua.cosign = false\naqua.minisign = false\n";
+
 /// The configuration of a project whose mise waits only one millisecond for
 /// the network
 ///
 /// The configuration keeps the checks of provenance, and every download that
-/// they need times out, so `mise lock` resolves no platform of the tool, warns
-/// about them, and ends with success.
-const IMPATIENT: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nhttp_timeout = \"1ms\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
+/// they need times out. In the mode `merge`, which the configuration names,
+/// `mise lock` then resolves no platform of the tool, warns about them, and
+/// ends with success. In its default mode, mise ends with an error instead,
+/// and the warnings that the tests read never come.
+const IMPATIENT: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nlockfile_mode = \"merge\"\nhttp_timeout = \"1ms\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
 /// The configuration that a contributor keeps for themselves
 ///
@@ -76,8 +94,8 @@ const IGNORED_LOCAL: &str = "mise.local.toml\nmise.local.lock\n";
 /// and a second run leaves that lockfile as it is.
 const PHANTOM: &str = "[tools]\njq = \"1.99.0\"\n\n[settings]\nlockfile = true\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
-/// The configuration above, in a project that asks mise to be quiet
-const IMPATIENT_AND_QUIET: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nquiet = true\nlog_level = \"error\"\nhttp_timeout = \"1ms\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
+/// The impatient configuration, in a project that also asks mise to be quiet
+const IMPATIENT_AND_QUIET: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nlockfile_mode = \"merge\"\nquiet = true\nlog_level = \"error\"\nhttp_timeout = \"1ms\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
 /// The configuration of a project that pins no tool
 const UNPINNED: &str = "[settings]\nlockfile = true\n";
@@ -514,6 +532,37 @@ async fn run_with_a_mise_that_fails_stops_with_what_it_wrote() {
     );
 }
 
+// `mise lock` fills in the checksum that an entry of a targeted platform
+// lacks, in either mode.
+#[tokio::test]
+async fn run_with_a_missing_checksum_reports_the_change() {
+    let project = Project::locked(PINNED);
+    let lockfile = project.read("mise.lock");
+    let platform = lockfile
+        .lines()
+        .find_map(|line| line.strip_prefix(JQ_PLATFORM))
+        .map(|rest| rest.trim_end_matches("\"]").to_owned())
+        .expect("the lockfile records a platform of jq");
+    let checksum = lockfile
+        .lines()
+        .find(|line| line.starts_with("checksum = "))
+        .expect("the lockfile records a checksum of jq");
+    let missing = lockfile.replacen(&format!("{checksum}\n"), "", 1);
+    project.write("mise.lock", &missing);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        messages(&findings),
+        [format!(
+            "mise lock changes the entry of jq 1.8.1 for {platform}"
+        )]
+    );
+}
+
 // The lockfile holds the version of jq, so mise needs the network only for
 // the platforms, and only those fail.
 #[tokio::test]
@@ -588,31 +637,6 @@ async fn run_with_a_tool_that_mise_cannot_lock_stops_with_what_it_wrote() {
             Some(CheckMiseLockError::UnlockedProject { details }) if details.contains("rakko-no-such-owner")
         ),
         "expected what mise wrote about the lock, got {source:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_wrong_checksum_reports_the_change() {
-    let project = Project::locked(PINNED);
-    let lockfile = project.read("mise.lock");
-    let platform = lockfile
-        .lines()
-        .find_map(|line| line.strip_prefix(JQ_PLATFORM))
-        .map(|rest| rest.trim_end_matches("\"]").to_owned())
-        .expect("the lockfile records a platform of jq");
-    let wrong = lockfile.replacen("checksum = \"sha256:", "checksum = \"sha256:0", 1);
-    project.write("mise.lock", &wrong);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(
-        messages(&findings),
-        [format!(
-            "mise lock changes the entry of jq 1.8.1 for {platform}"
-        )]
     );
 }
 
@@ -707,11 +731,12 @@ async fn run_with_an_unreadable_lockfile_stops() {
     );
 }
 
-// `mise lock` leaves the entries of a platform that the project does not
-// target as they were, such as the old ones of the musl platforms.
+// In the mode `merge`, `mise lock` leaves the entries of a platform that the
+// project does not target as they were, such as the old ones of the musl
+// platforms.
 #[tokio::test]
 async fn run_with_an_untargeted_platform_without_an_address_passes() {
-    let project = Project::locked(PINNED);
+    let project = Project::locked(PINNED_AND_MERGED);
     let lockfile = project.read("mise.lock");
     project.write(
         "mise.lock",
@@ -805,10 +830,12 @@ async fn run_with_missing_platforms_reports_a_finding_for_each() {
 
 // The second gap that the parent of this action, the issue "Catch gaps in mise
 // lockfiles in CI", names: the tables of the platforms held only `provenance`,
-// with no address and no checksum.
+// with no address and no checksum. The project turns the checks of provenance
+// off, and in its default mode mise can refuse a lockfile that records a
+// provenance whose check is off, so the project names the mode `merge`.
 #[tokio::test]
 async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
-    let project = Project::locked(PINNED);
+    let project = Project::locked(PINNED_AND_MERGED);
     let lockfile = project.read("mise.lock");
     let platforms = platforms(&lockfile);
     let bare: Vec<String> = lockfile
