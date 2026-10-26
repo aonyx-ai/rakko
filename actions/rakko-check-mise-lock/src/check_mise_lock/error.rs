@@ -110,19 +110,20 @@ pub enum CheckMiseLockError {
 
     /// Mise gave a warning that is not one of the harmless kinds
     ///
-    /// Mise can end with success when it could not resolve a tool, such as one
-    /// that it failed to fetch what it needs for, or one for which an API
-    /// limited the rate of its requests, and it then leaves the entry of that
-    /// platform as the lockfile had it. A gap in that entry then stays on both
-    /// sides of the comparison, and a run that went on would pass over it. A
-    /// failed download ends that way in the mode `merge`. In its default mode,
-    /// mise ends with an error for a failed download instead, and the run
-    /// stops on that. Any warning that is not one of the harmless kinds, which
-    /// include the notice of an older format of the lockfile, can be such a
-    /// sign, a new kind of warning of a later version of mise among them. A
-    /// failure of the network is temporary, and a second run answers the
-    /// question. A cause such as a release without the attestations that mise
-    /// checks lasts, and the words of mise say which of the two it is.
+    /// Mise can end with success when a query that it needs fails, such as
+    /// the query for the tags of a release, whose tag it then guesses, or one
+    /// for which an API limited the rate of its requests. The entry that it
+    /// writes can then be wrong or incomplete, and a run that went on would
+    /// pass over it. In the mode `merge`, mise also ends with success when a
+    /// download fails, and it leaves the entry of that platform as the
+    /// lockfile had it. In its default mode, a failed download ends mise with
+    /// an error, and the run stops on that. Any warning that is not one of the
+    /// harmless kinds, which include the notice of an older format of the
+    /// lockfile, can be such a sign, a new kind of warning of a later version
+    /// of mise among them. A failure of the network is temporary, and a second
+    /// run answers the question. A cause such as a release without the
+    /// attestations that mise checks lasts, and the words of mise say which of
+    /// the two it is.
     #[error(
         "mise warned while it locked the project, so it may not have resolved every platform: {details}"
     )]

@@ -246,9 +246,9 @@ fn untargeted<'a>(
 ///
 /// A part counts when mise targeted its platform for its lockfile, whether or
 /// not the run changed it, because locked mode refuses it either way. An
-/// entry of a platform that mise does not target says nothing about the run:
-/// mise removes it in its default mode, and leaves it as it was in the mode
-/// `merge`.
+/// entry of a platform that mise does not target says nothing about the run,
+/// whether `mise lock` removes it, as it does in its default mode, or keeps
+/// it.
 fn unaddressed(
     after: &BTreeMap<FilePath, Lockfile>,
     targets: &BTreeMap<FilePath, BTreeSet<Platform>>,

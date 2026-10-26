@@ -28,11 +28,12 @@
 //! decides.
 //!
 //! `mise lock` asks the network for the downloads of each platform. When a
-//! download fails in the default mode of mise, mise ends with an error, and
-//! the run stops with the words of mise. Mise can also leave an entry as it
-//! was and warn, as it does for a failed download in the mode `merge`. The
-//! run then stops with each warning, because the comparison would pass over a
-//! gap in that entry. Only a few kinds of warning that say nothing about what
+//! download fails, mise ends with an error, and the run stops with the words
+//! of mise. Some failures only make mise warn and go on, such as a failed
+//! query for the tags of a release, after which mise guesses the tag. In the
+//! mode `merge`, a failed download does the same. The run then stops with
+//! each warning, because the comparison would pass over a gap in the entry of
+//! that tool. Only a few kinds of warning that say nothing about what
 //! mise locked, such as the notice of an older format of the lockfile, stop
 //! nothing. A failure of the network is temporary, and a second run answers
 //! the question. Other causes last, such as a release without the
