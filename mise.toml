@@ -76,10 +76,16 @@ lockfile = true
 # `mise lock` records the tools for these platforms. Every job of CI runs on
 # `linux-x64`, the jobs that run the tests also run on `macos-arm64` and
 # `windows-x64`, and the machines of the contributors run on `macos-arm64`.
-# CI installs in locked mode, which fails on a platform that the lockfile does
-# not record. So before a job of CI runs on a new platform, add the platform
-# here and run `mise lock`. A tool without a build for a platform of the list
-# gets no entry for that platform, and `mise lock` does not fail.
+# Renovate locks on `linux-x64` as well, when it moves a pin. CI installs in
+# locked mode, which fails on a platform that the lockfile does not record. So
+# before a job of CI runs on a new platform, add the platform here and run
+# `mise lock`. A tool without a build for a platform of the list gets no entry
+# for that platform, and `mise lock` does not fail.
+#
+# `mise lock` also writes the entries of the platform of the machine that runs
+# it, and it removes the entries of every other platform. A machine that locks
+# on a platform outside the list therefore writes entries that the next run
+# in CI removes again, and `check-mise-lock` reports each of them.
 lockfile_platforms = ["linux-x64", "macos-arm64", "windows-x64"]
 
 # The installer that mise carries lays a package of npm out the way pnpm
