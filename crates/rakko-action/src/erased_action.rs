@@ -6,6 +6,7 @@ use crate::action::Action;
 use crate::args::{Args, ArgsSchema, ArgsValues, ReadArgsError};
 use crate::bound_action::BoundAction;
 use crate::context::Context;
+use crate::file_access::FileAccess;
 use crate::name::Name;
 use crate::outcome::Outcome;
 
@@ -127,6 +128,10 @@ impl<A: Action> BoundAction for Bound<'_, A> {
         Action::access(self.action, context, &self.args)
     }
 
+    fn files(&self, context: &Context) -> FileAccess {
+        Action::files(self.action, context, &self.args)
+    }
+
     fn run<'a>(
         &'a self,
         context: &'a Context,
@@ -146,6 +151,7 @@ mod tests {
 
     use super::*;
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
+    use crate::file_access::{Files, Pattern};
     use crate::{action_name, argument_name};
 
     /// The arguments of the formatter: whether the run repairs what it finds
@@ -186,6 +192,20 @@ mod tests {
             } else {
                 Access::Read
             }
+        }
+
+        fn files(&self, _context: &Context, args: &Self::Args) -> FileAccess {
+            let formatted = Files::Matching(vec![Pattern::from_static("**/*.toml")]);
+            let writes = if args.fix {
+                formatted.clone()
+            } else {
+                Files::Matching(vec![])
+            };
+
+            FileAccess::builder()
+                .reads(formatted)
+                .writes(writes)
+                .build()
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
@@ -339,6 +359,31 @@ mod tests {
         let access = bound.access(&context());
 
         assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn bound_files_of_an_action_that_declares_nothing_write_the_whole_project() {
+        let action = Probe;
+        let values = ArgsValues::empty();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        let files = bound.files(&context());
+
+        assert_eq!(files.writes(), &Files::Project);
+    }
+
+    #[test]
+    fn bound_files_report_the_patterns_that_the_action_declares_for_its_arguments() {
+        let action = Formatter;
+        let values = fixing();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        let files = bound.files(&context());
+
+        assert_eq!(
+            files.writes(),
+            &Files::Matching(vec![Pattern::from_static("**/*.toml")])
+        );
     }
 
     #[test]

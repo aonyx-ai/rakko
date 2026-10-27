@@ -11,11 +11,12 @@ from the design discussions to the terms that replaced them.
   after its arguments are bound and before it runs. The declaration is a
   function of the arguments and the context, so a `--fix` flag changes it,
   and it does no I/O. A write is exclusive access to the files that it
-  covers, and a read is shared access. The files include the configuration
-  files of the tool and the files that the action reads to resolve it, such
-  as `mise.toml`. Today a declaration covers the whole project. A
-  declaration of glob patterns relative to the project root, which the
-  machinery expands into the files that exist when Rakko runs, is planned.
+  writes, and a read is shared access to the files that it reads. The files
+  include the configuration files of the tool and the files that the action
+  reads to resolve it, such as `mise.toml`. Each side of a declaration
+  covers the whole project, or the files that glob patterns relative to the
+  project root match. The machinery can expand the patterns into the files
+  that exist at that moment.
   The default declaration is exclusive access to the full project. The
   scheduler and the sandbox, which are still planned, derive their behavior
   from these declarations.

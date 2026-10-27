@@ -6,9 +6,12 @@
 /// that drives several actions can read the declarations to order them. For
 /// example, it can run the actions that write before the actions that read.
 ///
-/// Both answers name the whole project. A run writes only when it changes
-/// files that another action could read or change. These changes do not
-/// count as a write:
+/// A read gets shared access to the files that [`Action::files`] declares as
+/// the reads of the run. A write gets the same shared access to its reads,
+/// and exclusive access to the files that it declares as its writes. Each
+/// side is the whole project unless the action narrows it to patterns. A run
+/// writes only when it changes files that another action could read or
+/// change. These changes do not count as a write:
 ///
 /// - a change that only the tool of the action reads, such as a
 ///   `.tsbuildinfo` file or a `.tracey/` directory,
@@ -23,16 +26,20 @@
 /// Nothing enforces the declaration yet. An action can declare a read and
 /// change files anyway. Then it can change what another action reads at the
 /// same time.
+///
+/// [`Action::files`]: crate::Action::files
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Access {
-    /// The run reads the project and changes no file of it
+    /// The run reads the files of its read side and changes no file of the
+    /// project
     ///
     /// A read is shared: other actions that read can run at the same time.
     Read,
     /// The run can change files of the project
     ///
-    /// A write is exclusive: no other action reads or writes the project
-    /// during the run. This is the answer of an action that declares nothing,
-    /// and the cautious answer when the arguments alone do not settle it.
+    /// A write is exclusive: no other action reads or writes the files that
+    /// the run writes while it runs. This is the answer of an action that
+    /// declares nothing, and the cautious answer when the arguments alone do
+    /// not settle it.
     Write,
 }

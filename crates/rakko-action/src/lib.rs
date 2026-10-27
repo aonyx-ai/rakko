@@ -11,8 +11,11 @@
 //!
 //! A run takes three steps. The machinery binds the values of the run to the
 //! arguments of the action. Then it can ask the bound action how the run uses
-//! the project. Then it runs the same bound action. The declaration and the
-//! run therefore see the same arguments.
+//! the project: whether it writes, and which files it reads and writes. Then
+//! it runs the same bound action. The declaration and the run therefore see
+//! the same arguments. The crate also expands a declaration of files into the
+//! files that exist in the project, so that a caller compares lists of files
+//! and not patterns.
 //!
 //! The crate stays small on purpose. Everything in it reaches every action and
 //! every project that mounts one, so an addition here is a change for all of
@@ -32,6 +35,8 @@ pub mod bundle;
 pub mod context;
 /// The view of an action that hides its type
 pub mod erased_action;
+/// Types for the files that a run of an action reads and writes
+pub mod file_access;
 /// Types for a problem that an action found in a project
 pub mod finding;
 /// Types for the identifier of an action
@@ -51,6 +56,9 @@ pub use self::bound_action::BoundAction;
 pub use self::bundle::Bundle;
 pub use self::context::{CacheDirectory, ConfigDirectory, Context, Layout, ProjectRoot};
 pub use self::erased_action::ErasedAction;
+pub use self::file_access::{
+    ExpandFilesError, FileAccess, FileList, FileLists, Files, ParsePatternError, Pattern,
+};
 pub use self::finding::{
     Column, DirectoryPath, FilePath, Finding, FindingMessage, Line, Location,
     ParseDirectoryPathError, ParseFilePathError, Position, Span,

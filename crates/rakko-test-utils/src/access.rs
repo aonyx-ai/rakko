@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rakko_action::{Access, Action, Context, Outcome};
+use rakko_action::{Access, Action, Context, FileList, Files, Outcome};
 
 /// The directories whose changes do not count as a write of the project
 ///
@@ -28,19 +28,29 @@ enum Entry {
     Link(PathBuf),
 }
 
-/// Runs an action and fails when a run that declares a read changes the
-/// project
+/// Runs an action and fails when the run changes a file that its declaration
+/// does not cover
 ///
 /// The helper asks the action how the run uses the project, with the given
 /// context and arguments. Then it runs the action with the same context and
-/// arguments. A run that declares [`Access::Write`] can change anything, so
-/// the helper does not compare the project.
+/// arguments, and it compares the files of the project before and after the
+/// run. What the run may change depends on the declaration:
 ///
-/// For a run that declares [`Access::Read`], the helper records the content
-/// of every file under the root of the project before and after the run. A
-/// file that the run added, removed, or changed fails the test. The
-/// comparison reads contents and not modification times. A tool that
-/// rewrites a file with the same bytes therefore passes.
+/// - A run that declares [`Access::Read`] may change no file.
+/// - A run that declares [`Access::Write`] and writes the whole project may
+///   change any file, so the helper does not compare the project.
+/// - A run that declares [`Access::Write`] and writes the files of patterns
+///   may change only the files of its expanded write list. The helper expands
+///   the declaration before the run, as a caller that orders runs does. A
+///   file that the run creates is therefore outside the list, unless a
+///   pattern without a wildcard describes it.
+///
+/// The helper records the content of every file under the root of the
+/// project before and after the run. A file that the run added, removed, or
+/// changed counts as a change. The comparison reads contents and not
+/// modification times. A tool that rewrites a file with the same bytes
+/// therefore passes. The helper never asks the tool which files it examined,
+/// because a pattern covers more files than a run examines.
 ///
 /// Some changes do not count as a write of the project, so the helper leaves
 /// them out at every depth:
@@ -58,10 +68,10 @@ enum Entry {
 ///
 /// # Panics
 ///
-/// Panics when the action declares a read and the run added, removed, or
-/// changed a file of the project. The message names each such file relative
-/// to the root. Panics as well when a file or a directory of the project
-/// cannot be read, because then the comparison has no answer.
+/// Panics when the run changed a file that the declaration does not let it
+/// change. The message names each such file relative to the root. Panics as
+/// well when a file or a directory of the project cannot be read, because
+/// then the comparison has no answer.
 ///
 /// # Examples
 ///
@@ -104,8 +114,29 @@ pub async fn run_checking_access<A: Action>(
     context: &Context,
     args: &A::Args,
 ) -> Outcome {
-    let Access::Read = action.access(context, args) else {
-        return action.run(context, args).await;
+    let (permitted, complaint) = match action.access(context, args) {
+        Access::Read => (
+            FileList::default(),
+            "declares a read, but its run changed these files of the project",
+        ),
+        Access::Write => {
+            let files = action.files(context, args);
+            let Files::Matching(_) = files.writes() else {
+                return action.run(context, args).await;
+            };
+
+            let lists = files.expand(context.root()).unwrap_or_else(|error| {
+                panic!(
+                    "failed to expand the files that the action '{}' declares: {error}",
+                    action.name()
+                )
+            });
+
+            (
+                lists.writes().clone(),
+                "declares the files that it writes, but its run changed these files outside them",
+            )
+        }
     };
 
     let root = context.root().get();
@@ -113,12 +144,15 @@ pub async fn run_checking_access<A: Action>(
     let outcome = action.run(context, args).await;
     let after = snapshot(root);
 
-    let changed = changes(&before, &after);
+    let outside: Vec<PathBuf> = changes(&before, &after)
+        .into_iter()
+        .filter(|path| !permitted.contains(path))
+        .collect();
     assert!(
-        changed.is_empty(),
-        "the action '{}' declares a read, but its run changed these files of the project: {}",
+        outside.is_empty(),
+        "the action '{}' {complaint}: {}",
         action.name(),
-        changed
+        outside
             .iter()
             .map(|path| path.display().to_string())
             .collect::<Vec<_>>()
@@ -221,7 +255,7 @@ mod tests {
     use std::pin::pin;
     use std::task::{Context as TaskContext, Poll, Waker};
 
-    use rakko_action::{Name, action_name};
+    use rakko_action::{FileAccess, Name, Pattern, action_name};
     use tempfile::TempDir;
 
     use super::*;
@@ -229,8 +263,10 @@ mod tests {
     /// An action that declares an access and changes the project as a test
     /// asks
     struct Scribe {
-        /// What the action declares
+        /// Whether the action declares a read or a write
         access: Access,
+        /// The files that the action declares
+        files: FileAccess,
         /// What the run does to the root of the project
         effect: fn(&Path),
     }
@@ -244,6 +280,10 @@ mod tests {
 
         fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
             self.access
+        }
+
+        fn files(&self, _context: &Context, _args: &Self::Args) -> FileAccess {
+            self.files.clone()
         }
 
         async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -264,21 +304,42 @@ mod tests {
         }
     }
 
-    /// Returns a project that holds one file, `notes.txt`
+    /// Returns a project that holds three files: `notes.txt`, `Cargo.toml`,
+    /// and `README.md`
     fn project() -> TempDir {
         let directory = tempfile::tempdir().unwrap();
         fs::write(directory.path().join("notes.txt"), "otters hold hands").unwrap();
+        fs::write(directory.path().join("Cargo.toml"), "[package]").unwrap();
+        fs::write(directory.path().join("README.md"), "# Otters").unwrap();
 
         directory
     }
 
-    /// Runs a scribe against a project and returns the outcome of the run
+    /// Runs a scribe that covers the whole project and returns the outcome
     fn run(access: Access, effect: fn(&Path)) -> Outcome {
+        run_declaring(access, FileAccess::default(), effect)
+    }
+
+    /// Runs a scribe against a project and returns the outcome of the run
+    fn run_declaring(access: Access, files: FileAccess, effect: fn(&Path)) -> Outcome {
         let directory = project();
         let context = Context::builder().root(directory.path()).build();
-        let scribe = Scribe { access, effect };
+        let scribe = Scribe {
+            access,
+            files,
+            effect,
+        };
 
         block_on(run_checking_access(&scribe, &context, &()))
+    }
+
+    /// Returns a declaration that writes the files of the patterns
+    fn writing<const N: usize>(patterns: [&'static str; N]) -> FileAccess {
+        FileAccess::builder()
+            .writes(Files::Matching(
+                patterns.into_iter().map(Pattern::from_static).collect(),
+            ))
+            .build()
     }
 
     #[test]
@@ -290,6 +351,7 @@ mod tests {
             .build();
         let scribe = Scribe {
             access: Access::Read,
+            files: FileAccess::default(),
             effect: |_root| {},
         };
 
@@ -304,6 +366,16 @@ mod tests {
         });
     }
 
+    #[test]
+    #[should_panic(
+        expected = "declares a read, but its run changed these files of the project: Cargo.toml"
+    )]
+    fn run_checking_access_fails_a_reader_that_changes_a_file_of_its_write_side() {
+        run_declaring(Access::Read, writing(["**/*.toml"]), |root| {
+            fs::write(root.join("Cargo.toml"), "[workspace]").unwrap();
+        });
+    }
+
     #[cfg(unix)]
     #[test]
     #[should_panic(expected = "latest.txt")]
@@ -314,6 +386,7 @@ mod tests {
         let context = Context::builder().root(directory.path()).build();
         let scribe = Scribe {
             access: Access::Read,
+            files: FileAccess::default(),
             effect: |root| {
                 fs::remove_file(root.join("latest.txt")).unwrap();
                 std::os::unix::fs::symlink("copy.txt", root.join("latest.txt")).unwrap();
@@ -345,6 +418,41 @@ mod tests {
         run(Access::Read, |root| {
             fs::create_dir(root.join("src")).unwrap();
             fs::write(root.join("src").join("draft.txt"), "otters use tools").unwrap();
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "failed to expand the files")]
+    fn run_checking_access_fails_a_writer_of_patterns_in_a_project_that_cannot_be_read() {
+        let directory = tempfile::tempdir().unwrap();
+        let context = Context::builder()
+            .root(directory.path().join("missing").as_path())
+            .build();
+        let scribe = Scribe {
+            access: Access::Write,
+            files: writing(["**/*.toml"]),
+            effect: |_root| {},
+        };
+
+        block_on(run_checking_access(&scribe, &context, &()));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "declares the files that it writes, but its run changed these files outside them: README.md"
+    )]
+    fn run_checking_access_fails_a_writer_of_patterns_that_changes_a_file_outside_them() {
+        run_declaring(Access::Write, writing(["**/*.toml"]), |root| {
+            fs::write(root.join("README.md"), "# Sea otters").unwrap();
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "Pipfile.toml")]
+    fn run_checking_access_fails_a_writer_of_patterns_that_creates_a_file_that_a_wildcard_matches()
+    {
+        run_declaring(Access::Write, writing(["**/*.toml"]), |root| {
+            fs::write(root.join("Pipfile.toml"), "[packages]").unwrap();
         });
     }
 
@@ -399,6 +507,35 @@ mod tests {
     #[test]
     fn run_checking_access_passes_a_reader_that_writes_nothing() {
         let outcome = run(Access::Read, |_root| {});
+
+        assert!(matches!(outcome, Outcome::Passed { .. }));
+    }
+
+    #[test]
+    fn run_checking_access_passes_a_writer_of_patterns_that_changes_a_file_of_them() {
+        let outcome = run_declaring(Access::Write, writing(["**/*.toml"]), |root| {
+            fs::write(root.join("Cargo.toml"), "[workspace]").unwrap();
+        });
+
+        assert!(matches!(outcome, Outcome::Passed { .. }));
+    }
+
+    #[test]
+    fn run_checking_access_passes_a_writer_of_patterns_that_creates_the_file_of_a_pattern_without_a_wildcard()
+     {
+        let outcome = run_declaring(Access::Write, writing(["CHANGELOG.md"]), |root| {
+            fs::write(root.join("CHANGELOG.md"), "# Changes").unwrap();
+        });
+
+        assert!(matches!(outcome, Outcome::Passed { .. }));
+    }
+
+    #[test]
+    fn run_checking_access_passes_a_writer_of_patterns_that_writes_into_git() {
+        let outcome = run_declaring(Access::Write, writing(["**/*.toml"]), |root| {
+            fs::create_dir(root.join(".git")).unwrap();
+            fs::write(root.join(".git").join("index"), "staged").unwrap();
+        });
 
         assert!(matches!(outcome, Outcome::Passed { .. }));
     }

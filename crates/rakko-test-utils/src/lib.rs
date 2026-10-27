@@ -21,10 +21,13 @@
 //!
 //! # Access
 //!
-//! An action declares whether a run reads or writes the project, and nothing
-//! enforces the declaration yet. [`run_checking_access`][run_checking_access]
-//! runs an action and fails the test when a run that declares a read changed
-//! a file of the project, so a test of an action keeps its declaration honest.
+//! An action declares whether a run reads or writes the project, and which
+//! files it reads and writes. Nothing enforces the declaration when Rakko
+//! runs the action. [`run_checking_access`][run_checking_access] runs an
+//! action and fails the test when the run changed a file that the declaration
+//! does not cover: any file for a run that declares a read, and a file
+//! outside the expanded write list for a run that writes the files of
+//! patterns. A test of an action thus keeps its declaration honest.
 //!
 //! A crate depends on this one as a development dependency, so nothing that a
 //! project runs carries it.
