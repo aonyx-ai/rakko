@@ -14,6 +14,13 @@
 //! downloads, so the tests need it. A project that a test needs with a
 //! complete lockfile gets that lockfile from `mise lock` itself, so the
 //! platform of the machine that runs the tests is always in it.
+//!
+//! The projects lock in the default mode of mise, as the projects that use
+//! the action do. In that mode, `mise lock` rebuilds the lockfile for the
+//! platforms that it targets and removes every other entry. The tests expect
+//! the answers of the version of mise that CI pins, and a mise that locks in
+//! another mode, because it is older or because its user chose the mode,
+//! answers some of them differently.
 
 // An assertion in a test panics by design, and the helpers of this file
 // exist only for tests. The lints that guard production code do not apply.
@@ -53,8 +60,8 @@ const PINNED_TWICE: &str = "[tools]\njq = \"1.8.1\"\ntaplo = \"0.10.0\"\n\n[sett
 /// the network
 ///
 /// The configuration keeps the checks of provenance, and every download that
-/// they need times out, so `mise lock` resolves no platform of the tool, warns
-/// about them, and ends with success.
+/// they need times out, so `mise lock` resolves no platform of the tool and
+/// ends with an error.
 const IMPATIENT: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nhttp_timeout = \"1ms\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
 /// The configuration that a contributor keeps for themselves
@@ -76,7 +83,7 @@ const IGNORED_LOCAL: &str = "mise.local.toml\nmise.local.lock\n";
 /// and a second run leaves that lockfile as it is.
 const PHANTOM: &str = "[tools]\njq = \"1.99.0\"\n\n[settings]\nlockfile = true\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
-/// The configuration above, in a project that asks mise to be quiet
+/// The impatient configuration, in a project that also asks mise to be quiet
 const IMPATIENT_AND_QUIET: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nquiet = true\nlog_level = \"error\"\nhttp_timeout = \"1ms\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
 /// The configuration of a project that pins no tool
@@ -98,6 +105,14 @@ const UNKNOWN: &str = "[tools]\n\"aqua:rakko-no-such-owner/no-such-tool\" = \"1.
 ///
 /// `mise lock` removes such an entry from the lockfile.
 const STALE_ENTRY: &str = "\n[[tools.\"cargo:cargo-deny\"]]\nversion = \"0.20.2\"\nbackend = \"cargo:cargo-deny\"\nspecifiers = [\"0.20.2\"]\n";
+
+/// An entry of jq for a platform that the projects do not target
+///
+/// It is the entry that `mise lock` writes for `macos-x64`, a platform on
+/// which no job of CI runs the tests. A machine that locks on a platform
+/// outside the list of a project writes such an entry, and `mise lock` on
+/// another machine removes it.
+const UNTARGETED_ENTRY: &str = "\n[tools.jq.\"platforms.macos-x64\"]\nchecksum = \"sha256:e80dbe0d2a2597e3c11c404f03337b981d74b4a8504b70586c354b7697a7c27f\"\nchecksum_source = \"mise-versions\"\nurl = \"https://github.com/jqlang/jq/releases/download/jq-1.8.1/jq-macos-amd64\"\nurl_api = \"https://api.github.com/repos/jqlang/jq/releases/assets/268981505\"\n";
 
 /// A lockfile whose entry names no version
 ///
@@ -415,22 +430,28 @@ async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
 }
 
 // A lockfile with a stale entry is one that `mise lock` rewrites, also in a
-// run that then stops, so the lockfile shows where the run locked.
+// run that then stops, so the lockfile shows where the run locked. The
+// release that the project pins has no downloads, so `mise lock` ends with
+// success after it removes the stale entry, and the run stops after it. A
+// project whose downloads fail would not do: mise ends with an error before
+// it writes anything, and the lockfile stays as it was wherever the run
+// locked.
 #[tokio::test]
 async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
-    let project = Project::locked(PINNED);
-    project.strip();
+    let project = Project::new(PHANTOM);
+    project.lock();
     let stale = project.read("mise.lock") + STALE_ENTRY;
     project.write("mise.lock", &stale);
-    project.write("mise.toml", IMPATIENT);
 
     let outcome = project.run().await;
 
     let Outcome::Errored { source } = outcome else {
         panic!("expected the run to stop, got {outcome:?}");
     };
-    let Some(CheckMiseLockError::UnexpectedWarnings { .. }) =
-        source.downcast_ref::<CheckMiseLockError>()
+    let Some(
+        CheckMiseLockError::UnaddressedPlatforms { .. }
+        | CheckMiseLockError::UnexpectedWarnings { .. },
+    ) = source.downcast_ref::<CheckMiseLockError>()
     else {
         panic!("expected the run to stop after the lock, got {source:?}");
     };
@@ -438,8 +459,8 @@ async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
 }
 
 // A field that the entry shares changes every part of the entry, the old
-// table of an untargeted platform among them, and that table still stops
-// nothing.
+// table of an untargeted platform among them. Whether `mise lock` keeps that
+// table or removes it, the table stops nothing.
 #[tokio::test]
 async fn run_with_a_changed_shared_field_next_to_an_untargeted_platform_fails() {
     let project = Project::locked(PINNED);
@@ -514,8 +535,39 @@ async fn run_with_a_mise_that_fails_stops_with_what_it_wrote() {
     );
 }
 
+// `mise lock` fills in the checksum that an entry of a targeted platform
+// lacks, in either mode.
+#[tokio::test]
+async fn run_with_a_missing_checksum_reports_the_change() {
+    let project = Project::locked(PINNED);
+    let lockfile = project.read("mise.lock");
+    let platform = lockfile
+        .lines()
+        .find_map(|line| line.strip_prefix(JQ_PLATFORM))
+        .map(|rest| rest.trim_end_matches("\"]").to_owned())
+        .expect("the lockfile records a platform of jq");
+    let checksum = lockfile
+        .lines()
+        .find(|line| line.starts_with("checksum = "))
+        .expect("the lockfile records a checksum of jq");
+    let missing = lockfile.replacen(&format!("{checksum}\n"), "", 1);
+    project.write("mise.lock", &missing);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        messages(&findings),
+        [format!(
+            "mise lock changes the entry of jq 1.8.1 for {platform}"
+        )]
+    );
+}
+
 // The lockfile holds the version of jq, so mise needs the network only for
-// the platforms, and only those fail.
+// the platforms, and only those fail. Mise then ends with an error.
 #[tokio::test]
 async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote() {
     let project = Project::locked(PINNED);
@@ -530,12 +582,14 @@ async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote
     assert!(
         matches!(
             source.downcast_ref::<CheckMiseLockError>(),
-            Some(CheckMiseLockError::UnexpectedWarnings { details }) if details.contains("failed to resolve jq")
+            Some(CheckMiseLockError::UnlockedProject { details }) if details.contains("failed to resolve jq")
         ),
         "expected what mise wrote about jq, got {source:?}"
     );
 }
 
+// A project that asks mise to be quiet still gets the words of mise in the
+// error.
 #[tokio::test]
 async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
     let project = Project::locked(PINNED);
@@ -550,9 +604,9 @@ async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
     assert!(
         matches!(
             source.downcast_ref::<CheckMiseLockError>(),
-            Some(CheckMiseLockError::UnexpectedWarnings { .. })
+            Some(CheckMiseLockError::UnlockedProject { details }) if details.contains("failed to resolve jq")
         ),
-        "expected the warnings of mise, got {source:?}"
+        "expected what mise wrote about jq, got {source:?}"
     );
 }
 
@@ -588,31 +642,6 @@ async fn run_with_a_tool_that_mise_cannot_lock_stops_with_what_it_wrote() {
             Some(CheckMiseLockError::UnlockedProject { details }) if details.contains("rakko-no-such-owner")
         ),
         "expected what mise wrote about the lock, got {source:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_wrong_checksum_reports_the_change() {
-    let project = Project::locked(PINNED);
-    let lockfile = project.read("mise.lock");
-    let platform = lockfile
-        .lines()
-        .find_map(|line| line.strip_prefix(JQ_PLATFORM))
-        .map(|rest| rest.trim_end_matches("\"]").to_owned())
-        .expect("the lockfile records a platform of jq");
-    let wrong = lockfile.replacen("checksum = \"sha256:", "checksum = \"sha256:0", 1);
-    project.write("mise.lock", &wrong);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(
-        messages(&findings),
-        [format!(
-            "mise lock changes the entry of jq 1.8.1 for {platform}"
-        )]
     );
 }
 
@@ -707,24 +736,23 @@ async fn run_with_an_unreadable_lockfile_stops() {
     );
 }
 
-// `mise lock` leaves the entries of a platform that the project does not
-// target as they were, such as the old ones of the musl platforms.
+// A machine that locks on a platform outside the list of a project, such as
+// the one of a bot that moves the pins, writes entries that `mise lock` on
+// every other machine removes.
 #[tokio::test]
-async fn run_with_an_untargeted_platform_without_an_address_passes() {
+async fn run_with_an_untargeted_platform_reports_its_removal() {
     let project = Project::locked(PINNED);
     let lockfile = project.read("mise.lock");
-    project.write(
-        "mise.lock",
-        &format!(
-            "{lockfile}\n{JQ_PLATFORM}linux-x64-musl\"]\nprovenance = \"github-attestations\"\n"
-        ),
-    );
+    project.write("mise.lock", &(lockfile + UNTARGETED_ENTRY));
 
     let outcome = project.run().await;
 
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
+    let Outcome::Failed { findings, .. } = outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        messages(&findings),
+        ["mise lock removes the entry of jq 1.8.1 for macos-x64"]
     );
 }
 
@@ -804,26 +832,22 @@ async fn run_with_missing_platforms_reports_a_finding_for_each() {
 }
 
 // The second gap that the parent of this action, the issue "Catch gaps in mise
-// lockfiles in CI", names: the tables of the platforms held only `provenance`,
-// with no address and no checksum.
+// lockfiles in CI", names: the tables of the platforms held no address and no
+// checksum. In that gap the tables still named the provenance of the
+// download. The project turns the checks of provenance off, and mise can
+// refuse a lockfile that names a provenance whose check is off, so the tables
+// here hold nothing at all.
 #[tokio::test]
 async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
     let project = Project::locked(PINNED);
     let lockfile = project.read("mise.lock");
     let platforms = platforms(&lockfile);
-    let bare: Vec<String> = lockfile
+    let bare: Vec<&str> = lockfile
         .lines()
         .filter(|line| {
             !line.starts_with("url")
                 && !line.starts_with("checksum")
-                && !line.starts_with("url_api")
-        })
-        .map(|line| {
-            if line.starts_with(JQ_PLATFORM) {
-                format!("{line}\nprovenance = \"github-attestations\"")
-            } else {
-                line.to_owned()
-            }
+                && !line.starts_with("provenance")
         })
         .collect();
     project.write("mise.lock", &(bare.join("\n") + "\n"));
