@@ -14,7 +14,7 @@ mod error;
 
 use std::path::PathBuf;
 
-use rakko_tool::Tool;
+use rakko_tool::{Launch, Tool};
 
 pub use self::error::ListFilesError;
 
@@ -47,7 +47,7 @@ pub async fn files(tool: &Tool) -> Result<Vec<PathBuf>, ListFilesError> {
         .invocation()
         .arg(LIST_FILES)
         .arg(HERE)
-        .run()
+        .launch()
         .await
         .map_err(|source| ListFilesError::YamllintUnavailable { source })?;
 

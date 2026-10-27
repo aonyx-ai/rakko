@@ -12,7 +12,7 @@ use std::iter;
 use std::time::Duration;
 
 use rakko_action::{Access, FileAccess, Files, Pattern, ProjectRoot};
-use rakko_tool::{Execution, ResolveToolError, Tool, ToolName};
+use rakko_tool::{Execution, Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveTaploError;
 use crate::observation::Observation;
@@ -249,7 +249,7 @@ impl Taplo {
             .args(arguments(operation).iter().copied())
             .arg(COLORS)
             .arg(PLAIN)
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveTaploError::TaploUnavailable { source })
     }

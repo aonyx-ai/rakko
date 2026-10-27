@@ -106,7 +106,8 @@ impl Tool {
     /// The command starts the program that [`resolve`][resolve] found, in the
     /// root of the project, and it carries no argument yet. The caller adds
     /// the arguments of the operation that it wants, and then runs the
-    /// command.
+    /// command with [`launch`][launch], which survives a launcher that
+    /// Windows refused for a moment.
     ///
     /// No shell reads the command. Nothing splits an argument at a space,
     /// removes a quotation mark, or expands a character such as `*`, so the
@@ -120,19 +121,20 @@ impl Tool {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko_tool::{Tool, ToolName};
+    /// use rakko_tool::{Launch, Tool, ToolName};
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let tool = Tool::resolve(ToolName::new("taplo"), "/home/otter/project".into()).await?;
     ///
-    /// let execution = tool.invocation().arg("check").run().await?;
+    /// let execution = tool.invocation().arg("check").launch().await?;
     ///
     /// println!("{}", execution.stdout());
     /// # Ok(())
     /// # }
     /// ```
     ///
+    /// [launch]: crate::Launch::launch
     /// [resolve]: Tool::resolve
     pub fn invocation(&self) -> Invocation {
         Invocation::new(self.program.clone()).in_directory(self.root.get())

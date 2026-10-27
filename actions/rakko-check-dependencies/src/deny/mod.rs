@@ -11,7 +11,7 @@ mod report;
 
 use rakko_action::ProjectRoot;
 use rakko_cargo::{CargoRoot, lockfile};
-use rakko_tool::{ResolveToolError, Tool, ToolName};
+use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::CheckWorkspaceError;
 use self::report::Entry;
@@ -150,7 +150,7 @@ impl Deny {
             .arg(LOCKED)
             .arg(CHECK)
             .args(CHECKS)
-            .run()
+            .launch()
             .await
             .map_err(|source| CheckWorkspaceError::DenyUnavailable {
                 root: root.directory().clone(),

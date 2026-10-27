@@ -10,7 +10,7 @@ mod error;
 pub mod report;
 
 use rakko_action::{FileAccess, Files, Pattern, ProjectRoot};
-use rakko_tool::{Invocation, ResolveToolError, Tool, ToolName};
+use rakko_tool::{Invocation, Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveValidatorError;
 use self::report::Report;
@@ -207,7 +207,7 @@ impl Validator {
     pub async fn observe(&self) -> Result<Observation, ObserveValidatorError> {
         let execution = self
             .invocation()
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveValidatorError::ValidatorUnavailable { source })?;
 

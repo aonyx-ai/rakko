@@ -10,7 +10,7 @@ mod error;
 pub mod report;
 
 use rakko_action::{FileAccess, Files, Pattern, ProjectRoot};
-use rakko_tool::{ResolveToolError, Tool, ToolName};
+use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveOxlintError;
 use crate::observation::Observation;
@@ -175,7 +175,7 @@ impl Oxlint {
             .arg(FORMAT)
             .arg(JSON)
             .arg(HERE)
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveOxlintError::OxlintUnavailable { source })?;
 

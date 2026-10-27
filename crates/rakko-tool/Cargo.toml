@@ -11,11 +11,11 @@ getset = { workspace = true }
 kawauso-process = { workspace = true }
 rakko-action = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
 typed-fields = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-tokio = { workspace = true }
 
 [lints]
 workspace = true
