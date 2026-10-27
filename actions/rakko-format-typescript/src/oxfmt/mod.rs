@@ -1,14 +1,17 @@
 //! The oxfmt that a project runs
 //!
-//! This module holds the program that mise installed for a project and the two
-//! runs that an action asks for: the list of the files that a rewrite would
-//! change, and the rewrite itself. An action asks for a run, and everything
-//! between the action and the process lives here.
+//! This module holds the program that mise installed for a project, the two
+//! runs that an action asks for, and the files that these runs read and
+//! write. The runs are the list of the files that a rewrite would change, and
+//! the rewrite itself. An action asks for a run, and everything between the
+//! action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 
-use rakko_action::ProjectRoot;
+use std::iter;
+
+use rakko_action::{Access, FileAccess, Files, Pattern, ProjectRoot};
 use rakko_tool::{ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveOxfmtError;
@@ -46,6 +49,25 @@ const WRITE: &str = "--write";
 /// action decides about the selection.
 const PATTERN: &str = "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}";
 
+/// The patterns of the files that oxfmt reads as its configuration
+///
+/// Oxfmt looks for a configuration file in the directory of each file that it
+/// formats and in every directory above it, so the patterns of the
+/// configuration files and of the `.gitignore` files cover every directory of
+/// the project. It reads the ignore rules of `.git/info/exclude` as well.
+/// Oxfmt reads `.editorconfig` and `.prettierignore` only in the root of the
+/// project, where every run starts.
+const CONFIGURATION: [&str; 8] = [
+    "**/.gitignore",
+    "**/.oxfmtrc.json",
+    "**/.oxfmtrc.jsonc",
+    "**/oxfmt.config.mts",
+    "**/oxfmt.config.ts",
+    ".editorconfig",
+    ".git/info/exclude",
+    ".prettierignore",
+];
+
 /// The oxfmt that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -78,6 +100,58 @@ pub struct Oxfmt {
 }
 
 impl Oxfmt {
+    /// Returns the files that a run of oxfmt reads and writes
+    ///
+    /// The answer is the declaration of an action that runs oxfmt with the
+    /// given access. Every run reads the configuration of oxfmt and the files
+    /// that mise reads to find oxfmt. A run that reads also reads the
+    /// TypeScript and JavaScript files of the project, and it writes no
+    /// file. A run that writes rewrites these files, so it writes them and
+    /// reads only the configuration.
+    ///
+    /// The patterns cover the files that the action names to oxfmt and the
+    /// files that oxfmt reads when the project configures nothing else. A
+    /// configuration that makes oxfmt read another file is outside the
+    /// patterns.
+    ///
+    /// The function does no I/O, so a declaration can call it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::{Access, Files, Pattern};
+    /// use rakko_format_typescript::Oxfmt;
+    ///
+    /// let files = Oxfmt::files(Access::Write);
+    ///
+    /// assert_eq!(
+    ///     files.writes(),
+    ///     &Files::Matching(vec![Pattern::from_static(
+    ///         "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
+    ///     )])
+    /// );
+    /// ```
+    pub fn files(access: Access) -> FileAccess {
+        let selection = Pattern::from_static(PATTERN);
+        let configuration = CONFIGURATION
+            .into_iter()
+            .map(Pattern::from_static)
+            .chain(Tool::resolution_files());
+
+        match access {
+            Access::Read => FileAccess::builder()
+                .reads(Files::Matching(
+                    iter::once(selection).chain(configuration).collect(),
+                ))
+                .writes(Files::Matching(Vec::new()))
+                .build(),
+            Access::Write => FileAccess::builder()
+                .reads(Files::Matching(configuration.collect()))
+                .writes(Files::Matching(vec![selection]))
+                .build(),
+        }
+    }
+
     /// Names the files that a rewrite would change, and changes nothing
     ///
     /// Oxfmt writes the paths on its standard output stream and everything

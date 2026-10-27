@@ -14,8 +14,8 @@ mod error;
 use std::path::PathBuf;
 
 use rakko_action::{
-    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    action_name,
+    Access, Action, Context, FileAccess, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    SkipReason, action_name,
 };
 use rakko_prettier::{
     FileExtension, Filter, Observation, Operation, Prettier, PrettierProblem, ProblemDetail,
@@ -54,9 +54,12 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// prettier rewrites the files that it can format, and the outcome carries one
 /// repair for each file that it rewrote, next to the problems that remain.
 ///
-/// A run that reports declares a read of the project, and a run with `fix`
-/// declares a write. A caller that orders runs by their declarations can
-/// then run a rewrite before the actions that read.
+/// A run that reports declares a read, and a run with `fix` declares a write.
+/// Each run reads the configuration of prettier and the files that mise reads
+/// to find prettier. A run that reports reads the Markdown files as well, and
+/// a run with `fix` writes them. A caller that orders runs by their
+/// declarations can then run a rewrite before the actions that read, and
+/// beside the runs that touch none of these files.
 ///
 /// A run whose prettier found no Markdown file to examine skips visibly, and
 /// says so. A run stops with an error when mise reports no prettier,
@@ -92,6 +95,10 @@ impl Action for FormatMarkdown {
         } else {
             Access::Read
         }
+    }
+
+    fn files(&self, context: &Context, args: &Self::Args) -> FileAccess {
+        Prettier::files(self.access(context, args), &filter())
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
@@ -345,8 +352,9 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+    use rakko_action::{Args, ArgsValues, ArgumentValue, Files, Pattern, argument_name};
     use rakko_test_utils::path;
+    use rakko_tool::Tool;
 
     use super::*;
 
@@ -359,6 +367,29 @@ mod tests {
     /// of access reads no file
     fn context() -> Context {
         Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns the patterns of the files that every run reads as configuration
+    ///
+    /// They are the configuration of prettier and the files that mise reads to
+    /// find prettier.
+    fn configuration() -> Vec<Pattern> {
+        let mut configuration: Vec<Pattern> = [
+            "**/.editorconfig",
+            "**/.prettierrc",
+            "**/.prettierrc.{json,yml,yaml,json5,js,ts,mjs,mts,cjs,cts,toml}",
+            "**/package.json",
+            "**/package.yaml",
+            "**/prettier.config.{js,ts,mjs,mts,cjs,cts}",
+            ".gitignore",
+            ".prettierignore",
+        ]
+        .into_iter()
+        .map(Pattern::from_static)
+        .collect();
+        configuration.extend(Tool::resolution_files());
+
+        configuration
     }
 
     /// Returns the arguments of a run that asks for a repair
@@ -384,6 +415,47 @@ mod tests {
         let access = FormatMarkdown.access(&context(), &args);
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn files_with_fix_read_the_configuration() {
+        let args = fixing();
+
+        let files = FormatMarkdown.files(&context(), &args);
+
+        assert_eq!(files.reads(), &Files::Matching(configuration()));
+    }
+
+    #[test]
+    fn files_with_fix_write_the_markdown_files() {
+        let args = fixing();
+
+        let files = FormatMarkdown.files(&context(), &args);
+
+        assert_eq!(
+            files.writes(),
+            &Files::Matching(vec![Pattern::from_static("**/*.md")])
+        );
+    }
+
+    #[test]
+    fn files_without_fix_read_the_markdown_files_and_the_configuration() {
+        let args = FormatMarkdownArgs::default();
+        let mut expected = vec![Pattern::from_static("**/*.md")];
+        expected.extend(configuration());
+
+        let files = FormatMarkdown.files(&context(), &args);
+
+        assert_eq!(files.reads(), &Files::Matching(expected));
+    }
+
+    #[test]
+    fn files_without_fix_write_no_file() {
+        let args = FormatMarkdownArgs::default();
+
+        let files = FormatMarkdown.files(&context(), &args);
+
+        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
     }
 
     #[test]

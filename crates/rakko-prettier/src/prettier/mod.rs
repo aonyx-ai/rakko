@@ -1,14 +1,16 @@
 //! The prettier that a project runs
 //!
-//! This module holds the program that mise installed for a project and the
-//! run of one operation. An action states which operation it wants and which
-//! files it cares about, and everything between the action and the process
-//! lives here.
+//! This module holds the program that mise installed for a project, the run
+//! of one operation, and the files that such a run reads and writes. An
+//! action states which operation it wants and which files it cares about, and
+//! everything between the action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 
-use rakko_action::ProjectRoot;
+use std::iter;
+
+use rakko_action::{Access, FileAccess, Files, Pattern, ProjectRoot};
 use rakko_tool::{ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObservePrettierError;
@@ -18,6 +20,26 @@ use crate::operation::Operation;
 
 /// The name that mise knows the tool by
 const PRETTIER: &str = "prettier";
+
+/// The patterns of the files that prettier reads as its configuration
+///
+/// Prettier looks for a configuration file and an `.editorconfig` in the
+/// directory of each file that it formats and in every directory above it,
+/// so these patterns cover every directory of the project. A configuration
+/// file is `.prettierrc` in one of its forms, `prettier.config` in one of its
+/// forms, or a `package.json` or `package.yaml` that can hold a `prettier`
+/// key. Prettier reads its two ignore files only in the root of the project,
+/// where every run starts.
+const CONFIGURATION: [&str; 8] = [
+    "**/.editorconfig",
+    "**/.prettierrc",
+    "**/.prettierrc.{json,yml,yaml,json5,js,ts,mjs,mts,cjs,cts,toml}",
+    "**/package.json",
+    "**/package.yaml",
+    "**/prettier.config.{js,ts,mjs,mts,cjs,cts}",
+    ".gitignore",
+    ".prettierignore",
+];
 
 /// The flag that asks prettier to name the files that it would rewrite
 const LIST_DIFFERENT: &str = "--list-different";
@@ -77,6 +99,67 @@ pub struct Prettier {
 }
 
 impl Prettier {
+    /// Returns the files that a run of prettier over the filter reads and
+    /// writes
+    ///
+    /// The answer is the declaration of an action that runs prettier with the
+    /// given access. Every run reads the configuration of prettier and the
+    /// files that mise reads to find prettier. A run that reads also reads
+    /// the files that the filter selects, and it writes no file. A run that
+    /// writes rewrites the files that the filter selects, so it writes them
+    /// and reads only the configuration.
+    ///
+    /// The patterns cover the files that prettier selects and reads when the
+    /// project configures nothing else. A configuration that makes prettier
+    /// read another file, such as a shared configuration from a package, is
+    /// outside the patterns.
+    ///
+    /// A filter whose pattern is not a valid glob, such as one with an
+    /// extension that holds an unclosed `[`, describes no files that the
+    /// answer can name. Its answer is then the whole project for each side,
+    /// which is the answer that is always safe.
+    ///
+    /// The function does no I/O, so a declaration can call it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::{Access, Files, Pattern};
+    /// use rakko_prettier::{FileExtension, Filter, Prettier};
+    ///
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    ///
+    /// let files = Prettier::files(Access::Write, &filter);
+    ///
+    /// assert_eq!(
+    ///     files.writes(),
+    ///     &Files::Matching(vec![Pattern::from_static("**/*.md")])
+    /// );
+    /// ```
+    pub fn files(access: Access, filter: &Filter) -> FileAccess {
+        let Ok(selection) = filter.pattern().parse::<Pattern>() else {
+            return FileAccess::default();
+        };
+
+        let configuration = CONFIGURATION
+            .into_iter()
+            .map(Pattern::from_static)
+            .chain(Tool::resolution_files());
+
+        match access {
+            Access::Read => FileAccess::builder()
+                .reads(Files::Matching(
+                    iter::once(selection).chain(configuration).collect(),
+                ))
+                .writes(Files::Matching(Vec::new()))
+                .build(),
+            Access::Write => FileAccess::builder()
+                .reads(Files::Matching(configuration.collect()))
+                .writes(Files::Matching(vec![selection]))
+                .build(),
+        }
+    }
+
     /// Runs one operation over the files that the filter selects
     ///
     /// # Errors
@@ -123,5 +206,73 @@ impl Prettier {
         let tool = Tool::resolve(ToolName::new(PRETTIER), root).await?;
 
         Ok(Self { tool })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // An assertion in a test panics by design. A `# Panics` section on every
+    // test would repeat that and give the reader no information.
+    #![allow(clippy::missing_panics_doc)]
+
+    use super::*;
+    use crate::filter::FileExtension;
+
+    /// Returns the patterns that the literals describe
+    fn patterns<const N: usize>(literals: [&'static str; N]) -> Vec<Pattern> {
+        literals.into_iter().map(Pattern::from_static).collect()
+    }
+
+    /// Returns the patterns of the configuration that every run reads
+    fn configuration() -> Vec<Pattern> {
+        let mut configuration = patterns(CONFIGURATION);
+        configuration.extend(Tool::resolution_files());
+
+        configuration
+    }
+
+    /// Returns the filter of the Markdown files
+    fn markdown() -> Filter {
+        Filter::new([FileExtension::new("md")])
+    }
+
+    #[test]
+    fn files_of_a_filter_that_is_no_glob_cover_the_whole_project() {
+        let filter = Filter::new([FileExtension::new("[md")]);
+
+        let files = Prettier::files(Access::Write, &filter);
+
+        assert_eq!(files, FileAccess::default());
+    }
+
+    #[test]
+    fn files_of_a_read_cover_the_selection_and_the_configuration() {
+        let mut expected = patterns(["**/*.md"]);
+        expected.extend(configuration());
+
+        let files = Prettier::files(Access::Read, &markdown());
+
+        assert_eq!(files.reads(), &Files::Matching(expected));
+    }
+
+    #[test]
+    fn files_of_a_read_write_no_file() {
+        let files = Prettier::files(Access::Read, &markdown());
+
+        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
+    }
+
+    #[test]
+    fn files_of_a_write_read_the_configuration() {
+        let files = Prettier::files(Access::Write, &markdown());
+
+        assert_eq!(files.reads(), &Files::Matching(configuration()));
+    }
+
+    #[test]
+    fn files_of_a_write_write_the_selection() {
+        let files = Prettier::files(Access::Write, &markdown());
+
+        assert_eq!(files.writes(), &Files::Matching(patterns(["**/*.md"])));
     }
 }

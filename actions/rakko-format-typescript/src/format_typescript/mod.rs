@@ -13,8 +13,8 @@ mod error;
 use std::path::Path;
 
 use rakko_action::{
-    Access, Action, Context, FilePath, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    SkipReason, action_name,
+    Access, Action, Context, FileAccess, FilePath, Finding, Location, Name, Outcome, Position,
+    ProjectRoot, SkipReason, action_name,
 };
 
 pub use self::args::FormatTypeScriptArgs;
@@ -56,9 +56,12 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// rewrites the files that it can format, and the outcome carries one repair
 /// for each file that changed, next to the problems that remain.
 ///
-/// A run that reports declares a read of the project, and a run with `fix`
-/// declares a write. A caller that orders runs by their declarations can
-/// then run a rewrite before the actions that read.
+/// A run that reports declares a read, and a run with `fix` declares a write.
+/// Each run reads the configuration of oxfmt and the files that mise reads to
+/// find oxfmt. A run that reports reads the TypeScript and JavaScript files as
+/// well, and a run with `fix` writes them. A caller that orders runs by their
+/// declarations can then run a rewrite before the actions that read, and
+/// beside the runs that touch none of these files.
 ///
 /// A run whose oxfmt found no file of the language skips visibly, and says so.
 /// A run stops with an error when mise reports no oxfmt, when oxfmt refused a
@@ -94,6 +97,10 @@ impl Action for FormatTypeScript {
         } else {
             Access::Read
         }
+    }
+
+    fn files(&self, context: &Context, args: &Self::Args) -> FileAccess {
+        Oxfmt::files(self.access(context, args))
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
@@ -367,8 +374,9 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+    use rakko_action::{Args, ArgsValues, ArgumentValue, Files, Pattern, argument_name};
     use rakko_test_utils::path;
+    use rakko_tool::Tool;
 
     use super::*;
 
@@ -384,6 +392,29 @@ mod tests {
     /// of access reads no file
     fn context() -> Context {
         Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns the patterns of the files that every run reads as configuration
+    ///
+    /// They are the configuration of oxfmt and the files that mise reads to
+    /// find oxfmt.
+    fn configuration() -> Vec<Pattern> {
+        let mut configuration: Vec<Pattern> = [
+            "**/.gitignore",
+            "**/.oxfmtrc.json",
+            "**/.oxfmtrc.jsonc",
+            "**/oxfmt.config.mts",
+            "**/oxfmt.config.ts",
+            ".editorconfig",
+            ".git/info/exclude",
+            ".prettierignore",
+        ]
+        .into_iter()
+        .map(Pattern::from_static)
+        .collect();
+        configuration.extend(Tool::resolution_files());
+
+        configuration
     }
 
     /// Returns the arguments of a run that asks for a repair
@@ -409,6 +440,49 @@ mod tests {
         let access = FormatTypeScript.access(&context(), &args);
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn files_with_fix_read_the_configuration() {
+        let args = fixing();
+
+        let files = FormatTypeScript.files(&context(), &args);
+
+        assert_eq!(files.reads(), &Files::Matching(configuration()));
+    }
+
+    #[test]
+    fn files_with_fix_write_the_typescript_files() {
+        let args = fixing();
+
+        let files = FormatTypeScript.files(&context(), &args);
+
+        assert_eq!(
+            files.writes(),
+            &Files::Matching(vec![Pattern::from_static(
+                "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
+            )])
+        );
+    }
+
+    #[test]
+    fn files_without_fix_read_the_typescript_files_and_the_configuration() {
+        let args = FormatTypeScriptArgs::default();
+        let mut expected = vec![Pattern::from_static("**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}")];
+        expected.extend(configuration());
+
+        let files = FormatTypeScript.files(&context(), &args);
+
+        assert_eq!(files.reads(), &Files::Matching(expected));
+    }
+
+    #[test]
+    fn files_without_fix_write_no_file() {
+        let args = FormatTypeScriptArgs::default();
+
+        let files = FormatTypeScript.files(&context(), &args);
+
+        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
     }
 
     #[test]

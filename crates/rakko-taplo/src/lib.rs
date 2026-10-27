@@ -6,6 +6,11 @@
 //! did that taplo report? This crate answers all three, so that an action
 //! states the operation that it wants and reads the answer as data.
 //!
+//! A run of taplo also reads the configuration of taplo, and mise reads the
+//! configuration of the project to find taplo. [`Taplo::files`][files] gives
+//! the patterns of the files that a run reads and writes, so that an action
+//! declares its access without a list of its own.
+//!
 //! Taplo reports as text on its standard error stream, and this crate reads
 //! that text. The shape of the text belongs to a version of taplo, so
 //! keeping the reading in one place keeps the version surface in one place
@@ -37,6 +42,7 @@
 //! # }
 //! ```
 //!
+//! [files]: Taplo::files
 //! [taplo]: https://taplo.tamasfe.dev
 //! [tokio]: https://tokio.rs
 
