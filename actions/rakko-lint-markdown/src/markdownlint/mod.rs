@@ -60,6 +60,13 @@ const GIT: &str = "**/.git/**";
 /// place, and markdownlint reports every path relative to it.
 const HERE: &str = ".";
 
+/// The sentence that markdownlint writes when it finds no file to examine
+///
+/// Markdownlint writes this sentence on its standard error stream, in place
+/// of the report, when the places that it received hold no Markdown file. The
+/// run then ends with success.
+const NO_MATCHING_FILES: &str = "No matching files found";
+
 /// The markdownlint that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -102,10 +109,10 @@ impl Markdownlint {
     /// with the name `.git`. The ignore file of the project decides what else
     /// the run leaves out.
     ///
-    /// Markdownlint writes the report on its standard error stream, and it
-    /// leaves the standard output stream empty for as long as it has a file
-    /// to examine, so a run that wrote there examined nothing and answered
-    /// with its usage text instead.
+    /// Markdownlint writes the report on its standard error stream. A run
+    /// that finds no file to examine writes no report and ends with success,
+    /// like a run that found nothing wrong, so the observation also says
+    /// whether the run examined a file.
     ///
     /// # Errors
     ///
@@ -131,16 +138,22 @@ impl Markdownlint {
         let stdout = execution.stdout().to_string_lossy();
         let stderr = execution.stderr().to_string_lossy();
 
-        let problems = self::report::problems(&stderr).map_err(|source| {
-            ObserveMarkdownlintError::UnreadableReport {
-                report: stderr.to_string(),
-                source,
-            }
-        })?;
+        let examined = examined(&stdout, &stderr);
+
+        let problems = if examined {
+            self::report::problems(&stderr).map_err(|source| {
+                ObserveMarkdownlintError::UnreadableReport {
+                    report: stderr.to_string(),
+                    source,
+                }
+            })?
+        } else {
+            Vec::new()
+        };
 
         Ok(Observation::builder()
             .problems(problems)
-            .examined(stdout.trim().is_empty())
+            .examined(examined)
             .stderr(stderr.into_owned())
             .succeeded(execution.status().success())
             .build())
@@ -160,5 +173,61 @@ impl Markdownlint {
         let tool = Tool::resolve(ToolName::new(MARKDOWNLINT), root).await?;
 
         Ok(Self { tool })
+    }
+}
+
+/// Returns whether a run of markdownlint examined a file
+///
+/// Markdownlint answers a run that finds no file to examine in one of two
+/// ways, and the version of markdownlint selects the way. An older version
+/// writes its usage text on the standard output stream, which a run that
+/// asks for the report as data leaves empty otherwise. A newer version writes
+/// a single sentence on the standard error stream in place of the report.
+/// Both versions then end with success, like a run that examined the project
+/// and found nothing.
+fn examined(stdout: &str, stderr: &str) -> bool {
+    stdout.trim().is_empty() && stderr.trim() != NO_MATCHING_FILES
+}
+
+#[cfg(test)]
+mod tests {
+    // An assertion in a test panics by design. A `# Panics` section on every
+    // test would repeat that and give the reader no information.
+    #![allow(clippy::missing_panics_doc)]
+
+    use super::*;
+
+    /// The start of the usage text that an older markdownlint writes
+    const USAGE: &str = "Usage: markdownlint [options] [files|directories|globs...]\n";
+
+    /// A report of a run that found a problem
+    const REPORT: &str = r#"[{"fileName":"notes.md","lineNumber":1}]"#;
+
+    #[test]
+    fn examined_of_a_run_with_a_report_is_true() {
+        let examined = examined("", REPORT);
+
+        assert!(examined);
+    }
+
+    #[test]
+    fn examined_of_a_run_with_no_matching_files_is_false() {
+        let examined = examined("", "No matching files found\n");
+
+        assert!(!examined);
+    }
+
+    #[test]
+    fn examined_of_a_run_with_the_usage_text_is_false() {
+        let examined = examined(USAGE, "");
+
+        assert!(!examined);
+    }
+
+    #[test]
+    fn examined_of_a_run_without_output_is_true() {
+        let examined = examined("", "");
+
+        assert!(examined);
     }
 }

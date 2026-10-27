@@ -81,9 +81,9 @@ checksum = "sha256:d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95
 url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1-win-x64.zip"
 
 [[tools."npm:markdownlint-cli"]]
-version = "0.49.1"
+version = "0.50.0"
 backend = "npm:markdownlint-cli"
-specifiers = ["0.49.1"]
+specifiers = ["0.50.0"]
 
 [[tools."npm:prettier"]]
 version = "3.9.10"

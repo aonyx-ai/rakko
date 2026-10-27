@@ -20,9 +20,10 @@ use crate::problem::MarkdownlintProblem;
 
 /// The reason of a run whose markdownlint examined nothing
 ///
-/// Markdownlint answers with its usage text when it resolves no file, so this
-/// is what a project without Markdown files reports. A project whose ignore
-/// file excludes every one of them reports the same way.
+/// Markdownlint answers with its usage text or with a sentence of its own
+/// when it resolves no file, so this is what a project without Markdown files
+/// reports. A project whose ignore file excludes every one of them reports the
+/// same way.
 const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine";
 
 /// The action that lints the Markdown files of a project
