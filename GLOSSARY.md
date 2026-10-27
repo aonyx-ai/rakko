@@ -7,14 +7,18 @@ from the design discussions to the terms that replaced them.
 ## Terms
 
 - **Access** — The declaration of whether a run of an action reads or
-  writes the project. An action declares it after its arguments are bound
-  and before it runs. The declaration is a function of the arguments and
-  the context, so a `--fix` flag changes it, and it does no I/O. A write is
-  exclusive access to what it names, and a read is shared access. In the
-  first version, a declaration names the whole project. The default
-  declaration is exclusive access to the full project. The scheduler and
-  the sandbox, which are still planned, derive their behavior from these
-  declarations.
+  writes, and of the files that it reads and writes. An action declares it
+  after its arguments are bound and before it runs. The declaration is a
+  function of the arguments and the context, so a `--fix` flag changes it,
+  and it does no I/O. A write is exclusive access to the files that it
+  covers, and a read is shared access. The files include the configuration
+  files of the tool and the files that the action reads to resolve it, such
+  as `mise.toml`. Today a declaration covers the whole project. A
+  declaration of glob patterns relative to the project root, which the
+  machinery expands into the files that exist when Rakko runs, is planned.
+  The default declaration is exclusive access to the full project. The
+  scheduler and the sandbox, which are still planned, derive their behavior
+  from these declarations.
 - **Action** — The unit of maintenance work. An action is a library crate
   that implements the `Action` trait. An action depends on the contract
   crate and on the helper crates that it uses. It never depends on the
@@ -114,8 +118,8 @@ from the design discussions to the terms that replaced them.
   run. A sandbox turns a false declaration into a visible error instead of a
   race condition.
 - **Scheduler** — (Planned.) The component that runs actions in parallel.
-  The scheduler computes a conflict graph from the access declarations
-  before any action runs.
+  The scheduler computes a conflict graph from the access declarations and
+  the files that they expand to, before any action runs.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.
