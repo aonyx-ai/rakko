@@ -277,10 +277,7 @@ impl Project {
 
     /// Runs the action against this project, and fixes
     async fn fix(&self) -> Outcome {
-        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
-        let args = CheckMiseLockArgs::from_values(&values).expect("the test passes a valid value");
-
-        CheckMiseLock.run(&self.context(), &args).await
+        fix(&self.context()).await
     }
 
     /// Removes the tables of every platform of jq from the lockfile
@@ -354,6 +351,14 @@ impl Drop for Project {
             .arg(self.directory.path().join(self.configuration))
             .status();
     }
+}
+
+/// Runs the action against the project of the context, and fixes
+async fn fix(context: &Context) -> Outcome {
+    let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+    let args = CheckMiseLockArgs::from_values(&values).expect("the test passes a valid value");
+
+    CheckMiseLock.run(context, &args).await
 }
 
 /// Returns the paths that the findings of an outcome name
@@ -959,4 +964,141 @@ async fn run_without_trust_stops_before_the_copy() {
         ),
         "expected mise to refuse the project, got {source:?}"
     );
+}
+
+/// The tests of a project under the home directory
+///
+/// Mise writes `~` in place of the home directory at the start of a path
+/// under it. It does so only on Unix-like systems, so these tests run only
+/// there. No test puts a project in the real home directory. Instead, a test
+/// moves the home directory into a temporary directory for a second run of
+/// this binary. That second run starts the action in the moved home
+/// directory, and the action starts mise there.
+#[cfg(unix)]
+mod home {
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    use rakko_action::{Context, Outcome, ProjectRoot};
+
+    use super::{PINNED, Project, fix};
+
+    /// The variable that names the project of the run in the moved home
+    /// directory
+    const MOVED_PROJECT: &str = "RAKKO_TEST_MOVED_PROJECT";
+
+    /// The test that runs the action in the moved home directory, by the name
+    /// that the test harness gives it
+    const MOVED_TEST: &str = "home::run_with_fix_in_a_moved_home_directory_passes";
+
+    /// The words with which the test harness reports that one test passed
+    ///
+    /// A filter that matches no test passes as well, so the test that starts
+    /// the run checks that the run ran one.
+    const ONE_PASSED: &str = "test result: ok. 1 passed";
+
+    /// The variables that name the directories of mise, each with the field
+    /// that names the same directory in the report of `mise doctor --json`
+    const DIRECTORIES: [(&str, &str); 4] = [
+        ("MISE_CACHE_DIR", "cache"),
+        ("MISE_CONFIG_DIR", "config"),
+        ("MISE_DATA_DIR", "data"),
+        ("MISE_STATE_DIR", "state"),
+    ];
+
+    impl Project {
+        /// Creates a project whose lockfile `mise lock` wrote, outside a
+        /// repository, in a new directory inside the given one
+        fn locked_in(parent: &Path, configuration: &str) -> Self {
+            let directory =
+                tempfile::tempdir_in(parent).expect("the test creates a temporary directory");
+            let project = Self {
+                directory,
+                configuration: "mise.toml",
+            };
+
+            project.write("mise.toml", configuration);
+            project.trust();
+            project.lock();
+
+            project
+        }
+    }
+
+    /// Returns each variable that names a directory of mise, with the
+    /// directory that mise uses now
+    ///
+    /// Unless its own variable names it, mise derives each of these
+    /// directories from a variable of XDG, such as `XDG_DATA_HOME`, or else
+    /// from the home directory. The run in the moved home directory sets all
+    /// of them. Its mise then reads the trust, the configuration, and the
+    /// cache of the machine.
+    fn directories() -> Vec<(&'static str, PathBuf)> {
+        let output = Command::new("mise")
+            .arg("doctor")
+            .arg("--json")
+            .output()
+            .expect("the test starts mise to name its directories");
+        let report: serde_json::Value =
+            serde_json::from_slice(&output.stdout).expect("mise writes its report as JSON");
+
+        DIRECTORIES
+            .iter()
+            .map(|(variable, field)| {
+                let directory = report["dirs"][field]
+                    .as_str()
+                    .expect("mise names the directory");
+
+                (*variable, PathBuf::from(directory))
+            })
+            .collect()
+    }
+
+    // This test runs only in the run that the test below starts, because it
+    // reads the project from the variable that the test below sets.
+    #[tokio::test]
+    #[ignore = "the test of a project under the home directory runs it"]
+    async fn run_with_fix_in_a_moved_home_directory_passes() {
+        let root = std::env::var_os(MOVED_PROJECT)
+            .expect("the test of a project under the home directory names the project");
+        let root = ProjectRoot::canonical(Path::new(&root))
+            .expect("the test names a directory that exists");
+
+        let outcome = fix(&Context::builder().root(root).build()).await;
+
+        assert!(
+            matches!(outcome, Outcome::Passed { .. }),
+            "expected the run to pass, got {outcome:?}"
+        );
+    }
+
+    // Mise names the lockfile by its canonical path. It writes `~` only where
+    // that path starts with the home directory, so the moved home directory
+    // is canonical too.
+    #[test]
+    fn run_with_fix_in_a_project_under_the_home_directory_passes() {
+        let home = tempfile::tempdir().expect("the test creates a temporary directory");
+        let moved = home
+            .path()
+            .canonicalize()
+            .expect("the test names a directory that exists");
+        let project = Project::locked_in(&moved, PINNED);
+
+        let output = Command::new(std::env::current_exe().expect("the test finds its binary"))
+            .arg(MOVED_TEST)
+            .arg("--exact")
+            .arg("--ignored")
+            .env("HOME", &moved)
+            .envs(directories())
+            .env(MOVED_PROJECT, project.directory.path())
+            .output()
+            .expect("the test runs its binary");
+
+        let report = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && report.contains(ONE_PASSED),
+            "expected the run in the moved home directory to pass, got:\n{report}{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 }

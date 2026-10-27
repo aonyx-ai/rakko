@@ -92,6 +92,10 @@ const TARGETING_FOR: &str = " for ";
 /// that line
 const TARGETING_PLATFORMS: &str = ": ";
 
+/// The mark that mise writes in place of the home directory at the start of a
+/// path under it
+const HOME: &str = "~";
+
 /// The words with which mise reports a project that configures nothing to
 /// lock
 const UNCONFIGURED: &str = "No tools configured to lock";
@@ -184,6 +188,12 @@ impl Mise {
     /// which tools and which platforms mise locks. The run writes the
     /// lockfiles of the directory.
     ///
+    /// The answer names each lockfile relative to the directory, also one that
+    /// mise names relative to the home directory. On a Unix-like system, the
+    /// run reads the home directory as mise reads it: from `HOME`, or from the
+    /// account of the user when `HOME` is not set. On other systems, mise
+    /// names no path relative to the home directory.
+    ///
     /// # Errors
     ///
     /// Returns [`MiseUnavailable`][unavailable] when mise does not start, and
@@ -192,7 +202,10 @@ impl Mise {
     /// when mise ends with success and gives a warning that is not one of the
     /// harmless kinds, because such a warning can mean that mise left the
     /// entry of a platform as it was, and a gap in it would pass unseen.
+    /// Returns [`ForeignLockfile`][foreign] when mise names a lockfile outside
+    /// the directory.
     ///
+    /// [foreign]: CheckMiseLockError::ForeignLockfile
     /// [unavailable]: CheckMiseLockError::MiseUnavailable
     /// [unlocked]: CheckMiseLockError::UnlockedProject
     /// [unresolved]: CheckMiseLockError::UnexpectedWarnings
@@ -224,7 +237,7 @@ impl Mise {
         }
 
         Ok(Lock::Written {
-            targets: targets(&output, &self.root)?,
+            targets: targets(&output, &self.root, std::env::home_dir().as_deref())?,
         })
     }
 
@@ -400,20 +413,28 @@ fn plain(text: &str) -> String {
 /// the lockfile
 ///
 /// Mise writes one line for each lockfile that it locks, such as
-/// `→ Targeting 2 platform(s) for /home/otter/project/mise.lock: linux-x64,
-/// macos-arm64`. A line in another shape names nothing.
+/// `→ Targeting 2 platform(s) for /srv/project/mise.lock: linux-x64,
+/// macos-arm64`. A line in another shape names nothing. For a lockfile under
+/// the home directory, mise writes `~` in place of the home directory, such
+/// as `~/project/mise.lock`. The given home directory replaces the `~` again.
+/// It is the home directory that mise read, because mise inherits the
+/// environment of the action.
 ///
 /// # Errors
 ///
 /// Returns [`ForeignLockfile`][foreign] when a line names a lockfile outside
 /// the directory. Mise writes such a lockfile when the configuration of the
 /// tools lies in a directory above, and a run that went on would compare no
-/// lockfile of the project and could write outside it.
+/// lockfile of the project and could write outside it. A line can name a
+/// lockfile under the home directory when no home directory is given. That
+/// line gives the same error, because nothing places its lockfile inside the
+/// directory.
 ///
 /// [foreign]: CheckMiseLockError::ForeignLockfile
 fn targets(
     output: &str,
     root: &ProjectRoot,
+    home: Option<&Path>,
 ) -> Result<BTreeMap<FilePath, BTreeSet<Platform>>, CheckMiseLockError> {
     let mut targets = BTreeMap::new();
 
@@ -428,11 +449,11 @@ fn targets(
             continue;
         };
 
-        let path = FilePath::within(Path::new(lockfile), root).ok_or_else(|| {
-            CheckMiseLockError::ForeignLockfile {
+        let path = named(lockfile, home)
+            .and_then(|named| FilePath::within(&named, root))
+            .ok_or_else(|| CheckMiseLockError::ForeignLockfile {
                 path: PathBuf::from(lockfile),
-            }
-        })?;
+            })?;
         let platforms = platforms
             .split(',')
             .map(str::trim)
@@ -444,6 +465,25 @@ fn targets(
     }
 
     Ok(targets)
+}
+
+/// Returns the path that mise names with the given words, if it can be known
+///
+/// On a Unix-like system, mise writes `~` in place of the home directory at
+/// the start of a path under it. The answer puts the home directory back in
+/// place of the `~`. It joins the two as text and not as paths. Thus it
+/// undoes exactly what mise did, also for a home directory that ends with a
+/// separator. Without a home directory, a path that starts with `~` cannot be
+/// known, and the answer is nothing.
+fn named(words: &str, home: Option<&Path>) -> Option<PathBuf> {
+    let Some(rest) = words.strip_prefix(HOME) else {
+        return Some(PathBuf::from(words));
+    };
+
+    let mut path = home?.as_os_str().to_owned();
+    path.push(rest);
+
+    Some(PathBuf::from(path))
 }
 
 /// Returns the paths of the lockfiles that a list of mise names
@@ -546,6 +586,8 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use std::path::MAIN_SEPARATOR;
+
     use rakko_test_utils::path;
 
     use super::*;
@@ -553,6 +595,31 @@ mod tests {
     /// The root that the paths of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    /// The home directory that holds the root of a test
+    fn home() -> PathBuf {
+        path("/home/otter")
+    }
+
+    /// Returns the line with which mise names the platform `linux-x64` for a
+    /// lockfile, after the `~` that stands for the home directory
+    fn targeting_from_home(rest: &str) -> String {
+        format!("\u{2192} Targeting 1 platform(s) for ~{rest}: linux-x64\n")
+    }
+
+    /// Returns the targets that name the platform `linux-x64` for
+    /// `mise.lock`
+    fn targeted_lockfile() -> BTreeMap<FilePath, BTreeSet<Platform>> {
+        BTreeMap::from([(
+            "mise.lock".parse::<FilePath>().unwrap(),
+            BTreeSet::from([Platform::new("linux-x64")]),
+        )])
+    }
+
+    /// Returns the given relative path, after the separator of the platform
+    fn separated(literal: &str) -> String {
+        format!("{MAIN_SEPARATOR}{}", path(literal).display())
     }
 
     /// Returns the value of the variable that names the trusted directories,
@@ -691,6 +758,18 @@ mod tests {
         assert_eq!(plain(text), "! No tools configured to lock in this project");
     }
 
+    // Mise replaces the text of the home directory with `~`, so a home
+    // directory that ends with a separator leaves no separator after the `~`.
+    #[test]
+    fn targets_with_a_home_directory_that_ends_with_a_separator_name_its_lockfile() {
+        let home = PathBuf::from(format!("{}{MAIN_SEPARATOR}", home().display()));
+        let output = targeting_from_home(&path("project/mise.lock").display().to_string());
+
+        let targets = targets(&output, &root(), Some(&home)).unwrap();
+
+        assert_eq!(targets, targeted_lockfile());
+    }
+
     #[test]
     fn targets_with_a_line_for_a_lockfile_name_its_platforms() {
         let lockfile = root().get().join("mise.lock");
@@ -699,7 +778,7 @@ mod tests {
             lockfile.display()
         );
 
-        let targets = targets(&output, &root()).unwrap();
+        let targets = targets(&output, &root(), None).unwrap();
 
         assert_eq!(
             targets,
@@ -711,6 +790,15 @@ mod tests {
     }
 
     #[test]
+    fn targets_with_a_line_under_the_home_directory_name_its_lockfile() {
+        let output = targeting_from_home(&separated("project/mise.lock"));
+
+        let targets = targets(&output, &root(), Some(&home())).unwrap();
+
+        assert_eq!(targets, targeted_lockfile());
+    }
+
+    #[test]
     fn targets_with_a_lockfile_outside_the_directory_report_it() {
         let lockfile = path("/elsewhere/mise.lock");
         let output = format!(
@@ -718,11 +806,37 @@ mod tests {
             lockfile.display()
         );
 
-        let error = targets(&output, &root()).unwrap_err();
+        let error = targets(&output, &root(), Some(&home())).unwrap_err();
 
         assert!(
             matches!(error, CheckMiseLockError::ForeignLockfile { .. }),
             "expected a lockfile outside the directory, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn targets_with_a_lockfile_under_the_home_directory_outside_the_directory_report_it() {
+        let output = targeting_from_home(&separated("elsewhere/mise.lock"));
+
+        let targets = targets(&output, &root(), Some(&home()));
+
+        assert!(
+            matches!(targets, Err(CheckMiseLockError::ForeignLockfile { .. })),
+            "expected a lockfile outside the directory, got {targets:?}"
+        );
+    }
+
+    // Without a home directory, the action cannot tell where the lockfile
+    // lies, so it cannot place the lockfile inside the directory.
+    #[test]
+    fn targets_without_a_home_directory_report_a_lockfile_under_it() {
+        let output = targeting_from_home(&separated("project/mise.lock"));
+
+        let targets = targets(&output, &root(), None);
+
+        assert!(
+            matches!(targets, Err(CheckMiseLockError::ForeignLockfile { .. })),
+            "expected a lockfile that the action cannot place, got {targets:?}"
         );
     }
 
