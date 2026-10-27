@@ -50,7 +50,7 @@ rust = [
 jq = "1.8.2"
 "npm:markdownlint-cli" = "0.50.0"
 oxfmt = "0.75.0"
-oxlint = "1.89.0"
+oxlint = "1.90.0"
 # The release of pre-commit is a Python zipapp, and the registry maps that
 # file to no Windows download, so the pin names the backend that installs
 # from the package index instead and works on every platform.
