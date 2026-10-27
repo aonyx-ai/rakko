@@ -1,10 +1,10 @@
 //! What one run of markdownlint produced
 //!
 //! Markdownlint answers over both of its streams. The report travels on the
-//! standard error stream, and the standard output stream stays empty for as
-//! long as markdownlint has files to examine. This module turns one run into
-//! data and judges nothing: the action that asked for the run decides what
-//! the answer means for its outcome.
+//! standard error stream, and a run that has no file to examine answers on
+//! one stream or the other, as its version selects. This module turns one run
+//! into data and judges nothing: the action that asked for the run decides
+//! what the answer means for its outcome.
 
 use bon::bon;
 use getset::{CopyGetters, Getters};
@@ -18,9 +18,10 @@ use crate::problem::MarkdownlintProblem;
 /// the run, and whether it ended with success.
 ///
 /// A run that found nothing to examine is not a run that found nothing wrong.
-/// Markdownlint answers an empty selection with its usage text on the
-/// standard output stream and ends with success, and both runs would
-/// otherwise look alike.
+/// Markdownlint answers an empty selection without a report and ends with
+/// success. An older version writes its usage text on the standard output
+/// stream, and a newer version writes a sentence that says so on the standard
+/// error stream. Without this distinction, both runs would look alike.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The rules that markdownlint reported, in the order of the report
