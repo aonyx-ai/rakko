@@ -7,15 +7,19 @@ them. The harness therefore contains no loop over actions, no code that
 reports them, and no split into the actions that write and the actions that
 read.
 
+The command is a group, and the actions in its list are its members. The
+command line of the harness takes the flags of the command from the arguments
+of the members. So the command defines no flag of its own.
+
 ## Usage
 
 Add `rakko-pre-commit` to the harness of the project. Then let the `main` of
-the harness give the command its list, and mount the command beside the
+the harness give the command its list. Mount the command as a group beside the
 actions:
 
 ```rust
 use rakko_action::ErasedAction;
-use rakko_cli::ErasedCommand;
+use rakko_cli::ErasedGroup;
 use rakko_format_toml::FormatToml;
 use rakko_lint_toml::LintToml;
 use rakko_pre_commit::PreCommit;
@@ -27,7 +31,7 @@ let pre_commit = PreCommit::new([
 
 rakko_cli::builder()
     .mount(rakko_baseline::bundle())
-    .mount_commands([Box::new(pre_commit) as Box<dyn ErasedCommand>])
+    .mount_groups([Box::new(pre_commit) as Box<dyn ErasedGroup>])
     .run();
 ```
 
@@ -45,23 +49,28 @@ formatted files.
 
 ## Run
 
-A run binds the values of the run to every action, and asks each action how
-the run uses the project. Then it drives the actions that write, one after
-another and in the order of the list. Then it drives the actions that read in
-the same way. Each action reports when it ends, as a run of that action alone
-reports. An action that found problems does not end the run, so one run
+The command line binds every action to the values of the run before the run
+starts. Each action receives the values of the arguments that it declares, and
+no other value. An action whose values do not convert stops the run before any
+action runs, and the error gives the action and the argument. The run then asks
+each action how it uses the project. It drives the actions that write, one
+after another and in the order of the list. Then it drives the actions that
+read in the same way. Each action reports when it ends, as a run of that action
+alone reports. An action that found problems does not end the run, so one run
 reports every problem of the tree.
 
 ```console
 mise run rakko -- pre-commit --fix
 ```
 
-The `--fix` flag lets the actions repair what they find, and every action
-receives it. An action that takes no `fix` argument ignores it. A formatter
-writes only with the flag, so a run without the flag drives the formatters
-among the actions that read. Such a run reports what a commit has to repair.
-An action that writes whatever its arguments, such as an action that declares
-nothing, still writes in a run without the flag.
+The command has a `--fix` flag when an action in the list declares a `fix`
+argument, as each formatter does. The flag reaches every action that declares
+`fix`, and no other action. Its help shows one line for each of these actions,
+and each line starts with the name of the action. A formatter writes only with
+the flag, so a run without the flag drives the formatters among the actions
+that read. Such a run reports what a commit has to repair. An action that
+writes whatever its arguments, such as an action that declares nothing, still
+writes in a run without the flag.
 
 The command fails when an action found problems or stopped, so the commit
 waits. A run in which the actions that write repaired everything that they
@@ -71,8 +80,10 @@ hook changed.
 
 ## Hook
 
-The hook that Git runs before a commit calls the command with `--fix`. With
-[pre-commit], a local hook starts the task of the harness:
+The hook that Git runs before a commit calls the command with `--fix`. The
+command has this flag only while an action in the list declares `fix`. A
+harness whose list holds no such action calls the command without the flag.
+With [pre-commit], a local hook starts the task of the harness:
 
 ```yaml
 repos:

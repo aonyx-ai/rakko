@@ -7,7 +7,6 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-getset = { workspace = true }
 rakko-action = { workspace = true }
 rakko-cli = { workspace = true }
 thiserror = { workspace = true }
