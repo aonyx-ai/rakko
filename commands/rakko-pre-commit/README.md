@@ -35,9 +35,10 @@ rakko_cli::builder()
     .run();
 ```
 
-A list is any iterator of erased actions. The list is independent of the
-mount, so a harness that wants a command for one of these actions mounts that
-action as well.
+A list is any iterator of erased actions. The list holds each action only
+once. A list with two actions of the same name stops the harness when it
+mounts the command. The list is independent of the mount, so a harness that
+wants a command for one of these actions mounts that action as well.
 
 Each action declares whether a run reads or writes the project, and the
 command orders the run from these declarations. A declaration can depend on

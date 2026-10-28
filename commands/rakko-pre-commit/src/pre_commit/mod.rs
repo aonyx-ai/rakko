@@ -49,8 +49,10 @@ impl PreCommit {
     /// touch the same files. Two formatters can do this, and so can a
     /// generator that reads the files that a formatter writes.
     ///
-    /// The list is independent of the mount, so a harness that wants a command
-    /// for one of these actions mounts that action as well.
+    /// The list holds each action only once. A list with two actions of the
+    /// same name stops the harness when it mounts the command. The list is
+    /// independent of the mount, so a harness that wants a command for one of
+    /// these actions mounts that action as well.
     pub fn new(actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
         Self {
             actions: actions.into_iter().collect(),
