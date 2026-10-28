@@ -42,9 +42,9 @@ from the design discussions to the terms that replaced them.
   run. The projection derives one command from each mounted action, and a
   harness writes the others, for a maintenance activity of the project that
   does not fit an action. A derived command is not the action itself. A
-  written command is an ordinary Clawless command. Today it knows nothing
-  about actions. A group, which is a command that gives the projection the
-  actions that it runs, is planned.
+  written command is an ordinary Clawless command. It knows nothing about
+  actions, unless it is a group, which gives the projection the actions that
+  it runs.
 - **Context** — The data that is relevant when an action runs. Today this is
   the project root and the directory layout. Later it can include user
   variables and loaded configuration. Clawless uses the same name for a
@@ -61,11 +61,10 @@ from the design discussions to the terms that replaced them.
 - **Finding** — One problem that an action found in the project, with its
   location. Findings travel in the outcome of an action run.
 - **Fleet** — All Aonyx projects that Rakko maintains.
-- **Group** — (Planned.) A command that runs a list of actions, its members,
-  and gives that list to the projection. The projection derives
-  the flags of the group from the arguments of its members, and a flag
-  reaches only the members that declare its argument. A group has no
-  arguments of its own.
+- **Group** — A command that runs a list of actions, its members, and gives
+  that list to the projection. The projection derives the flags of the group
+  from the arguments of its members, and a flag reaches only the members that
+  declare its argument. A group has no arguments of its own.
 - **Harness** — The small binary crate in each project. The harness mounts
   the bundles and actions that the project uses, writes the commands of the
   project that do not fit an action, and `mise run rakko` runs it. The
@@ -99,8 +98,9 @@ from the design discussions to the terms that replaced them.
   that it starts in.
 - **Projection** — The `rakko-cli` crate. It turns the actions that a
   harness mounts into commands, with the help text and the shared output
-  flags, and it defines the trait that a written command implements. Only a
-  harness depends on it, so Clawless never reaches an action.
+  flags, and it defines the traits that a written command and a group
+  implement. Only a harness depends on it, so Clawless never reaches an
+  action.
 - **Rakko** — This project: a toolkit that turns project maintenance into
   versioned Rust crates. The rakko (ラッコ) is the Japanese sea otter, the
   otter that keeps a pebble as its tool.

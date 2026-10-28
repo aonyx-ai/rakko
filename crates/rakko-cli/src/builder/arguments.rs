@@ -12,14 +12,25 @@ use super::registry::Mounted;
 /// standard library reads as true.
 const TRUE: &str = "true";
 
-/// Returns the flags that render the arguments of an action or a command
+/// Returns the flags that render the arguments of an entry of the command tree
 ///
 /// Every argument becomes one long flag that carries the name of the
 /// argument. The projection gives no short flag: one letter is a name that
 /// only one argument in the whole fleet can hold, and no action has a claim
 /// on it.
-pub(super) fn render(schema: &ArgsSchema) -> Vec<Arg> {
-    schema.arguments().iter().map(flag).collect()
+///
+/// The flags of an action and of a command show the sentence of their
+/// argument. A group carries one flag for each argument of its members, and
+/// the flag shows one line for each member that declares the argument.
+pub(super) fn render(mounted: &Mounted) -> Vec<Arg> {
+    match mounted {
+        Mounted::Action(action) => render_schema(&action.arguments()),
+        Mounted::Command(command) => render_schema(&command.arguments()),
+        Mounted::Group { arguments, .. } => arguments
+            .iter()
+            .map(|merged| flag(merged.argument(), merged.help()))
+            .collect(),
+    }
 }
 
 /// Returns the values that a run holds for the arguments of a command
@@ -31,48 +42,81 @@ pub(super) fn render(schema: &ArgsSchema) -> Vec<Arg> {
 ///
 /// # Panics
 ///
-/// Panics when the matches did not come from the flags that [`render`] built
-/// for this schema.
+/// Panics when the matches hold no flag of the same shape for an argument of
+/// the schema. The flags come from [`render`] when the harness mounts the
+/// entry, so only a schema that changed since then causes the panic, such as
+/// a member that a group added to its list after the mount.
 pub(super) fn collect(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
     ArgsValues::new(schema.arguments().iter().filter_map(|argument| {
         value(argument, matches).map(|value| (argument.name().clone(), value))
     }))
 }
 
-/// Stops the harness when an action or a command declares a reserved argument
+/// Stops the harness when an entry declares a reserved argument
 ///
 /// The command line holds flags of its own, and a user reaches every one of
 /// them in every command. An argument with such a name would take a name that
 /// means something else in every other command of the fleet. Only a change of
 /// the action or the command corrects that, so the failure happens where the
-/// harness mounts it and not where a user runs it.
+/// harness mounts it and not where a user runs it. A group takes its flags
+/// from its members, so each member of a group passes the same check.
 ///
 /// # Panics
 ///
-/// Panics when an argument of an action or a command carries the name of a
-/// flag of the command line, and reports the entry and the argument.
+/// Panics when an argument of an action, a command, or a member of a group
+/// carries the name of a flag of the command line, and reports the entry, the
+/// member, and the argument.
 pub(super) fn refuse_reserved(entries: &[Mounted]) {
     let reserved = reserved();
 
     for mounted in entries {
-        let schema = mounted.arguments();
+        match mounted {
+            Mounted::Action(action) => {
+                refuse(&reserved, &mounted.to_string(), &action.arguments());
+            }
+            Mounted::Command(command) => {
+                refuse(&reserved, &mounted.to_string(), &command.arguments());
+            }
+            Mounted::Group { group, .. } => {
+                for member in group.members() {
+                    let declarer = format!("action '{}' in the {mounted}", member.name());
 
-        for argument in schema.arguments() {
-            assert!(
-                !reserved.contains(argument.name().get()),
-                "the {mounted} declares the argument '{}', which the command line defines itself",
-                argument.name(),
-            );
+                    refuse(&reserved, &declarer, &member.arguments());
+                }
+            }
         }
     }
 }
 
-/// Returns the flag that renders one argument
-fn flag(argument: &Argument) -> Arg {
+/// Returns the flags that render the arguments of an action or a command
+fn render_schema(schema: &ArgsSchema) -> Vec<Arg> {
+    schema
+        .arguments()
+        .iter()
+        .map(|argument| flag(argument, argument.documentation().get().to_owned()))
+        .collect()
+}
+
+/// Stops the harness when one declaration holds a reserved argument
+///
+/// # Panics
+///
+/// Panics when an argument of the schema carries the name of a flag of the
+/// command line, and reports the declarer and the argument.
+fn refuse(reserved: &BTreeSet<String>, declarer: &str, schema: &ArgsSchema) {
+    for argument in schema.arguments() {
+        assert!(
+            !reserved.contains(argument.name().get()),
+            "the {declarer} declares the argument '{}', which the command line defines itself",
+            argument.name(),
+        );
+    }
+}
+
+/// Returns the flag that renders one argument, with the given help
+fn flag(argument: &Argument, help: String) -> Arg {
     let name = argument.name().get().to_owned();
-    let flag = Arg::new(name.clone())
-        .long(name.clone())
-        .help(argument.documentation().get().to_owned());
+    let flag = Arg::new(name.clone()).long(name.clone()).help(help);
 
     match argument.shape() {
         ArgumentShape::Boolean => flag.action(ArgAction::SetTrue),

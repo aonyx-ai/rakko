@@ -25,7 +25,8 @@ use rakko_action::{Args, Context, Name};
 /// a Clawless command returns: success or an error, and no value. The
 /// projection hands a command no view of the actions that the harness
 /// mounted. A command that runs actions calls them as the libraries that they
-/// are.
+/// are. A command that runs a list of actions and takes its flags from their
+/// arguments is a [`Group`] instead.
 ///
 /// The framework drives a command on a runtime of its own and can move the
 /// run to a different thread. The trait therefore requires [`Send`] and
@@ -67,6 +68,7 @@ use rakko_action::{Args, Context, Name};
 /// ```
 ///
 /// [`Action`]: rakko_action::Action
+/// [`Group`]: crate::Group
 /// [`run`]: Command::run
 pub trait Command: Send + Sync {
     /// The arguments that a run of the command reads
