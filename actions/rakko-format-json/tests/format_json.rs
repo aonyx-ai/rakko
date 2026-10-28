@@ -35,6 +35,9 @@ const FORMATTED: &str = "{ \"a\": 1 }\n";
 /// A JSON document that prettier rewrites
 const UNFORMATTED: &str = "{\"a\":   1}\n";
 
+/// A Markdown document that prettier rewrites, and that the action leaves alone
+const UNFORMATTED_MARKDOWN: &str = "#  Notes\n";
+
 /// A JSON document that prettier cannot parse
 const INVALID: &str = "{ \"a\": 1,, }\n";
 
@@ -138,6 +141,13 @@ impl Project {
 
         std::fs::write(&path, content).expect("the test writes a file of the project");
     }
+}
+
+/// Returns the arguments of a run that rewrites what it can
+fn fixing() -> FormatJsonArgs {
+    let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+
+    FormatJsonArgs::from_values(&values).expect("the test builds arguments that ask for a rewrite")
 }
 
 /// Returns the root of the repository that the tests run in
@@ -399,6 +409,22 @@ async fn run_with_an_unformatted_file_names_the_file() {
                 .parse()
                 .expect("the test names a relative path"),
         }
+    );
+}
+
+#[tokio::test]
+async fn run_with_fix_changes_only_the_files_that_it_declares() {
+    let project = Project::new();
+    project.write(".config/messy.json", UNFORMATTED);
+    project.write(".config/notes.md", UNFORMATTED_MARKDOWN);
+
+    // The helper fails the test when the run changed a file outside its
+    // expanded write list, such as the Markdown file.
+    let outcome = run_checking_access(&FormatJson, &project.context(), &fixing()).await;
+
+    assert!(
+        matches!(outcome, Outcome::Changed { .. }),
+        "expected the run to rewrite the JSON file, got {outcome:?}"
     );
 }
 

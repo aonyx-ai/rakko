@@ -17,7 +17,7 @@ mod name;
 use getset::Getters;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
-use rakko_action::ProjectRoot;
+use rakko_action::{Pattern, ProjectRoot};
 
 pub use self::error::ResolveToolError;
 pub use self::name::ToolName;
@@ -37,6 +37,29 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 
 /// The details of a run of mise that ended with success and named no location
 const NO_LOCATION: &str = "mise named no location";
+
+/// The patterns of the files that mise reads in the root of a project
+///
+/// Mise reads `mise.toml` and `.mise.toml`, the local and environment
+/// variants of both, such as `mise.local.toml`, and the lockfile beside each
+/// of them. It reads the same files below `.config`, and the configuration,
+/// the lockfiles, and the `conf.d` files in the directories `mise`, `.mise`,
+/// and `.config/mise`. The patterns cover every file of these three
+/// directories. Mise also reads `.tool-versions`, and `.miserc.toml`,
+/// `.miserc.local.toml`, or `.config/miserc.toml`, which can select the
+/// environment of the other files.
+const RESOLUTION_FILES: [&str; 10] = [
+    ".config/mise.*",
+    ".config/mise/**",
+    ".config/miserc.toml",
+    ".mise.*",
+    ".mise/**",
+    ".miserc.local.toml",
+    ".miserc.toml",
+    ".tool-versions",
+    "mise.*",
+    "mise/**",
+];
 
 /// The extensions that Windows starts a program by
 ///
@@ -113,6 +136,32 @@ impl Tool {
     /// [resolve]: Tool::resolve
     pub fn invocation(&self) -> Invocation {
         Invocation::new(self.program.clone()).in_directory(self.root.get())
+    }
+
+    /// Returns the patterns of the files that mise reads to resolve a tool
+    ///
+    /// [`resolve`][resolve] asks mise for the tool, and mise answers from the
+    /// configuration of the project: `mise.toml` in each of its forms, the
+    /// lockfile beside it, `.miserc.toml`, and `.tool-versions`. An action
+    /// that resolves its tool therefore reads these files, and its
+    /// declaration of access includes the patterns. Then a run that changes
+    /// one of the files, such as a formatter of TOML files, does not run
+    /// beside it.
+    ///
+    /// The patterns are relative to the project root, and they cover the
+    /// files that mise reads there when no setting changes their names. Mise
+    /// also reads the configuration of each directory above the root and of
+    /// the user. These files are outside the project, so no pattern covers
+    /// them.
+    ///
+    /// The function does no I/O, so a declaration can call it.
+    ///
+    /// [resolve]: Tool::resolve
+    pub fn resolution_files() -> Vec<Pattern> {
+        RESOLUTION_FILES
+            .into_iter()
+            .map(Pattern::from_static)
+            .collect()
     }
 
     /// Returns the tool of a project, at the location that mise reports
@@ -308,6 +357,13 @@ mod tests {
         ProjectRoot::from(root)
     }
 
+    /// Returns whether a pattern of [`Tool::resolution_files`] covers a file
+    fn resolves_from(file: &str) -> bool {
+        Tool::resolution_files()
+            .iter()
+            .any(|pattern| pattern.matches(Path::new(file)))
+    }
+
     /// Returns the tool that this repository pins, resolved
     async fn pinned() -> Tool {
         Tool::resolve(ToolName::new(PINNED), root())
@@ -334,6 +390,48 @@ mod tests {
         let invocation = tool.invocation();
 
         assert_eq!(invocation.program(), tool.program());
+    }
+
+    #[test]
+    fn resolution_files_cover_every_file_that_mise_reads_in_the_root() {
+        let read = [
+            ".config/mise.local.toml",
+            ".config/mise.lock",
+            ".config/mise.toml",
+            ".config/mise/conf.d/tools.toml",
+            ".config/mise/config.local.toml",
+            ".config/mise/config.toml",
+            ".config/mise/mise.toml",
+            ".config/miserc.toml",
+            ".mise.local.toml",
+            ".mise.toml",
+            ".mise/conf.d/tools.toml",
+            ".mise/config.toml",
+            ".miserc.local.toml",
+            ".miserc.toml",
+            ".tool-versions",
+            "mise.local.lock",
+            "mise.local.toml",
+            "mise.lock",
+            "mise.production.toml",
+            "mise.toml",
+            "mise/conf.d/tools/mise.toml",
+            "mise/config.toml",
+        ];
+
+        let uncovered: Vec<&str> = read
+            .into_iter()
+            .filter(|file| !resolves_from(file))
+            .collect();
+
+        assert!(uncovered.is_empty(), "expected patterns for {uncovered:?}");
+    }
+
+    #[test]
+    fn resolution_files_leave_out_a_configuration_below_the_root() {
+        let covered = resolves_from("crates/demo/mise.toml");
+
+        assert!(!covered);
     }
 
     #[tokio::test]

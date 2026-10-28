@@ -1,15 +1,17 @@
 //! The taplo that a project runs
 //!
-//! This module holds the program that mise installed for a project and the
-//! run of one operation. An action states which operation it wants, and
-//! everything between the action and the process lives here.
+//! This module holds the program that mise installed for a project, the run
+//! of one operation, and the files that such a run reads and writes. An
+//! action states which operation it wants, and everything between the action
+//! and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 
+use std::iter;
 use std::time::Duration;
 
-use rakko_action::ProjectRoot;
+use rakko_action::{Access, FileAccess, Files, Pattern, ProjectRoot};
 use rakko_tool::{Execution, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveTaploError;
@@ -41,6 +43,19 @@ const BACKOFF: Duration = Duration::from_millis(25);
 
 /// The name that mise knows the tool by
 const TAPLO: &str = "taplo";
+
+/// The pattern of the files that taplo selects
+///
+/// Taplo selects these files when the configuration of the project names no
+/// selection of its own. The pattern matches a file in a hidden directory as
+/// well, as taplo does.
+const SELECTION: &str = "**/*.toml";
+
+/// The patterns of the files that taplo reads as its configuration
+///
+/// Taplo looks for one of these files in the root of the project, where every
+/// run starts.
+const CONFIGURATION: [&str; 2] = [".taplo.toml", "taplo.toml"];
 
 /// The subcommand of taplo that formats TOML files
 const FORMAT: &str = "fmt";
@@ -101,6 +116,56 @@ pub struct Taplo {
 }
 
 impl Taplo {
+    /// Returns the files that a run of taplo reads and writes
+    ///
+    /// The answer is the declaration of an action that runs taplo with the
+    /// given access. Every run reads the configuration of taplo and the files
+    /// that mise reads to find taplo. A run that reads also reads the TOML
+    /// files of the project, and it writes no file. A run that writes
+    /// rewrites the TOML files, so it writes them and reads only the
+    /// configuration.
+    ///
+    /// The patterns cover the files that taplo selects when the configuration
+    /// of the project names no selection. A configuration that widens the
+    /// selection, such as an `include` that adds `Pipfile`, is outside the
+    /// patterns.
+    ///
+    /// The function does no I/O, so a declaration can call it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::{Access, Files, Pattern};
+    /// use rakko_taplo::Taplo;
+    ///
+    /// let files = Taplo::files(Access::Write);
+    ///
+    /// assert_eq!(
+    ///     files.writes(),
+    ///     &Files::Matching(vec![Pattern::from_static("**/*.toml")])
+    /// );
+    /// ```
+    pub fn files(access: Access) -> FileAccess {
+        let selection = Pattern::from_static(SELECTION);
+        let configuration = CONFIGURATION
+            .into_iter()
+            .map(Pattern::from_static)
+            .chain(Tool::resolution_files());
+
+        match access {
+            Access::Read => FileAccess::builder()
+                .reads(Files::Matching(
+                    iter::once(selection).chain(configuration).collect(),
+                ))
+                .writes(Files::Matching(Vec::new()))
+                .build(),
+            Access::Write => FileAccess::builder()
+                .reads(Files::Matching(configuration.collect()))
+                .writes(Files::Matching(vec![selection]))
+                .build(),
+        }
+    }
+
     /// Runs one operation and reads what taplo reported
     ///
     /// Taplo can lose the end of its report when it exits. The answer of a
@@ -207,6 +272,19 @@ mod tests {
 
     use super::*;
 
+    /// Returns the patterns that the literals describe
+    fn patterns<const N: usize>(literals: [&'static str; N]) -> Vec<Pattern> {
+        literals.into_iter().map(Pattern::from_static).collect()
+    }
+
+    /// Returns the patterns of the configuration that every run reads
+    fn configuration() -> Vec<Pattern> {
+        let mut configuration = patterns(CONFIGURATION);
+        configuration.extend(Tool::resolution_files());
+
+        configuration
+    }
+
     #[test]
     fn arguments_of_a_format_check_report_instead_of_rewriting() {
         let selected = arguments(Operation::CheckFormat);
@@ -226,5 +304,36 @@ mod tests {
         let selected = arguments(Operation::Lint);
 
         assert_eq!(selected, ["lint"]);
+    }
+
+    #[test]
+    fn files_of_a_read_cover_the_toml_files_and_the_configuration() {
+        let mut expected = patterns(["**/*.toml"]);
+        expected.extend(configuration());
+
+        let files = Taplo::files(Access::Read);
+
+        assert_eq!(files.reads(), &Files::Matching(expected));
+    }
+
+    #[test]
+    fn files_of_a_read_write_no_file() {
+        let files = Taplo::files(Access::Read);
+
+        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
+    }
+
+    #[test]
+    fn files_of_a_write_read_the_configuration() {
+        let files = Taplo::files(Access::Write);
+
+        assert_eq!(files.reads(), &Files::Matching(configuration()));
+    }
+
+    #[test]
+    fn files_of_a_write_write_the_toml_files() {
+        let files = Taplo::files(Access::Write);
+
+        assert_eq!(files.writes(), &Files::Matching(patterns(["**/*.toml"])));
     }
 }

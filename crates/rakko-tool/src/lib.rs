@@ -14,6 +14,10 @@
 //! a run. An action can therefore write the command to a log, or name it in
 //! an error, before anything runs.
 //!
+//! Mise reads the configuration of the project to find a tool, so an action
+//! that resolves its tool reads those files. The crate gives their patterns,
+//! and an action adds them to its declaration of access.
+//!
 //! # Asynchronous Runtime
 //!
 //! A run starts a program and waits for it, and a [Tokio] runtime drives that
