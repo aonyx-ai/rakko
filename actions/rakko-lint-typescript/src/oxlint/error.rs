@@ -5,9 +5,9 @@ use crate::oxlint::report::ReadReportError;
 
 /// An error that leaves a run of oxlint without an answer
 ///
-/// A rule that a file broke is no failure of a run: it travels in the
-/// observation, and the caller decides what it means. The variants here
-/// describe a run that produced no answer at all.
+/// A diagnostic of oxlint is no failure of a run, even one about the project
+/// itself: it travels in the observation, and the caller decides what it
+/// means. The variants here describe a run that produced no answer at all.
 #[derive(Debug, Error)]
 pub enum ObserveOxlintError {
     /// Oxlint wrote no report

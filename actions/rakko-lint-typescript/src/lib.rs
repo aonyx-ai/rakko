@@ -13,8 +13,8 @@
 //!
 //! Oxlint gives each diagnostic a severity, and the configuration of the
 //! project decides that severity for each rule. This crate reports a warning
-//! and an error alike, because both are rules that the project asked oxlint to
-//! look for, and a run with either fails.
+//! and an error alike, and a run with either fails, because a rule at either
+//! severity is one that the project asked oxlint to look for.
 //!
 //! One run of oxlint answers everything that the action needs. The report
 //! carries the diagnostics and the number of files that the run examined, so
@@ -54,11 +54,11 @@ pub mod lint_typescript;
 pub mod observation;
 /// Types for the oxlint that a project runs
 pub mod oxlint;
-/// Types for one rule that oxlint reported about a file
+/// Types for one diagnostic that oxlint reported about a project
 pub mod problem;
 
 pub use self::lint_typescript::{LintTypeScript, LintTypeScriptError};
 pub use self::observation::Observation;
 pub use self::oxlint::report::ReadReportError;
 pub use self::oxlint::{ObserveOxlintError, Oxlint};
-pub use self::problem::{OxlintProblem, Severity};
+pub use self::problem::{OxlintProblem, Place, Severity};

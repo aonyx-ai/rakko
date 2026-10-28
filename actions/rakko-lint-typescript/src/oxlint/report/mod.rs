@@ -15,11 +15,12 @@ mod error;
 
 use std::path::PathBuf;
 
+use rakko_action::Position;
 use serde::Deserialize;
 
 pub use self::error::ReadReportError;
 use crate::observation::Observation;
-use crate::problem::{OxlintProblem, Severity};
+use crate::problem::{OxlintProblem, Place, Severity};
 
 /// The character that opens the report of oxlint
 const REPORT_OPEN: char = '{';
@@ -30,23 +31,32 @@ const REPORT_OPEN: char = '{';
 /// a field that a new version adds does not break it.
 #[derive(Deserialize)]
 struct Report {
-    /// The rules that the files of the run broke
+    /// The diagnostics of the run, about its files and about the project
     diagnostics: Vec<Diagnostic>,
 
     /// How many files the run examined
     number_of_files: usize,
 }
 
-/// One rule that a file of the run broke
+/// One diagnostic of the run
+///
+/// Most diagnostics report a rule that a file broke. A syntax error names a
+/// file and no rule. Some diagnostics name no rule and no file: one about the
+/// project, such as a suppressions file that no longer agrees with the code,
+/// and one about a file that oxlint could not open.
 #[derive(Deserialize)]
 struct Diagnostic {
-    /// What oxlint said about the rule and the file
+    /// What oxlint said about the diagnostic
     message: String,
 
     /// The rule that the file broke, as oxlint names it
-    code: String,
+    ///
+    /// Oxlint leaves the field out for a diagnostic that no rule reports, such
+    /// as a syntax error or a diagnostic about the project.
+    #[serde(default)]
+    code: Option<String>,
 
-    /// How the project weighs the rule
+    /// The severity that oxlint gave the diagnostic
     severity: Severity,
 
     /// What oxlint suggests about the diagnostic
@@ -58,6 +68,12 @@ struct Diagnostic {
     help: Option<String>,
 
     /// The file that broke the rule, as oxlint wrote it
+    ///
+    /// A diagnostic that names no file has an empty name. Oxlint writes an
+    /// empty name for a diagnostic about the project, and it leaves the field
+    /// out for a file that it could not open, whose path it writes in the
+    /// message instead.
+    #[serde(default)]
     filename: PathBuf,
 
     /// The places of the file that the diagnostic marks
@@ -71,24 +87,41 @@ impl Diagnostic {
     /// it marks, and the problem sits at the first of them, which is the place
     /// that oxlint itself points a reader at.
     ///
-    /// Returns `None` for a diagnostic that marks no place. Every diagnostic of
-    /// oxlint marks at least one, so such a report belongs to a version that
-    /// this crate does not know, and a problem without a place could only be
-    /// reported somewhere it does not belong.
-    fn into_problem(self) -> Option<OxlintProblem> {
-        let first = self.labels.first()?;
+    /// A diagnostic that names no file belongs to the project, and one that
+    /// names a file and marks no place in it belongs to the whole file. Oxlint
+    /// writes the first kind about the suppressions file of a project, which
+    /// lists the problems that the project accepts, when that file no longer
+    /// agrees with the code.
+    fn into_problem(self) -> OxlintProblem {
+        OxlintProblem::builder()
+            .place(place(self.filename, &self.labels))
+            .severity(self.severity)
+            .maybe_code(self.code)
+            .description(self.message)
+            .maybe_help(self.help)
+            .build()
+    }
+}
 
-        Some(
-            OxlintProblem::builder()
-                .path(self.filename)
-                .line(first.span.line)
-                .column(first.span.column)
-                .severity(self.severity)
-                .code(self.code)
-                .description(self.message)
-                .maybe_help(self.help)
-                .build(),
-        )
+/// Returns where a diagnostic belongs, from the file and the places that it
+/// names
+fn place(filename: PathBuf, labels: &[Label]) -> Place {
+    if filename.as_os_str().is_empty() {
+        return Place::Project;
+    }
+
+    let Some(first) = labels.first() else {
+        return Place::File { path: filename };
+    };
+
+    let position = Position::builder()
+        .line(first.span.line)
+        .column(first.span.column)
+        .build();
+
+    Place::Position {
+        path: filename,
+        position,
     }
 }
 
@@ -134,10 +167,7 @@ pub fn read(output: &str) -> Result<Observation, ReadReportError> {
         .diagnostics
         .into_iter()
         .map(Diagnostic::into_problem)
-        .collect::<Option<Vec<_>>>()
-        .ok_or(ReadReportError::Unreadable {
-            source: serde::de::Error::missing_field("labels"),
-        })?;
+        .collect();
 
     Ok(Observation::builder()
         .problems(problems)
@@ -157,7 +187,6 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::problem::{OxlintProblem, Severity};
 
     /// The report of a run that examined one file and found two rules broken
     ///
@@ -198,8 +227,50 @@ mod tests {
                              x Failed to parse oxlint config /home/otter/project/.oxlintrc.json.\n  \
                              | key must be a string at line 1 column 3\n";
 
+    /// The report of a run whose suppressions file names a problem that the
+    /// code no longer has
+    ///
+    /// The text is what oxlint 1.90.0 writes. The diagnostic belongs to the
+    /// project, so it names no rule and no file, and it marks no place.
+    const STALE: &str = r#"{ "diagnostics": [{"message": "There are suppressions that do not occur anymore.","severity": "error","help": "Run `oxlint --prune-suppressions` to remove unused suppressions.","filename": "","labels": []}],
+              "number_of_files": 1,
+              "number_of_rules": 96,
+              "threads_count": 10,
+              "start_time": 0.002483875
+            }
+            "#;
+
     /// A report that holds a field of a shape that oxlint does not write
     const STRANGE: &str = r#"{"diagnostics": "none"}"#;
+
+    /// The report of a run that found a file which TypeScript cannot parse
+    ///
+    /// The text is what oxlint 1.90.0 writes for a syntax error. The diagnostic
+    /// names a file and marks a place in it, and it names no rule.
+    const SYNTAX: &str = r#"{ "diagnostics": [{"message": "Expected `}` but found `EOF`","severity": "error","filename": "index.ts","labels": [{"label": "`}` expected","span": {"offset": 26,"length": 0,"line": 2,"column": 1}}]}],
+              "number_of_files": 1,
+              "number_of_rules": 96,
+              "threads_count": 10,
+              "start_time": 0.004864375
+            }
+            "#;
+
+    /// The report of a run that found a problem which the suppressions file of
+    /// the project does not cover
+    ///
+    /// The text is what oxlint 1.90.0 writes for a file that breaks a rule
+    /// twice where the suppressions file allows it once. Oxlint reports every
+    /// time that the file breaks the rule, and then one diagnostic about the
+    /// project, which names no rule and no file, and marks no place.
+    const UNCOVERED: &str = r#"{ "diagnostics": [{"message": "`debugger` statement is not allowed","code": "eslint(no-debugger)","severity": "error","url": "https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-debugger.html","help": "Remove the debugger statement","filename": "index.ts","labels": [{"span": {"offset": 32,"length": 9,"line": 2,"column": 3}}]},
+{"message": "`debugger` statement is not allowed","code": "eslint(no-debugger)","severity": "error","url": "https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-debugger.html","help": "Remove the debugger statement","filename": "index.ts","labels": [{"span": {"offset": 44,"length": 9,"line": 3,"column": 3}}]},
+{"message": "There are new violations not covered by the suppressions file.","severity": "error","help": "Run `oxlint --suppress-all` to update the suppressions file.","filename": "","labels": []}],
+              "number_of_files": 1,
+              "number_of_rules": 96,
+              "threads_count": 10,
+              "start_time": 0.002809875
+            }
+            "#;
 
     /// The report of a run that found no file to lint
     ///
@@ -214,11 +285,42 @@ mod tests {
             }
             "#;
 
-    /// A diagnostic that marks no place of a file
+    /// The report of a run that found a file which oxlint could not open
+    ///
+    /// The text is what oxlint 1.90.0 writes for a JavaScript file that is not
+    /// valid UTF-8, with the path of the project replaced. The diagnostic
+    /// about that file names no file in its fields and marks no place, and
+    /// the diagnostic about the other file of the run follows it.
+    const UNOPENED: &str = r#"{ "diagnostics": [{"message": "Failed to open file /home/otter/project/legacy.js with error \"stream did not contain valid UTF-8\"","severity": "error","labels": []},
+{"message": "`debugger` statement is not allowed","code": "eslint(no-debugger)","severity": "warning","url": "https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-debugger.html","help": "Remove the debugger statement","filename": "index.ts","labels": [{"span": {"offset": 32,"length": 9,"line": 2,"column": 3}}]}],
+              "number_of_files": 2,
+              "number_of_rules": 96,
+              "threads_count": 10,
+              "start_time": 0.029024458
+            }
+            "#;
+
+    /// A diagnostic that names a file and marks no place in it
+    ///
+    /// The text is made by hand from a diagnostic that marks two places, with
+    /// its places removed. No output of oxlint 1.90.0 that this crate knows has
+    /// this shape.
     const UNPLACED: &str = r#"{ "diagnostics": [{"message": "Duplicate key 'k'","code": "eslint(no-dupe-keys)","severity": "warning","filename": "index.ts","labels": []}],
               "number_of_files": 1
             }
             "#;
+
+    /// Returns where the diagnostics of a report belong, in the order of the
+    /// report
+    fn places(report: &str) -> Vec<Place> {
+        let observation = read(report).expect("the test reads a report that oxlint could write");
+
+        observation
+            .problems()
+            .iter()
+            .map(|problem| problem.place().clone())
+            .collect()
+    }
 
     /// Returns the first diagnostic of a report that holds one
     fn problem(report: &str) -> OxlintProblem {
@@ -272,23 +374,31 @@ mod tests {
     fn read_of_a_diagnostic_names_the_file() {
         let problem = problem(BROKEN);
 
-        assert_eq!(problem.path(), &PathBuf::from("index.ts"));
+        let Place::Position { path, .. } = problem.place() else {
+            panic!("expected a position, got {:?}", problem.place());
+        };
+        assert_eq!(path, &PathBuf::from("index.ts"));
     }
 
     #[test]
     fn read_of_a_diagnostic_sits_at_the_place_that_oxlint_marked() {
         let problem = problem(BROKEN);
 
-        assert_eq!((problem.line(), problem.column()), (3, 9));
+        let Place::Position { position, .. } = problem.place() else {
+            panic!("expected a position, got {:?}", problem.place());
+        };
+        assert_eq!(position, &Position::builder().line(3).column(9).build());
     }
 
     #[test]
-    fn read_of_a_diagnostic_that_marks_no_place_stops_the_reading() {
-        let observation = read(UNPLACED);
+    fn read_of_a_diagnostic_that_marks_no_place_sits_at_the_file() {
+        let places = places(UNPLACED);
 
-        assert!(
-            observation.is_err(),
-            "expected the reading to stop, got {observation:?}"
+        assert_eq!(
+            places,
+            [Place::File {
+                path: PathBuf::from("index.ts"),
+            }]
         );
     }
 
@@ -303,7 +413,10 @@ mod tests {
     fn read_of_a_diagnostic_that_marks_two_places_sits_at_the_first() {
         let problem = problem(PAIRED);
 
-        assert_eq!((problem.line(), problem.column()), (5, 15));
+        let Place::Position { position, .. } = problem.place() else {
+            panic!("expected a position, got {:?}", problem.place());
+        };
+        assert_eq!(position, &Position::builder().line(5).column(15).build());
     }
 
     #[test]
@@ -311,6 +424,22 @@ mod tests {
         let problem = problem(CURT);
 
         assert_eq!(problem.help(), &None);
+    }
+
+    #[test]
+    fn read_of_a_file_that_oxlint_could_not_open_holds_a_problem_of_the_project() {
+        let places = places(UNOPENED);
+
+        assert_eq!(
+            places,
+            [
+                Place::Project,
+                Place::Position {
+                    path: PathBuf::from("index.ts"),
+                    position: Position::builder().line(2).column(3).build(),
+                },
+            ]
+        );
     }
 
     #[test]
@@ -332,12 +461,56 @@ mod tests {
     }
 
     #[test]
+    fn read_of_a_stale_suppression_holds_one_problem_of_the_project() {
+        let places = places(STALE);
+
+        assert_eq!(places, [Place::Project]);
+    }
+
+    #[test]
+    fn read_of_a_syntax_error_sits_at_its_place_without_a_rule() {
+        let problem = problem(SYNTAX);
+
+        assert_eq!(
+            problem,
+            OxlintProblem::builder()
+                .place(Place::Position {
+                    path: PathBuf::from("index.ts"),
+                    position: Position::builder().line(2).column(1).build(),
+                })
+                .severity(Severity::Error)
+                .description("Expected `}` but found `EOF`")
+                .build()
+        );
+    }
+
+    #[test]
     fn read_of_an_absent_report_names_the_condition() {
         let error = read(REJECTION).expect_err("the test reads what oxlint wrote instead");
 
         assert!(
             matches!(error, ReadReportError::Absent),
             "expected an absent report, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn read_of_an_uncovered_violation_holds_the_problems_of_the_file_and_of_the_project() {
+        let places = places(UNCOVERED);
+
+        assert_eq!(
+            places,
+            [
+                Place::Position {
+                    path: PathBuf::from("index.ts"),
+                    position: Position::builder().line(2).column(3).build(),
+                },
+                Place::Position {
+                    path: PathBuf::from("index.ts"),
+                    position: Position::builder().line(3).column(3).build(),
+                },
+                Place::Project,
+            ]
         );
     }
 }

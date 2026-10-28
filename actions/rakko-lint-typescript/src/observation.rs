@@ -1,8 +1,8 @@
 //! What one run of oxlint produced
 //!
 //! Oxlint writes one JSON object per run, and it carries both answers that an
-//! action needs: how many files the run examined, and which rules the files
-//! broke. This module turns one run into data and judges nothing: the action
+//! action needs: how many files the run examined, and which diagnostics it
+//! reported. This module turns one run into data and judges nothing: the action
 //! that asked for the run decides what the answer means for its outcome.
 
 use bon::bon;
@@ -12,8 +12,8 @@ use crate::problem::OxlintProblem;
 
 /// What one run of oxlint produced
 ///
-/// The value holds the answer of one run: the rules that oxlint reported, and
-/// how many files it examined to reach that answer.
+/// The value holds the answer of one run: the diagnostics that oxlint
+/// reported, and how many files it examined to reach that answer.
 ///
 /// A run that examined nothing is not a run that found nothing. Oxlint reports
 /// no diagnostic for a project that holds no file it lints and for a project
@@ -21,7 +21,7 @@ use crate::problem::OxlintProblem;
 /// outcome of an action, so the count travels with the diagnostics.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
-    /// The rules that oxlint reported, in the order of the report
+    /// The diagnostics that oxlint reported, in the order of the report
     #[getset(get = "pub")]
     problems: Vec<OxlintProblem>,
 
