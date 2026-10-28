@@ -9,7 +9,8 @@
 mod error;
 
 use rakko_action::{
-    Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, action_name,
+    Access, Action, Context, FileAccess, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
+    action_name,
 };
 
 pub use self::error::LintGitHubActionsError;
@@ -50,8 +51,11 @@ const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 /// zizmor, when zizmor stops before it has audited the project, and when
 /// zizmor writes a report that the action cannot read.
 ///
-/// A run declares a read of the project. A caller that orders runs by their
-/// declarations runs it after the actions that write.
+/// A run declares a read, and it writes no file. It reads the files that zizmor
+/// collects, the configuration of zizmor, and the files that mise reads to find
+/// zizmor. A caller that orders runs by their declarations can then run it
+/// after the actions that write these files. It can also run it beside the runs
+/// that touch none of these files.
 ///
 /// # Examples
 ///
@@ -78,6 +82,10 @@ impl Action for LintGitHubActions {
 
     fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
         Access::Read
+    }
+
+    fn files(&self, _context: &Context, _args: &Self::Args) -> FileAccess {
+        Zizmor::files()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -182,8 +190,9 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rakko_action::{Position, Span};
+    use rakko_action::{Files, Pattern, Position, Span};
     use rakko_test_utils::path;
+    use rakko_tool::Tool;
 
     use super::*;
     use crate::problem::Severity;
@@ -224,6 +233,38 @@ mod tests {
         let access = LintGitHubActions.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn files_read_the_collected_files_and_the_configuration() {
+        let mut expected: Vec<Pattern> = [
+            "**/.github/workflows/*.{yaml,yml}",
+            "**/.pre-commit-config.{yaml,yml}",
+            "**/.pre-commit-hooks.{yaml,yml}",
+            "**/action.{yaml,yml}",
+            "**/dependabot.{yaml,yml}",
+            "**/.gitignore",
+            ".git/info/exclude",
+            ".github/zizmor.yaml",
+            ".github/zizmor.yml",
+            "zizmor.yaml",
+            "zizmor.yml",
+        ]
+        .into_iter()
+        .map(Pattern::from_static)
+        .collect();
+        expected.extend(Tool::resolution_files());
+
+        let files = LintGitHubActions.files(&context(), &());
+
+        assert_eq!(files.reads(), &Files::Matching(expected));
+    }
+
+    #[test]
+    fn files_write_no_file() {
+        let files = LintGitHubActions.files(&context(), &());
+
+        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
     }
 
     #[test]
