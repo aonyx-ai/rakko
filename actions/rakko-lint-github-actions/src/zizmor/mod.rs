@@ -1,15 +1,16 @@
 //! The zizmor that a project runs
 //!
-//! This module holds the program that mise installed for a project and the
-//! run that produces a report. An action asks for a run, and everything
-//! between the action and the process lives here.
+//! This module holds the program that mise installed for a project, the run
+//! that produces a report, and the files that such a run reads. An action
+//! asks for a run, and everything between the action and the process lives
+//! here.
 
 /// The error that leaves a run without an answer
 mod error;
 /// The reading of the report that zizmor wrote
 mod report;
 
-use rakko_action::ProjectRoot;
+use rakko_action::{FileAccess, Files, Pattern, ProjectRoot};
 use rakko_tool::{ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveZizmorError;
@@ -60,6 +61,36 @@ const STRICT_COLLECTION: &str = "--strict-collection";
 /// A run starts in the root of the project, so the working directory is the
 /// place, and zizmor reports every path relative to it.
 const HERE: &str = ".";
+
+/// The patterns of the files that zizmor collects
+///
+/// A run names the root of the project. Zizmor then collects files by their
+/// names, in every directory, also in a directory whose name starts with a
+/// dot. It collects the workflows directly in a `.github/workflows` directory
+/// and the definitions of actions. It also collects the configurations of
+/// Dependabot, and the configuration and hooks files of pre-commit.
+const SELECTION: [&str; 5] = [
+    "**/.github/workflows/*.{yaml,yml}",
+    "**/.pre-commit-config.{yaml,yml}",
+    "**/.pre-commit-hooks.{yaml,yml}",
+    "**/action.{yaml,yml}",
+    "**/dependabot.{yaml,yml}",
+];
+
+/// The patterns of the files that zizmor reads as its configuration
+///
+/// Zizmor looks for its configuration file in the root of the project and in
+/// its `.github` directory. It reads the `.gitignore` file of every directory
+/// and the ignore rules of `.git/info/exclude` as well, because it skips the
+/// files that git ignores.
+const CONFIGURATION: [&str; 6] = [
+    "**/.gitignore",
+    ".git/info/exclude",
+    ".github/zizmor.yaml",
+    ".github/zizmor.yml",
+    "zizmor.yaml",
+    "zizmor.yml",
+];
 
 /// The status of a zizmor that audited the project and found nothing
 const CLEAN: i32 = 0;
@@ -112,6 +143,41 @@ pub struct Zizmor {
 }
 
 impl Zizmor {
+    /// Returns the files that a run of zizmor reads and writes
+    ///
+    /// The answer is the declaration of an action that calls
+    /// [`observe`][observe]. The run reads the files that zizmor collects, the
+    /// configuration of zizmor, and the files that mise reads to find zizmor.
+    /// It writes no file.
+    ///
+    /// The function does no I/O, so a declaration can call it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::Files;
+    /// use rakko_lint_github_actions::Zizmor;
+    ///
+    /// let files = Zizmor::files();
+    ///
+    /// assert_eq!(files.writes(), &Files::Matching(Vec::new()));
+    /// ```
+    ///
+    /// [observe]: Zizmor::observe
+    pub fn files() -> FileAccess {
+        let reads = SELECTION
+            .into_iter()
+            .chain(CONFIGURATION)
+            .map(Pattern::from_static)
+            .chain(Tool::resolution_files())
+            .collect();
+
+        FileAccess::builder()
+            .reads(Files::Matching(reads))
+            .writes(Files::Matching(Vec::new()))
+            .build()
+    }
+
     /// Runs zizmor over the project and reads what it reported
     ///
     /// The run names the root of the project, asks for the pedantic persona,
