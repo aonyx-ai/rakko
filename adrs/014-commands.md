@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. [ADR-019] partly supersedes point 3.
 
 ## Context
 
@@ -204,4 +204,5 @@ and the exit codes of ADR-008 rest on.
 [adr-007]: 007-argument-vocabulary.md
 [adr-008]: 008-renderers.md
 [adr-010]: 010-project-root.md
+[adr-019]: 019-group-arguments.md
 [vision]: ../VISION.md
