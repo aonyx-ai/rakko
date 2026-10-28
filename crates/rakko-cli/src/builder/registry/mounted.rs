@@ -1,22 +1,35 @@
 use std::fmt;
 
-use rakko_action::{ArgsSchema, ErasedAction, Name};
+use rakko_action::{ErasedAction, Name};
 
+use crate::builder::members::MergedArgument;
 use crate::erased_command::ErasedCommand;
+use crate::erased_group::ErasedGroup;
 
-/// One entry of the command tree: an action or a command
+/// One entry of the command tree: an action, a command, or a group
 ///
-/// The projection derives a command from an action, and it places a command
-/// that the harness wrote as it is. Everything between the mount and the run
-/// treats the two alike: each carries a name, arguments that become flags,
-/// and a place in one flat tree. Only the run differs, so this type holds
-/// both until the run separates them.
+/// The projection derives a command from an action, it places a command that
+/// the harness wrote as it is, and it derives the flags of a group from the
+/// arguments of its members when the harness mounts the group. Each of the
+/// three carries a name and a place in one flat tree, so the registry holds
+/// them as one type. Their flags and their runs differ, so the code that
+/// renders the flags, checks them at the mount, and drives a run tells the
+/// three apart.
 pub(crate) enum Mounted {
     /// An action, whose command the projection derives
     Action(Box<dyn ErasedAction>),
 
     /// A command that the harness wrote
     Command(Box<dyn ErasedCommand>),
+
+    /// A group that the harness wrote, with the flags that its members give it
+    Group {
+        /// The group, which holds its members
+        group: Box<dyn ErasedGroup>,
+        /// The flags of the group, merged from the arguments of its members
+        /// when the harness mounted it
+        arguments: Vec<MergedArgument>,
+    },
 }
 
 impl Mounted {
@@ -25,14 +38,7 @@ impl Mounted {
         match self {
             Self::Action(action) => action.name(),
             Self::Command(command) => command.name(),
-        }
-    }
-
-    /// Returns the description of the arguments that the entry reads
-    pub(crate) fn arguments(&self) -> ArgsSchema {
-        match self {
-            Self::Action(action) => action.arguments(),
-            Self::Command(command) => command.arguments(),
+            Self::Group { group, .. } => group.name(),
         }
     }
 }
@@ -43,6 +49,7 @@ impl fmt::Display for Mounted {
         match self {
             Self::Action(action) => write!(formatter, "action '{}'", action.name()),
             Self::Command(command) => write!(formatter, "command '{}'", command.name()),
+            Self::Group { group, .. } => write!(formatter, "group '{}'", group.name()),
         }
     }
 }

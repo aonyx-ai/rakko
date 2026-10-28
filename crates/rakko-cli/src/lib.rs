@@ -14,7 +14,14 @@
 //! re-exports Clawless, so a harness names what a command receives and
 //! returns without a dependency of its own.
 //!
-//! A command that drives actions itself shows what they found with the
+//! Some of these activities run a list of actions, such as the actions that
+//! guard a commit. Such a command implements the [`Group`] trait instead, and
+//! it gives its actions, its members, to this crate. The crate derives the
+//! flags of the group from the arguments that the members declare, binds every
+//! member to the values of a run, and gives the bound members to the group,
+//! which decides how it runs them.
+//!
+//! A command or a group that drives actions shows what they found with the
 //! [`Report`] of this crate, so that its output takes the shape that a run of
 //! one action has.
 //!
@@ -34,6 +41,8 @@
 //! rakko_cli::builder().run();
 //! ```
 
+/// One member of a group, bound to the values of one run
+mod bound_member;
 /// The command line that a harness builds and runs
 mod builder;
 /// An error and every cause behind it, as a reader sees them
@@ -43,6 +52,10 @@ mod chain;
 mod command;
 /// The view of a command that hides its type
 mod erased_command;
+/// The view of a group that hides its type
+mod erased_group;
+/// The command that runs a list of actions and takes its flags from them
+mod group;
 /// What a run reports about the action that it drove
 mod report;
 /// The root of the project that a run maintains
@@ -56,7 +69,10 @@ mod root;
 /// one that this crate resolved.
 pub use clawless;
 
+pub use self::bound_member::BoundMember;
 pub use self::builder::{Builder, builder};
 pub use self::command::Command;
 pub use self::erased_command::ErasedCommand;
+pub use self::erased_group::ErasedGroup;
+pub use self::group::Group;
 pub use self::report::Report;
