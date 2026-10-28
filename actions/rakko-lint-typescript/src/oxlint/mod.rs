@@ -23,12 +23,13 @@ const OXLINT: &str = "oxlint";
 /// Oxlint draws a block of source per diagnostic by default, with the rule
 /// above it and the places that it marks drawn into it. The same run writes the
 /// diagnostics as one JSON object on request, and each of them then carries the
-/// rule, the severity, the file, the place, and the message in fields instead
-/// of in a block that a reader has to take apart. The object also counts the
-/// files that the run examined, which no other format reports. The format
-/// protects a run from its environment as well, because the default format
-/// changes on a terminal and on a build server. The option selects the
-/// presentation of the report and not the behavior of the tool.
+/// severity and the message in fields, and the rule, the file, and the places
+/// where oxlint names them, instead of in a block that a reader has to take
+/// apart. The object also counts the files that the run examined, which no
+/// other format reports. The format protects a run from its environment as
+/// well, because the default format changes on a terminal and on a build
+/// server. The option selects the presentation of the report and not the
+/// behavior of the tool.
 const FORMAT: &str = "--format";
 
 /// The name of the format that carries the diagnostics as data

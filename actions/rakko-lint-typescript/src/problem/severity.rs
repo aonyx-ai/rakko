@@ -11,9 +11,11 @@ use serde::Deserialize;
 
 /// The severity that oxlint gave a diagnostic
 ///
-/// The severity belongs to the rule and not to the file: a project that wants
-/// a rule to speak without stopping anyone weighs that rule as a warning, and
-/// the rules that oxlint enables by itself carry the warning severity.
+/// The severity of a broken rule belongs to the rule and not to the file: a
+/// project that wants a rule to speak without stopping anyone weighs that rule
+/// as a warning, and the rules that oxlint enables by itself carry the warning
+/// severity. A diagnostic that no rule reports, such as a syntax error or a
+/// diagnostic about the project, carries the severity that oxlint gives it.
 ///
 /// The severity decides the status that oxlint ends with, and it decides
 /// nothing about the outcome of an action. A rule that a project weighs as a
@@ -22,10 +24,12 @@ use serde::Deserialize;
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
-    /// The diagnostic breaks a rule that the project weighs as a warning
+    /// The diagnostic is a warning, such as a rule that the project weighs as
+    /// a warning
     Warning,
 
-    /// The diagnostic breaks a rule that the project weighs as an error
+    /// The diagnostic is an error, such as a rule that the project weighs as
+    /// an error, or a syntax error
     Error,
 }
 

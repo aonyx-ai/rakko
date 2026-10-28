@@ -2,9 +2,10 @@ use thiserror::Error;
 
 /// An error that leaves a caller without the report of a run
 ///
-/// A rule that a file broke is no failure of a reading: it travels in the
-/// observation, and the caller decides what it means. The variants here
-/// describe output that holds no answer about the project.
+/// A diagnostic of oxlint is no failure of a reading, even one about the
+/// project itself: it travels in the observation, and the caller decides what
+/// it means. The variants here describe output that holds no answer about the
+/// project.
 #[derive(Debug, Error)]
 pub enum ReadReportError {
     /// Oxlint wrote no report
