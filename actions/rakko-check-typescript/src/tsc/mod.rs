@@ -10,7 +10,7 @@ mod error;
 pub mod report;
 
 use rakko_action::ProjectRoot;
-use rakko_tool::{ResolveToolError, Tool, ToolName};
+use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveTscError;
 use crate::diagnostic::Diagnostic;
@@ -113,7 +113,7 @@ impl Tsc {
             .arg(PLAIN)
             .arg(PROJECT)
             .arg(HERE)
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveTscError::TscUnavailable { source })?;
 

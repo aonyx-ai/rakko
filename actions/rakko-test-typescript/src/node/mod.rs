@@ -10,7 +10,7 @@ mod error;
 pub mod report;
 
 use rakko_action::ProjectRoot;
-use rakko_tool::{ResolveToolError, Tool, ToolName};
+use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveNodeError;
 use self::report::Report;
@@ -94,7 +94,7 @@ impl Node {
             .invocation()
             .arg(TEST)
             .arg(REPORTER)
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveNodeError::NodeUnavailable { source })?;
 

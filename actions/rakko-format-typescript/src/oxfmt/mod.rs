@@ -12,7 +12,7 @@ mod error;
 use std::iter;
 
 use rakko_action::{Access, FileAccess, Files, Pattern, ProjectRoot};
-use rakko_tool::{ResolveToolError, Tool, ToolName};
+use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveOxfmtError;
 use crate::observation::Observation;
@@ -211,7 +211,7 @@ impl Oxfmt {
             .invocation()
             .arg(operation)
             .arg(PATTERN)
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveOxfmtError::OxfmtUnavailable { source })?;
 

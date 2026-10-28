@@ -15,7 +15,7 @@ pub mod report;
 use std::path::PathBuf;
 
 use rakko_action::{FileAccess, Files, Pattern, ProjectRoot};
-use rakko_tool::{ResolveToolError, Tool, ToolName};
+use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveYamllintError;
 pub use self::listing::ListFilesError;
@@ -184,7 +184,7 @@ impl Yamllint {
             .arg(FORMAT)
             .arg(PARSABLE)
             .arg(HERE)
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveYamllintError::YamllintUnavailable { source })?;
 
