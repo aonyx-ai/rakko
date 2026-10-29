@@ -1,15 +1,15 @@
 //! The validator that a project runs
 //!
-//! This module holds the program that mise installed for a project, the run
-//! that produces its log, and the files that such a run reads. An action asks
-//! for a run, and everything between the action and the process lives here.
+//! This module holds the program that mise installed for a project and the
+//! run that produces its log. An action asks for a run, and everything between
+//! the action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 /// The reading of the log that the validator wrote
 pub mod report;
 
-use rakko_action::{FileAccess, Files, Pattern, ProjectRoot};
+use rakko_action::ProjectRoot;
 use rakko_tool::{Invocation, Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveValidatorError;
@@ -77,34 +77,6 @@ const VALID: i32 = 0;
 /// The status of a validator that found a problem
 const INVALID: i32 = 1;
 
-/// The paths of the configurations that the validator looks for
-///
-/// A run names no configuration, so the validator looks for each of these
-/// files in the root of the project. It validates each one that exists. It
-/// reads `package.json` for the configuration that its `renovate` key holds.
-const SELECTION: [&str; 14] = [
-    ".github/renovate.json",
-    ".github/renovate.json5",
-    ".github/renovate.jsonc",
-    ".gitlab/renovate.json",
-    ".gitlab/renovate.json5",
-    ".gitlab/renovate.jsonc",
-    ".renovaterc",
-    ".renovaterc.json",
-    ".renovaterc.json5",
-    ".renovaterc.jsonc",
-    "package.json",
-    "renovate.json",
-    "renovate.json5",
-    "renovate.jsonc",
-];
-
-/// The path of the configuration of a Renovate that a project runs itself
-///
-/// When the environment names no other file, the validator reads this file as
-/// the global configuration if it exists, and it validates the file as well.
-const CONFIGURATION: &str = "config.js";
-
 /// The validator that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -137,48 +109,6 @@ pub struct Validator {
 }
 
 impl Validator {
-    /// Returns the files that a run of the validator reads and writes
-    ///
-    /// The answer is the declaration of an action that calls
-    /// [`observe`][observe]. The run reads the configurations of Renovate
-    /// that the validator looks for, the global configuration, and the files
-    /// that mise reads to find the validator. It writes no file.
-    ///
-    /// Each pattern of a configuration of Renovate is the path of one file,
-    /// so the declaration covers that file also while it does not exist. A
-    /// configuration that makes the validator read another file, such as a
-    /// module that `config.js` imports, is outside the patterns. So is a
-    /// global configuration that the variable `RENOVATE_CONFIG_FILE` names in
-    /// place of `config.js`.
-    ///
-    /// The function does no I/O, so a declaration can call it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko_action::Files;
-    /// use rakko_check_renovate_config::Validator;
-    ///
-    /// let files = Validator::files();
-    ///
-    /// assert_eq!(files.writes(), &Files::Matching(Vec::new()));
-    /// ```
-    ///
-    /// [observe]: Validator::observe
-    pub fn files() -> FileAccess {
-        let reads = SELECTION
-            .into_iter()
-            .chain([CONFIGURATION])
-            .map(Pattern::from_static)
-            .chain(Tool::resolution_files())
-            .collect();
-
-        FileAccess::builder()
-            .reads(Files::Matching(reads))
-            .writes(Files::Matching(Vec::new()))
-            .build()
-    }
-
     /// Runs the validator over the project and reads what it reported
     ///
     /// The run starts in the root of the project and names no configuration,

@@ -20,7 +20,6 @@ clap = "4.3.4"
 clawless = "0.8.0"
 dunce = "1.0.4"
 getset = ">=0.1,<1"
-globset = { version = "0.4.5", default-features = false }
 kawauso-process = "0.2.1"
 kawauso-project = "0.3.0"
 rakko-action = { path = "crates/rakko-action", version = "0.1.0" }

@@ -11,8 +11,8 @@ mod error;
 use std::path::Path;
 
 use rakko_action::{
-    Access, Action, Context, FileAccess, FilePath, Finding, Location, Name, Outcome, ProjectRoot,
-    SkipReason, Summary, action_name,
+    Access, Action, Context, FilePath, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
+    Summary, action_name,
 };
 
 pub use self::error::LintTypeScriptError;
@@ -49,11 +49,8 @@ const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 /// oxlint, when oxlint writes no report at all, and when oxlint writes a report
 /// that the action cannot read.
 ///
-/// A run declares a read, and it writes no file. It reads the files that oxlint
-/// lints, the configuration of oxlint, and the files that mise reads to find
-/// oxlint. A caller that orders runs by their declarations can then run it
-/// after the actions that write these files. It can also run it beside the runs
-/// that touch none of these files.
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
 ///
 /// # Examples
 ///
@@ -80,10 +77,6 @@ impl Action for LintTypeScript {
 
     fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
         Access::Read
-    }
-
-    fn files(&self, _context: &Context, _args: &Self::Args) -> FileAccess {
-        Oxlint::files()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -236,9 +229,8 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Files, Pattern, Position};
+    use rakko_action::Position;
     use rakko_test_utils::path;
-    use rakko_tool::Tool;
 
     use super::*;
     use crate::problem::Severity;
@@ -283,36 +275,6 @@ mod tests {
         let access = LintTypeScript.access(&context(), &());
 
         assert_eq!(access, Access::Read);
-    }
-
-    #[test]
-    fn files_read_the_typescript_files_and_the_configuration() {
-        let mut expected: Vec<Pattern> = [
-            "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,vue,svelte,astro}",
-            "**/.eslintignore",
-            "**/.gitignore",
-            "**/.oxlintrc.json",
-            "**/.oxlintrc.jsonc",
-            "**/oxlint.config.mts",
-            "**/oxlint.config.ts",
-            ".git/info/exclude",
-            "oxlint-suppressions.json",
-        ]
-        .into_iter()
-        .map(Pattern::from_static)
-        .collect();
-        expected.extend(Tool::resolution_files());
-
-        let files = LintTypeScript.files(&context(), &());
-
-        assert_eq!(files.reads(), &Files::Matching(expected));
-    }
-
-    #[test]
-    fn files_write_no_file() {
-        let files = LintTypeScript.files(&context(), &());
-
-        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
     }
 
     #[test]

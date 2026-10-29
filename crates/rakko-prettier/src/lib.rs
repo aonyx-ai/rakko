@@ -14,12 +14,6 @@
 //! filter that names no extension covers every language that prettier
 //! understands.
 //!
-//! A run of prettier also reads the configuration of prettier, and mise reads
-//! the configuration of the project to find prettier.
-//! [`Prettier::files`][files] gives the patterns of the files that a run
-//! reads and writes, so that an action declares its access without a list of
-//! its own.
-//!
 //! Prettier reports as text, and this crate reads that text. The shape of the
 //! text belongs to a version of prettier, so keeping the reading in one place
 //! keeps the version surface in one place as well: a prettier that reports
@@ -55,7 +49,6 @@
 //! # }
 //! ```
 //!
-//! [files]: Prettier::files
 //! [prettier]: https://prettier.io
 //! [tokio]: https://tokio.rs
 

@@ -1,16 +1,15 @@
 //! The markdownlint that a project runs
 //!
-//! This module holds the program that mise installed for a project, the run
-//! that produces a report, and the files that such a run reads. An action
-//! asks for a run, and everything between the action and the process lives
-//! here.
+//! This module holds the program that mise installed for a project and the
+//! run that produces a report. An action asks for a run, and everything
+//! between the action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 /// The reading of the report that markdownlint wrote
 mod report;
 
-use rakko_action::{FileAccess, Files, Pattern, ProjectRoot};
+use rakko_action::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveMarkdownlintError;
@@ -68,29 +67,6 @@ const HERE: &str = ".";
 /// run then ends with success.
 const NO_MATCHING_FILES: &str = "No matching files found";
 
-/// The patterns of the files that markdownlint selects
-///
-/// A run names the root of the project, and markdownlint then selects every
-/// file whose extension is `md` or `markdown`, in every directory. That
-/// includes a directory whose name starts with a dot, because a run asks for
-/// those as well. On macOS and on Windows, markdownlint ignores the case of
-/// the extension, so the patterns ignore it on every platform.
-const SELECTION: [&str; 2] = ["**/*.[mM][aA][rR][kK][dD][oO][wW][nN]", "**/*.[mM][dD]"];
-
-/// The patterns of the files that markdownlint reads as its configuration
-///
-/// Markdownlint looks for these files only in the root of the project, where
-/// every run starts. It reads the first form of `.markdownlint` that exists,
-/// and also `.markdownlintrc` and the ignore file.
-const CONFIGURATION: [&str; 6] = [
-    ".markdownlint.json",
-    ".markdownlint.jsonc",
-    ".markdownlint.yaml",
-    ".markdownlint.yml",
-    ".markdownlintignore",
-    ".markdownlintrc",
-];
-
 /// The markdownlint that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -125,44 +101,6 @@ pub struct Markdownlint {
 }
 
 impl Markdownlint {
-    /// Returns the files that a run of markdownlint reads and writes
-    ///
-    /// The answer is the declaration of an action that calls
-    /// [`observe`][observe]. The run reads the Markdown files of the project,
-    /// the configuration of markdownlint, and the files that mise reads to
-    /// find markdownlint. It writes no file.
-    ///
-    /// A configuration that makes markdownlint read another file, such as a
-    /// file that its `extends` key names, is outside the patterns.
-    ///
-    /// The function does no I/O, so a declaration can call it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko_action::Files;
-    /// use rakko_lint_markdown::Markdownlint;
-    ///
-    /// let files = Markdownlint::files();
-    ///
-    /// assert_eq!(files.writes(), &Files::Matching(Vec::new()));
-    /// ```
-    ///
-    /// [observe]: Markdownlint::observe
-    pub fn files() -> FileAccess {
-        let reads = SELECTION
-            .into_iter()
-            .chain(CONFIGURATION)
-            .map(Pattern::from_static)
-            .chain(Tool::resolution_files())
-            .collect();
-
-        FileAccess::builder()
-            .reads(Files::Matching(reads))
-            .writes(Files::Matching(Vec::new()))
-            .build()
-    }
-
     /// Runs markdownlint over the project and reads what it reported
     ///
     /// The run names the root of the project and asks for the report as data.

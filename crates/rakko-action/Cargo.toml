@@ -10,7 +10,6 @@ rust-version.workspace = true
 bon = { workspace = true }
 dunce = { workspace = true }
 getset = { workspace = true }
-globset = { workspace = true }
 thiserror = { workspace = true }
 typed-fields = { workspace = true }
 

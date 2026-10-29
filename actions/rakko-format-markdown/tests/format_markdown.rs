@@ -139,14 +139,6 @@ impl Project {
     }
 }
 
-/// Returns the arguments of a run that rewrites what it can
-fn fixing() -> FormatMarkdownArgs {
-    let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
-
-    FormatMarkdownArgs::from_values(&values)
-        .expect("the test builds arguments that ask for a rewrite")
-}
-
 /// Returns the root of the repository that the tests run in
 fn repository() -> &'static Path {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -369,19 +361,14 @@ async fn run_with_an_unformatted_file_names_the_file() {
 }
 
 #[tokio::test]
-async fn run_with_fix_changes_only_the_files_that_it_declares() {
+async fn run_with_fix_leaves_the_other_languages_alone() {
     let project = Project::new();
-    project.write(".config/messy.md", UNFORMATTED);
-    project.write(".config/data.json", UNFORMATTED_JSON);
+    project.write("messy.md", UNFORMATTED);
+    project.write("data.json", UNFORMATTED_JSON);
 
-    // The helper fails the test when the run changed a file outside its
-    // expanded write list, such as the JSON file.
-    let outcome = run_checking_access(&FormatMarkdown, &project.context(), &fixing()).await;
+    project.run(true).await;
 
-    assert!(
-        matches!(outcome, Outcome::Changed { .. }),
-        "expected the run to rewrite the Markdown file, got {outcome:?}"
-    );
+    assert_eq!(project.read("data.json"), UNFORMATTED_JSON);
 }
 
 #[tokio::test]

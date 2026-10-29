@@ -3,7 +3,6 @@ use std::future::Future;
 use crate::access::Access;
 use crate::args::Args;
 use crate::context::Context;
-use crate::file_access::FileAccess;
 use crate::name::Name;
 use crate::outcome::Outcome;
 
@@ -15,10 +14,9 @@ use crate::outcome::Outcome;
 /// without running the action, for example to show the action in a list.
 ///
 /// Before a run, the machinery can ask the action how that run uses the
-/// project, with the arguments of the run: whether the run writes, and which
-/// files it reads and writes. An action that does not answer writes the whole
-/// project. That answer is always safe and can be slow: a caller that reads
-/// it never runs the action beside another action.
+/// project, with the arguments of the run. An action that does not answer
+/// writes the whole project. That answer is always safe and can be slow: a
+/// caller that reads it never runs the action beside another action.
 ///
 /// A scheduler can run many actions in parallel and can move each run to a
 /// different thread. The trait therefore requires [`Send`] and [`Sync`] of
@@ -78,44 +76,11 @@ pub trait Action: Send + Sync {
     /// [`Access::Write`].
     ///
     /// An action that does not implement the method answers [`Access::Write`]
-    /// for every run. That answer is safe, because a write gets the files
-    /// that it writes to itself, and those are the whole project unless
-    /// [`files`] narrows them. But a caller that orders runs by their
-    /// declarations then makes an action that only reads wait for the actions
-    /// that write.
-    ///
-    /// [`files`]: Action::files
+    /// for every run. That answer is safe, because a write gets the project
+    /// to itself. But a caller that orders runs by their declarations then
+    /// makes an action that only reads wait for the actions that write.
     fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
         Access::Write
-    }
-
-    /// Returns the files that a run with the given arguments reads and writes
-    ///
-    /// The machinery asks before the run, with the arguments and the context
-    /// that the run receives, as it does for [`access`]. The answer narrows
-    /// the files that [`access`] covers, and it does not replace that answer:
-    /// only a run that declares [`Access::Write`] writes the files of the
-    /// write side. A run that declares [`Access::Read`] writes no file,
-    /// whatever the write side covers.
-    ///
-    /// Each side covers the whole project or the files that its patterns
-    /// match. The patterns describe the files that the tool selects when the
-    /// project configures no selection, such as `**/*.toml` for a formatter
-    /// of TOML files. They also describe the files that the action and its
-    /// tool read as configuration, such as `mise.toml`, because another run
-    /// can change those files too. The tool never receives the patterns, so
-    /// they do not change what the run examines.
-    ///
-    /// The method must not read a file or start a tool, as for [`access`].
-    /// A caller that needs the files that exist calls [`FileAccess::expand`]
-    /// on the answer.
-    ///
-    /// An action that does not implement the method reads and writes the
-    /// whole project, which is the answer that is always safe.
-    ///
-    /// [`access`]: Action::access
-    fn files(&self, _context: &Context, _args: &Self::Args) -> FileAccess {
-        FileAccess::default()
     }
 
     /// Runs the action against the project that the context names
@@ -139,7 +104,6 @@ mod tests {
     use std::task::{Context as TaskContext, Poll, Waker};
 
     use super::*;
-    use crate::file_access::Files;
 
     /// A minimal action that yields once and then passes
     struct Probe;
@@ -234,26 +198,6 @@ mod tests {
     #[test]
     fn args_are_sync() {
         require_args_sync::<Probe>();
-    }
-
-    #[test]
-    fn files_of_an_action_that_declares_nothing_read_the_whole_project() {
-        let action = Probe;
-        let context = Context::builder().root("/tmp/project").build();
-
-        let files = action.files(&context, &());
-
-        assert_eq!(files.reads(), &Files::Project);
-    }
-
-    #[test]
-    fn files_of_an_action_that_declares_nothing_write_the_whole_project() {
-        let action = Probe;
-        let context = Context::builder().root("/tmp/project").build();
-
-        let files = action.files(&context, &());
-
-        assert_eq!(files.writes(), &Files::Project);
     }
 
     #[test]
