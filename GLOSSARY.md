@@ -123,6 +123,10 @@ from the design discussions to the terms that replaced them.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.
+- **Toolchain** — A tool that the code of the project builds or runs with,
+  such as Rust, Node.js, or TypeScript. The project pins its toolchains.
+  (Planned.) An action pins every other tool that it runs, and it accepts a
+  range of versions for each toolchain that it needs.
 - **Wrapping** — The execution of an external tool as a subprocess of an
   action. Wrapping is the normal integration path, and Rakko makes it a
   polished one.
