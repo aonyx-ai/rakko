@@ -84,6 +84,11 @@ from the design discussions to the terms that replaced them.
   action passed, changed the project by repairing everything that it found,
   failed with findings, skipped because there was nothing to examine, or
   stopped with an error.
+- **Precondition** — (Planned.) A condition about the environment of the
+  project that a correct run needs, such as a current file of tool pins. The
+  projection checks the preconditions before it runs anything, and a failed
+  precondition stops the run. The `doctor` command reports them, and
+  `doctor --fix` repairs them.
 - **Project** — The unit that Rakko maintains: a directory tree with its own
   tools, actions, and harness. A project is usually a Git repository, but
   Rakko does not require one. A project marks its root with
