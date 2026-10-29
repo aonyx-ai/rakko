@@ -1,1 +1,11 @@
 # See https://github.com/jdno/labelflair for the documentation of Labelflair.
+
+[[group]]
+prefix = "M-"
+colors = { tailwind = "amber" }
+labels = [
+  { name = "prototype", description = "Decide by making a rough artifact to react to" },
+  { name = "question", description = "Decide in a conversation with a human" },
+  { name = "research", description = "Decide after finding a fact outside the repository" },
+  { name = "task", description = "Do the work that a decision waits on" },
+]
