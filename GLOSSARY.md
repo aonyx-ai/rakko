@@ -125,8 +125,8 @@ from the design discussions to the terms that replaced them.
   run. A sandbox turns a false declaration into a visible error instead of a
   race condition.
 - **Scheduler** — (Planned.) The component that runs actions in parallel.
-  The scheduler computes a conflict graph from the access declarations and
-  the files that they expand to, before any action runs.
+  The scheduler computes a conflict graph from the access declarations
+  before any action runs.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.
