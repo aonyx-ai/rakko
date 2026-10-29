@@ -93,7 +93,9 @@ pub trait Group: Send + Sync {
     /// command line carries only the flags of the list at the mount, so a list
     /// that changes later can panic the run or leave members out of it. The
     /// order decides the order of the flags and of the lines in their help,
-    /// and the order of the members that a run receives.
+    /// and the order of the members that a run receives. Two members of the
+    /// list must not have the same name. The harness stops at the mount of a
+    /// group whose list breaks this rule.
     fn members(&self) -> &[Box<dyn ErasedAction>];
 
     /// Runs the members of the group against the project that the context

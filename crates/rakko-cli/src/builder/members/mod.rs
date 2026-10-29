@@ -3,11 +3,45 @@ mod error;
 /// One flag of a group, merged from the arguments of its members
 mod merged_argument;
 
+use std::collections::BTreeSet;
+
 use rakko_action::{ArgsValues, ErasedAction, Name};
 
 pub(crate) use self::error::BindMembersError;
 pub(crate) use self::merged_argument::MergedArgument;
 use crate::bound_member::BoundMember;
+
+/// Stops the harness when a group lists two members with the same name
+///
+/// Without this check, a run of the group runs such a member twice. The help
+/// of each flag of the member also shows its line twice. Two different
+/// actions with the same name are a problem too. The help and the reports
+/// identify a member only by its name, so a reader cannot tell the two apart.
+///
+/// Only a change of the code of the harness or of the group corrects the
+/// list, and no input of a run can. So the harness stops where it mounts the
+/// group, and not where a user runs it. The check reads the
+/// list of one group only. So an action can be a member of a group and also
+/// an entry of the harness or a member of another group.
+///
+/// # Panics
+///
+/// Panics when two members of the group carry the same name, and reports the
+/// group and that name.
+pub(super) fn refuse_repeated(group: &Name, members: &[Box<dyn ErasedAction>]) {
+    let mut seen: BTreeSet<Name> = BTreeSet::new();
+
+    for member in members {
+        let name = member.name();
+
+        assert!(
+            !seen.contains(&name),
+            "the group '{group}' lists the action '{name}' twice"
+        );
+
+        seen.insert(name);
+    }
+}
 
 /// Returns the flags of a group, merged from the arguments of its members
 ///

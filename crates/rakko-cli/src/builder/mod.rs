@@ -2,7 +2,7 @@
 mod arguments;
 /// The error of a run that the runner ended before it started
 mod error;
-/// The flags and the bind of the members of a group
+/// The check, the flags, and the bind of the members of a group
 mod members;
 /// The actions that a harness mounted
 mod registry;
@@ -232,6 +232,9 @@ impl Builder {
     ///
     /// # Panics
     ///
+    /// Panics when a group lists two members with the same name, and reports
+    /// the group and the name.
+    ///
     /// Panics when two members of a group declare one argument with two
     /// different shapes, and reports the group, both members, the argument,
     /// and both shapes.
@@ -273,6 +276,7 @@ impl Builder {
     #[must_use]
     pub fn mount_groups(mut self, groups: impl IntoIterator<Item = Box<dyn ErasedGroup>>) -> Self {
         self.add(groups.into_iter().map(|group| {
+            self::members::refuse_repeated(&group.name(), group.members());
             let arguments = members::merge(&group.name(), group.members());
 
             Mounted::Group { group, arguments }
@@ -1032,6 +1036,8 @@ mod tests {
     /// A group that runs its members one after another and returns what a
     /// test asked for
     struct Sequence {
+        /// The name of the group
+        name: Name,
         /// The actions that the group runs
         actions: Vec<Box<dyn ErasedAction>>,
         /// Whether a run of the group happened
@@ -1045,7 +1051,7 @@ mod tests {
 
     impl Group for Sequence {
         fn name(&self) -> Name {
-            GROUP.parse().expect("the name of the test group is valid")
+            self.name.clone()
         }
 
         fn members(&self) -> &[Box<dyn ErasedAction>] {
@@ -1320,6 +1326,7 @@ mod tests {
     ) -> (Sequence, Arc<AtomicBool>) {
         let ran = Arc::new(AtomicBool::new(false));
         let group = Sequence {
+            name: action_name(GROUP),
             actions,
             ran: Arc::clone(&ran),
             result,
@@ -1877,6 +1884,41 @@ mod tests {
     }
 
     #[test]
+    fn mount_groups_accepts_a_member_that_the_harness_also_mounts() {
+        let log = Log::default();
+        let (group, _ran) = sequence(vec![member::<Fix>("first", &log)]);
+        let command = builder()
+            .mount([member::<Fix>("first", &log)])
+            .mount_groups([Box::new(group) as Box<dyn ErasedGroup>])
+            .command();
+
+        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
+
+        assert_eq!(names, [GROUP, "first"]);
+    }
+
+    #[test]
+    fn mount_groups_accepts_two_groups_that_share_a_member() {
+        let log = Log::default();
+        let (check, _ran) = sequence(vec![member::<Fix>("first", &log)]);
+        let (lint, _ran) = sequence(vec![member::<Fix>("first", &log)]);
+        let lint = Sequence {
+            name: action_name("lint"),
+            ..lint
+        };
+        let command = builder()
+            .mount_groups([
+                Box::new(check) as Box<dyn ErasedGroup>,
+                Box::new(lint) as Box<dyn ErasedGroup>,
+            ])
+            .command();
+
+        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
+
+        assert_eq!(names, [GROUP, "lint"]);
+    }
+
+    #[test]
     fn mount_groups_gives_a_group_one_flag_for_an_argument_that_members_share() {
         let log = Log::default();
         let (group, _ran) = sequence(vec![
@@ -1914,6 +1956,31 @@ mod tests {
 
         let names: Vec<&str> = flags.iter().map(|flag| flag.get_id().as_str()).collect();
         assert_eq!(names, ["report", "fix", "jobs", "extension"]);
+    }
+
+    #[test]
+    #[should_panic(expected = "the group 'check' lists the action 'first' twice")]
+    fn mount_groups_refuses_a_group_that_lists_an_action_twice() {
+        let log = Log::default();
+        let (group, _ran) = sequence(vec![
+            member::<Fix>("first", &log),
+            member::<Nothing>("second", &log),
+            member::<Fix>("first", &log),
+        ]);
+
+        let _builder = builder().mount_groups([Box::new(group) as Box<dyn ErasedGroup>]);
+    }
+
+    #[test]
+    #[should_panic(expected = "the group 'check' lists the action 'first' twice")]
+    fn mount_groups_refuses_a_group_that_lists_two_actions_with_one_name() {
+        let log = Log::default();
+        let (group, _ran) = sequence(vec![
+            member::<Fix>("first", &log),
+            member::<FixAsText>("first", &log),
+        ]);
+
+        let _builder = builder().mount_groups([Box::new(group) as Box<dyn ErasedGroup>]);
     }
 
     #[test]
