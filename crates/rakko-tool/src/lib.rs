@@ -14,10 +14,6 @@
 //! a run. An action can therefore write the command to a log, or name it in
 //! an error, before anything runs.
 //!
-//! Mise reads the configuration of the project to find a tool, so an action
-//! that resolves its tool reads those files. The crate gives their patterns,
-//! and an action adds them to its declaration of access.
-//!
 //! An action runs the command with [`launch`][launch]. On Windows, a tool that
 //! a package manager for Node installed starts through a launcher, and the
 //! launch starts that launcher again when the operating system refused it a

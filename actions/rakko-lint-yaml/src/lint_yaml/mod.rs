@@ -9,8 +9,8 @@
 mod error;
 
 use rakko_action::{
-    Access, Action, Context, FileAccess, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    SkipReason, Summary, action_name,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
+    Summary, action_name,
 };
 
 pub use self::error::LintYamlError;
@@ -46,11 +46,8 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 /// yamllint, when yamllint refuses the configuration of the project, and when
 /// yamllint writes a report that the action cannot read.
 ///
-/// A run declares a read, and it writes no file. It reads the YAML files, the
-/// configuration of yamllint, and the files that mise reads to find yamllint. A
-/// caller that orders runs by their declarations can then run it after the
-/// actions that write these files. It can also run it beside the runs that
-/// touch none of these files.
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
 ///
 /// # Examples
 ///
@@ -77,10 +74,6 @@ impl Action for LintYaml {
 
     fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
         Access::Read
-    }
-
-    fn files(&self, _context: &Context, _args: &Self::Args) -> FileAccess {
-        Yamllint::files()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -231,9 +224,7 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rakko_action::{Files, Pattern};
     use rakko_test_utils::path;
-    use rakko_tool::Tool;
 
     use super::*;
     use crate::problem::ProblemLevel;
@@ -265,33 +256,6 @@ mod tests {
         let access = LintYaml.access(&context(), &());
 
         assert_eq!(access, Access::Read);
-    }
-
-    #[test]
-    fn files_read_the_yaml_files_and_the_configuration() {
-        let mut expected: Vec<Pattern> = [
-            "**/*.yaml",
-            "**/*.yml",
-            "**/.yamllint",
-            ".yamllint",
-            ".yamllint.yaml",
-            ".yamllint.yml",
-        ]
-        .into_iter()
-        .map(Pattern::from_static)
-        .collect();
-        expected.extend(Tool::resolution_files());
-
-        let files = LintYaml.files(&context(), &());
-
-        assert_eq!(files.reads(), &Files::Matching(expected));
-    }
-
-    #[test]
-    fn files_write_no_file() {
-        let files = LintYaml.files(&context(), &());
-
-        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
     }
 
     #[test]

@@ -152,13 +152,6 @@ fn locations(findings: &[Finding]) -> Vec<String> {
         .collect()
 }
 
-/// Returns the arguments of a run that rewrites what it can
-fn fixing() -> FormatTomlArgs {
-    let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
-
-    FormatTomlArgs::from_values(&values).expect("the test builds arguments that ask for a rewrite")
-}
-
 /// Returns the root of the repository that the tests run in
 fn repository() -> &'static Path {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -399,21 +392,6 @@ async fn run_whose_configuration_excludes_every_file_passes() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_fix_changes_only_the_files_that_it_declares() {
-    let project = Project::new();
-    project.write(".config/messy.toml", UNFORMATTED);
-
-    // The helper fails the test when the run changed a file outside its
-    // expanded write list.
-    let outcome = run_checking_access(&FormatToml, &project.context(), &fixing()).await;
-
-    assert!(
-        matches!(outcome, Outcome::Changed { .. }),
-        "expected the run to rewrite the TOML file, got {outcome:?}"
     );
 }
 

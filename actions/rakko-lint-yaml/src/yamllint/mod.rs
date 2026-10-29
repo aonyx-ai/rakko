@@ -1,9 +1,8 @@
 //! The yamllint that a project runs
 //!
-//! This module holds the program that mise installed for a project, the runs
-//! that produce a listing and a report, and the files that these runs read.
-//! An action asks for a run, and everything between the action and the
-//! process lives here.
+//! This module holds the program that mise installed for a project and the
+//! runs that produce a listing and a report. An action asks for a run, and
+//! everything between the action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
@@ -14,7 +13,7 @@ pub mod report;
 
 use std::path::PathBuf;
 
-use rakko_action::{FileAccess, Files, Pattern, ProjectRoot};
+use rakko_action::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveYamllintError;
@@ -53,21 +52,6 @@ const HERE: &str = ".";
 /// Every other status belongs to a run that stopped before it was done.
 const PROBLEMS_FOUND: i32 = 1;
 
-/// The patterns of the files that yamllint selects
-///
-/// Yamllint selects a file by its name alone. It looks in every directory,
-/// also in a directory whose name starts with a dot. When the configuration
-/// of the project names no selection, yamllint selects each file whose name
-/// ends in `.yaml` or `.yml`. It also selects each file with the name
-/// `.yamllint`.
-const SELECTION: [&str; 3] = ["**/*.yaml", "**/*.yml", "**/.yamllint"];
-
-/// The patterns of the files that yamllint reads as its configuration
-///
-/// Yamllint looks for the first of these files in the root of the project,
-/// where every run starts, and not in a directory below it.
-const CONFIGURATION: [&str; 3] = [".yamllint", ".yamllint.yaml", ".yamllint.yml"];
-
 /// The yamllint that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
@@ -103,48 +87,6 @@ pub struct Yamllint {
 }
 
 impl Yamllint {
-    /// Returns the files that the runs of yamllint read and write
-    ///
-    /// The answer is the declaration of an action that calls [`list`][list]
-    /// and [`observe`][observe]. The runs read the YAML files of the project,
-    /// the configuration of yamllint, and the files that mise reads to find
-    /// yamllint. They write no file.
-    ///
-    /// The patterns cover the files that yamllint selects when the
-    /// configuration of the project names no selection. A configuration that
-    /// widens the selection with its `yaml-files` key is outside the
-    /// patterns. So is a configuration that makes yamllint read another file,
-    /// such as a file that its `extends` or `ignore-from-file` key names.
-    ///
-    /// The function does no I/O, so a declaration can call it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko_action::Files;
-    /// use rakko_lint_yaml::Yamllint;
-    ///
-    /// let files = Yamllint::files();
-    ///
-    /// assert_eq!(files.writes(), &Files::Matching(Vec::new()));
-    /// ```
-    ///
-    /// [list]: Yamllint::list
-    /// [observe]: Yamllint::observe
-    pub fn files() -> FileAccess {
-        let reads = SELECTION
-            .into_iter()
-            .chain(CONFIGURATION)
-            .map(Pattern::from_static)
-            .chain(Tool::resolution_files())
-            .collect();
-
-        FileAccess::builder()
-            .reads(Files::Matching(reads))
-            .writes(Files::Matching(Vec::new()))
-            .build()
-    }
-
     /// Returns the files that yamllint examines in the project
     ///
     /// The listing reads the configuration of the project, so it answers with

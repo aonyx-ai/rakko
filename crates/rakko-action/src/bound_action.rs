@@ -3,18 +3,16 @@ use std::pin::Pin;
 
 use crate::access::Access;
 use crate::context::Context;
-use crate::file_access::FileAccess;
 use crate::outcome::Outcome;
 
 /// One action with the arguments of one run, behind an interface that hides
 /// its type
 ///
 /// An [`ErasedAction`] binds the values of a run to the arguments of the
-/// action and returns this view. The view answers three questions with the
-/// same arguments: whether the run writes, which files it reads and writes,
-/// and what the run found. So the declaration describes the run that follows
-/// it. A caller can order several runs by their declarations before it starts
-/// any of them.
+/// action and returns this view. The view answers two questions with the same
+/// arguments: how the run uses the project, and what the run found. So the
+/// declaration describes the run that follows it. A caller can order several
+/// runs by their declarations before it starts any of them.
 ///
 /// The arguments are bound once. The view does not read the values again
 /// when the caller asks for the access or runs the action. So a value that
@@ -61,14 +59,6 @@ pub trait BoundAction: Send + Sync {
     /// from the context. The method does no I/O, so a caller can ask before
     /// any run starts.
     fn access(&self, context: &Context) -> Access;
-
-    /// Returns the files that the run reads and writes
-    ///
-    /// The answer comes from the arguments that the action was bound to and
-    /// from the context, as for [`access`][BoundAction::access]. The method
-    /// does no I/O. A caller that needs the files that exist calls
-    /// [`FileAccess::expand`] on the answer.
-    fn files(&self, context: &Context) -> FileAccess;
 
     /// Runs the action with the arguments that it was bound to
     ///
