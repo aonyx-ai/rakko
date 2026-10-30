@@ -6,7 +6,7 @@ mod project_root;
 use bon::bon;
 use getset::Getters;
 
-pub use self::layout::{CacheDirectory, ConfigDirectory, Layout};
+pub use self::layout::{ConfigDirectory, Layout};
 pub use self::project_root::ProjectRoot;
 
 /// The data that an action reads when it runs
@@ -69,7 +69,6 @@ mod tests {
         let layout = Layout::builder()
             .root("/tmp/my-project")
             .config("/tmp/.config")
-            .cache("/tmp/cache")
             .build();
 
         let context = Context::builder()
