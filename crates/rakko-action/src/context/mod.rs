@@ -11,12 +11,17 @@ pub use self::project_root::ProjectRoot;
 
 /// The data that an action reads when it runs
 ///
-/// A context holds the root directory of the project and the directory layout
-/// of that project. Every action receives a context, so the type stays small
-/// by design.
+/// A context holds the root, which is the directory where the run happens,
+/// and the directory layout of the project. Every action receives a context,
+/// so the type stays small by design.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Context {
-    /// The root directory of the project
+    /// The directory where the run happens
+    ///
+    /// The root can be a copy of the project and not the tree that the user
+    /// edits, and a copy can lack the files that the project ignores. Paths
+    /// relative to the root name the same file in a copy and in the project.
+    /// [`ProjectRoot`] gives what an action can rely on.
     #[getset(get = "pub")]
     root: ProjectRoot,
     /// The directory layout of the project

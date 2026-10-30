@@ -4,11 +4,25 @@ use std::path::Path;
 use crate::path;
 
 typed_fields::path! {
-    /// The root directory of the project that the action runs in
+    /// The directory where a run of an action happens
     ///
-    /// A [`Context`](crate::Context) carries the project root, and the
-    /// [`Layout`](crate::Layout) derives its defaults from it. All paths that
-    /// an action reads or writes are relative to this directory.
+    /// An action reads its files, starts its tools, and makes its changes in
+    /// this directory. A [`Context`] carries the root, and the [`Layout`]
+    /// derives its defaults from it.
+    ///
+    /// The root can be a copy of the project, so an action must not assume
+    /// that the root is the tree that the user edits. A copy holds the files
+    /// of the project, but it can lack the files that the project ignores,
+    /// such as build outputs and installed packages. An action must not assume
+    /// that such a file exists under the root.
+    ///
+    /// Every path that an action reads, writes, or reports is relative to the
+    /// root. A relative path names the same file in a copy and in the project,
+    /// so a finding points at the file that the user edits, also when the run
+    /// happens in a copy.
+    ///
+    /// [`Context`]: crate::Context
+    /// [`Layout`]: crate::Layout
     ProjectRoot
 }
 
