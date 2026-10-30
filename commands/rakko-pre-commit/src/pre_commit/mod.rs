@@ -96,6 +96,11 @@ impl Group for PreCommit {
     /// Returns an error when an action found problems or stopped, so that the
     /// commit waits for whoever started it. Returns an error as well when a
     /// report does not reach the reader.
+    ///
+    /// Returns an error before any action runs when an action declares a kind
+    /// of access that the command does not know. The command cannot place
+    /// such an action in its order, and it does not run an action in a way
+    /// that the action did not ask for.
     async fn run(
         &self,
         project: &Context,
@@ -104,12 +109,7 @@ impl Group for PreCommit {
     ) -> CommandResult {
         let total = members.len();
 
-        let (writes, reads): (Vec<BoundMember<'_>>, Vec<BoundMember<'_>>) = members
-            .into_iter()
-            .partition(|member| match member.action().access(project) {
-                Access::Write => true,
-                Access::Read => false,
-            });
+        let (writes, reads) = sort(members, project)?;
 
         // The actions that write run to their end before the first action that
         // reads starts, so that what it reads is what the commit will contain.
@@ -171,6 +171,39 @@ async fn drive(
 /// Returns the names of the actions, in the order of the list
 fn names(actions: &[Box<dyn ErasedAction>]) -> Vec<Name> {
     actions.iter().map(|action| action.name()).collect()
+}
+
+/// Sorts bound actions into the actions that write and the actions that read,
+/// and keeps the order of the list in each
+///
+/// The sort asks every action for its access before the run drives the first
+/// one. So an action that declares a kind of access that the command does not
+/// know stops the run while no action has run yet.
+///
+/// # Errors
+///
+/// Returns an error for the first action that declares a kind of access that
+/// the command does not know.
+fn sort<'a>(
+    members: Vec<BoundMember<'a>>,
+    project: &Context,
+) -> Result<(Vec<BoundMember<'a>>, Vec<BoundMember<'a>>), PreCommitError> {
+    let mut writes = Vec::new();
+    let mut reads = Vec::new();
+
+    for member in members {
+        match member.action().access(project) {
+            Access::Write => writes.push(member),
+            Access::Read => reads.push(member),
+            _ => {
+                return Err(PreCommitError::UnknownAccess {
+                    action: member.name().clone(),
+                });
+            }
+        }
+    }
+
+    Ok((writes, reads))
 }
 
 #[cfg(test)]

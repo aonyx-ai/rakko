@@ -23,7 +23,16 @@
 /// Nothing enforces the declaration yet. An action can declare a read and
 /// change files anyway. Then it can change what another action reads at the
 /// same time.
+///
+/// A compatible release of this crate can add a kind of access. A caller
+/// outside this crate therefore needs an arm for a kind that it does not
+/// know. A caller that meets such a kind must not run the action, and it must
+/// not treat the kind as a read or a write either. A new kind can ask for a
+/// run that neither of them gives, so a guess runs the action in a way that
+/// the action did not ask for. The caller stops instead, and it tells the
+/// user to update it.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[non_exhaustive]
 pub enum Access {
     /// The run reads the project and changes no file of it
     ///
