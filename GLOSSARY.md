@@ -11,8 +11,8 @@ from the design discussions to the terms that replaced them.
   it runs. The declaration is a function of the arguments and the context, so
   a `--fix` flag changes it, and it does no I/O. A declaration covers the
   whole project: a write is exclusive access to it, and a read is shared
-  access. The default declaration is a write. The scheduler and the sandbox,
-  which are still planned, derive their behavior from these declarations.
+  access. The default declaration is a write. The scheduler, which is still
+  planned, derives its order from these declarations.
 - **Action** — The unit of maintenance work. An action is a library crate
   that implements the `Action` trait. An action depends on the contract
   crate and on the helper crates that it uses. It never depends on the
@@ -69,6 +69,10 @@ from the design discussions to the terms that replaced them.
   contract crate. A helper stays out of the contract crate because the
   contract reaches every action, while a helper reaches only the actions
   that use it.
+- **Isolation** — (Planned.) A run in a copy of the project that the
+  machinery removes after the run. Nothing that the run changes reaches the
+  project. Isolation does not protect a user from an action that they do not
+  trust.
 - **Linking** — The use of an external tool as a Rust library inside an
   action. Linking is an optimization for one action at a time, taken when
   the library carries the behavior of the tool, not only its engine.
@@ -119,9 +123,10 @@ from the design discussions to the terms that replaced them.
 - **Rollout** — The propagation of a bundle release across the fleet. Each
   project receives a Renovate pull request, and the CI result of that pull
   request shows whether the project complies.
-- **Sandbox** — (Planned.) Enforcement of access declarations when actions
-  run. A sandbox turns a false declaration into a visible error instead of a
-  race condition.
+- **Sandbox** — (Not planned.) A security boundary that protects a user from
+  an action that they do not trust. A Rust action runs in the process of the
+  harness, and its build scripts run when the harness compiles, so a copy of
+  the project does not contain it.
 - **Scheduler** — (Planned.) The component that runs actions in parallel.
   The scheduler computes a conflict graph from the access declarations
   before any action runs.
