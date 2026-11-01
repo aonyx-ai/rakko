@@ -4,16 +4,32 @@ use std::path::Path;
 use crate::path;
 
 typed_fields::path! {
-    /// The root directory of the project that the action runs in
+    /// The directory where the run of an action happens
     ///
-    /// A [`Context`](crate::Context) carries the project root, and the
-    /// [`Layout`](crate::Layout) derives its defaults from it. All paths that
-    /// an action reads or writes are relative to this directory.
+    /// A [`Context`] carries the root, and the [`Layout`] derives its defaults
+    /// from it. Every path of the project that an action reads, writes, or
+    /// reports is relative to this directory. The working directory of the
+    /// process can be another directory. A tool that an action starts with no
+    /// directory runs there, and not in the root.
+    ///
+    /// The root can be the directory that the user edits, or it can be a copy
+    /// of the project. So an action must not assume that the root is the
+    /// directory that the user edits. A copy holds the files of the project,
+    /// but it can lack the files that the project ignores, such as build
+    /// outputs and installed packages.
+    ///
+    /// A path below the root points at the same file in the project, also
+    /// when the root is a copy. So a finding whose [`FilePath`] names a file
+    /// below the root points the user at the correct file.
+    ///
+    /// [`Context`]: crate::Context
+    /// [`FilePath`]: crate::FilePath
+    /// [`Layout`]: crate::Layout
     ProjectRoot
 }
 
 impl ProjectRoot {
-    /// Returns the root of a project, as the file system names the directory
+    /// Returns the root at a path, as the file system names the directory
     ///
     /// The file system resolves the path, so a relative path and a path
     /// through a symbolic link both reach an action as the directory that
@@ -21,7 +37,7 @@ impl ProjectRoot {
     /// than the plain constructor: an action reports every location relative
     /// to the root, and a root that spells a directory differently from the
     /// programs that the action starts leaves every path they report outside
-    /// the project.
+    /// the root.
     ///
     /// # Errors
     ///
