@@ -79,8 +79,11 @@ pub trait ErasedAction: Send + Sync {
     /// Binds the values of a run and runs the action with them
     ///
     /// This is the shorthand for a caller that does not ask how the run uses
-    /// the project. A conversion of the values that fails travels in
-    /// [`Outcome::Errored`], so this method has no error type of its own.
+    /// the project. It runs the action whatever kind of access the run
+    /// declares. A caller that orders runs, or that refuses a kind of access,
+    /// binds the action and asks the bound action instead. A conversion of the
+    /// values that fails travels in [`Outcome::Errored`], so this method has
+    /// no error type of its own.
     fn run<'a>(
         &'a self,
         context: &'a Context,

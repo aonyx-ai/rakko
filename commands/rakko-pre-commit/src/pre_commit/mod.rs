@@ -85,13 +85,18 @@ impl Group for PreCommit {
     ///
     /// The command line binds every action to the values of the run before
     /// the run starts. Each action receives the values of the arguments that
-    /// it declares. The run asks each bound action how it uses the project.
-    /// The actions that write run first, so that what the other actions read
-    /// is what the commit will contain. They can write the same files, so no
-    /// two of them run at once. The actions that read run one after another as
-    /// well, until a scheduler can overlap them.
+    /// it declares. The run asks each bound action how it uses the project,
+    /// before the first action runs. The actions that write run first, so
+    /// that what the other actions read is what the commit will contain. They
+    /// can write the same files, so no two of them run at once. The actions
+    /// that read run one after another as well, until a scheduler can overlap
+    /// them.
     ///
     /// # Errors
+    ///
+    /// Returns an error before any action runs when an action declares a kind
+    /// of access that the command does not know. The command cannot order
+    /// such an action, and only a newer release of Rakko can know the kind.
     ///
     /// Returns an error when an action found problems or stopped, so that the
     /// commit waits for whoever started it. Returns an error as well when a
@@ -104,12 +109,24 @@ impl Group for PreCommit {
     ) -> CommandResult {
         let total = members.len();
 
-        let (writes, reads): (Vec<BoundMember<'_>>, Vec<BoundMember<'_>>) = members
-            .into_iter()
-            .partition(|member| match member.action().access(project) {
-                Access::Write => true,
-                Access::Read => false,
-            });
+        // Every action declares its access before the first action runs. So a
+        // kind of access that the command does not know stops the run before
+        // any action changes the project.
+        let mut writes = Vec::new();
+        let mut reads = Vec::new();
+
+        for member in members {
+            match member.action().access(project) {
+                Access::Write => writes.push(member),
+                Access::Read => reads.push(member),
+                _ => {
+                    return Err(PreCommitError::UnknownAccess {
+                        action: member.name().clone(),
+                    }
+                    .into());
+                }
+            }
+        }
 
         // The actions that write run to their end before the first action that
         // reads starts, so that what it reads is what the commit will contain.

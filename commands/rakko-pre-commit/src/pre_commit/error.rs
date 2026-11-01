@@ -6,9 +6,11 @@ use thiserror::Error;
 ///
 /// A problem of the project is no error of this run. Each action reports what
 /// it found, and the run reads those reports and counts them. The variants
-/// here describe the two ways in which a run cannot let a commit continue:
-/// the actions did not leave the project ready for one, or what an action
-/// found never reached the reader.
+/// here describe the three ways in which a run cannot let a commit continue:
+///
+/// - the actions did not leave the project ready for a commit,
+/// - an action declares a kind of access that the run cannot order, or
+/// - what an action found never reached the reader.
 #[derive(Debug, Error)]
 pub enum PreCommitError {
     /// Actions of the run found problems in the project, or stopped
@@ -22,6 +24,23 @@ pub enum PreCommitError {
 
         /// How many actions the run drove
         total: usize,
+    },
+
+    /// An action declares a kind of access that this version of the command
+    /// does not know
+    ///
+    /// A later release of Rakko can add a kind of access. The command cannot
+    /// tell in which order or in which place a run of such a kind belongs. A
+    /// run in the project can change files that the declaration does not let
+    /// it change. So the run stops before any action runs. The message tells
+    /// the user to update Rakko, because only a newer command can know the
+    /// kind.
+    #[error(
+        "the {action} action declares a kind of access that pre-commit does not know; update Rakko to run it"
+    )]
+    UnknownAccess {
+        /// The action whose declaration the command does not know
+        action: Name,
     },
 
     /// What an action found did not reach the reader
@@ -60,6 +79,18 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "2 of 12 actions found problems or stopped"
+        );
+    }
+
+    #[test]
+    fn unknown_access_tells_the_user_to_update_rakko() {
+        let error = PreCommitError::UnknownAccess {
+            action: action_name!("format-sdk"),
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "the format-sdk action declares a kind of access that pre-commit does not know; update Rakko to run it"
         );
     }
 

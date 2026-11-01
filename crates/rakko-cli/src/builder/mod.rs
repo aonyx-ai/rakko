@@ -18,7 +18,7 @@ use clawless::CommandResult;
 use clawless::context::Context as ClawlessContext;
 use clawless::output::OutputFlags;
 use clawless::runner::CommandRunner;
-use rakko_action::{ArgsSchema, ArgsValues, Context, ErasedAction, Outcome};
+use rakko_action::{Access, ArgsSchema, ArgsValues, Context, ErasedAction, Outcome};
 
 use self::error::RunEntryError;
 use self::registry::{Mounted, Registry};
@@ -516,9 +516,12 @@ fn values(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
 
 /// Runs one action and returns the code of the run
 ///
-/// The values of the run are bound to the arguments of the action first, and
-/// the bound action runs. Values that do not convert into the arguments end
-/// the run as an action that stopped, with the error of the conversion.
+/// The values of the run are bound to the arguments of the action first. Then
+/// the bound action declares how the run uses the project, and then it runs.
+/// Values that do not convert into the arguments end the run as an action that
+/// stopped, with the error of the conversion. A kind of access that the
+/// command line does not know ends the run in the same way, before the action
+/// runs. Its error tells the user to update Rakko.
 ///
 /// What the action returned reaches the reader as one report, and the flags
 /// of the run decide whether that report renders as text or as JSON. The
@@ -539,7 +542,14 @@ fn drive_action(
 
         let name = action.name();
         let outcome = match action.bind(&values) {
-            Ok(bound) => bound.run(&project).await,
+            Ok(bound) => match bound.access(&project) {
+                Access::Read | Access::Write => bound.run(&project).await,
+                _ => Outcome::Errored {
+                    source: Box::new(RunEntryError::UnknownAccess {
+                        action: name.clone(),
+                    }),
+                },
+            },
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
             },
@@ -934,6 +944,48 @@ mod tests {
             self.ran.store(true, Ordering::SeqCst);
 
             (self.outcome)()
+        }
+    }
+
+    /// An action that declares a read, and otherwise runs as the probe that it
+    /// wraps
+    struct Reading {
+        /// The probe that gives the action its name and runs it
+        probe: Probe,
+        /// Whether a caller asked the action for its access
+        asked: Arc<AtomicBool>,
+    }
+
+    impl Reading {
+        /// Creates an action that declares a read, with the flag that its run
+        /// sets and the flag that a question for its access sets
+        fn new(name: &str) -> (Self, Arc<AtomicBool>, Arc<AtomicBool>) {
+            let (probe, ran) = Probe::new(name);
+            let asked = Arc::new(AtomicBool::new(false));
+            let reading = Self {
+                probe,
+                asked: Arc::clone(&asked),
+            };
+
+            (reading, ran, asked)
+        }
+    }
+
+    impl Action for Reading {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            Action::name(&self.probe)
+        }
+
+        fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+            self.asked.store(true, Ordering::SeqCst);
+
+            Access::Read
+        }
+
+        async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
+            Action::run(&self.probe, context, args).await
         }
     }
 
@@ -1551,6 +1603,17 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_asks_the_action_for_its_access() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let (reading, _ran, asked) = Reading::new("probe");
+
+        dispatch(naming(directory.path()), Mounted::Action(Box::new(reading)))
+            .expect("expected the command line to drive the action");
+
+        assert!(asked.load(Ordering::SeqCst));
+    }
+
+    #[test]
     fn dispatch_does_not_run_a_group_whose_member_cannot_bind() {
         let log = Log::default();
         let (group, ran) = sequence(vec![member::<Fix>("first", &log), Box::new(Unbuildable)]);
@@ -1776,6 +1839,17 @@ mod tests {
         });
 
         assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn dispatch_runs_an_action_that_declares_a_read() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let (reading, ran, _asked) = Reading::new("probe");
+
+        dispatch(naming(directory.path()), Mounted::Action(Box::new(reading)))
+            .expect("expected the command line to drive the action");
+
+        assert!(ran.load(Ordering::SeqCst));
     }
 
     #[test]

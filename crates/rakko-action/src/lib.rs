@@ -10,13 +10,17 @@
 //! bundle exports.
 //!
 //! A run takes three steps. The machinery binds the values of the run to the
-//! arguments of the action. Then it can ask the bound action how the run uses
+//! arguments of the action. Then it asks the bound action how the run uses
 //! the project. Then it runs the same bound action. The declaration and the
-//! run therefore see the same arguments.
+//! run therefore see the same arguments. The shorthand [`ErasedAction::run`]
+//! binds and runs in one call, without the question, for a caller that does
+//! not ask.
 //!
 //! The crate stays small on purpose. Everything in it reaches every action and
 //! every project that mounts one, so an addition here is a change for all of
 //! them.
+//!
+//! [`ErasedAction::run`]: ErasedAction::run
 
 /// How a run of an action uses the project
 pub mod access;

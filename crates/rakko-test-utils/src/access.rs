@@ -34,7 +34,9 @@ enum Entry {
 /// The helper asks the action how the run uses the project, with the given
 /// context and arguments. Then it runs the action with the same context and
 /// arguments. A run that declares [`Access::Write`] can change anything, so
-/// the helper does not compare the project.
+/// the helper does not compare the project. The helper does not run an action
+/// that declares a kind of access that it does not know, as [`Access`]
+/// requires of every caller.
 ///
 /// For a run that declares [`Access::Read`], the helper records the content
 /// of every file under the root of the project before and after the run. A
@@ -61,7 +63,9 @@ enum Entry {
 /// Panics when the action declares a read and the run added, removed, or
 /// changed a file of the project. The message gives each such file relative
 /// to the root. Panics as well when a file or a directory of the project
-/// cannot be read, because then the comparison has no answer.
+/// cannot be read, because then the comparison has no answer. Panics before
+/// the run when the action declares a kind of access that the helper does not
+/// know, and the message tells the author to update Rakko.
 ///
 /// # Examples
 ///
@@ -104,9 +108,14 @@ pub async fn run_checking_access<A: Action>(
     context: &Context,
     args: &A::Args,
 ) -> Outcome {
-    let Access::Read = action.access(context, args) else {
-        return action.run(context, args).await;
-    };
+    match action.access(context, args) {
+        Access::Read => {}
+        Access::Write => return action.run(context, args).await,
+        _ => panic!(
+            "the action '{}' declares a kind of access that this helper does not know; update Rakko to check it",
+            action.name(),
+        ),
+    }
 
     let root = context.root().get();
     let before = snapshot(root);

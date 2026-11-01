@@ -26,9 +26,10 @@ use crate::bound_member::BoundMember;
 /// of the group starts. When a member cannot bind its values, the group does
 /// not run, and the error gives the member and the argument. Otherwise the
 /// group receives one [`BoundMember`] for each member, in the order of the
-/// members. The group decides how it runs them and what it reports, and it
-/// can ask each of them how its run uses the project before it runs any of
-/// them.
+/// members. The group decides how it runs them and what it reports. It asks
+/// each of them how its run uses the project before it runs any of them, and
+/// it refuses a kind of access that it does not know, as [`Access`] requires
+/// of every caller.
 ///
 /// A command with arguments of its own is a [`Command`], and it calls the
 /// actions that it runs as libraries.
@@ -40,10 +41,14 @@ use crate::bound_member::BoundMember;
 /// # Examples
 ///
 /// The trait declares [`run`] with an explicit return type, but an
-/// implementation writes a plain `async fn`:
+/// implementation writes a plain `async fn`. This group asks every member for
+/// its access first, and it runs no member when one of them declares a kind
+/// of access that the group does not know:
 ///
 /// ```
-/// use rakko_action::{Context, ErasedAction, Name, action_name};
+/// use std::io;
+///
+/// use rakko_action::{Access, Context, ErasedAction, Name, action_name};
 /// use rakko_cli::clawless::CommandResult;
 /// use rakko_cli::clawless::context::Context as ClawlessContext;
 /// use rakko_cli::{BoundMember, Group, Report};
@@ -67,6 +72,20 @@ use crate::bound_member::BoundMember;
 ///         clawless: &ClawlessContext,
 ///         members: Vec<BoundMember<'_>>,
 ///     ) -> CommandResult {
+///         for member in &members {
+///             match member.action().access(project) {
+///                 Access::Read | Access::Write => {}
+///                 _ => {
+///                     let message = format!(
+///                         "the {} action declares a kind of access that check-all does not know; update Rakko to run it",
+///                         member.name(),
+///                     );
+///
+///                     return Err(io::Error::other(message).into());
+///                 }
+///             }
+///         }
+///
 ///         for member in members {
 ///             let outcome = member.action().run(project).await;
 ///             let report = Report::new(member.name().clone(), outcome);
@@ -79,6 +98,7 @@ use crate::bound_member::BoundMember;
 /// }
 /// ```
 ///
+/// [`Access`]: rakko_action::Access
 /// [`Command`]: crate::Command
 /// [`run`]: Group::run
 pub trait Group: Send + Sync {
