@@ -11,7 +11,7 @@ use rakko_action::{ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError};
 /// can report what each member found under the name of the member.
 ///
 /// The values are bound once. The bound action declares how its run uses the
-/// project and then runs, and both see the same arguments, so a group can ask
+/// project and then runs, and both see the same arguments, so a group asks
 /// every member for its access before it runs the first one.
 ///
 /// [`Group`]: crate::Group
