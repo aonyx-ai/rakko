@@ -53,7 +53,7 @@ pub use self::args::{
 };
 pub use self::bound_action::BoundAction;
 pub use self::bundle::Bundle;
-pub use self::context::{CacheDirectory, ConfigDirectory, Context, Layout, ProjectRoot};
+pub use self::context::{ConfigDirectory, Context, Layout, ProjectRoot};
 pub use self::erased_action::ErasedAction;
 pub use self::finding::{
     Column, DirectoryPath, FilePath, Finding, FindingMessage, Line, Location,
