@@ -1,7 +1,6 @@
 use std::fmt;
 
-use rakko_action::{ErasedAction, Name, action_name};
-use rakko_cli::Group;
+use rakko_action::{ErasedAction, Group, Name, action_name};
 
 /// The group of the actions that guard a commit
 ///
