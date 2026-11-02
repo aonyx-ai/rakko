@@ -466,10 +466,9 @@ fn project_root() -> Arg {
 /// Returns an error for a run that names no root and stands in no project,
 /// because a run that receives a guessed root reports paths that mean nothing.
 /// Returns an error for a group whose member cannot bind its values or
-/// declares a kind of access that the command line does not know, and for a
-/// group whose members found problems or stopped. Returns the error of a
-/// command that failed, and the error of a report that cannot reach the
-/// reader.
+/// declares a kind of access that the command line does not know. Returns the
+/// error of a command that failed, and the error of a report that cannot reach
+/// the reader.
 fn dispatch(matches: ArgMatches, mounted: Mounted) -> Result<u8, Box<dyn Error>> {
     let named = matches.get_one::<PathBuf>(PROJECT_ROOT).cloned();
 
@@ -591,9 +590,15 @@ fn drive_command(
 /// The values hold one entry for each member of the group, in the order of
 /// the members. Every member is bound to its values before any member runs,
 /// so a member that cannot bind stops the run before any member runs. The
-/// scheduler then runs the bound members. Its error reaches the caller as the
-/// error of a command does, so a group whose members found problems ends with
-/// the code of a run that could not answer.
+/// scheduler then runs the bound members and reports them.
+///
+/// The run answers as a run of one action does. The report of each member
+/// travels as a message, so the flags that reduce the output suppress it. The
+/// summary of the group holds the report of every member. It travels as the
+/// result of the command, so these flags do not suppress it. The code is the
+/// worst code of the members. A group whose member stopped ends with the code
+/// of a run that could not answer. Otherwise, a group whose member found
+/// problems ends with the code of a run with findings.
 ///
 /// # Errors
 ///
@@ -614,9 +619,9 @@ fn drive_group(
         let project = locate(named, &context)?;
 
         let members = members::bind(group.members(), &values)?;
-        scheduler::run(members, &project, &context).await?;
+        let code = scheduler::run(&group.name(), members, &project, &context).await?;
 
-        Ok(EXIT_CLEAN)
+        Ok(code)
     })
 }
 
@@ -709,6 +714,10 @@ fn locate(
 /// step that runs a fix in CI must not go red over its success. A run that
 /// repaired some of what it found still has a problem, so it takes the code
 /// for a problem.
+///
+/// The codes grow with how bad the outcome is. A clean run gives the lowest
+/// code, and a run that could not answer gives the highest. A run of a group
+/// takes the highest code of its members, so the worst member decides it.
 fn exit_code(outcome: &Outcome) -> u8 {
     match outcome {
         Outcome::Passed { .. } | Outcome::Changed { .. } | Outcome::Skipped { .. } => EXIT_CLEAN,
@@ -1612,24 +1621,28 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_reports_a_group_whose_member_found_problems() {
+    fn dispatch_reports_a_group_whose_member_found_problems_as_findings() {
         let (failing, _ran) = Probe::reporting("second", || Outcome::Failed {
             findings: Vec::new(),
             repairs: Vec::new(),
         });
         let group = sequence(vec![probe("first"), Box::new(failing)]);
 
-        let message = run_group(group, &[])
-            .map_err(|error| run_error("group 'check'", error.as_ref()).to_string());
+        let code = run_group(group, &[]).expect("expected the command line to drive the group");
 
-        assert_eq!(
-            message,
-            Err(
-                "error: failed to run the group 'check': 1 of 2 actions found problems or \
-                 stopped\n"
-                    .to_owned()
-            )
-        );
+        assert_eq!(code, EXIT_FINDINGS);
+    }
+
+    #[test]
+    fn dispatch_reports_a_group_whose_member_stopped_as_unanswered() {
+        let (stopping, _ran) = Probe::reporting("second", || Outcome::Errored {
+            source: Box::new(std::io::Error::other("boom")),
+        });
+        let group = sequence(vec![probe("first"), Box::new(stopping)]);
+
+        let code = run_group(group, &[]).expect("expected the command line to drive the group");
+
+        assert_eq!(code, EXIT_UNANSWERED);
     }
 
     #[test]

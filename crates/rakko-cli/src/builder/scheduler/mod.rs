@@ -9,9 +9,10 @@ use rakko_action::{Access, Context, Name, Outcome};
 pub(crate) use self::error::RunGroupError;
 use super::members::BoundMember;
 use super::{EXIT_CLEAN, exit_code};
-use crate::report::Report;
+use crate::report::{GroupSummary, Report};
 
-/// Runs the members of a group and reports each member when it finishes
+/// Runs the members of a group, reports each member when it finishes, and
+/// returns the code of the run
 ///
 /// The members arrive bound to the values of the run, in the order of the
 /// list of the group. The scheduler asks every member how its run uses the
@@ -27,33 +28,40 @@ use crate::report::Report;
 /// for a tool. So a reader that blocks the thread delays the other readers
 /// until it returns.
 ///
-/// Every member reports when it finishes. So the reports of the readers
-/// follow the order in which the readers finish, and not the order of the
-/// list.
+/// The report of each member goes out as a message when the member finishes.
+/// So the reports of the readers follow the order in which the readers
+/// finish, and not the order of the list. When every member finished, the run
+/// sends one [`GroupSummary`] as its artifact. The summary holds the report of
+/// every member, in the order of the list. So a run whose output is JSON
+/// writes one document, and the messages go beside it to the standard error.
+///
+/// The run answers as one action does. Its code is the worst code that a run
+/// of one of its members alone gives back. The codes grow with how bad the
+/// outcome is, so the run takes the highest of them. A member that stopped
+/// gives the code of a run that could not answer. Otherwise, a member that
+/// found problems gives the code of a run with findings. Otherwise, the run
+/// is clean, also when a member changed the project or skipped.
 ///
 /// # Errors
 ///
 /// Returns [`RunGroupError::UnknownAccess`] before any member runs when a
 /// member declares a kind of access that the scheduler does not know.
 ///
-/// Returns [`RunGroupError::FailedMembers`] after every member ran when a
-/// member found problems or stopped. Returns
-/// [`RunGroupError::UnreportedOutcome`] when nothing reads the output
-/// anymore.
+/// Returns [`RunGroupError::UnreportedOutcome`] and
+/// [`RunGroupError::UnreportedSummary`] when nothing reads the output anymore.
 pub(super) async fn run(
+    group: &Name,
     members: Vec<BoundMember<'_>>,
     project: &Context,
     clawless: &ClawlessContext,
-) -> Result<(), RunGroupError> {
-    let total = members.len();
-
+) -> Result<u8, RunGroupError> {
     let mut writes = Vec::new();
     let mut reads = Vec::new();
 
-    for member in members {
+    for (place, member) in members.into_iter().enumerate() {
         match member.action().access(project) {
-            Access::Write => writes.push(member),
-            Access::Read => reads.push(member),
+            Access::Write => writes.push((place, member)),
+            Access::Read => reads.push((place, member)),
             _ => {
                 return Err(RunGroupError::UnknownAccess {
                     member: member.name().clone(),
@@ -62,59 +70,79 @@ pub(super) async fn run(
         }
     }
 
-    let mut problems = drive_writers(writes, project, clawless).await?;
-    problems += drive_readers(reads, project, clawless).await?;
+    let mut finished = drive_writers(writes, project, clawless).await?;
+    finished.extend(drive_readers(reads, project, clawless).await?);
+    finished.sort_by_key(|member| member.place);
 
-    if problems > 0 {
-        return Err(RunGroupError::FailedMembers { problems, total });
-    }
+    let code = finished
+        .iter()
+        .map(|member| member.code)
+        .max()
+        .unwrap_or(EXIT_CLEAN);
+    let reports = finished.into_iter().map(|member| member.report).collect();
 
-    Ok(())
+    clawless
+        .output()
+        .artifact(GroupSummary::new(group.clone(), reports))
+        .await
+        .map_err(|source| RunGroupError::UnreportedSummary {
+            group: group.clone(),
+            source,
+        })?;
+
+    Ok(code)
+}
+
+/// A member that finished, with its place in the list of the group
+///
+/// The readers finish in any order. The place puts the report of each member
+/// back in the order of the list. So two runs of one group list the members in
+/// the same order in their summaries.
+struct Finished {
+    /// The place of the member in the list of the group
+    place: usize,
+    /// The code that a run of the member alone gives back
+    code: u8,
+    /// What the member returned, under the name of the member
+    report: Report,
 }
 
 /// Runs the members that write one at a time, in the order of the list, and
-/// returns how many of them did not pass
+/// returns them as they finished
 ///
 /// The run reports a member as soon as that member finishes, so whoever runs
 /// the group learns what one member found while the next one runs.
 ///
 /// A member that found problems or stopped does not end the run. A run that
 /// stopped at the first problem would hide the problems after it, and whoever
-/// started it would learn them one run at a time. A member passes when a run
-/// of that action alone exits clean: a member that skipped or that repaired
-/// everything that it found passes as well.
+/// started it would learn them one run at a time.
 ///
 /// # Errors
 ///
 /// Returns [`RunGroupError::UnreportedOutcome`] when nothing reads the output
 /// anymore.
 async fn drive_writers(
-    members: Vec<BoundMember<'_>>,
+    members: Vec<(usize, BoundMember<'_>)>,
     project: &Context,
     clawless: &ClawlessContext,
-) -> Result<usize, RunGroupError> {
-    let mut problems = 0;
+) -> Result<Vec<Finished>, RunGroupError> {
+    let mut finished = Vec::new();
 
-    for member in members {
+    for (place, member) in members {
         let outcome = member.action().run(project).await;
 
-        if exit_code(&outcome) != EXIT_CLEAN {
-            problems += 1;
-        }
-
-        report(member.name(), outcome, clawless).await?;
+        finished.push(report(place, member.name(), outcome, clawless).await?);
     }
 
-    Ok(problems)
+    Ok(finished)
 }
 
-/// Starts all the members that read at the same time and returns how many of
-/// them did not pass
+/// Starts all the members that read at the same time and returns them as they
+/// finished, in the order in which they finished
 ///
 /// The run reports a member as soon as that member finishes, so the report of
 /// a fast member does not wait for a slow member. A member that found problems
-/// or stopped does not end the run, and the other members run to their end. A
-/// member passes as [`drive_writers`] describes.
+/// or stopped does not end the run, and the other members run to their end.
 ///
 /// # Errors
 ///
@@ -122,31 +150,31 @@ async fn drive_writers(
 /// anymore. The members that still run then stop, because nothing would read
 /// what they find.
 async fn drive_readers(
-    members: Vec<BoundMember<'_>>,
+    members: Vec<(usize, BoundMember<'_>)>,
     project: &Context,
     clawless: &ClawlessContext,
-) -> Result<usize, RunGroupError> {
+) -> Result<Vec<Finished>, RunGroupError> {
     let mut running = members
         .iter()
-        .map(|member| async move { (member.name(), member.action().run(project).await) })
+        .map(|(place, member)| async move {
+            (*place, member.name(), member.action().run(project).await)
+        })
         .collect::<FuturesUnordered<_>>();
 
-    let mut problems = 0;
+    let mut finished = Vec::new();
 
-    while let Some((name, outcome)) = running.next().await {
-        if exit_code(&outcome) != EXIT_CLEAN {
-            problems += 1;
-        }
-
-        report(name, outcome, clawless).await?;
+    while let Some((place, name, outcome)) = running.next().await {
+        finished.push(report(place, name, outcome, clawless).await?);
     }
 
-    Ok(problems)
+    Ok(finished)
 }
 
-/// Reports the outcome of one member under the name of the member
+/// Reports the outcome of one member as a message under the name of the
+/// member, and returns the member as it finished
 ///
-/// Each report is one event, so two reports never mix, even when the members
+/// The message holds the text that a run of that action alone shows. Each
+/// report is one event, so two reports never mix, even when the members
 /// finish at the same time.
 ///
 /// # Errors
@@ -154,18 +182,26 @@ async fn drive_readers(
 /// Returns [`RunGroupError::UnreportedOutcome`] when nothing reads the output
 /// anymore.
 async fn report(
+    place: usize,
     name: &Name,
     outcome: Outcome,
     clawless: &ClawlessContext,
-) -> Result<(), RunGroupError> {
-    clawless
-        .output()
-        .artifact(Report::new(name.clone(), outcome))
-        .await
-        .map_err(|source| RunGroupError::UnreportedOutcome {
+) -> Result<Finished, RunGroupError> {
+    let code = exit_code(&outcome);
+    let report = Report::new(name.clone(), outcome);
+
+    clawless.output().message(&report).await.map_err(|source| {
+        RunGroupError::UnreportedOutcome {
             member: name.clone(),
             source,
-        })
+        }
+    })?;
+
+    Ok(Finished {
+        place,
+        code,
+        report,
+    })
 }
 
 #[cfg(test)]
@@ -188,6 +224,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::builder::{EXIT_FINDINGS, EXIT_UNANSWERED};
 
     /// The number of times that a test polls a run that never ends
     ///
@@ -269,6 +306,15 @@ mod tests {
                 fix: values.get(&argument_name!("fix")).cloned(),
             })
         }
+    }
+
+    /// What a run sent to the reader, in the order in which it sent it
+    struct Sent {
+        /// The text of each message
+        messages: Vec<String>,
+
+        /// Each artifact, as the JSON that a run whose output is JSON writes
+        artifacts: Vec<String>,
     }
 
     /// An action that writes into a log when it runs, and declares and answers
@@ -393,17 +439,18 @@ mod tests {
     }
 
     /// Polls a run of the actions without values a fixed number of times and
-    /// returns the text of each report that it wrote by then, in the order in
-    /// which it wrote them
+    /// returns what it sent by then
     ///
     /// A run with a member that never answers never ends. The test then sees
     /// what the run did while that member still ran.
-    fn advance(actions: &[Box<dyn ErasedAction>]) -> Vec<String> {
+    fn advance(actions: &[Box<dyn ErasedAction>]) -> Sent {
+        let group = group();
         let project = project();
         let (clawless, receiver) = clawless();
 
         {
             let mut future = pin!(run(
+                &group,
                 bind(actions, &ArgsValues::empty()),
                 &project,
                 &clawless
@@ -472,7 +519,7 @@ mod tests {
     }
 
     /// Drives a run of the actions with the given values to its end and
-    /// returns its result
+    /// returns its code
     ///
     /// The receiver of the output lives until the run ends, because a report
     /// that nothing reads fails the run.
@@ -483,10 +530,10 @@ mod tests {
     fn complete(
         actions: &[Box<dyn ErasedAction>],
         values: &ArgsValues,
-    ) -> Result<(), RunGroupError> {
+    ) -> Result<u8, RunGroupError> {
         let (clawless, _receiver) = clawless();
 
-        block_on(run(bind(actions, values), &project(), &clawless))
+        block_on(run(&group(), bind(actions, values), &project(), &clawless))
     }
 
     /// Returns an action with the given name that reads and found a problem,
@@ -513,6 +560,11 @@ mod tests {
         })
     }
 
+    /// Returns the name of the group that a test runs
+    fn group() -> Name {
+        action_name!("check")
+    }
+
     /// Returns the context of the project that a run maintains
     fn project() -> Context {
         Context::builder().root("/tmp/project").build()
@@ -524,25 +576,30 @@ mod tests {
         recorder(name, Declaration::Read, Answer::Pass, log)
     }
 
-    /// Returns the text of each report that a run wrote, in the order in which
-    /// it wrote them
+    /// Returns what a run sent, in the order in which it sent it
     ///
     /// The run has ended or was dropped, so nothing writes through the context
     /// anymore.
-    fn received(clawless: ClawlessContext, mut receiver: EventReceiver) -> Vec<String> {
+    fn received(clawless: ClawlessContext, mut receiver: EventReceiver) -> Sent {
         // The context holds the sender of the output. Without the sender, the
         // receiver ends after the last event that the run wrote.
         drop(clawless);
 
-        let mut reports = Vec::new();
+        let mut sent = Sent {
+            messages: Vec::new(),
+            artifacts: Vec::new(),
+        };
         while let Some(event) = block_on(receiver.recv()) {
             match event {
-                Event::Artifact(artifact) => reports.push(artifact.to_string()),
-                Event::Message(_) | Event::Detail(_) | Event::Process(_) | Event::Prompt(_) => {}
+                Event::Message(message) => sent.messages.push(message),
+                Event::Artifact(artifact) => sent.artifacts.push(
+                    serde_json::to_string(&artifact).expect("every artifact of a run serializes"),
+                ),
+                Event::Detail(_) | Event::Process(_) | Event::Prompt(_) => {}
             }
         }
 
-        reports
+        sent
     }
 
     /// Returns a recorder with the given name, declaration, and answer, which
@@ -561,11 +618,12 @@ mod tests {
         })
     }
 
-    /// Drives a run of the actions without values to its end and returns the
-    /// text of each report that it wrote, in the order in which it wrote them
-    fn reports(actions: &[Box<dyn ErasedAction>]) -> Vec<String> {
+    /// Drives a run of the actions without values to its end and returns what
+    /// it sent
+    fn sent_by(actions: &[Box<dyn ErasedAction>]) -> Sent {
         let (clawless, receiver) = clawless();
         let _result = block_on(run(
+            &group(),
             bind(actions, &ArgsValues::empty()),
             &project(),
             &clawless,
@@ -715,9 +773,9 @@ mod tests {
             reader(action_name!("lint-yaml"), &log),
         ];
 
-        let reports = advance(&actions);
+        let sent = advance(&actions);
 
-        assert_eq!(reports, ["lint-yaml: passed"]);
+        assert_eq!(sent.messages, ["lint-yaml: passed"]);
     }
 
     #[test]
@@ -729,7 +787,7 @@ mod tests {
             reader(action_name!("lint-yaml"), &log),
         ];
 
-        let _reports = advance(&actions);
+        let _sent = advance(&actions);
 
         assert_eq!(*log.lock().expect("the run was dropped"), ["format-yaml"]);
     }
@@ -743,7 +801,7 @@ mod tests {
             waiting(action_name!("format-json"), Declaration::Write, &log),
         ];
 
-        let _reports = advance(&actions);
+        let _sent = advance(&actions);
 
         assert_eq!(
             *log.lock().expect("the run was dropped"),
@@ -760,7 +818,7 @@ mod tests {
             reader(action_name!("lint-toml"), &log),
         ];
 
-        let _reports = advance(&actions);
+        let _sent = advance(&actions);
         let mut started = log.lock().expect("the run was dropped").clone();
         started.sort();
 
@@ -768,7 +826,25 @@ mod tests {
     }
 
     #[test]
-    fn run_with_actions_that_found_problems_counts_them() {
+    fn run_with_a_reader_before_a_writer_sends_one_summary_in_the_order_of_the_list() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            reader(action_name!("lint-yaml"), &log),
+            writer(action_name!("format-yaml"), &log),
+        ];
+
+        let sent = sent_by(&actions);
+
+        assert_eq!(
+            sent.artifacts,
+            [
+                r#"{"schema":"unstable","group":"check","counts":{"passed":2,"changed":0,"failed":0,"skipped":0,"errored":0},"members":[{"schema":"unstable","action":"lint-yaml","outcome":"passed","findings":[],"repairs":[]},{"schema":"unstable","action":"format-yaml","outcome":"passed","findings":[],"repairs":[]}]}"#
+            ]
+        );
+    }
+
+    #[test]
+    fn run_with_an_action_that_found_problems_and_one_that_stopped_returns_the_code_of_a_stop() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
             recorder(
@@ -777,17 +853,18 @@ mod tests {
                 Answer::Fail,
                 &log,
             ),
-            writer(action_name!("format-json"), &log),
-            failing(action_name!("lint-yaml"), &log),
+            recorder(
+                action_name!("lint-yaml"),
+                Declaration::Read,
+                Answer::Stop,
+                &log,
+            ),
             failing(action_name!("lint-toml"), &log),
         ];
 
-        let result = complete(&actions, &ArgsValues::empty());
+        let code = complete(&actions, &ArgsValues::empty());
 
-        assert_eq!(
-            result.map_err(|error| error.to_string()),
-            Err("3 of 4 actions found problems or stopped".to_owned())
-        );
+        assert_eq!(code.ok(), Some(EXIT_UNANSWERED));
     }
 
     #[test]
@@ -813,7 +890,20 @@ mod tests {
     }
 
     #[test]
-    fn run_with_an_action_that_repaired_the_project_succeeds() {
+    fn run_with_an_action_that_found_problems_returns_the_code_of_findings() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            writer(action_name!("format-yaml"), &log),
+            failing(action_name!("lint-yaml"), &log),
+        ];
+
+        let code = complete(&actions, &ArgsValues::empty());
+
+        assert_eq!(code.ok(), Some(EXIT_FINDINGS));
+    }
+
+    #[test]
+    fn run_with_an_action_that_repaired_the_project_returns_the_code_of_a_clean_run() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
             recorder(
@@ -825,13 +915,13 @@ mod tests {
             reader(action_name!("lint-yaml"), &log),
         ];
 
-        let result = complete(&actions, &ArgsValues::empty());
+        let code = complete(&actions, &ArgsValues::empty());
 
-        assert!(result.is_ok());
+        assert_eq!(code.ok(), Some(EXIT_CLEAN));
     }
 
     #[test]
-    fn run_with_an_action_that_skipped_succeeds() {
+    fn run_with_an_action_that_skipped_returns_the_code_of_a_clean_run() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
             writer(action_name!("format-yaml"), &log),
@@ -843,13 +933,13 @@ mod tests {
             ),
         ];
 
-        let result = complete(&actions, &ArgsValues::empty());
+        let code = complete(&actions, &ArgsValues::empty());
 
-        assert!(result.is_ok());
+        assert_eq!(code.ok(), Some(EXIT_CLEAN));
     }
 
     #[test]
-    fn run_with_an_action_that_stopped_counts_it() {
+    fn run_with_an_action_that_stopped_returns_the_code_of_a_stop() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
             writer(action_name!("format-yaml"), &log),
@@ -861,25 +951,22 @@ mod tests {
             ),
         ];
 
-        let result = complete(&actions, &ArgsValues::empty());
+        let code = complete(&actions, &ArgsValues::empty());
 
-        assert_eq!(
-            result.map_err(|error| error.to_string()),
-            Err("1 of 2 actions found problems or stopped".to_owned())
-        );
+        assert_eq!(code.ok(), Some(EXIT_UNANSWERED));
     }
 
     #[test]
-    fn run_with_clean_actions_succeeds() {
+    fn run_with_clean_actions_returns_the_code_of_a_clean_run() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
             writer(action_name!("format-yaml"), &log),
             reader(action_name!("lint-yaml"), &log),
         ];
 
-        let result = complete(&actions, &ArgsValues::empty());
+        let code = complete(&actions, &ArgsValues::empty());
 
-        assert!(result.is_ok());
+        assert_eq!(code.ok(), Some(EXIT_CLEAN));
     }
 
     #[test]
@@ -908,10 +995,10 @@ mod tests {
             writer(action_name!("format-json"), &log),
         ];
 
-        let reports = reports(&actions);
+        let sent = sent_by(&actions);
 
         assert_eq!(
-            reports,
+            sent.messages,
             [
                 "format-yaml: passed",
                 "format-json: passed",
@@ -927,10 +1014,12 @@ mod tests {
             waiting(action_name!("test-rust"), Declaration::Read, &log),
             reader(action_name!("lint-yaml"), &log),
         ];
+        let group = group();
         let project = project();
         let (clawless, receiver) = clawless();
         drop(receiver);
         let mut future = pin!(run(
+            &group,
             bind(&actions, &ArgsValues::empty()),
             &project,
             &clawless
@@ -961,6 +1050,7 @@ mod tests {
         drop(receiver);
 
         let result = block_on(run(
+            &group(),
             bind(&actions, &ArgsValues::empty()),
             &project(),
             &clawless,
@@ -970,5 +1060,25 @@ mod tests {
             result.map_err(|error| error.to_string()),
             Err("failed to report the outcome of the format-yaml action".to_owned())
         );
+    }
+
+    #[test]
+    fn run_without_an_output_fails_at_the_summary_of_a_group_without_members() {
+        let (clawless, receiver) = clawless();
+        drop(receiver);
+
+        let result = block_on(run(&group(), Vec::new(), &project(), &clawless));
+
+        assert_eq!(
+            result.map_err(|error| error.to_string()),
+            Err("failed to report the summary of the check group".to_owned())
+        );
+    }
+
+    #[test]
+    fn run_without_members_returns_the_code_of_a_clean_run() {
+        let code = complete(&[], &ArgsValues::empty());
+
+        assert_eq!(code.ok(), Some(EXIT_CLEAN));
     }
 }

@@ -5,28 +5,14 @@ use thiserror::Error;
 /// An error that stops a run of a group
 ///
 /// A problem of the project is no error of the run. Each member reports what
-/// it found, and the scheduler reads those reports and counts them. The
-/// variants here describe the three ways in which the scheduler fails a run of
-/// the members that the command line bound:
+/// it found, and the code of the run tells a member that found problems from a
+/// member that stopped. The variants here describe the two ways in which the
+/// scheduler fails a run of the members that the command line bound:
 ///
-/// - members found problems in the project, or stopped,
 /// - a member declares a kind of access that the scheduler cannot order, or
-/// - what a member found never reached the reader.
+/// - what the members found never reached the reader.
 #[derive(Debug, Error)]
 pub(crate) enum RunGroupError {
-    /// Members of the group found problems in the project, or stopped
-    ///
-    /// The run reported every member before it, so the message counts them
-    /// instead of repeating what they said.
-    #[error("{problems} of {total} actions found problems or stopped")]
-    FailedMembers {
-        /// How many members found problems or stopped
-        problems: usize,
-
-        /// How many members the run drove
-        total: usize,
-    },
-
     /// A member declares a kind of access that this version of the command
     /// line does not know
     ///
@@ -57,6 +43,21 @@ pub(crate) enum RunGroupError {
         /// The cause of the failure
         source: SendError,
     },
+
+    /// The summary of the group did not reach the reader
+    ///
+    /// The run sends the summary when every member finished. Every member
+    /// already reported, so only the summary is lost. But the summary is the
+    /// one artifact of the run, and a machine reads nothing else, so the run
+    /// fails.
+    #[error("failed to report the summary of the {group} group")]
+    UnreportedSummary {
+        /// The group whose summary the run could not report
+        group: Name,
+
+        /// The cause of the failure
+        source: SendError,
+    },
 }
 
 #[cfg(test)]
@@ -69,19 +70,6 @@ mod tests {
     use rakko_action::action_name;
 
     use super::*;
-
-    #[test]
-    fn failed_members_counts_the_members_that_did_not_pass() {
-        let error = RunGroupError::FailedMembers {
-            problems: 2,
-            total: 12,
-        };
-
-        assert_eq!(
-            error.to_string(),
-            "2 of 12 actions found problems or stopped"
-        );
-    }
 
     #[test]
     fn unknown_access_tells_the_user_to_update_rakko() {
@@ -105,6 +93,19 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "failed to report the outcome of the lint-rust action"
+        );
+    }
+
+    #[test]
+    fn unreported_summary_gives_the_group() {
+        let error = RunGroupError::UnreportedSummary {
+            group: action_name!("pre-commit"),
+            source: SendError(Event::Message("lost".to_owned())),
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "failed to report the summary of the pre-commit group"
         );
     }
 }

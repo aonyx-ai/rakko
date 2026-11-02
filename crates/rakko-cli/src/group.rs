@@ -37,11 +37,25 @@ use rakko_action::{ErasedAction, Name};
 /// takes one of them out of the group.
 ///
 /// Every member runs to its end, also after another member found problems or
-/// stopped, so one run reports every problem. The run reports each member when
-/// the member finishes, as a run of that action alone reports. So the reports
-/// of the members that read follow the order in which they finish, and not
-/// the order of the list. The run fails when a member found problems or
-/// stopped, and the error counts these members.
+/// stopped, so one run reports every problem. The report of each member
+/// appears as a message when the member finishes, with the text that a run of
+/// that action alone shows. So the reports of the members that read follow the
+/// order in which they finish, and not the order of the list.
+///
+/// A run of the group answers as a run of one action does. When every member
+/// finished, the run shows one summary of the group. The summary holds the
+/// report of every member in the order of the list. Its text gives the members
+/// that did not pass and counts them. With `--json`, the standard output
+/// therefore carries one document for the run, and the messages go to the
+/// standard error. With `--quiet`, the messages do not appear, and the summary
+/// still gives the members that did not pass.
+///
+/// The run exits with the worst code of its members. A member that stopped
+/// gives the code of an action that stopped. Otherwise, a member that found
+/// problems gives the code of an action with findings. Otherwise, the run exits
+/// zero, also when a member changed the project or skipped. A member that
+/// cannot bind stops the run with an error before any member runs. So does a
+/// member that declares a kind of access that the command line does not know.
 ///
 /// A command with arguments of its own, or a command that runs its actions in
 /// a way of its own, is a [`Command`]. It calls the actions that it runs as

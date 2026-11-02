@@ -61,9 +61,9 @@ The error gives the action and tells the user to update Rakko, because only a
 newer release can know the kind. Otherwise, the run drives the actions that
 write, one after another and in the order of the list. When the last of them
 ended, the run starts all the actions that read at the same time. Each action
-reports when it ends, as a run of that action alone reports, so a fast check
-does not wait for a slow one. An action that found problems does not end the
-run, so one run reports every problem of the tree.
+reports when it ends, so a fast check does not wait for a slow one. The report
+has the text that a run of that action alone shows. An action that found
+problems does not end the run, so one run reports every problem of the tree.
 
 ```console
 mise run rakko -- pre-commit --fix
@@ -78,11 +78,31 @@ that read. Such a run reports what a commit has to repair. An action that
 writes whatever its arguments, such as an action that declares nothing, still
 writes in a run without the flag.
 
-The command fails when an action found problems or stopped, so the commit
-waits. A run in which the actions that write repaired everything that they
-found succeeds, because the repair is what the flag asked for. The commit
-still waits in that case, because [pre-commit] stops a commit whose files a
-hook changed.
+When every action ended, the run shows one summary. The summary gives each
+action that found problems or stopped, in the order of the list, and then
+counts them:
+
+```text
+lint-yaml: found problems
+test-rust: stopped
+pre-commit: 1 of 11 actions found problems, 1 stopped
+```
+
+The command fails when an action found problems or stopped, so the commit waits.
+It exits as a run of one action does. The code is 2 when an action stopped,
+otherwise 1 when an action found problems, and otherwise 0. So CI can tell a
+tree with problems from a check that could not answer. A run in which the
+actions that write repaired everything that they found exits with 0, because the
+repair is what the flag asked for. An action that skipped does not fail the run
+either. The commit still waits after a repair, because [pre-commit] stops a
+commit whose files a hook changed.
+
+With `--json`, the standard output carries one document: the summary. It holds
+the name `pre-commit`, the number of actions in each state, and the report of
+each action in the order of the list. Each report has the shape that a run of
+that action alone writes. The reports of the actions go to the standard error
+as text. With `--quiet`, the reports of the actions do not appear, and the
+summary still gives the actions that found problems or stopped.
 
 ## Hook
 
