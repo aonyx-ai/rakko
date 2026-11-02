@@ -11,9 +11,9 @@ from the design discussions to the terms that replaced them.
   it runs. The declaration is a function of the arguments and the context, so
   a `--fix` flag changes it, and it does no I/O. A declaration covers the
   whole project: a write is exclusive access to it, and a read is shared
-  access. The default declaration is a write. The scheduler, which is still
-  planned, runs the writers of a group one at a time and then its readers in
-  parallel.
+  access. The default declaration is a write. The scheduler runs the writers
+  of a group one at a time and then its readers. (Planned.) It runs the
+  readers in parallel.
 - **Action** — The unit of maintenance work. An action is a library crate
   that implements the `Action` trait. An action depends on the contract
   crate and on the helper crates that it uses. It never depends on the
@@ -59,11 +59,11 @@ from the design discussions to the terms that replaced them.
   runs as one command, such as pre-commit. A group is a concept of the public
   API, next to the action and the harness. The projection derives the flags
   of the group from the arguments of its members, and a flag reaches only the
-  members that declare its argument. A group has no arguments of its own.
-  (Planned.) A group is a type with a name and its members and nothing else,
-  and its trait lives in the contract crate. The scheduler runs the members,
-  and when they run, the group answers like one action, with one summary and
-  the exit code of the worst outcome of its members.
+  members that declare its argument. A group has no arguments of its own. A
+  group is a type with a name and its members and nothing else, and the
+  scheduler runs the members. (Planned.) The trait of a group lives in the
+  contract crate. When the members run, the group answers like one action,
+  with one summary and the exit code of the worst outcome of its members.
 - **Harness** — The small binary crate in each project. The harness mounts
   the bundles, actions, and groups that the project uses, writes the
   commands of the project that do not fit an action, and `mise run rakko`
@@ -107,10 +107,10 @@ from the design discussions to the terms that replaced them.
   that a harness mounts into commands, with the help text and the shared
   output flags, and it defines the trait that a written command implements.
   Only a harness, and a crate that provides a written command or a group,
-  depends on it, so Clawless never reaches an action. (Planned.) Its
-  scheduler runs the members of every group, and the trait of a group moves
-  from the projection into the contract crate, so a crate that provides a
-  group no longer depends on the projection.
+  depends on it, so Clawless never reaches an action. Its scheduler runs the
+  members of every group. (Planned.) The trait of a group moves from the
+  projection into the contract crate, so a crate that provides a group no
+  longer depends on the projection.
 - **Rakko** — This project: a toolkit that turns project maintenance into
   versioned Rust crates. The rakko (ラッコ) is the Japanese sea otter, the
   otter that keeps a pebble as its tool.
@@ -135,12 +135,13 @@ from the design discussions to the terms that replaced them.
   action that they do not trust. A Rust action runs in the process of the
   harness, and its build scripts run when the harness compiles, so a copy of the
   project does not contain it.
-- **Scheduler** — (Planned.) The part of the projection that runs the
-  members of a group. It reads the access declaration of each member before
-  any member runs, and a kind of access that it does not know stops the group
-  there. Then it runs the writers one at a time, in the order of the list, and
-  all the readers in parallel. Every member runs to its end, also when another
-  member fails. The scheduler is internal to the projection.
+- **Scheduler** — The part of the projection that runs the members of a
+  group. It reads the access declaration of each member before any member
+  runs, and a kind of access that it does not know stops the group there.
+  Then it runs the writers one at a time, in the order of the list, and then
+  the readers. Every member runs to its end, also when another member fails.
+  The scheduler is internal to the projection. (Planned.) It runs all the
+  readers in parallel.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.

@@ -4,7 +4,7 @@ use rakko_action::{ErasedAction, Name};
 
 use crate::builder::members::MergedArgument;
 use crate::erased_command::ErasedCommand;
-use crate::erased_group::ErasedGroup;
+use crate::group::Group;
 
 /// One entry of the command tree: an action, a command, or a group
 ///
@@ -22,10 +22,11 @@ pub(crate) enum Mounted {
     /// A command that the harness wrote
     Command(Box<dyn ErasedCommand>),
 
-    /// A group that the harness wrote, with the flags that its members give it
+    /// A group that the harness formed, with the flags that its members give
+    /// it
     Group {
         /// The group, which holds its members
-        group: Box<dyn ErasedGroup>,
+        group: Box<dyn Group>,
         /// The flags of the group, merged from the arguments of its members
         /// when the harness mounted it
         arguments: Vec<MergedArgument>,

@@ -6,6 +6,8 @@ mod error;
 mod members;
 /// The actions that a harness mounted
 mod registry;
+/// The part of the command line that runs the members of a group
+mod scheduler;
 
 use std::error::Error;
 use std::ffi::OsString;
@@ -24,7 +26,7 @@ use self::error::RunEntryError;
 use self::registry::{Mounted, Registry};
 use crate::chain::Chain;
 use crate::erased_command::ErasedCommand;
-use crate::erased_group::ErasedGroup;
+use crate::group::Group;
 use crate::report::Report;
 use crate::root::{self, ResolveProjectRootError};
 
@@ -217,14 +219,15 @@ impl Builder {
 
     /// Mounts groups in the command line
     ///
-    /// A group is a command that the harness wrote, which runs a list of
-    /// actions, its members. The command line derives the flags of the group
+    /// A group is a named list of actions, its members, that the command line
+    /// runs as one command. The command line derives the flags of the group
     /// from the arguments of the members: each argument that a member declares
     /// becomes one flag, and an argument that several members declare stays
     /// one flag. A flag reaches every member that declares its argument, and
     /// no other member. The help of a flag shows one line for each member that
     /// declares its argument, in the order of the members, and each line
-    /// starts with the name of the member.
+    /// starts with the name of the member. A run of the group runs the members
+    /// as [`Group`] describes.
     ///
     /// A group takes its place in the same flat tree as the actions and the
     /// commands. Its members need no mount of their own, so a harness that
@@ -249,32 +252,21 @@ impl Builder {
     /// # Examples
     ///
     /// ```
-    /// # use rakko_action::{Context, ErasedAction, Name, action_name};
-    /// # use rakko_cli::clawless::CommandResult;
-    /// # use rakko_cli::clawless::context::Context as ClawlessContext;
-    /// # use rakko_cli::{BoundMember, ErasedGroup, Group};
+    /// # use rakko_action::{ErasedAction, Name, action_name};
+    /// # use rakko_cli::Group;
     /// # struct CheckAll {
     /// #     actions: Vec<Box<dyn ErasedAction>>,
     /// # }
     /// # impl Group for CheckAll {
     /// #     fn name(&self) -> Name { action_name!("check-all") }
     /// #     fn members(&self) -> &[Box<dyn ErasedAction>] { &self.actions }
-    /// #     async fn run(
-    /// #         &self,
-    /// #         _project: &Context,
-    /// #         _clawless: &ClawlessContext,
-    /// #         _members: Vec<BoundMember<'_>>,
-    /// #     ) -> CommandResult {
-    /// #         Ok(())
-    /// #     }
     /// # }
     /// let check_all = CheckAll { actions: Vec::new() };
     ///
-    /// let command_line =
-    ///     rakko_cli::builder().mount_groups([Box::new(check_all) as Box<dyn ErasedGroup>]);
+    /// let command_line = rakko_cli::builder().mount_groups([Box::new(check_all) as Box<dyn Group>]);
     /// ```
     #[must_use]
-    pub fn mount_groups(mut self, groups: impl IntoIterator<Item = Box<dyn ErasedGroup>>) -> Self {
+    pub fn mount_groups(mut self, groups: impl IntoIterator<Item = Box<dyn Group>>) -> Self {
         self.add(groups.into_iter().map(|group| {
             self::members::refuse_repeated(&group.name(), group.members());
             let arguments = members::merge(&group.name(), group.members());
@@ -473,9 +465,11 @@ fn project_root() -> Arg {
 /// a command, and when it cannot start the runtime that drives the run.
 /// Returns an error for a run that names no root and stands in no project,
 /// because a run that receives a guessed root reports paths that mean nothing.
-/// Returns an error for a group whose member cannot bind its values. Returns
-/// the error of a command or a group that failed, and the error of a report
-/// that cannot reach the reader.
+/// Returns an error for a group whose member cannot bind its values or
+/// declares a kind of access that the command line does not know, and for a
+/// group whose members found problems or stopped. Returns the error of a
+/// command that failed, and the error of a report that cannot reach the
+/// reader.
 fn dispatch(matches: ArgMatches, mounted: Mounted) -> Result<u8, Box<dyn Error>> {
     let named = matches.get_one::<PathBuf>(PROJECT_ROOT).cloned();
 
@@ -592,32 +586,35 @@ fn drive_command(
     })
 }
 
-/// Runs one group that the harness wrote and returns the code of the run
+/// Runs the members of one group and returns the code of the run
 ///
 /// The values hold one entry for each member of the group, in the order of
-/// the members. Every member is bound to its values before the group runs, so
-/// a member that cannot bind stops the run before any member runs. The group
-/// then receives the bound members, and its result reaches the caller as the
-/// result of a command does.
+/// the members. Every member is bound to its values before any member runs,
+/// so a member that cannot bind stops the run before any member runs. The
+/// scheduler then runs the bound members. Its error reaches the caller as the
+/// error of a command does, so a group whose members found problems ends with
+/// the code of a run that could not answer.
 ///
 /// # Errors
 ///
 /// Returns [`BindMembersError::UnboundMember`] for a member whose values do
-/// not convert into its arguments. Returns the other errors that [`dispatch`]
+/// not convert into its arguments. Returns the errors of the scheduler, which
+/// [`RunGroupError`] describes. Returns the other errors that [`dispatch`]
 /// describes.
 ///
 /// [`BindMembersError::UnboundMember`]: members::BindMembersError::UnboundMember
+/// [`RunGroupError`]: scheduler::RunGroupError
 fn drive_group(
     matches: ArgMatches,
     named: Option<PathBuf>,
     values: Vec<ArgsValues>,
-    group: Box<dyn ErasedGroup>,
+    group: Box<dyn Group>,
 ) -> Result<u8, Box<dyn Error>> {
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
 
         let members = members::bind(group.members(), &values)?;
-        group.run(&project, &context, members).await?;
+        scheduler::run(members, &project, &context).await?;
 
         Ok(EXIT_CLEAN)
     })
@@ -739,9 +736,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::bound_member::BoundMember;
     use crate::command::Command as WrittenCommand;
-    use crate::group::Group;
 
     /// The name of the group that the tests mount
     const GROUP: &str = "check";
@@ -1085,20 +1080,12 @@ mod tests {
         }
     }
 
-    /// A group that runs its members one after another and returns what a
-    /// test asked for
+    /// A group that the tests mount, with the members that a test gives it
     struct Sequence {
         /// The name of the group
         name: Name,
-        /// The actions that the group runs
+        /// The actions that the group lists
         actions: Vec<Box<dyn ErasedAction>>,
-        /// Whether a run of the group happened
-        ran: Arc<AtomicBool>,
-        /// What a run of the group returns
-        ///
-        /// An error cannot be cloned, and a run borrows the group, so the
-        /// group holds a function that builds a fresh result per run.
-        result: fn() -> CommandResult,
     }
 
     impl Group for Sequence {
@@ -1108,21 +1095,6 @@ mod tests {
 
         fn members(&self) -> &[Box<dyn ErasedAction>] {
             &self.actions
-        }
-
-        async fn run(
-            &self,
-            project: &Context,
-            _clawless: &ClawlessContext,
-            members: Vec<BoundMember<'_>>,
-        ) -> CommandResult {
-            self.ran.store(true, Ordering::SeqCst);
-
-            for member in members {
-                member.action().run(project).await;
-            }
-
-            (self.result)()
         }
     }
 
@@ -1281,7 +1253,7 @@ mod tests {
     /// Returns the flags of the group that a command line mounts
     fn flags_of_group(group: Sequence) -> Vec<Arg> {
         builder()
-            .mount_groups([Box::new(group) as Box<dyn ErasedGroup>])
+            .mount_groups([Box::new(group) as Box<dyn Group>])
             .command()
             .get_subcommands()
             .find(|leaf| leaf.get_name() == GROUP)
@@ -1355,7 +1327,7 @@ mod tests {
         invocation.extend(arguments.iter().map(OsString::from));
 
         let Ok(Resolution::Entry(matches, mounted)) = builder()
-            .mount_groups([Box::new(group) as Box<dyn ErasedGroup>])
+            .mount_groups([Box::new(group) as Box<dyn Group>])
             .resolve(invocation)
         else {
             panic!("expected the command line to read the run that the test describes");
@@ -1364,27 +1336,12 @@ mod tests {
         dispatch(matches, mounted)
     }
 
-    /// Returns a group of the given members that succeeds, and the flag that
-    /// its run sets
-    fn sequence(actions: Vec<Box<dyn ErasedAction>>) -> (Sequence, Arc<AtomicBool>) {
-        sequence_returning(actions, || Ok(()))
-    }
-
-    /// Returns a group of the given members that returns what the given
-    /// function builds, and the flag that its run sets
-    fn sequence_returning(
-        actions: Vec<Box<dyn ErasedAction>>,
-        result: fn() -> CommandResult,
-    ) -> (Sequence, Arc<AtomicBool>) {
-        let ran = Arc::new(AtomicBool::new(false));
-        let group = Sequence {
+    /// Returns a group of the given members
+    fn sequence(actions: Vec<Box<dyn ErasedAction>>) -> Sequence {
+        Sequence {
             name: action_name(GROUP),
             actions,
-            ran: Arc::clone(&ran),
-            result,
-        };
-
-        (group, ran)
+        }
     }
 
     /// Returns the values that a run of the given arguments gives to the action
@@ -1614,16 +1571,6 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_does_not_run_a_group_whose_member_cannot_bind() {
-        let log = Log::default();
-        let (group, ran) = sequence(vec![member::<Fix>("first", &log), Box::new(Unbuildable)]);
-
-        let _result = run_group(group, &["--fix"]);
-
-        assert!(!ran.load(Ordering::SeqCst));
-    }
-
-    #[test]
     fn dispatch_gives_the_action_the_project_root_that_the_user_names() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let seen = Arc::new(Mutex::new(None));
@@ -1665,9 +1612,30 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_reports_a_group_whose_member_found_problems() {
+        let (failing, _ran) = Probe::reporting("second", || Outcome::Failed {
+            findings: Vec::new(),
+            repairs: Vec::new(),
+        });
+        let group = sequence(vec![probe("first"), Box::new(failing)]);
+
+        let message = run_group(group, &[])
+            .map_err(|error| run_error("group 'check'", error.as_ref()).to_string());
+
+        assert_eq!(
+            message,
+            Err(
+                "error: failed to run the group 'check': 1 of 2 actions found problems or \
+                 stopped\n"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
     fn dispatch_reports_a_group_whose_project_root_cannot_be_read() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-        let (group, _ran) = sequence(Vec::new());
+        let group = sequence(Vec::new());
         let mounted = Mounted::Group {
             group: Box::new(group),
             arguments: Vec::new(),
@@ -1740,25 +1708,6 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_reports_every_cause_of_a_group_that_failed() {
-        let (group, _ran) = sequence_returning(Vec::new(), || {
-            Err(clawless::Error::msg("the hook is missing").context("failed to guard the commit"))
-        });
-
-        let message = run_group(group, &[])
-            .map_err(|error| run_error("group 'check'", error.as_ref()).to_string());
-
-        assert_eq!(
-            message,
-            Err(
-                "error: failed to run the group 'check': failed to guard the commit: the hook is \
-                 missing\n"
-                    .to_owned()
-            )
-        );
-    }
-
-    #[test]
     fn dispatch_reports_every_cause_of_a_project_root_that_cannot_be_read() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let missing = directory.path().join("missing");
@@ -1784,7 +1733,7 @@ mod tests {
     #[test]
     fn dispatch_reports_the_member_and_the_argument_of_a_member_that_cannot_bind() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![member::<Fix>("first", &log), Box::new(Unbuildable)]);
+        let group = sequence(vec![member::<Fix>("first", &log), Box::new(Unbuildable)]);
 
         let message = run_group(group, &["--fix"])
             .map_err(|error| run_error("group 'check'", error.as_ref()).to_string());
@@ -1809,7 +1758,7 @@ mod tests {
     #[test]
     fn dispatch_reports_zero_for_a_group_that_succeeded() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![member::<Fix>("first", &log)]);
+        let group = sequence(vec![member::<Fix>("first", &log)]);
 
         let code = run_group(group, &[]).expect("expected the command line to drive the group");
 
@@ -1855,7 +1804,7 @@ mod tests {
     #[test]
     fn dispatch_runs_no_member_of_a_group_whose_member_cannot_bind() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![member::<Fix>("first", &log), Box::new(Unbuildable)]);
+        let group = sequence(vec![member::<Fix>("first", &log), Box::new(Unbuildable)]);
 
         let _result = run_group(group, &["--fix"]);
 
@@ -1960,10 +1909,10 @@ mod tests {
     #[test]
     fn mount_groups_accepts_a_member_that_the_harness_also_mounts() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![member::<Fix>("first", &log)]);
+        let group = sequence(vec![member::<Fix>("first", &log)]);
         let command = builder()
             .mount([member::<Fix>("first", &log)])
-            .mount_groups([Box::new(group) as Box<dyn ErasedGroup>])
+            .mount_groups([Box::new(group) as Box<dyn Group>])
             .command();
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
@@ -1974,16 +1923,16 @@ mod tests {
     #[test]
     fn mount_groups_accepts_two_groups_that_share_a_member() {
         let log = Log::default();
-        let (check, _ran) = sequence(vec![member::<Fix>("first", &log)]);
-        let (lint, _ran) = sequence(vec![member::<Fix>("first", &log)]);
+        let check = sequence(vec![member::<Fix>("first", &log)]);
+        let lint = sequence(vec![member::<Fix>("first", &log)]);
         let lint = Sequence {
             name: action_name("lint"),
             ..lint
         };
         let command = builder()
             .mount_groups([
-                Box::new(check) as Box<dyn ErasedGroup>,
-                Box::new(lint) as Box<dyn ErasedGroup>,
+                Box::new(check) as Box<dyn Group>,
+                Box::new(lint) as Box<dyn Group>,
             ])
             .command();
 
@@ -1995,7 +1944,7 @@ mod tests {
     #[test]
     fn mount_groups_gives_a_group_one_flag_for_an_argument_that_members_share() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![
+        let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<Fix>("second", &log),
             member::<Nothing>("third", &log),
@@ -2009,11 +1958,11 @@ mod tests {
 
     #[test]
     fn mount_groups_gives_each_group_a_place_beside_the_actions_and_the_commands() {
-        let (group, _ran) = sequence(Vec::new());
+        let group = sequence(Vec::new());
         let command = builder()
             .mount([probe("lint-rust")])
             .mount_commands([written("serve")])
-            .mount_groups([Box::new(group) as Box<dyn ErasedGroup>])
+            .mount_groups([Box::new(group) as Box<dyn Group>])
             .command();
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
@@ -2024,7 +1973,7 @@ mod tests {
     #[test]
     fn mount_groups_orders_the_flags_as_the_members_first_declare_them() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![member::<ReportPath>("first", &log), reader()]);
+        let group = sequence(vec![member::<ReportPath>("first", &log), reader()]);
 
         let flags = flags_of_group(group);
 
@@ -2036,25 +1985,25 @@ mod tests {
     #[should_panic(expected = "the group 'check' lists the action 'first' twice")]
     fn mount_groups_refuses_a_group_that_lists_an_action_twice() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![
+        let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<Nothing>("second", &log),
             member::<Fix>("first", &log),
         ]);
 
-        let _builder = builder().mount_groups([Box::new(group) as Box<dyn ErasedGroup>]);
+        let _builder = builder().mount_groups([Box::new(group) as Box<dyn Group>]);
     }
 
     #[test]
     #[should_panic(expected = "the group 'check' lists the action 'first' twice")]
     fn mount_groups_refuses_a_group_that_lists_two_actions_with_one_name() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![
+        let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<FixAsText>("first", &log),
         ]);
 
-        let _builder = builder().mount_groups([Box::new(group) as Box<dyn ErasedGroup>]);
+        let _builder = builder().mount_groups([Box::new(group) as Box<dyn Group>]);
     }
 
     #[test]
@@ -2062,11 +2011,11 @@ mod tests {
         expected = "the harness mounts two actions, commands, or groups with the name 'check'"
     )]
     fn mount_groups_refuses_a_group_with_the_name_of_an_action() {
-        let (group, _ran) = sequence(Vec::new());
+        let group = sequence(Vec::new());
 
         let _builder = builder()
             .mount([probe(GROUP)])
-            .mount_groups([Box::new(group) as Box<dyn ErasedGroup>]);
+            .mount_groups([Box::new(group) as Box<dyn Group>]);
     }
 
     #[test]
@@ -2075,9 +2024,9 @@ mod tests {
                     which the command line defines itself"
     )]
     fn mount_groups_refuses_a_member_whose_argument_the_command_line_carries() {
-        let (group, _ran) = sequence(vec![Box::new(Colliding)]);
+        let group = sequence(vec![Box::new(Colliding)]);
 
-        let _builder = builder().mount_groups([Box::new(group) as Box<dyn ErasedGroup>]);
+        let _builder = builder().mount_groups([Box::new(group) as Box<dyn Group>]);
     }
 
     #[test]
@@ -2087,23 +2036,23 @@ mod tests {
     )]
     fn mount_groups_refuses_members_that_declare_one_argument_with_two_shapes() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![
+        let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<FixAsText>("second", &log),
         ]);
 
-        let _builder = builder().mount_groups([Box::new(group) as Box<dyn ErasedGroup>]);
+        let _builder = builder().mount_groups([Box::new(group) as Box<dyn Group>]);
     }
 
     #[test]
     fn mount_groups_shows_each_line_of_a_flag_under_the_help_column() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![
+        let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<Fix>("second", &log),
         ]);
         let mut command = builder()
-            .mount_groups([Box::new(group) as Box<dyn ErasedGroup>])
+            .mount_groups([Box::new(group) as Box<dyn Group>])
             .command();
         command.build();
 
@@ -2124,7 +2073,7 @@ mod tests {
     #[test]
     fn mount_groups_shows_one_line_for_each_member_that_declares_an_argument() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![
+        let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<Nothing>("second", &log),
             member::<Fix>("third", &log),
@@ -2181,10 +2130,10 @@ mod tests {
 
     #[test]
     fn resolve_returns_the_group_that_the_run_names() {
-        let (group, _ran) = sequence(Vec::new());
+        let group = sequence(Vec::new());
         let builder = builder()
             .mount([probe("lint-rust")])
-            .mount_groups([Box::new(group) as Box<dyn ErasedGroup>]);
+            .mount_groups([Box::new(group) as Box<dyn Group>]);
 
         let Ok(Resolution::Entry(_matches, Mounted::Group { group, .. })) =
             builder.resolve(["rakko", GROUP])
@@ -2207,7 +2156,7 @@ mod tests {
     #[test]
     fn run_gives_a_flag_of_a_group_to_the_members_that_declare_its_argument() {
         let log = Log::default();
-        let (group, _ran) = sequence(vec![
+        let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<Fix>("second", &log),
             member::<Nothing>("third", &log),

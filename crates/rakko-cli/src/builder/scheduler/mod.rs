@@ -1,193 +1,110 @@
-/// The errors that stop a run of the command
+/// The error that stops a run of a group
 mod error;
-/// What the outcome of one action means for the commit
-mod verdict;
 
-use std::fmt;
+use clawless::context::Context as ClawlessContext;
+use rakko_action::{Access, Context};
 
-use rakko_action::{Access, Context, ErasedAction, Name, action_name};
-use rakko_cli::clawless::CommandResult;
-use rakko_cli::clawless::context::Context as ClawlessContext;
-use rakko_cli::{BoundMember, Group, Report};
+pub(crate) use self::error::RunGroupError;
+use super::members::BoundMember;
+use super::{EXIT_CLEAN, exit_code};
+use crate::report::Report;
 
-pub use self::error::PreCommitError;
-use self::verdict::Verdict;
-
-/// The command that runs the actions that guard a commit
+/// Runs the members of a group and reports each member when it finishes
 ///
-/// A commit of a project has to pass a list of actions, and no action
-/// describes that list. The list repairs the tree first and then examines what
-/// it repaired, and whoever reads it wants what each action said, where an
-/// action answers with one outcome. The command therefore drives the actions
-/// itself, and the hook that Git runs before a commit calls it.
+/// The members arrive bound to the values of the run, in the order of the
+/// list of the group. The scheduler asks every member how its run uses the
+/// project before any member runs. So a kind of access that the scheduler does
+/// not know stops the run before any member changes the project.
 ///
-/// The command names no action of its own. Which activities guard a commit is
-/// a decision of the project, so the harness names the actions and gives them
-/// to the command in one list. Each action declares whether a run reads or
-/// writes the project, and the command orders the run from these
-/// declarations.
-///
-/// The command is a [`Group`], and the actions in its list are its members.
-/// The command line derives the flags of the command from the arguments that
-/// the members declare, so the command defines no flag of its own. A flag such
-/// as `--fix` reaches every member that declares its argument, and no other
-/// member.
-pub struct PreCommit {
-    /// The actions that guard a commit, in the order of the list that the
-    /// harness gave
-    actions: Vec<Box<dyn ErasedAction>>,
-}
-
-impl PreCommit {
-    /// Creates the command from the actions that it runs before a commit
-    ///
-    /// The list can hold the actions in any order. A run asks each action how
-    /// it uses the project, and drives every action that writes before the
-    /// first action that reads. An action that declares nothing writes. Among
-    /// the actions that write, and among the actions that read, the run keeps
-    /// the order of the list. This order matters when two actions that write
-    /// touch the same files. Two formatters can do this, and so can a
-    /// generator that reads the files that a formatter writes.
-    ///
-    /// The list holds each action only once. A list with two actions of the
-    /// same name stops the harness when it mounts the command. The list is
-    /// independent of the mount, so a harness that wants a command for one of
-    /// these actions mounts that action as well.
-    pub fn new(actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
-        Self {
-            actions: actions.into_iter().collect(),
-        }
-    }
-}
-
-/// Shows the names of the actions, because an erased action shows nothing
-impl fmt::Debug for PreCommit {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("PreCommit")
-            .field("actions", &names(&self.actions))
-            .finish()
-    }
-}
-
-impl Group for PreCommit {
-    fn name(&self) -> Name {
-        action_name!("pre-commit")
-    }
-
-    /// Returns the actions that guard a commit, in the order of the list that
-    /// the harness gave
-    fn members(&self) -> &[Box<dyn ErasedAction>] {
-        &self.actions
-    }
-
-    /// Runs the actions that guard a commit, one after another
-    ///
-    /// The command line binds every action to the values of the run before
-    /// the run starts. Each action receives the values of the arguments that
-    /// it declares. The run asks each bound action how it uses the project,
-    /// before the first action runs. The actions that write run first, so
-    /// that what the other actions read is what the commit will contain. They
-    /// can write the same files, so no two of them run at once. The actions
-    /// that read run one after another as well, until a scheduler can overlap
-    /// them.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error before any action runs when an action declares a kind
-    /// of access that the command does not know. The command cannot order
-    /// such an action, and only a newer release of Rakko can know the kind.
-    ///
-    /// Returns an error when an action found problems or stopped, so that the
-    /// commit waits for whoever started it. Returns an error as well when a
-    /// report does not reach the reader.
-    async fn run(
-        &self,
-        project: &Context,
-        clawless: &ClawlessContext,
-        members: Vec<BoundMember<'_>>,
-    ) -> CommandResult {
-        let total = members.len();
-
-        // Every action declares its access before the first action runs. So a
-        // kind of access that the command does not know stops the run before
-        // any action changes the project.
-        let mut writes = Vec::new();
-        let mut reads = Vec::new();
-
-        for member in members {
-            match member.action().access(project) {
-                Access::Write => writes.push(member),
-                Access::Read => reads.push(member),
-                _ => {
-                    return Err(PreCommitError::UnknownAccess {
-                        action: member.name().clone(),
-                    }
-                    .into());
-                }
-            }
-        }
-
-        // The actions that write run to their end before the first action that
-        // reads starts, so that what it reads is what the commit will contain.
-        let mut problems = drive(writes, project, clawless).await?;
-        problems += drive(reads, project, clawless).await?;
-
-        if problems > 0 {
-            return Err(PreCommitError::FailedActions { problems, total }.into());
-        }
-
-        Ok(())
-    }
-}
-
-/// Runs a list of bound actions in order and returns how many of them did not
-/// pass
-///
-/// The run reports an action as soon as that action finishes, so a reader
-/// learns what one action found while the next one runs, and no two reports
-/// interleave.
-///
-/// An action that found problems or stopped does not end the run. A run that
-/// stopped at the first problem would hide the ones after it, and whoever
-/// started it would learn them one run at a time.
+/// The members that write run first, so that the members that read examine
+/// the project as the writers left it. The writers can write the same files,
+/// so no two of them run at the same time. The readers then run one at a time
+/// as well. Within each kind, the members run in the order of the list.
 ///
 /// # Errors
 ///
-/// Returns an error when the report of an action does not reach the reader.
+/// Returns [`RunGroupError::UnknownAccess`] before any member runs when a
+/// member declares a kind of access that the scheduler does not know.
+///
+/// Returns [`RunGroupError::FailedMembers`] after every member ran when a
+/// member found problems or stopped. Returns
+/// [`RunGroupError::UnreportedOutcome`] when a report does not reach the
+/// reader.
+pub(super) async fn run(
+    members: Vec<BoundMember<'_>>,
+    project: &Context,
+    clawless: &ClawlessContext,
+) -> Result<(), RunGroupError> {
+    let total = members.len();
+
+    let mut writes = Vec::new();
+    let mut reads = Vec::new();
+
+    for member in members {
+        match member.action().access(project) {
+            Access::Write => writes.push(member),
+            Access::Read => reads.push(member),
+            _ => {
+                return Err(RunGroupError::UnknownAccess {
+                    member: member.name().clone(),
+                });
+            }
+        }
+    }
+
+    let mut problems = drive(writes, project, clawless).await?;
+    problems += drive(reads, project, clawless).await?;
+
+    if problems > 0 {
+        return Err(RunGroupError::FailedMembers { problems, total });
+    }
+
+    Ok(())
+}
+
+/// Runs a list of bound members in order and returns how many of them did not
+/// pass
+///
+/// The run reports a member as soon as that member finishes, so a reader
+/// learns what one member found while the next one runs, and no two reports
+/// mix.
+///
+/// A member that found problems or stopped does not end the run. A run that
+/// stopped at the first problem would hide the problems after it, and whoever
+/// started it would learn them one run at a time. A member passes when a run
+/// of that action alone exits clean: a member that skipped or that repaired
+/// everything that it found passes as well.
+///
+/// # Errors
+///
+/// Returns [`RunGroupError::UnreportedOutcome`] when the report of a member
+/// does not reach the reader.
 async fn drive(
     members: Vec<BoundMember<'_>>,
     project: &Context,
     clawless: &ClawlessContext,
-) -> Result<usize, PreCommitError> {
+) -> Result<usize, RunGroupError> {
     let mut problems = 0;
 
     for member in members {
         let name = member.name().clone();
         let outcome = member.action().run(project).await;
-        let verdict = Verdict::of(&outcome);
+
+        if exit_code(&outcome) != EXIT_CLEAN {
+            problems += 1;
+        }
 
         clawless
             .output()
             .artifact(Report::new(name.clone(), outcome))
             .await
-            .map_err(|source| PreCommitError::UnreportedOutcome {
-                action: name,
+            .map_err(|source| RunGroupError::UnreportedOutcome {
+                member: name,
                 source,
             })?;
-
-        match verdict {
-            Verdict::Clean => {}
-            Verdict::Problem => problems += 1,
-        }
     }
 
     Ok(problems)
-}
-
-/// Returns the names of the actions, in the order of the list
-fn names(actions: &[Box<dyn ErasedAction>]) -> Vec<Name> {
-    actions.iter().map(|action| action.name()).collect()
 }
 
 #[cfg(test)]
@@ -202,12 +119,12 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::task::{Context as TaskContext, Poll, Waker};
 
+    use clawless::event::{Event, EventReceiver, event_channel};
+    use clawless::output::Output;
     use rakko_action::{
-        Action, Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue, Outcome,
-        ReadArgsError, argument_name,
+        Access, Action, Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue,
+        ErasedAction, Name, Outcome, ReadArgsError, SkipReason, action_name, argument_name,
     };
-    use rakko_cli::clawless::event::{Event, EventReceiver, event_channel};
-    use rakko_cli::clawless::prelude::Output;
 
     use super::*;
 
@@ -218,6 +135,15 @@ mod tests {
 
         /// The action found a problem
         Fail,
+
+        /// The action repaired everything that it found
+        Repair,
+
+        /// The action has nothing to examine
+        Skip,
+
+        /// The action stopped before it had an answer
+        Stop,
     }
 
     /// How a recorder declares that a run uses the project
@@ -317,6 +243,15 @@ mod tests {
                     findings: Vec::new(),
                     repairs: Vec::new(),
                 },
+                Answer::Repair => Outcome::Changed {
+                    repairs: Vec::new(),
+                },
+                Answer::Skip => Outcome::Skipped {
+                    reason: SkipReason::new("the project has no YAML file"),
+                },
+                Answer::Stop => Outcome::Errored {
+                    source: Box::new(std::io::Error::other("the tool is missing")),
+                },
             }
         }
     }
@@ -343,7 +278,7 @@ mod tests {
     /// An action that declares `fix` and writes only when a run gives it, as a
     /// formatter does, and otherwise runs as the recorder that it wraps
     struct Formatter {
-        /// The recorder that names the action and runs it
+        /// The recorder that gives the action its name and runs it
         recorder: Recorder,
     }
 
@@ -369,7 +304,7 @@ mod tests {
     /// An action that declares nothing about how a run uses the project, and
     /// otherwise runs as the recorder that it wraps
     struct Undeclared {
-        /// The recorder that names the action and runs it
+        /// The recorder that gives the action its name and runs it
         recorder: Recorder,
     }
 
@@ -385,27 +320,26 @@ mod tests {
         }
     }
 
-    /// Binds every member of the command to the values of a run, as the
-    /// command line binds them
+    /// Binds every action to the values of a run, as the command line binds
+    /// the members of a group
     ///
-    /// Each member receives the values of the arguments that it declares, and
+    /// Each action receives the values of the arguments that it declares, and
     /// no other value. The command line does this itself before a run, and its
-    /// own tests show it. A run of the command receives the members already
-    /// bound, so these tests bind them here.
-    fn bind<'a>(command: &'a PreCommit, values: &ArgsValues) -> Vec<BoundMember<'a>> {
-        command
-            .members()
+    /// own tests show it. The scheduler receives the members already bound, so
+    /// these tests bind them here.
+    fn bind<'a>(actions: &'a [Box<dyn ErasedAction>], values: &ArgsValues) -> Vec<BoundMember<'a>> {
+        actions
             .iter()
-            .map(|member| {
-                let schema = member.arguments();
+            .map(|action| {
+                let schema = action.arguments();
                 let declared = ArgsValues::new(schema.arguments().iter().filter_map(|argument| {
                     values
                         .get(argument.name())
                         .map(|value| (argument.name().clone(), value.clone()))
                 }));
 
-                BoundMember::bind(member.as_ref(), &declared)
-                    .expect("every member of the test reads the values that it declares")
+                BoundMember::bind(action.as_ref(), &declared)
+                    .expect("every action of the test reads the values that it declares")
             })
             .collect()
     }
@@ -433,12 +367,12 @@ mod tests {
             .current_working_directory(Path::new("/tmp/project"))
             .output(Output::new(sender))
             .build()
-            .expect("the test names a working directory");
+            .expect("the test gives a working directory");
 
         (context, receiver)
     }
 
-    /// Drives a run of the command with the given values to its end and
+    /// Drives a run of the actions with the given values to its end and
     /// returns its result
     ///
     /// The receiver of the output lives until the run ends, because a report
@@ -446,11 +380,14 @@ mod tests {
     ///
     /// # Errors
     ///
-    /// Returns the error of the run when the command failed.
-    fn complete(command: &PreCommit, values: &ArgsValues) -> CommandResult {
+    /// Returns the error of the run when it failed.
+    fn complete(
+        actions: &[Box<dyn ErasedAction>],
+        values: &ArgsValues,
+    ) -> Result<(), RunGroupError> {
         let (clawless, _receiver) = clawless();
 
-        block_on(command.run(&project(), &clawless, bind(command, values)))
+        block_on(run(bind(actions, values), &project(), &clawless))
     }
 
     /// Returns an action with the given name that reads and found a problem,
@@ -504,12 +441,15 @@ mod tests {
         })
     }
 
-    /// Drives a run of the command without values to its end and returns the
+    /// Drives a run of the actions without values to its end and returns the
     /// text of each report that it wrote, in the order in which it wrote them
-    fn reports(command: &PreCommit) -> Vec<String> {
+    fn reports(actions: &[Box<dyn ErasedAction>]) -> Vec<String> {
         let (clawless, mut receiver) = clawless();
-        let _result =
-            block_on(command.run(&project(), &clawless, bind(command, &ArgsValues::empty())));
+        let _result = block_on(run(
+            bind(actions, &ArgsValues::empty()),
+            &project(),
+            &clawless,
+        ));
 
         // The context holds the sender of the output. Without the sender, the
         // receiver ends after the last event that the run wrote.
@@ -561,41 +501,14 @@ mod tests {
     }
 
     #[test]
-    fn members_are_the_actions_in_the_order_of_the_list() {
+    fn run_drives_a_writer_that_follows_a_reader_in_the_list_first() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
-            reader(action_name!("lint-yaml"), &log),
-            formatter(action_name!("format-yaml"), &log),
-        ]);
-
-        let members: Vec<Name> = command
-            .members()
-            .iter()
-            .map(|member| member.name())
-            .collect();
-
-        assert_eq!(
-            members,
-            [action_name!("lint-yaml"), action_name!("format-yaml")]
-        );
-    }
-
-    #[test]
-    fn name_is_the_name_of_the_hook() {
-        let command = PreCommit::new([]);
-
-        assert_eq!(command.name().get(), "pre-commit");
-    }
-
-    #[test]
-    fn run_drives_a_writer_that_the_list_names_after_a_reader_first() {
-        let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             reader(action_name!("lint-yaml"), &log),
             writer(action_name!("format-yaml"), &log),
-        ]);
+        ];
 
-        complete(&command, &ArgsValues::empty()).expect("every action of the test passes");
+        complete(&actions, &ArgsValues::empty()).expect("every action of the test passes");
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
@@ -606,12 +519,12 @@ mod tests {
     #[test]
     fn run_drives_an_action_that_declares_nothing_among_the_writers() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             reader(action_name!("lint-yaml"), &log),
             undeclared(action_name!("generate-sdk"), &log),
-        ]);
+        ];
 
-        complete(&command, &ArgsValues::empty()).expect("every action of the test passes");
+        complete(&actions, &ArgsValues::empty()).expect("every action of the test passes");
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
@@ -625,12 +538,12 @@ mod tests {
     #[test]
     fn run_drives_each_member_with_the_values_that_it_was_bound_to() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             formatter(action_name!("format-yaml"), &log),
             writer(action_name!("generate-sdk"), &log),
-        ]);
+        ];
 
-        complete(&command, &fixing()).expect("every action of the test passes");
+        complete(&actions, &fixing()).expect("every action of the test passes");
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
@@ -641,14 +554,14 @@ mod tests {
     #[test]
     fn run_keeps_the_order_of_the_list_among_the_writers_and_among_the_readers() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             reader(action_name!("lint-yaml"), &log),
             writer(action_name!("format-yaml"), &log),
             reader(action_name!("lint-toml"), &log),
             writer(action_name!("format-json"), &log),
-        ]);
+        ];
 
-        complete(&command, &ArgsValues::empty()).expect("every action of the test passes");
+        complete(&actions, &ArgsValues::empty()).expect("every action of the test passes");
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
@@ -659,13 +572,13 @@ mod tests {
     #[test]
     fn run_reports_each_action_in_the_order_of_the_run() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             reader(action_name!("lint-yaml"), &log),
             writer(action_name!("format-yaml"), &log),
             reader(action_name!("lint-toml"), &log),
-        ]);
+        ];
 
-        let reports = reports(&command);
+        let reports = reports(&actions);
 
         assert_eq!(
             reports,
@@ -680,12 +593,12 @@ mod tests {
     #[test]
     fn run_that_asks_for_a_repair_drives_a_formatter_among_the_writers() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             reader(action_name!("lint-yaml"), &log),
             formatter(action_name!("format-yaml"), &log),
-        ]);
+        ];
 
-        complete(&command, &fixing()).expect("every action of the test passes");
+        complete(&actions, &fixing()).expect("every action of the test passes");
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
@@ -696,12 +609,12 @@ mod tests {
     #[test]
     fn run_that_asks_for_a_report_drives_a_formatter_among_the_readers() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             formatter(action_name!("format-yaml"), &log),
             writer(action_name!("generate-sdk"), &log),
-        ]);
+        ];
 
-        complete(&command, &ArgsValues::empty()).expect("every action of the test passes");
+        complete(&actions, &ArgsValues::empty()).expect("every action of the test passes");
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
@@ -712,17 +625,17 @@ mod tests {
     #[test]
     fn run_waits_for_an_action_before_it_drives_the_next() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             writer(action_name!("format-yaml"), &log),
             writer(action_name!("format-json"), &log),
             reader(action_name!("lint-yaml"), &log),
-        ]);
+        ];
         let project = project();
         let (clawless, _receiver) = clawless();
-        let members = bind(&command, &ArgsValues::empty());
-        let mut run = pin!(command.run(&project, &clawless, members));
+        let members = bind(&actions, &ArgsValues::empty());
+        let mut future = pin!(run(members, &project, &clawless));
 
-        let _state = run
+        let _state = future
             .as_mut()
             .poll(&mut TaskContext::from_waker(Waker::noop()));
 
@@ -735,30 +648,30 @@ mod tests {
     #[test]
     fn run_with_actions_that_found_problems_counts_them() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             writer(action_name!("format-yaml"), &log),
             failing(action_name!("lint-yaml"), &log),
             failing(action_name!("lint-toml"), &log),
-        ]);
+        ];
 
-        let error = complete(&command, &ArgsValues::empty()).unwrap_err();
+        let result = complete(&actions, &ArgsValues::empty());
 
         assert_eq!(
-            error.to_string(),
-            "2 of 3 actions found problems or stopped"
+            result.map_err(|error| error.to_string()),
+            Err("2 of 3 actions found problems or stopped".to_owned())
         );
     }
 
     #[test]
     fn run_with_an_action_that_found_problems_drives_the_actions_after_it() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             writer(action_name!("format-yaml"), &log),
             failing(action_name!("lint-yaml"), &log),
             reader(action_name!("lint-toml"), &log),
-        ]);
+        ];
 
-        let _result = complete(&command, &ArgsValues::empty());
+        let _result = complete(&actions, &ArgsValues::empty());
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
@@ -767,14 +680,71 @@ mod tests {
     }
 
     #[test]
+    fn run_with_an_action_that_repaired_the_project_succeeds() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            recorder(
+                action_name!("format-yaml"),
+                Declaration::Write,
+                Answer::Repair,
+                &log,
+            ),
+            reader(action_name!("lint-yaml"), &log),
+        ];
+
+        let result = complete(&actions, &ArgsValues::empty());
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn run_with_an_action_that_skipped_succeeds() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            writer(action_name!("format-yaml"), &log),
+            recorder(
+                action_name!("lint-yaml"),
+                Declaration::Read,
+                Answer::Skip,
+                &log,
+            ),
+        ];
+
+        let result = complete(&actions, &ArgsValues::empty());
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn run_with_an_action_that_stopped_counts_it() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            writer(action_name!("format-yaml"), &log),
+            recorder(
+                action_name!("lint-yaml"),
+                Declaration::Read,
+                Answer::Stop,
+                &log,
+            ),
+        ];
+
+        let result = complete(&actions, &ArgsValues::empty());
+
+        assert_eq!(
+            result.map_err(|error| error.to_string()),
+            Err("1 of 2 actions found problems or stopped".to_owned())
+        );
+    }
+
+    #[test]
     fn run_with_clean_actions_succeeds() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             writer(action_name!("format-yaml"), &log),
             reader(action_name!("lint-yaml"), &log),
-        ]);
+        ];
 
-        let result = complete(&command, &ArgsValues::empty());
+        let result = complete(&actions, &ArgsValues::empty());
 
         assert!(result.is_ok());
     }
@@ -782,20 +752,22 @@ mod tests {
     #[test]
     fn run_without_a_reader_fails_at_the_report_of_the_first_action() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let command = PreCommit::new([
+        let actions = [
             reader(action_name!("lint-yaml"), &log),
             writer(action_name!("format-yaml"), &log),
-        ]);
+        ];
         let (clawless, receiver) = clawless();
         drop(receiver);
 
-        let error =
-            block_on(command.run(&project(), &clawless, bind(&command, &ArgsValues::empty())))
-                .unwrap_err();
+        let result = block_on(run(
+            bind(&actions, &ArgsValues::empty()),
+            &project(),
+            &clawless,
+        ));
 
         assert_eq!(
-            error.to_string(),
-            "failed to report the outcome of the format-yaml action"
+            result.map_err(|error| error.to_string()),
+            Err("failed to report the outcome of the format-yaml action".to_owned())
         );
     }
 }

@@ -1,3 +1,5 @@
+/// One member of a group, bound to the values of one run
+mod bound_member;
 /// The error of a run whose member cannot bind its values
 mod error;
 /// One flag of a group, merged from the arguments of its members
@@ -7,9 +9,9 @@ use std::collections::BTreeSet;
 
 use rakko_action::{ArgsValues, ErasedAction, Name};
 
+pub(crate) use self::bound_member::BoundMember;
 pub(crate) use self::error::BindMembersError;
 pub(crate) use self::merged_argument::MergedArgument;
-use crate::bound_member::BoundMember;
 
 /// Stops the harness when a group lists two members with the same name
 ///

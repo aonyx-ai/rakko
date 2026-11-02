@@ -2,14 +2,15 @@
 
 `rakko-pre-commit` provides the `pre-commit` command, which runs the actions
 that guard a commit. A harness gives the command one list of these actions, in
-any order. The harness names the actions, and the command orders and drives
-them. The harness therefore contains no loop over actions, no code that
-reports them, and no split into the actions that write and the actions that
-read.
+any order. The harness selects the actions, and the command line of the
+harness orders and drives them. The harness therefore contains no loop over
+actions, no code that reports them, and no split into the actions that write
+and the actions that read.
 
 The command is a group, and the actions in its list are its members. The
-command line of the harness takes the flags of the command from the arguments
-of the members. So the command defines no flag of its own.
+group is a name and this list, and nothing else. The command line of the
+harness takes the flags of the command from the arguments of the members, and
+it runs the members. So the command defines no flag of its own.
 
 ## Usage
 
@@ -19,7 +20,7 @@ actions:
 
 ```rust
 use rakko_action::ErasedAction;
-use rakko_cli::ErasedGroup;
+use rakko_cli::Group;
 use rakko_format_toml::FormatToml;
 use rakko_lint_toml::LintToml;
 use rakko_pre_commit::PreCommit;
@@ -31,7 +32,7 @@ let pre_commit = PreCommit::new([
 
 rakko_cli::builder()
     .mount(rakko_baseline::bundle())
-    .mount_groups([Box::new(pre_commit) as Box<dyn ErasedGroup>])
+    .mount_groups([Box::new(pre_commit) as Box<dyn Group>])
     .run();
 ```
 
@@ -41,7 +42,7 @@ mounts the command. The list is independent of the mount, so a harness that
 wants a command for one of these actions mounts that action as well.
 
 Each action declares whether a run reads or writes the project, and the
-command orders the run from these declarations. A declaration can depend on
+command line orders the run from these declarations. A declaration can depend on
 the arguments of the run: a formatter writes only when the run asks it to
 repair. An action that declares nothing writes. The list decides the order of
 two actions that write. This order matters when they touch the same files. Two
@@ -55,8 +56,8 @@ starts. Each action receives the values of the arguments that it declares, and
 no other value. An action whose values do not convert stops the run before any
 action runs, and the error gives the action and the argument. The run then asks
 each action how it uses the project. An action that declares a kind of access
-that the command does not know also stops the run before any action runs. The
-error gives the action and tells the user to update Rakko, because only a
+that the command line does not know also stops the run before any action runs.
+The error gives the action and tells the user to update Rakko, because only a
 newer release can know the kind. Otherwise, the run drives the actions that
 write, one after another and in the order of the list. Then it drives the
 actions that read in the same way. Each action reports when it ends, as a run of

@@ -9,9 +9,12 @@ together, so the harness names the bundle instead of each action in it.
 It also mounts commands, for a maintenance activity that no single action
 describes. A command comes from a crate, as an action does, and `src/main.rs`
 names it. When a command runs actions, `src/main.rs` names those actions as
-well and gives them to the command. A command that gives the command line the
-actions that it runs, such as pre-commit, is a group. The command line takes
-the flags of a group from those actions.
+well and gives them to the command.
+
+It also mounts groups, such as pre-commit. A group is a name and a list of
+actions that the command line runs as one command. `src/main.rs` gives each
+group its list. The command line takes the flags of the group from those
+actions, and it runs them.
 
 ## Usage
 
