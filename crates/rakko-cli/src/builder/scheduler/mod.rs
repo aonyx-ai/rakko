@@ -2,7 +2,9 @@
 mod error;
 
 use clawless::context::Context as ClawlessContext;
-use rakko_action::{Access, Context};
+use futures_util::StreamExt;
+use futures_util::stream::FuturesUnordered;
+use rakko_action::{Access, Context, Name, Outcome};
 
 pub(crate) use self::error::RunGroupError;
 use super::members::BoundMember;
@@ -18,8 +20,16 @@ use crate::report::Report;
 ///
 /// The members that write run first, so that the members that read examine
 /// the project as the writers left it. The writers can write the same files,
-/// so no two of them run at the same time. The readers then run one at a time
-/// as well. Within each kind, the members run in the order of the list.
+/// so no two of them run at the same time, and they run in the order of the
+/// list. When the last writer finished, all the readers start at the same
+/// time, with no limit on their number. They share the task of the run, so
+/// only one of them runs code at a time. They overlap while they wait, such as
+/// for a tool. So a reader that blocks the thread delays the other readers
+/// until it returns.
+///
+/// Every member reports when it finishes. So the reports of the readers
+/// follow the order in which the readers finish, and not the order of the
+/// list.
 ///
 /// # Errors
 ///
@@ -28,8 +38,8 @@ use crate::report::Report;
 ///
 /// Returns [`RunGroupError::FailedMembers`] after every member ran when a
 /// member found problems or stopped. Returns
-/// [`RunGroupError::UnreportedOutcome`] when a report does not reach the
-/// reader.
+/// [`RunGroupError::UnreportedOutcome`] when nothing reads the output
+/// anymore.
 pub(super) async fn run(
     members: Vec<BoundMember<'_>>,
     project: &Context,
@@ -52,8 +62,8 @@ pub(super) async fn run(
         }
     }
 
-    let mut problems = drive(writes, project, clawless).await?;
-    problems += drive(reads, project, clawless).await?;
+    let mut problems = drive_writers(writes, project, clawless).await?;
+    problems += drive_readers(reads, project, clawless).await?;
 
     if problems > 0 {
         return Err(RunGroupError::FailedMembers { problems, total });
@@ -62,12 +72,11 @@ pub(super) async fn run(
     Ok(())
 }
 
-/// Runs a list of bound members in order and returns how many of them did not
-/// pass
+/// Runs the members that write one at a time, in the order of the list, and
+/// returns how many of them did not pass
 ///
-/// The run reports a member as soon as that member finishes, so a reader
-/// learns what one member found while the next one runs, and no two reports
-/// mix.
+/// The run reports a member as soon as that member finishes, so whoever runs
+/// the group learns what one member found while the next one runs.
 ///
 /// A member that found problems or stopped does not end the run. A run that
 /// stopped at the first problem would hide the problems after it, and whoever
@@ -77,9 +86,9 @@ pub(super) async fn run(
 ///
 /// # Errors
 ///
-/// Returns [`RunGroupError::UnreportedOutcome`] when the report of a member
-/// does not reach the reader.
-async fn drive(
+/// Returns [`RunGroupError::UnreportedOutcome`] when nothing reads the output
+/// anymore.
+async fn drive_writers(
     members: Vec<BoundMember<'_>>,
     project: &Context,
     clawless: &ClawlessContext,
@@ -87,24 +96,76 @@ async fn drive(
     let mut problems = 0;
 
     for member in members {
-        let name = member.name().clone();
         let outcome = member.action().run(project).await;
 
         if exit_code(&outcome) != EXIT_CLEAN {
             problems += 1;
         }
 
-        clawless
-            .output()
-            .artifact(Report::new(name.clone(), outcome))
-            .await
-            .map_err(|source| RunGroupError::UnreportedOutcome {
-                member: name,
-                source,
-            })?;
+        report(member.name(), outcome, clawless).await?;
     }
 
     Ok(problems)
+}
+
+/// Starts all the members that read at the same time and returns how many of
+/// them did not pass
+///
+/// The run reports a member as soon as that member finishes, so the report of
+/// a fast member does not wait for a slow member. A member that found problems
+/// or stopped does not end the run, and the other members run to their end. A
+/// member passes as [`drive_writers`] describes.
+///
+/// # Errors
+///
+/// Returns [`RunGroupError::UnreportedOutcome`] when nothing reads the output
+/// anymore. The members that still run then stop, because nothing would read
+/// what they find.
+async fn drive_readers(
+    members: Vec<BoundMember<'_>>,
+    project: &Context,
+    clawless: &ClawlessContext,
+) -> Result<usize, RunGroupError> {
+    let mut running = members
+        .iter()
+        .map(|member| async move { (member.name(), member.action().run(project).await) })
+        .collect::<FuturesUnordered<_>>();
+
+    let mut problems = 0;
+
+    while let Some((name, outcome)) = running.next().await {
+        if exit_code(&outcome) != EXIT_CLEAN {
+            problems += 1;
+        }
+
+        report(name, outcome, clawless).await?;
+    }
+
+    Ok(problems)
+}
+
+/// Reports the outcome of one member under the name of the member
+///
+/// Each report is one event, so two reports never mix, even when the members
+/// finish at the same time.
+///
+/// # Errors
+///
+/// Returns [`RunGroupError::UnreportedOutcome`] when nothing reads the output
+/// anymore.
+async fn report(
+    name: &Name,
+    outcome: Outcome,
+    clawless: &ClawlessContext,
+) -> Result<(), RunGroupError> {
+    clawless
+        .output()
+        .artifact(Report::new(name.clone(), outcome))
+        .await
+        .map_err(|source| RunGroupError::UnreportedOutcome {
+            member: name.clone(),
+            source,
+        })
 }
 
 #[cfg(test)]
@@ -113,7 +174,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use std::future::poll_fn;
+    use std::future::{pending, poll_fn};
     use std::path::Path;
     use std::pin::pin;
     use std::sync::{Arc, Mutex};
@@ -127,6 +188,13 @@ mod tests {
     };
 
     use super::*;
+
+    /// The number of times that a test polls a run that never ends
+    ///
+    /// Each action of these tests answers on its second poll, unless it never
+    /// answers. So this count reaches every member that a run starts, while a
+    /// member that never answers keeps the run from its end.
+    const POLLS: usize = 16;
 
     /// What a recorder answers when it runs
     enum Answer {
@@ -144,6 +212,9 @@ mod tests {
 
         /// The action stopped before it had an answer
         Stop,
+
+        /// The action never answers, as a slow tool that still runs
+        Wait,
     }
 
     /// How a recorder declares that a run uses the project
@@ -232,7 +303,7 @@ mod tests {
 
             self.log
                 .lock()
-                .expect("the test runs one action at a time")
+                .expect("no action panics while it holds the log")
                 .push(entry);
 
             yield_once().await;
@@ -252,6 +323,7 @@ mod tests {
                 Answer::Stop => Outcome::Errored {
                     source: Box::new(std::io::Error::other("the tool is missing")),
                 },
+                Answer::Wait => pending().await,
             }
         }
     }
@@ -320,6 +392,32 @@ mod tests {
         }
     }
 
+    /// Polls a run of the actions without values a fixed number of times and
+    /// returns the text of each report that it wrote by then, in the order in
+    /// which it wrote them
+    ///
+    /// A run with a member that never answers never ends. The test then sees
+    /// what the run did while that member still ran.
+    fn advance(actions: &[Box<dyn ErasedAction>]) -> Vec<String> {
+        let project = project();
+        let (clawless, receiver) = clawless();
+
+        {
+            let mut future = pin!(run(
+                bind(actions, &ArgsValues::empty()),
+                &project,
+                &clawless
+            ));
+            let mut task_context = TaskContext::from_waker(Waker::noop());
+
+            for _ in 0..POLLS {
+                let _state = future.as_mut().poll(&mut task_context);
+            }
+        }
+
+        received(clawless, receiver)
+    }
+
     /// Binds every action to the values of a run, as the command line binds
     /// the members of a group
     ///
@@ -346,8 +444,9 @@ mod tests {
 
     /// Drives a future to its end on the current thread and returns its output
     ///
-    /// Each future of these tests makes progress every time it is polled, so
-    /// the loop needs no waker that wakes it.
+    /// Each future that this function drives makes progress every time it is
+    /// polled, so the loop needs no waker that wakes it. A run with a member
+    /// that never answers never ends, so [`advance`] polls such a run instead.
     fn block_on<F: Future>(future: F) -> F::Output {
         let mut future = pin!(future);
         let mut task_context = TaskContext::from_waker(Waker::noop());
@@ -425,6 +524,27 @@ mod tests {
         recorder(name, Declaration::Read, Answer::Pass, log)
     }
 
+    /// Returns the text of each report that a run wrote, in the order in which
+    /// it wrote them
+    ///
+    /// The run has ended or was dropped, so nothing writes through the context
+    /// anymore.
+    fn received(clawless: ClawlessContext, mut receiver: EventReceiver) -> Vec<String> {
+        // The context holds the sender of the output. Without the sender, the
+        // receiver ends after the last event that the run wrote.
+        drop(clawless);
+
+        let mut reports = Vec::new();
+        while let Some(event) = block_on(receiver.recv()) {
+            match event {
+                Event::Artifact(artifact) => reports.push(artifact.to_string()),
+                Event::Message(_) | Event::Detail(_) | Event::Process(_) | Event::Prompt(_) => {}
+            }
+        }
+
+        reports
+    }
+
     /// Returns a recorder with the given name, declaration, and answer, which
     /// writes into the given log
     fn recorder(
@@ -444,26 +564,14 @@ mod tests {
     /// Drives a run of the actions without values to its end and returns the
     /// text of each report that it wrote, in the order in which it wrote them
     fn reports(actions: &[Box<dyn ErasedAction>]) -> Vec<String> {
-        let (clawless, mut receiver) = clawless();
+        let (clawless, receiver) = clawless();
         let _result = block_on(run(
             bind(actions, &ArgsValues::empty()),
             &project(),
             &clawless,
         ));
 
-        // The context holds the sender of the output. Without the sender, the
-        // receiver ends after the last event that the run wrote.
-        drop(clawless);
-
-        let mut reports = Vec::new();
-        while let Some(event) = block_on(receiver.recv()) {
-            match event {
-                Event::Artifact(artifact) => reports.push(artifact.to_string()),
-                Event::Message(_) | Event::Detail(_) | Event::Process(_) | Event::Prompt(_) => {}
-            }
-        }
-
-        reports
+        received(clawless, receiver)
     }
 
     /// Returns an action with the given name that declares nothing and
@@ -479,6 +587,16 @@ mod tests {
         })
     }
 
+    /// Returns an action with the given name and declaration that never
+    /// answers, and that writes into the given log
+    fn waiting(
+        name: Name,
+        declaration: Declaration,
+        log: &Arc<Mutex<Vec<String>>>,
+    ) -> Box<dyn ErasedAction> {
+        recorder(name, declaration, Answer::Wait, log)
+    }
+
     /// Returns an action with the given name that writes and passes, and that
     /// writes into the given log
     fn writer(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
@@ -486,14 +604,20 @@ mod tests {
     }
 
     /// Returns control to the driver of a future once, and then resolves
+    ///
+    /// The future asks to be polled again before it returns control, as a
+    /// future does once the event that it waits for has happened. A run that
+    /// drives several actions at once polls only the actions that asked for
+    /// it.
     async fn yield_once() {
         let mut yielded = false;
 
-        poll_fn(|_| {
+        poll_fn(|task_context| {
             if yielded {
                 Poll::Ready(())
             } else {
                 yielded = true;
+                task_context.waker().wake_by_ref();
                 Poll::Pending
             }
         })
@@ -552,45 +676,6 @@ mod tests {
     }
 
     #[test]
-    fn run_keeps_the_order_of_the_list_among_the_writers_and_among_the_readers() {
-        let log = Arc::new(Mutex::new(Vec::new()));
-        let actions = [
-            reader(action_name!("lint-yaml"), &log),
-            writer(action_name!("format-yaml"), &log),
-            reader(action_name!("lint-toml"), &log),
-            writer(action_name!("format-json"), &log),
-        ];
-
-        complete(&actions, &ArgsValues::empty()).expect("every action of the test passes");
-
-        assert_eq!(
-            *log.lock().expect("the run has ended"),
-            ["format-yaml", "format-json", "lint-yaml", "lint-toml"]
-        );
-    }
-
-    #[test]
-    fn run_reports_each_action_in_the_order_of_the_run() {
-        let log = Arc::new(Mutex::new(Vec::new()));
-        let actions = [
-            reader(action_name!("lint-yaml"), &log),
-            writer(action_name!("format-yaml"), &log),
-            reader(action_name!("lint-toml"), &log),
-        ];
-
-        let reports = reports(&actions);
-
-        assert_eq!(
-            reports,
-            [
-                "format-yaml: passed",
-                "lint-yaml: passed",
-                "lint-toml: passed"
-            ]
-        );
-    }
-
-    #[test]
     fn run_that_asks_for_a_repair_drives_a_formatter_among_the_writers() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
@@ -623,33 +708,76 @@ mod tests {
     }
 
     #[test]
-    fn run_waits_for_an_action_before_it_drives_the_next() {
+    fn run_while_a_slower_reader_still_runs_reports_a_faster_reader() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
-            writer(action_name!("format-yaml"), &log),
+            waiting(action_name!("test-rust"), Declaration::Read, &log),
+            reader(action_name!("lint-yaml"), &log),
+        ];
+
+        let reports = advance(&actions);
+
+        assert_eq!(reports, ["lint-yaml: passed"]);
+    }
+
+    #[test]
+    fn run_while_a_writer_still_runs_drives_no_other_writer() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            waiting(action_name!("format-yaml"), Declaration::Write, &log),
             writer(action_name!("format-json"), &log),
             reader(action_name!("lint-yaml"), &log),
         ];
-        let project = project();
-        let (clawless, _receiver) = clawless();
-        let members = bind(&actions, &ArgsValues::empty());
-        let mut future = pin!(run(members, &project, &clawless));
 
-        let _state = future
-            .as_mut()
-            .poll(&mut TaskContext::from_waker(Waker::noop()));
+        let _reports = advance(&actions);
+
+        assert_eq!(*log.lock().expect("the run was dropped"), ["format-yaml"]);
+    }
+
+    #[test]
+    fn run_while_a_writer_still_runs_starts_no_reader() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            reader(action_name!("lint-yaml"), &log),
+            writer(action_name!("format-yaml"), &log),
+            waiting(action_name!("format-json"), Declaration::Write, &log),
+        ];
+
+        let _reports = advance(&actions);
 
         assert_eq!(
-            *log.lock().expect("the first action waits"),
-            ["format-yaml"]
+            *log.lock().expect("the run was dropped"),
+            ["format-yaml", "format-json"]
         );
+    }
+
+    #[test]
+    fn run_while_the_first_reader_still_runs_starts_every_reader() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            waiting(action_name!("test-rust"), Declaration::Read, &log),
+            reader(action_name!("lint-yaml"), &log),
+            reader(action_name!("lint-toml"), &log),
+        ];
+
+        let _reports = advance(&actions);
+        let mut started = log.lock().expect("the run was dropped").clone();
+        started.sort();
+
+        assert_eq!(started, ["lint-toml", "lint-yaml", "test-rust"]);
     }
 
     #[test]
     fn run_with_actions_that_found_problems_counts_them() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
-            writer(action_name!("format-yaml"), &log),
+            recorder(
+                action_name!("format-yaml"),
+                Declaration::Write,
+                Answer::Fail,
+                &log,
+            ),
+            writer(action_name!("format-json"), &log),
             failing(action_name!("lint-yaml"), &log),
             failing(action_name!("lint-toml"), &log),
         ];
@@ -658,7 +786,7 @@ mod tests {
 
         assert_eq!(
             result.map_err(|error| error.to_string()),
-            Err("2 of 3 actions found problems or stopped".to_owned())
+            Err("3 of 4 actions found problems or stopped".to_owned())
         );
     }
 
@@ -666,16 +794,21 @@ mod tests {
     fn run_with_an_action_that_found_problems_drives_the_actions_after_it() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
-            writer(action_name!("format-yaml"), &log),
-            failing(action_name!("lint-yaml"), &log),
-            reader(action_name!("lint-toml"), &log),
+            recorder(
+                action_name!("format-yaml"),
+                Declaration::Write,
+                Answer::Fail,
+                &log,
+            ),
+            writer(action_name!("format-json"), &log),
+            reader(action_name!("lint-yaml"), &log),
         ];
 
         let _result = complete(&actions, &ArgsValues::empty());
 
         assert_eq!(
             *log.lock().expect("the run has ended"),
-            ["format-yaml", "lint-yaml", "lint-toml"]
+            ["format-yaml", "format-json", "lint-yaml"]
         );
     }
 
@@ -750,7 +883,75 @@ mod tests {
     }
 
     #[test]
-    fn run_without_a_reader_fails_at_the_report_of_the_first_action() {
+    fn run_with_several_writers_drives_them_in_the_order_of_the_list() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            writer(action_name!("format-yaml"), &log),
+            reader(action_name!("lint-yaml"), &log),
+            writer(action_name!("format-json"), &log),
+        ];
+
+        complete(&actions, &ArgsValues::empty()).expect("every action of the test passes");
+
+        assert_eq!(
+            *log.lock().expect("the run has ended"),
+            ["format-yaml", "format-json", "lint-yaml"]
+        );
+    }
+
+    #[test]
+    fn run_with_writers_and_a_reader_reports_the_writers_first_in_the_order_of_the_list() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            reader(action_name!("lint-yaml"), &log),
+            writer(action_name!("format-yaml"), &log),
+            writer(action_name!("format-json"), &log),
+        ];
+
+        let reports = reports(&actions);
+
+        assert_eq!(
+            reports,
+            [
+                "format-yaml: passed",
+                "format-json: passed",
+                "lint-yaml: passed"
+            ]
+        );
+    }
+
+    #[test]
+    fn run_without_an_output_fails_at_the_report_of_a_reader_while_a_slower_reader_still_runs() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            waiting(action_name!("test-rust"), Declaration::Read, &log),
+            reader(action_name!("lint-yaml"), &log),
+        ];
+        let project = project();
+        let (clawless, receiver) = clawless();
+        drop(receiver);
+        let mut future = pin!(run(
+            bind(&actions, &ArgsValues::empty()),
+            &project,
+            &clawless
+        ));
+        let mut task_context = TaskContext::from_waker(Waker::noop());
+
+        let result = (0..POLLS).find_map(|_| match future.as_mut().poll(&mut task_context) {
+            Poll::Ready(result) => Some(result.map_err(|error| error.to_string())),
+            Poll::Pending => None,
+        });
+
+        assert_eq!(
+            result,
+            Some(Err(
+                "failed to report the outcome of the lint-yaml action".to_owned()
+            ))
+        );
+    }
+
+    #[test]
+    fn run_without_an_output_fails_at_the_report_of_the_first_writer() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
             reader(action_name!("lint-yaml"), &log),

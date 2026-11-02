@@ -59,10 +59,11 @@ each action how it uses the project. An action that declares a kind of access
 that the command line does not know also stops the run before any action runs.
 The error gives the action and tells the user to update Rakko, because only a
 newer release can know the kind. Otherwise, the run drives the actions that
-write, one after another and in the order of the list. Then it drives the
-actions that read in the same way. Each action reports when it ends, as a run of
-that action alone reports. An action that found problems does not end the run,
-so one run reports every problem of the tree.
+write, one after another and in the order of the list. When the last of them
+ended, the run starts all the actions that read at the same time. Each action
+reports when it ends, as a run of that action alone reports, so a fast check
+does not wait for a slow one. An action that found problems does not end the
+run, so one run reports every problem of the tree.
 
 ```console
 mise run rakko -- pre-commit --fix
