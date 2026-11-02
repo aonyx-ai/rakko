@@ -1,3 +1,5 @@
+/// What a run of a group reports about the members that it drove
+mod group_summary;
 /// The JSON that a run emits for a machine
 mod schema;
 /// The text that a run emits for a reader at a terminal
@@ -7,6 +9,8 @@ use std::fmt;
 
 use rakko_action::{Name, Outcome};
 use serde::{Serialize, Serializer};
+
+pub(crate) use self::group_summary::GroupSummary;
 
 /// What a run reports about the action that it drove
 ///

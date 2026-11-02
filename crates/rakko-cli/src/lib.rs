@@ -19,7 +19,8 @@
 //! and a list of actions, its members. This crate gives the group a command
 //! with the name of the group, and it derives the flags of that command from
 //! the arguments that the members declare. It binds every member to the
-//! values of a run, and it runs the members itself.
+//! values of a run, and it runs the members itself. A run of a group answers
+//! as a run of one action does, with one summary and one exit code.
 //!
 //! A command that drives actions shows what they found with the [`Report`] of
 //! this crate, so that its output takes the shape that a run of one action

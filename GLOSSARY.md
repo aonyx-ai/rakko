@@ -60,9 +60,9 @@ from the design discussions to the terms that replaced them.
   of the group from the arguments of its members, and a flag reaches only the
   members that declare its argument. A group has no arguments of its own. A
   group is a type with a name and its members and nothing else, and the
-  scheduler runs the members. (Planned.) The trait of a group lives in the
-  contract crate. When the members run, the group answers like one action,
-  with one summary and the exit code of the worst outcome of its members.
+  scheduler runs the members. When the members run, the group answers like
+  one action, with one summary and the exit code of the worst outcome of its
+  members. (Planned.) The trait of a group lives in the contract crate.
 - **Harness** — The small binary crate in each project. The harness mounts
   the bundles, actions, and groups that the project uses, writes the
   commands of the project that do not fit an action, and `mise run rakko`
@@ -139,7 +139,9 @@ from the design discussions to the terms that replaced them.
   runs, and a kind of access that it does not know stops the group there.
   Then it runs the writers one at a time, in the order of the list, and then
   all the readers in parallel. Every member runs to its end, also when
-  another member fails. The scheduler is internal to the projection.
+  another member fails. The scheduler reports each member when the member
+  finishes, and the summary of the group at the end. The scheduler is
+  internal to the projection.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.
