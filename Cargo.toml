@@ -19,6 +19,9 @@ bon = "3"
 clap = "4.3.4"
 clawless = "0.8.0"
 dunce = "1.0.4"
+futures-util = { version = "0.3", default-features = false, features = [
+  "alloc",
+] }
 getset = ">=0.1,<1"
 kawauso-process = "0.2.1"
 kawauso-project = "0.3.0"

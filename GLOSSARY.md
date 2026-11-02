@@ -12,8 +12,7 @@ from the design discussions to the terms that replaced them.
   a `--fix` flag changes it, and it does no I/O. A declaration covers the
   whole project: a write is exclusive access to it, and a read is shared
   access. The default declaration is a write. The scheduler runs the writers
-  of a group one at a time and then its readers. (Planned.) It runs the
-  readers in parallel.
+  of a group one at a time and then all its readers in parallel.
 - **Action** — The unit of maintenance work. An action is a library crate
   that implements the `Action` trait. An action depends on the contract
   crate and on the helper crates that it uses. It never depends on the
@@ -139,9 +138,8 @@ from the design discussions to the terms that replaced them.
   group. It reads the access declaration of each member before any member
   runs, and a kind of access that it does not know stops the group there.
   Then it runs the writers one at a time, in the order of the list, and then
-  the readers. Every member runs to its end, also when another member fails.
-  The scheduler is internal to the projection. (Planned.) It runs all the
-  readers in parallel.
+  all the readers in parallel. Every member runs to its end, also when
+  another member fails. The scheduler is internal to the projection.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.

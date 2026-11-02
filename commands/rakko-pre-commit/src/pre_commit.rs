@@ -33,11 +33,12 @@ impl PreCommit {
     ///
     /// The list can hold the actions in any order. A run asks each action how
     /// it uses the project, and runs every action that writes before the first
-    /// action that reads. An action that declares nothing writes. Among the
-    /// actions that write, and among the actions that read, the run keeps the
-    /// order of the list. This order matters when two actions that write touch
-    /// the same files. Two formatters can do this, and so can a generator that
-    /// reads the files that a formatter writes.
+    /// action that reads. An action that declares nothing writes. The actions
+    /// that write run one at a time, in the order of the list. This order
+    /// matters when two actions that write touch the same files. Two
+    /// formatters can do this, and so can a generator that reads the files
+    /// that a formatter writes. The actions that read then all start at the
+    /// same time.
     ///
     /// The list holds each action only once. A list with two actions of the
     /// same name stops the harness when it mounts the group. The list is

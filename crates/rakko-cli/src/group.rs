@@ -25,13 +25,23 @@ use rakko_action::{ErasedAction, Name};
 /// error tells the user to update Rakko.
 ///
 /// Then the members that write run, one at a time and in the order of the
-/// list. A member that declares nothing writes. The members that read run
-/// after them, so that they examine the project as the writers left it. They
-/// also run one at a time and in the order of the list. Every member runs to
-/// its end, also after another member found problems or stopped, so one run
-/// reports every problem. The run reports each member when the member
-/// finishes, as a run of that action alone reports. The run fails when a
-/// member found problems or stopped, and the error counts these members.
+/// list. A member that declares nothing writes. The members that read start
+/// after the last of them finished, so that they examine the project as the
+/// writers left it. They all start at the same time and share the run. Only
+/// one of them runs code at a time, and they overlap while they wait, such as
+/// for a tool. So a member that blocks the thread delays the others.
+///
+/// Two members that read can collide when they share state that their
+/// declarations do not count as a write. An example is the cache of a tool
+/// that the tool does not lock. A harness whose members collide in this way
+/// takes one of them out of the group.
+///
+/// Every member runs to its end, also after another member found problems or
+/// stopped, so one run reports every problem. The run reports each member when
+/// the member finishes, as a run of that action alone reports. So the reports
+/// of the members that read follow the order in which they finish, and not
+/// the order of the list. The run fails when a member found problems or
+/// stopped, and the error counts these members.
 ///
 /// A command with arguments of its own, or a command that runs its actions in
 /// a way of its own, is a [`Command`]. It calls the actions that it runs as
@@ -85,9 +95,10 @@ pub trait Group: Send + Sync {
     /// command line carries only the flags of the list at the mount, so a list
     /// that changes later can panic the run or leave members out of it. The
     /// order decides the order of the flags and of the lines in their help,
-    /// and the order in which the members that write run, and the members
-    /// that read. Two members of the list must not have the same name. The
-    /// harness stops at the mount of a group whose list breaks this rule.
+    /// and the order in which the members that write run. The members that
+    /// read all start at the same time after them. Two members of the list
+    /// must not have the same name. The harness stops at the mount of a group
+    /// whose list breaks this rule.
     fn members(&self) -> &[Box<dyn ErasedAction>];
 }
 
