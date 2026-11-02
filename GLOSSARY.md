@@ -12,7 +12,8 @@ from the design discussions to the terms that replaced them.
   a `--fix` flag changes it, and it does no I/O. A declaration covers the
   whole project: a write is exclusive access to it, and a read is shared
   access. The default declaration is a write. The scheduler, which is still
-  planned, derives its order from these declarations.
+  planned, runs the writers of a group one at a time and then its readers in
+  parallel.
 - **Action** — The unit of maintenance work. An action is a library crate
   that implements the `Action` trait. An action depends on the contract
   crate and on the helper crates that it uses. It never depends on the
@@ -32,12 +33,11 @@ from the design discussions to the terms that replaced them.
   actions into commands, with help text and shared output flags. Actions do
   not depend on Clawless.
 - **Command** — One thing that a user of the command line of a harness can
-  run. The projection derives one command from each mounted action, and a
-  harness writes the others, for a maintenance activity of the project that
-  does not fit an action. A derived command is not the action itself. A
-  written command is an ordinary Clawless command. It knows nothing about
-  actions, unless it is a group, which gives the projection the actions that
-  it runs.
+  run. The projection derives one command from each mounted action and from
+  each mounted group, and a harness writes the others, for a maintenance
+  activity of the project that fits neither. A derived command is not the
+  action or the group itself. A written command is an ordinary Clawless
+  command, and it knows nothing about actions.
 - **Context** — The data that is relevant when an action runs. Today this is
   the project root and the directory layout. Later it can include user
   variables and loaded configuration. Clawless uses the same name for a
@@ -47,22 +47,28 @@ from the design discussions to the terms that replaced them.
   trait, the access types, and the other shared types. The contract crate
   stays small, because every action and every harness depends on it. The
   `rakko` crate is a placeholder today, and it becomes a facade over the
-  contract later.
+  contract later. (Planned.) The contract crate also contains the trait of a
+  group, which uses only its types.
 - **Erased action** — The internal, object-safe view of an action. Bundles
   export erased actions, and the registry in the harness holds them. Action
   authors do not see this type.
 - **Finding** — One problem that an action found in the project, with its
   location. Findings travel in the outcome of an action run.
 - **Fleet** — All Aonyx projects that Rakko maintains.
-- **Group** — A command that runs a list of actions, its members, and gives
-  that list to the projection. The projection derives the flags of the group
-  from the arguments of its members, and a flag reaches only the members that
-  declare its argument. A group has no arguments of its own.
+- **Group** — A named list of actions, its members, that the command line
+  runs as one command, such as pre-commit. A group is a concept of the public
+  API, next to the action and the harness. The projection derives the flags
+  of the group from the arguments of its members, and a flag reaches only the
+  members that declare its argument. A group has no arguments of its own.
+  (Planned.) A group is a type with a name and its members and nothing else,
+  and its trait lives in the contract crate. The scheduler runs the members,
+  and when they run, the group answers like one action, with one summary and
+  the exit code of the worst outcome of its members.
 - **Harness** — The small binary crate in each project. The harness mounts
-  the bundles and actions that the project uses, writes the commands of the
-  project that do not fit an action, and `mise run rakko` runs it. The
-  harness is a package of its own, outside the workspace of the project, and
-  it is the full adoption surface of a project.
+  the bundles, actions, and groups that the project uses, writes the
+  commands of the project that do not fit an action, and `mise run rakko`
+  runs it. The harness is a package of its own, outside the workspace of the
+  project, and it is the full adoption surface of a project.
 - **Helper crate** — A crate that carries machinery that many actions need.
   `rakko-tool` is the first one: it finds an external tool through mise and
   runs it. An action depends on the helper crates that it uses next to the
@@ -81,8 +87,8 @@ from the design discussions to the terms that replaced them.
   project. The task lives in the `mise.toml` file of each project. It is the
   canonical form on every platform, and documentation always writes it out,
   because a shorter form exists only where a platform can supply one.
-- **Mount** — To register actions, bundles, or written commands in the CLI
-  of a harness. The harness names what it mounts, in code.
+- **Mount** — To register actions, bundles, groups, or written commands in
+  the CLI of a harness. The harness names what it mounts, in code.
 - **Outcome** — The result of one action run. An outcome tells whether the
   action passed, changed the project by repairing everything that it found,
   failed with findings, skipped because there was nothing to examine, or
@@ -97,11 +103,14 @@ from the design discussions to the terms that replaced them.
   Rakko does not require one. A project marks its root with
   `.config/rakko.toml`, and a run searches for that file from the directory
   that it starts in.
-- **Projection** — The `rakko-cli` crate. It turns the actions that a
-  harness mounts into commands, with the help text and the shared output
-  flags, and it defines the traits that a written command and a group
-  implement. Only a harness depends on it, so Clawless never reaches an
-  action.
+- **Projection** — The `rakko-cli` crate. It turns the actions and the groups
+  that a harness mounts into commands, with the help text and the shared
+  output flags, and it defines the trait that a written command implements.
+  Only a harness, and a crate that provides a written command or a group,
+  depends on it, so Clawless never reaches an action. (Planned.) Its
+  scheduler runs the members of every group, and the trait of a group moves
+  from the projection into the contract crate, so a crate that provides a
+  group no longer depends on the projection.
 - **Rakko** — This project: a toolkit that turns project maintenance into
   versioned Rust crates. The rakko (ラッコ) is the Japanese sea otter, the
   otter that keeps a pebble as its tool.
@@ -126,9 +135,12 @@ from the design discussions to the terms that replaced them.
   action that they do not trust. A Rust action runs in the process of the
   harness, and its build scripts run when the harness compiles, so a copy of the
   project does not contain it.
-- **Scheduler** — (Planned.) The component that runs actions in parallel.
-  The scheduler computes a conflict graph from the access declarations
-  before any action runs.
+- **Scheduler** — (Planned.) The part of the projection that runs the
+  members of a group. It reads the access declaration of each member before
+  any member runs, and a kind of access that it does not know stops the group
+  there. Then it runs the writers one at a time, in the order of the list, and
+  all the readers in parallel. Every member runs to its end, also when another
+  member fails. The scheduler is internal to the projection.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.

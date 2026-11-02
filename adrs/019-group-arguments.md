@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted. [ADR-024] supersedes the first sentence of the decision, point 1,
+and the two paragraphs on point 3 of ADR-014.
 
 ## Context
 
@@ -220,3 +221,4 @@ run that gives that member a value that it cannot bind.
 [adr-014]: 014-commands.md
 [adr-017]: 017-access-declarations.md
 [adr-018]: 018-file-access.md
+[adr-024]: 024-group-runs.md

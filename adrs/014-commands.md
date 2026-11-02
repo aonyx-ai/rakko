@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted. [ADR-019] partly supersedes point 3.
+Accepted. [ADR-019] partly superseded point 3, and [ADR-024] supersedes that
+part of ADR-019.
 
 ## Context
 
@@ -205,4 +206,5 @@ and the exit codes of ADR-008 rest on.
 [adr-008]: 008-renderers.md
 [adr-010]: 010-project-root.md
 [adr-019]: 019-group-arguments.md
+[adr-024]: 024-group-runs.md
 [vision]: ../VISION.md
