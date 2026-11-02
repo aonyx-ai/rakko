@@ -15,19 +15,20 @@
 //! returns without a dependency of its own.
 //!
 //! Some of these activities run a list of actions, such as the actions that
-//! guard a commit. Such a command implements the [`Group`] trait instead, and
-//! it gives its actions, its members, to this crate. The crate derives the
-//! flags of the group from the arguments that the members declare, binds every
-//! member to the values of a run, and gives the bound members to the group,
-//! which decides how it runs them.
+//! guard a commit. A harness forms a [`Group`] for such an activity: a name
+//! and a list of actions, its members. This crate gives the group a command
+//! with the name of the group, and it derives the flags of that command from
+//! the arguments that the members declare. It binds every member to the
+//! values of a run, and it runs the members itself.
 //!
-//! A command or a group that drives actions shows what they found with the
-//! [`Report`] of this crate, so that its output takes the shape that a run of
-//! one action has.
+//! A command that drives actions shows what they found with the [`Report`] of
+//! this crate, so that its output takes the shape that a run of one action
+//! has.
 //!
 //! A harness depends on this crate, and so does a crate that provides a
-//! command for a harness to mount. An action depends on the contract crate
-//! alone, so the command-line framework stays out of the build of an action.
+//! command or a group for a harness to mount. An action depends on the
+//! contract crate alone, so the command-line framework stays out of the build
+//! of an action.
 //!
 //! The crate builds the command line when the harness runs, and not when the
 //! harness compiles. A command can therefore come from a crate that the project
@@ -41,8 +42,6 @@
 //! rakko_cli::builder().run();
 //! ```
 
-/// One member of a group, bound to the values of one run
-mod bound_member;
 /// The command line that a harness builds and runs
 mod builder;
 /// An error and every cause behind it, as a reader sees them
@@ -52,9 +51,7 @@ mod chain;
 mod command;
 /// The view of a command that hides its type
 mod erased_command;
-/// The view of a group that hides its type
-mod erased_group;
-/// The command that runs a list of actions and takes its flags from them
+/// The named list of actions that the command line runs as one command
 mod group;
 /// What a run reports about the action that it drove
 mod report;
@@ -69,10 +66,8 @@ mod root;
 /// one that this crate resolved.
 pub use clawless;
 
-pub use self::bound_member::BoundMember;
 pub use self::builder::{Builder, builder};
 pub use self::command::Command;
 pub use self::erased_command::ErasedCommand;
-pub use self::erased_group::ErasedGroup;
 pub use self::group::Group;
 pub use self::report::Report;

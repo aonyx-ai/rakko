@@ -969,7 +969,6 @@ version = "0.1.0"
 dependencies = [
  "rakko-action",
  "rakko-cli",
- "thiserror",
 ]
 
 [[package]]

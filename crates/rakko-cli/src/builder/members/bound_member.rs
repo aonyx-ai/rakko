@@ -4,18 +4,16 @@ use rakko_action::{ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError};
 
 /// One member of a group, bound to the values of one run
 ///
-/// A [`Group`] runs a list of actions, its members. The projection binds every
-/// member to the values of the run before the run of the group starts, and the
-/// group receives one bound member for each of its members. A bound member
-/// keeps the name of the action beside the [`BoundAction`], so that a group
-/// can report what each member found under the name of the member.
+/// A group lists actions, its members. The command line binds every member to
+/// the values of the run before any member runs, and the scheduler receives
+/// one bound member for each member of the group. A bound member keeps the
+/// name of the action beside the [`BoundAction`], so that the scheduler can
+/// report what each member found under the name of the member.
 ///
 /// The values are bound once. The bound action declares how its run uses the
-/// project and then runs, and both see the same arguments, so a group asks
-/// every member for its access before it runs the first one.
-///
-/// [`Group`]: crate::Group
-pub struct BoundMember<'a> {
+/// project and then runs, and both see the same arguments. So the scheduler
+/// asks every member for its access before it runs the first one.
+pub(crate) struct BoundMember<'a> {
     /// The name of the action
     name: Name,
     /// The action with the arguments of the run
@@ -25,43 +23,17 @@ pub struct BoundMember<'a> {
 impl<'a> BoundMember<'a> {
     /// Binds the values of a run to the arguments of an action
     ///
-    /// The projection calls this function for every member of a group, with
-    /// the values of the arguments that the member declares. A test of a group
-    /// calls it as well, to give the run of the group the members that it
-    /// expects.
+    /// The command line calls this function for every member of a group, with
+    /// the values of the arguments that the member declares.
     ///
     /// # Errors
     ///
     /// Returns a [`ReadArgsError`] when the values do not convert into the
     /// arguments of the action.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko_action::{Action, ArgsValues, Context, Name, Outcome, action_name};
-    /// use rakko_cli::BoundMember;
-    ///
-    /// struct LineCount;
-    ///
-    /// impl Action for LineCount {
-    ///     type Args = ();
-    ///
-    ///     fn name(&self) -> Name {
-    ///         action_name!("line-count")
-    ///     }
-    ///
-    ///     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-    ///         Outcome::Passed { summary: None }
-    ///     }
-    /// }
-    ///
-    /// let action = LineCount;
-    /// let member = BoundMember::bind(&action, &ArgsValues::empty())
-    ///     .expect("the action reads no arguments");
-    ///
-    /// assert_eq!(member.name().get(), "line-count");
-    /// ```
-    pub fn bind(action: &'a dyn ErasedAction, values: &ArgsValues) -> Result<Self, ReadArgsError> {
+    pub(crate) fn bind(
+        action: &'a dyn ErasedAction,
+        values: &ArgsValues,
+    ) -> Result<Self, ReadArgsError> {
         Ok(Self {
             name: action.name(),
             action: action.bind(values)?,
@@ -70,16 +42,16 @@ impl<'a> BoundMember<'a> {
 
     /// Returns the name of the action
     #[must_use]
-    pub fn name(&self) -> &Name {
+    pub(crate) fn name(&self) -> &Name {
         &self.name
     }
 
     /// Returns the action with the arguments of the run
     ///
     /// The bound action declares how its run uses the project and runs with
-    /// the arguments that the projection bound.
+    /// the arguments that the command line bound.
     #[must_use]
-    pub fn action(&self) -> &(dyn BoundAction + 'a) {
+    pub(crate) fn action(&self) -> &(dyn BoundAction + 'a) {
         self.action.as_ref()
     }
 }

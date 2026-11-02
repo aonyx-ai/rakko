@@ -10,16 +10,19 @@
 //! It also mounts commands, for a maintenance activity that no single action
 //! describes. A command comes from a crate, as an action does, and this file
 //! names it. When a command runs actions, this file names those actions as
-//! well and gives them to the command. A command that gives the command line
-//! the actions that it runs, such as pre-commit, is a group. The command line
-//! takes the flags of a group from those actions.
+//! well and gives them to the command.
+//!
+//! It also mounts groups, such as pre-commit. A group is a name and a list of
+//! actions that the command line runs as one command. This file gives each
+//! group its list. The command line takes the flags of the group from those
+//! actions, and it runs them.
 //!
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
 
 use rakko_action::ErasedAction;
 use rakko_check_msrv::CheckMsrv;
-use rakko_cli::{ErasedCommand, ErasedGroup};
+use rakko_cli::{ErasedCommand, Group};
 use rakko_format_json::FormatJson;
 use rakko_format_markdown::FormatMarkdown;
 use rakko_format_rust::FormatRust;
@@ -45,7 +48,7 @@ fn main() {
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
         .mount_commands([Box::new(SetMsrv::new(Box::new(CheckMsrv))) as Box<dyn ErasedCommand>])
-        .mount_groups([Box::new(pre_commit) as Box<dyn ErasedGroup>])
+        .mount_groups([Box::new(pre_commit) as Box<dyn Group>])
         .run();
 }
 
