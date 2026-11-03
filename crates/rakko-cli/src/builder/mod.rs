@@ -20,13 +20,12 @@ use clawless::CommandResult;
 use clawless::context::Context as ClawlessContext;
 use clawless::output::OutputFlags;
 use clawless::runner::CommandRunner;
-use rakko_action::{Access, ArgsSchema, ArgsValues, Context, ErasedAction, Outcome};
+use rakko_action::{Access, ArgsSchema, ArgsValues, Context, ErasedAction, Group, Outcome};
 
 use self::error::RunEntryError;
 use self::registry::{Mounted, Registry};
 use crate::chain::Chain;
 use crate::erased_command::ErasedCommand;
-use crate::group::Group;
 use crate::report::Report;
 use crate::root::{self, ResolveProjectRootError};
 
@@ -219,15 +218,58 @@ impl Builder {
 
     /// Mounts groups in the command line
     ///
-    /// A group is a named list of actions, its members, that the command line
-    /// runs as one command. The command line derives the flags of the group
-    /// from the arguments of the members: each argument that a member declares
-    /// becomes one flag, and an argument that several members declare stays
-    /// one flag. A flag reaches every member that declares its argument, and
-    /// no other member. The help of a flag shows one line for each member that
-    /// declares its argument, in the order of the members, and each line
-    /// starts with the name of the member. A run of the group runs the members
-    /// as [`Group`] describes.
+    /// A [`Group`] is a named list of actions, its members, that the command
+    /// line runs as one command. The command line derives the flags of the
+    /// group from the arguments of the members: each argument that a member
+    /// declares becomes one flag, and an argument that several members declare
+    /// stays one flag. A flag reaches every member that declares its argument,
+    /// and no other member. A group has no arguments of its own, so it defines
+    /// no flag. The help of a flag shows one line for each member that declares
+    /// its argument, in the order of the members. Each line starts with the
+    /// name of the member and continues with the sentence that the member
+    /// wrote for the argument.
+    ///
+    /// A run of the group binds every member to the values of the run first.
+    /// When a member cannot bind its values, no member runs, and the error
+    /// gives the member and the argument. Then the run asks every member how
+    /// its run uses the project, as [`Access`] declares it. When a member
+    /// declares a kind of access that the command line does not know, no
+    /// member runs either, and the error tells the user to update Rakko.
+    ///
+    /// Then the members that write run, one at a time and in the order of the
+    /// list. A member that declares nothing writes. The members that read
+    /// start after the last of them finished, so that they examine the project
+    /// as the writers left it. They all start at the same time and share the
+    /// run. Only one of them runs code at a time, and they overlap while they
+    /// wait, such as for a tool. So a member that blocks the thread delays the
+    /// others.
+    ///
+    /// Two members that read can collide when they share state that their
+    /// declarations do not count as a write. An example is the cache of a tool
+    /// that the tool does not lock. A harness whose members collide in this
+    /// way takes one of them out of the group.
+    ///
+    /// Every member runs to its end, also after another member found problems
+    /// or stopped, so one run reports every problem. The report of each member
+    /// appears as a message when the member finishes, with the text that a run
+    /// of that action alone shows. So the reports of the members that read
+    /// follow the order in which they finish, and not the order of the list.
+    ///
+    /// A run of the group answers as a run of one action does. When every
+    /// member finished, the run shows one summary of the group. The summary
+    /// holds the report of every member in the order of the list. Its text
+    /// gives the members that did not pass and counts them. With `--json`, the
+    /// standard output therefore carries one document for the run, and the
+    /// messages go to the standard error. With `--quiet`, the messages do not
+    /// appear, and the summary still gives the members that did not pass.
+    ///
+    /// The run exits with the worst code of its members. A member that stopped
+    /// gives the code of an action that stopped. Otherwise, a member that found
+    /// problems gives the code of an action with findings. Otherwise, the run
+    /// exits zero, also when a member changed the project or skipped. A member
+    /// that cannot bind stops the run with an error before any member runs. So
+    /// does a member that declares a kind of access that the command line does
+    /// not know.
     ///
     /// A group takes its place in the same flat tree as the actions and the
     /// commands. Its members need no mount of their own, so a harness that
@@ -252,8 +294,7 @@ impl Builder {
     /// # Examples
     ///
     /// ```
-    /// # use rakko_action::{ErasedAction, Name, action_name};
-    /// # use rakko_cli::Group;
+    /// # use rakko_action::{ErasedAction, Group, Name, action_name};
     /// # struct CheckAll {
     /// #     actions: Vec<Box<dyn ErasedAction>>,
     /// # }

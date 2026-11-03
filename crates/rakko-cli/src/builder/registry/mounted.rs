@@ -1,10 +1,9 @@
 use std::fmt;
 
-use rakko_action::{ErasedAction, Name};
+use rakko_action::{ErasedAction, Group, Name};
 
 use crate::builder::members::MergedArgument;
 use crate::erased_command::ErasedCommand;
-use crate::group::Group;
 
 /// One entry of the command tree: an action, a command, or a group
 ///

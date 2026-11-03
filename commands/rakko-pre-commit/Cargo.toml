@@ -8,7 +8,6 @@ rust-version.workspace = true
 
 [dependencies]
 rakko-action = { workspace = true }
-rakko-cli = { workspace = true }
 
 [lints]
 workspace = true

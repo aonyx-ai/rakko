@@ -68,7 +68,7 @@ use rakko_action::{Args, Context, Name};
 /// ```
 ///
 /// [`Action`]: rakko_action::Action
-/// [`Group`]: crate::Group
+/// [`Group`]: rakko_action::Group
 /// [`run`]: Command::run
 pub trait Command: Send + Sync {
     /// The arguments that a run of the command reads

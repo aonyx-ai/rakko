@@ -9,6 +9,11 @@
 //! registry holds many actions at once, and the list of such views that a
 //! bundle exports.
 //!
+//! A group is a named list of actions, such as the actions that guard a
+//! commit. The command line of a harness runs a group as one command. This
+//! crate holds the trait that a group implements, so a crate that provides a
+//! group depends on this crate alone.
+//!
 //! A run takes three steps. The machinery binds the values of the run to the
 //! arguments of the action. Then it asks the bound action how the run uses
 //! the project. Then it runs the same bound action. The declaration and the
@@ -38,6 +43,8 @@ pub mod context;
 pub mod erased_action;
 /// Types for a problem that an action found in a project
 pub mod finding;
+/// The named list of actions that the command line runs as one command
+pub mod group;
 /// Types for the identifier of an action
 pub mod name;
 /// Types for the result of an action run
@@ -59,5 +66,6 @@ pub use self::finding::{
     Column, DirectoryPath, FilePath, Finding, FindingMessage, Line, Location,
     ParseDirectoryPathError, ParseFilePathError, Position, Span,
 };
+pub use self::group::Group;
 pub use self::name::{Name, ParseNameError};
 pub use self::outcome::{Outcome, SkipReason, Summary};

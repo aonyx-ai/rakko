@@ -46,8 +46,8 @@ from the design discussions to the terms that replaced them.
   trait, the access types, and the other shared types. The contract crate
   stays small, because every action and every harness depends on it. The
   `rakko` crate is a placeholder today, and it becomes a facade over the
-  contract later. (Planned.) The contract crate also contains the trait of a
-  group, which uses only its types.
+  contract later. The contract crate also contains the trait of a group,
+  which uses only its types.
 - **Erased action** — The internal, object-safe view of an action. Bundles
   export erased actions, and the registry in the harness holds them. Action
   authors do not see this type.
@@ -62,7 +62,7 @@ from the design discussions to the terms that replaced them.
   group is a type with a name and its members and nothing else, and the
   scheduler runs the members. When the members run, the group answers like
   one action, with one summary and the exit code of the worst outcome of its
-  members. (Planned.) The trait of a group lives in the contract crate.
+  members. The trait of a group lives in the contract crate.
 - **Harness** — The small binary crate in each project. The harness mounts
   the bundles, actions, and groups that the project uses, writes the
   commands of the project that do not fit an action, and `mise run rakko`
@@ -105,11 +105,9 @@ from the design discussions to the terms that replaced them.
 - **Projection** — The `rakko-cli` crate. It turns the actions and the groups
   that a harness mounts into commands, with the help text and the shared
   output flags, and it defines the trait that a written command implements.
-  Only a harness, and a crate that provides a written command or a group,
-  depends on it, so Clawless never reaches an action. Its scheduler runs the
-  members of every group. (Planned.) The trait of a group moves from the
-  projection into the contract crate, so a crate that provides a group no
-  longer depends on the projection.
+  Only a harness, and a crate that provides a written command, depends on
+  it, so Clawless never reaches an action or a crate that provides a group.
+  Its scheduler runs the members of every group.
 - **Rakko** — This project: a toolkit that turns project maintenance into
   versioned Rust crates. The rakko (ラッコ) is the Japanese sea otter, the
   otter that keeps a pebble as its tool.

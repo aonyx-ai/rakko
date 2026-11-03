@@ -27,9 +27,9 @@
 //! has.
 //!
 //! A harness depends on this crate, and so does a crate that provides a
-//! command or a group for a harness to mount. An action depends on the
-//! contract crate alone, so the command-line framework stays out of the build
-//! of an action.
+//! command for a harness to mount. An action, and a crate that provides a
+//! group, depend on the contract crate alone, so the command-line framework
+//! stays out of their build.
 //!
 //! The crate builds the command line when the harness runs, and not when the
 //! harness compiles. A command can therefore come from a crate that the project
@@ -42,6 +42,8 @@
 //! ```no_run
 //! rakko_cli::builder().run();
 //! ```
+//!
+//! [`Group`]: rakko_action::Group
 
 /// The command line that a harness builds and runs
 mod builder;
@@ -52,8 +54,6 @@ mod chain;
 mod command;
 /// The view of a command that hides its type
 mod erased_command;
-/// The named list of actions that the command line runs as one command
-mod group;
 /// What a run reports about the action that it drove
 mod report;
 /// The root of the project that a run maintains
@@ -70,5 +70,4 @@ pub use clawless;
 pub use self::builder::{Builder, builder};
 pub use self::command::Command;
 pub use self::erased_command::ErasedCommand;
-pub use self::group::Group;
 pub use self::report::Report;
