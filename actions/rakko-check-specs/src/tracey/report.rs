@@ -10,6 +10,8 @@
 //! points at, and a field that nothing reads is a field that a new version may
 //! rename without breaking a run.
 
+use bon::bon;
+use getset::Getters;
 use serde::Deserialize;
 
 use crate::problem::TraceyProblem;
@@ -80,13 +82,21 @@ pub(super) struct Status {
 impl Status {
     /// Returns the coverage of every specification of the project together
     pub(super) fn coverage(&self) -> Coverage {
-        self.impls
-            .iter()
-            .fold(Coverage::default(), |total, one| Coverage {
-                total: total.total + one.total_rules,
-                covered: total.covered + one.covered_rules,
-                verified: total.verified + one.verified_rules,
-            })
+        self.impls.iter().fold(
+            Coverage::default(),
+            |sum,
+             ImplCoverage {
+                 total_rules,
+                 covered_rules,
+                 verified_rules,
+             }| {
+                Coverage::builder()
+                    .total(sum.total() + total_rules)
+                    .covered(sum.covered() + covered_rules)
+                    .verified(sum.verified() + verified_rules)
+                    .build()
+            },
+        )
     }
 }
 
@@ -109,16 +119,32 @@ struct ImplCoverage {
 /// The counts add every specification of the project together, because a
 /// summary of a run says what the run examined and not how each specification
 /// fared. The report of tracey holds the detail per specification.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Getters)]
 pub(crate) struct Coverage {
     /// How many requirements the project holds
-    pub total: u64,
+    #[getset(get = "pub")]
+    total: u64,
 
     /// How many of them the code implements
-    pub covered: u64,
+    #[getset(get = "pub")]
+    covered: u64,
 
     /// How many of them a test verifies
-    pub verified: u64,
+    #[getset(get = "pub")]
+    verified: u64,
+}
+
+#[bon]
+impl Coverage {
+    /// Creates a summary of specification coverage
+    #[builder]
+    pub(crate) fn new(total: u64, covered: u64, verified: u64) -> Self {
+        Self {
+            total,
+            covered,
+            verified,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -183,11 +209,11 @@ mod tests {
 
         assert_eq!(
             coverage,
-            Coverage {
-                total: 15,
-                covered: 14,
-                verified: 12
-            }
+            Coverage::builder()
+                .total(15)
+                .covered(14)
+                .verified(12)
+                .build()
         );
     }
 
