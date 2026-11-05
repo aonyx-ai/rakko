@@ -207,7 +207,8 @@ fn rewritten(line: &str) -> Option<&str> {
 
     match line.rsplit_once(' ') {
         Some((path, last)) if duration(last) => Some(path),
-        _ => Some(line),
+        None => Some(line),
+        Some(_) => Some(line),
     }
 }
 

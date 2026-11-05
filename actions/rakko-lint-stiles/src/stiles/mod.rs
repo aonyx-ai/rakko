@@ -215,7 +215,8 @@ fn finished(status: Option<i32>, problems: &[StilesProblem]) -> bool {
         Some(FAILED) => problems
             .iter()
             .any(|problem| problem.severity() == Severity::Error),
-        _ => false,
+        None => false,
+        Some(_) => false,
     }
 }
 
