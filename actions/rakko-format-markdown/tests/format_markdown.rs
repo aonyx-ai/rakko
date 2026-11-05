@@ -245,6 +245,26 @@ async fn run_with_an_ignored_option_reports_what_prettier_said() {
     );
 }
 
+#[tokio::test]
+async fn run_with_an_unformatted_file_names_the_file() {
+    let project = Project::new();
+    project.write("sub/messy.md", UNFORMATTED);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        findings[0].location(),
+        &Location::File {
+            path: "sub/messy.md"
+                .parse()
+                .expect("the test names a relative path"),
+        }
+    );
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_and_fix_keeps_the_problem() {
@@ -341,26 +361,6 @@ async fn run_with_an_unreadable_file_names_the_file() {
 }
 
 #[tokio::test]
-async fn run_with_an_unformatted_file_names_the_file() {
-    let project = Project::new();
-    project.write("sub/messy.md", UNFORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(
-        findings[0].location(),
-        &Location::File {
-            path: "sub/messy.md"
-                .parse()
-                .expect("the test names a relative path"),
-        }
-    );
-}
-
-#[tokio::test]
 async fn run_with_fix_leaves_the_other_languages_alone() {
     let project = Project::new();
     project.write("messy.md", UNFORMATTED);
@@ -402,6 +402,19 @@ async fn run_with_fix_rewrites_the_file() {
 }
 
 #[tokio::test]
+async fn run_without_a_prettier_stops() {
+    let project = Project::without_prettier();
+    project.write("clean.md", FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
     project.write("messy.md", UNFORMATTED);
@@ -424,17 +437,4 @@ async fn run_without_fix_leaves_the_project_unchanged() {
         &FormatMarkdownArgs::default(),
     )
     .await;
-}
-
-#[tokio::test]
-async fn run_without_a_prettier_stops() {
-    let project = Project::without_prettier();
-    project.write("clean.md", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
 }

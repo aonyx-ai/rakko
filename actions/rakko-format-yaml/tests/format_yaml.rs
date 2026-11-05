@@ -249,6 +249,65 @@ async fn run_with_an_ignored_option_reports_what_prettier_said() {
     );
 }
 
+#[tokio::test]
+async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
+    let project = Project::new();
+    project.write("broken.yaml", INVALID);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings[0].message().get().contains("SyntaxError"),
+        "expected the message of prettier, got {:?}",
+        findings[0].message()
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_invalid_file_reports_the_position() {
+    let project = Project::new();
+    project.write("broken.yaml", INVALID);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    let Location::Position { path, position } = findings[0].location() else {
+        panic!("expected a finding at a position, got {:?}", findings[0]);
+    };
+    assert_eq!(
+        (path.to_string(), *position),
+        (
+            "broken.yaml".to_owned(),
+            Position::builder().line(2).column(1).build()
+        )
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_unformatted_file_names_the_file() {
+    let project = Project::new();
+    project.write("sub/messy.yaml", UNFORMATTED);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        findings[0].location(),
+        &Location::File {
+            path: "sub/messy.yaml"
+                .parse()
+                .expect("the test names a relative path"),
+        }
+    );
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_and_fix_keeps_the_problem() {
@@ -347,65 +406,6 @@ async fn run_with_an_unreadable_file_names_the_file() {
 }
 
 #[tokio::test]
-async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
-    let project = Project::new();
-    project.write("broken.yaml", INVALID);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings[0].message().get().contains("SyntaxError"),
-        "expected the message of prettier, got {:?}",
-        findings[0].message()
-    );
-}
-
-#[tokio::test]
-async fn run_with_an_invalid_file_reports_the_position() {
-    let project = Project::new();
-    project.write("broken.yaml", INVALID);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    let Location::Position { path, position } = findings[0].location() else {
-        panic!("expected a finding at a position, got {:?}", findings[0]);
-    };
-    assert_eq!(
-        (path.to_string(), *position),
-        (
-            "broken.yaml".to_owned(),
-            Position::builder().line(2).column(1).build()
-        )
-    );
-}
-
-#[tokio::test]
-async fn run_with_an_unformatted_file_names_the_file() {
-    let project = Project::new();
-    project.write("sub/messy.yaml", UNFORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(
-        findings[0].location(),
-        &Location::File {
-            path: "sub/messy.yaml"
-                .parse()
-                .expect("the test names a relative path"),
-        }
-    );
-}
-
-#[tokio::test]
 async fn run_with_fix_leaves_the_other_languages_alone() {
     let project = Project::new();
     project.write("messy.yaml", UNFORMATTED);
@@ -447,6 +447,19 @@ async fn run_with_fix_rewrites_the_file() {
 }
 
 #[tokio::test]
+async fn run_without_a_prettier_stops() {
+    let project = Project::without_prettier();
+    project.write("clean.yaml", FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
     project.write("messy.yaml", UNFORMATTED);
@@ -464,17 +477,4 @@ async fn run_without_fix_leaves_the_project_unchanged() {
     // The helper asserts that the run left every file of the project as it
     // was.
     run_checking_access(&FormatYaml, &project.context(), &FormatYamlArgs::default()).await;
-}
-
-#[tokio::test]
-async fn run_without_a_prettier_stops() {
-    let project = Project::without_prettier();
-    project.write("clean.yaml", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
 }

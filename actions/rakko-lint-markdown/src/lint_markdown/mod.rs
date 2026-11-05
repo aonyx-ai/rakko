@@ -246,6 +246,20 @@ mod tests {
     }
 
     #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = MarkdownlintProblem::new(
+            path("/elsewhere/notes.md"),
+            1,
+            None,
+            "MD041/first-line-heading".to_owned(),
+        );
+
+        let error = finding(&problem, &root()).unwrap_err();
+
+        assert!(matches!(error, LintMarkdownError::ForeignPath { .. }));
+    }
+
+    #[test]
     fn finding_of_a_problem_carries_the_message_of_markdownlint() {
         let finding = finding(&problem(4, Some(81)), &root()).unwrap();
 
@@ -282,20 +296,6 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = MarkdownlintProblem::new(
-            path("/elsewhere/notes.md"),
-            1,
-            None,
-            "MD041/first-line-heading".to_owned(),
-        );
-
-        let error = finding(&problem, &root()).unwrap_err();
-
-        assert!(matches!(error, LintMarkdownError::ForeignPath { .. }));
-    }
-
-    #[test]
     fn guard_of_a_clean_run_passes() {
         let outcome = guard(&Observation::builder().build()).unwrap();
 
@@ -318,18 +318,6 @@ mod tests {
     }
 
     #[test]
-    fn guard_of_a_run_that_reported_a_problem_reports_nothing() {
-        let observation = Observation::builder()
-            .problems(vec![problem(4, None)])
-            .succeeded(false)
-            .build();
-
-        let outcome = guard(&observation).unwrap();
-
-        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
-    }
-
-    #[test]
     fn guard_of_a_run_that_examined_nothing_skips() {
         let observation = Observation::builder().examined(false).build();
 
@@ -339,5 +327,17 @@ mod tests {
             matches!(outcome, Some(Outcome::Skipped { .. })),
             "expected the run to skip, got {outcome:?}"
         );
+    }
+
+    #[test]
+    fn guard_of_a_run_that_reported_a_problem_reports_nothing() {
+        let observation = Observation::builder()
+            .problems(vec![problem(4, None)])
+            .succeeded(false)
+            .build();
+
+        let outcome = guard(&observation).unwrap();
+
+        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 }

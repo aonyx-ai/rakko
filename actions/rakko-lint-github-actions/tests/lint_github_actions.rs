@@ -326,6 +326,20 @@ async fn run_names_the_project_and_reports_the_path_below_it() {
 }
 
 #[tokio::test]
+async fn run_reads_the_configuration_of_the_project() {
+    let project = Project::new();
+    project.write("zizmor.yml", PERMISSIVE_CONFIGURATION);
+    project.workflow("injection.yml", INJECTION);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the audits of the project to answer, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_reports_a_finding_of_the_pedantic_persona() {
     let project = Project::new();
     project.workflow("pedantic.yml", PEDANTIC);
@@ -345,17 +359,17 @@ async fn run_reports_a_finding_of_the_pedantic_persona() {
 }
 
 #[tokio::test]
-async fn run_reads_the_configuration_of_the_project() {
+async fn run_whose_zizmor_collects_nothing_skips() {
     let project = Project::new();
-    project.write("zizmor.yml", PERMISSIVE_CONFIGURATION);
-    project.workflow("injection.yml", INJECTION);
+    project.workflow("clean.yml", CLEAN);
+    project.write(".gitignore", IGNORE_WORKFLOWS);
 
     let outcome = project.run().await;
 
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the audits of the project to answer, got {outcome:?}"
-    );
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
+    };
+    assert_eq!(reason.get(), "zizmor found no file to audit");
 }
 
 #[tokio::test]
@@ -461,20 +475,6 @@ async fn run_with_a_workflow_that_zizmor_cannot_read_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
-}
-
-#[tokio::test]
-async fn run_whose_zizmor_collects_nothing_skips() {
-    let project = Project::new();
-    project.workflow("clean.yml", CLEAN);
-    project.write(".gitignore", IGNORE_WORKFLOWS);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert_eq!(reason.get(), "zizmor found no file to audit");
 }
 
 #[tokio::test]

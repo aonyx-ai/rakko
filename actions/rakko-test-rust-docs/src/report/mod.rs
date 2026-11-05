@@ -214,20 +214,6 @@ mod tests {
     const FAILING: &str = "running 2 tests\ntest src/lib.rs - add (line 5) ... FAILED\ntest src/lib.rs - sub (line 16) ... ok\n\nfailures:\n\n---- src/lib.rs - add (line 5) stdout ----\nTest executable failed (exit status: 101).\n\nstderr:\n\nthread 'main' panicked at src/lib.rs:5:1:\nassertion failed: false\n\n\nfailures:\n    src/lib.rs - add (line 5)\n\ntest result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s\n";
 
     #[test]
-    fn read_a_report_of_two_packages_sums_their_examples() {
-        let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
-
-        assert_eq!(report.map(|report| report.ran()).ok(), Some(2));
-    }
-
-    #[test]
-    fn read_a_report_of_two_packages_counts_their_summaries() {
-        let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
-
-        assert_eq!(report.map(|report| report.summaries()).ok(), Some(2));
-    }
-
-    #[test]
     fn read_a_report_beside_the_records_of_cargo_counts_the_examples() {
         let report = DoctestReport::read(PASSING);
 
@@ -265,6 +251,20 @@ mod tests {
         let report = DoctestReport::read(PASSING);
 
         assert_eq!(report.map(|report| report.failures().len()).ok(), Some(0));
+    }
+
+    #[test]
+    fn read_a_report_of_two_packages_counts_their_summaries() {
+        let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
+
+        assert_eq!(report.map(|report| report.summaries()).ok(), Some(2));
+    }
+
+    #[test]
+    fn read_a_report_of_two_packages_sums_their_examples() {
+        let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
+
+        assert_eq!(report.map(|report| report.ran()).ok(), Some(2));
     }
 
     #[test]

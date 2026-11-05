@@ -390,207 +390,6 @@ impl Drop for Project {
     }
 }
 
-// The pins of the project name two toolchains that no machine installs, so
-// the choice among them surfaces as the toolchain that the failure names.
-// That keeps the test free of whichever versions this repository installs.
-#[tokio::test]
-async fn newest_in_a_project_that_pins_several_versions_names_the_highest() {
-    let project = Project::with_rust("[\"1.71.0\", \"1.70.0\"]");
-
-    let toolchain = Toolchain::newest(&project.root()).await;
-
-    assert!(
-        matches!(
-            &toolchain,
-            Err(ResolveNewestToolchainError::UninstalledToolchain { toolchain })
-                if toolchain.get() == "1.71.0"
-        ),
-        "expected the highest pin, got {toolchain:?}"
-    );
-}
-
-#[tokio::test]
-async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
-    let selected = selected_rust();
-
-    let toolchain = Toolchain::newest(&ProjectRoot::new(repository().to_path_buf())).await;
-
-    assert_eq!(toolchain.ok(), Some(Toolchain::new(selected)));
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_of_binaries_say_that_nothing_documents_an_example() {
-    let project = Project::new();
-    project.write("Cargo.toml", STANDALONE);
-    project.write("src/main.rs", "fn main() {}\n");
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(CargoRoot::documentation),
-        Some(Documentation::Untestable)
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_with_a_library_say_that_its_examples_are_testable() {
-    let project = Project::workspace();
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(CargoRoot::documentation),
-        Some(Documentation::Testable)
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_name_its_packages() {
-    let project = Project::workspace();
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(|root| root.packages().clone()),
-        Some(vec![
-            package("a", DocumentedNames::Unique),
-            package("b", DocumentedNames::Unique)
-        ])
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_name_its_packages_in_the_order_of_their_names() {
-    let project = Project::new();
-    project.write("Cargo.toml", UNSORTED);
-    project.write(
-        "first/Cargo.toml",
-        "[package]\nname = \"zeta\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-    );
-    project.write("first/src/lib.rs", "");
-    project.write(
-        "second/Cargo.toml",
-        "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-    );
-    project.write("second/src/lib.rs", "");
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(|root| root.packages().clone()),
-        Some(vec![
-            package("alpha", DocumentedNames::Unique),
-            package("zeta", DocumentedNames::Unique)
-        ])
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_whose_binary_shares_the_name_of_a_library_say_both_share_it() {
-    let project = Project::sharing_a_name(DEMO_CLI);
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(|root| root.packages().clone()),
-        Some(vec![
-            package("demo", DocumentedNames::Shared),
-            package("demo-cli", DocumentedNames::Shared)
-        ])
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_whose_binary_shares_the_name_of_its_own_library_say_none_shares_it() {
-    let project = Project::workspace();
-    project.write("a/src/main.rs", "fn main() {}\n");
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(|root| root.packages().clone()),
-        Some(vec![
-            package("a", DocumentedNames::Unique),
-            package("b", DocumentedNames::Unique)
-        ])
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_whose_hyphenated_binary_shares_a_name_say_both_share_it() {
-    let project = Project::new();
-    project.write("Cargo.toml", HYPHENATED);
-    project.package("demo-core");
-    project.write("tool/Cargo.toml", TOOL);
-    project.write("tool/src/main.rs", "fn main() {}\n");
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(|root| root.packages().clone()),
-        Some(vec![
-            package("demo-core", DocumentedNames::Shared),
-            package("tool", DocumentedNames::Shared)
-        ])
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_whose_undocumented_binary_shares_a_name_say_none_shares_it() {
-    let project = Project::sharing_a_name(UNDOCUMENTED_CLI);
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(|root| root.packages().clone()),
-        Some(vec![
-            package("demo", DocumentedNames::Unique),
-            package("demo-cli", DocumentedNames::Unique)
-        ])
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_that_declares_a_version_answer_the_highest() {
-    let project = Project::new();
-    project.write("Cargo.toml", WORKSPACE);
-    project.declaring("a", "1.85.0");
-    project.declaring("b", "1.88.0");
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().and_then(|root| root.rust_version().clone()),
-        Some(RustVersion::new("1.88.0"))
-    );
-}
-
-#[tokio::test]
-async fn roots_of_a_workspace_without_a_declaration_answer_no_version() {
-    let project = Project::workspace();
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().and_then(|root| root.rust_version().clone()),
-        None
-    );
-}
-
-#[tokio::test]
-async fn roots_with_a_library_of_another_form_say_that_nothing_documents_an_example() {
-    let project = Project::new();
-    project.write("Cargo.toml", FOREIGN_LIBRARY);
-    project.write("src/lib.rs", "");
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(
-        roots.first().map(CargoRoot::documentation),
-        Some(Documentation::Untestable)
-    );
-}
-
 #[tokio::test]
 async fn invocation_runs_in_the_directory_of_the_root() {
     let project = Project::workspace();
@@ -686,6 +485,34 @@ async fn lockfile_refused_by_a_locked_check_without_a_lockfile_answers_yes() {
     );
 }
 
+// The pins of the project name two toolchains that no machine installs, so
+// the choice among them surfaces as the toolchain that the failure names.
+// That keeps the test free of whichever versions this repository installs.
+#[tokio::test]
+async fn newest_in_a_project_that_pins_several_versions_names_the_highest() {
+    let project = Project::with_rust("[\"1.71.0\", \"1.70.0\"]");
+
+    let toolchain = Toolchain::newest(&project.root()).await;
+
+    assert!(
+        matches!(
+            &toolchain,
+            Err(ResolveNewestToolchainError::UninstalledToolchain { toolchain })
+                if toolchain.get() == "1.71.0"
+        ),
+        "expected the highest pin, got {toolchain:?}"
+    );
+}
+
+#[tokio::test]
+async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
+    let selected = selected_rust();
+
+    let toolchain = Toolchain::newest(&ProjectRoot::new(repository().to_path_buf())).await;
+
+    assert_eq!(toolchain.ok(), Some(Toolchain::new(selected)));
+}
+
 #[tokio::test]
 async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
     let project = Project::workspace();
@@ -737,21 +564,6 @@ async fn resolve_without_a_cargo_reports_the_tool() {
     );
 }
 
-#[cfg(unix)]
-#[tokio::test]
-async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
-    let project = Project::workspace();
-    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
-    std::fs::write(elsewhere.path().join("Cargo.toml"), STANDALONE)
-        .expect("the test writes a file outside the project");
-    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
-        .expect("the test links a directory into the project");
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(roots, [project.workspace_root()]);
-}
-
 #[tokio::test]
 async fn roots_find_a_manifest_in_a_hidden_directory() {
     let project = Project::workspace();
@@ -769,31 +581,15 @@ async fn roots_find_a_manifest_in_a_hidden_directory() {
     );
 }
 
+#[cfg(unix)]
 #[tokio::test]
-async fn roots_ignore_a_manifest_under_the_git_directory() {
+async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
     let project = Project::workspace();
-    project.write(".git/Cargo.toml", BROKEN);
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(roots, [project.workspace_root()]);
-}
-
-#[tokio::test]
-async fn roots_ignore_a_manifest_under_the_node_modules_directory() {
-    let project = Project::workspace();
-    project.write("node_modules/@otter/clipboard/Cargo.toml", STANDALONE);
-    project.write("node_modules/@otter/clipboard/src/lib.rs", "");
-
-    let roots = project.roots().await.expect("the test discovers the roots");
-
-    assert_eq!(roots, [project.workspace_root()]);
-}
-
-#[tokio::test]
-async fn roots_ignore_a_manifest_under_the_target_directory() {
-    let project = Project::workspace();
-    project.write("target/debug/build/dep/Cargo.toml", BROKEN);
+    let elsewhere = tempfile::tempdir().expect("the test creates a temporary directory");
+    std::fs::write(elsewhere.path().join("Cargo.toml"), STANDALONE)
+        .expect("the test writes a file outside the project");
+    std::os::unix::fs::symlink(elsewhere.path(), project.directory.path().join("linked"))
+        .expect("the test links a directory into the project");
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -834,58 +630,34 @@ async fn roots_ignore_a_manifest_that_the_workspace_excludes() {
 }
 
 #[tokio::test]
-async fn roots_of_a_workspace_that_excludes_a_member_name_a_workspace_below_the_member() {
-    let project = Project::new();
-    project.write("Cargo.toml", EXCLUDING_A_MEMBER);
-    project.write("fixtures/real/Cargo.toml", REAL);
-    project.write("fixtures/real/src/lib.rs", "");
-    project.write("fixtures/real/own/Cargo.toml", STANDALONE);
-    project.write("fixtures/real/own/src/main.rs", "fn main() {}\n");
+async fn roots_ignore_a_manifest_under_the_git_directory() {
+    let project = Project::workspace();
+    project.write(".git/Cargo.toml", BROKEN);
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(
-        roots,
-        [
-            CargoRoot::builder()
-                .directory(project.root().get().to_path_buf())
-                .documentation(Documentation::Testable)
-                .packages(vec![package("real", DocumentedNames::Unique)])
-                .build(),
-            project.binary_root("fixtures/real/own")
-        ]
-    );
+    assert_eq!(roots, [project.workspace_root()]);
 }
 
 #[tokio::test]
-async fn roots_of_a_workspace_that_excludes_a_pattern_name_the_package_it_matches() {
-    let project = Project::workspace_excluding("examples/*");
-    project.write("examples/sample/Cargo.toml", STANDALONE);
-    project.write("examples/sample/src/main.rs", "fn main() {}\n");
+async fn roots_ignore_a_manifest_under_the_node_modules_directory() {
+    let project = Project::workspace();
+    project.write("node_modules/@otter/clipboard/Cargo.toml", STANDALONE);
+    project.write("node_modules/@otter/clipboard/src/lib.rs", "");
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(
-        roots,
-        [
-            project.workspace_root(),
-            project.binary_root("examples/sample")
-        ]
-    );
+    assert_eq!(roots, [project.workspace_root()]);
 }
 
 #[tokio::test]
-async fn roots_of_a_workspace_that_excludes_a_prefix_name_the_package_it_shares_letters_with() {
-    let project = Project::workspace_excluding("fix");
-    project.write("fixtures/Cargo.toml", STANDALONE);
-    project.write("fixtures/src/main.rs", "fn main() {}\n");
+async fn roots_ignore_a_manifest_under_the_target_directory() {
+    let project = Project::workspace();
+    project.write("target/debug/build/dep/Cargo.toml", BROKEN);
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
-    assert_eq!(
-        roots,
-        [project.workspace_root(), project.binary_root("fixtures")]
-    );
+    assert_eq!(roots, [project.workspace_root()]);
 }
 
 #[tokio::test]
@@ -980,6 +752,47 @@ async fn roots_of_a_project_without_a_workspace_name_the_package() {
 }
 
 #[tokio::test]
+async fn roots_of_a_workspace_name_its_packages() {
+    let project = Project::workspace();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("a", DocumentedNames::Unique),
+            package("b", DocumentedNames::Unique)
+        ])
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_name_its_packages_in_the_order_of_their_names() {
+    let project = Project::new();
+    project.write("Cargo.toml", UNSORTED);
+    project.write(
+        "first/Cargo.toml",
+        "[package]\nname = \"zeta\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    );
+    project.write("first/src/lib.rs", "");
+    project.write(
+        "second/Cargo.toml",
+        "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    );
+    project.write("second/src/lib.rs", "");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("alpha", DocumentedNames::Unique),
+            package("zeta", DocumentedNames::Unique)
+        ])
+    );
+}
+
+#[tokio::test]
 async fn roots_of_a_workspace_name_no_member() {
     let project = Project::workspace();
 
@@ -1000,6 +813,193 @@ async fn roots_of_a_workspace_name_the_workspace_once() {
     let roots = project.roots().await.expect("the test discovers the roots");
 
     assert_eq!(roots, [project.workspace_root()]);
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_of_binaries_say_that_nothing_documents_an_example() {
+    let project = Project::new();
+    project.write("Cargo.toml", STANDALONE);
+    project.write("src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(CargoRoot::documentation),
+        Some(Documentation::Untestable)
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_that_declares_a_version_answer_the_highest() {
+    let project = Project::new();
+    project.write("Cargo.toml", WORKSPACE);
+    project.declaring("a", "1.85.0");
+    project.declaring("b", "1.88.0");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().and_then(|root| root.rust_version().clone()),
+        Some(RustVersion::new("1.88.0"))
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_that_excludes_a_member_name_a_workspace_below_the_member() {
+    let project = Project::new();
+    project.write("Cargo.toml", EXCLUDING_A_MEMBER);
+    project.write("fixtures/real/Cargo.toml", REAL);
+    project.write("fixtures/real/src/lib.rs", "");
+    project.write("fixtures/real/own/Cargo.toml", STANDALONE);
+    project.write("fixtures/real/own/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots,
+        [
+            CargoRoot::builder()
+                .directory(project.root().get().to_path_buf())
+                .documentation(Documentation::Testable)
+                .packages(vec![package("real", DocumentedNames::Unique)])
+                .build(),
+            project.binary_root("fixtures/real/own")
+        ]
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_that_excludes_a_pattern_name_the_package_it_matches() {
+    let project = Project::workspace_excluding("examples/*");
+    project.write("examples/sample/Cargo.toml", STANDALONE);
+    project.write("examples/sample/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots,
+        [
+            project.workspace_root(),
+            project.binary_root("examples/sample")
+        ]
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_that_excludes_a_prefix_name_the_package_it_shares_letters_with() {
+    let project = Project::workspace_excluding("fix");
+    project.write("fixtures/Cargo.toml", STANDALONE);
+    project.write("fixtures/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots,
+        [project.workspace_root(), project.binary_root("fixtures")]
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_whose_binary_shares_the_name_of_a_library_say_both_share_it() {
+    let project = Project::sharing_a_name(DEMO_CLI);
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("demo", DocumentedNames::Shared),
+            package("demo-cli", DocumentedNames::Shared)
+        ])
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_whose_binary_shares_the_name_of_its_own_library_say_none_shares_it() {
+    let project = Project::workspace();
+    project.write("a/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("a", DocumentedNames::Unique),
+            package("b", DocumentedNames::Unique)
+        ])
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_whose_hyphenated_binary_shares_a_name_say_both_share_it() {
+    let project = Project::new();
+    project.write("Cargo.toml", HYPHENATED);
+    project.package("demo-core");
+    project.write("tool/Cargo.toml", TOOL);
+    project.write("tool/src/main.rs", "fn main() {}\n");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("demo-core", DocumentedNames::Shared),
+            package("tool", DocumentedNames::Shared)
+        ])
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_whose_undocumented_binary_shares_a_name_say_none_shares_it() {
+    let project = Project::sharing_a_name(UNDOCUMENTED_CLI);
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(|root| root.packages().clone()),
+        Some(vec![
+            package("demo", DocumentedNames::Unique),
+            package("demo-cli", DocumentedNames::Unique)
+        ])
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_with_a_library_say_that_its_examples_are_testable() {
+    let project = Project::workspace();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(CargoRoot::documentation),
+        Some(Documentation::Testable)
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_workspace_without_a_declaration_answer_no_version() {
+    let project = Project::workspace();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().and_then(|root| root.rust_version().clone()),
+        None
+    );
+}
+
+#[tokio::test]
+async fn roots_with_a_library_of_another_form_say_that_nothing_documents_an_example() {
+    let project = Project::new();
+    project.write("Cargo.toml", FOREIGN_LIBRARY);
+    project.write("src/lib.rs", "");
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        roots.first().map(CargoRoot::documentation),
+        Some(Documentation::Untestable)
+    );
 }
 
 #[tokio::test]

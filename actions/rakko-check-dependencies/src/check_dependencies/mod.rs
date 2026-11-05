@@ -321,13 +321,6 @@ mod tests {
     }
 
     #[test]
-    fn location_of_the_workspace_at_the_project_root_names_the_project() {
-        let location = location(&project_workspace(), &root()).unwrap();
-
-        assert_eq!(location, Location::Project);
-    }
-
-    #[test]
     fn location_of_a_workspace_outside_the_project_reports_the_path() {
         let outside = CargoRoot::builder()
             .directory(PathBuf::from("/home/otter/elsewhere"))
@@ -340,6 +333,13 @@ mod tests {
             matches!(&error, CheckDependenciesError::ForeignWorkspace { path } if path == Path::new("/home/otter/elsewhere")),
             "expected the path of the workspace, got {error:?}"
         );
+    }
+
+    #[test]
+    fn location_of_the_workspace_at_the_project_root_names_the_project() {
+        let location = location(&project_workspace(), &root()).unwrap();
+
+        assert_eq!(location, Location::Project);
     }
 
     #[test]

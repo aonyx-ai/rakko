@@ -252,21 +252,21 @@ mod tests {
     }
 
     #[test]
-    fn bundle_holds_the_list_of_another_bundle() {
-        let mut bundle = Bundle::new(vec![Box::new(LintYaml)]);
-
-        bundle.extend(contained());
-
-        assert_eq!(names(&bundle), ["lint-yaml", "format-json"]);
-    }
-
-    #[test]
     fn bundle_holds_the_erased_actions_that_it_exports() {
         let bundle = Bundle::new(vec![Box::new(FormatJson), Box::new(LintYaml)]);
 
         let names = names(&bundle);
 
         assert_eq!(names, ["format-json", "lint-yaml"]);
+    }
+
+    #[test]
+    fn bundle_holds_the_list_of_another_bundle() {
+        let mut bundle = Bundle::new(vec![Box::new(LintYaml)]);
+
+        bundle.extend(contained());
+
+        assert_eq!(names(&bundle), ["lint-yaml", "format-json"]);
     }
 
     #[test]

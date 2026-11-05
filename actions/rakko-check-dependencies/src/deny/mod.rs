@@ -234,16 +234,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn details_of_a_run_that_wrote_nothing_says_so() {
-        let details = details("   \n");
-
-        assert_eq!(details, NO_DIAGNOSIS);
-    }
-
-    #[test]
     fn details_of_a_run_that_stopped_holds_what_cargo_deny_wrote() {
         let details = details("  failed to deserialize config from 'deny.toml'\n");
 
         assert_eq!(details, "failed to deserialize config from 'deny.toml'");
+    }
+
+    #[test]
+    fn details_of_a_run_that_wrote_nothing_says_so() {
+        let details = details("   \n");
+
+        assert_eq!(details, NO_DIAGNOSIS);
     }
 }

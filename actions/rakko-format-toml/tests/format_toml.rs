@@ -202,6 +202,100 @@ fn action_identifies_itself_as_format_toml() {
 }
 
 #[tokio::test]
+async fn run_in_a_formatted_project_counts_the_files() {
+    let project = Project::new();
+    project.write("clean.toml", FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("checked 2 files"),
+        "the project holds the clean file and its mise.toml"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_formatted_project_passes() {
+    let project = Project::new();
+    project.write("clean.toml", FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
+    let project = Project::new();
+    project.write(".taplo.toml", EXCLUDE_ONE);
+    project.write("clean.toml", FORMATTED);
+    project.write("skipped.toml", UNFORMATTED);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("checked 3 files"),
+        "the project holds the clean file, its mise.toml, and the configuration"
+    );
+}
+
+#[tokio::test]
+async fn run_whose_configuration_excludes_every_file_passes() {
+    let project = Project::new();
+    project.write(".taplo.toml", EXCLUDE_EVERYTHING);
+    project.write("messy.toml", UNFORMATTED);
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
+    let project = Project::new();
+    project.write(".taplo.toml", REJECTED_CONFIGURATION);
+    project.write("clean.toml", FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains("TOML parse error"),
+        "expected the diagnosis of taplo, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_rejected_configuration_stops() {
+    let project = Project::new();
+    project.write(".taplo.toml", REJECTED_CONFIGURATION);
+    project.write("clean.toml", FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     let project = Project::new();
     project.write("broken.toml", INVALID);
@@ -260,57 +354,6 @@ async fn run_with_an_unformatted_file_names_the_file() {
     );
 }
 
-#[tokio::test]
-async fn run_without_fix_leaves_the_file_unchanged() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-
-    project.run(false).await;
-
-    assert_eq!(project.read("messy.toml"), UNFORMATTED);
-}
-
-#[tokio::test]
-async fn run_without_fix_leaves_the_project_unchanged() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&FormatToml, &project.context(), &FormatTomlArgs::default()).await;
-}
-
-#[tokio::test]
-async fn run_with_a_rejected_configuration_stops() {
-    let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
-    let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Errored { source } = &outcome else {
-        panic!("expected the run to stop, got {outcome:?}");
-    };
-    assert!(
-        source.to_string().contains("TOML parse error"),
-        "expected the diagnosis of taplo, got {source}"
-    );
-}
-
 #[cfg(unix)]
 #[tokio::test]
 async fn run_with_an_unreadable_file_stops() {
@@ -330,111 +373,6 @@ async fn run_with_an_unreadable_file_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
-}
-
-#[tokio::test]
-async fn run_in_a_formatted_project_passes() {
-    let project = Project::new();
-    project.write("clean.toml", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_in_a_formatted_project_counts_the_files() {
-    let project = Project::new();
-    project.write("clean.toml", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("checked 2 files"),
-        "the project holds the clean file and its mise.toml"
-    );
-}
-
-#[tokio::test]
-async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
-    let project = Project::new();
-    project.write(".taplo.toml", EXCLUDE_ONE);
-    project.write("clean.toml", FORMATTED);
-    project.write("skipped.toml", UNFORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("checked 3 files"),
-        "the project holds the clean file, its mise.toml, and the configuration"
-    );
-}
-
-#[tokio::test]
-async fn run_whose_configuration_excludes_every_file_passes() {
-    let project = Project::new();
-    project.write(".taplo.toml", EXCLUDE_EVERYTHING);
-    project.write("messy.toml", UNFORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_fix_holds_one_repair_for_each_file() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("sub/other.toml", UNFORMATTED);
-
-    let outcome = project.run(true).await;
-
-    let Outcome::Changed { repairs } = &outcome else {
-        panic!("expected the run to change the project, got {outcome:?}");
-    };
-    let mut repaired = locations(repairs);
-    repaired.sort();
-    assert_eq!(
-        repaired,
-        ["messy.toml".to_owned(), path_text("sub/other.toml")]
-    );
-}
-
-#[tokio::test]
-async fn run_with_fix_reports_the_change() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-
-    let outcome = project.run(true).await;
-
-    assert!(
-        matches!(outcome, Outcome::Changed { .. }),
-        "expected the run to change the project, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_fix_rewrites_the_file() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-
-    project.run(true).await;
-
-    assert_eq!(project.read("messy.toml"), FORMATTED);
 }
 
 #[tokio::test]
@@ -480,6 +418,48 @@ async fn run_with_fix_and_an_invalid_file_keeps_the_problem() {
 }
 
 #[tokio::test]
+async fn run_with_fix_holds_one_repair_for_each_file() {
+    let project = Project::new();
+    project.write("messy.toml", UNFORMATTED);
+    project.write("sub/other.toml", UNFORMATTED);
+
+    let outcome = project.run(true).await;
+
+    let Outcome::Changed { repairs } = &outcome else {
+        panic!("expected the run to change the project, got {outcome:?}");
+    };
+    let mut repaired = locations(repairs);
+    repaired.sort();
+    assert_eq!(
+        repaired,
+        ["messy.toml".to_owned(), path_text("sub/other.toml")]
+    );
+}
+
+#[tokio::test]
+async fn run_with_fix_reports_the_change() {
+    let project = Project::new();
+    project.write("messy.toml", UNFORMATTED);
+
+    let outcome = project.run(true).await;
+
+    assert!(
+        matches!(outcome, Outcome::Changed { .. }),
+        "expected the run to change the project, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_fix_rewrites_the_file() {
+    let project = Project::new();
+    project.write("messy.toml", UNFORMATTED);
+
+    project.run(true).await;
+
+    assert_eq!(project.read("messy.toml"), FORMATTED);
+}
+
+#[tokio::test]
 async fn run_without_a_taplo_stops() {
     let project = Project::without_taplo();
     project.write("clean.toml", FORMATTED);
@@ -490,4 +470,24 @@ async fn run_without_a_taplo_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_file_unchanged() {
+    let project = Project::new();
+    project.write("messy.toml", UNFORMATTED);
+
+    project.run(false).await;
+
+    assert_eq!(project.read("messy.toml"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("messy.toml", UNFORMATTED);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&FormatToml, &project.context(), &FormatTomlArgs::default()).await;
 }

@@ -202,16 +202,6 @@ fn action_identifies_itself_as_lint_toml() {
 }
 
 #[tokio::test]
-async fn run_leaves_an_unformatted_file_unchanged() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-
-    project.run().await;
-
-    assert_eq!(project.read("messy.toml"), UNFORMATTED);
-}
-
-#[tokio::test]
 async fn run_in_a_valid_project_counts_the_files() {
     let project = Project::new();
     project.write("clean.toml", VALID);
@@ -239,6 +229,16 @@ async fn run_in_a_valid_project_passes() {
         matches!(outcome, Outcome::Passed { .. }),
         "expected the run to pass, got {outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn run_leaves_an_unformatted_file_unchanged() {
+    let project = Project::new();
+    project.write("messy.toml", UNFORMATTED);
+
+    project.run().await;
+
+    assert_eq!(project.read("messy.toml"), UNFORMATTED);
 }
 
 #[tokio::test]

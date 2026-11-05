@@ -347,9 +347,12 @@ fn action_identifies_itself_as_check_minimal_deps() {
     assert_eq!(name.get(), "check-minimal-deps");
 }
 
+// The library reports the toolchain that built it, and the test in it fails
+// when that toolchain is the nightly of the update. The run passes, so the
+// tests built on the toolchain that the project pins.
 #[tokio::test]
-async fn run_in_a_project_with_a_passing_test_passes() {
-    let project = Project::with_library(PASSING);
+async fn run_builds_the_tests_on_the_toolchain_of_the_project() {
+    let project = Project::with_library(REPORTING_TOOLCHAIN);
 
     let outcome = project.run().await;
 
@@ -371,6 +374,18 @@ async fn run_in_a_project_with_a_passing_test_counts_it() {
     assert_eq!(
         summary.as_ref().map(Summary::get),
         Some("updated 1 workspace and ran 1 test")
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_project_with_a_passing_test_passes() {
+    let project = Project::with_library(PASSING);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
     );
 }
 
@@ -400,21 +415,6 @@ async fn run_in_a_workspace_without_tests_counts_zero() {
     assert_eq!(
         summary.as_ref().map(Summary::get),
         Some("updated 1 workspace and ran 0 tests")
-    );
-}
-
-// The library reports the toolchain that built it, and the test in it fails
-// when that toolchain is the nightly of the update. The run passes, so the
-// tests built on the toolchain that the project pins.
-#[tokio::test]
-async fn run_builds_the_tests_on_the_toolchain_of_the_project() {
-    let project = Project::with_library(REPORTING_TOOLCHAIN);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
     );
 }
 

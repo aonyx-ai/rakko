@@ -204,12 +204,26 @@ mod tests {
     const UNKNOWN_OPTION: &str = "Warning: Unknown configuration option `no_such_option`\nWarning: Unknown configuration option `no_such_option`\n";
 
     #[test]
-    fn read_a_warning_keeps_the_first_one() {
-        let report = read("", UNKNOWN_OPTION, false);
+    fn problems_of_a_check_hold_the_invalid_files_after_the_listed_ones() {
+        let report = read(LISTED, INVALID, false);
+
+        let problems = report.problems();
+
+        assert_eq!(problems.len(), 3);
+    }
+
+    #[test]
+    fn problems_of_a_check_name_the_listed_files() {
+        let report = read(LISTED, "", false);
+
+        let problems = report.problems();
 
         assert_eq!(
-            report.warning().as_deref(),
-            Some("Warning: Unknown configuration option `no_such_option`")
+            problems.first(),
+            Some(&RustfmtProblem::new(
+                PathBuf::from("/home/otter/project/src/lib.rs"),
+                RustfmtProblemDetail::Unformatted,
+            ))
         );
     }
 
@@ -251,6 +265,16 @@ mod tests {
     }
 
     #[test]
+    fn read_a_warning_keeps_the_first_one() {
+        let report = read("", UNKNOWN_OPTION, false);
+
+        assert_eq!(
+            report.warning().as_deref(),
+            Some("Warning: Unknown configuration option `no_such_option`")
+        );
+    }
+
+    #[test]
     fn read_an_empty_report_finds_nothing() {
         let report = read("", "", true);
 
@@ -264,29 +288,5 @@ mod tests {
                 succeeded: true,
             }
         );
-    }
-
-    #[test]
-    fn problems_of_a_check_name_the_listed_files() {
-        let report = read(LISTED, "", false);
-
-        let problems = report.problems();
-
-        assert_eq!(
-            problems.first(),
-            Some(&RustfmtProblem::new(
-                PathBuf::from("/home/otter/project/src/lib.rs"),
-                RustfmtProblemDetail::Unformatted,
-            ))
-        );
-    }
-
-    #[test]
-    fn problems_of_a_check_hold_the_invalid_files_after_the_listed_ones() {
-        let report = read(LISTED, INVALID, false);
-
-        let problems = report.problems();
-
-        assert_eq!(problems.len(), 3);
     }
 }

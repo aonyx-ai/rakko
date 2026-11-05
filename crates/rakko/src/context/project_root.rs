@@ -74,20 +74,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn canonical_of_a_directory_that_exists_names_it() {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        let root = ProjectRoot::canonical(directory.path()).expect("the directory exists");
-
-        assert!(root.get().is_dir());
-    }
-
-    #[test]
     fn canonical_of_a_directory_that_does_not_exist_reports_the_error() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
 
         let root = ProjectRoot::canonical(directory.path().join("absent"));
 
         assert!(root.is_err());
+    }
+
+    #[test]
+    fn canonical_of_a_directory_that_exists_names_it() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let root = ProjectRoot::canonical(directory.path()).expect("the directory exists");
+
+        assert!(root.get().is_dir());
     }
 }

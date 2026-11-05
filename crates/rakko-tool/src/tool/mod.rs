@@ -337,6 +337,15 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn resolve_outside_the_project_reports_no_location() {
+        let outside = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let result = Tool::resolve(ToolName::new(PINNED), ProjectRoot::from(outside.path())).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
     async fn resolve_with_a_pinned_tool_reports_an_installed_program() {
         let tool = pinned().await;
 
@@ -370,15 +379,6 @@ mod tests {
         };
 
         assert!(error.to_string().contains("rakko-pins-no-such-tool"));
-    }
-
-    #[tokio::test]
-    async fn resolve_outside_the_project_reports_no_location() {
-        let outside = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        let result = Tool::resolve(ToolName::new(PINNED), ProjectRoot::from(outside.path())).await;
-
-        assert!(result.is_err());
     }
 
     #[tokio::test]

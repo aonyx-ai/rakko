@@ -125,17 +125,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn path_of_a_literal_that_opens_with_a_separator_is_absolute() {
-        let path = path("/home/otter/project");
-
-        assert!(path.is_absolute());
-    }
-
-    #[test]
     fn path_of_a_literal_joins_its_parts() {
         let path = path("src/lib.rs");
 
         assert_eq!(path, Path::new("src").join("lib.rs"));
+    }
+
+    #[test]
+    fn path_of_a_literal_that_opens_with_a_separator_is_absolute() {
+        let path = path("/home/otter/project");
+
+        assert!(path.is_absolute());
     }
 
     #[test]

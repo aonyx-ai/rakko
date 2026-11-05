@@ -160,12 +160,29 @@ mod tests {
     }
 
     #[test]
+    fn read_a_diagnostic_carries_the_weight_of_the_project() {
+        let problem = problem(DUPLICATE);
+
+        assert_eq!(problem.severity(), Severity::Warning);
+    }
+
+    #[test]
     fn read_a_diagnostic_holds_the_check_and_the_words_of_cargo_deny() {
         let problem = problem(REJECTED);
 
         assert_eq!(
             problem.description(),
             "[rejected] failed to satisfy license requirements (option-ext 0.2.0)"
+        );
+    }
+
+    #[test]
+    fn read_a_diagnostic_in_a_shape_the_crate_does_not_know_stops_the_reading() {
+        let entry = read(r#"{"fields":{"code":"rejected"},"type":"diagnostic"}"#);
+
+        assert!(
+            entry.is_err(),
+            "expected the reading to stop, got a record that the crate cannot answer from"
         );
     }
 
@@ -195,23 +212,6 @@ mod tests {
     }
 
     #[test]
-    fn read_a_diagnostic_carries_the_weight_of_the_project() {
-        let problem = problem(DUPLICATE);
-
-        assert_eq!(problem.severity(), Severity::Warning);
-    }
-
-    #[test]
-    fn read_the_summary_reports_a_run_that_finished_its_checks() {
-        let entry = read(SUMMARY).expect("the test reads a record that cargo-deny could write");
-
-        assert!(
-            matches!(entry, Entry::Summary),
-            "expected the summary of the checks"
-        );
-    }
-
-    #[test]
     fn read_a_log_record_reports_nothing_about_the_project() {
         let entry = read(LOG).expect("the test reads a record that cargo-deny could write");
 
@@ -232,12 +232,12 @@ mod tests {
     }
 
     #[test]
-    fn read_a_diagnostic_in_a_shape_the_crate_does_not_know_stops_the_reading() {
-        let entry = read(r#"{"fields":{"code":"rejected"},"type":"diagnostic"}"#);
+    fn read_the_summary_reports_a_run_that_finished_its_checks() {
+        let entry = read(SUMMARY).expect("the test reads a record that cargo-deny could write");
 
         assert!(
-            entry.is_err(),
-            "expected the reading to stop, got a record that the crate cannot answer from"
+            matches!(entry, Entry::Summary),
+            "expected the summary of the checks"
         );
     }
 }

@@ -381,16 +381,6 @@ mod tests {
     }
 
     #[test]
-    fn guard_of_a_run_that_reported_nothing_passes() {
-        let outcome = guard(&[]);
-
-        assert!(
-            matches!(outcome, Some(Outcome::Passed { .. })),
-            "expected the run to pass, got {outcome:?}"
-        );
-    }
-
-    #[test]
     fn guard_of_a_run_that_reported_a_diagnostic_reports_nothing() {
         let outcome = guard(&[about_the_code()]);
 
@@ -412,6 +402,31 @@ mod tests {
     }
 
     #[test]
+    fn guard_of_a_run_that_reported_nothing_passes() {
+        let outcome = guard(&[]);
+
+        assert!(
+            matches!(outcome, Some(Outcome::Passed { .. })),
+            "expected the run to pass, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_run_whose_configuration_selected_nothing_skips() {
+        let diagnostics = [about_the_run(
+            "TS18003",
+            "No inputs were found in config file '/home/otter/project/tsconfig.json'.",
+        )];
+
+        let outcome = guard(&diagnostics);
+
+        assert!(
+            matches!(outcome, Some(Outcome::Skipped { .. })),
+            "expected the run to skip, got {outcome:?}"
+        );
+    }
+
+    #[test]
     fn guard_of_a_run_without_a_configuration_file_skips() {
         let diagnostics = [about_the_run(
             "TS5081",
@@ -428,21 +443,6 @@ mod tests {
             reason.get(),
             "Cannot find a tsconfig.json file at the current directory: \
              /home/otter/project/tsconfig.json."
-        );
-    }
-
-    #[test]
-    fn guard_of_a_run_whose_configuration_selected_nothing_skips() {
-        let diagnostics = [about_the_run(
-            "TS18003",
-            "No inputs were found in config file '/home/otter/project/tsconfig.json'.",
-        )];
-
-        let outcome = guard(&diagnostics);
-
-        assert!(
-            matches!(outcome, Some(Outcome::Skipped { .. })),
-            "expected the run to skip, got {outcome:?}"
         );
     }
 }

@@ -87,16 +87,16 @@ mod tests {
     }
 
     #[test]
-    fn category_writes_the_word_that_tsc_writes() {
-        let word = Category::Error.to_string();
-
-        assert_eq!(word, "error");
-    }
-
-    #[test]
     fn category_of_the_word_of_tsc_is_the_kind_that_it_names() {
         let category = Category::parse("warning");
 
         assert_eq!(category, Some(Category::Warning));
+    }
+
+    #[test]
+    fn category_writes_the_word_that_tsc_writes() {
+        let word = Category::Error.to_string();
+
+        assert_eq!(word, "error");
     }
 }

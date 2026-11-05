@@ -140,13 +140,6 @@ mod tests {
     }
 
     #[test]
-    fn matches_a_file_of_another_extension_without_an_extension_of_its_own() {
-        let matched = Filter::any().matches(&PathBuf::from("sub/a.rs"));
-
-        assert!(matched);
-    }
-
-    #[test]
     fn matches_a_file_of_another_extension_reports_no_match() {
         let matched = filter(&["md"]).matches(&PathBuf::from("sub/a.rs"));
 
@@ -154,8 +147,8 @@ mod tests {
     }
 
     #[test]
-    fn matches_a_file_of_the_extension_reports_a_match() {
-        let matched = filter(&["json", "json5"]).matches(&PathBuf::from("sub/a.json5"));
+    fn matches_a_file_of_another_extension_without_an_extension_of_its_own() {
+        let matched = Filter::any().matches(&PathBuf::from("sub/a.rs"));
 
         assert!(matched);
     }
@@ -168,17 +161,17 @@ mod tests {
     }
 
     #[test]
+    fn matches_a_file_of_the_extension_reports_a_match() {
+        let matched = filter(&["json", "json5"]).matches(&PathBuf::from("sub/a.json5"));
+
+        assert!(matched);
+    }
+
+    #[test]
     fn matches_a_file_without_an_extension_reports_no_match() {
         let matched = Filter::any().matches(&PathBuf::from("LICENSE-MIT"));
 
         assert!(!matched);
-    }
-
-    #[test]
-    fn pattern_without_an_extension_matches_every_extension() {
-        let pattern = Filter::any().pattern();
-
-        assert_eq!(pattern, "**/*.*");
     }
 
     #[test]
@@ -193,5 +186,12 @@ mod tests {
         let pattern = filter(&["yaml", "yml"]).pattern();
 
         assert_eq!(pattern, "**/*.{yaml,yml}");
+    }
+
+    #[test]
+    fn pattern_without_an_extension_matches_every_extension() {
+        let pattern = Filter::any().pattern();
+
+        assert_eq!(pattern, "**/*.*");
     }
 }

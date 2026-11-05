@@ -151,6 +151,13 @@ mod tests {
     }
 
     #[test]
+    fn try_from_path_buf_accepts_relative_path() {
+        let path = DirectoryPath::try_from(PathBuf::from("crates/rakko")).unwrap();
+
+        assert_eq!(path.get(), Path::new("crates/rakko"));
+    }
+
+    #[test]
     fn try_from_path_buf_with_absolute_path_returns_error() {
         let error = DirectoryPath::try_from(PathBuf::from(ABSOLUTE)).unwrap_err();
 
@@ -160,13 +167,6 @@ mod tests {
                 path: PathBuf::from(ABSOLUTE),
             },
         );
-    }
-
-    #[test]
-    fn try_from_path_buf_accepts_relative_path() {
-        let path = DirectoryPath::try_from(PathBuf::from("crates/rakko")).unwrap();
-
-        assert_eq!(path.get(), Path::new("crates/rakko"));
     }
 
     #[test]

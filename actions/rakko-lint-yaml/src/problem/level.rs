@@ -66,6 +66,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn display_of_a_warning_writes_the_word_of_yamllint() {
+        let word = ProblemLevel::Warning.to_string();
+
+        assert_eq!(word, "warning");
+    }
+
+    #[test]
     fn display_of_an_error_writes_the_word_of_yamllint() {
         let word = ProblemLevel::Error.to_string();
 
@@ -73,10 +80,10 @@ mod tests {
     }
 
     #[test]
-    fn display_of_a_warning_writes_the_word_of_yamllint() {
-        let word = ProblemLevel::Warning.to_string();
+    fn parse_of_a_warning_names_the_warning_level() {
+        let level = ProblemLevel::parse("warning");
 
-        assert_eq!(word, "warning");
+        assert_eq!(level, Some(ProblemLevel::Warning));
     }
 
     #[test]
@@ -91,12 +98,5 @@ mod tests {
         let level = ProblemLevel::parse("notice");
 
         assert_eq!(level, None);
-    }
-
-    #[test]
-    fn parse_of_a_warning_names_the_warning_level() {
-        let level = ProblemLevel::parse("warning");
-
-        assert_eq!(level, Some(ProblemLevel::Warning));
     }
 }

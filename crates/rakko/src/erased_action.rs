@@ -286,21 +286,21 @@ mod tests {
     }
 
     #[test]
-    fn arguments_returns_the_schema_of_the_arguments() {
-        let action = Unbuildable;
-
-        let schema = ErasedAction::arguments(&action);
-
-        assert_eq!(schema.arguments().len(), 1);
-    }
-
-    #[test]
     fn arguments_of_an_action_without_arguments_is_empty() {
         let action = Probe;
 
         let schema = ErasedAction::arguments(&action);
 
         assert!(schema.arguments().is_empty());
+    }
+
+    #[test]
+    fn arguments_returns_the_schema_of_the_arguments() {
+        let action = Unbuildable;
+
+        let schema = ErasedAction::arguments(&action);
+
+        assert_eq!(schema.arguments().len(), 1);
     }
 
     #[test]

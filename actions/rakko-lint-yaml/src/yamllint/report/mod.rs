@@ -112,6 +112,23 @@ mod tests {
     }
 
     #[test]
+    fn problems_of_a_line_that_reports_nothing_stop_the_reading() {
+        let problems = problems(UNREADABLE);
+
+        assert!(
+            problems.is_err(),
+            "expected the reading to stop, got {problems:?}"
+        );
+    }
+
+    #[test]
+    fn problems_of_a_problem_carry_the_description_of_yamllint() {
+        let problem = problem(ERROR);
+
+        assert_eq!(problem.description(), "trailing spaces (trailing-spaces)");
+    }
+
+    #[test]
     fn problems_of_a_problem_name_the_column_of_yamllint() {
         let problem = problem(ERROR);
 
@@ -133,17 +150,12 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_problem_carry_the_description_of_yamllint() {
-        let problem = problem(ERROR);
+    fn problems_of_a_report_hold_one_problem_per_line() {
+        let report = format!("{ERROR}\n{WARNING}\n");
 
-        assert_eq!(problem.description(), "trailing spaces (trailing-spaces)");
-    }
+        let problems = problems(&report).expect("the test reads a report of two problems");
 
-    #[test]
-    fn problems_of_a_warning_carry_the_warning_level() {
-        let problem = problem(WARNING);
-
-        assert_eq!(problem.level(), ProblemLevel::Warning);
+        assert_eq!(problems.len(), 2);
     }
 
     #[test]
@@ -157,12 +169,10 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_report_hold_one_problem_per_line() {
-        let report = format!("{ERROR}\n{WARNING}\n");
+    fn problems_of_a_warning_carry_the_warning_level() {
+        let problem = problem(WARNING);
 
-        let problems = problems(&report).expect("the test reads a report of two problems");
-
-        assert_eq!(problems.len(), 2);
+        assert_eq!(problem.level(), ProblemLevel::Warning);
     }
 
     #[test]
@@ -170,16 +180,6 @@ mod tests {
         let problems = problems("  \n").expect("the test reads the report of a run that passed");
 
         assert!(problems.is_empty(), "expected no problem, got {problems:?}");
-    }
-
-    #[test]
-    fn problems_of_a_line_that_reports_nothing_stop_the_reading() {
-        let problems = problems(UNREADABLE);
-
-        assert!(
-            problems.is_err(),
-            "expected the reading to stop, got {problems:?}"
-        );
     }
 
     #[test]

@@ -214,24 +214,6 @@ fn action_identifies_itself_as_check_specs() {
     assert_eq!(name.get(), "check-specs");
 }
 
-// A code host checks out a merge commit of the branch and its base, and stages
-// nothing, so a comparison of that index with that HEAD finds no change at all.
-#[tokio::test]
-async fn comparison_of_a_merge_commit_stages_the_pull_request() {
-    let project = merged();
-
-    let comparison = Comparison::prepare(&project.root(), true)
-        .await
-        .expect("the test compares the pull request with its base")
-        .expect("the test checks out a merge commit");
-
-    let staged = git(
-        &comparison.directory().join("base"),
-        &["diff", "--cached", "--name-only"],
-    );
-    assert_eq!(staged, "SPECIFICATION.md");
-}
-
 #[tokio::test]
 async fn comparison_leaves_the_commit_of_the_checkout_alone() {
     let project = merged();
@@ -255,6 +237,24 @@ async fn comparison_leaves_the_index_of_the_checkout_alone() {
     drop(comparison);
 
     assert_eq!(project.git(&["diff", "--cached", "--name-only"]), "");
+}
+
+// A code host checks out a merge commit of the branch and its base, and stages
+// nothing, so a comparison of that index with that HEAD finds no change at all.
+#[tokio::test]
+async fn comparison_of_a_merge_commit_stages_the_pull_request() {
+    let project = merged();
+
+    let comparison = Comparison::prepare(&project.root(), true)
+        .await
+        .expect("the test compares the pull request with its base")
+        .expect("the test checks out a merge commit");
+
+    let staged = git(
+        &comparison.directory().join("base"),
+        &["diff", "--cached", "--name-only"],
+    );
+    assert_eq!(staged, "SPECIFICATION.md");
 }
 
 // A run that no environment calls a pull request compares the checkout itself.

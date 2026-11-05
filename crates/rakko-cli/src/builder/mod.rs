@@ -1491,6 +1491,22 @@ mod tests {
     }
 
     #[test]
+    fn command_carries_the_flags_that_control_the_output() {
+        let command = builder().command();
+
+        let flags: Vec<&str> = command
+            .get_arguments()
+            .map(|argument| argument.get_id().as_str())
+            .collect();
+
+        assert!(
+            ["quiet", "verbose", "json"]
+                .iter()
+                .all(|flag| flags.contains(flag))
+        );
+    }
+
+    #[test]
     fn command_gives_a_boolean_argument_no_value() {
         let flag = flag_of("fix");
 
@@ -1564,6 +1580,13 @@ mod tests {
     }
 
     #[test]
+    fn command_refuses_a_run_that_gives_an_argument_and_names_no_action() {
+        let kind = error_kind(&["rakko", "--json"]);
+
+        assert_eq!(kind, ErrorKind::MissingSubcommand);
+    }
+
+    #[test]
     fn command_refuses_a_value_that_is_not_a_number() {
         let builder = builder().mount([reader()]);
 
@@ -1581,29 +1604,6 @@ mod tests {
         let help = flag.get_help().map(ToString::to_string);
 
         assert_eq!(help, Some(FIX.to_owned()));
-    }
-
-    #[test]
-    fn command_refuses_a_run_that_gives_an_argument_and_names_no_action() {
-        let kind = error_kind(&["rakko", "--json"]);
-
-        assert_eq!(kind, ErrorKind::MissingSubcommand);
-    }
-
-    #[test]
-    fn command_carries_the_flags_that_control_the_output() {
-        let command = builder().command();
-
-        let flags: Vec<&str> = command
-            .get_arguments()
-            .map(|argument| argument.get_id().as_str())
-            .collect();
-
-        assert!(
-            ["quiet", "verbose", "json"]
-                .iter()
-                .all(|flag| flags.contains(flag))
-        );
     }
 
     #[test]
@@ -1708,19 +1708,6 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_reports_another_code_for_an_action_that_stopped() {
-        let findings = code_for(|| Outcome::Failed {
-            findings: Vec::new(),
-            repairs: Vec::new(),
-        });
-        let stopped = code_for(|| Outcome::Errored {
-            source: Box::new(std::io::Error::other("boom")),
-        });
-
-        assert_ne!(findings, stopped);
-    }
-
-    #[test]
     fn dispatch_reports_a_nonzero_code_for_an_action_that_stopped() {
         let code = code_for(|| Outcome::Errored {
             source: Box::new(std::io::Error::other("boom")),
@@ -1740,6 +1727,19 @@ mod tests {
         .expect("expected the command line to drive the action");
 
         assert_eq!(code, EXIT_UNANSWERED);
+    }
+
+    #[test]
+    fn dispatch_reports_another_code_for_an_action_that_stopped() {
+        let findings = code_for(|| Outcome::Failed {
+            findings: Vec::new(),
+            repairs: Vec::new(),
+        });
+        let stopped = code_for(|| Outcome::Errored {
+            source: Box::new(std::io::Error::other("boom")),
+        });
+
+        assert_ne!(findings, stopped);
     }
 
     #[test]
@@ -1889,6 +1889,19 @@ mod tests {
     }
 
     #[test]
+    fn mount_builds_a_flat_command_tree() {
+        let command = builder()
+            .mount([probe("format-toml"), probe("lint-rust")])
+            .command();
+
+        let nested = command
+            .get_subcommands()
+            .any(|action| action.get_subcommands().next().is_some());
+
+        assert!(!nested);
+    }
+
+    #[test]
     fn mount_commands_builds_a_flat_command_tree() {
         let command = builder()
             .mount_commands([written("serve"), written("watch")])
@@ -1942,19 +1955,6 @@ mod tests {
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
         assert_eq!(names, ["format-toml", "lint-rust"]);
-    }
-
-    #[test]
-    fn mount_builds_a_flat_command_tree() {
-        let command = builder()
-            .mount([probe("format-toml"), probe("lint-rust")])
-            .command();
-
-        let nested = command
-            .get_subcommands()
-            .any(|action| action.get_subcommands().next().is_some());
-
-        assert!(!nested);
     }
 
     #[test]
@@ -2140,15 +2140,22 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "json")]
+    fn mount_refuses_an_action_whose_argument_the_command_line_carries() {
+        let _builder = builder().mount([Box::new(Colliding) as Box<dyn ErasedAction>]);
+    }
+
+    #[test]
     #[should_panic(expected = "format-toml")]
     fn mount_refuses_two_actions_with_one_name() {
         let _builder = builder().mount([probe("format-toml"), probe("format-toml")]);
     }
 
     #[test]
-    #[should_panic(expected = "json")]
-    fn mount_refuses_an_action_whose_argument_the_command_line_carries() {
-        let _builder = builder().mount([Box::new(Colliding) as Box<dyn ErasedAction>]);
+    fn resolve_reports_a_run_that_it_cannot_read() {
+        let kind = error_kind(&["rakko", "--unknown"]);
+
+        assert_eq!(kind, ErrorKind::UnknownArgument);
     }
 
     #[test]
@@ -2193,6 +2200,17 @@ mod tests {
         };
 
         assert_eq!(group.name().get(), GROUP);
+    }
+
+    #[test]
+    fn resolve_shows_the_help_for_a_run_without_arguments() {
+        let Ok(Resolution::Commands(mut command)) = builder().resolve(["rakko"]) else {
+            panic!("expected the run to ask for the commands");
+        };
+
+        let help = command.render_help().to_string();
+
+        assert!(help.contains(ABOUT));
     }
 
     #[test]
@@ -2264,15 +2282,6 @@ mod tests {
     }
 
     #[test]
-    fn run_gives_the_command_the_text_that_the_user_wrote() {
-        let values = values_of_command(&["serve", "--extension", "md"]);
-
-        let value = values.get(&argument_name!("extension"));
-
-        assert_eq!(value, Some(&ArgumentValue::new("md")));
-    }
-
-    #[test]
     fn run_gives_the_action_true_for_a_boolean_that_the_user_gave() {
         let values = values_of(&[READER, "--fix"]);
 
@@ -2282,21 +2291,12 @@ mod tests {
     }
 
     #[test]
-    fn resolve_shows_the_help_for_a_run_without_arguments() {
-        let Ok(Resolution::Commands(mut command)) = builder().resolve(["rakko"]) else {
-            panic!("expected the run to ask for the commands");
-        };
+    fn run_gives_the_command_the_text_that_the_user_wrote() {
+        let values = values_of_command(&["serve", "--extension", "md"]);
 
-        let help = command.render_help().to_string();
+        let value = values.get(&argument_name!("extension"));
 
-        assert!(help.contains(ABOUT));
-    }
-
-    #[test]
-    fn resolve_reports_a_run_that_it_cannot_read() {
-        let kind = error_kind(&["rakko", "--unknown"]);
-
-        assert_eq!(kind, ErrorKind::UnknownArgument);
+        assert_eq!(value, Some(&ArgumentValue::new("md")));
     }
 
     #[test]

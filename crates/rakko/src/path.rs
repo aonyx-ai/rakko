@@ -82,6 +82,17 @@ mod tests {
 
     use super::*;
 
+    // The paths that a tool reports carry the plain spelling, so a directory
+    // that kept the verbatim one would hold none of the files below it.
+    #[test]
+    fn canonical_names_a_directory_in_the_spelling_that_a_program_writes() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let resolved = canonical(directory.path()).expect("the directory exists");
+
+        assert!(!resolved.to_string_lossy().starts_with(r"\\?\"));
+    }
+
     #[test]
     fn canonical_of_a_directory_that_exists_names_it() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -98,17 +109,6 @@ mod tests {
         let resolved = canonical(&directory.path().join("absent"));
 
         assert!(resolved.is_err());
-    }
-
-    // The paths that a tool reports carry the plain spelling, so a directory
-    // that kept the verbatim one would hold none of the files below it.
-    #[test]
-    fn canonical_names_a_directory_in_the_spelling_that_a_program_writes() {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        let resolved = canonical(directory.path()).expect("the directory exists");
-
-        assert!(!resolved.to_string_lossy().starts_with(r"\\?\"));
     }
 
     #[test]

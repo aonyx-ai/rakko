@@ -426,6 +426,16 @@ mod tests {
     }
 
     #[test]
+    fn read_diagnostic_reads_the_path() {
+        let observation = read("", INVALID, false);
+
+        assert_eq!(
+            observation.problems().first().map(TaploProblem::path),
+            Some(&PathBuf::from("/home/otter/project/broken.toml"))
+        );
+    }
+
+    #[test]
     fn read_diagnostic_reads_the_position() {
         let observation = read("", INVALID, false);
 
@@ -436,16 +446,6 @@ mod tests {
                 column: 1,
                 message: "invalid TOML: unexpected EOF".to_owned(),
             })
-        );
-    }
-
-    #[test]
-    fn read_diagnostic_reads_the_path() {
-        let observation = read("", INVALID, false);
-
-        assert_eq!(
-            observation.problems().first().map(TaploProblem::path),
-            Some(&PathBuf::from("/home/otter/project/broken.toml"))
         );
     }
 

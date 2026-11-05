@@ -313,11 +313,79 @@ mod tests {
         assert!(!block.open(), "expected the block to be closed");
     }
 
+    // A value written over several lines ends where the next entry starts, and
+    // that entry belongs to the block like any other.
     #[test]
-    fn value_of_an_entry_the_block_does_not_hold_is_none() {
-        let block = block(&["  type: 'test'"]);
+    fn entry_after_a_value_of_several_lines_reads_as_an_entry() {
+        let block = block(&[
+            "  error: |-",
+            "    broke",
+            "  failureType: 'testCodeFailure'",
+        ]);
 
-        assert_eq!(block.value("location"), None);
+        assert_eq!(
+            block.value("failureType").unwrap().flattened(),
+            "testCodeFailure"
+        );
+    }
+
+    #[test]
+    fn place_of_a_value_that_names_none_is_none() {
+        let block = block(&["  location: '~'"]);
+
+        assert_eq!(block.value("location").unwrap().place(), None);
+    }
+
+    #[test]
+    fn place_of_a_value_that_names_one_reads_it() {
+        let block = block(&["  location: '/home/otter/project/src/add.test.ts:5:1'"]);
+
+        assert_eq!(
+            block.value("location").unwrap().place(),
+            Some(
+                Origin::builder()
+                    .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
+                    .line(5)
+                    .column(1)
+                    .build()
+            )
+        );
+    }
+
+    #[test]
+    fn read_of_a_line_that_stands_at_another_indentation_stops() {
+        let mut block = Block::new(2);
+
+        let error = block.read("      type: 'test'").unwrap_err();
+
+        assert!(
+            matches!(error, ReadReportError::UnreadableLine { .. }),
+            "expected the line that the reading could not place, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn read_of_a_line_that_states_no_entry_stops() {
+        let mut block = Block::new(2);
+
+        let error = block.read("  not an entry").unwrap_err();
+
+        assert!(
+            matches!(&error, ReadReportError::UnreadableLine { line } if line == "not an entry"),
+            "expected the line that the reading could not place, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn read_of_a_value_that_opens_a_quote_without_closing_it_stops() {
+        let mut block = Block::new(2);
+
+        let error = block.read("  error: 'broke").unwrap_err();
+
+        assert!(
+            matches!(error, ReadReportError::UnreadableLine { .. }),
+            "expected the line that the reading could not place, got {error:?}"
+        );
     }
 
     #[test]
@@ -328,6 +396,20 @@ mod tests {
             block.value("failureType").unwrap().flattened(),
             "testCodeFailure"
         );
+    }
+
+    #[test]
+    fn value_of_an_entry_the_block_does_not_hold_is_none() {
+        let block = block(&["  type: 'test'"]);
+
+        assert_eq!(block.value("location"), None);
+    }
+
+    #[test]
+    fn value_of_an_entry_without_a_value_is_empty() {
+        let block = block(&["  cause:"]);
+
+        assert_eq!(block.value("cause").unwrap().flattened(), "");
     }
 
     // The report writes a value with escapes where the value holds the quote
@@ -356,11 +438,13 @@ mod tests {
         assert_eq!(block.value("exitCode").unwrap().flattened(), "1");
     }
 
+    // A line of a value can read exactly like the line that closes a block,
+    // and it belongs to the value because it stands further in.
     #[test]
-    fn value_of_an_entry_without_a_value_is_empty() {
-        let block = block(&["  cause:"]);
+    fn value_of_several_lines_keeps_a_line_that_reads_like_the_close() {
+        let block = block(&["  stack: |-", "    ...", "  ..."]);
 
-        assert_eq!(block.value("cause").unwrap().flattened(), "");
+        assert_eq!(block.value("stack").unwrap().flattened(), "...");
     }
 
     #[test]
@@ -376,90 +460,6 @@ mod tests {
         assert_eq!(
             block.value("error").unwrap().flattened(),
             "Expected values to be strictly equal: 2 !== 3"
-        );
-    }
-
-    // A value written over several lines ends where the next entry starts, and
-    // that entry belongs to the block like any other.
-    #[test]
-    fn entry_after_a_value_of_several_lines_reads_as_an_entry() {
-        let block = block(&[
-            "  error: |-",
-            "    broke",
-            "  failureType: 'testCodeFailure'",
-        ]);
-
-        assert_eq!(
-            block.value("failureType").unwrap().flattened(),
-            "testCodeFailure"
-        );
-    }
-
-    // A line of a value can read exactly like the line that closes a block,
-    // and it belongs to the value because it stands further in.
-    #[test]
-    fn value_of_several_lines_keeps_a_line_that_reads_like_the_close() {
-        let block = block(&["  stack: |-", "    ...", "  ..."]);
-
-        assert_eq!(block.value("stack").unwrap().flattened(), "...");
-    }
-
-    #[test]
-    fn place_of_a_value_that_names_one_reads_it() {
-        let block = block(&["  location: '/home/otter/project/src/add.test.ts:5:1'"]);
-
-        assert_eq!(
-            block.value("location").unwrap().place(),
-            Some(
-                Origin::builder()
-                    .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
-                    .line(5)
-                    .column(1)
-                    .build()
-            )
-        );
-    }
-
-    #[test]
-    fn place_of_a_value_that_names_none_is_none() {
-        let block = block(&["  location: '~'"]);
-
-        assert_eq!(block.value("location").unwrap().place(), None);
-    }
-
-    #[test]
-    fn read_of_a_line_that_states_no_entry_stops() {
-        let mut block = Block::new(2);
-
-        let error = block.read("  not an entry").unwrap_err();
-
-        assert!(
-            matches!(&error, ReadReportError::UnreadableLine { line } if line == "not an entry"),
-            "expected the line that the reading could not place, got {error:?}"
-        );
-    }
-
-    #[test]
-    fn read_of_a_line_that_stands_at_another_indentation_stops() {
-        let mut block = Block::new(2);
-
-        let error = block.read("      type: 'test'").unwrap_err();
-
-        assert!(
-            matches!(error, ReadReportError::UnreadableLine { .. }),
-            "expected the line that the reading could not place, got {error:?}"
-        );
-    }
-
-    #[test]
-    fn read_of_a_value_that_opens_a_quote_without_closing_it_stops() {
-        let mut block = Block::new(2);
-
-        let error = block.read("  error: 'broke").unwrap_err();
-
-        assert!(
-            matches!(error, ReadReportError::UnreadableLine { .. }),
-            "expected the line that the reading could not place, got {error:?}"
         );
     }
 }

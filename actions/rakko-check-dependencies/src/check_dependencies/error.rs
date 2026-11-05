@@ -171,6 +171,17 @@ mod tests {
         PathBuf::from("/home/otter/project")
     }
 
+    // An action puts the error in the outcome of a run, and that outcome
+    // holds an error that another thread can read. This test holds the error
+    // to the auto traits that make this possible, because a field of a later
+    // version could take them away without a word from the compiler.
+    #[test]
+    fn check_dependencies_error_is_send_and_sync() {
+        fn assert_send_and_sync<T: Send + Sync>() {}
+
+        assert_send_and_sync::<CheckDependenciesError>();
+    }
+
     #[test]
     fn error_of_a_run_that_stopped_holds_what_cargo_deny_wrote() {
         let error = CheckDependenciesError::from(CheckWorkspaceError::IncompleteCheck {
@@ -198,16 +209,5 @@ mod tests {
             matches!(&error, CheckDependenciesError::UnreadableReport { root, .. } if root == &self::root()),
             "expected the workspace root, got {error:?}"
         );
-    }
-
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read. This test holds the error
-    // to the auto traits that make this possible, because a field of a later
-    // version could take them away without a word from the compiler.
-    #[test]
-    fn check_dependencies_error_is_send_and_sync() {
-        fn assert_send_and_sync<T: Send + Sync>() {}
-
-        assert_send_and_sync::<CheckDependenciesError>();
     }
 }

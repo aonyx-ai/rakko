@@ -81,13 +81,6 @@ mod tests {
     }
 
     #[test]
-    fn display_of_an_informational_severity_writes_the_word_of_zizmor() {
-        let word = Severity::Informational.to_string();
-
-        assert_eq!(word, "informational");
-    }
-
-    #[test]
     fn display_of_a_low_severity_writes_the_word_of_zizmor() {
         let word = Severity::Low.to_string();
 
@@ -99,6 +92,13 @@ mod tests {
         let word = Severity::Medium.to_string();
 
         assert_eq!(word, "medium");
+    }
+
+    #[test]
+    fn display_of_an_informational_severity_writes_the_word_of_zizmor() {
+        let word = Severity::Informational.to_string();
+
+        assert_eq!(word, "informational");
     }
 
     // The severity arrives from the report of zizmor, which writes the name of

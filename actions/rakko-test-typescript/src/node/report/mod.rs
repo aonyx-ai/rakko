@@ -462,6 +462,13 @@ mod tests {
     }
 
     #[test]
+    fn read_of_a_report_of_a_run_that_passed_counts_its_tests() {
+        let report = read(PASSED).unwrap();
+
+        assert_eq!(report.tests(), 2);
+    }
+
+    #[test]
     fn read_of_a_report_of_a_run_that_passed_reports_no_failure() {
         let report = read(PASSED).unwrap();
 
@@ -473,13 +480,6 @@ mod tests {
     }
 
     #[test]
-    fn read_of_a_report_of_a_run_that_passed_counts_its_tests() {
-        let report = read(PASSED).unwrap();
-
-        assert_eq!(report.tests(), 2);
-    }
-
-    #[test]
     fn read_of_a_report_of_a_run_without_a_test_counts_none() {
         let report = read(UNTESTED).unwrap();
 
@@ -487,19 +487,16 @@ mod tests {
     }
 
     #[test]
-    fn read_of_a_report_of_a_test_that_failed_names_the_test() {
-        let report = read(FAILED).unwrap();
-
-        assert_eq!(report.failures()[0].name(), "counts");
-    }
-
-    #[test]
-    fn read_of_a_report_of_a_test_that_failed_carries_the_reason_on_one_line() {
-        let report = read(FAILED).unwrap();
+    fn read_of_a_report_of_a_suite_reports_only_the_test_below_it() {
+        let report = read(NESTED).unwrap();
 
         assert_eq!(
-            report.failures()[0].reason().as_deref(),
-            Some("Expected values to be strictly equal: 2 !== 3")
+            report
+                .failures()
+                .iter()
+                .map(Failure::name)
+                .collect::<Vec<_>>(),
+            ["counts"]
         );
     }
 
@@ -520,24 +517,20 @@ mod tests {
     }
 
     #[test]
-    fn read_of_a_report_of_a_test_without_a_place_carries_none() {
-        let report = read(&one("not ok 1 - counts", "  error: 'test failed'\n")).unwrap();
+    fn read_of_a_report_of_a_test_that_failed_carries_the_reason_on_one_line() {
+        let report = read(FAILED).unwrap();
 
-        assert_eq!(report.failures()[0].origin(), &None);
+        assert_eq!(
+            report.failures()[0].reason().as_deref(),
+            Some("Expected values to be strictly equal: 2 !== 3")
+        );
     }
 
     #[test]
-    fn read_of_a_report_of_a_suite_reports_only_the_test_below_it() {
-        let report = read(NESTED).unwrap();
+    fn read_of_a_report_of_a_test_that_failed_names_the_test() {
+        let report = read(FAILED).unwrap();
 
-        assert_eq!(
-            report
-                .failures()
-                .iter()
-                .map(Failure::name)
-                .collect::<Vec<_>>(),
-            ["counts"]
-        );
+        assert_eq!(report.failures()[0].name(), "counts");
     }
 
     #[test]
@@ -568,6 +561,13 @@ mod tests {
         assert_eq!(report.failures()[0].name(), "counts # twice");
     }
 
+    #[test]
+    fn read_of_a_report_of_a_test_without_a_place_carries_none() {
+        let report = read(&one("not ok 1 - counts", "  error: 'test failed'\n")).unwrap();
+
+        assert_eq!(report.failures()[0].origin(), &None);
+    }
+
     // A test writes its own output into the report as a comment, and a line of
     // it can read exactly like a result. The reading takes it for a comment,
     // because that is what the runner wrote.
@@ -585,10 +585,15 @@ mod tests {
     }
 
     #[test]
-    fn read_of_text_that_opens_no_report_stops() {
-        let error = read("node: bad option: --test-reporter=tap\n").unwrap_err();
+    fn read_of_a_report_with_a_line_that_states_no_result_stops() {
+        let report = PASSED.replace("ok 1 - adds", "PASS adds");
 
-        assert_eq!(error, ReadReportError::MissingHeader);
+        let error = read(&report).unwrap_err();
+
+        assert!(
+            matches!(&error, ReadReportError::UnreadableLine { line } if line == "PASS adds"),
+            "expected the line that the reading could not place, got {error:?}"
+        );
     }
 
     #[test]
@@ -599,14 +604,9 @@ mod tests {
     }
 
     #[test]
-    fn read_of_a_report_with_a_line_that_states_no_result_stops() {
-        let report = PASSED.replace("ok 1 - adds", "PASS adds");
+    fn read_of_text_that_opens_no_report_stops() {
+        let error = read("node: bad option: --test-reporter=tap\n").unwrap_err();
 
-        let error = read(&report).unwrap_err();
-
-        assert!(
-            matches!(&error, ReadReportError::UnreadableLine { line } if line == "PASS adds"),
-            "expected the line that the reading could not place, got {error:?}"
-        );
+        assert_eq!(error, ReadReportError::MissingHeader);
     }
 }
