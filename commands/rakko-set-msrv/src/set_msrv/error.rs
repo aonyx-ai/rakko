@@ -1,7 +1,7 @@
 use std::io;
 use std::path::PathBuf;
 
-use rakko_action::Name;
+use rakko::Name;
 use rakko_cli::clawless::event::SendError;
 use rakko_tool::RunCommandError;
 use thiserror::Error;

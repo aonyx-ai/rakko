@@ -1,6 +1,6 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
-use rakko_action::Bundle;
+use rakko::Bundle;
 use rakko_check_mise_lock::CheckMiseLock;
 use rakko_check_renovate_config::CheckRenovateConfig;
 use rakko_format_json::FormatJson;

@@ -7,7 +7,7 @@
 //! that no caller reads a green result out of a report it could not read.
 
 use getset::{CopyGetters, Getters};
-use rakko_action::{Finding, ProjectRoot};
+use rakko::{Finding, ProjectRoot};
 use rakko_cargo::{CargoReport, CargoRoot};
 use rakko_tool::Execution;
 

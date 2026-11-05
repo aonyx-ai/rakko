@@ -17,7 +17,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Location, Position, ProjectRoot};
+use rakko::{Location, Position, ProjectRoot};
 use rakko_cargo::Cargo;
 use rakko_nextest::{Lockfile, Nextest, Observation, ObserveNextestError};
 use rakko_test_utils::path_text;

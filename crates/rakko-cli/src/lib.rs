@@ -43,7 +43,7 @@
 //! rakko_cli::builder().run();
 //! ```
 //!
-//! [`Group`]: rakko_action::Group
+//! [`Group`]: rakko::Group
 
 /// The command line that a harness builds and runs
 mod builder;

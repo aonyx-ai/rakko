@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::num::ParseIntError;
 
 use clap::{Arg, ArgAction, ArgMatches};
-use rakko_action::{ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue};
+use rakko::{ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue};
 
 use super::registry::Mounted;
 

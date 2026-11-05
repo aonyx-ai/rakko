@@ -9,7 +9,7 @@ mod error;
 /// The reading of the log that the validator wrote
 pub mod report;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Invocation, Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveValidatorError;
@@ -88,7 +88,7 @@ const INVALID: i32 = 1;
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_check_renovate_config::Validator;
 ///
 /// # #[tokio::main(flavor = "current_thread")]

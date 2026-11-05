@@ -30,7 +30,7 @@
 //! root:
 //!
 //! ```no_run
-//! use rakko_action::ProjectRoot;
+//! use rakko::ProjectRoot;
 //! use rakko_cargo::{Cargo, CargoReport};
 //!
 //! # #[tokio::main(flavor = "current_thread")]

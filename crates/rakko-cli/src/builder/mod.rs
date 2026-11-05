@@ -20,7 +20,7 @@ use clawless::CommandResult;
 use clawless::context::Context as ClawlessContext;
 use clawless::output::OutputFlags;
 use clawless::runner::CommandRunner;
-use rakko_action::{Access, ArgsSchema, ArgsValues, Context, ErasedAction, Group, Outcome};
+use rakko::{Access, ArgsSchema, ArgsValues, Context, ErasedAction, Group, Outcome};
 
 use self::error::RunEntryError;
 use self::registry::{Mounted, Registry};
@@ -114,7 +114,7 @@ impl Builder {
     /// # Examples
     ///
     /// ```
-    /// # use rakko_action::{Action, Context, ErasedAction, Name, Outcome, action_name};
+    /// # use rakko::{Action, Context, ErasedAction, Name, Outcome, action_name};
     /// # struct LineCount;
     /// # impl Action for LineCount {
     /// #     type Args = ();
@@ -131,9 +131,9 @@ impl Builder {
     /// bundle beside the actions that it names itself:
     ///
     /// ```
-    /// # use rakko_action::{Action, Context, ErasedAction, Name, Outcome, action_name};
+    /// # use rakko::{Action, Context, ErasedAction, Name, Outcome, action_name};
     /// # mod rakko_baseline {
-    /// #     use rakko_action::{Action, Bundle, Context, Name, Outcome, action_name};
+    /// #     use rakko::{Action, Bundle, Context, Name, Outcome, action_name};
     /// #     struct FormatJson;
     /// #     impl Action for FormatJson {
     /// #         type Args = ();
@@ -159,7 +159,7 @@ impl Builder {
     ///     .mount([Box::new(CheckMsrv) as Box<dyn ErasedAction>]);
     /// ```
     ///
-    /// [`Bundle`]: rakko_action::Bundle
+    /// [`Bundle`]: rakko::Bundle
     #[must_use]
     pub fn mount(mut self, actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
         self.add(actions.into_iter().map(Mounted::Action));
@@ -186,7 +186,7 @@ impl Builder {
     /// # Examples
     ///
     /// ```
-    /// # use rakko_action::{Context, Name, action_name};
+    /// # use rakko::{Context, Name, action_name};
     /// # use rakko_cli::clawless::CommandResult;
     /// # use rakko_cli::clawless::context::Context as ClawlessContext;
     /// # use rakko_cli::{Command, ErasedCommand};
@@ -294,7 +294,7 @@ impl Builder {
     /// # Examples
     ///
     /// ```
-    /// # use rakko_action::{ErasedAction, Group, Name, action_name};
+    /// # use rakko::{ErasedAction, Group, Name, action_name};
     /// # struct CheckAll {
     /// #     actions: Vec<Box<dyn ErasedAction>>,
     /// # }
@@ -780,7 +780,7 @@ mod tests {
 
     use clap::builder::{Str, ValueRange};
     use clawless::CommandResult;
-    use rakko_action::{
+    use rakko::{
         Action, Args, Argument, ArgumentShape, ArgumentValue, Name, ReadArgsError, SkipReason,
         argument_name,
     };
@@ -1635,7 +1635,7 @@ mod tests {
         .expect("expected the command line to drive the action");
 
         let root = seen.lock().expect("the test holds the lock alone").clone();
-        let named = rakko_action::path::canonical(directory.path())
+        let named = rakko::path::canonical(directory.path())
             .expect("the test names a directory that exists");
         assert_eq!(root, Some(named));
     }
@@ -1656,7 +1656,7 @@ mod tests {
             .lock()
             .expect("the test holds the lock alone")
             .clone();
-        let named = rakko_action::path::canonical(directory.path())
+        let named = rakko::path::canonical(directory.path())
             .expect("the test names a directory that exists");
         assert_eq!(root, Some(named));
     }
@@ -1765,7 +1765,7 @@ mod tests {
     fn dispatch_reports_every_cause_of_a_project_root_that_cannot_be_read() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let missing = directory.path().join("missing");
-        let cause = rakko_action::path::canonical(&missing)
+        let cause = rakko::path::canonical(&missing)
             .expect_err("the test names a directory that does not exist");
         let (probe, _ran) = Probe::new("probe");
         let Err(error) = dispatch(naming(&missing), Mounted::Action(Box::new(probe))) else {

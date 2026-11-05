@@ -27,7 +27,7 @@
 //! project:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_test_rust_docs::TestRustDocs;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(TestRustDocs)];

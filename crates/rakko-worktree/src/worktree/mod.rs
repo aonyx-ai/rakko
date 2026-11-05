@@ -24,8 +24,8 @@ use std::process::Stdio;
 
 use getset::Getters;
 use kawauso_process::Execution;
-use rakko_action::ProjectRoot;
-use rakko_action::path::canonical;
+use rakko::ProjectRoot;
+use rakko::path::canonical;
 use tempfile::TempDir;
 
 pub use self::error::CreateWorktreeError;

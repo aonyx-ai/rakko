@@ -19,7 +19,7 @@ the harness give the command its list. Mount the command as a group beside the
 actions:
 
 ```rust
-use rakko_action::{ErasedAction, Group};
+use rakko::{ErasedAction, Group};
 use rakko_format_toml::FormatToml;
 use rakko_lint_toml::LintToml;
 use rakko_pre_commit::PreCommit;

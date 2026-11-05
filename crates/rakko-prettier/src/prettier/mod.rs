@@ -8,7 +8,7 @@
 /// The error that leaves a run without an answer
 mod error;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObservePrettierError;
@@ -56,7 +56,7 @@ const NO_COLOR: &str = "--no-color";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_prettier::{FileExtension, Filter, Operation, Prettier};
 ///
 /// # #[tokio::main(flavor = "current_thread")]

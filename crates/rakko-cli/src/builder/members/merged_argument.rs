@@ -1,4 +1,4 @@
-use rakko_action::{Argument, ArgumentShape, Documentation, Name};
+use rakko::{Argument, ArgumentShape, Documentation, Name};
 
 /// One flag of a group, with every member that declares its argument
 ///

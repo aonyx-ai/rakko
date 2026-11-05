@@ -4,7 +4,7 @@ mod detail;
 use std::path::PathBuf;
 
 use getset::Getters;
-use rakko_action::{FilePath, ProjectRoot};
+use rakko::{FilePath, ProjectRoot};
 
 pub use self::detail::ProblemDetail;
 

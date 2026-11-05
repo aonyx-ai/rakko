@@ -30,7 +30,7 @@
 
 use std::process::Command;
 
-use rakko_action::{
+use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, ProjectRoot,
     argument_name,
 };
@@ -979,7 +979,7 @@ mod home {
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
-    use rakko_action::{Context, Outcome, ProjectRoot};
+    use rakko::{Context, Outcome, ProjectRoot};
 
     use super::{PINNED, Project, fix};
 

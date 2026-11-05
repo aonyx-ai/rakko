@@ -24,7 +24,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
+use rakko::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_cargo::Cargo;
 use rakko_check_unused_deps::{CheckUnusedDeps, CheckUnusedDepsError};
 use rakko_test_utils::{path_text, run_checking_access};

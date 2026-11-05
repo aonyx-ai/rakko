@@ -7,7 +7,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-rakko-action = { workspace = true }
+rakko = { workspace = true }
 rakko-check-minimal-deps = { path = "../../actions/rakko-check-minimal-deps", version = "0.1.0" }
 rakko-check-msrv = { path = "../../actions/rakko-check-msrv", version = "0.1.0" }
 rakko-rust = { workspace = true }

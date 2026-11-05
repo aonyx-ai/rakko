@@ -1,4 +1,4 @@
-use rakko_action::Outcome;
+use rakko::Outcome;
 use serde::Serialize;
 
 use super::GroupSummary;
@@ -79,7 +79,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{SkipReason, action_name};
+    use rakko::{SkipReason, action_name};
 
     use super::*;
 

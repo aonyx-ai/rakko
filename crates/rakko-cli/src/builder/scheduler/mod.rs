@@ -4,7 +4,7 @@ mod error;
 use clawless::context::Context as ClawlessContext;
 use futures_util::StreamExt;
 use futures_util::stream::FuturesUnordered;
-use rakko_action::{Access, Context, Name, Outcome};
+use rakko::{Access, Context, Name, Outcome};
 
 pub(crate) use self::error::RunGroupError;
 use super::members::BoundMember;
@@ -218,7 +218,7 @@ mod tests {
 
     use clawless::event::{Event, EventReceiver, event_channel};
     use clawless::output::Output;
-    use rakko_action::{
+    use rakko::{
         Access, Action, Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue,
         ErasedAction, Name, Outcome, ReadArgsError, SkipReason, action_name, argument_name,
     };

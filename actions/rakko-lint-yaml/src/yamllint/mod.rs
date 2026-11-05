@@ -13,7 +13,7 @@ pub mod report;
 
 use std::path::PathBuf;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveYamllintError;
@@ -63,7 +63,7 @@ const PROBLEMS_FOUND: i32 = 1;
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_lint_yaml::Yamllint;
 ///
 /// # #[tokio::main(flavor = "current_thread")]

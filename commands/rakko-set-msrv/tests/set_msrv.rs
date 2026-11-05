@@ -24,7 +24,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use rakko_action::{
+use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Name, Outcome, SkipReason, action_name,
     argument_name,
 };

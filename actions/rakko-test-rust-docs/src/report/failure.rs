@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use getset::Getters;
-use rakko_action::{Finding, Location, Position, ProjectRoot};
+use rakko::{Finding, Location, Position, ProjectRoot};
 use rakko_cargo::CargoRoot;
 
 /// The words that the test harness of Rust writes before the location of a
@@ -141,7 +141,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::FilePath;
+    use rakko::FilePath;
     use rakko_cargo::Documentation;
 
     use super::*;

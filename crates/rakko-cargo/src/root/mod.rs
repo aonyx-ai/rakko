@@ -13,8 +13,8 @@ use std::path::{Component, Path, PathBuf};
 
 use bon::bon;
 use getset::{CopyGetters, Getters};
-use rakko_action::path::canonical;
-use rakko_action::{FilePath, ProjectRoot};
+use rakko::path::canonical;
+use rakko::{FilePath, ProjectRoot};
 
 pub use self::documentation::Documentation;
 pub use self::package::{CargoPackage, DocumentedNames, PackageName};

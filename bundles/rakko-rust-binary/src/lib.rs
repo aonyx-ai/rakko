@@ -1,6 +1,6 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
-use rakko_action::Bundle;
+use rakko::Bundle;
 
 /// Returns the actions that a Rust project which ships a binary runs
 ///

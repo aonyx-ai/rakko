@@ -10,7 +10,7 @@ mod severity;
 use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};
-use rakko_action::{FilePath, Position, ProjectRoot};
+use rakko::{FilePath, Position, ProjectRoot};
 
 pub use self::severity::Severity;
 

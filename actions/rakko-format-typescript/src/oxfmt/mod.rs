@@ -8,7 +8,7 @@
 /// The error that leaves a run without an answer
 mod error;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveOxfmtError;
@@ -57,7 +57,7 @@ const PATTERN: &str = "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_format_typescript::Oxfmt;
 ///
 /// # #[tokio::main(flavor = "current_thread")]

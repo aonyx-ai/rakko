@@ -1,6 +1,6 @@
 use std::fmt;
 
-use rakko_action::{Finding, Location, Outcome, Position};
+use rakko::{Finding, Location, Outcome, Position};
 
 use super::Report;
 use crate::chain::Chain;
@@ -158,7 +158,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{DirectoryPath, FilePath, SkipReason, Span, Summary};
+    use rakko::{DirectoryPath, FilePath, SkipReason, Span, Summary};
 
     use super::*;
 

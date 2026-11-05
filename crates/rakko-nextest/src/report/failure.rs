@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use getset::Getters;
-use rakko_action::{Finding, Location, Position, ProjectRoot};
+use rakko::{Finding, Location, Position, ProjectRoot};
 use rakko_cargo::CargoRoot;
 
 use super::Panic;

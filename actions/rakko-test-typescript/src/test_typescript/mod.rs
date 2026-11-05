@@ -8,7 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary, action_name,
 };
 
@@ -46,7 +46,7 @@ const NO_TEST: &str = "node found no test in the project";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_test_typescript::TestTypeScript;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(TestTypeScript)];

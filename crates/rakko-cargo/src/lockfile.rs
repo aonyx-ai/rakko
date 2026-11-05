@@ -15,7 +15,7 @@
 //! # Examples
 //!
 //! ```no_run
-//! use rakko_action::ProjectRoot;
+//! use rakko::ProjectRoot;
 //! use rakko_cargo::{Cargo, lockfile};
 //!
 //! # #[tokio::main(flavor = "current_thread")]

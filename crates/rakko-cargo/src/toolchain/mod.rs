@@ -10,7 +10,7 @@ mod channel;
 /// What the crate reports when it cannot name a toolchain
 mod error;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Execution, Invocation, RunCommandError};
 use serde::Deserialize;
 
@@ -83,7 +83,7 @@ impl Toolchain {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko_action::ProjectRoot;
+    /// use rakko::ProjectRoot;
     /// use rakko_cargo::{Channel, Toolchain};
     ///
     /// # #[tokio::main(flavor = "current_thread")]
@@ -153,7 +153,7 @@ impl Toolchain {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko_action::ProjectRoot;
+    /// use rakko::ProjectRoot;
     /// use rakko_cargo::Toolchain;
     ///
     /// # #[tokio::main(flavor = "current_thread")]

@@ -1,6 +1,6 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
-use rakko_action::Bundle;
+use rakko::Bundle;
 use rakko_check_typescript::CheckTypeScript;
 use rakko_format_typescript::FormatTypeScript;
 use rakko_lint_typescript::LintTypeScript;

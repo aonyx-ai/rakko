@@ -8,7 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, action_name,
 };
 
@@ -58,7 +58,7 @@ const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_lint_github_actions::LintGitHubActions;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintGitHubActions)];
@@ -182,7 +182,7 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rakko_action::{Position, Span};
+    use rakko::{Position, Span};
     use rakko_test_utils::path;
 
     use super::*;

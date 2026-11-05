@@ -14,7 +14,7 @@ mod report;
 
 use std::path::Path;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Execution, Invocation, Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveTraceyError;
@@ -61,7 +61,7 @@ const WARNINGS: &str = "warnings";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_check_specs::Tracey;
 ///
 /// # #[tokio::main(flavor = "current_thread")]

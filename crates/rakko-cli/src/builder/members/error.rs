@@ -1,4 +1,4 @@
-use rakko_action::{Name, ReadArgsError};
+use rakko::{Name, ReadArgsError};
 use thiserror::Error;
 
 /// An error that occurs when the command line binds the members of a group

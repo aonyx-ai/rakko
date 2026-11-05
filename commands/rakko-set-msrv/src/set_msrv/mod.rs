@@ -12,7 +12,7 @@ mod step;
 use std::fmt;
 use std::path::Path;
 
-use rakko_action::{ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
+use rakko::{ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
 use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
 use rakko_cli::{Command, Report};
@@ -365,7 +365,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::Action;
+    use rakko::Action;
 
     use super::*;
 

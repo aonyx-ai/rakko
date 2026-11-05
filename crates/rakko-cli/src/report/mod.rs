@@ -7,7 +7,7 @@ mod text;
 
 use std::fmt;
 
-use rakko_action::{Name, Outcome};
+use rakko::{Name, Outcome};
 use serde::{Serialize, Serializer};
 
 pub(crate) use self::group_summary::GroupSummary;
@@ -34,7 +34,7 @@ pub(crate) use self::group_summary::GroupSummary;
 /// # Examples
 ///
 /// ```
-/// use rakko_action::{Outcome, Summary, action_name};
+/// use rakko::{Outcome, Summary, action_name};
 /// use rakko_cli::Report;
 ///
 /// let outcome = Outcome::Passed {

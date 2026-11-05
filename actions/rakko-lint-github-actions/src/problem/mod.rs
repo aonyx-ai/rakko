@@ -11,7 +11,7 @@ mod severity;
 use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};
-use rakko_action::{FilePath, ProjectRoot, Span};
+use rakko::{FilePath, ProjectRoot, Span};
 
 pub use self::severity::Severity;
 
@@ -133,7 +133,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::Position;
+    use rakko::Position;
     use rakko_test_utils::path;
 
     use super::*;

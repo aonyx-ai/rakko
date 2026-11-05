@@ -18,7 +18,7 @@
 //! project:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_lint_toml::LintToml;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintToml)];

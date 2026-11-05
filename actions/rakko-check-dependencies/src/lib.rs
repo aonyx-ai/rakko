@@ -41,7 +41,7 @@
 //! project:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_check_dependencies::CheckDependencies;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckDependencies)];

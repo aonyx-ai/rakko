@@ -17,7 +17,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo};
 use tempfile::TempDir;
 

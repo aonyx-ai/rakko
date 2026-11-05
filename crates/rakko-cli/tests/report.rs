@@ -9,7 +9,7 @@
 // would repeat that and give the reader no information.
 #![allow(clippy::missing_panics_doc)]
 
-use rakko_action::{FilePath, Finding, Location, Outcome, Summary, action_name};
+use rakko::{FilePath, Finding, Location, Outcome, Summary, action_name};
 use rakko_cli::Report;
 
 #[test]

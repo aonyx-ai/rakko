@@ -8,7 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary,
     action_name,
 };
@@ -60,7 +60,7 @@ const BASE_REF: &str = "GITHUB_BASE_REF";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_check_specs::CheckSpecs;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckSpecs)];

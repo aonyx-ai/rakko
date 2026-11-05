@@ -2,7 +2,7 @@ use std::io::Error as IoError;
 use std::path::PathBuf;
 
 use kawauso_process::error::RunCommandError;
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use thiserror::Error;
 
 /// An error that occurs when the crate stands up a copy of a project

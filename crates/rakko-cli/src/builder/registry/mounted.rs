@@ -1,6 +1,6 @@
 use std::fmt;
 
-use rakko_action::{ErasedAction, Group, Name};
+use rakko::{ErasedAction, Group, Name};
 
 use crate::builder::members::MergedArgument;
 use crate::erased_command::ErasedCommand;

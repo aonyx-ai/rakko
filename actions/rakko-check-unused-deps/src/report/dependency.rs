@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};
-use rakko_action::{Finding, Location, ProjectRoot};
+use rakko::{Finding, Location, ProjectRoot};
 use rakko_cargo::CargoRoot;
 
 use super::DependencyKind;

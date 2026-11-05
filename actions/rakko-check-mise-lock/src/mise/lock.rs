@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use rakko_action::{FilePath, SkipReason};
+use rakko::{FilePath, SkipReason};
 
 use crate::part::Platform;
 

@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};
-use rakko_action::{Position, Span};
+use rakko::{Position, Span};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 

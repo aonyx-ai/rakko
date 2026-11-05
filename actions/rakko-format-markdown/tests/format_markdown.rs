@@ -21,7 +21,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{
+use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Location, Outcome, ProjectRoot, argument_name,
 };
 use rakko_format_markdown::{FormatMarkdown, FormatMarkdownArgs};

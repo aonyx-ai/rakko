@@ -33,7 +33,7 @@
 //! project:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_test_typescript::TestTypeScript;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(TestTypeScript)];

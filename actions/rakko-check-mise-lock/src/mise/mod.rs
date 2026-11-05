@@ -14,7 +14,7 @@ mod trust;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use rakko_action::{FilePath, ProjectRoot, SkipReason};
+use rakko::{FilePath, ProjectRoot, SkipReason};
 use rakko_tool::{Execution, Invocation};
 use serde::Deserialize;
 

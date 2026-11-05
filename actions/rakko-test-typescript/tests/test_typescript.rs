@@ -21,7 +21,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
+use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_test_typescript::TestTypeScript;
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
@@ -260,7 +260,7 @@ async fn run_of_a_project_whose_tests_pass_says_how_many_ran() {
         panic!("expected the run to pass, got {outcome:?}");
     };
     assert_eq!(
-        summary.as_ref().map(rakko_action::Summary::get),
+        summary.as_ref().map(rakko::Summary::get),
         Some("ran 2 tests")
     );
 }

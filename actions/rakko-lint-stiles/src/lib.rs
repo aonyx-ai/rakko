@@ -51,7 +51,7 @@
 //! project:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_lint_stiles::LintStiles;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintStiles)];

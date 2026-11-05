@@ -15,7 +15,7 @@ mod error;
 
 use std::path::PathBuf;
 
-use rakko_action::Position;
+use rakko::Position;
 use serde::Deserialize;
 
 pub use self::error::ReadReportError;

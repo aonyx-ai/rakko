@@ -15,7 +15,7 @@
 //! A harness mounts the action:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_format_json::FormatJson;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(FormatJson)];

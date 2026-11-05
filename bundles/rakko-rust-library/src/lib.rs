@@ -1,6 +1,6 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
-use rakko_action::Bundle;
+use rakko::Bundle;
 use rakko_check_minimal_deps::CheckMinimalDeps;
 use rakko_check_msrv::CheckMsrv;
 use rakko_test_rust_docs::TestRustDocs;

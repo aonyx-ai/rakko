@@ -21,7 +21,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{
+use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Location, Outcome, Position, ProjectRoot,
     argument_name,
 };

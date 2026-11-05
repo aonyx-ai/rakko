@@ -9,7 +9,7 @@ rust-version.workspace = true
 [dependencies]
 getset = { workspace = true }
 kawauso-process = { workspace = true }
-rakko-action = { workspace = true }
+rakko = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 typed-fields = { workspace = true }

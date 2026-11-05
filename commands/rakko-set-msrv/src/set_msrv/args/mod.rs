@@ -4,7 +4,7 @@ mod msrv;
 mod reason;
 
 use getset::Getters;
-use rakko_action::{
+use rakko::{
     Args, ArgsSchema, ArgsValues, Argument, ArgumentName, ArgumentShape, ArgumentValue,
     ReadArgsError, argument_name,
 };

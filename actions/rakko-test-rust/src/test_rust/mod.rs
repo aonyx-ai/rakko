@@ -8,9 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
-    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name,
-};
+use rakko::{Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
 use rakko_cargo::Cargo;
 use rakko_nextest::{Lockfile, Nextest};
 
@@ -55,7 +53,7 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_test_rust::TestRust;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(TestRust)];
