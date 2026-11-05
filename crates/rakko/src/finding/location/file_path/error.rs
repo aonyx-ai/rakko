@@ -6,8 +6,10 @@ use thiserror::Error;
 
 /// An error that occurs when parsing a file path
 ///
-/// A [`FilePath`](super::FilePath) accepts only a path that is relative to the
+/// A [`FilePath`] accepts only a path that is relative to the
 /// project root. This error reports the path that it refused.
+///
+/// [`FilePath`]: super::FilePath
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 pub enum ParseFilePathError {
     /// The path starts at the root of the file system
