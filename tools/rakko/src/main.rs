@@ -39,10 +39,7 @@ use rakko_test_rust::TestRust;
 use rakko_test_rust_docs::TestRustDocs;
 
 /// Builds the command line of this repository and runs it
-///
-/// The call ends the process itself, so a harness stays a `main` that names
-/// what the repository mounts and returns nothing.
-fn main() {
+fn main() -> std::process::ExitCode {
     let pre_commit = PreCommit::new(actions_that_guard_a_commit());
 
     rakko_cli::builder()
@@ -51,7 +48,7 @@ fn main() {
         .mount([Box::new(LintStiles) as Box<dyn ErasedAction>])
         .mount_commands([Box::new(SetMsrv::new(Box::new(CheckMsrv))) as Box<dyn ErasedCommand>])
         .mount_groups([Box::new(pre_commit) as Box<dyn Group>])
-        .run();
+        .run()
 }
 
 /// Returns the actions that guard a commit

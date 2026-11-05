@@ -24,7 +24,9 @@ Add `rakko-rust-binary` to the harness of the project, and let the `main` of
 the harness mount what the bundle exports:
 
 ```rust
-rakko_cli::builder().mount(rakko_rust_binary::bundle()).run();
+fn main() -> std::process::ExitCode {
+    rakko_cli::builder().mount(rakko_rust_binary::bundle()).run()
+}
 ```
 
 Each action of the bundle becomes one command of the harness, exactly as if
