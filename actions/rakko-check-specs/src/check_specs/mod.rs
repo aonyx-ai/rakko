@@ -111,7 +111,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
 
     let coverage = tracey.coverage().await?;
 
-    if coverage.total == 0 {
+    if *coverage.total() == 0 {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_SPECIFICATIONS),
         });
@@ -198,15 +198,16 @@ fn findings(problems: &[TraceyProblem]) -> Result<Vec<Finding>, CheckSpecsError>
 /// A pass needs the counts, so that a reader can question a pass over a
 /// project whose specifications nothing answers yet.
 fn summary(coverage: Coverage) -> Summary {
-    let requirements = if coverage.total == 1 {
+    let requirements = if *coverage.total() == 1 {
         "1 requirement".to_owned()
     } else {
-        format!("{} requirements", coverage.total)
+        format!("{} requirements", coverage.total())
     };
 
     Summary::new(format!(
         "checked {requirements}, {} implemented and {} verified",
-        coverage.covered, coverage.verified
+        coverage.covered(),
+        coverage.verified()
     ))
 }
 
@@ -233,11 +234,7 @@ mod tests {
 
     #[test]
     fn summary_of_one_requirement_says_so() {
-        let summary = summary(Coverage {
-            total: 1,
-            covered: 1,
-            verified: 1,
-        });
+        let summary = summary(Coverage::builder().total(1).covered(1).verified(1).build());
 
         assert_eq!(
             summary.get(),
@@ -247,11 +244,13 @@ mod tests {
 
     #[test]
     fn summary_reports_the_counts_of_the_project() {
-        let summary = summary(Coverage {
-            total: 15,
-            covered: 14,
-            verified: 12,
-        });
+        let summary = summary(
+            Coverage::builder()
+                .total(15)
+                .covered(14)
+                .verified(12)
+                .build(),
+        );
 
         assert_eq!(
             summary.get(),
