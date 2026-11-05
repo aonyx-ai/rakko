@@ -306,7 +306,12 @@ fn meaning(record: Record) -> Option<Meaning> {
         return Some(Meaning::Fatal(fatal(&record)));
     }
 
-    if record.config_type.is_some() || record.denied.is_some() {
+    let Record {
+        config_type,
+        denied,
+        ..
+    } = &record;
+    if config_type.is_some() || denied.is_some() {
         return Some(Meaning::Log);
     }
 
@@ -324,23 +329,41 @@ fn meaning(record: Record) -> Option<Meaning> {
         return Some(Meaning::Log);
     }
 
-    if !record.errors.is_empty() || !record.warnings.is_empty() {
-        let path = file(record.file.as_deref()?);
+    let Record {
+        errors,
+        warnings,
+        file: file_field,
+        ..
+    } = &record;
+    if !errors.is_empty() || !warnings.is_empty() {
+        let path = file(file_field.as_deref()?);
 
         return Some(Meaning::Problems(
-            record
-                .errors
-                .into_iter()
-                .chain(record.warnings)
-                .map(|entry| RenovateProblem::new(path.clone(), None, entry.topic, entry.message))
+            errors
+                .iter()
+                .chain(warnings.iter())
+                .map(|entry| {
+                    RenovateProblem::new(
+                        path.clone(),
+                        None,
+                        entry.topic.clone(),
+                        entry.message.clone(),
+                    )
+                })
                 .collect(),
         ));
     }
 
-    if let (Some(old), Some(new)) = (&record.old_config, &record.new_config) {
+    let Record {
+        old_config,
+        new_config,
+        msg,
+        ..
+    } = &record;
+    if let (Some(old), Some(new)) = (old_config, new_config) {
         return Some(Meaning::Migration {
             options: changed(old, new),
-            topic: record.msg,
+            topic: msg.clone(),
         });
     }
 
@@ -348,11 +371,17 @@ fn meaning(record: Record) -> Option<Meaning> {
         return Some(Meaning::Log);
     }
 
-    if let (Some(configuration), Some(cause)) = (record.file.as_deref(), &record.err) {
+    let Record {
+        file: file_field,
+        err,
+        msg,
+        ..
+    } = &record;
+    if let (Some(configuration), Some(cause)) = (file_field.as_deref(), err) {
         return Some(Meaning::Problems(vec![RenovateProblem::new(
             file(configuration),
             cause.position(),
-            record.msg.clone(),
+            msg.clone(),
             cause.message.clone().unwrap_or_default(),
         )]));
     }

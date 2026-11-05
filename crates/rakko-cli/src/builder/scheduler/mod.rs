@@ -591,9 +591,13 @@ mod tests {
             artifacts: Vec::new(),
         };
         while let Some(event) = block_on(receiver.recv()) {
+            let Sent {
+                messages,
+                artifacts,
+            } = &mut sent;
             match event {
-                Event::Message(message) => sent.messages.push(message),
-                Event::Artifact(artifact) => sent.artifacts.push(
+                Event::Message(message) => messages.push(message),
+                Event::Artifact(artifact) => artifacts.push(
                     serde_json::to_string(&artifact).expect("every artifact of a run serializes"),
                 ),
                 Event::Detail(_) | Event::Process(_) | Event::Prompt(_) => {}

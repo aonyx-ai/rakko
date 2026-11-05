@@ -228,30 +228,41 @@ fn diagnostic(message: Message) -> Option<CargoDiagnostic> {
         .find(|span| span.is_primary)
         .or_else(|| message.spans.first())
         .map(|span| {
+            let SourceSpan {
+                ref file_name,
+                line_start,
+                column_start,
+                line_end,
+                column_end,
+                ..
+            } = *span;
             DiagnosticSpan::new(
-                span.file_name.clone(),
+                file_name.clone(),
                 Span::builder()
                     .start(
                         Position::builder()
-                            .line(span.line_start)
-                            .column(span.column_start)
+                            .line(line_start)
+                            .column(column_start)
                             .build(),
                     )
                     .end(
                         Position::builder()
-                            .line(span.line_end)
-                            .column(span.column_end)
+                            .line(line_end)
+                            .column(column_end)
                             .build(),
                     )
                     .build(),
             )
         });
 
+    let Message {
+        code, message: msg, ..
+    } = message;
     Some(
         CargoDiagnostic::builder()
             .level(level)
-            .maybe_code(message.code.map(|code| code.code))
-            .message(message.message)
+            .maybe_code(code.map(|code| code.code))
+            .message(msg)
             .maybe_span(span)
             .build(),
     )

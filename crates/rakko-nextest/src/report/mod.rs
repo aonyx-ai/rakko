@@ -91,14 +91,16 @@ impl NextestReport {
 
             let record: Record = decode(line)?;
 
-            match (record.kind.as_str(), record.event.as_str()) {
+            let Record { kind, event, .. } = &record;
+            match (kind.as_str(), event.as_str()) {
                 (TEST, FAILED) => {
                     if let Some(name) = record.name {
                         failures.push(TestFailure::new(name, record.stdout.unwrap_or_default()));
                     }
                 }
                 (SUITE, OK | FAILED) => {
-                    ran += record.passed.unwrap_or_default() + record.failed.unwrap_or_default();
+                    let Record { passed, failed, .. } = &record;
+                    ran += passed.unwrap_or_default() + failed.unwrap_or_default();
                 }
                 _ => {}
             }
