@@ -102,7 +102,7 @@ pub enum CreateWorktreeError {
     /// crate cannot read. The sync names its paths from that report, so a
     /// report that the crate skipped would leave the copy at the commit while
     /// the caller believes it holds the tree of the contributor.
-    #[error("failed to read what changed in `{project}`: {details}")]
+    #[error("what changed in `{project}` could not be read: {details}")]
     UnreadableStatus {
         /// The root of the project that the crate copies
         project: ProjectRoot,

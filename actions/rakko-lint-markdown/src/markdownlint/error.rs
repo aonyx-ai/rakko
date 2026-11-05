@@ -27,7 +27,7 @@ pub(crate) enum ObserveMarkdownlintError {
     /// then writes the failure of its runtime in place of the report, so an
     /// answer built on such a report would leave an unknown part of the
     /// project unread.
-    #[error("markdownlint wrote a report that the action cannot read: {report}")]
+    #[error("failed to read markdownlint's report: {report}")]
     UnreadableReport {
         /// What markdownlint wrote in place of a report
         report: String,

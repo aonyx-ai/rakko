@@ -16,7 +16,7 @@ pub enum ReadReportError {
     /// not fit therefore points at a version that this crate does not know,
     /// and the findings of such a run would be the diagnostics that the
     /// reading happened to understand.
-    #[error("failed to read a line of the report of tsc: {line}")]
+    #[error("tsc wrote a line that is no part of a diagnostic: {line}")]
     UnreadableLine {
         /// The line that the crate could not read
         line: String,

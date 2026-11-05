@@ -40,7 +40,7 @@ pub(crate) enum ObserveStilesError {
     /// this crate cannot read therefore points at a version that it does not
     /// know, and the findings of such a run would be the ones that the reading
     /// happened to understand.
-    #[error("stiles wrote a report that the action cannot read: {report}")]
+    #[error("failed to read the report from stiles: {report}")]
     UnreadableReport {
         /// What stiles wrote in place of a report that the crate reads
         report: String,

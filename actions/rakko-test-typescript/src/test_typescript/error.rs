@@ -43,7 +43,7 @@ pub enum TestTypeScriptError {
     /// does not fit therefore points at a version that this crate does not
     /// know, and the findings of such a run would be the failures that the
     /// reading happened to understand.
-    #[error("node wrote a report that the action cannot read: {report}")]
+    #[error("failed to read the report from node: {report}")]
     UnreadableReport {
         /// What node wrote in place of a report that the action reads
         report: String,

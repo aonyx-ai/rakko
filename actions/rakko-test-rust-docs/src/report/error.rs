@@ -16,7 +16,7 @@ pub enum ReadDoctestReportError {
     /// The harness closes the examples of a package with a summary that
     /// counts what passed and what failed, and the shape of that line
     /// belongs to a version of the harness.
-    #[error("failed to read the summary of the examples: {line}")]
+    #[error("the summary of the examples has no count of passed and failed examples: {line}")]
     UnreadableSummary {
         /// The summary that the crate cannot read
         line: String,

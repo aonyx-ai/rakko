@@ -48,7 +48,7 @@ pub enum LintGitHubActionsError {
     /// the action cannot read therefore points at a version that this crate
     /// does not know, and the findings of such a run would be the ones that
     /// the reading happened to understand.
-    #[error("zizmor wrote a report that the action cannot read: {report}")]
+    #[error("failed to read zizmor's report: {report}")]
     UnreadableReport {
         /// What zizmor wrote in place of a report that the action reads
         report: String,
