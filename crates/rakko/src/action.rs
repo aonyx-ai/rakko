@@ -29,7 +29,7 @@ use crate::outcome::Outcome;
 /// implementation writes a plain `async fn`:
 ///
 /// ```
-/// use rakko_action::{Action, Context, Name, Outcome, action_name};
+/// use rakko::{Action, Context, Name, Outcome, action_name};
 ///
 /// struct LineCount;
 ///

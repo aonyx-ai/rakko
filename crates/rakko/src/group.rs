@@ -30,7 +30,7 @@ use crate::name::Name;
 /// from a name and a list of actions:
 ///
 /// ```
-/// use rakko_action::{ErasedAction, Group, Name, action_name};
+/// use rakko::{ErasedAction, Group, Name, action_name};
 ///
 /// struct CheckAll {
 ///     actions: Vec<Box<dyn ErasedAction>>,

@@ -15,7 +15,7 @@ pub(crate) use self::kebab_case::kebab_case_name;
 /// # Examples
 ///
 /// ```
-/// use rakko_action::action_name;
+/// use rakko::action_name;
 ///
 /// let name = action_name!("format-toml");
 ///
@@ -25,7 +25,7 @@ pub(crate) use self::kebab_case::kebab_case_name;
 /// A literal that does not satisfy the rules fails the build:
 ///
 /// ```compile_fail
-/// use rakko_action::action_name;
+/// use rakko::action_name;
 ///
 /// let name = action_name!("format--toml");
 /// ```

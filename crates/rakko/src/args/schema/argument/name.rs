@@ -9,7 +9,7 @@ use crate::name::kebab_case_name;
 /// # Examples
 ///
 /// ```
-/// use rakko_action::argument_name;
+/// use rakko::argument_name;
 ///
 /// let name = argument_name!("fix");
 ///
@@ -19,7 +19,7 @@ use crate::name::kebab_case_name;
 /// A literal that does not satisfy the rules fails the build:
 ///
 /// ```compile_fail
-/// use rakko_action::argument_name;
+/// use rakko::argument_name;
 ///
 /// let name = argument_name!("--fix");
 /// ```

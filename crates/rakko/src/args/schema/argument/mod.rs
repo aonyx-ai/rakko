@@ -47,7 +47,7 @@ impl Argument {
     /// # Examples
     ///
     /// ```
-    /// use rakko_action::{Argument, ArgumentShape, argument_name};
+    /// use rakko::{Argument, ArgumentShape, argument_name};
     ///
     /// let argument = Argument::builder()
     ///     .name(argument_name!("fix"))

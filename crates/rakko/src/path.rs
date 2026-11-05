@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::path;
+/// use rakko::path;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let resolved = path::canonical(".".as_ref())?;
@@ -62,7 +62,7 @@ pub fn canonical(path: &Path) -> IoResult<PathBuf> {
 /// ```
 /// use std::path::{Path, PathBuf};
 ///
-/// use rakko_action::path;
+/// use rakko::path;
 ///
 /// let path = path::plain(Path::new("notes.md"));
 ///
