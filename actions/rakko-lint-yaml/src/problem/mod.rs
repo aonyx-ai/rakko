@@ -8,6 +8,7 @@ mod level;
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, ProjectRoot};
 
@@ -36,9 +37,10 @@ const LEVEL_CLOSE: &str = "] ";
 /// and not one that this crate wrote about it.
 ///
 /// [relative]: YamllintProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters, Builder)]
 pub struct YamllintProblem {
     /// The path of the file, as yamllint wrote it
+    #[builder(into)]
     #[getset(get = "pub")]
     path: PathBuf,
 
@@ -55,28 +57,12 @@ pub struct YamllintProblem {
     level: ProblemLevel,
 
     /// What yamllint said about the rule and the file
+    #[builder(into)]
     #[getset(get = "pub")]
     description: String,
 }
 
 impl YamllintProblem {
-    /// Creates a problem from what yamllint reported about a file
-    pub fn new(
-        path: PathBuf,
-        line: u32,
-        column: u32,
-        level: ProblemLevel,
-        description: String,
-    ) -> Self {
-        Self {
-            path,
-            line,
-            column,
-            level,
-            description,
-        }
-    }
-
     /// Returns the sentence that yamllint wrote about the problem
     ///
     /// The sentence holds the level and the description, in the order that
@@ -96,7 +82,7 @@ impl YamllintProblem {
     /// report that the caller misread, and the caller decides what to do about
     /// that.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
@@ -112,13 +98,13 @@ mod tests {
 
     /// Returns a problem about the given path
     fn problem(path: PathBuf) -> YamllintProblem {
-        YamllintProblem::new(
-            path,
-            1,
-            1,
-            ProblemLevel::Warning,
-            "missing document start \"---\" (document-start)".to_owned(),
-        )
+        YamllintProblem::builder()
+            .path(path)
+            .line(1)
+            .column(1)
+            .level(ProblemLevel::Warning)
+            .description("missing document start \"---\" (document-start)".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to

@@ -236,23 +236,25 @@ fn diagnostic(message: Message) -> Option<CargoDiagnostic> {
                 column_end,
                 ..
             } = *span;
-            DiagnosticSpan::new(
-                file_name.clone(),
-                Span::builder()
-                    .start(
-                        Position::builder()
-                            .line(line_start)
-                            .column(column_start)
-                            .build(),
-                    )
-                    .end(
-                        Position::builder()
-                            .line(line_end)
-                            .column(column_end)
-                            .build(),
-                    )
-                    .build(),
-            )
+            DiagnosticSpan::builder()
+                .path(file_name.clone())
+                .range(
+                    Span::builder()
+                        .start(
+                            Position::builder()
+                                .line(line_start)
+                                .column(column_start)
+                                .build(),
+                        )
+                        .end(
+                            Position::builder()
+                                .line(line_end)
+                                .column(column_end)
+                                .build(),
+                        )
+                        .build(),
+                )
+                .build()
         });
 
     let Message {
@@ -389,13 +391,17 @@ mod tests {
             .and_then(|diagnostic| diagnostic.span().as_ref());
         assert_eq!(
             span,
-            Some(&DiagnosticSpan::new(
-                PathBuf::from("src/lib.rs"),
-                Span::builder()
-                    .start(Position::builder().line(8).column(88).build())
-                    .end(Position::builder().line(8).column(98).build())
-                    .build(),
-            ))
+            Some(
+                &DiagnosticSpan::builder()
+                    .path(PathBuf::from("src/lib.rs"))
+                    .range(
+                        Span::builder()
+                            .start(Position::builder().line(8).column(88).build())
+                            .end(Position::builder().line(8).column(98).build())
+                            .build()
+                    )
+                    .build()
+            )
         );
     }
 

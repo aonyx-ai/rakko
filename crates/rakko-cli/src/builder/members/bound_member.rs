@@ -22,6 +22,7 @@ pub(crate) struct BoundMember<'a> {
     action: Box<dyn BoundAction + 'a>,
 }
 
+#[bon::bon]
 impl<'a> BoundMember<'a> {
     /// Binds the values of a run to the arguments of an action
     ///
@@ -32,6 +33,7 @@ impl<'a> BoundMember<'a> {
     ///
     /// Returns a [`ReadArgsError`] when the values do not convert into the
     /// arguments of the action.
+    #[builder]
     pub(crate) fn bind(
         action: &'a dyn ErasedAction,
         values: &ArgsValues,
@@ -138,7 +140,11 @@ mod tests {
 
     #[test]
     fn action_declares_the_access_of_the_values_that_were_bound() {
-        let member = BoundMember::bind(&Formatter, &fix("true")).unwrap();
+        let member = BoundMember::bind()
+            .action(&Formatter)
+            .values(&fix("true"))
+            .call()
+            .unwrap();
         let context = Context::builder().root("/tmp/project").build();
 
         let access = member.action().access(&context);
@@ -148,7 +154,10 @@ mod tests {
 
     #[test]
     fn bind_reports_values_that_do_not_convert() {
-        let member = BoundMember::bind(&Formatter, &fix("maybe"));
+        let member = BoundMember::bind()
+            .action(&Formatter)
+            .values(&fix("maybe"))
+            .call();
 
         assert!(matches!(
             member,
@@ -158,7 +167,11 @@ mod tests {
 
     #[test]
     fn name_returns_the_name_of_the_action() {
-        let member = BoundMember::bind(&Formatter, &ArgsValues::empty()).unwrap();
+        let member = BoundMember::bind()
+            .action(&Formatter)
+            .values(&ArgsValues::empty())
+            .call()
+            .unwrap();
 
         let name = member.name();
 

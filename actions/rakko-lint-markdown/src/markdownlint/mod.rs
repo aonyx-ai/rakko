@@ -168,7 +168,11 @@ impl Markdownlint {
     /// Returns a [`ResolveToolError`] when mise reports no markdownlint for
     /// the project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(MARKDOWNLINT), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(MARKDOWNLINT))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

@@ -130,7 +130,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
         .await
         .map_err(|source| CheckUnusedDepsError::UnresolvedTool { source })?;
 
-    let toolchain = Toolchain::resolve(Channel::new(NIGHTLY), context.root())
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new(NIGHTLY))
+        .root(context.root())
+        .call()
         .await
         .map_err(|source| CheckUnusedDepsError::UnresolvedToolchain { source })?;
 

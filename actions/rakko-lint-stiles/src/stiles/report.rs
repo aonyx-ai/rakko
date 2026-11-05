@@ -37,16 +37,18 @@ struct Record {
 impl Record {
     /// Returns the problem that this diagnostic describes
     fn into_problem(self) -> StilesProblem {
-        StilesProblem::new(
-            self.file,
-            Position::builder()
-                .line(self.line)
-                .column(self.column)
-                .build(),
-            self.severity,
-            self.rule,
-            self.message,
-        )
+        StilesProblem::builder()
+            .path(self.file)
+            .position(
+                Position::builder()
+                    .line(self.line)
+                    .column(self.column)
+                    .build(),
+            )
+            .severity(self.severity)
+            .rule(self.rule)
+            .text(self.message)
+            .build()
     }
 }
 

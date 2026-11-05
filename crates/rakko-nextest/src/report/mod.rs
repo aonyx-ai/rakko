@@ -95,7 +95,12 @@ impl NextestReport {
             match (kind.as_str(), event.as_str()) {
                 (TEST, FAILED) => {
                     if let Some(name) = record.name {
-                        failures.push(TestFailure::new(name, record.stdout.unwrap_or_default()));
+                        failures.push(
+                            TestFailure::builder()
+                                .name(name)
+                                .output(record.stdout.unwrap_or_default())
+                                .build(),
+                        );
                     }
                 }
                 (SUITE, OK | FAILED) => {

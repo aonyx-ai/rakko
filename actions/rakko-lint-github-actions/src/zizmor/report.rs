@@ -48,14 +48,14 @@ impl Record {
             .into_iter()
             .map(|location| {
                 let Location { symbolic, concrete } = location;
-                ZizmorProblem::new(
-                    symbolic.key.local.verbatim_path,
-                    span(&concrete.location),
-                    severity,
-                    self.ident.clone(),
-                    self.desc.clone(),
-                    symbolic.annotation,
-                )
+                ZizmorProblem::builder()
+                    .path(symbolic.key.local.verbatim_path)
+                    .span(span(&concrete.location))
+                    .severity(severity)
+                    .audit(self.ident.clone())
+                    .description(self.desc.clone())
+                    .annotation(symbolic.annotation)
+                    .build()
             })
             .collect()
     }

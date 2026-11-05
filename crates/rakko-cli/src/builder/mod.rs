@@ -607,7 +607,7 @@ fn drive_action(
 
         context
             .output()
-            .artifact(Report::new(name, outcome))
+            .artifact(Report::builder().action(name).outcome(outcome).build())
             .await?;
 
         Ok(code)

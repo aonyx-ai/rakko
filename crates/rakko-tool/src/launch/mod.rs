@@ -55,7 +55,7 @@ const SHARING_VIOLATION: i32 = 32;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let tool = Tool::resolve(ToolName::new("prettier"), "/home/otter/project".into()).await?;
+/// let tool = Tool::resolve().name(ToolName::new("prettier")).root("/home/otter/project".into()).call().await?;
 ///
 /// let execution = tool.invocation().arg("--check").arg(".").launch().await?;
 ///
@@ -300,7 +300,10 @@ mod tests {
 
     #[tokio::test]
     async fn launch_of_a_tool_reports_what_it_wrote() {
-        let tool = Tool::resolve(ToolName::new("jq"), root())
+        let tool = Tool::resolve()
+            .name(ToolName::new("jq"))
+            .root(root())
+            .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins");
 

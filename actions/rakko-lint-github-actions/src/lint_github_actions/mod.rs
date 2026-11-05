@@ -195,14 +195,14 @@ mod tests {
 
     /// Returns a problem of the given severity in a workflow of the project
     fn problem(severity: Severity) -> ZizmorProblem {
-        ZizmorProblem::new(
-            PathBuf::from("./.github/workflows/ci.yml"),
-            span(),
-            severity,
-            "template-injection".to_owned(),
-            "code injection via template expansion".to_owned(),
-            "may expand into attacker-controllable code".to_owned(),
-        )
+        ZizmorProblem::builder()
+            .path(PathBuf::from("./.github/workflows/ci.yml"))
+            .span(span())
+            .severity(severity)
+            .audit("template-injection".to_owned())
+            .description("code injection via template expansion".to_owned())
+            .annotation("may expand into attacker-controllable code".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -227,14 +227,14 @@ mod tests {
 
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = ZizmorProblem::new(
-            path("/elsewhere/ci.yml"),
-            span(),
-            Severity::High,
-            "unpinned-uses".to_owned(),
-            "unpinned action reference".to_owned(),
-            "action is not pinned to a hash".to_owned(),
-        );
+        let problem = ZizmorProblem::builder()
+            .path(path("/elsewhere/ci.yml"))
+            .span(span())
+            .severity(Severity::High)
+            .audit("unpinned-uses".to_owned())
+            .description("unpinned action reference".to_owned())
+            .annotation("action is not pinned to a hash".to_owned())
+            .build();
 
         let error = finding(&problem, &root()).unwrap_err();
 

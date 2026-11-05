@@ -152,7 +152,11 @@ impl Cargo {
     /// Returns a [`ResolveToolError`] when mise reports no cargo for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(CARGO), root.clone()).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(CARGO))
+            .root(root.clone())
+            .call()
+            .await?;
 
         Ok(Self { root, tool })
     }
@@ -393,7 +397,10 @@ impl Metadata {
                     DocumentedNames::Unique
                 };
 
-                CargoPackage::new(PackageName::new(&package.name), documented_names)
+                CargoPackage::builder()
+                    .name(PackageName::new(&package.name))
+                    .documented_names(documented_names)
+                    .build()
             })
             .collect();
         packages.sort_by(|left, right| left.name().cmp(right.name()));

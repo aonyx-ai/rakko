@@ -8,6 +8,7 @@ mod severity;
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, Position, ProjectRoot};
 
@@ -40,7 +41,7 @@ const RULE_CLOSE: &str = ": ";
 /// about it.
 ///
 /// [relative]: StilesProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct StilesProblem {
     /// The path of the file, as stiles wrote it
     #[getset(get = "pub")]
@@ -55,32 +56,17 @@ pub struct StilesProblem {
     severity: Severity,
 
     /// The identifier of the rule that fired, such as `lint.todo-comment`
+    #[builder(into)]
     #[getset(get = "pub")]
     rule: String,
 
     /// What the rule said about the code, in the words of stiles
+    #[builder(into)]
     #[getset(get = "pub")]
     text: String,
 }
 
 impl StilesProblem {
-    /// Creates a problem from one diagnostic that stiles reported
-    pub fn new(
-        path: PathBuf,
-        position: Position,
-        severity: Severity,
-        rule: String,
-        text: String,
-    ) -> Self {
-        Self {
-            path,
-            position,
-            severity,
-            rule,
-            text,
-        }
-    }
-
     /// Returns the sentence that stiles wrote about the problem
     ///
     /// The sentence holds the severity, the rule, and what the rule said, so a
@@ -99,7 +85,7 @@ impl StilesProblem {
     /// report that the caller misread, and the caller decides what to do about
     /// that.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
@@ -115,13 +101,13 @@ mod tests {
 
     /// Returns a problem about the given path
     fn problem(path: PathBuf) -> StilesProblem {
-        StilesProblem::new(
-            path,
-            Position::builder().line(7).column(5).build(),
-            Severity::Warning,
-            "lint.todo-comment".to_owned(),
-            "a TODO comment marks unfinished work".to_owned(),
-        )
+        StilesProblem::builder()
+            .path(path)
+            .position(Position::builder().line(7).column(5).build())
+            .severity(Severity::Warning)
+            .rule("lint.todo-comment".to_owned())
+            .text("a TODO comment marks unfinished work".to_owned())
+            .build()
     }
 
     #[test]

@@ -135,7 +135,10 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
         .await
         .map_err(|source| FormatRustError::UnresolvedTool { source })?;
 
-    let toolchain = Toolchain::resolve(Channel::new(NIGHTLY), context.root())
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new(NIGHTLY))
+        .root(context.root())
+        .call()
         .await
         .map_err(|source| FormatRustError::UnresolvedToolchain { source })?;
 

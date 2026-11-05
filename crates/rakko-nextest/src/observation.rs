@@ -42,6 +42,7 @@ pub struct Observation {
     ran: u64,
 }
 
+#[bon::bon]
 impl Observation {
     /// Reads the observation of a run from what nextest and cargo wrote
     ///
@@ -61,6 +62,7 @@ impl Observation {
     /// [diagnostics]: ObserveNextestError::UnreadableDiagnostics
     /// [report]: ObserveNextestError::UnreadableReport
     /// [unrecognized]: ObserveNextestError::UnrecognizedReport
+    #[builder]
     pub fn read(
         execution: &Execution,
         root: &CargoRoot,

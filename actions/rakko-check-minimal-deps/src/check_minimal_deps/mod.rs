@@ -146,7 +146,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMinimalDepsError> {
         .await
         .map_err(|source| CheckMinimalDepsError::UnresolvedTool { source })?;
 
-    let toolchain = Toolchain::resolve(Channel::new(NIGHTLY), context.root())
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new(NIGHTLY))
+        .root(context.root())
+        .call()
         .await
         .map_err(|source| CheckMinimalDepsError::UnresolvedToolchain { source })?;
 
@@ -179,7 +182,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMinimalDepsError> {
         });
     }
 
-    let nextest = Nextest::new(cargo, Lockfile::Locked);
+    let nextest = Nextest::builder()
+        .cargo(cargo)
+        .lockfile(Lockfile::Locked)
+        .build();
     let mut ran = 0;
 
     for root in &copies {

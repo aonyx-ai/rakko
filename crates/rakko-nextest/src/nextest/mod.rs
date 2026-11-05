@@ -75,7 +75,7 @@ const CONSENT_VALUE: &str = "1";
 /// let root = ProjectRoot::new("/home/otter/project".into());
 /// let cargo = Cargo::resolve(root.clone()).await?;
 /// let roots = cargo.roots().await?;
-/// let nextest = Nextest::new(cargo, Lockfile::Locked);
+/// let nextest = Nextest::builder().cargo(cargo).lockfile(Lockfile::Locked).build();
 ///
 /// for workspace in &roots {
 ///     let observation = nextest.observe(workspace, &root).await?;
@@ -94,12 +94,14 @@ pub struct Nextest {
     lockfile: Lockfile,
 }
 
+#[bon::bon]
 impl Nextest {
     /// Creates the nextest that the given cargo runs
     ///
     /// The lockfile tells a run whether cargo may resolve the dependencies
     /// of the build, or whether it builds the versions that the lockfile
     /// holds and refuses every other one.
+    #[builder]
     pub fn new(cargo: Cargo, lockfile: Lockfile) -> Self {
         Self { cargo, lockfile }
     }
@@ -144,6 +146,10 @@ impl Nextest {
             .await
             .map_err(|source| ObserveNextestError::CargoUnavailable { source })?;
 
-        Observation::read(&execution, root, project)
+        Observation::read()
+            .execution(&execution)
+            .root(root)
+            .project(project)
+            .call()
     }
 }

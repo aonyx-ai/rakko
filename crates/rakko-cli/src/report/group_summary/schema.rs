@@ -91,7 +91,10 @@ mod tests {
     /// The assertions compare the JSON as text, and not as a parsed value, so
     /// that they pin the bytes that a consumer reads.
     fn payload(members: Vec<Report>) -> String {
-        let summary = GroupSummary::new(action_name!("check"), members);
+        let summary = GroupSummary::builder()
+            .group(action_name!("check"))
+            .members(members)
+            .build();
 
         serde_json::to_string(&summary).expect("the summary serializes")
     }
@@ -99,14 +102,17 @@ mod tests {
     #[test]
     fn payload_carries_the_group_and_the_report_of_every_member() {
         let json = payload(vec![
-            Report::new(action_name!("lint-toml"), Outcome::Passed { summary: None }),
-            Report::new(
-                action_name!("lint-yaml"),
-                Outcome::Failed {
+            Report::builder()
+                .action(action_name!("lint-toml"))
+                .outcome(Outcome::Passed { summary: None })
+                .build(),
+            Report::builder()
+                .action(action_name!("lint-yaml"))
+                .outcome(Outcome::Failed {
                     findings: Vec::new(),
                     repairs: Vec::new(),
-                },
-            ),
+                })
+                .build(),
         ]);
 
         assert_eq!(
@@ -118,38 +124,41 @@ mod tests {
     #[test]
     fn payload_counts_the_members_in_each_state() {
         let json = payload(vec![
-            Report::new(action_name!("lint-toml"), Outcome::Passed { summary: None }),
-            Report::new(
-                action_name!("format-toml"),
-                Outcome::Changed {
+            Report::builder()
+                .action(action_name!("lint-toml"))
+                .outcome(Outcome::Passed { summary: None })
+                .build(),
+            Report::builder()
+                .action(action_name!("format-toml"))
+                .outcome(Outcome::Changed {
                     repairs: Vec::new(),
-                },
-            ),
-            Report::new(
-                action_name!("format-yaml"),
-                Outcome::Changed {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("format-yaml"))
+                .outcome(Outcome::Changed {
                     repairs: Vec::new(),
-                },
-            ),
-            Report::new(
-                action_name!("lint-yaml"),
-                Outcome::Failed {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("lint-yaml"))
+                .outcome(Outcome::Failed {
                     findings: Vec::new(),
                     repairs: Vec::new(),
-                },
-            ),
-            Report::new(
-                action_name!("lint-json"),
-                Outcome::Skipped {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("lint-json"))
+                .outcome(Outcome::Skipped {
                     reason: SkipReason::new("the project has no JSON file"),
-                },
-            ),
-            Report::new(
-                action_name!("test-rust"),
-                Outcome::Errored {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("test-rust"))
+                .outcome(Outcome::Errored {
                     source: Box::new(std::io::Error::other("the tool is missing")),
-                },
-            ),
+                })
+                .build(),
         ]);
 
         assert!(

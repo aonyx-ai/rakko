@@ -8,6 +8,7 @@
 mod package;
 mod severity;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 
 pub use self::package::Package;
@@ -46,17 +47,19 @@ const PACKAGES_CLOSE: char = ')';
 /// cache of the machine, and the report leaves the file out of the entry
 /// altogether. A caller therefore places a problem at the workspace that it
 /// came from, and never at a path.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct DenyProblem {
     /// How the configuration of the project weighed the shape
     #[getset(get_copy = "pub")]
     severity: Severity,
 
     /// The check that recognized the shape, in the words of cargo-deny
+    #[builder(into)]
     #[getset(get = "pub")]
     check: String,
 
     /// What cargo-deny wrote about the shape
+    #[builder(into)]
     #[getset(get = "pub")]
     message: String,
 
@@ -66,16 +69,6 @@ pub struct DenyProblem {
 }
 
 impl DenyProblem {
-    /// Creates a problem from one entry that cargo-deny reported
-    pub fn new(severity: Severity, check: String, message: String, packages: Vec<Package>) -> Self {
-        Self {
-            severity,
-            check,
-            message,
-            packages,
-        }
-    }
-
     /// Returns whether the project said that the shape must not appear
     ///
     /// A run fails over a problem that answers `true`, and passes over one
@@ -118,12 +111,17 @@ mod tests {
 
     /// Returns a problem of the given weight that names one package
     fn problem(severity: Severity) -> DenyProblem {
-        DenyProblem::new(
-            severity,
-            "rejected".to_owned(),
-            "failed to satisfy license requirements".to_owned(),
-            vec![Package::new("option-ext".to_owned(), "0.2.0".to_owned())],
-        )
+        DenyProblem::builder()
+            .severity(severity)
+            .check("rejected".to_owned())
+            .message("failed to satisfy license requirements".to_owned())
+            .packages(vec![
+                Package::builder()
+                    .name("option-ext".to_owned())
+                    .version("0.2.0".to_owned())
+                    .build(),
+            ])
+            .build()
     }
 
     #[test]
@@ -152,12 +150,12 @@ mod tests {
 
     #[test]
     fn description_of_a_problem_about_no_package_ends_with_the_words_of_cargo_deny() {
-        let problem = DenyProblem::new(
-            Severity::Warning,
-            "license-not-encountered".to_owned(),
-            "license was not encountered".to_owned(),
-            Vec::new(),
-        );
+        let problem = DenyProblem::builder()
+            .severity(Severity::Warning)
+            .check("license-not-encountered".to_owned())
+            .message("license was not encountered".to_owned())
+            .packages(Vec::new())
+            .build();
 
         let description = problem.description();
 
@@ -169,15 +167,21 @@ mod tests {
 
     #[test]
     fn description_of_a_problem_about_several_packages_names_every_one() {
-        let problem = DenyProblem::new(
-            Severity::Error,
-            "duplicate".to_owned(),
-            "found 2 duplicate entries for crate 'syn'".to_owned(),
-            vec![
-                Package::new("syn".to_owned(), "2.0.119".to_owned()),
-                Package::new("syn".to_owned(), "3.0.4".to_owned()),
-            ],
-        );
+        let problem = DenyProblem::builder()
+            .severity(Severity::Error)
+            .check("duplicate".to_owned())
+            .message("found 2 duplicate entries for crate 'syn'".to_owned())
+            .packages(vec![
+                Package::builder()
+                    .name("syn".to_owned())
+                    .version("2.0.119".to_owned())
+                    .build(),
+                Package::builder()
+                    .name("syn".to_owned())
+                    .version("3.0.4".to_owned())
+                    .build(),
+            ])
+            .build();
 
         let description = problem.description();
 

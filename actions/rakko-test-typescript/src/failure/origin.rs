@@ -40,7 +40,7 @@ impl Origin {
     /// does not fit points at a report that the caller misread, and the caller
     /// decides what to do about that.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 

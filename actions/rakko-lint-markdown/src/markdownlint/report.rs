@@ -53,7 +53,12 @@ impl Record {
             .and_then(|range| range.first().copied())
             .filter(|column| *column > 0);
 
-        MarkdownlintProblem::new(self.file_name, self.line_number, column, message)
+        MarkdownlintProblem::builder()
+            .path(self.file_name)
+            .line(self.line_number)
+            .maybe_column(column)
+            .message(message)
+            .build()
     }
 }
 

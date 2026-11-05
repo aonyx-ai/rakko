@@ -43,6 +43,7 @@ typed_fields::name! {
     Toolchain
 }
 
+#[bon::bon]
 impl Toolchain {
     /// Returns the argument that selects this toolchain for cargo
     ///
@@ -88,7 +89,7 @@ impl Toolchain {
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let root = ProjectRoot::new("/home/otter/project".into());
     ///
-    /// let toolchain = Toolchain::resolve(Channel::new("nightly"), &root).await?;
+    /// let toolchain = Toolchain::resolve().channel(Channel::new("nightly")).root(&root).call().await?;
     ///
     /// println!("{}", toolchain.argument());
     /// # Ok(())
@@ -99,6 +100,7 @@ impl Toolchain {
     /// [uninstalled]: ResolveToolchainError::UninstalledToolchain
     /// [unpinned]: ResolveToolchainError::UnpinnedToolchain
     /// [unreadable]: ResolveToolchainError::UnreadableReport
+    #[builder]
     pub async fn resolve(
         channel: Channel,
         root: &ProjectRoot,

@@ -19,8 +19,10 @@ pub(crate) struct MergedArgument {
     declarations: Vec<(Name, Documentation)>,
 }
 
+#[bon::bon]
 impl MergedArgument {
     /// Creates the flag of an argument that a member declares first
+    #[builder]
     pub(crate) fn new(member: Name, argument: &Argument) -> Self {
         Self {
             owner: member.clone(),

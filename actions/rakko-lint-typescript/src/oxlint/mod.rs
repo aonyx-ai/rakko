@@ -113,7 +113,11 @@ impl Oxlint {
         let stdout = execution.stdout().to_string_lossy();
 
         self::report::read(&stdout).map_err(|source| {
-            ObserveOxlintError::of(source, &stdout, &execution.stderr().to_string_lossy())
+            ObserveOxlintError::of()
+                .source(source)
+                .stdout(&*stdout)
+                .stderr(&*execution.stderr().to_string_lossy())
+                .call()
         })
     }
 
@@ -128,7 +132,11 @@ impl Oxlint {
     /// Returns a [`ResolveToolError`] when mise reports no oxlint for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(OXLINT), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(OXLINT))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

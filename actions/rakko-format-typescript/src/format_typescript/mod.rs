@@ -269,9 +269,13 @@ fn finding(
 ///
 /// [foreign]: FormatTypeScriptError::ForeignPath
 fn relative(path: &Path, root: &ProjectRoot) -> Result<FilePath, FormatTypeScriptError> {
-    FilePath::within(path, root).ok_or_else(|| FormatTypeScriptError::ForeignPath {
-        path: path.to_path_buf(),
-    })
+    FilePath::within()
+        .path(path)
+        .root(root)
+        .call()
+        .ok_or_else(|| FormatTypeScriptError::ForeignPath {
+            path: path.to_path_buf(),
+        })
 }
 
 /// Returns the findings that report the given problems

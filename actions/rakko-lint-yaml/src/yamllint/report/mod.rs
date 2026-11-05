@@ -63,13 +63,15 @@ fn problem(line: &str) -> Option<YamllintProblem> {
     let (place, column) = place.rsplit_once(POSITION)?;
     let (path, number) = place.rsplit_once(POSITION)?;
 
-    Some(YamllintProblem::new(
-        PathBuf::from(path),
-        number.parse().ok()?,
-        column.parse().ok()?,
-        ProblemLevel::parse(level)?,
-        description.to_owned(),
-    ))
+    Some(
+        YamllintProblem::builder()
+            .path(PathBuf::from(path))
+            .line(number.parse().ok()?)
+            .column(column.parse().ok()?)
+            .level(ProblemLevel::parse(level)?)
+            .description(description.to_owned())
+            .build(),
+    )
 }
 
 #[cfg(test)]

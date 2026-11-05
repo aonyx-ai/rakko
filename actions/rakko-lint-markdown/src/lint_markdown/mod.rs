@@ -225,12 +225,12 @@ mod tests {
 
     /// Returns a problem at the given position of a file of the project
     fn problem(line: u32, column: Option<u32>) -> MarkdownlintProblem {
-        MarkdownlintProblem::new(
-            PathBuf::from("notes.md"),
-            line,
-            column,
-            "MD013/line-length Line length [Expected: 80; Actual: 92]".to_owned(),
-        )
+        MarkdownlintProblem::builder()
+            .path(PathBuf::from("notes.md"))
+            .line(line)
+            .maybe_column(column)
+            .message("MD013/line-length Line length [Expected: 80; Actual: 92]".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -247,12 +247,11 @@ mod tests {
 
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = MarkdownlintProblem::new(
-            path("/elsewhere/notes.md"),
-            1,
-            None,
-            "MD041/first-line-heading".to_owned(),
-        );
+        let problem = MarkdownlintProblem::builder()
+            .path(path("/elsewhere/notes.md"))
+            .line(1)
+            .message("MD041/first-line-heading".to_owned())
+            .build();
 
         let error = finding(&problem, &root()).unwrap_err();
 

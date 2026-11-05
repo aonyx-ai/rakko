@@ -160,7 +160,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
         });
     }
 
-    let nextest = Nextest::new(cargo, Lockfile::Locked);
+    let nextest = Nextest::builder()
+        .cargo(cargo)
+        .lockfile(Lockfile::Locked)
+        .build();
     let mut ran = 0;
 
     for root in &copies {

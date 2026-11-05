@@ -185,7 +185,10 @@ async fn check(
     version: &RustVersion,
     context: &Context,
 ) -> Result<Vec<Finding>, CheckMsrvError> {
-    let toolchain = Toolchain::resolve(Channel::new(version.get()), context.root())
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new(version.get()))
+        .root(context.root())
+        .call()
         .await
         .map_err(|source| CheckMsrvError::UnresolvedToolchain {
             version: version.clone(),

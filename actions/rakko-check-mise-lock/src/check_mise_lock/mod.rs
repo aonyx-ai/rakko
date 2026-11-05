@@ -137,7 +137,10 @@ impl Action for CheckMiseLock {
 ///
 /// [unaddressed]: CheckMiseLockError::UnaddressedPlatforms
 async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, CheckMiseLockError> {
-    let project = Mise::new(context.root().clone(), Trust::Inherited);
+    let project = Mise::builder()
+        .root(context.root().clone())
+        .trust(Trust::Inherited)
+        .build();
 
     let (mise, before, _worktree) = if args.fix() {
         let before = project.lockfiles().await?;
@@ -150,7 +153,10 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
             .await
             .map_err(|source| CheckMiseLockError::CopyUnavailable { source })?;
 
-        let copy = Mise::new(worktree.root().clone(), Trust::Granted);
+        let copy = Mise::builder()
+            .root(worktree.root().clone())
+            .trust(Trust::Granted)
+            .build();
 
         let before = copy.lockfiles().await?;
 

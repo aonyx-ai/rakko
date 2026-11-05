@@ -107,7 +107,10 @@ impl Node {
         if report.failures().is_empty() && !execution.status().success() {
             let stderr = execution.stderr().to_string_lossy();
 
-            return Err(ObserveNodeError::silent(&stdout, &stderr));
+            return Err(ObserveNodeError::silent()
+                .stdout(&stdout)
+                .stderr(&stderr)
+                .call());
         }
 
         Ok(report)
@@ -124,7 +127,11 @@ impl Node {
     /// Returns a [`ResolveToolError`] when mise reports no node for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(NODE), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(NODE))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

@@ -97,10 +97,20 @@ impl Diagnostic {
         let packages = self
             .graphs
             .into_iter()
-            .map(|graph| Package::new(graph.package.name, graph.package.version))
+            .map(|graph| {
+                Package::builder()
+                    .name(graph.package.name)
+                    .version(graph.package.version)
+                    .build()
+            })
             .collect();
 
-        DenyProblem::new(self.severity, self.code, self.message, packages)
+        DenyProblem::builder()
+            .severity(self.severity)
+            .check(self.code)
+            .message(self.message)
+            .packages(packages)
+            .build()
     }
 }
 

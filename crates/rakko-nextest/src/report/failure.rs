@@ -34,8 +34,10 @@ pub struct TestFailure {
     output: String,
 }
 
+#[bon::bon]
 impl TestFailure {
     /// Creates a failure from the name of the test and its output
+    #[builder]
     pub fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -104,12 +106,14 @@ impl TestFailure {
             .filter(|line| !line.is_empty())
             .collect();
 
-        Some(Panic::new(
-            path,
-            line,
-            column,
-            (!message.is_empty()).then(|| message.join(" ")),
-        ))
+        Some(
+            Panic::builder()
+                .path(path)
+                .line(line)
+                .column(column)
+                .maybe_message((!message.is_empty()).then(|| message.join(" ")))
+                .build(),
+        )
     }
 }
 
@@ -142,7 +146,10 @@ mod tests {
 
     #[test]
     fn panic_joins_the_lines_of_the_message() {
-        let failure = TestFailure::new("probe::suite$fails", ASSERTION);
+        let failure = TestFailure::builder()
+            .name("probe::suite$fails")
+            .output(ASSERTION)
+            .build();
 
         let panic = failure.panic();
 
@@ -157,7 +164,10 @@ mod tests {
 
     #[test]
     fn panic_reads_the_location() {
-        let failure = TestFailure::new("probe::suite$fails", ASSERTION);
+        let failure = TestFailure::builder()
+            .name("probe::suite$fails")
+            .output(ASSERTION)
+            .build();
 
         let panic = failure.panic();
 
@@ -169,7 +179,10 @@ mod tests {
 
     #[test]
     fn panic_without_a_location_is_none() {
-        let failure = TestFailure::new("probe::suite$killed", "the process was killed\n");
+        let failure = TestFailure::builder()
+            .name("probe::suite$killed")
+            .output("the process was killed\n")
+            .build();
 
         let panic = failure.panic();
 
@@ -178,7 +191,10 @@ mod tests {
 
     #[test]
     fn panic_without_a_message_has_none() {
-        let failure = TestFailure::new("probe::probe$tests::fails", BARE);
+        let failure = TestFailure::builder()
+            .name("probe::probe$tests::fails")
+            .output(BARE)
+            .build();
 
         let panic = failure.panic();
 

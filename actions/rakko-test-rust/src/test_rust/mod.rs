@@ -113,7 +113,10 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
         });
     }
 
-    let nextest = Nextest::new(cargo, Lockfile::Locked);
+    let nextest = Nextest::builder()
+        .cargo(cargo)
+        .lockfile(Lockfile::Locked)
+        .build();
     let mut findings: Vec<Finding> = Vec::new();
     let mut ran = 0;
 

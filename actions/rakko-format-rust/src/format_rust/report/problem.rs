@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::Getters;
 
 /// One problem that rustfmt reported about a file
@@ -11,7 +12,7 @@ use getset::Getters;
 /// unless the plain spelling cannot describe it. A caller that reports the
 /// problem asks the root for the path relative to the project, which is the
 /// name that a reader, a machine, and a code host all recognize.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct RustfmtProblem {
     /// The absolute path of the file
     #[getset(get = "pub")]
@@ -20,13 +21,6 @@ pub struct RustfmtProblem {
     /// What rustfmt reported about the file
     #[getset(get = "pub")]
     detail: RustfmtProblemDetail,
-}
-
-impl RustfmtProblem {
-    /// Creates a problem from the path and the detail that rustfmt reported
-    pub fn new(path: PathBuf, detail: RustfmtProblemDetail) -> Self {
-        Self { path, detail }
-    }
 }
 
 /// What rustfmt reported about a file

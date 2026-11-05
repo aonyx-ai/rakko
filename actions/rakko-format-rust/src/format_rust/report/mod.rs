@@ -80,7 +80,12 @@ impl RustfmtReport {
         let mut problems: Vec<RustfmtProblem> = self
             .listed
             .iter()
-            .map(|path| RustfmtProblem::new(path.clone(), RustfmtProblemDetail::Unformatted))
+            .map(|path| {
+                RustfmtProblem::builder()
+                    .path(path.clone())
+                    .detail(RustfmtProblemDetail::Unformatted)
+                    .build()
+            })
             .collect();
         problems.extend(self.invalid.iter().cloned());
 
@@ -122,14 +127,16 @@ fn diagnostic(message: &str, following: &[&str]) -> Option<RustfmtProblem> {
         .find_map(|line| line.trim_start().strip_prefix(LOCATION_ARROW))?;
     let (path, line, column) = coordinates(arrow.trim())?;
 
-    Some(RustfmtProblem::new(
-        path,
-        RustfmtProblemDetail::Invalid {
-            line,
-            column,
-            message: message.to_owned(),
-        },
-    ))
+    Some(
+        RustfmtProblem::builder()
+            .path(path)
+            .detail(RustfmtProblemDetail::Invalid {
+                line,
+                column,
+                message: message.to_owned(),
+            })
+            .build(),
+    )
 }
 
 /// Returns the message of a line that starts a diagnostic
@@ -220,10 +227,12 @@ mod tests {
 
         assert_eq!(
             problems.first(),
-            Some(&RustfmtProblem::new(
-                PathBuf::from("/home/otter/project/src/lib.rs"),
-                RustfmtProblemDetail::Unformatted,
-            ))
+            Some(
+                &RustfmtProblem::builder()
+                    .path(PathBuf::from("/home/otter/project/src/lib.rs"))
+                    .detail(RustfmtProblemDetail::Unformatted)
+                    .build()
+            )
         );
     }
 

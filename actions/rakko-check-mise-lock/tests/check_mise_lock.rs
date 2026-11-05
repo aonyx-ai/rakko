@@ -423,7 +423,10 @@ fn action_identifies_itself_as_check_mise_lock() {
 #[tokio::test]
 async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
     let project = Project::locked(PINNED);
-    let mise = Mise::new(project.context().root().clone(), Trust::Inherited);
+    let mise = Mise::builder()
+        .root(project.context().root().clone())
+        .trust(Trust::Inherited)
+        .build();
 
     let Lock::Written { targets } = mise.lock().await.expect("mise locks the project") else {
         panic!("expected mise to lock the project");

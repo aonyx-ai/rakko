@@ -6,6 +6,7 @@
 
 mod change;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 
 pub use self::change::Change;
@@ -15,7 +16,7 @@ use crate::part::Part;
 ///
 /// The value names the part and what happened to it, and it gives the text
 /// that a finding and a repair carry.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct Difference {
     /// The part that `mise lock` touched
     #[getset(get = "pub")]
@@ -27,11 +28,6 @@ pub struct Difference {
 }
 
 impl Difference {
-    /// Creates the difference of a part
-    pub fn new(part: Part, change: Change) -> Self {
-        Self { part, change }
-    }
-
     /// Returns the message of the finding that reports the difference
     ///
     /// The message says what `mise lock` would do to the lockfile, and names
@@ -82,7 +78,10 @@ mod tests {
 
     #[test]
     fn finding_of_a_changed_part_says_that_mise_changes_it() {
-        let difference = Difference::new(part(), Change::Changed);
+        let difference = Difference::builder()
+            .part(part())
+            .change(Change::Changed)
+            .build();
 
         assert_eq!(
             difference.finding(),
@@ -92,7 +91,10 @@ mod tests {
 
     #[test]
     fn finding_of_a_removed_part_says_that_mise_removes_it() {
-        let difference = Difference::new(part(), Change::Removed);
+        let difference = Difference::builder()
+            .part(part())
+            .change(Change::Removed)
+            .build();
 
         assert_eq!(
             difference.finding(),
@@ -102,7 +104,10 @@ mod tests {
 
     #[test]
     fn finding_of_an_added_part_says_that_mise_adds_it() {
-        let difference = Difference::new(part(), Change::Added);
+        let difference = Difference::builder()
+            .part(part())
+            .change(Change::Added)
+            .build();
 
         assert_eq!(
             difference.finding(),
@@ -112,7 +117,10 @@ mod tests {
 
     #[test]
     fn repair_of_a_changed_part_says_that_mise_changed_it() {
-        let difference = Difference::new(part(), Change::Changed);
+        let difference = Difference::builder()
+            .part(part())
+            .change(Change::Changed)
+            .build();
 
         assert_eq!(
             difference.repair(),
@@ -122,7 +130,10 @@ mod tests {
 
     #[test]
     fn repair_of_a_removed_part_says_that_mise_removed_it() {
-        let difference = Difference::new(part(), Change::Removed);
+        let difference = Difference::builder()
+            .part(part())
+            .change(Change::Removed)
+            .build();
 
         assert_eq!(
             difference.repair(),
@@ -132,7 +143,10 @@ mod tests {
 
     #[test]
     fn repair_of_an_added_part_says_that_mise_added_it() {
-        let difference = Difference::new(part(), Change::Added);
+        let difference = Difference::builder()
+            .part(part())
+            .change(Change::Added)
+            .build();
 
         assert_eq!(
             difference.repair(),

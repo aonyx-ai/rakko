@@ -38,7 +38,7 @@ impl Origin {
     /// and tsc then writes a path that starts with `..`. The caller decides
     /// what to do about such a file.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 

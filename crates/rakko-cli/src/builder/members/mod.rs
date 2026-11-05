@@ -69,7 +69,12 @@ pub(super) fn merge(group: &Name, members: &[Box<dyn ErasedAction>]) -> Vec<Merg
                 .find(|flag| flag.argument().name() == argument.name())
             {
                 Some(flag) => flag.add(group, member.name(), argument),
-                None => merged.push(MergedArgument::new(member.name(), argument)),
+                None => merged.push(
+                    MergedArgument::builder()
+                        .member(member.name())
+                        .argument(argument)
+                        .build(),
+                ),
             }
         }
     }
@@ -96,12 +101,14 @@ pub(super) fn bind<'a>(
         .iter()
         .zip(values)
         .map(|(member, values)| {
-            BoundMember::bind(member.as_ref(), values).map_err(|source| {
-                BindMembersError::UnboundMember {
+            BoundMember::bind()
+                .action(member.as_ref())
+                .values(values)
+                .call()
+                .map_err(|source| BindMembersError::UnboundMember {
                     member: member.name(),
                     source,
-                }
-            })
+                })
         })
         .collect()
 }

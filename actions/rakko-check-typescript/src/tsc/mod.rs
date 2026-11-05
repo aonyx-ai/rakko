@@ -126,7 +126,10 @@ impl Tsc {
         if diagnostics.is_empty() && !execution.status().success() {
             let stderr = execution.stderr().to_string_lossy();
 
-            return Err(ObserveTscError::silent(&stdout, &stderr));
+            return Err(ObserveTscError::silent()
+                .stdout(&stdout)
+                .stderr(&stderr)
+                .call());
         }
 
         Ok(diagnostics)
@@ -143,7 +146,11 @@ impl Tsc {
     /// Returns a [`ResolveToolError`] when mise reports no tsc for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(TSC), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(TSC))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

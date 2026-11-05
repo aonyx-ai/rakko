@@ -7,6 +7,7 @@ mod detail;
 
 use std::path::PathBuf;
 
+use bon::bon;
 use getset::Getters;
 use rakko_action::{FilePath, ProjectRoot};
 
@@ -31,8 +32,10 @@ pub struct PrettierProblem {
     detail: ProblemDetail,
 }
 
+#[bon]
 impl PrettierProblem {
     /// Creates a problem from the path and the detail that prettier reported
+    #[builder]
     pub fn new(path: PathBuf, detail: ProblemDetail) -> Self {
         Self { path, detail }
     }
@@ -44,7 +47,7 @@ impl PrettierProblem {
     /// does not fit points at a report that the caller misread, and the
     /// caller decides what to do about that.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
@@ -60,7 +63,10 @@ mod tests {
 
     /// Returns a problem about the given path
     fn problem(path: PathBuf) -> PrettierProblem {
-        PrettierProblem::new(path, ProblemDetail::Unformatted)
+        PrettierProblem::builder()
+            .path(path)
+            .detail(ProblemDetail::Unformatted)
+            .build()
     }
 
     #[test]

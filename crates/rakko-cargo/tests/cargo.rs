@@ -309,7 +309,10 @@ impl Project {
 
 /// Returns a package of a root with the given name
 fn package(name: &str, documented_names: DocumentedNames) -> CargoPackage {
-    CargoPackage::new(PackageName::new(name), documented_names)
+    CargoPackage::builder()
+        .name(PackageName::new(name))
+        .documented_names(documented_names)
+        .build()
 }
 
 /// Returns the Rust toolchain that this repository builds with
@@ -1082,7 +1085,11 @@ async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
     let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("[\"{pin}\", \"nightly-2020-01-01\"]"));
 
-    let toolchain = Toolchain::resolve(Channel::new("nightly"), &project.root()).await;
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new("nightly"))
+        .root(&project.root())
+        .call()
+        .await;
 
     assert!(
         matches!(
@@ -1099,7 +1106,11 @@ async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
     let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("\"{pin}\""));
 
-    let toolchain = Toolchain::resolve(Channel::new(pin.clone()), &project.root()).await;
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new(pin.clone()))
+        .root(&project.root())
+        .call()
+        .await;
 
     assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
 }
@@ -1108,8 +1119,11 @@ async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
 async fn toolchain_resolve_an_unpinned_channel_names_the_channel() {
     let project = Project::new();
 
-    let toolchain =
-        Toolchain::resolve(Channel::new("rakko-pins-no-such-channel"), &project.root()).await;
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new("rakko-pins-no-such-channel"))
+        .root(&project.root())
+        .call()
+        .await;
 
     assert!(
         matches!(
@@ -1126,7 +1140,11 @@ async fn toolchain_resolve_outside_a_project_reports_what_mise_wrote() {
     let project = Project::bare();
     project.write("mise.toml", "this is not a configuration\n");
 
-    let toolchain = Toolchain::resolve(Channel::new("nightly"), &project.root()).await;
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new("nightly"))
+        .root(&project.root())
+        .call()
+        .await;
 
     assert!(
         matches!(

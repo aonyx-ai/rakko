@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko_action::{Finding, Location, ProjectRoot};
 use rakko_cargo::CargoRoot;
@@ -21,13 +22,14 @@ const UNUSED: &str = "unused";
 /// The manifest is the path that cargo-udeps reported, which is absolute. A
 /// finding names it relative to the project root instead, which is the name
 /// that a reader, a machine, and a code host all recognize.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct UnusedDependency {
     /// The table of the manifest that declares the dependency
     #[getset(get_copy = "pub")]
     kind: DependencyKind,
 
     /// The name of the dependency, as the manifest declares it
+    #[builder(into)]
     #[getset(get = "pub")]
     name: String,
 
@@ -37,15 +39,6 @@ pub struct UnusedDependency {
 }
 
 impl UnusedDependency {
-    /// Creates an unused dependency from what cargo-udeps reported
-    pub fn new(kind: DependencyKind, name: String, manifest: PathBuf) -> Self {
-        Self {
-            kind,
-            name,
-            manifest,
-        }
-    }
-
     /// Returns the finding that reports this dependency
     ///
     /// The finding belongs to the manifest that declares the dependency,
@@ -99,7 +92,11 @@ mod tests {
 
     /// Returns an unused dependency that the given manifest declares
     fn unused(kind: DependencyKind, manifest: &str) -> UnusedDependency {
-        UnusedDependency::new(kind, "serde".to_owned(), PathBuf::from(manifest))
+        UnusedDependency::builder()
+            .kind(kind)
+            .name("serde".to_owned())
+            .manifest(PathBuf::from(manifest))
+            .build()
     }
 
     #[test]

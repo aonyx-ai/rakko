@@ -137,7 +137,11 @@ impl Taplo {
                 tokio::time::sleep(BACKOFF * attempt).await;
             }
 
-            let observation = Observation::read(&self.start(operation).await?, operation).await;
+            let observation = Observation::read()
+                .execution(&self.start(operation).await?)
+                .operation(operation)
+                .call()
+                .await;
 
             if !observation.complete() {
                 stderr = observation.stderr().clone();
@@ -165,7 +169,11 @@ impl Taplo {
     /// Returns a [`ResolveToolError`] when mise reports no taplo for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(TAPLO), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(TAPLO))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

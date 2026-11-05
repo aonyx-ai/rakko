@@ -87,33 +87,40 @@ mod tests {
 
     /// Returns the report of a member that found a problem
     fn failed(name: Name) -> Report {
-        Report::new(
-            name,
-            Outcome::Failed {
+        Report::builder()
+            .action(name)
+            .outcome(Outcome::Failed {
                 findings: Vec::new(),
                 repairs: Vec::new(),
-            },
-        )
+            })
+            .build()
     }
 
     /// Returns the report of a member that passed
     fn passed(name: Name) -> Report {
-        Report::new(name, Outcome::Passed { summary: None })
+        Report::builder()
+            .action(name)
+            .outcome(Outcome::Passed { summary: None })
+            .build()
     }
 
     /// Returns the text of the summary of a run of the group `check`
     fn rendered(members: Vec<Report>) -> String {
-        GroupSummary::new(action_name!("check"), members).to_string()
+        GroupSummary::builder()
+            .group(action_name!("check"))
+            .members(members)
+            .build()
+            .to_string()
     }
 
     /// Returns the report of a member that stopped
     fn stopped(name: Name) -> Report {
-        Report::new(
-            name,
-            Outcome::Errored {
+        Report::builder()
+            .action(name)
+            .outcome(Outcome::Errored {
                 source: Box::new(std::io::Error::other("the tool is missing")),
-            },
-        )
+            })
+            .build()
     }
 
     #[test]
@@ -147,18 +154,18 @@ mod tests {
     #[test]
     fn render_with_members_that_changed_or_skipped_counts_them_as_passed() {
         let text = rendered(vec![
-            Report::new(
-                action_name!("format-yaml"),
-                Outcome::Changed {
+            Report::builder()
+                .action(action_name!("format-yaml"))
+                .outcome(Outcome::Changed {
                     repairs: Vec::new(),
-                },
-            ),
-            Report::new(
-                action_name!("lint-yaml"),
-                Outcome::Skipped {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("lint-yaml"))
+                .outcome(Outcome::Skipped {
                     reason: SkipReason::new("the project has no YAML file"),
-                },
-            ),
+                })
+                .build(),
         ]);
 
         assert_eq!(text, "check: 2 of 2 actions passed");

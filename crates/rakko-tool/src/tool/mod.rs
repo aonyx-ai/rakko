@@ -12,6 +12,7 @@
 mod error;
 mod name;
 
+use bon::bon;
 use getset::Getters;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
@@ -75,6 +76,7 @@ pub struct Tool {
     root: ProjectRoot,
 }
 
+#[bon]
 impl Tool {
     /// Returns the command that runs the tool
     ///
@@ -100,7 +102,7 @@ impl Tool {
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let tool = Tool::resolve(ToolName::new("taplo"), "/home/otter/project".into()).await?;
+    /// let tool = Tool::resolve().name(ToolName::new("taplo")).root("/home/otter/project".into()).call().await?;
     ///
     /// let execution = tool.invocation().arg("check").launch().await?;
     ///
@@ -145,7 +147,7 @@ impl Tool {
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let tool = Tool::resolve(ToolName::new("zizmor"), "/home/otter/project".into()).await?;
+    /// let tool = Tool::resolve().name(ToolName::new("zizmor")).root("/home/otter/project".into()).call().await?;
     ///
     /// println!("{}", tool.program());
     /// # Ok(())
@@ -154,6 +156,7 @@ impl Tool {
     ///
     /// [unavailable]: ResolveToolError::MiseUnavailable
     /// [unresolved]: ResolveToolError::UnresolvedTool
+    #[builder]
     pub async fn resolve(name: ToolName, root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let execution = Invocation::new(MISE)
             .arg(WHICH)
@@ -310,7 +313,10 @@ mod tests {
 
     /// Returns the tool that this repository pins, resolved
     async fn pinned() -> Tool {
-        Tool::resolve(ToolName::new(PINNED), root())
+        Tool::resolve()
+            .name(ToolName::new(PINNED))
+            .root(root())
+            .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins")
     }
@@ -340,7 +346,11 @@ mod tests {
     async fn resolve_outside_the_project_reports_no_location() {
         let outside = tempfile::tempdir().expect("the test creates a temporary directory");
 
-        let result = Tool::resolve(ToolName::new(PINNED), ProjectRoot::from(outside.path())).await;
+        let result = Tool::resolve()
+            .name(ToolName::new(PINNED))
+            .root(ProjectRoot::from(outside.path()))
+            .call()
+            .await;
 
         assert!(result.is_err());
     }
@@ -358,7 +368,10 @@ mod tests {
     // launcher beside the script.
     #[tokio::test]
     async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
-        let tool = Tool::resolve(ToolName::new(SCRIPTED), root())
+        let tool = Tool::resolve()
+            .name(ToolName::new(SCRIPTED))
+            .root(root())
+            .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins");
 
@@ -374,7 +387,7 @@ mod tests {
     async fn resolve_with_an_unknown_tool_names_it() {
         let name = ToolName::new("rakko-pins-no-such-tool");
 
-        let Err(error) = Tool::resolve(name, root()).await else {
+        let Err(error) = Tool::resolve().name(name).root(root()).call().await else {
             panic!("expected the lookup to report an error");
         };
 

@@ -133,6 +133,7 @@ impl Observation {
     /// that ended without success therefore also reads each file that taplo
     /// examined, and a file that it cannot read becomes a problem even when
     /// taplo lost that line. The reading changes no file.
+    #[builder]
     pub async fn read(execution: &Execution, operation: Operation) -> Self {
         let observation = self::report::read(
             &execution.stdout().to_string_lossy(),
@@ -175,7 +176,12 @@ impl Observation {
                     reason: error.to_string(),
                 };
 
-                self.problems.push(TaploProblem::new(path.clone(), detail));
+                self.problems.push(
+                    TaploProblem::builder()
+                        .path(path.clone())
+                        .detail(detail)
+                        .build(),
+                );
             }
         }
 
@@ -235,15 +241,18 @@ mod tests {
             .expect_err("the test names a path that cannot be read")
             .to_string();
 
-        TaploProblem::new(path.to_path_buf(), ProblemDetail::Invalid { reason })
+        TaploProblem::builder()
+            .path(path.to_path_buf())
+            .detail(ProblemDetail::Invalid { reason })
+            .build()
     }
 
     /// Returns one problem, so that a report has something to hold
     fn problem() -> TaploProblem {
-        TaploProblem::new(
-            PathBuf::from("/home/otter/project/a.toml"),
-            ProblemDetail::Unformatted,
-        )
+        TaploProblem::builder()
+            .path(PathBuf::from("/home/otter/project/a.toml"))
+            .detail(ProblemDetail::Unformatted)
+            .build()
     }
 
     #[test]
@@ -280,12 +289,12 @@ mod tests {
     #[tokio::test]
     async fn with_unreadable_files_of_a_file_that_a_problem_names_keeps_that_problem() {
         let (_directory, _readable, missing) = files();
-        let named = TaploProblem::new(
-            missing.clone(),
-            ProblemDetail::Invalid {
+        let named = TaploProblem::builder()
+            .path(missing.clone())
+            .detail(ProblemDetail::Invalid {
                 reason: "Permission denied (os error 13)".to_owned(),
-            },
-        );
+            })
+            .build();
         let observation = examined(vec![missing], vec![named.clone()]);
 
         let observation = observation.with_unreadable_files().await;

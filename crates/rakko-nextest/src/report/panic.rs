@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use bon::bon;
 use getset::{CopyGetters, Getters};
 
 /// Where and why a test panicked
@@ -30,9 +31,11 @@ pub struct Panic {
     message: Option<String>,
 }
 
+#[bon]
 impl Panic {
     /// Creates a panic from the location and the message that the test
     /// harness wrote
+    #[builder]
     pub fn new(path: PathBuf, line: u32, column: u32, message: Option<String>) -> Self {
         Self {
             path,

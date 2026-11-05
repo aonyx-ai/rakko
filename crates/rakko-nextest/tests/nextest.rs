@@ -121,7 +121,10 @@ impl Project {
             .next()
             .expect("the project holds one workspace");
 
-        Nextest::new(cargo, lockfile)
+        Nextest::builder()
+            .cargo(cargo)
+            .lockfile(lockfile)
+            .build()
             .observe(&workspace, &root)
             .await
     }

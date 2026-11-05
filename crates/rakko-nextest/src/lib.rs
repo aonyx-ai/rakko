@@ -47,7 +47,7 @@
 //! let root = ProjectRoot::new("/home/otter/project".into());
 //! let cargo = Cargo::resolve(root.clone()).await?;
 //! let roots = cargo.roots().await?;
-//! let nextest = Nextest::new(cargo, Lockfile::Locked);
+//! let nextest = Nextest::builder().cargo(cargo).lockfile(Lockfile::Locked).build();
 //!
 //! for workspace in &roots {
 //!     let observation = nextest.observe(workspace, &root).await?;

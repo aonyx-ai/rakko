@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::Getters;
 use rakko_action::{Finding, Location, Position, ProjectRoot};
 use rakko_cargo::CargoRoot;
@@ -30,26 +31,20 @@ const ITEM_OPENS: &str = " - ";
 /// panic for an example that ran and failed. The failure keeps the output as
 /// it is and reads it on demand, so an example that wrote nothing the crate
 /// knows still names the example.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters, Builder)]
 pub struct DoctestFailure {
     /// The name of the example, as the harness wrote it
+    #[builder(into)]
     #[getset(get = "pub")]
     name: String,
 
     /// What the example wrote while it compiled and ran
+    #[builder(into)]
     #[getset(get = "pub")]
     output: String,
 }
 
 impl DoctestFailure {
-    /// Creates a failure from the name of the example and its output
-    pub fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            output: output.into(),
-        }
-    }
-
     /// Returns the finding that reports the failure
     ///
     /// The finding names the example and carries what the example wrote, at
@@ -169,7 +164,10 @@ mod tests {
 
     #[test]
     fn finding_of_a_refused_example_carries_what_the_compiler_wrote() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - sub (line 14)", REFUSED);
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - sub (line 14)")
+            .output(REFUSED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -181,7 +179,10 @@ mod tests {
 
     #[test]
     fn finding_of_an_example_is_at_the_line_that_documents_it() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - add (line 5)")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -196,7 +197,10 @@ mod tests {
 
     #[test]
     fn finding_of_an_example_of_a_crate_reads_the_file_without_an_item() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - (line 3)", PANICKED);
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - (line 3)")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -211,7 +215,10 @@ mod tests {
 
     #[test]
     fn finding_of_an_example_outside_the_project_is_at_the_project() {
-        let failure = DoctestFailure::new("/elsewhere/src/lib.rs - add (line 5)", PANICKED);
+        let failure = DoctestFailure::builder()
+            .name("/elsewhere/src/lib.rs - add (line 5)")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -220,7 +227,10 @@ mod tests {
 
     #[test]
     fn finding_of_an_example_that_panicked_carries_the_message() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - add (line 5)")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -232,7 +242,10 @@ mod tests {
 
     #[test]
     fn finding_of_an_example_that_wrote_nothing_names_it() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", "");
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - add (line 5)")
+            .output("")
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -244,7 +257,10 @@ mod tests {
 
     #[test]
     fn finding_of_an_example_whose_name_carries_no_line_is_at_the_project() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add", PANICKED);
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - add")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 

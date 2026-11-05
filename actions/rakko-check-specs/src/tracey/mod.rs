@@ -110,7 +110,11 @@ impl Tracey {
     /// Returns a [`ResolveToolError`] when mise reports no tracey for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(TRACEY), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(TRACEY))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

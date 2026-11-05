@@ -203,7 +203,11 @@ impl Deny {
     /// Returns a [`ResolveToolError`] when mise reports no cargo-deny for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(CARGO_DENY), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(CARGO_DENY))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

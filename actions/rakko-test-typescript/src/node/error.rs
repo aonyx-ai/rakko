@@ -50,12 +50,14 @@ pub enum ObserveNodeError {
     },
 }
 
+#[bon::bon]
 impl ObserveNodeError {
     /// Returns the error of a run that ended without success and found nothing
     ///
     /// The runner writes its report on the standard output stream, so that is
     /// what the details carry. A run that stopped before it wrote one leaves
     /// its reason on the standard error stream, or says nothing at all.
+    #[builder]
     pub(super) fn silent(stdout: &str, stderr: &str) -> Self {
         Self::MissingFailure {
             details: diagnosis(stdout, stderr),
@@ -89,7 +91,10 @@ mod tests {
 
     #[test]
     fn error_of_a_silent_run_holds_what_node_wrote() {
-        let error = ObserveNodeError::silent("", "out of memory");
+        let error = ObserveNodeError::silent()
+            .stdout("")
+            .stderr("out of memory")
+            .call();
 
         assert!(
             matches!(&error, ObserveNodeError::MissingFailure { details } if details == "out of memory"),
@@ -99,7 +104,10 @@ mod tests {
 
     #[test]
     fn error_of_a_silent_run_that_wrote_nothing_holds_the_other_stream() {
-        let error = ObserveNodeError::silent("TAP version 13", "");
+        let error = ObserveNodeError::silent()
+            .stdout("TAP version 13")
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&error, ObserveNodeError::MissingFailure { details } if details == "TAP version 13"),
