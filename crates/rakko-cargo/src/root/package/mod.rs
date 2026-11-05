@@ -15,7 +15,7 @@ pub use self::name::PackageName;
 /// documents the workspace also needs to know which packages it must
 /// document apart from the others. A package carries both, so a caller reads
 /// them from the root instead of asking cargo again.
-#[derive(Clone, Eq, PartialEq, Hash, Debug, CopyGetters, Getters, Builder)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct CargoPackage {
     /// The name that the manifest of the package states
     #[getset(get = "pub")]

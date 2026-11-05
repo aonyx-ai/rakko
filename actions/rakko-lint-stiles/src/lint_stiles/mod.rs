@@ -13,6 +13,7 @@ use rakko_action::{
 };
 
 pub use self::error::LintStilesError;
+use crate::observation::Examination;
 use crate::problem::StilesProblem;
 use crate::stiles::Stiles;
 
@@ -124,7 +125,7 @@ async fn drive(context: &Context) -> Result<Outcome, LintStilesError> {
 
     let observation = stiles.observe().await?;
 
-    if !observation.examined() {
+    if observation.examined() == Examination::Skipped {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_CHECK),
         });

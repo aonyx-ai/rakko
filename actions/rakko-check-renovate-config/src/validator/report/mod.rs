@@ -348,11 +348,11 @@ fn meaning(record: Record) -> Option<Meaning> {
             errors
                 .iter()
                 .chain(warnings.iter())
-                .map(|entry| {
+                .map(|Entry { topic, message }| {
                     RenovateProblem::builder()
                         .path(path.clone())
-                        .topic(entry.topic.clone())
-                        .detail(entry.message.clone())
+                        .topic(topic.clone())
+                        .detail(message.clone())
                         .build()
                 })
                 .collect(),

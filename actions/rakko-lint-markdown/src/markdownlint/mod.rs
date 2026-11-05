@@ -11,7 +11,7 @@ use rakko_action::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveMarkdownlintError;
-use crate::observation::Observation;
+use crate::observation::{Examination, Exit, Observation};
 
 /// The name that mise knows the tool by
 const MARKDOWNLINT: &str = "markdownlint";
@@ -86,7 +86,7 @@ const NO_MATCHING_FILES: &str = "No matching files found";
 /// let markdownlint = Markdownlint::resolve(root).await?;
 /// let observation = markdownlint.observe().await?;
 ///
-/// if observation.examined() {
+/// if observation.examined() == rakko_lint_markdown::observation::Examination::Examined {
 ///     println!("{} problems", observation.problems().len());
 /// }
 /// # Ok(())
@@ -151,9 +151,17 @@ impl Markdownlint {
 
         Ok(Observation::builder()
             .problems(problems)
-            .examined(examined)
+            .examined(if examined {
+                Examination::Examined
+            } else {
+                Examination::Skipped
+            })
             .stderr(stderr.into_owned())
-            .succeeded(execution.status().success())
+            .exit(if execution.status().success() {
+                Exit::Succeeded
+            } else {
+                Exit::Failed
+            })
             .build())
     }
 

@@ -13,7 +13,7 @@ use rakko_action::Span;
 /// root that cargo checked, because the compiler runs there. A caller that
 /// reports the diagnostic asks the root for the path relative to the
 /// project.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters, Builder)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct DiagnosticSpan {
     /// The file that the diagnostic is about, as cargo wrote it
     #[builder(into)]

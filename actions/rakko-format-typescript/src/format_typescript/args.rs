@@ -8,6 +8,17 @@ use rakko_action::{
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Rewrite the files that oxfmt can format";
 
+/// What the run should do with the files that oxfmt can format
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub enum Operation {
+    /// Report the files that oxfmt would format, and rewrite nothing
+    #[default]
+    Report,
+
+    /// Rewrite the files that oxfmt can format
+    Rewrite,
+}
+
 /// The arguments that a run of the format-typescript action reads
 ///
 /// The action reads one argument. A run reports by default, and `fix` lets
@@ -17,9 +28,9 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that oxfmt can format";
 /// rewrites a project when nobody names an operation at all.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatTypeScriptArgs {
-    /// Whether the run rewrites the files that are not formatted
+    /// What the run should do with the files that are not formatted
     #[getset(get_copy = "pub")]
-    fix: bool,
+    operation: Operation,
 }
 
 impl Args for FormatTypeScriptArgs {
@@ -33,18 +44,25 @@ impl Args for FormatTypeScriptArgs {
 
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let name = argument_name!("fix");
-        let fix = match values.get(&name) {
-            Some(value) => value
-                .get()
-                .parse()
-                .map_err(|_| ReadArgsError::UnreadableValue {
-                    name,
-                    value: value.clone(),
-                })?,
-            None => false,
-        };
+        let operation =
+            match values.get(&name) {
+                Some(value) => {
+                    let fix = value.get().parse::<bool>().map_err(|_| {
+                        ReadArgsError::UnreadableValue {
+                            name,
+                            value: value.clone(),
+                        }
+                    })?;
+                    if fix {
+                        Operation::Rewrite
+                    } else {
+                        Operation::Report
+                    }
+                }
+                None => Operation::Report,
+            };
 
-        Ok(Self { fix })
+        Ok(Self { operation })
     }
 }
 
@@ -77,14 +95,14 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = FormatTypeScriptArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.operation(), Operation::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = FormatTypeScriptArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.operation(), Operation::Report);
     }
 
     #[test]

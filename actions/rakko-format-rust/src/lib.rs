@@ -28,6 +28,6 @@
 pub mod format_rust;
 
 pub use self::format_rust::{
-    FormatRust, FormatRustArgs, FormatRustError, RustfmtProblem, RustfmtProblemDetail,
-    RustfmtReport,
+    Exit, FormatRust, FormatRustArgs, FormatRustError, Operation, RustfmtProblem,
+    RustfmtProblemDetail, RustfmtReport,
 };

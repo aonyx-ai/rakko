@@ -5,6 +5,16 @@ use rakko_action::{
     Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name,
 };
 
+/// What the run does with files that are not formatted
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub enum Operation {
+    /// Report files that are not formatted
+    #[default]
+    Report,
+    /// Rewrite files that are not formatted
+    Rewrite,
+}
+
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Rewrite the files that rustfmt can format";
 
@@ -16,9 +26,9 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that rustfmt can format";
 /// the tree that its caller holds.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatRustArgs {
-    /// Whether the run rewrites the files that are not formatted
+    /// What the run does with files that are not formatted
     #[getset(get_copy = "pub")]
-    fix: bool,
+    operation: Operation,
 }
 
 impl Args for FormatRustArgs {
@@ -32,18 +42,26 @@ impl Args for FormatRustArgs {
 
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let name = argument_name!("fix");
-        let fix = match values.get(&name) {
-            Some(value) => value
-                .get()
-                .parse()
-                .map_err(|_| ReadArgsError::UnreadableValue {
-                    name,
-                    value: value.clone(),
-                })?,
-            None => false,
+        let operation = match values.get(&name) {
+            Some(value) => {
+                let fix: bool =
+                    value
+                        .get()
+                        .parse()
+                        .map_err(|_| ReadArgsError::UnreadableValue {
+                            name,
+                            value: value.clone(),
+                        })?;
+                if fix {
+                    Operation::Rewrite
+                } else {
+                    Operation::Report
+                }
+            }
+            None => Operation::Report,
         };
 
-        Ok(Self { fix })
+        Ok(Self { operation })
     }
 }
 
@@ -76,14 +94,14 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = FormatRustArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.operation(), Operation::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = FormatRustArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.operation(), Operation::Report);
     }
 
     #[test]

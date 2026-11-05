@@ -15,7 +15,7 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Outcome, ProjectRoot};
-use rakko_check_specs::{CheckSpecs, Comparison};
+use rakko_check_specs::{CheckSpecs, Comparison, Mode};
 use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
@@ -219,7 +219,7 @@ async fn comparison_leaves_the_commit_of_the_checkout_alone() {
     let project = merged();
     let before = project.git(&["rev-parse", "HEAD"]);
 
-    let comparison = Comparison::prepare(&project.root(), true)
+    let comparison = Comparison::prepare(&project.root(), Mode::PullRequest)
         .await
         .expect("the test compares the pull request with its base");
     drop(comparison);
@@ -231,7 +231,7 @@ async fn comparison_leaves_the_commit_of_the_checkout_alone() {
 async fn comparison_leaves_the_index_of_the_checkout_alone() {
     let project = merged();
 
-    let comparison = Comparison::prepare(&project.root(), true)
+    let comparison = Comparison::prepare(&project.root(), Mode::PullRequest)
         .await
         .expect("the test compares the pull request with its base");
     drop(comparison);
@@ -245,7 +245,7 @@ async fn comparison_leaves_the_index_of_the_checkout_alone() {
 async fn comparison_of_a_merge_commit_stages_the_pull_request() {
     let project = merged();
 
-    let comparison = Comparison::prepare(&project.root(), true)
+    let comparison = Comparison::prepare(&project.root(), Mode::PullRequest)
         .await
         .expect("the test compares the pull request with its base")
         .expect("the test checks out a merge commit");
@@ -262,7 +262,7 @@ async fn comparison_of_a_merge_commit_stages_the_pull_request() {
 async fn comparison_that_nothing_asked_for_is_none() {
     let project = merged();
 
-    let comparison = Comparison::prepare(&project.root(), false)
+    let comparison = Comparison::prepare(&project.root(), Mode::Local)
         .await
         .expect("the test asks for no comparison");
 

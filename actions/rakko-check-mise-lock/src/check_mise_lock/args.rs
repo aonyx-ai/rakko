@@ -8,6 +8,22 @@ use rakko_action::{
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Write the lockfiles that mise lock would change";
 
+/// One operation on lockfiles that an action runs
+///
+/// The action runs `mise lock` in one of two ways. A report names the
+/// lockfiles that a rewrite would change and leaves the project alone, so a
+/// run that a user started in order to look changes nothing. A rewrite runs
+/// `mise lock` and says which files it changed.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub enum Operation {
+    /// Report the lockfiles that mise lock would change, and write nothing
+    #[default]
+    Report,
+
+    /// Write the lockfiles that mise lock would change
+    Rewrite,
+}
+
 /// The arguments that a run of the check-mise-lock action reads
 ///
 /// The action reads one argument. A run reports by default, and `fix` runs
@@ -18,7 +34,7 @@ const FIX_DOCUMENTATION: &str = "Write the lockfiles that mise lock would change
 pub struct CheckMiseLockArgs {
     /// Whether the run writes the lockfiles of the project
     #[getset(get_copy = "pub")]
-    fix: bool,
+    operation: Operation,
 }
 
 impl Args for CheckMiseLockArgs {
@@ -43,7 +59,13 @@ impl Args for CheckMiseLockArgs {
             None => false,
         };
 
-        Ok(Self { fix })
+        let operation = if fix {
+            Operation::Rewrite
+        } else {
+            Operation::Report
+        };
+
+        Ok(Self { operation })
     }
 }
 
@@ -76,14 +98,14 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = CheckMiseLockArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.operation(), Operation::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = CheckMiseLockArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.operation(), Operation::Report);
     }
 
     #[test]

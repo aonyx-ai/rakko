@@ -360,20 +360,33 @@ mod tests {
 
     use super::*;
 
+    /// Whether a toolchain is present on the machine
+    #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+    enum Presence {
+        /// The toolchain is installed
+        #[default]
+        Installed,
+        /// The toolchain is missing
+        Missing,
+    }
+
     /// Returns a pin that the tests select from
-    fn pin(version: &str, requested: &str, installed: bool) -> Pin {
+    fn pin(version: &str, requested: &str, installed: Presence) -> Pin {
         Pin {
             version: version.to_owned(),
             requested_version: requested.to_owned(),
-            installed,
+            installed: match installed {
+                Presence::Installed => true,
+                Presence::Missing => false,
+            },
         }
     }
 
     /// Returns the pins of a project with a default and a nightly toolchain
     fn pins() -> Vec<Pin> {
         vec![
-            pin("1.98.0", "1.98.0", true),
-            pin("nightly-2026-08-11", "nightly", true),
+            pin("1.98.0", "1.98.0", Presence::Installed),
+            pin("nightly-2026-08-11", "nightly", Presence::Installed),
         ]
     }
 
@@ -388,7 +401,7 @@ mod tests {
 
     #[test]
     fn newest_of_a_pin_that_mise_completed_names_the_toolchain_it_resolved_to() {
-        let pins = vec![pin("1.85.1", "1.85", true)];
+        let pins = vec![pin("1.85.1", "1.85", Presence::Installed)];
 
         let toolchain = newest_of(&pins);
 
@@ -397,7 +410,7 @@ mod tests {
 
     #[test]
     fn newest_of_a_pin_that_nothing_installed_names_the_toolchain() {
-        let pins = vec![pin("1.98.0", "1.98.0", false)];
+        let pins = vec![pin("1.98.0", "1.98.0", Presence::Missing)];
 
         let toolchain = newest_of(&pins);
 
@@ -420,7 +433,10 @@ mod tests {
 
     #[test]
     fn newest_of_pins_in_ascending_order_answers_the_highest() {
-        let pins = vec![pin("1.88.0", "1.88.0", true), pin("1.98.0", "1.98.0", true)];
+        let pins = vec![
+            pin("1.88.0", "1.88.0", Presence::Installed),
+            pin("1.98.0", "1.98.0", Presence::Installed),
+        ];
 
         let toolchain = newest_of(&pins);
 
@@ -429,7 +445,10 @@ mod tests {
 
     #[test]
     fn newest_of_pins_in_descending_order_answers_the_highest() {
-        let pins = vec![pin("1.98.0", "1.98.0", true), pin("1.88.0", "1.88.0", true)];
+        let pins = vec![
+            pin("1.98.0", "1.98.0", Presence::Installed),
+            pin("1.88.0", "1.88.0", Presence::Installed),
+        ];
 
         let toolchain = newest_of(&pins);
 
@@ -438,7 +457,10 @@ mod tests {
 
     #[test]
     fn newest_of_pins_reads_a_part_as_a_number_and_not_as_text() {
-        let pins = vec![pin("1.9.0", "1.9.0", true), pin("1.88.0", "1.88.0", true)];
+        let pins = vec![
+            pin("1.9.0", "1.9.0", Presence::Installed),
+            pin("1.88.0", "1.88.0", Presence::Installed),
+        ];
 
         let toolchain = newest_of(&pins);
 
@@ -447,7 +469,7 @@ mod tests {
 
     #[test]
     fn newest_of_pins_that_only_name_channels_reports_no_pin() {
-        let pins = vec![pin("nightly-2026-08-11", "nightly", true)];
+        let pins = vec![pin("nightly-2026-08-11", "nightly", Presence::Installed)];
 
         let toolchain = newest_of(&pins);
 
@@ -462,7 +484,11 @@ mod tests {
 
     #[test]
     fn select_a_channel_that_a_dated_pin_names_answers_that_toolchain() {
-        let pins = vec![pin("nightly-2026-08-11", "nightly-2026-08-11", true)];
+        let pins = vec![pin(
+            "nightly-2026-08-11",
+            "nightly-2026-08-11",
+            Presence::Installed,
+        )];
 
         let toolchain = select(&pins, Channel::new("nightly"));
 
@@ -484,7 +510,7 @@ mod tests {
 
     #[test]
     fn select_a_pin_that_nothing_installed_names_the_toolchain() {
-        let pins = vec![pin("nightly-2026-08-11", "nightly", false)];
+        let pins = vec![pin("nightly-2026-08-11", "nightly", Presence::Missing)];
 
         let toolchain = select(&pins, Channel::new("nightly"));
 

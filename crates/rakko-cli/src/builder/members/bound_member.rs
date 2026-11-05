@@ -83,10 +83,20 @@ mod tests {
 
     use super::*;
 
+    /// Whether the formatter should write
+    #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+    enum Operation {
+        /// Only report what the formatter found
+        #[default]
+        Report,
+        /// Rewrite the files that the formatter can format
+        Rewrite,
+    }
+
     /// The arguments of the formatter: whether the run repairs what it finds
     struct Fix {
         /// Whether the run rewrites the files that it can format
-        fix: bool,
+        operation: Operation,
     }
 
     impl Args for Fix {
@@ -100,12 +110,16 @@ mod tests {
 
         fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
             match values.get(&argument_name!("fix")) {
-                Some(value) if value.get() == "true" => Ok(Self { fix: true }),
+                Some(value) if value.get() == "true" => Ok(Self {
+                    operation: Operation::Rewrite,
+                }),
                 Some(value) => Err(ReadArgsError::UnreadableValue {
                     name: argument_name!("fix"),
                     value: value.clone(),
                 }),
-                None => Ok(Self { fix: false }),
+                None => Ok(Self {
+                    operation: Operation::Report,
+                }),
             }
         }
     }
@@ -121,10 +135,9 @@ mod tests {
         }
 
         fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-            if args.fix {
-                Access::Write
-            } else {
-                Access::Read
+            match args.operation {
+                Operation::Rewrite => Access::Write,
+                Operation::Report => Access::Read,
             }
         }
 

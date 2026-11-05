@@ -45,7 +45,7 @@ pub mod operation;
 pub mod problem;
 pub mod taplo;
 
-pub use self::observation::Observation;
+pub use self::observation::{Exit, Observation};
 pub use self::operation::Operation;
 pub use self::problem::{ProblemDetail, TaploProblem};
 pub use self::taplo::{ObserveTaploError, Taplo};

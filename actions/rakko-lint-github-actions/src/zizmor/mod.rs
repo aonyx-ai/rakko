@@ -11,7 +11,7 @@ use rakko_action::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveZizmorError;
-use crate::observation::Observation;
+use crate::observation::{Collection, Observation};
 
 /// The name that mise knows the tool by
 const ZIZMOR: &str = "zizmor";
@@ -97,7 +97,7 @@ const HIGHEST_FINDING: i32 = 14;
 /// let zizmor = Zizmor::resolve(root).await?;
 /// let observation = zizmor.observe().await?;
 ///
-/// if observation.collected() {
+/// if observation.collected() == rakko_lint_github_actions::observation::Collection::Collected {
 ///     println!("{} problems", observation.problems().len());
 /// }
 /// # Ok(())
@@ -153,7 +153,7 @@ impl Zizmor {
         };
 
         if status == Collection::Empty {
-            return Ok(Observation::builder().collected(false).build());
+            return Ok(Observation::builder().collected(Collection::Empty).build());
         }
 
         let stdout = execution.stdout().to_string_lossy();
@@ -189,20 +189,6 @@ impl Zizmor {
     }
 }
 
-/// What a run of zizmor found to audit
-///
-/// Zizmor reports an empty array for a project that it audited and found
-/// clean, and for a project where it collected no file at all. Its exit status
-/// is what separates the two.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-enum Collection {
-    /// Zizmor collected no file to audit
-    Empty,
-
-    /// Zizmor collected files and audited them
-    Audited,
-}
-
 /// Returns what a run found to audit, or `None` for a run that stopped
 ///
 /// Zizmor ends with success when it audited the project and found nothing,
@@ -212,9 +198,9 @@ enum Collection {
 /// before it had audited the project.
 fn audited(status: Option<i32>) -> Option<Collection> {
     match status? {
-        CLEAN => Some(Collection::Audited),
+        CLEAN => Some(Collection::Collected),
         NOTHING_COLLECTED => Some(Collection::Empty),
-        code if (LOWEST_FINDING..=HIGHEST_FINDING).contains(&code) => Some(Collection::Audited),
+        code if (LOWEST_FINDING..=HIGHEST_FINDING).contains(&code) => Some(Collection::Collected),
         _ => None,
     }
 }
@@ -231,7 +217,7 @@ mod tests {
     fn audited_of_a_clean_run_reports_an_audit() {
         let collection = audited(Some(CLEAN));
 
-        assert_eq!(collection, Some(Collection::Audited));
+        assert_eq!(collection, Some(Collection::Collected));
     }
 
     #[test]
@@ -245,7 +231,7 @@ mod tests {
     fn audited_of_a_run_that_reported_a_finding_reports_an_audit() {
         let collection = audited(Some(HIGHEST_FINDING));
 
-        assert_eq!(collection, Some(Collection::Audited));
+        assert_eq!(collection, Some(Collection::Collected));
     }
 
     #[test]

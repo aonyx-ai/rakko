@@ -19,6 +19,28 @@ use rakko_tool::Execution;
 use crate::operation::Operation;
 use crate::problem::PrettierProblem;
 
+/// The exit status of a prettier run
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Exit {
+    /// Prettier ended with success
+    Succeeded,
+
+    /// Prettier encountered an error
+    #[default]
+    Failed,
+}
+
+/// Whether a prettier run matched the given file pattern
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Pattern {
+    /// The pattern matched at least one file
+    #[default]
+    Matched,
+
+    /// The pattern matched no files
+    Unmatched,
+}
+
 /// What one run of prettier produced
 ///
 /// The value holds the answer of one run: whether prettier ended with
@@ -56,7 +78,7 @@ pub struct Observation {
 
     /// Whether prettier ended with success
     #[getset(get_copy = "pub")]
-    succeeded: bool,
+    exit: Exit,
 
     /// Whether prettier refused the pattern of the run because nothing
     /// matched it
@@ -66,7 +88,7 @@ pub struct Observation {
     /// caller answers it as a run that had nothing to examine, not as a
     /// failure.
     #[getset(get_copy = "pub")]
-    unmatched_pattern: bool,
+    unmatched_pattern: Pattern,
 }
 
 #[bon]
@@ -85,15 +107,15 @@ impl Observation {
         rejected_configuration: Option<String>,
         #[builder(default)] rewritten: Vec<PathBuf>,
         #[builder(into, default)] stderr: String,
-        #[builder(default)] succeeded: bool,
-        #[builder(default)] unmatched_pattern: bool,
+        #[builder(default)] exit: Exit,
+        #[builder(default)] unmatched_pattern: Pattern,
     ) -> Self {
         Self {
             problems,
             rejected_configuration,
             rewritten,
             stderr,
-            succeeded,
+            exit,
             unmatched_pattern,
         }
     }
@@ -106,10 +128,15 @@ impl Observation {
     /// nothing else.
     #[builder]
     pub fn read(execution: &Execution, operation: Operation) -> Self {
+        let exit = if execution.status().success() {
+            Exit::Succeeded
+        } else {
+            Exit::Failed
+        };
         self::report::read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),
-            execution.status().success(),
+            exit,
             operation,
         )
     }

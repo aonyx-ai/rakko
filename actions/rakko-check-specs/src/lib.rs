@@ -59,6 +59,6 @@ pub mod problem;
 pub mod tracey;
 
 pub use self::check_specs::{CheckSpecs, CheckSpecsError};
-pub use self::comparison::{Comparison, PrepareComparisonError};
+pub use self::comparison::{Comparison, Mode, PrepareComparisonError};
 pub use self::problem::TraceyProblem;
 pub use self::tracey::{Coverage, ObserveTraceyError, Tracey};

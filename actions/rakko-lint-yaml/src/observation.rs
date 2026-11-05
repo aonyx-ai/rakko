@@ -11,6 +11,16 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::YamllintProblem;
 
+/// The completion status of a yamllint run
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Examination {
+    /// Yamllint examined every file that it had collected
+    #[default]
+    Completed,
+    /// Yamllint stopped early
+    Stopped,
+}
+
 /// What one run of yamllint produced
 ///
 /// The value holds the answer of one run: the rules that yamllint reported,
@@ -29,7 +39,7 @@ pub struct Observation {
 
     /// Whether yamllint examined every file that it had collected
     #[getset(get_copy = "pub")]
-    finished: bool,
+    examined: Examination,
 
     /// What yamllint wrote to its standard error stream
     ///
@@ -53,12 +63,12 @@ impl Observation {
     #[builder]
     pub fn new(
         #[builder(default)] problems: Vec<YamllintProblem>,
-        #[builder(default = true)] finished: bool,
+        #[builder(default)] examined: Examination,
         #[builder(into, default)] stderr: String,
     ) -> Self {
         Self {
             problems,
-            finished,
+            examined,
             stderr,
         }
     }

@@ -88,7 +88,7 @@ impl Action for FormatJson {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
+        if args.operation() == Operation::Rewrite {
             Access::Write
         } else {
             Access::Read
@@ -122,7 +122,7 @@ async fn drive(context: &Context, args: &FormatJsonArgs) -> Result<Outcome, Form
         .await
         .map_err(|source| FormatJsonError::UnresolvedTool { source })?;
 
-    if args.fix() {
+    if args.operation() == Operation::Rewrite {
         fix(&prettier, &filter, context.root()).await
     } else {
         report(&prettier, &filter, context.root()).await
@@ -271,13 +271,13 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatJsonError> 
         });
     }
 
-    if observation.unmatched_pattern() {
+    if observation.unmatched_pattern() == rakko_prettier::Pattern::Unmatched {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         }));
     }
 
-    if observation.problems().is_empty() && !observation.succeeded() {
+    if observation.problems().is_empty() && observation.exit() != rakko_prettier::Exit::Succeeded {
         return Err(FormatJsonError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
         });
@@ -452,8 +452,8 @@ mod tests {
     #[test]
     fn guard_of_a_run_that_matched_no_file_skips() {
         let observation = Observation::builder()
-            .succeeded(true)
-            .unmatched_pattern(true)
+            .exit(rakko_prettier::Exit::Succeeded)
+            .unmatched_pattern(rakko_prettier::Pattern::Unmatched)
             .build();
 
         let outcome = guard(&observation).unwrap();
@@ -466,7 +466,9 @@ mod tests {
 
     #[test]
     fn guard_of_a_run_that_reported_normally_reports_nothing() {
-        let observation = Observation::builder().succeeded(true).build();
+        let observation = Observation::builder()
+            .exit(rakko_prettier::Exit::Succeeded)
+            .build();
 
         let outcome = guard(&observation).unwrap();
 
@@ -476,7 +478,7 @@ mod tests {
     #[test]
     fn guard_of_a_run_without_its_configuration_stops() {
         let observation = Observation::builder()
-            .succeeded(true)
+            .exit(rakko_prettier::Exit::Succeeded)
             .rejected_configuration("Ignored unknown option { notAnOption: 5 }.".to_owned())
             .build();
 

@@ -153,10 +153,20 @@ mod tests {
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
     use crate::{action_name, argument_name};
 
+    /// What a formatter run does
+    #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+    enum Operation {
+        /// Report the files that the tool would change
+        Report,
+
+        /// Rewrite the files that the tool can format
+        Rewrite,
+    }
+
     /// The arguments of the formatter: whether the run repairs what it finds
     struct Fix {
         /// Whether the run rewrites the files that it can format
-        fix: bool,
+        fix: Operation,
     }
 
     impl Args for Fix {
@@ -169,9 +179,12 @@ mod tests {
         }
 
         fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
-            Ok(Self {
-                fix: values.get(&argument_name!("fix")).is_some(),
-            })
+            let fix = if values.get(&argument_name!("fix")).is_some() {
+                Operation::Rewrite
+            } else {
+                Operation::Report
+            };
+            Ok(Self { fix })
         }
     }
 
@@ -186,10 +199,9 @@ mod tests {
         }
 
         fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-            if args.fix {
-                Access::Write
-            } else {
-                Access::Read
+            match args.fix {
+                Operation::Rewrite => Access::Write,
+                Operation::Report => Access::Read,
             }
         }
 

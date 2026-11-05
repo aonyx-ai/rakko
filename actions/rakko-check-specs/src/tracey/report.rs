@@ -82,13 +82,21 @@ pub(super) struct Status {
 impl Status {
     /// Returns the coverage of every specification of the project together
     pub(super) fn coverage(&self) -> Coverage {
-        self.impls.iter().fold(Coverage::default(), |total, one| {
-            Coverage::builder()
-                .total(total.total() + one.total_rules)
-                .covered(total.covered() + one.covered_rules)
-                .verified(total.verified() + one.verified_rules)
-                .build()
-        })
+        self.impls.iter().fold(
+            Coverage::default(),
+            |total,
+             ImplCoverage {
+                 total_rules,
+                 covered_rules,
+                 verified_rules,
+             }| {
+                Coverage::builder()
+                    .total(total.total() + total_rules)
+                    .covered(total.covered() + covered_rules)
+                    .verified(total.verified() + verified_rules)
+                    .build()
+            },
+        )
     }
 }
 

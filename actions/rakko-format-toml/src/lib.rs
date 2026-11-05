@@ -29,4 +29,4 @@
 
 pub mod format_toml;
 
-pub use self::format_toml::{FormatToml, FormatTomlArgs, FormatTomlError};
+pub use self::format_toml::{FormatOperation, FormatToml, FormatTomlArgs, FormatTomlError};

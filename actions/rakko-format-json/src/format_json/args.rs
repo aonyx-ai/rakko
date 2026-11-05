@@ -4,6 +4,7 @@ use getset::CopyGetters;
 use rakko_action::{
     Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name,
 };
+use rakko_prettier::Operation;
 
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Rewrite the files that prettier can format";
@@ -18,7 +19,7 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that prettier can format";
 pub struct FormatJsonArgs {
     /// Whether the run rewrites the files that are not formatted
     #[getset(get_copy = "pub")]
-    fix: bool,
+    operation: Operation,
 }
 
 impl Args for FormatJsonArgs {
@@ -43,7 +44,13 @@ impl Args for FormatJsonArgs {
             None => false,
         };
 
-        Ok(Self { fix })
+        let operation = if fix {
+            Operation::Rewrite
+        } else {
+            Operation::Report
+        };
+
+        Ok(Self { operation })
     }
 }
 
@@ -76,14 +83,14 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = FormatJsonArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.operation(), Operation::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = FormatJsonArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.operation(), Operation::Report);
     }
 
     #[test]

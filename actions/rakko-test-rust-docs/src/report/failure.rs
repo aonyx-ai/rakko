@@ -31,7 +31,7 @@ const ITEM_OPENS: &str = " - ";
 /// panic for an example that ran and failed. The failure keeps the output as
 /// it is and reads it on demand, so an example that wrote nothing the crate
 /// knows still names the example.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters, Builder)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct DoctestFailure {
     /// The name of the example, as the harness wrote it
     #[builder(into)]

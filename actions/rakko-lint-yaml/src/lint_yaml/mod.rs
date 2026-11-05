@@ -13,7 +13,7 @@ use rakko_action::{
 };
 
 pub use self::error::LintYamlError;
-use crate::observation::Observation;
+use crate::observation::{Examination, Observation};
 use crate::problem::YamllintProblem;
 use crate::yamllint::Yamllint;
 
@@ -186,11 +186,11 @@ fn findings(
 ///
 /// [incomplete]: LintYamlError::IncompleteExamination
 fn guard(observation: &Observation, examined: usize) -> Result<Option<Outcome>, LintYamlError> {
-    if !observation.finished() {
+    let Examination::Completed = observation.examined() else {
         return Err(LintYamlError::IncompleteExamination {
             details: observation.stderr().clone(),
         });
-    }
+    };
 
     if !observation.problems().is_empty() {
         return Ok(None);
@@ -338,7 +338,9 @@ mod tests {
 
     #[test]
     fn guard_of_a_run_that_stopped_early_stops() {
-        let observation = Observation::builder().finished(false).build();
+        let observation = Observation::builder()
+            .examined(Examination::Stopped)
+            .build();
 
         let error = guard(&observation, 3).unwrap_err();
 

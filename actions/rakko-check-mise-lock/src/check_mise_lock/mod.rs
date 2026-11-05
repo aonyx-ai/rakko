@@ -16,7 +16,7 @@ use rakko_action::{
 };
 use rakko_worktree::Worktree;
 
-pub use self::args::CheckMiseLockArgs;
+pub use self::args::{CheckMiseLockArgs, Operation};
 pub use self::error::CheckMiseLockError;
 use crate::difference::Difference;
 use crate::lockfile::Lockfile;
@@ -96,7 +96,7 @@ impl Action for CheckMiseLock {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
+        if args.operation() == Operation::Rewrite {
             Access::Write
         } else {
             Access::Read
@@ -142,7 +142,7 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
         .trust(Trust::Inherited)
         .build();
 
-    let (mise, before, _worktree) = if args.fix() {
+    let (mise, before, _worktree) = if args.operation() == Operation::Rewrite {
         let before = project.lockfiles().await?;
 
         (project, before, None)
@@ -189,7 +189,7 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
         });
     }
 
-    if args.fix() {
+    if args.operation() == Operation::Rewrite {
         Ok(Outcome::Changed {
             repairs: findings(&differences, Difference::repair),
         })

@@ -11,6 +11,26 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::MarkdownlintProblem;
 
+/// Whether markdownlint examined a file of the project
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Examination {
+    /// Markdownlint examined a file
+    #[default]
+    Examined,
+    /// Markdownlint examined no file
+    Skipped,
+}
+
+/// Whether markdownlint ended with success
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Exit {
+    /// Markdownlint ended with success
+    #[default]
+    Succeeded,
+    /// Markdownlint ended without success
+    Failed,
+}
+
 /// What one run of markdownlint produced
 ///
 /// The value holds the answer of one run: the rules that markdownlint
@@ -30,7 +50,7 @@ pub struct Observation {
 
     /// Whether markdownlint examined a file of the project
     #[getset(get_copy = "pub")]
-    examined: bool,
+    examined: Examination,
 
     /// What markdownlint wrote to its standard error stream
     ///
@@ -41,7 +61,7 @@ pub struct Observation {
 
     /// Whether markdownlint ended with success
     #[getset(get_copy = "pub")]
-    succeeded: bool,
+    exit: Exit,
 }
 
 #[bon]
@@ -58,15 +78,15 @@ impl Observation {
     #[builder]
     pub fn new(
         #[builder(default)] problems: Vec<MarkdownlintProblem>,
-        #[builder(default = true)] examined: bool,
+        #[builder(default)] examined: Examination,
         #[builder(into, default)] stderr: String,
-        #[builder(default = true)] succeeded: bool,
+        #[builder(default)] exit: Exit,
     ) -> Self {
         Self {
             problems,
             examined,
             stderr,
-            succeeded,
+            exit,
         }
     }
 }

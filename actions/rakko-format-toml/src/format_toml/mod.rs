@@ -18,7 +18,7 @@ use rakko_action::{
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
-pub use self::args::FormatTomlArgs;
+pub use self::args::{FormatOperation, FormatTomlArgs};
 pub use self::error::FormatTomlError;
 
 /// The message of a finding about a file that is not formatted
@@ -75,7 +75,7 @@ impl Action for FormatToml {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
+        if args.operation() == FormatOperation::Rewrite {
             Access::Write
         } else {
             Access::Read
@@ -115,7 +115,7 @@ async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, Form
         return Ok(passed(&observation));
     }
 
-    if args.fix() {
+    if args.operation() == FormatOperation::Rewrite {
         fix(&taplo, observation.problems(), context.root()).await
     } else {
         Ok(Outcome::Failed {

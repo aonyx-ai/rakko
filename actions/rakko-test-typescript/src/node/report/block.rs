@@ -32,6 +32,16 @@ const ESCAPE: char = '\\';
 /// The character that separates the parts of a place
 const PLACE_SEPARATOR: char = ':';
 
+/// The state of a report block
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub enum BlockState {
+    /// The report still accepts lines for the block
+    #[default]
+    Open,
+    /// The report closed the block
+    Closed,
+}
+
 /// One indented block of a report
 ///
 /// The report writes a block below every line that states a result, and the
@@ -48,8 +58,8 @@ pub struct Block {
     /// The indentation of the lines that state the entries of the block
     indent: usize,
 
-    /// Whether the report has closed the block
-    closed: bool,
+    /// The state of the block
+    state: BlockState,
 
     /// The entries of the block, in the order that the report wrote them
     entries: Vec<(String, Scalar)>,
@@ -63,7 +73,7 @@ impl Block {
     pub fn new(indent: usize) -> Self {
         Self {
             indent,
-            closed: false,
+            state: BlockState::Open,
             entries: Vec::new(),
             collecting: None,
         }
@@ -74,7 +84,10 @@ impl Block {
     /// A block takes every line until the report closes it, so that a caller
     /// hands it the lines of a value that reads like anything else.
     pub fn open(&self) -> bool {
-        !self.closed
+        match self.state {
+            BlockState::Open => true,
+            BlockState::Closed => false,
+        }
     }
 
     /// Adds a line of the report to the block
@@ -106,7 +119,7 @@ impl Block {
         let stated = line.trim();
 
         if stated == CLOSE {
-            self.closed = true;
+            self.state = BlockState::Closed;
             return Ok(());
         }
 

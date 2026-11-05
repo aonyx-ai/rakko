@@ -19,9 +19,9 @@ use rakko_action::{
 };
 use rakko_cargo::{Cargo, CargoRoot, Channel, Toolchain};
 
-pub use self::args::FormatRustArgs;
+pub use self::args::{FormatRustArgs, Operation};
 pub use self::error::FormatRustError;
-pub use self::report::{RustfmtProblem, RustfmtProblemDetail, RustfmtReport};
+pub use self::report::{Exit, RustfmtProblem, RustfmtProblemDetail, RustfmtReport};
 
 /// The reason of a run whose cargo discovered no workspace
 const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
@@ -101,7 +101,7 @@ impl Action for FormatRust {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
+        if args.operation() == Operation::Rewrite {
             Access::Write
         } else {
             Access::Read
@@ -163,7 +163,7 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
             continue;
         }
 
-        if args.fix() {
+        if args.operation() == Operation::Rewrite {
             let (repaired, remaining) = fix(&cargo, &toolchain, root, &checked).await?;
             repairs.extend(
                 repaired
@@ -308,7 +308,7 @@ async fn observe(
         });
     }
 
-    if !report.succeeded() && report.listed().is_empty() && report.invalid().is_empty() {
+    if report.exit() == Exit::Failed && report.listed().is_empty() && report.invalid().is_empty() {
         return Err(FormatRustError::UnrecognizedReport {
             root: root.directory().clone(),
             stderr: report.stderr().clone(),

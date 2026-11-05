@@ -11,6 +11,16 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::ZizmorProblem;
 
+/// Whether zizmor collected a file to audit
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Collection {
+    /// Zizmor collected a file
+    #[default]
+    Collected,
+    /// Zizmor collected no file
+    Empty,
+}
+
 /// What one run of zizmor produced
 ///
 /// The value holds the answer of one run: the places that zizmor reported,
@@ -28,7 +38,7 @@ pub struct Observation {
 
     /// Whether zizmor collected a file to audit
     #[getset(get_copy = "pub")]
-    collected: bool,
+    collected: Collection,
 }
 
 #[bon]
@@ -45,7 +55,7 @@ impl Observation {
     #[builder]
     pub fn new(
         #[builder(default)] problems: Vec<ZizmorProblem>,
-        #[builder(default = true)] collected: bool,
+        #[builder(default)] collected: Collection,
     ) -> Self {
         Self {
             problems,

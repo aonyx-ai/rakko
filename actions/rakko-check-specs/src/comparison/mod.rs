@@ -38,6 +38,16 @@ use tempfile::TempDir;
 pub use self::error::PrepareComparisonError;
 use crate::environment::inherited;
 
+/// Whether to build a pull request comparison or use the local checkout
+#[derive(Copy, Clone, Debug)]
+pub enum Mode {
+    /// Compare the pull request with its base branch
+    PullRequest,
+
+    /// Compare the local checkout with its HEAD
+    Local,
+}
+
 /// The program that manages the repository of a project
 const GIT: &str = "git";
 
@@ -89,11 +99,11 @@ impl Comparison {
     /// refuses to build the copy.
     pub async fn prepare(
         root: &ProjectRoot,
-        requested: bool,
+        mode: Mode,
     ) -> Result<Option<Self>, PrepareComparisonError> {
-        if !requested {
+        let Mode::PullRequest = mode else {
             return Ok(None);
-        }
+        };
 
         let repository = root.get().to_path_buf();
 

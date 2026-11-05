@@ -307,7 +307,7 @@ fn split<'a>(lines: &'a [&'a str]) -> Result<(&'a [&'a str], &'a [&'a str]), Rea
 ///
 /// Returns `None` when the line states no result at all.
 fn start(line: &str) -> Option<Pending> {
-    let failed = match line.strip_prefix(NOT_OK) {
+    let is_not_ok = match line.strip_prefix(NOT_OK) {
         Some(_) => true,
         None => {
             line.strip_prefix(OK)?;
@@ -318,11 +318,16 @@ fn start(line: &str) -> Option<Pending> {
     let (_, named) = line.split_once(NAME_OPEN)?;
     let (name, directive) = split_directive(named);
 
+    let outcome = match is_not_ok && directive.is_none() {
+        true => TestOutcome::Failed,
+        false => TestOutcome::Passed,
+    };
+
     Some(Pending {
         name: unescape(name),
         // A directive excuses whatever the test did, and the runner counts
         // such a test as neither passed nor failed.
-        failed: failed && directive.is_none(),
+        outcome,
         origin: None,
         reason: None,
         kind: None,
@@ -361,6 +366,16 @@ fn unreadable(line: &str) -> ReadReportError {
     }
 }
 
+/// The outcome of a test
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+enum TestOutcome {
+    /// The test passed
+    #[default]
+    Passed,
+    /// The test failed
+    Failed,
+}
+
 /// One result of a report whose block the reading has yet to see
 ///
 /// The report writes the block of a result below the line that states it, so a
@@ -371,7 +386,7 @@ struct Pending {
     name: String,
 
     /// Whether the test counts as failed
-    failed: bool,
+    outcome: TestOutcome,
 
     /// The place where the project declares the test
     origin: Option<Origin>,
@@ -390,7 +405,7 @@ impl Pending {
     /// because a test below it failed, because that test is in the list
     /// already, at the place where a reader repairs it.
     fn collect(self, failures: &mut Vec<Failure>) {
-        if !self.failed || self.kind.as_deref() == Some(SUBTESTS_FAILED) {
+        if self.outcome == TestOutcome::Passed || self.kind.as_deref() == Some(SUBTESTS_FAILED) {
             return;
         }
 

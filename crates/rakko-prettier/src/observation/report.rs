@@ -48,7 +48,7 @@ const SECONDS: &str = "s";
 pub(super) fn read(
     stdout: &str,
     stderr: &str,
-    succeeded: bool,
+    exit: super::Exit,
     operation: Operation,
 ) -> Observation {
     let mut observation = Observation {
@@ -56,8 +56,8 @@ pub(super) fn read(
         rejected_configuration: None,
         rewritten: Vec::new(),
         stderr: stderr.to_owned(),
-        succeeded,
-        unmatched_pattern: false,
+        exit,
+        unmatched_pattern: super::Pattern::Matched,
     };
 
     for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
@@ -96,7 +96,7 @@ pub(super) fn read(
                 observation.rejected_configuration = Some(rejection(report, &lines[index + 1..]));
             }
         } else if report.starts_with(UNMATCHED_PATTERN) {
-            observation.unmatched_pattern = true;
+            observation.unmatched_pattern = super::Pattern::Unmatched;
         } else {
             match quoted_path(report, UNREADABLE) {
                 Some(path) => {
@@ -258,7 +258,7 @@ mod tests {
 
     /// Returns the detail of the only problem of a report
     fn detail(stderr: &str) -> ProblemDetail {
-        let observation = read("", stderr, false, Operation::Report);
+        let observation = read("", stderr, crate::Exit::Failed, Operation::Report);
 
         let [problem] = observation.problems.as_slice() else {
             panic!("expected one problem, got {:?}", observation.problems);
@@ -269,7 +269,7 @@ mod tests {
 
     #[test]
     fn read_a_clean_report_finds_no_problem() {
-        let observation = read("", "", true, Operation::Report);
+        let observation = read("", "", crate::Exit::Succeeded, Operation::Report);
 
         assert!(observation.problems.is_empty());
     }
@@ -290,21 +290,21 @@ mod tests {
 
     #[test]
     fn read_a_failed_run_reports_the_failure() {
-        let observation = read("", INVALID, false, Operation::Report);
+        let observation = read("", INVALID, crate::Exit::Failed, Operation::Report);
 
-        assert!(!observation.succeeded);
+        assert_eq!(observation.exit(), crate::Exit::Failed);
     }
 
     #[test]
     fn read_a_pattern_without_a_match_reports_it() {
-        let observation = read("", UNMATCHED, false, Operation::Report);
+        let observation = read("", UNMATCHED, crate::Exit::Failed, Operation::Report);
 
-        assert!(observation.unmatched_pattern);
+        assert_eq!(observation.unmatched_pattern(), crate::Pattern::Unmatched);
     }
 
     #[test]
     fn read_a_rejected_configuration_reports_what_prettier_said() {
-        let observation = read("", REJECTED, false, Operation::Report);
+        let observation = read("", REJECTED, crate::Exit::Failed, Operation::Report);
 
         assert_eq!(
             observation.rejected_configuration.as_deref(),
@@ -316,7 +316,7 @@ mod tests {
 
     #[test]
     fn read_a_report_names_the_files_that_differ() {
-        let observation = read(DIFFERENT, "", false, Operation::Report);
+        let observation = read(DIFFERENT, "", crate::Exit::Failed, Operation::Report);
 
         let paths: Vec<&PathBuf> = observation
             .problems
@@ -332,21 +332,21 @@ mod tests {
 
     #[test]
     fn read_a_rewrite_names_the_files_that_changed() {
-        let observation = read(WRITTEN, "", true, Operation::Rewrite);
+        let observation = read(WRITTEN, "", crate::Exit::Succeeded, Operation::Rewrite);
 
         assert_eq!(observation.rewritten, [PathBuf::from("sub/messy.md")]);
     }
 
     #[test]
     fn read_a_rewrite_reports_no_problem_of_its_own() {
-        let observation = read(WRITTEN, "", true, Operation::Rewrite);
+        let observation = read(WRITTEN, "", crate::Exit::Succeeded, Operation::Rewrite);
 
         assert!(observation.problems.is_empty());
     }
 
     #[test]
     fn read_an_ignored_option_reports_what_prettier_said() {
-        let observation = read("", IGNORED, true, Operation::Report);
+        let observation = read("", IGNORED, crate::Exit::Succeeded, Operation::Report);
 
         assert_eq!(
             observation.rejected_configuration.as_deref(),

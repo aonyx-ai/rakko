@@ -24,6 +24,17 @@ use rakko_tool::Execution;
 use crate::operation::Operation;
 use crate::problem::{ProblemDetail, TaploProblem};
 
+/// Whether a run of taplo ended with success or failure
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Exit {
+    /// Taplo ended with failure
+    #[default]
+    Failed,
+
+    /// Taplo ended with success
+    Succeeded,
+}
+
 /// What one run of taplo produced
 ///
 /// The value holds the answer of one run: whether taplo ended with success,
@@ -34,7 +45,7 @@ use crate::problem::{ProblemDetail, TaploProblem};
 /// An observation describes the run and judges nothing. A file that is not
 /// formatted and a file that taplo refused are both problems of the project,
 /// and the action that asked for the run decides what they mean for its
-/// outcome.
+/// exit.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// How many files the run examined, after its configuration excluded
@@ -75,9 +86,9 @@ pub struct Observation {
     #[getset(get = "pub")]
     stderr: String,
 
-    /// Whether taplo ended with success
+    /// Whether taplo ended with success or failure
     #[getset(get_copy = "pub")]
-    succeeded: bool,
+    exit: Exit,
 }
 
 #[bon]
@@ -96,7 +107,7 @@ impl Observation {
         #[builder(default)] problems: Vec<TaploProblem>,
         rejected_configuration: Option<String>,
         #[builder(into, default)] stderr: String,
-        #[builder(default)] succeeded: bool,
+        #[builder(default)] exit: Exit,
     ) -> Self {
         Self {
             checked,
@@ -104,7 +115,7 @@ impl Observation {
             problems,
             rejected_configuration,
             stderr,
-            succeeded,
+            exit,
         }
     }
 
@@ -119,7 +130,7 @@ impl Observation {
     /// lost the lines that held them, and the caller must not read a silent
     /// failure as an empty one.
     pub fn complete(&self) -> bool {
-        self.succeeded || !self.problems.is_empty()
+        self.exit == Exit::Succeeded || !self.problems.is_empty()
     }
 
     /// Reads what a run of taplo produced
@@ -138,7 +149,11 @@ impl Observation {
         let observation = self::report::read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),
-            execution.status().success(),
+            if execution.status().success() {
+                Exit::Succeeded
+            } else {
+                Exit::Failed
+            },
         );
 
         match operation {
@@ -160,7 +175,7 @@ impl Observation {
     /// A run that ended with success read every file, so nothing is read for
     /// it.
     async fn with_unreadable_files(mut self) -> Self {
-        if self.succeeded {
+        if self.exit == Exit::Succeeded {
             return self;
         }
 
@@ -206,7 +221,7 @@ mod tests {
     fn examined(files: Vec<PathBuf>, problems: Vec<TaploProblem>) -> Observation {
         Observation {
             examined: files,
-            ..observation(false, problems)
+            ..observation(Exit::Failed, problems)
         }
     }
 
@@ -225,11 +240,8 @@ mod tests {
     }
 
     /// Returns the observation of a run that ended the given way
-    fn observation(succeeded: bool, problems: Vec<TaploProblem>) -> Observation {
-        Observation::builder()
-            .problems(problems)
-            .succeeded(succeeded)
-            .build()
+    fn observation(exit: Exit, problems: Vec<TaploProblem>) -> Observation {
+        Observation::builder().problems(problems).exit(exit).build()
     }
 
     /// Returns the problem of a file that cannot be read
@@ -257,21 +269,21 @@ mod tests {
 
     #[test]
     fn failed_run_that_named_a_problem_is_complete() {
-        let observation = observation(false, vec![problem()]);
+        let observation = observation(Exit::Failed, vec![problem()]);
 
         assert!(observation.complete());
     }
 
     #[test]
     fn failed_run_without_a_problem_is_incomplete() {
-        let observation = observation(false, Vec::new());
+        let observation = observation(Exit::Failed, Vec::new());
 
         assert!(!observation.complete());
     }
 
     #[test]
     fn passing_run_without_a_count_is_complete() {
-        let observation = observation(true, Vec::new());
+        let observation = observation(Exit::Succeeded, Vec::new());
 
         assert!(observation.complete());
     }
@@ -307,7 +319,7 @@ mod tests {
         let (_directory, _readable, missing) = files();
         let observation = Observation {
             examined: vec![missing],
-            ..observation(true, Vec::new())
+            ..observation(Exit::Succeeded, Vec::new())
         };
 
         let observation = observation.with_unreadable_files().await;
@@ -322,7 +334,7 @@ mod tests {
             " INFO taplo:lint_files:collect_files: found files total=2 excluded=0 files=[{readable:?}, {missing:?}] cwd={:?}\n",
             directory.path()
         );
-        let observation = super::report::read("", &stderr, false);
+        let observation = super::report::read("", &stderr, Exit::Failed);
 
         let observation = observation.with_unreadable_files().await;
 

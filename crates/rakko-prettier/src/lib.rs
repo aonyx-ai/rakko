@@ -40,7 +40,7 @@
 //! let prettier = Prettier::resolve(root).await?;
 //! let observation = prettier.observe(Operation::Report, &filter).await?;
 //!
-//! if observation.unmatched_pattern() {
+//! if observation.unmatched_pattern() == rakko_prettier::Pattern::Unmatched {
 //!     println!("nothing to examine");
 //! } else {
 //!     println!("{} problems", observation.problems().len());
@@ -59,7 +59,7 @@ pub mod prettier;
 pub mod problem;
 
 pub use self::filter::{FileExtension, Filter};
-pub use self::observation::Observation;
+pub use self::observation::{Exit, Observation, Pattern};
 pub use self::operation::Operation;
 pub use self::prettier::{ObservePrettierError, Prettier};
 pub use self::problem::{PrettierProblem, ProblemDetail};

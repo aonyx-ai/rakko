@@ -11,6 +11,16 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::StilesProblem;
 
+/// Whether stiles found a file to check
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Examination {
+    /// Stiles found a file to check
+    #[default]
+    Examined,
+    /// Stiles found no file to check
+    Skipped,
+}
+
 /// What one check of stiles produced
 ///
 /// The value holds the answer of one check: the diagnostics that stiles
@@ -28,7 +38,7 @@ pub struct Observation {
 
     /// Whether stiles found a file to check
     #[getset(get_copy = "pub")]
-    examined: bool,
+    examined: Examination,
 }
 
 #[bon]
@@ -45,7 +55,7 @@ impl Observation {
     #[builder]
     pub fn new(
         #[builder(default)] problems: Vec<StilesProblem>,
-        #[builder(default = true)] examined: bool,
+        #[builder(default)] examined: Examination,
     ) -> Self {
         Self { problems, examined }
     }

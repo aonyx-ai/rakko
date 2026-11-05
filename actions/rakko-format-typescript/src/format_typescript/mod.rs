@@ -15,9 +15,9 @@ use rakko_action::{
     SkipReason, action_name,
 };
 
-pub use self::args::FormatTypeScriptArgs;
+pub use self::args::{FormatTypeScriptArgs, Operation};
 pub use self::error::FormatTypeScriptError;
-use crate::observation::Observation;
+use crate::observation::{Exit, Observation, Pattern};
 use crate::oxfmt::Oxfmt;
 use crate::problem::OxfmtProblem;
 
@@ -87,10 +87,9 @@ impl Action for FormatTypeScript {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
-            Access::Write
-        } else {
-            Access::Read
+        match args.operation() {
+            Operation::Rewrite => Access::Write,
+            Operation::Report => Access::Read,
         }
     }
 
@@ -122,10 +121,9 @@ async fn drive(
         .await
         .map_err(|source| FormatTypeScriptError::UnresolvedTool { source })?;
 
-    if args.fix() {
-        fix(&oxfmt, context.root()).await
-    } else {
-        report(&oxfmt, context.root()).await
+    match args.operation() {
+        Operation::Rewrite => fix(&oxfmt, context.root()).await,
+        Operation::Report => report(&oxfmt, context.root()).await,
     }
 }
 
@@ -323,13 +321,13 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatTypeScriptE
         });
     }
 
-    if observation.unmatched_pattern() {
+    if observation.pattern() == Pattern::Unmatched {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         }));
     }
 
-    if observation.problems().is_empty() && !observation.succeeded() {
+    if observation.problems().is_empty() && observation.exit() == Exit::Failed {
         return Err(FormatTypeScriptError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
         });

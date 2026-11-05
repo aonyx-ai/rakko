@@ -15,6 +15,28 @@ use rakko_tool::Execution;
 
 use crate::problem::OxfmtProblem;
 
+/// Whether oxfmt ended with success
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub enum Exit {
+    /// Oxfmt ended with success
+    Succeeded,
+
+    /// Oxfmt ended with failure
+    #[default]
+    Failed,
+}
+
+/// Whether oxfmt matched the pattern of the run
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub enum Pattern {
+    /// Oxfmt matched the pattern that the run named
+    #[default]
+    Matched,
+
+    /// Oxfmt did not match the pattern
+    Unmatched,
+}
+
 /// What one run of oxfmt produced
 ///
 /// The value holds the answer of one run: whether oxfmt ended with success,
@@ -45,15 +67,15 @@ pub struct Observation {
 
     /// Whether oxfmt ended with success
     #[getset(get_copy = "pub")]
-    succeeded: bool,
+    exit: Exit,
 
-    /// Whether oxfmt refused the pattern of the run because nothing matched it
+    /// Whether oxfmt matched the pattern of the run
     ///
     /// Oxfmt treats a pattern that matches nothing as an error, so this is how
     /// a run reports that the project holds no file of the language. A caller
     /// answers it as a run that had nothing to examine, not as a failure.
     #[getset(get_copy = "pub")]
-    unmatched_pattern: bool,
+    pattern: Pattern,
 }
 
 #[bon]
@@ -71,15 +93,15 @@ impl Observation {
         #[builder(default)] problems: Vec<OxfmtProblem>,
         rejected_configuration: Option<String>,
         #[builder(into, default)] stderr: String,
-        #[builder(default)] succeeded: bool,
-        #[builder(default)] unmatched_pattern: bool,
+        #[builder(default)] exit: Exit,
+        #[builder(default)] pattern: Pattern,
     ) -> Self {
         Self {
             problems,
             rejected_configuration,
             stderr,
-            succeeded,
-            unmatched_pattern,
+            exit,
+            pattern,
         }
     }
 
@@ -87,10 +109,15 @@ impl Observation {
     ///
     /// The reading takes both streams of the run and its exit status.
     pub fn read(execution: &Execution) -> Self {
+        let exit = if execution.status().success() {
+            Exit::Succeeded
+        } else {
+            Exit::Failed
+        };
         self::report::read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),
-            execution.status().success(),
+            exit,
         )
     }
 }

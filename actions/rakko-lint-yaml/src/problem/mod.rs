@@ -37,7 +37,7 @@ const LEVEL_CLOSE: &str = "] ";
 /// and not one that this crate wrote about it.
 ///
 /// [relative]: YamllintProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters, Builder)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct YamllintProblem {
     /// The path of the file, as yamllint wrote it
     #[builder(into)]
