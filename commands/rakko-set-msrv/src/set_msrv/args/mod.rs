@@ -123,6 +123,7 @@ mod tests {
     use super::*;
 
     /// Returns the values of a run that gives the arguments the given text
+    #[bon::builder]
     fn values(msrv: &str, reason: &str) -> ArgsValues {
         ArgsValues::new([
             (argument_name!("msrv"), ArgumentValue::new(msrv)),
@@ -132,7 +133,8 @@ mod tests {
 
     #[test]
     fn from_values_with_a_blank_reason_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.89.0", "  ")).unwrap_err();
+        let error =
+            SetMsrvArgs::from_values(&values().msrv("1.89.0").reason("  ").call()).unwrap_err();
 
         assert_eq!(
             error,
@@ -145,14 +147,17 @@ mod tests {
 
     #[test]
     fn from_values_with_a_complete_version_reads_it() {
-        let args = SetMsrvArgs::from_values(&values("1.89.0", "bon needs it")).unwrap();
+        let args = SetMsrvArgs::from_values(&values().msrv("1.89.0").reason("bon needs it").call())
+            .unwrap();
 
         assert_eq!(args.msrv(), &Msrv::new("1.89.0"));
     }
 
     #[test]
     fn from_values_with_a_leading_zero_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.089.0", "bon needs it")).unwrap_err();
+        let error =
+            SetMsrvArgs::from_values(&values().msrv("1.089.0").reason("bon needs it").call())
+                .unwrap_err();
 
         assert_eq!(
             error,
@@ -165,7 +170,9 @@ mod tests {
 
     #[test]
     fn from_values_with_a_line_break_in_the_reason_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.89.0", "bon\nneeds it")).unwrap_err();
+        let error =
+            SetMsrvArgs::from_values(&values().msrv("1.89.0").reason("bon\nneeds it").call())
+                .unwrap_err();
 
         assert_eq!(
             error,
@@ -178,7 +185,8 @@ mod tests {
 
     #[test]
     fn from_values_with_a_version_of_two_parts_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.89", "bon needs it")).unwrap_err();
+        let error = SetMsrvArgs::from_values(&values().msrv("1.89").reason("bon needs it").call())
+            .unwrap_err();
 
         assert_eq!(
             error,
@@ -191,7 +199,9 @@ mod tests {
 
     #[test]
     fn from_values_with_a_version_that_is_no_number_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.89.x", "bon needs it")).unwrap_err();
+        let error =
+            SetMsrvArgs::from_values(&values().msrv("1.89.x").reason("bon needs it").call())
+                .unwrap_err();
 
         assert_eq!(
             error,

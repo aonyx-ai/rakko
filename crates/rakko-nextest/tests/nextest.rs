@@ -60,6 +60,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project with the cargo of this repository
     ///
@@ -83,8 +84,8 @@ impl Project {
     /// source
     fn with_library(source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", source);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(source).call();
 
         project
     }
@@ -144,6 +145,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -200,9 +202,17 @@ fn trust(configuration: &Path) {
 #[tokio::test]
 async fn observe_a_build_script_that_fails_holds_what_nextest_wrote() {
     let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let observation = project.observe().await;
 
@@ -218,9 +228,17 @@ async fn observe_a_build_script_that_fails_holds_what_nextest_wrote() {
 #[tokio::test]
 async fn observe_a_build_script_that_fails_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let observation = project.observe().await;
 

@@ -139,11 +139,11 @@ impl Validator {
             .await
             .map_err(|source| ObserveValidatorError::ValidatorUnavailable { source })?;
 
-        answer(
-            execution.status().code(),
-            &execution.stdout().to_string_lossy(),
-            &execution.stderr().to_string_lossy(),
-        )
+        answer()
+            .code(execution.status().code())
+            .stdout(&execution.stdout().to_string_lossy())
+            .stderr(&execution.stderr().to_string_lossy())
+            .call()
     }
 
     /// Returns the validator that mise installed for the project
@@ -194,14 +194,15 @@ impl Validator {
 /// [aborted]: ObserveValidatorError::AbortedValidation
 /// [missing]: ObserveValidatorError::MissingReport
 /// [unreadable]: ObserveValidatorError::UnreadableReport
+#[bon::builder]
 fn answer(
-    code: Option<i32>,
+    #[builder(required)] code: Option<i32>,
     stdout: &str,
     stderr: &str,
 ) -> Result<Observation, ObserveValidatorError> {
     let Some(status) = status(code) else {
         return Err(ObserveValidatorError::AbortedValidation {
-            details: diagnosis(stderr, stdout),
+            details: diagnosis().stderr(stderr).stdout(stdout).call(),
         });
     };
 
@@ -220,7 +221,7 @@ fn answer(
 
     if status == Status::Invalid && observation.problems().is_empty() {
         return Err(ObserveValidatorError::MissingReport {
-            details: diagnosis(stderr, stdout),
+            details: diagnosis().stderr(stderr).stdout(stdout).call(),
         });
     }
 
@@ -258,6 +259,7 @@ fn status(code: Option<i32>) -> Option<Status> {
 /// the standard error stream, so the standard error stream answers first. A
 /// run that wrote nothing there leaves the reason in the log, or says nothing
 /// at all.
+#[bon::builder]
 fn diagnosis(stderr: &str, stdout: &str) -> String {
     let written = stderr.trim();
 
@@ -329,7 +331,11 @@ mod tests {
 
     #[test]
     fn answer_of_a_crash_stops_with_what_the_validator_wrote() {
-        let answer = answer(Some(99), "", "TypeError: boom\n");
+        let answer = answer()
+            .code(Some(99))
+            .stdout("")
+            .stderr("TypeError: boom\n")
+            .call();
 
         assert!(
             matches!(&answer, Err(ObserveValidatorError::AbortedValidation { details }) if details == "TypeError: boom"),
@@ -339,7 +345,11 @@ mod tests {
 
     #[test]
     fn answer_of_a_failed_run_without_a_problem_stops() {
-        let answer = answer(Some(INVALID), VALID_LOG, "");
+        let answer = answer()
+            .code(Some(INVALID))
+            .stdout(VALID_LOG)
+            .stderr("")
+            .call();
 
         assert!(
             matches!(answer, Err(ObserveValidatorError::MissingReport { .. })),
@@ -349,7 +359,11 @@ mod tests {
 
     #[test]
     fn answer_of_a_fatal_record_stops() {
-        let answer = answer(Some(INVALID), FATAL_LOG, "");
+        let answer = answer()
+            .code(Some(INVALID))
+            .stdout(FATAL_LOG)
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&answer, Err(ObserveValidatorError::AbortedValidation { details }) if details == "Could not parse config file"),
@@ -359,7 +373,11 @@ mod tests {
 
     #[test]
     fn answer_of_a_valid_run_holds_the_observation() {
-        let answer = answer(Some(VALID), VALID_LOG, "");
+        let answer = answer()
+            .code(Some(VALID))
+            .stdout(VALID_LOG)
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&answer, Ok(observation) if observation.problems().is_empty()),
@@ -369,7 +387,11 @@ mod tests {
 
     #[test]
     fn answer_of_an_unreadable_log_stops_with_the_log() {
-        let answer = answer(Some(VALID), "Config validated\n", "");
+        let answer = answer()
+            .code(Some(VALID))
+            .stdout("Config validated\n")
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&answer, Err(ObserveValidatorError::UnreadableReport { report, .. }) if report == "Config validated\n"),
@@ -379,14 +401,17 @@ mod tests {
 
     #[test]
     fn diagnosis_of_a_crash_holds_the_standard_error_stream() {
-        let details = diagnosis("TypeError: boom\n", "{\"level\":30}\n");
+        let details = diagnosis()
+            .stderr("TypeError: boom\n")
+            .stdout("{\"level\":30}\n")
+            .call();
 
         assert_eq!(details, "TypeError: boom");
     }
 
     #[test]
     fn diagnosis_without_an_error_stream_holds_the_log() {
-        let details = diagnosis("", "{\"level\":30}\n");
+        let details = diagnosis().stderr("").stdout("{\"level\":30}\n").call();
 
         assert_eq!(details, "{\"level\":30}");
     }

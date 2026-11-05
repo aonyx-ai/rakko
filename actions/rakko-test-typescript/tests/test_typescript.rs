@@ -60,6 +60,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a node to resolve
     ///
@@ -144,6 +145,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -238,7 +240,11 @@ fn action_identifies_itself_as_test_typescript() {
 #[tokio::test]
 async fn run_leaves_a_file_with_a_failing_test_unchanged() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     project.run().await;
 
@@ -252,7 +258,11 @@ async fn run_leaves_a_file_with_a_failing_test_unchanged() {
 #[tokio::test]
 async fn run_of_a_project_adds_no_file_of_its_own() {
     let project = Project::new();
-    project.write("src/write.test.ts", WRITING);
+    project
+        .write()
+        .path("src/write.test.ts")
+        .content(WRITING)
+        .call();
 
     project.run().await;
 
@@ -262,7 +272,11 @@ async fn run_of_a_project_adds_no_file_of_its_own() {
 #[tokio::test]
 async fn run_of_a_project_whose_failing_test_is_still_to_do_passes() {
     let project = Project::new();
-    project.write("src/add.test.ts", TO_DO);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(TO_DO)
+        .call();
 
     let outcome = project.run().await;
 
@@ -277,7 +291,11 @@ async fn run_of_a_project_whose_failing_test_is_still_to_do_passes() {
 #[tokio::test]
 async fn run_of_a_project_whose_suite_holds_a_failing_test_reports_one_finding() {
     let project = Project::new();
-    project.write("src/nested.test.ts", NESTED);
+    project
+        .write()
+        .path("src/nested.test.ts")
+        .content(NESTED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -290,7 +308,11 @@ async fn run_of_a_project_whose_suite_holds_a_failing_test_reports_one_finding()
 #[tokio::test]
 async fn run_of_a_project_whose_tests_pass_passes() {
     let project = Project::new();
-    project.write("src/add.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -303,8 +325,16 @@ async fn run_of_a_project_whose_tests_pass_passes() {
 #[tokio::test]
 async fn run_of_a_project_whose_tests_pass_says_how_many_ran() {
     let project = Project::new();
-    project.write("src/add.test.ts", PASSING);
-    project.write("src/sub.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
+    project
+        .write()
+        .path("src/sub.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -320,7 +350,11 @@ async fn run_of_a_project_whose_tests_pass_says_how_many_ran() {
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_carries_what_node_said() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -337,7 +371,11 @@ async fn run_of_a_project_with_a_failing_test_carries_what_node_said() {
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_fails() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -350,7 +388,11 @@ async fn run_of_a_project_with_a_failing_test_fails() {
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     // The helper asserts that the run left every file of the project as it
     // was.
@@ -360,7 +402,11 @@ async fn run_of_a_project_with_a_failing_test_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_names_the_test() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -377,7 +423,11 @@ async fn run_of_a_project_with_a_failing_test_names_the_test() {
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_reports_where_it_is_declared() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -398,7 +448,7 @@ async fn run_of_a_project_with_a_failing_test_reports_where_it_is_declared() {
 #[tokio::test]
 async fn run_of_a_project_without_a_test_skips() {
     let project = Project::new();
-    project.write("src/index.ts", SOURCE);
+    project.write().path("src/index.ts").content(SOURCE).call();
 
     let outcome = project.run().await;
 
@@ -414,7 +464,11 @@ async fn run_of_a_project_without_a_test_skips() {
 #[tokio::test]
 async fn run_reaches_a_test_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write("packages/core/src/deep.test.ts", FAILING);
+    project
+        .write()
+        .path("packages/core/src/deep.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -433,7 +487,11 @@ async fn run_reaches_a_test_below_a_directory_of_the_project() {
 #[tokio::test]
 async fn run_reads_the_report_of_node_rather_than_its_drawing() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -450,7 +508,11 @@ async fn run_reads_the_report_of_node_rather_than_its_drawing() {
 #[tokio::test]
 async fn run_without_a_node_stops() {
     let project = Project::without_node();
-    project.write("src/add.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 

@@ -31,6 +31,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project that pins a stiles that nothing installed
     ///
@@ -46,8 +47,12 @@ impl Project {
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
 
-        project.write(".config/stiles.toml", CONFIGURATION);
-        project.write("src/lib.rs", SOURCE);
+        project
+            .write()
+            .path(".config/stiles.toml")
+            .content(CONFIGURATION)
+            .call();
+        project.write().path("src/lib.rs").content(SOURCE).call();
 
         project
     }
@@ -69,6 +74,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 

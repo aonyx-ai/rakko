@@ -78,6 +78,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a cargo to resolve
     ///
@@ -111,8 +112,8 @@ impl Project {
     /// source
     fn with_library(source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", source);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(source).call();
 
         project
     }
@@ -121,11 +122,19 @@ impl Project {
     /// the manifest declares
     fn stale() -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", STALE);
-        project.write("Cargo.lock", LOCKFILE);
-        project.write("src/lib.rs", UNTESTED);
-        project.write("helper/Cargo.toml", HELPER);
-        project.write("helper/src/lib.rs", UNTESTED);
+        project.write().path("Cargo.toml").content(STALE).call();
+        project.write().path("Cargo.lock").content(LOCKFILE).call();
+        project.write().path("src/lib.rs").content(UNTESTED).call();
+        project
+            .write()
+            .path("helper/Cargo.toml")
+            .content(HELPER)
+            .call();
+        project
+            .write()
+            .path("helper/src/lib.rs")
+            .content(UNTESTED)
+            .call();
 
         project
     }
@@ -142,8 +151,8 @@ impl Project {
         std::fs::write(&pins, "[tools]\nrust = \"0.0.1\"\n")
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", PASSING);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(PASSING).call();
 
         project
     }
@@ -197,6 +206,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -343,9 +353,17 @@ async fn run_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
     let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let outcome = project.run().await;
 
@@ -361,9 +379,17 @@ async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let outcome = project.run().await;
 
@@ -422,8 +448,16 @@ async fn run_with_a_failing_test_holds_its_finding() {
 #[tokio::test]
 async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", FAILING);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -436,7 +470,11 @@ async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -476,8 +514,16 @@ async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
 #[tokio::test]
 async fn run_with_two_workspaces_sums_the_tests() {
     let project = Project::with_library(PASSING);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", PASSING);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -505,7 +551,11 @@ async fn run_without_a_cargo_stops() {
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Project\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Project\n")
+        .call();
 
     let outcome = project.run().await;
 

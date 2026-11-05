@@ -24,6 +24,7 @@
 use std::path::Path;
 use std::process::Command;
 
+use bon::bon;
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
 use rakko_cargo::Cargo;
 use rakko_check_unused_deps::{CheckUnusedDeps, CheckUnusedDepsError};
@@ -81,6 +82,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon]
 impl Project {
     /// Creates a project without a cargo to resolve
     ///
@@ -114,12 +116,25 @@ impl Project {
 
     /// Creates a project that declares the helper in the given tables and
     /// holds the given source in its library
+    #[builder]
     fn with_dependency(tables: &str, source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", &workspace(tables));
-        project.write("src/lib.rs", source);
-        project.write("helper/Cargo.toml", HELPER);
-        project.write("helper/src/lib.rs", HELPER_LIBRARY);
+        project
+            .write()
+            .path("Cargo.toml")
+            .content(&workspace(tables))
+            .call();
+        project.write().path("src/lib.rs").content(source).call();
+        project
+            .write()
+            .path("helper/Cargo.toml")
+            .content(HELPER)
+            .call();
+        project
+            .write()
+            .path("helper/src/lib.rs")
+            .content(HELPER_LIBRARY)
+            .call();
 
         project
     }
@@ -127,8 +142,11 @@ impl Project {
     /// Creates a project whose lockfile does not record the helper that the
     /// manifest declares
     fn stale() -> Self {
-        let project = Self::with_dependency(NORMAL, USES_HELPER);
-        project.write("Cargo.lock", LOCKFILE);
+        let project = Self::with_dependency()
+            .tables(NORMAL)
+            .source(USES_HELPER)
+            .call();
+        project.write().path("Cargo.lock").content(LOCKFILE).call();
 
         project
     }
@@ -213,6 +231,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -348,7 +367,10 @@ fn action_identifies_itself_as_check_unused_deps() {
 
 #[tokio::test]
 async fn run_in_a_project_that_uses_every_dependency_counts_the_workspaces() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -360,7 +382,10 @@ async fn run_in_a_project_that_uses_every_dependency_counts_the_workspaces() {
 // all ran on the nightly toolchain that mise pins for the project.
 #[tokio::test]
 async fn run_in_a_project_that_uses_every_dependency_passes() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -372,7 +397,10 @@ async fn run_in_a_project_that_uses_every_dependency_passes() {
 
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
-    let project = Project::with_dependency(NORMAL, CLEAN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(CLEAN)
+        .call();
     project.lock().await;
 
     // The helper asserts that the run left every file of the project as it
@@ -382,12 +410,20 @@ async fn run_leaves_the_project_unchanged() {
 
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
-    project.write(
-        "Cargo.toml",
-        &workspace(&format!("build = \"build.rs\"\n{NORMAL}")),
-    );
-    project.write("build.rs", FAILING_SCRIPT);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&workspace(&format!("build = \"build.rs\"\n{NORMAL}")))
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
 
     let outcome = project.run().await;
 
@@ -399,7 +435,10 @@ async fn run_with_a_build_script_that_fails_stops() {
 
 #[tokio::test]
 async fn run_with_a_compiler_error_names_the_file() {
-    let project = Project::with_dependency(NORMAL, BROKEN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(BROKEN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -408,7 +447,10 @@ async fn run_with_a_compiler_error_names_the_file() {
 
 #[tokio::test]
 async fn run_with_a_compiler_error_reports_the_diagnostic() {
-    let project = Project::with_dependency(NORMAL, BROKEN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(BROKEN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -422,11 +464,15 @@ async fn run_with_a_compiler_error_reports_the_diagnostic() {
 
 #[tokio::test]
 async fn run_with_a_development_dependency_that_a_test_uses_passes() {
-    let project = Project::with_dependency(DEVELOPMENT, CLEAN);
-    project.write(
-        "tests/probe.rs",
-        "#[test]\nfn uses() {\n    helper::help();\n}\n",
-    );
+    let project = Project::with_dependency()
+        .tables(DEVELOPMENT)
+        .source(CLEAN)
+        .call();
+    project
+        .write()
+        .path("tests/probe.rs")
+        .content("#[test]\nfn uses() {\n    helper::help();\n}\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -439,7 +485,11 @@ async fn run_with_a_development_dependency_that_a_test_uses_passes() {
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -480,7 +530,10 @@ async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
 // build finished, so the answer of this run is the report of cargo-udeps.
 #[tokio::test]
 async fn run_with_a_warning_reports_no_diagnostic() {
-    let project = Project::with_dependency(NORMAL, &format!("{USES_HELPER}{WARNED}"));
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(&format!("{USES_HELPER}{WARNED}"))
+        .call();
 
     let outcome = project.run().await;
 
@@ -492,7 +545,10 @@ async fn run_with_a_warning_reports_no_diagnostic() {
 
 #[tokio::test]
 async fn run_with_an_unused_dependency_fails() {
-    let project = Project::with_dependency(NORMAL, CLEAN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(CLEAN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -504,12 +560,16 @@ async fn run_with_an_unused_dependency_fails() {
 
 #[tokio::test]
 async fn run_with_an_unused_dependency_in_a_second_workspace_names_its_manifest() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
-    project.write(
-        "tools/harness/Cargo.toml",
-        "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nhelper = { path = \"../../helper\" }\n",
-    );
-    project.write("tools/harness/src/lib.rs", CLEAN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
+    project.write().path("tools/harness/Cargo.toml").content("[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nhelper = { path = \"../../helper\" }\n").call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(CLEAN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -518,7 +578,10 @@ async fn run_with_an_unused_dependency_in_a_second_workspace_names_its_manifest(
 
 #[tokio::test]
 async fn run_with_an_unused_dependency_names_the_dependency() {
-    let project = Project::with_dependency(NORMAL, CLEAN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(CLEAN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -530,7 +593,10 @@ async fn run_with_an_unused_dependency_names_the_dependency() {
 
 #[tokio::test]
 async fn run_with_an_unused_dependency_names_the_manifest() {
-    let project = Project::with_dependency(NORMAL, CLEAN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(CLEAN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -542,7 +608,10 @@ async fn run_with_an_unused_dependency_names_the_manifest() {
 // unexamined.
 #[tokio::test]
 async fn run_with_an_unused_development_dependency_names_its_kind() {
-    let project = Project::with_dependency(DEVELOPMENT, CLEAN);
+    let project = Project::with_dependency()
+        .tables(DEVELOPMENT)
+        .source(CLEAN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -557,7 +626,10 @@ async fn run_with_an_unused_development_dependency_names_its_kind() {
 // therefore unexamined.
 #[tokio::test]
 async fn run_with_an_unused_optional_dependency_names_it() {
-    let project = Project::with_dependency(OPTIONAL, CLEAN);
+    let project = Project::with_dependency()
+        .tables(OPTIONAL)
+        .source(CLEAN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -569,12 +641,16 @@ async fn run_with_an_unused_optional_dependency_names_it() {
 
 #[tokio::test]
 async fn run_with_two_workspaces_counts_both() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
-    project.write(
-        "tools/harness/Cargo.toml",
-        "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-    );
-    project.write("tools/harness/src/lib.rs", CLEAN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
+    project.write().path("tools/harness/Cargo.toml").content("[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n").call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(CLEAN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -584,10 +660,22 @@ async fn run_with_two_workspaces_counts_both() {
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
-    project.write("Cargo.toml", &workspace(NORMAL));
-    project.write("src/lib.rs", CLEAN);
-    project.write("helper/Cargo.toml", HELPER);
-    project.write("helper/src/lib.rs", HELPER_LIBRARY);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&workspace(NORMAL))
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
+    project
+        .write()
+        .path("helper/Cargo.toml")
+        .content(HELPER)
+        .call();
+    project
+        .write()
+        .path("helper/src/lib.rs")
+        .content(HELPER_LIBRARY)
+        .call();
 
     let outcome = project.run().await;
 
@@ -602,7 +690,10 @@ async fn run_without_a_cargo_stops() {
 // the helper that runs it writes the lockfile first.
 #[tokio::test]
 async fn run_without_a_lockfile_says_that_it_needs_an_update() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
 
     let outcome = CheckUnusedDeps.run(&project.context(), &()).await;
 
@@ -621,7 +712,11 @@ async fn run_without_a_lockfile_says_that_it_needs_an_update() {
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Project\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Project\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -634,10 +729,22 @@ async fn run_without_a_manifest_skips() {
 #[tokio::test]
 async fn run_without_a_pinned_nightly_stops() {
     let project = Project::without_nightly();
-    project.write("Cargo.toml", &workspace(NORMAL));
-    project.write("src/lib.rs", CLEAN);
-    project.write("helper/Cargo.toml", HELPER);
-    project.write("helper/src/lib.rs", HELPER_LIBRARY);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&workspace(NORMAL))
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
+    project
+        .write()
+        .path("helper/Cargo.toml")
+        .content(HELPER)
+        .call();
+    project
+        .write()
+        .path("helper/src/lib.rs")
+        .content(HELPER_LIBRARY)
+        .call();
 
     let outcome = project.run().await;
 

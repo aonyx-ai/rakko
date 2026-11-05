@@ -68,6 +68,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a cargo to resolve
     ///
@@ -106,8 +107,8 @@ impl Project {
     /// source
     fn with_library(source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", source);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(source).call();
 
         project
     }
@@ -121,8 +122,8 @@ impl Project {
         std::fs::write(&configuration, format!("[tools]\nrust = {pins}\n"))
             .expect("the test writes the mise.toml of the project");
         trust(&configuration);
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", FORMATTED);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(FORMATTED).call();
 
         project
     }
@@ -159,6 +160,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -275,7 +277,11 @@ async fn run_in_a_formatted_project_passes() {
 #[tokio::test]
 async fn run_with_a_configuration_that_rustfmt_cannot_parse_reports_what_it_wrote() {
     let project = Project::with_library(FORMATTED);
-    project.write(".rustfmt.toml", UNPARSABLE_CONFIGURATION);
+    project
+        .write()
+        .path(".rustfmt.toml")
+        .content(UNPARSABLE_CONFIGURATION)
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -291,7 +297,11 @@ async fn run_with_a_configuration_that_rustfmt_cannot_parse_reports_what_it_wrot
 #[tokio::test]
 async fn run_with_a_configuration_that_rustfmt_cannot_parse_stops() {
     let project = Project::with_library(FORMATTED);
-    project.write(".rustfmt.toml", UNPARSABLE_CONFIGURATION);
+    project
+        .write()
+        .path(".rustfmt.toml")
+        .content(UNPARSABLE_CONFIGURATION)
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -304,7 +314,11 @@ async fn run_with_a_configuration_that_rustfmt_cannot_parse_stops() {
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -354,8 +368,16 @@ async fn run_with_an_invalid_file_reports_the_position() {
 #[tokio::test]
 async fn run_with_an_unformatted_file_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(FORMATTED);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", UNFORMATTED);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -387,7 +409,11 @@ async fn run_with_an_unformatted_file_names_the_file() {
 #[tokio::test]
 async fn run_with_an_unknown_option_reports_what_rustfmt_said() {
     let project = Project::with_library(FORMATTED);
-    project.write(".rustfmt.toml", UNKNOWN_OPTION);
+    project
+        .write()
+        .path(".rustfmt.toml")
+        .content(UNKNOWN_OPTION)
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -403,7 +429,11 @@ async fn run_with_an_unknown_option_reports_what_rustfmt_said() {
 #[tokio::test]
 async fn run_with_an_unknown_option_stops() {
     let project = Project::with_library(FORMATTED);
-    project.write(".rustfmt.toml", UNKNOWN_OPTION);
+    project
+        .write()
+        .path(".rustfmt.toml")
+        .content(UNKNOWN_OPTION)
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -416,8 +446,16 @@ async fn run_with_an_unknown_option_stops() {
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_elsewhere_fails() {
     let project = Project::with_library(UNFORMATTED);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", INVALID);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(INVALID)
+        .call();
 
     let outcome = project.run(Operation::Rewrite).await;
 
@@ -430,8 +468,16 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_fails() {
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_elsewhere_holds_the_repairs() {
     let project = Project::with_library(UNFORMATTED);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", INVALID);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(INVALID)
+        .call();
 
     let outcome = project.run(Operation::Rewrite).await;
 
@@ -444,8 +490,16 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_holds_the_repairs() {
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_elsewhere_keeps_the_problem() {
     let project = Project::with_library(UNFORMATTED);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", INVALID);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(INVALID)
+        .call();
 
     let outcome = project.run(Operation::Rewrite).await;
 
@@ -458,7 +512,11 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_keeps_the_problem() {
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_module_keeps_the_package_as_it_is() {
     let project = Project::with_library("pub mod broken;\npub fn messy( ) {}\n");
-    project.write("src/broken.rs", INVALID);
+    project
+        .write()
+        .path("src/broken.rs")
+        .content(INVALID)
+        .call();
 
     let outcome = project.run(Operation::Rewrite).await;
 
@@ -474,7 +532,11 @@ async fn run_with_fix_and_an_invalid_module_keeps_the_package_as_it_is() {
 #[tokio::test]
 async fn run_with_fix_holds_one_repair_for_each_file() {
     let project = Project::with_library(UNFORMATTED);
-    project.write("src/main.rs", UNFORMATTED_MAIN);
+    project
+        .write()
+        .path("src/main.rs")
+        .content(UNFORMATTED_MAIN)
+        .call();
 
     let outcome = project.run(Operation::Rewrite).await;
 
@@ -513,8 +575,16 @@ async fn run_with_fix_rewrites_the_file() {
 #[tokio::test]
 async fn run_with_two_workspaces_counts_both() {
     let project = Project::with_library(FORMATTED);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", FORMATTED);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(FORMATTED)
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -542,7 +612,11 @@ async fn run_without_a_cargo_stops() {
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Project\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Project\n")
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 

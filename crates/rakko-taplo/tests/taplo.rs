@@ -17,6 +17,7 @@
 use std::path::Path;
 use std::process::Command;
 
+use bon::bon;
 use rakko_action::ProjectRoot;
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo};
 use tempfile::TempDir;
@@ -36,6 +37,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon]
 impl Project {
     /// Creates a project without a taplo to resolve
     ///
@@ -102,6 +104,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -158,7 +161,11 @@ impl Drop for Project {
 #[tokio::test]
 async fn observe_a_format_check_reports_a_file_that_is_not_formatted() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let observation = project.observe(Operation::CheckFormat).await;
 
@@ -174,7 +181,11 @@ async fn observe_a_format_check_reports_a_file_that_is_not_formatted() {
 #[tokio::test]
 async fn observe_a_format_rewrites_the_project() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     project.observe(Operation::Format).await;
 
@@ -186,7 +197,11 @@ async fn observe_a_format_rewrites_the_project() {
 #[tokio::test]
 async fn observe_a_lint_ignores_a_file_that_is_not_formatted() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let observation = project.observe(Operation::Lint).await;
 
@@ -200,7 +215,7 @@ async fn observe_a_lint_ignores_a_file_that_is_not_formatted() {
 #[tokio::test]
 async fn observe_a_lint_reports_a_file_that_taplo_cannot_parse() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     let observation = project.observe(Operation::Lint).await;
 
@@ -220,7 +235,7 @@ async fn observe_a_lint_reports_a_file_that_taplo_cannot_parse() {
 #[tokio::test]
 async fn observe_reads_a_report_without_color_codes() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     let observation = project.observe(Operation::Lint).await;
 

@@ -132,6 +132,7 @@ impl Pending {
 ///
 /// Returns `None` when the text in front of the kind is no place, which
 /// happens for a message of tsc that holds the text that closes a place.
+#[bon::builder]
 fn located(place: &str, rest: &str) -> Option<Pending> {
     let (path, position) = place.rsplit_once(POSITION_OPEN)?;
     let (line, column) = position.split_once(POSITION_SEPARATOR)?;
@@ -173,7 +174,7 @@ fn stated(origin: Option<Origin>, text: &str) -> Option<Pending> {
 /// Returns `None` when the line starts no diagnostic at all.
 fn start(line: &str) -> Option<Pending> {
     if let Some((place, rest)) = line.split_once(PLACE_CLOSE)
-        && let Some(pending) = located(place, rest)
+        && let Some(pending) = located().place(place).rest(rest).call()
     {
         return Some(pending);
     }

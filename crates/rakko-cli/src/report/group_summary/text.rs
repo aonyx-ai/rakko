@@ -46,11 +46,31 @@ pub(super) fn render(summary: &GroupSummary, formatter: &mut fmt::Formatter<'_>)
     write!(formatter, "{}: ", summary.group)?;
 
     match (problems, stops) {
-        (0, 0) => render_share(total, total, "passed", formatter),
-        (0, stops) => render_share(stops, total, "stopped", formatter),
-        (problems, 0) => render_share(problems, total, "found problems", formatter),
+        (0, 0) => render_share()
+            .count(total)
+            .total(total)
+            .verdict("passed")
+            .formatter(formatter)
+            .call(),
+        (0, stops) => render_share()
+            .count(stops)
+            .total(total)
+            .verdict("stopped")
+            .formatter(formatter)
+            .call(),
+        (problems, 0) => render_share()
+            .count(problems)
+            .total(total)
+            .verdict("found problems")
+            .formatter(formatter)
+            .call(),
         (problems, stops) => {
-            render_share(problems, total, "found problems", formatter)?;
+            render_share()
+                .count(problems)
+                .total(total)
+                .verdict("found problems")
+                .formatter(formatter)
+                .call()?;
             write!(formatter, ", {stops} stopped")
         }
     }
@@ -63,6 +83,7 @@ pub(super) fn render(summary: &GroupSummary, formatter: &mut fmt::Formatter<'_>)
 ///
 /// Returns the error of the formatter when the formatter cannot take what the
 /// share writes.
+#[bon::builder]
 fn render_share(
     count: usize,
     total: usize,

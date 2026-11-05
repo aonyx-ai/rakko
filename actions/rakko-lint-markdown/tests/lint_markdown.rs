@@ -52,6 +52,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a markdownlint to resolve
     ///
@@ -121,6 +122,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -215,7 +217,7 @@ fn action_identifies_itself_as_lint_markdown() {
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
-    project.write("notes.md", VALID);
+    project.write().path("notes.md").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -228,7 +230,11 @@ async fn run_in_a_valid_project_passes() {
 #[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     project.run().await;
 
@@ -238,10 +244,22 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
 #[tokio::test]
 async fn run_leaves_out_a_directory_that_the_ignore_file_names() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write(".markdownlintignore", IGNORE_DOT_DIRECTORY);
-    project.write("notes.md", VALID);
-    project.write(".claude/notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path(".markdownlintignore")
+        .content(IGNORE_DOT_DIRECTORY)
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+    project
+        .write()
+        .path(".claude/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -254,10 +272,22 @@ async fn run_leaves_out_a_directory_that_the_ignore_file_names() {
 #[tokio::test]
 async fn run_leaves_out_the_directories_of_git() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", VALID);
-    project.write(".git/notes.md", UNSPACED_HEADING);
-    project.write("vendor/.git/notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+    project
+        .write()
+        .path(".git/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
+    project
+        .write()
+        .path("vendor/.git/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -270,9 +300,17 @@ async fn run_leaves_out_the_directories_of_git() {
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", VALID);
-    project.write("deep/sub/notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+    project
+        .write()
+        .path("deep/sub/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -285,9 +323,17 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
 #[tokio::test]
 async fn run_reaches_a_file_in_a_directory_with_a_dot() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", VALID);
-    project.write(".changeset/notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+    project
+        .write()
+        .path(".changeset/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -300,8 +346,16 @@ async fn run_reaches_a_file_in_a_directory_with_a_dot() {
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", CONFIGURATION);
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -314,8 +368,16 @@ async fn run_reads_the_configuration_of_the_project() {
 #[tokio::test]
 async fn run_whose_markdownlint_examined_nothing_skips() {
     let project = Project::new();
-    project.write(".markdownlintignore", IGNORE_EVERYTHING);
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlintignore")
+        .content(IGNORE_EVERYTHING)
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -331,8 +393,16 @@ async fn run_whose_markdownlint_examined_nothing_skips() {
 #[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_markdownlint() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -348,7 +418,11 @@ async fn run_with_a_broken_rule_carries_the_message_of_markdownlint() {
 #[tokio::test]
 async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     // The helper asserts that the run left every file of the project as it
     // was.
@@ -358,8 +432,16 @@ async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn run_with_a_broken_rule_names_the_file() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("sub/notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path("sub/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -374,8 +456,16 @@ async fn run_with_a_broken_rule_names_the_file() {
 #[tokio::test]
 async fn run_with_a_rule_that_names_a_column_reports_it() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -394,7 +484,7 @@ async fn run_with_a_rule_that_names_a_column_reports_it() {
 #[tokio::test]
 async fn run_with_a_rule_that_names_no_column_reports_the_line_alone() {
     let project = Project::new();
-    project.write("notes.md", BLANK_LINES);
+    project.write().path("notes.md").content(BLANK_LINES).call();
 
     let outcome = project.run().await;
 
@@ -416,7 +506,7 @@ async fn run_with_an_unreadable_file_stops() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.md", VALID);
+    project.write().path("secret.md").content(VALID).call();
     let path = project.directory.path().join("secret.md");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -434,7 +524,7 @@ async fn run_with_an_unreadable_file_stops() {
 #[tokio::test]
 async fn run_without_a_markdownlint_stops() {
     let project = Project::without_markdownlint();
-    project.write("notes.md", VALID);
+    project.write().path("notes.md").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -447,7 +537,11 @@ async fn run_without_a_markdownlint_stops() {
 #[tokio::test]
 async fn run_without_markdown_files_skips() {
     let project = Project::new();
-    project.write("notes.txt", "Not Markdown.\n");
+    project
+        .write()
+        .path("notes.txt")
+        .content("Not Markdown.\n")
+        .call();
 
     let outcome = project.run().await;
 

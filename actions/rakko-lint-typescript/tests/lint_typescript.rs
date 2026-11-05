@@ -69,6 +69,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without an oxlint to resolve
     ///
@@ -136,6 +137,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -230,7 +232,7 @@ fn action_identifies_itself_as_lint_typescript() {
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
-    project.write("index.ts", VALID);
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -243,7 +245,7 @@ async fn run_in_a_valid_project_passes() {
 #[tokio::test]
 async fn run_in_a_valid_project_says_how_many_files_oxlint_examined() {
     let project = Project::new();
-    project.write("index.ts", VALID);
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -256,7 +258,7 @@ async fn run_in_a_valid_project_says_how_many_files_oxlint_examined() {
 #[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     project.run().await;
 
@@ -266,8 +268,12 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write("index.ts", VALID);
-    project.write("deep/sub/broken.ts", DEBUGGER);
+    project.write().path("index.ts").content(VALID).call();
+    project
+        .write()
+        .path("deep/sub/broken.ts")
+        .content(DEBUGGER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -280,8 +286,12 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
-    project.write(".oxlintrc.json", PERMISSIVE_CONFIGURATION);
-    project.write("index.ts", DEBUGGER);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(PERMISSIVE_CONFIGURATION)
+        .call();
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -294,8 +304,12 @@ async fn run_reads_the_configuration_of_the_project() {
 #[tokio::test]
 async fn run_whose_oxlint_examined_nothing_skips() {
     let project = Project::new();
-    project.write(".oxlintrc.json", IGNORE_EVERYTHING);
-    project.write("index.ts", DEBUGGER);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(IGNORE_EVERYTHING)
+        .call();
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -311,8 +325,12 @@ async fn run_whose_oxlint_examined_nothing_skips() {
 #[tokio::test]
 async fn run_with_a_broken_rule_at_the_error_severity_reports_it() {
     let project = Project::new();
-    project.write(".oxlintrc.json", STRICT_CONFIGURATION);
-    project.write("index.ts", DEBUGGER);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(STRICT_CONFIGURATION)
+        .call();
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -329,7 +347,7 @@ async fn run_with_a_broken_rule_at_the_error_severity_reports_it() {
 #[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_oxlint() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -346,7 +364,7 @@ async fn run_with_a_broken_rule_carries_the_message_of_oxlint() {
 #[tokio::test]
 async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     // The helper asserts that the run left every file of the project as it
     // was.
@@ -356,7 +374,11 @@ async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn run_with_a_broken_rule_names_the_file() {
     let project = Project::new();
-    project.write("src/index.ts", DEBUGGER);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(DEBUGGER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -369,7 +391,7 @@ async fn run_with_a_broken_rule_names_the_file() {
 #[tokio::test]
 async fn run_with_a_broken_rule_reports_the_position_of_oxlint() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -388,8 +410,12 @@ async fn run_with_a_broken_rule_reports_the_position_of_oxlint() {
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::new();
-    project.write(".oxlintrc.json", BROKEN_CONFIGURATION);
-    project.write("index.ts", VALID);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(BROKEN_CONFIGURATION)
+        .call();
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -404,9 +430,17 @@ async fn run_with_a_refused_configuration_stops() {
 #[tokio::test]
 async fn run_with_a_stale_suppression_reports_it_for_the_project() {
     let project = Project::new();
-    project.write(".oxlintrc.json", STRICT_CONFIGURATION);
-    project.write("oxlint-suppressions.json", SUPPRESSIONS);
-    project.write("index.ts", VALID);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(STRICT_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("oxlint-suppressions.json")
+        .content(SUPPRESSIONS)
+        .call();
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -424,7 +458,7 @@ async fn run_with_a_stale_suppression_reports_it_for_the_project() {
 #[tokio::test]
 async fn run_with_a_warning_fails() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -440,9 +474,21 @@ async fn run_with_a_warning_fails() {
 #[tokio::test]
 async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
     let project = Project::new();
-    project.write(".oxlintrc.json", STRICT_CONFIGURATION);
-    project.write("oxlint-suppressions.json", SUPPRESSIONS);
-    project.write("index.ts", TWO_DEBUGGERS);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(STRICT_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("oxlint-suppressions.json")
+        .content(SUPPRESSIONS)
+        .call();
+    project
+        .write()
+        .path("index.ts")
+        .content(TWO_DEBUGGERS)
+        .call();
 
     let outcome = project.run().await;
 
@@ -471,7 +517,11 @@ async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
 #[tokio::test]
 async fn run_without_a_file_that_oxlint_lints_skips() {
     let project = Project::new();
-    project.write("README.md", "# Notes\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Notes\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -484,7 +534,7 @@ async fn run_without_a_file_that_oxlint_lints_skips() {
 #[tokio::test]
 async fn run_without_an_oxlint_stops() {
     let project = Project::without_oxlint();
-    project.write("index.ts", VALID);
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 

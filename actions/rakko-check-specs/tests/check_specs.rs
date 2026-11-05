@@ -53,6 +53,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates an empty project without a tracey to resolve
     ///
@@ -76,9 +77,21 @@ impl Project {
         .expect("the test writes the mise.toml of the project");
         trust(&pins);
 
-        project.write(".config/tracey/config.styx", CONFIGURATION);
-        project.write("SPECIFICATION.md", SPECIFICATION);
-        project.write("src/lib.rs", IMPLEMENTATION);
+        project
+            .write()
+            .path(".config/tracey/config.styx")
+            .content(CONFIGURATION)
+            .call();
+        project
+            .write()
+            .path("SPECIFICATION.md")
+            .content(SPECIFICATION)
+            .call();
+        project
+            .write()
+            .path("src/lib.rs")
+            .content(IMPLEMENTATION)
+            .call();
 
         project
     }
@@ -103,6 +116,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -297,13 +311,21 @@ async fn run_without_a_tracey_stops() {
 /// runs git, so the project holds the specification and nothing else.
 fn merged() -> Project {
     let project = Project::bare();
-    project.write("SPECIFICATION.md", SPECIFICATION);
+    project
+        .write()
+        .path("SPECIFICATION.md")
+        .content(SPECIFICATION)
+        .call();
 
     project.git(&["init", "--quiet", "--initial-branch", "main", "."]);
     project.git(&["add", "-A"]);
     project.git(&["commit", "--quiet", "-m", "base"]);
     project.git(&["checkout", "--quiet", "-b", "feature"]);
-    project.write("SPECIFICATION.md", CHANGED);
+    project
+        .write()
+        .path("SPECIFICATION.md")
+        .content(CHANGED)
+        .call();
     project.git(&["add", "-A"]);
     project.git(&["commit", "--quiet", "-m", "change the requirement"]);
     project.git(&["checkout", "--quiet", "main"]);

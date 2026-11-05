@@ -469,6 +469,7 @@ mod tests {
                           duration_ms 90.9\n";
 
     /// Returns the report of a run whose one test carries the given lines
+    #[bon::builder]
     fn one(result: &str, block: &str) -> String {
         format!(
             "TAP version 13\n{result}\n  ---\n{block}  ...\n1..1\n# tests 1\n# suites 0\n# pass \
@@ -550,10 +551,12 @@ mod tests {
 
     #[test]
     fn read_of_a_report_of_a_test_that_is_still_to_do_reports_no_failure() {
-        let report = read(&one(
-            "not ok 1 - counts # TODO",
-            "  failureType: 'testCodeFailure'\n",
-        ))
+        let report = read(
+            &one()
+                .result("not ok 1 - counts # TODO")
+                .block("  failureType: 'testCodeFailure'\n")
+                .call(),
+        )
         .unwrap();
 
         assert!(
@@ -567,10 +570,12 @@ mod tests {
     // so a name that holds one is no directive and the test still counts.
     #[test]
     fn read_of_a_report_of_a_test_whose_name_holds_a_hash_reports_the_failure() {
-        let report = read(&one(
-            "not ok 1 - counts \\# twice",
-            "  failureType: 'testCodeFailure'\n",
-        ))
+        let report = read(
+            &one()
+                .result("not ok 1 - counts \\# twice")
+                .block("  failureType: 'testCodeFailure'\n")
+                .call(),
+        )
         .unwrap();
 
         assert_eq!(report.failures()[0].name(), "counts # twice");
@@ -578,7 +583,13 @@ mod tests {
 
     #[test]
     fn read_of_a_report_of_a_test_without_a_place_carries_none() {
-        let report = read(&one("not ok 1 - counts", "  error: 'test failed'\n")).unwrap();
+        let report = read(
+            &one()
+                .result("not ok 1 - counts")
+                .block("  error: 'test failed'\n")
+                .call(),
+        )
+        .unwrap();
 
         assert_eq!(report.failures()[0].origin(), &None);
     }

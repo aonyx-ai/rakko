@@ -108,6 +108,7 @@ struct Project {
     root: PathBuf,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a cargo to resolve
     ///
@@ -143,8 +144,8 @@ impl Project {
         std::fs::write(project.directory.path().join("Cargo.toml"), OUTER)
             .expect("the test writes the manifest of the outer workspace");
         project.root = project.directory.path().join("project");
-        project.write("Cargo.toml", MEMBER);
-        project.write("src/lib.rs", "");
+        project.write().path("Cargo.toml").content(MEMBER).call();
+        project.write().path("src/lib.rs").content("").call();
         project.pin_repository();
 
         project
@@ -154,11 +155,23 @@ impl Project {
     /// the name of the library, and the given manifest for that package
     fn sharing_a_name(manifest: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", SHARED_NAME);
-        project.write("demo/Cargo.toml", DEMO);
-        project.write("demo/src/lib.rs", "");
-        project.write("demo-cli/Cargo.toml", manifest);
-        project.write("demo-cli/src/main.rs", "fn main() {}\n");
+        project
+            .write()
+            .path("Cargo.toml")
+            .content(SHARED_NAME)
+            .call();
+        project.write().path("demo/Cargo.toml").content(DEMO).call();
+        project.write().path("demo/src/lib.rs").content("").call();
+        project
+            .write()
+            .path("demo-cli/Cargo.toml")
+            .content(manifest)
+            .call();
+        project
+            .write()
+            .path("demo-cli/src/main.rs")
+            .content("fn main() {}\n")
+            .call();
 
         project
     }
@@ -178,7 +191,7 @@ impl Project {
     /// Creates a project with a workspace of two members
     fn workspace() -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", WORKSPACE);
+        project.write().path("Cargo.toml").content(WORKSPACE).call();
         project.package("a");
         project.package("b");
 
@@ -189,12 +202,13 @@ impl Project {
     /// given path
     fn workspace_excluding(path: &str) -> Self {
         let project = Self::new();
-        project.write(
-            "Cargo.toml",
-            &format!(
+        project
+            .write()
+            .path("Cargo.toml")
+            .content(&format!(
                 "[workspace]\nmembers = [\"a\", \"b\"]\nexclude = [\"{path}\"]\nresolver = \"3\"\n"
-            ),
-        );
+            ))
+            .call();
         project.package("a");
         project.package("b");
 
@@ -234,14 +248,18 @@ impl Project {
     }
 
     /// Writes a package that declares the Rust version it compiles on
+    #[builder]
     fn declaring(&self, name: &str, version: &str) {
-        self.write(
-            &format!("{name}/Cargo.toml"),
-            &format!(
+        self.write()
+            .path(&format!("{name}/Cargo.toml"))
+            .content(&format!(
                 "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"{version}\"\n"
-            ),
-        );
-        self.write(&format!("{name}/src/lib.rs"), "");
+            ))
+            .call();
+        self.write()
+            .path(&format!("{name}/src/lib.rs"))
+            .content("")
+            .call();
     }
 
     /// Returns the directory above the project, which holds the outer
@@ -255,11 +273,16 @@ impl Project {
 
     /// Writes a package with the given name into the directory of that name
     fn package(&self, name: &str) {
-        self.write(
-            &format!("{name}/Cargo.toml"),
-            &format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"),
-        );
-        self.write(&format!("{name}/src/lib.rs"), "");
+        self.write()
+            .path(&format!("{name}/Cargo.toml"))
+            .content(&format!(
+                "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n"
+            ))
+            .call();
+        self.write()
+            .path(&format!("{name}/src/lib.rs"))
+            .content("")
+            .call();
     }
 
     /// Copies the mise configuration of this repository into the project
@@ -296,6 +319,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.root.join(path);
 
@@ -452,10 +476,10 @@ async fn lockfile_refused_by_a_locked_check_of_a_stale_workspace_answers_yes() {
         .run()
         .await
         .expect("the test writes the lockfile of the workspace");
-    project.write(
-        "b/Cargo.toml",
-        "[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\na = { path = \"../a\" }\n",
-    );
+    project.write()
+        .path("b/Cargo.toml")
+        .content("[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\na = { path = \"../a\" }\n")
+        .call();
 
     let execution = cargo
         .invocation(&root)
@@ -519,7 +543,11 @@ async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
 #[tokio::test]
 async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
     let project = Project::workspace();
-    project.write("a/src/lib.rs", "pub fn unused() {\n    let value = 1;\n}\n");
+    project
+        .write()
+        .path("a/src/lib.rs")
+        .content("pub fn unused() {\n    let value = 1;\n}\n")
+        .call();
     let cargo = project.resolve().await;
 
     let execution = cargo
@@ -570,8 +598,16 @@ async fn resolve_without_a_cargo_reports_the_tool() {
 #[tokio::test]
 async fn roots_find_a_manifest_in_a_hidden_directory() {
     let project = Project::workspace();
-    project.write(".tools/harness/Cargo.toml", STANDALONE);
-    project.write(".tools/harness/src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path(".tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path(".tools/harness/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -602,9 +638,21 @@ async fn roots_ignore_a_manifest_behind_a_symbolic_link() {
 #[tokio::test]
 async fn roots_ignore_a_manifest_that_another_root_excludes() {
     let project = Project::workspace();
-    project.write("tools/harness/Cargo.toml", STANDALONE_EXCLUDING);
-    project.write("tools/harness/src/main.rs", "fn main() {}\n");
-    project.write("tools/harness/fixtures/Cargo.toml", BROKEN);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE_EXCLUDING)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
+    project
+        .write()
+        .path("tools/harness/fixtures/Cargo.toml")
+        .content(BROKEN)
+        .call();
 
     let roots = project.roots().await;
 
@@ -620,9 +668,21 @@ async fn roots_ignore_a_manifest_that_another_root_excludes() {
 #[tokio::test]
 async fn roots_ignore_a_manifest_that_the_workspace_excludes() {
     let project = Project::workspace_excluding("fixtures");
-    project.write("fixtures/broken/Cargo.toml", BROKEN);
-    project.write("fixtures/own/Cargo.toml", STANDALONE);
-    project.write("fixtures/own/src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path("fixtures/broken/Cargo.toml")
+        .content(BROKEN)
+        .call();
+    project
+        .write()
+        .path("fixtures/own/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("fixtures/own/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await;
 
@@ -635,7 +695,11 @@ async fn roots_ignore_a_manifest_that_the_workspace_excludes() {
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_git_directory() {
     let project = Project::workspace();
-    project.write(".git/Cargo.toml", BROKEN);
+    project
+        .write()
+        .path(".git/Cargo.toml")
+        .content(BROKEN)
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -645,8 +709,16 @@ async fn roots_ignore_a_manifest_under_the_git_directory() {
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_node_modules_directory() {
     let project = Project::workspace();
-    project.write("node_modules/@otter/clipboard/Cargo.toml", STANDALONE);
-    project.write("node_modules/@otter/clipboard/src/lib.rs", "");
+    project
+        .write()
+        .path("node_modules/@otter/clipboard/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("node_modules/@otter/clipboard/src/lib.rs")
+        .content("")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -656,7 +728,11 @@ async fn roots_ignore_a_manifest_under_the_node_modules_directory() {
 #[tokio::test]
 async fn roots_ignore_a_manifest_under_the_target_directory() {
     let project = Project::workspace();
-    project.write("target/debug/build/dep/Cargo.toml", BROKEN);
+    project
+        .write()
+        .path("target/debug/build/dep/Cargo.toml")
+        .content(BROKEN)
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -666,8 +742,16 @@ async fn roots_ignore_a_manifest_under_the_target_directory() {
 #[tokio::test]
 async fn roots_ignore_a_nested_project() {
     let project = Project::workspace();
-    project.write(&format!(".claude/worktrees/feature/{MARKER}"), "");
-    project.write(".claude/worktrees/feature/Cargo.toml", BROKEN);
+    project
+        .write()
+        .path(&format!(".claude/worktrees/feature/{MARKER}"))
+        .content("")
+        .call();
+    project
+        .write()
+        .path(".claude/worktrees/feature/Cargo.toml")
+        .content(BROKEN)
+        .call();
 
     let roots = project.roots().await;
 
@@ -684,7 +768,11 @@ async fn roots_ignore_a_nested_project_whose_marker_is_a_directory() {
     let project = Project::workspace();
     std::fs::create_dir_all(project.root.join("nested").join(MARKER))
         .expect("the test creates the marker as a directory");
-    project.write("nested/Cargo.toml", BROKEN);
+    project
+        .write()
+        .path("nested/Cargo.toml")
+        .content(BROKEN)
+        .call();
 
     let roots = project.roots().await;
 
@@ -700,8 +788,16 @@ async fn roots_ignore_an_unreadable_directory_of_a_nested_project() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::workspace();
-    project.write(&format!("nested/{MARKER}"), "");
-    project.write("nested/closed/README.md", "# Project\n");
+    project
+        .write()
+        .path(&format!("nested/{MARKER}"))
+        .content("")
+        .call();
+    project
+        .write()
+        .path("nested/closed/README.md")
+        .content("# Project\n")
+        .call();
     let closed = project.root.join("nested/closed");
     std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a directory");
@@ -719,7 +815,7 @@ async fn roots_ignore_an_unreadable_directory_of_a_nested_project() {
 #[tokio::test]
 async fn roots_of_a_project_that_holds_the_marker_name_its_workspace() {
     let project = Project::workspace();
-    project.write(MARKER, "");
+    project.write().path(MARKER).content("").call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -729,8 +825,16 @@ async fn roots_of_a_project_that_holds_the_marker_name_its_workspace() {
 #[tokio::test]
 async fn roots_of_a_project_with_a_standalone_package_name_both() {
     let project = Project::workspace();
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -746,8 +850,16 @@ async fn roots_of_a_project_with_a_standalone_package_name_both() {
 #[tokio::test]
 async fn roots_of_a_project_without_a_workspace_name_the_package() {
     let project = Project::new();
-    project.write("Cargo.toml", STANDALONE);
-    project.write("src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -772,17 +884,19 @@ async fn roots_of_a_workspace_name_its_packages() {
 #[tokio::test]
 async fn roots_of_a_workspace_name_its_packages_in_the_order_of_their_names() {
     let project = Project::new();
-    project.write("Cargo.toml", UNSORTED);
-    project.write(
-        "first/Cargo.toml",
-        "[package]\nname = \"zeta\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-    );
-    project.write("first/src/lib.rs", "");
-    project.write(
-        "second/Cargo.toml",
-        "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-    );
-    project.write("second/src/lib.rs", "");
+    project.write().path("Cargo.toml").content(UNSORTED).call();
+    project
+        .write()
+        .path("first/Cargo.toml")
+        .content("[package]\nname = \"zeta\"\nversion = \"0.1.0\"\nedition = \"2024\"\n")
+        .call();
+    project.write().path("first/src/lib.rs").content("").call();
+    project
+        .write()
+        .path("second/Cargo.toml")
+        .content("[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2024\"\n")
+        .call();
+    project.write().path("second/src/lib.rs").content("").call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -821,8 +935,16 @@ async fn roots_of_a_workspace_name_the_workspace_once() {
 #[tokio::test]
 async fn roots_of_a_workspace_of_binaries_say_that_nothing_documents_an_example() {
     let project = Project::new();
-    project.write("Cargo.toml", STANDALONE);
-    project.write("src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -835,9 +957,9 @@ async fn roots_of_a_workspace_of_binaries_say_that_nothing_documents_an_example(
 #[tokio::test]
 async fn roots_of_a_workspace_that_declares_a_version_answer_the_highest() {
     let project = Project::new();
-    project.write("Cargo.toml", WORKSPACE);
-    project.declaring("a", "1.85.0");
-    project.declaring("b", "1.88.0");
+    project.write().path("Cargo.toml").content(WORKSPACE).call();
+    project.declaring().name("a").version("1.85.0").call();
+    project.declaring().name("b").version("1.88.0").call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -850,11 +972,31 @@ async fn roots_of_a_workspace_that_declares_a_version_answer_the_highest() {
 #[tokio::test]
 async fn roots_of_a_workspace_that_excludes_a_member_name_a_workspace_below_the_member() {
     let project = Project::new();
-    project.write("Cargo.toml", EXCLUDING_A_MEMBER);
-    project.write("fixtures/real/Cargo.toml", REAL);
-    project.write("fixtures/real/src/lib.rs", "");
-    project.write("fixtures/real/own/Cargo.toml", STANDALONE);
-    project.write("fixtures/real/own/src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(EXCLUDING_A_MEMBER)
+        .call();
+    project
+        .write()
+        .path("fixtures/real/Cargo.toml")
+        .content(REAL)
+        .call();
+    project
+        .write()
+        .path("fixtures/real/src/lib.rs")
+        .content("")
+        .call();
+    project
+        .write()
+        .path("fixtures/real/own/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("fixtures/real/own/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -874,8 +1016,16 @@ async fn roots_of_a_workspace_that_excludes_a_member_name_a_workspace_below_the_
 #[tokio::test]
 async fn roots_of_a_workspace_that_excludes_a_pattern_name_the_package_it_matches() {
     let project = Project::workspace_excluding("examples/*");
-    project.write("examples/sample/Cargo.toml", STANDALONE);
-    project.write("examples/sample/src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path("examples/sample/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("examples/sample/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -891,8 +1041,16 @@ async fn roots_of_a_workspace_that_excludes_a_pattern_name_the_package_it_matche
 #[tokio::test]
 async fn roots_of_a_workspace_that_excludes_a_prefix_name_the_package_it_shares_letters_with() {
     let project = Project::workspace_excluding("fix");
-    project.write("fixtures/Cargo.toml", STANDALONE);
-    project.write("fixtures/src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path("fixtures/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("fixtures/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -920,7 +1078,11 @@ async fn roots_of_a_workspace_whose_binary_shares_the_name_of_a_library_say_both
 #[tokio::test]
 async fn roots_of_a_workspace_whose_binary_shares_the_name_of_its_own_library_say_none_shares_it() {
     let project = Project::workspace();
-    project.write("a/src/main.rs", "fn main() {}\n");
+    project
+        .write()
+        .path("a/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -936,10 +1098,18 @@ async fn roots_of_a_workspace_whose_binary_shares_the_name_of_its_own_library_sa
 #[tokio::test]
 async fn roots_of_a_workspace_whose_hyphenated_binary_shares_a_name_say_both_share_it() {
     let project = Project::new();
-    project.write("Cargo.toml", HYPHENATED);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(HYPHENATED)
+        .call();
     project.package("demo-core");
-    project.write("tool/Cargo.toml", TOOL);
-    project.write("tool/src/main.rs", "fn main() {}\n");
+    project.write().path("tool/Cargo.toml").content(TOOL).call();
+    project
+        .write()
+        .path("tool/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -994,8 +1164,12 @@ async fn roots_of_a_workspace_without_a_declaration_answer_no_version() {
 #[tokio::test]
 async fn roots_with_a_library_of_another_form_say_that_nothing_documents_an_example() {
     let project = Project::new();
-    project.write("Cargo.toml", FOREIGN_LIBRARY);
-    project.write("src/lib.rs", "");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FOREIGN_LIBRARY)
+        .call();
+    project.write().path("src/lib.rs").content("").call();
 
     let roots = project.roots().await.expect("the test discovers the roots");
 
@@ -1025,7 +1199,7 @@ async fn roots_with_a_manifest_of_an_outer_workspace_name_the_workspace() {
 #[tokio::test]
 async fn roots_with_a_manifest_that_cargo_cannot_read_hold_what_cargo_said() {
     let project = Project::new();
-    project.write("Cargo.toml", BROKEN);
+    project.write().path("Cargo.toml").content(BROKEN).call();
 
     let roots = project.roots().await;
 
@@ -1041,7 +1215,7 @@ async fn roots_with_a_manifest_that_cargo_cannot_read_hold_what_cargo_said() {
 #[tokio::test]
 async fn roots_with_a_manifest_that_cargo_cannot_read_name_the_manifest() {
     let project = Project::new();
-    project.write("Cargo.toml", BROKEN);
+    project.write().path("Cargo.toml").content(BROKEN).call();
 
     let roots = project.roots().await;
 
@@ -1061,7 +1235,11 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::workspace();
-    project.write("closed/README.md", "# Project\n");
+    project
+        .write()
+        .path("closed/README.md")
+        .content("# Project\n")
+        .call();
     let closed = project.directory.path().join("closed");
     std::fs::set_permissions(&closed, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a directory");
@@ -1138,7 +1316,11 @@ async fn toolchain_resolve_an_unpinned_channel_names_the_channel() {
 #[tokio::test]
 async fn toolchain_resolve_outside_a_project_reports_what_mise_wrote() {
     let project = Project::bare();
-    project.write("mise.toml", "this is not a configuration\n");
+    project
+        .write()
+        .path("mise.toml")
+        .content("this is not a configuration\n")
+        .call();
 
     let toolchain = Toolchain::resolve()
         .channel(Channel::new("nightly"))

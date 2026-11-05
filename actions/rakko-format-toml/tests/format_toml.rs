@@ -53,6 +53,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a taplo to resolve
     ///
@@ -130,6 +131,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -205,7 +207,7 @@ fn action_identifies_itself_as_format_toml() {
 #[tokio::test]
 async fn run_in_a_formatted_project_counts_the_files() {
     let project = Project::new();
-    project.write("clean.toml", FORMATTED);
+    project.write().path("clean.toml").content(FORMATTED).call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -222,7 +224,7 @@ async fn run_in_a_formatted_project_counts_the_files() {
 #[tokio::test]
 async fn run_in_a_formatted_project_passes() {
     let project = Project::new();
-    project.write("clean.toml", FORMATTED);
+    project.write().path("clean.toml").content(FORMATTED).call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -235,9 +237,17 @@ async fn run_in_a_formatted_project_passes() {
 #[tokio::test]
 async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
     let project = Project::new();
-    project.write(".taplo.toml", EXCLUDE_ONE);
-    project.write("clean.toml", FORMATTED);
-    project.write("skipped.toml", UNFORMATTED);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(EXCLUDE_ONE)
+        .call();
+    project.write().path("clean.toml").content(FORMATTED).call();
+    project
+        .write()
+        .path("skipped.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -254,8 +264,16 @@ async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
 #[tokio::test]
 async fn run_whose_configuration_excludes_every_file_passes() {
     let project = Project::new();
-    project.write(".taplo.toml", EXCLUDE_EVERYTHING);
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(EXCLUDE_EVERYTHING)
+        .call();
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -268,8 +286,12 @@ async fn run_whose_configuration_excludes_every_file_passes() {
 #[tokio::test]
 async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
     let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", FORMATTED);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(FORMATTED).call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -285,8 +307,12 @@ async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
 #[tokio::test]
 async fn run_with_a_rejected_configuration_stops() {
     let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", FORMATTED);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(FORMATTED).call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -299,7 +325,7 @@ async fn run_with_a_rejected_configuration_stops() {
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -316,7 +342,7 @@ async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -338,7 +364,11 @@ async fn run_with_an_invalid_file_reports_the_position() {
 #[tokio::test]
 async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::new();
-    project.write("sub/messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("sub/messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -361,7 +391,11 @@ async fn run_with_an_unreadable_file_stops() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.toml", FORMATTED);
+    project
+        .write()
+        .path("secret.toml")
+        .content(FORMATTED)
+        .call();
     let path = project.directory.path().join("secret.toml");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -379,8 +413,12 @@ async fn run_with_an_unreadable_file_stops() {
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_fails() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("broken.toml", INVALID);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("broken.toml").content(INVALID).call();
 
     let outcome = project.run(FormatOperation::Rewrite).await;
 
@@ -393,8 +431,12 @@ async fn run_with_fix_and_an_invalid_file_fails() {
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_holds_the_repairs() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("broken.toml", INVALID);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("broken.toml").content(INVALID).call();
 
     let outcome = project.run(FormatOperation::Rewrite).await;
 
@@ -407,8 +449,12 @@ async fn run_with_fix_and_an_invalid_file_holds_the_repairs() {
 #[tokio::test]
 async fn run_with_fix_and_an_invalid_file_keeps_the_problem() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("broken.toml", INVALID);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("broken.toml").content(INVALID).call();
 
     let outcome = project.run(FormatOperation::Rewrite).await;
 
@@ -421,8 +467,16 @@ async fn run_with_fix_and_an_invalid_file_keeps_the_problem() {
 #[tokio::test]
 async fn run_with_fix_holds_one_repair_for_each_file() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("sub/other.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("sub/other.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(FormatOperation::Rewrite).await;
 
@@ -440,7 +494,11 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
 #[tokio::test]
 async fn run_with_fix_reports_the_change() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(FormatOperation::Rewrite).await;
 
@@ -453,7 +511,11 @@ async fn run_with_fix_reports_the_change() {
 #[tokio::test]
 async fn run_with_fix_rewrites_the_file() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     project.run(FormatOperation::Rewrite).await;
 
@@ -463,7 +525,7 @@ async fn run_with_fix_rewrites_the_file() {
 #[tokio::test]
 async fn run_without_a_taplo_stops() {
     let project = Project::without_taplo();
-    project.write("clean.toml", FORMATTED);
+    project.write().path("clean.toml").content(FORMATTED).call();
 
     let outcome = project.run(FormatOperation::Report).await;
 
@@ -476,7 +538,11 @@ async fn run_without_a_taplo_stops() {
 #[tokio::test]
 async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     project.run(FormatOperation::Report).await;
 
@@ -486,7 +552,11 @@ async fn run_without_fix_leaves_the_file_unchanged() {
 #[tokio::test]
 async fn run_without_fix_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     // The helper asserts that the run left every file of the project as it
     // was.

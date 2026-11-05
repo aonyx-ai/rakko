@@ -146,15 +146,15 @@ impl Observation {
     /// taplo lost that line. The reading changes no file.
     #[builder]
     pub async fn read(execution: &Execution, operation: Operation) -> Self {
-        let observation = self::report::read(
-            &execution.stdout().to_string_lossy(),
-            &execution.stderr().to_string_lossy(),
-            if execution.status().success() {
+        let observation = self::report::read()
+            .stdout(&execution.stdout().to_string_lossy())
+            .stderr(&execution.stderr().to_string_lossy())
+            .exit(if execution.status().success() {
                 Exit::Succeeded
             } else {
                 Exit::Failed
-            },
-        );
+            })
+            .call();
 
         match operation {
             Operation::Lint => observation.with_unreadable_files().await,
@@ -334,7 +334,11 @@ mod tests {
             " INFO taplo:lint_files:collect_files: found files total=2 excluded=0 files=[{readable:?}, {missing:?}] cwd={:?}\n",
             directory.path()
         );
-        let observation = super::report::read("", &stderr, Exit::Failed);
+        let observation = super::report::read()
+            .stdout("")
+            .stderr(&stderr)
+            .exit(Exit::Failed)
+            .call();
 
         let observation = observation.with_unreadable_files().await;
 

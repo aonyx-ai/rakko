@@ -245,6 +245,7 @@ mod tests {
     }
 
     /// Returns a diagnostic about the run, which names no file
+    #[bon::builder]
     fn about_the_run(number: &str, text: &str) -> Diagnostic {
         Diagnostic::builder()
             .category(Category::Error)
@@ -370,10 +371,10 @@ mod tests {
 
     #[test]
     fn finding_of_a_diagnostic_without_a_file_belongs_to_the_project() {
-        let diagnostic = about_the_run(
-            "TS6379",
-            "Composite projects may not disable incremental compilation.",
-        );
+        let diagnostic = about_the_run()
+            .number("TS6379")
+            .text("Composite projects may not disable incremental compilation.")
+            .call();
 
         let finding = finding(&diagnostic, &root());
 
@@ -392,7 +393,10 @@ mod tests {
     #[test]
     fn guard_of_a_run_that_reported_more_than_one_diagnostic_reports_nothing() {
         let diagnostics = [
-            about_the_run("TS18003", "No inputs were found in config file."),
+            about_the_run()
+                .number("TS18003")
+                .text("No inputs were found in config file.")
+                .call(),
             about_the_code(),
         ];
 
@@ -413,10 +417,10 @@ mod tests {
 
     #[test]
     fn guard_of_a_run_whose_configuration_selected_nothing_skips() {
-        let diagnostics = [about_the_run(
-            "TS18003",
-            "No inputs were found in config file '/home/otter/project/tsconfig.json'.",
-        )];
+        let diagnostics = [about_the_run()
+            .number("TS18003")
+            .text("No inputs were found in config file '/home/otter/project/tsconfig.json'.")
+            .call()];
 
         let outcome = guard(&diagnostics);
 
@@ -428,11 +432,13 @@ mod tests {
 
     #[test]
     fn guard_of_a_run_without_a_configuration_file_skips() {
-        let diagnostics = [about_the_run(
-            "TS5081",
-            "Cannot find a tsconfig.json file at the current directory: \
+        let diagnostics = [about_the_run()
+            .number("TS5081")
+            .text(
+                "Cannot find a tsconfig.json file at the current directory: \
              /home/otter/project/tsconfig.json.",
-        )];
+            )
+            .call()];
 
         let outcome = guard(&diagnostics);
 

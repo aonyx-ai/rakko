@@ -830,22 +830,26 @@ mod tests {
     impl Args for Arguments {
         fn schema() -> ArgsSchema {
             ArgsSchema::new([
-                argument("fix", ArgumentShape::Boolean, FIX),
-                argument(
-                    "jobs",
-                    ArgumentShape::Integer,
-                    "Examine this many files at once",
-                ),
-                argument(
-                    "report",
-                    ArgumentShape::Path,
-                    "Write the report to this file",
-                ),
-                argument(
-                    "extension",
-                    ArgumentShape::Text,
-                    "Examine only the files with this extension",
-                ),
+                argument()
+                    .name("fix")
+                    .shape(ArgumentShape::Boolean)
+                    .documentation(FIX)
+                    .call(),
+                argument()
+                    .name("jobs")
+                    .shape(ArgumentShape::Integer)
+                    .documentation("Examine this many files at once")
+                    .call(),
+                argument()
+                    .name("report")
+                    .shape(ArgumentShape::Path)
+                    .documentation("Write the report to this file")
+                    .call(),
+                argument()
+                    .name("extension")
+                    .shape(ArgumentShape::Text)
+                    .documentation("Examine only the files with this extension")
+                    .call(),
             ])
         }
 
@@ -887,7 +891,11 @@ mod tests {
 
     impl Declaration for Fix {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([argument("fix", ArgumentShape::Boolean, FIX)])
+            ArgsSchema::new([argument()
+                .name("fix")
+                .shape(ArgumentShape::Boolean)
+                .documentation(FIX)
+                .call()])
         }
     }
 
@@ -896,11 +904,11 @@ mod tests {
 
     impl Declaration for FixAsText {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([argument(
-                "fix",
-                ArgumentShape::Text,
-                "Repair the files that match this pattern",
-            )])
+            ArgsSchema::new([argument()
+                .name("fix")
+                .shape(ArgumentShape::Text)
+                .documentation("Repair the files that match this pattern")
+                .call()])
         }
     }
 
@@ -1098,11 +1106,11 @@ mod tests {
 
     impl Declaration for ReportPath {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([argument(
-                "report",
-                ArgumentShape::Path,
-                "Write the report to this file",
-            )])
+            ArgsSchema::new([argument()
+                .name("report")
+                .shape(ArgumentShape::Path)
+                .documentation("Write the report to this file")
+                .call()])
         }
     }
 
@@ -1111,11 +1119,11 @@ mod tests {
 
     impl Args for Reserved {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([argument(
-                "json",
-                ArgumentShape::Boolean,
-                "Report what the action found as JSON",
-            )])
+            ArgsSchema::new([argument()
+                .name("json")
+                .shape(ArgumentShape::Boolean)
+                .documentation("Report what the action found as JSON")
+                .call()])
         }
 
         fn from_values(_values: &ArgsValues) -> Result<Self, ReadArgsError> {
@@ -1277,6 +1285,7 @@ mod tests {
     }
 
     /// Returns the description of an argument
+    #[bon::builder]
     fn argument(name: &str, shape: ArgumentShape, documentation: &str) -> Argument {
         Argument::builder()
             .name(name.parse().expect("the test names an argument correctly"))
