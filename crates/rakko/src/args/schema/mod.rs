@@ -1,4 +1,5 @@
-/// The description of one argument
+//! Types for the description of an argument set
+
 mod argument;
 
 use getset::Getters;

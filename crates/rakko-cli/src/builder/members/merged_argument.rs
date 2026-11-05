@@ -1,3 +1,5 @@
+//! One flag of a group, merged from the arguments of its members
+
 use rakko_action::{Argument, ArgumentShape, Documentation, Name};
 
 /// One flag of a group, with every member that declares its argument

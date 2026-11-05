@@ -1,3 +1,5 @@
+//! The arguments that a run reads
+//!
 use getset::CopyGetters;
 use rakko_action::{
     Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name,

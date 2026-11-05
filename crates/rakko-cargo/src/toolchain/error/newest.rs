@@ -1,3 +1,5 @@
+//! The error of the question for the toolchain that a project builds with
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 

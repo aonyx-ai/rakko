@@ -1,4 +1,5 @@
-/// The value of one argument
+//! Types for the values that a run reads
+
 mod value;
 
 use std::collections::BTreeMap;

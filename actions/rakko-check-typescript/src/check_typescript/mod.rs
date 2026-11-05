@@ -5,7 +5,6 @@
 //! collects the files that it selects, and reports what it found, and the
 //! action translates that into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{

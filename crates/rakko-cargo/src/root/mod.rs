@@ -4,9 +4,7 @@
 //! knows about the packages of its workspace, which is what a caller reads
 //! instead of asking cargo a second time.
 
-/// Whether cargo can test the examples of a workspace
 mod documentation;
-/// One package of a workspace
 mod package;
 
 use std::path::{Component, Path, PathBuf};

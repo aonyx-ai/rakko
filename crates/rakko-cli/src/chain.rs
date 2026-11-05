@@ -1,3 +1,5 @@
+//! An error and every cause behind it, as a reader sees them
+
 use std::error::Error;
 use std::fmt;
 

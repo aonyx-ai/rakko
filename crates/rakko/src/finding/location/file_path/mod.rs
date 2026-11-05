@@ -1,3 +1,5 @@
+//! The path of a file that a problem is in
+
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
@@ -5,7 +7,6 @@ use std::str::FromStr;
 use crate::ProjectRoot;
 use crate::path::canonical;
 
-/// The error type for file path parsing
 mod error;
 pub use self::error::ParseFilePathError;
 

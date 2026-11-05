@@ -1,3 +1,5 @@
+//! The reading of the report that markdownlint wrote
+
 use std::path::PathBuf;
 
 use serde::Deserialize;

@@ -1,8 +1,7 @@
-/// What a run of a group reports about the members that it drove
+//! What a run reports about the action that it drove
+
 mod group_summary;
-/// The JSON that a run emits for a machine
 mod schema;
-/// The text that a run emits for a reader at a terminal
 mod text;
 
 use std::fmt;

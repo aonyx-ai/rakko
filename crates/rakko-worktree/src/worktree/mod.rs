@@ -8,11 +8,8 @@
 //! The value owns the copy. It lives for as long as the jobs that run in it,
 //! and the drop takes the copy with it.
 
-/// What the crate reports when it cannot stand up a copy of a project
 mod error;
-/// The commands of git that the crate starts
 mod git;
-/// The paths where the tree of a contributor differs from its commit
 mod status;
 
 use std::fs;

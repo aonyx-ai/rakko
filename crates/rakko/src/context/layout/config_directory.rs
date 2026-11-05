@@ -1,3 +1,5 @@
+//! The directory that holds the configuration of the tools of a project
+
 typed_fields::path! {
     /// The directory that holds the configuration of the tools of a project
     ///

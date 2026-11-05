@@ -10,7 +10,6 @@
 //! it, so the reading looks for the object rather than taking the output for
 //! one.
 
-/// The error that leaves a caller without the report of a run
 mod error;
 
 use std::path::PathBuf;

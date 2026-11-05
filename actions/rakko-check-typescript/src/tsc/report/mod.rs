@@ -5,7 +5,6 @@
 //! it judges nothing: the caller decides what a diagnostic means for the
 //! outcome of a run.
 
-/// The error that leaves a caller without the diagnostics of a run
 mod error;
 
 use std::path::PathBuf;

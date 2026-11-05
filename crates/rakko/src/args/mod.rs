@@ -1,8 +1,7 @@
-/// The error type for reading the arguments of a run
+//! Types for the arguments that a run of an action reads
+
 mod error;
-/// Types for the description of an argument set
 pub mod schema;
-/// Types for the values that a run reads
 pub mod values;
 
 pub use self::error::ReadArgsError;

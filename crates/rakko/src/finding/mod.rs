@@ -1,6 +1,6 @@
-/// The location of a problem in a project
+//! Types for a problem that an action found in a project
+
 mod location;
-/// The message that describes a problem
 mod message;
 
 use bon::bon;

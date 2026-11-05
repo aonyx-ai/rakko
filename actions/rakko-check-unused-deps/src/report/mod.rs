@@ -6,11 +6,8 @@
 //! The shape belongs to a version of cargo-udeps, and keeping the reading in
 //! one place keeps the version surface in one place as well.
 
-/// One dependency that a package declares and never uses
 mod dependency;
-/// The error that stops the reading
 mod error;
-/// The table of a manifest that declares a dependency
 mod kind;
 
 use std::collections::BTreeMap;

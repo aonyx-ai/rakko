@@ -6,9 +6,7 @@
 //! what mise wrote into data, and it stops on a warning that is not one of
 //! the harmless kinds, because such a warning can mean an unresolved tool.
 
-/// What a run of `mise lock` that ended with success did
 mod lock;
-/// Who trusts the configuration that a run of mise reads
 mod trust;
 
 use std::collections::{BTreeMap, BTreeSet};

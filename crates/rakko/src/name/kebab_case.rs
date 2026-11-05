@@ -1,3 +1,5 @@
+//! What kebab case holds, and the names that hold only that
+
 use super::ParseNameError;
 
 /// Defines a name that holds only what kebab case holds

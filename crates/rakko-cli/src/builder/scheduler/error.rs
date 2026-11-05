@@ -1,3 +1,5 @@
+//! The error that stops a run of a group
+
 use clawless::event::SendError;
 use rakko_action::Name;
 use thiserror::Error;

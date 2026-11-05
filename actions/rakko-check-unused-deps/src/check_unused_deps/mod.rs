@@ -5,7 +5,6 @@
 //! cargo-udeps reads which crates those targets loaded, and the action
 //! translates what both reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{

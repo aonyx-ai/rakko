@@ -1,3 +1,5 @@
+//! The identifier of an external tool
+
 typed_fields::name! {
     /// The name of an external tool
     ///

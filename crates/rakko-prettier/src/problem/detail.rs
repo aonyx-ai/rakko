@@ -1,3 +1,5 @@
+//! What prettier reported about a file
+
 /// What prettier reported about a file, at the level that prettier could name
 ///
 /// Prettier names a problem as precisely as its operation allows. A report

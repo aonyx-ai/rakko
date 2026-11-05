@@ -6,9 +6,7 @@
 //! one of them: where it belongs, how the project weighs it, and what oxlint
 //! said about it.
 
-/// Where a diagnostic of oxlint belongs
 mod place;
-/// The severity that oxlint gave a diagnostic
 mod severity;
 
 use bon::Builder;

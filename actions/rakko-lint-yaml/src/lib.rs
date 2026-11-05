@@ -43,13 +43,9 @@
 //! [tokio]: https://tokio.rs
 //! [yamllint]: https://github.com/adrienverge/yamllint
 
-/// Types for the action that lints the YAML files of a project
 pub mod lint_yaml;
-/// Types for what one run of yamllint produced
 pub mod observation;
-/// Types for one rule that yamllint reported about a file
 pub mod problem;
-/// Types for the yamllint that a project runs
 pub mod yamllint;
 
 pub use self::lint_yaml::{LintYaml, LintYamlError};

@@ -5,11 +5,8 @@
 //! lines of nextest. The shape of the lines belongs to a version of nextest,
 //! and this module is the one place that knows it.
 
-/// The error that stops the reading
 mod error;
-/// One test that failed
 mod failure;
-/// Where and why a test panicked
 mod panic;
 
 use getset::{CopyGetters, Getters};

@@ -5,13 +5,9 @@
 //! reads those lines. The shape of the lines belongs to a version of cargo,
 //! and this module is the one place that knows it.
 
-/// One diagnostic of the compiler
 mod diagnostic;
-/// The error that stops the reading
 mod error;
-/// How serious the compiler considers a diagnostic
 mod level;
-/// The source that a diagnostic points at
 mod span;
 
 use std::collections::HashSet;

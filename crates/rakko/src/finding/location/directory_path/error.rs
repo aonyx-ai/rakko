@@ -1,3 +1,5 @@
+//! The error type for directory path parsing
+
 use std::path::PathBuf;
 
 use thiserror::Error;

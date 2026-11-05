@@ -1,3 +1,5 @@
+//! One diagnostic of the compiler
+
 use bon::bon;
 use getset::{CopyGetters, Getters};
 use rakko_action::{Finding, Location, ProjectRoot};

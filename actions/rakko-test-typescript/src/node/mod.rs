@@ -4,9 +4,7 @@
 //! of its test runner. An action asks for a run, and everything between the
 //! action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the report that the test runner wrote
 pub mod report;
 
 use rakko_action::ProjectRoot;

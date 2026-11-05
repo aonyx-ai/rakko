@@ -1,3 +1,5 @@
+//! The error type for reading the arguments of a run
+
 use thiserror::Error;
 
 use crate::args::schema::ArgumentName;

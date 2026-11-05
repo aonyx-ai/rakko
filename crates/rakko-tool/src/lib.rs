@@ -45,9 +45,7 @@
 //! [mise]: https://mise.jdx.dev
 //! [tokio]: https://tokio.rs
 
-/// The run of a tool that survives a launcher that Windows stopped
 pub mod launch;
-/// Types for an external program that an action runs
 pub mod tool;
 
 pub use kawauso_process::error::RunCommandError;

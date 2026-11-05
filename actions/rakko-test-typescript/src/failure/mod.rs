@@ -5,7 +5,6 @@
 //! what Node said about the failure. A result that passed carries nothing that
 //! a reader needs, so the reading keeps none of them.
 
-/// The place in the project where a test that failed was declared
 mod origin;
 
 use bon::Builder;

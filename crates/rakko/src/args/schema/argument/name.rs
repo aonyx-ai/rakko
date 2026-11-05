@@ -1,3 +1,5 @@
+//! The name of one argument
+
 use crate::name::kebab_case_name;
 
 /// Constructs an [`ArgumentName`] from a literal string at compile time

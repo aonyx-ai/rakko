@@ -6,9 +6,7 @@
 //! formatting, and the action translates what taplo reported into an
 //! outcome.
 
-/// The arguments that a run of the action reads
 mod args;
-/// The error that stops a run of the action
 mod error;
 
 use std::collections::HashSet;

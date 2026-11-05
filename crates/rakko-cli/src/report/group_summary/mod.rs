@@ -1,6 +1,6 @@
-/// The JSON that a run of a group emits for a machine
+//! What a run of a group reports about the members that it drove
+
 mod schema;
-/// The text that a run of a group emits for a reader at a terminal
 mod text;
 
 use std::fmt;

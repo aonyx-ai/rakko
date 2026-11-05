@@ -1,3 +1,5 @@
+//! How a run of an action uses the project
+
 /// How a run of an action uses the project
 ///
 /// An action declares its access after its arguments are bound and before it

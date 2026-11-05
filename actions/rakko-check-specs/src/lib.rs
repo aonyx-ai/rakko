@@ -52,15 +52,10 @@
 //! [tokio]: https://tokio.rs
 //! [tracey]: https://tracey.bearcove.eu/
 
-/// Types for the action that checks the specifications of a project
 pub mod check_specs;
-/// Types for the comparison of a pull request with its base branch
 pub mod comparison;
-/// The variables that a run keeps away from git
 mod environment;
-/// Types for one problem that tracey reported about a project
 pub mod problem;
-/// Types for the tracey that a project runs
 pub mod tracey;
 
 pub use self::check_specs::{CheckSpecs, CheckSpecsError};

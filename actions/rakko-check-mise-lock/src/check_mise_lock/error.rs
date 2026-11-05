@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+//!
 use std::io;
 use std::path::PathBuf;
 

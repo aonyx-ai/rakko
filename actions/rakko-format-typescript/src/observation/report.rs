@@ -1,3 +1,5 @@
+//! The reading of the text that oxfmt wrote
+
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
 

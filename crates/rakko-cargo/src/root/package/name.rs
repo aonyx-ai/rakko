@@ -1,3 +1,5 @@
+//! The name of a package of a workspace
+
 typed_fields::name! {
     /// The name of a package of a workspace
     ///

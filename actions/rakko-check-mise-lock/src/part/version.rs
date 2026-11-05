@@ -1,3 +1,5 @@
+//! The version of the tool of a part
+
 typed_fields::name! {
     /// The version of a tool that an entry of a lockfile records
     ///

@@ -12,7 +12,6 @@
 //! could not read only on a line that taplo can lose when it exits, so the
 //! reading of such a run also reads the files that taplo examined.
 
-/// The reading of the text that taplo wrote
 mod report;
 
 use std::collections::HashSet;

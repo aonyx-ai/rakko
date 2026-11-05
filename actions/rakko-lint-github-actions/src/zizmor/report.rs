@@ -1,3 +1,5 @@
+//! The reading of the report that zizmor wrote
+
 use std::path::PathBuf;
 
 use rakko_action::{Position, Span};

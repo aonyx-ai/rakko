@@ -4,7 +4,6 @@
 //! `mise lock` added, changed, or removed. A difference becomes a finding of
 //! a run that only reports, and a repair of a run that fixes.
 
-/// What `mise lock` did to a part
 mod change;
 
 use getset::{CopyGetters, Getters};

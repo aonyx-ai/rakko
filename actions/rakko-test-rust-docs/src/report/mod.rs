@@ -7,9 +7,7 @@
 //! The shape belongs to a version of the harness, and keeping the reading in
 //! one place keeps the version surface in one place as well.
 
-/// The error that stops the reading
 mod error;
-/// One example that failed
 mod failure;
 
 use getset::{CopyGetters, Getters};

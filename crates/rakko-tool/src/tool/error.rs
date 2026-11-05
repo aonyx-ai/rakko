@@ -1,3 +1,5 @@
+//! What the crate reports when it cannot find a tool
+
 use kawauso_process::error::RunCommandError;
 use thiserror::Error;
 

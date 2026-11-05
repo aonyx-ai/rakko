@@ -4,9 +4,7 @@
 //! that produces a report. An action asks for a run, and everything between the
 //! action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the report that oxlint wrote
 pub mod report;
 
 use rakko_action::ProjectRoot;

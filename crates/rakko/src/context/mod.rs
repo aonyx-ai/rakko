@@ -1,6 +1,6 @@
-/// The directory layout of a project, with default and overridable paths
+//! Types for the data that an action reads when it runs
+
 mod layout;
-/// The directory where the run of an action happens
 mod project_root;
 
 use bon::bon;

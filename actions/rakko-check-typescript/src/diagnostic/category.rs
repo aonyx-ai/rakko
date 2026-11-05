@@ -1,3 +1,5 @@
+//! The kind that tsc gave a diagnostic
+
 use std::fmt::{Display, Formatter, Result};
 
 /// The word that tsc writes for a diagnostic it reports as an error

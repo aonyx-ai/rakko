@@ -8,7 +8,6 @@
 //! the reading cannot find is absent from the observation, and the caller
 //! decides what the absence means.
 
-/// The reading of the text that prettier wrote
 mod report;
 
 use std::path::PathBuf;

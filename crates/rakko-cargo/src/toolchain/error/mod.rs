@@ -6,9 +6,7 @@
 //! of them carries the context that its own question knows, so this module
 //! holds one error per question.
 
-/// The error of the question for the toolchain that a project builds with
 mod newest;
-/// The error of the question for the toolchain of a channel
 mod resolve;
 
 pub use self::newest::ResolveNewestToolchainError;

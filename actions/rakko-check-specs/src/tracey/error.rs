@@ -1,3 +1,5 @@
+//! The error that leaves a question without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 

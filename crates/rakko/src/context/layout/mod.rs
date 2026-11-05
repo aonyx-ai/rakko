@@ -1,4 +1,5 @@
-/// The directory that holds the configuration of the tools of a project
+//! The directory layout of a project, with default and overridable paths
+
 mod config_directory;
 
 use bon::bon;

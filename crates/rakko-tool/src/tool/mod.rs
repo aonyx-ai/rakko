@@ -9,9 +9,7 @@
 //! the command, the action adds its arguments, and the run reports what the
 //! tool produced.
 
-/// What the crate reports when it cannot find a tool
 mod error;
-/// The identifier of an external tool
 mod name;
 
 use getset::Getters;

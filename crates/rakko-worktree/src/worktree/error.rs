@@ -1,3 +1,5 @@
+//! What the crate reports when it cannot stand up a copy of a project
+
 use std::io::Error as IoError;
 use std::path::PathBuf;
 

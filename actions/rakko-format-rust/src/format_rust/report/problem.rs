@@ -1,3 +1,5 @@
+//! One problem that rustfmt reported about a file
+
 use std::path::PathBuf;
 
 use getset::Getters;

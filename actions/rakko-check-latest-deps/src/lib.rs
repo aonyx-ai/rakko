@@ -33,8 +33,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [nextest]: https://nexte.st
 
-/// Types for the action that checks a project against the newest versions of
-/// its dependencies
 pub mod check_latest_deps;
 
 pub use self::check_latest_deps::{CheckLatestDeps, CheckLatestDepsError};

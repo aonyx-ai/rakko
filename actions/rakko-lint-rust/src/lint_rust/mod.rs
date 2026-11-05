@@ -5,7 +5,6 @@
 //! that the project configured, and runs clippy, and the action translates
 //! what cargo reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{

@@ -4,7 +4,6 @@
 //! this module holds one of them: where the rule was broken, how the project
 //! weighed it, and what yamllint said about it.
 
-/// The level that yamllint gave a problem
 mod level;
 
 use std::path::PathBuf;

@@ -1,3 +1,5 @@
+//! The error that leaves a caller without the files of a project
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 

@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use std::path::PathBuf;
 
 use rakko_cargo::ReadReportError;

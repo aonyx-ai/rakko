@@ -1,3 +1,5 @@
+//! The error that leaves a workspace unchecked
+//!
 use std::path::PathBuf;
 
 use rakko_tool::RunCommandError;

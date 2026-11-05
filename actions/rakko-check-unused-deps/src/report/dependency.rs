@@ -1,3 +1,5 @@
+//! One dependency that a package declares and never uses
+
 use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};

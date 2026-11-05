@@ -7,9 +7,7 @@
 //! The module judges nothing. It reports what tracey said, and the action that
 //! asked decides what the answer means for its outcome.
 
-/// The error that leaves a question without an answer
 mod error;
-/// The reports that tracey writes as data
 mod report;
 
 use std::path::Path;

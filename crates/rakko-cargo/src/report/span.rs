@@ -1,3 +1,5 @@
+//! The source that a diagnostic points at
+
 use std::path::PathBuf;
 
 use getset::Getters;

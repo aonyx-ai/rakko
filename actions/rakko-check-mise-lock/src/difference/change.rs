@@ -1,3 +1,5 @@
+//! What `mise lock` did to a part
+//!
 /// What `mise lock` did to one part of a lockfile
 ///
 /// The variant says whether the part was missing before the run, is missing

@@ -8,7 +8,6 @@
 //! then hands each workspace to the machinery that runs nextest. What the two
 //! runs reported becomes the outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{

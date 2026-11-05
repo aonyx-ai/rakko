@@ -4,7 +4,6 @@
 //! holds that name. An action states the extensions of the group that it
 //! wraps, and the filter turns them into the pattern that prettier reads.
 
-/// The extension of a file that a run examines
 mod extension;
 
 use std::path::Path;

@@ -25,7 +25,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [rustfmt]: https://github.com/rust-lang/rustfmt
 
-/// Types for the action that formats the Rust code of a project
 pub mod format_rust;
 
 pub use self::format_rust::{

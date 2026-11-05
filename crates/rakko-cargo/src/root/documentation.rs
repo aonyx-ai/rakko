@@ -1,3 +1,5 @@
+//! Whether cargo can test the examples of a workspace
+
 /// Whether cargo can test the examples in the documentation of a workspace
 ///
 /// Cargo runs the examples in the documentation of a library, and a workspace

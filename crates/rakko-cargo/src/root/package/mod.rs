@@ -1,6 +1,6 @@
-/// Whether the documented targets of a package share a crate name
+//! One package of a workspace
+
 mod documented_names;
-/// The name of a package of a workspace
 mod name;
 
 use getset::{CopyGetters, Getters};

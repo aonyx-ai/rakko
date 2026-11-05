@@ -65,15 +65,10 @@
 //! [mise]: https://mise.jdx.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that checks whether the lockfile of mise is complete
 pub mod check_mise_lock;
-/// Types for one difference between a lockfile before and after `mise lock`
 pub mod difference;
-/// Types for the entries of one lockfile of mise
 pub mod lockfile;
-/// Types for the mise that a run asks to lock a project
 pub mod mise;
-/// Types for one part of a lockfile of mise
 pub mod part;
 
 pub use self::check_mise_lock::{CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError};

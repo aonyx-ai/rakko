@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 

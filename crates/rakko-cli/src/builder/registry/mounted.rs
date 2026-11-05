@@ -1,3 +1,5 @@
+//! One thing that a harness mounted: an action, a command, or a group
+
 use std::fmt;
 
 use rakko_action::{ErasedAction, Group, Name};

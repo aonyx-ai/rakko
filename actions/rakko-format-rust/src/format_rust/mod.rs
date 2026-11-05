@@ -6,11 +6,8 @@
 //! own configuration and does the formatting, and the action translates
 //! what rustfmt reported into an outcome.
 
-/// The arguments that a run of the action reads
 mod args;
-/// The error that stops a run of the action
 mod error;
-/// What rustfmt reported about a run
 mod report;
 
 use std::collections::HashSet;

@@ -1,3 +1,5 @@
+//! The text that a run emits for a reader at a terminal
+
 use std::fmt;
 
 use rakko_action::{Finding, Location, Outcome, Position};

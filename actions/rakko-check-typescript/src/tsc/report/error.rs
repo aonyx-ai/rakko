@@ -1,3 +1,5 @@
+//! The error that leaves a caller without the diagnostics of a run
+
 use thiserror::Error;
 
 /// An error that leaves a caller without the diagnostics of a run

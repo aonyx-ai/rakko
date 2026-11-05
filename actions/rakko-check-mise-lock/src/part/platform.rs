@@ -1,3 +1,5 @@
+//! The platform of a part
+
 typed_fields::name! {
     /// A platform that an entry of a lockfile records
     ///

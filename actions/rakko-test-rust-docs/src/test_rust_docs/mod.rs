@@ -5,7 +5,6 @@
 //! the examples of every workspace whose documentation cargo can test. What
 //! cargo and the test harness reported becomes the outcome of the run.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{

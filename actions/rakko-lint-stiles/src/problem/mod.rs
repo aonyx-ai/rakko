@@ -4,7 +4,6 @@
 //! project fired. This module holds one of those diagnostics: where it is, how
 //! the rule weighed it, and what the rule said about it.
 
-/// The severity that stiles gave a diagnostic
 mod severity;
 
 use std::path::PathBuf;

@@ -1,3 +1,5 @@
+//! The directory where the run of an action happens
+
 use std::io::Result as IoResult;
 use std::path::Path;
 

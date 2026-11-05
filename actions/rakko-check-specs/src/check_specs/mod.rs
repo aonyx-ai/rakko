@@ -5,7 +5,6 @@
 //! that answers them, and the action asks it the questions that gate a project
 //! and translates the answers into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{

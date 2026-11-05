@@ -1,3 +1,5 @@
+//! The error that leaves a run without the comparison it asked for
+//!
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 

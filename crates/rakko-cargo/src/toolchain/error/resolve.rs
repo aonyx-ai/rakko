@@ -1,3 +1,5 @@
+//! The error of the question for the toolchain of a channel
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 

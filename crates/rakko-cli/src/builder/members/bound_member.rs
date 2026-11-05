@@ -1,3 +1,5 @@
+//! One member of a group, bound to the values of one run
+
 use std::fmt;
 
 use rakko_action::{ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError};

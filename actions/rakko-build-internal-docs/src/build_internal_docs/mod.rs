@@ -5,7 +5,6 @@
 //! every package of a workspace, and reports what rustdoc said, and the
 //! action translates that report into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use std::collections::HashSet;

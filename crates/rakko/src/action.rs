@@ -1,3 +1,5 @@
+//! The trait that every action implements
+
 use std::future::Future;
 
 use crate::access::Access;

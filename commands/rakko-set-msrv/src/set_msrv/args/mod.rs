@@ -1,6 +1,6 @@
-/// A minimum supported Rust version
+//! The arguments that a run of the command reads
+
 mod msrv;
-/// Why a project needs its minimum supported Rust version
 mod reason;
 
 use getset::Getters;

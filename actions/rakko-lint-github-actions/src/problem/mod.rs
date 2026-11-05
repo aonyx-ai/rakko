@@ -5,7 +5,6 @@
 //! one of those places: where it is, how zizmor weighed the pattern, and what
 //! zizmor said about the place.
 
-/// The severity that zizmor gave a finding
 mod severity;
 
 use std::path::PathBuf;

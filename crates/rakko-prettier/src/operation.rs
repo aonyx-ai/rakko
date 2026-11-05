@@ -1,3 +1,5 @@
+//! Types for the operations of prettier that an action runs
+
 /// One operation of prettier that an action runs
 ///
 /// Prettier does one job in two ways, and an action wraps one of them. This

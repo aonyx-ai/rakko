@@ -1,3 +1,5 @@
+//! The line in a file that a problem is on
+
 typed_fields::number! {
     /// The line in a file that a problem is on
     ///

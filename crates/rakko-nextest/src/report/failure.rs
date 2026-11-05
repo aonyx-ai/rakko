@@ -1,3 +1,5 @@
+//! One test that failed
+
 use std::path::PathBuf;
 
 use getset::Getters;

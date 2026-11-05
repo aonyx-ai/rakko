@@ -1,3 +1,5 @@
+//! The steps of a run that mise does
+
 use std::fmt;
 
 use super::args::Msrv;

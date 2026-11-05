@@ -1,8 +1,9 @@
+//! The path of a directory that a problem is in
+
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-/// The error type for directory path parsing
 mod error;
 pub use self::error::ParseDirectoryPathError;
 

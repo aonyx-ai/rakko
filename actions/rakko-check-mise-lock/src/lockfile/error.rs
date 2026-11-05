@@ -1,3 +1,5 @@
+//! The error that keeps the action from reading a lockfile
+
 use thiserror::Error;
 
 use crate::part::{Platform, ToolName, Version};

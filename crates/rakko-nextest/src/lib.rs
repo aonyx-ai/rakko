@@ -61,11 +61,8 @@
 //! [nextest]: https://nexte.st
 //! [tokio]: https://tokio.rs
 
-/// Types for the nextest that a project runs
 pub mod nextest;
-/// Types for what one run of nextest produced
 pub mod observation;
-/// Types for what nextest reported about a run
 pub mod report;
 
 pub use self::nextest::{Lockfile, Nextest, ObserveNextestError};

@@ -1,3 +1,5 @@
+//! A minimum supported Rust version
+
 typed_fields::name! {
     /// A minimum supported Rust version, as a manifest writes it
     ///

@@ -45,18 +45,11 @@
 //!
 //! [`Group`]: rakko_action::Group
 
-/// The command line that a harness builds and runs
 mod builder;
-/// An error and every cause behind it, as a reader sees them
 mod chain;
-/// The command that a harness writes for an activity that does not fit an
-/// action
 mod command;
-/// The view of a command that hides its type
 mod erased_command;
-/// What a run reports about the action that it drove
 mod report;
-/// The root of the project that a run maintains
 mod root;
 
 /// The framework that a command receives its context from and writes through

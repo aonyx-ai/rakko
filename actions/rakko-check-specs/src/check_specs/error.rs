@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+//!
 use rakko_action::ParseFilePathError;
 use rakko_tool::ResolveToolError;
 use thiserror::Error;

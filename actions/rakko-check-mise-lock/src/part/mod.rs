@@ -7,11 +7,8 @@
 //! platform. A finding names the part, so a reader knows which download is
 //! missing or changed.
 
-/// The platform of a part
 mod platform;
-/// The name of the tool of a part
 mod tool_name;
-/// The version of the tool of a part
 mod version;
 
 use std::fmt;

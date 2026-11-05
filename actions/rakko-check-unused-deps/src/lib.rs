@@ -32,9 +32,7 @@
 //! [cargo-udeps]: https://github.com/est31/cargo-udeps
 //! [mise]: https://mise.jdx.dev
 
-/// Types for the action that finds unused dependencies
 pub mod check_unused_deps;
-/// Types for what cargo-udeps reported about a workspace
 pub mod report;
 
 pub use self::check_unused_deps::{CheckUnusedDeps, CheckUnusedDepsError};

@@ -5,7 +5,6 @@
 //! configuration, and does the validation, and the action translates what
 //! taplo reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{
