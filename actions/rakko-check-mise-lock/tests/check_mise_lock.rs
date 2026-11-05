@@ -22,9 +22,10 @@
 //! another mode, because it is older or because its user chose the mode,
 //! answers some of them differently.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::unwrap_used)]
 
@@ -433,8 +434,10 @@ fn action_identifies_itself_as_check_mise_lock() {
     assert_eq!(name.get(), "check-mise-lock");
 }
 
-// The platforms come from the report that mise writes, so this test reads the
-// report of the mise that the tests run.
+/// Shows that a locked project names its platforms
+///
+/// The platforms come from the report that mise writes, so this test reads the
+/// report of the mise that the tests run.
 #[tokio::test]
 async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
     let project = Project::locked(PINNED);
@@ -457,13 +460,15 @@ async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
     );
 }
 
-// A lockfile with a stale entry is one that `mise lock` rewrites, also in a
-// run that then stops, so the lockfile shows where the run locked. The
-// release that the project pins has no downloads, so `mise lock` ends with
-// success after it removes the stale entry, and the run stops after it. A
-// project whose downloads fail would not do: mise ends with an error before
-// it writes anything, and the lockfile stays as it was wherever the run
-// locked.
+/// Shows that a run that stops after the lock leaves the lockfile unchanged
+///
+/// A lockfile with a stale entry is one that `mise lock` rewrites, also in a
+/// run that then stops, so the lockfile shows where the run locked. The
+/// release that the project pins has no downloads, so `mise lock` ends with
+/// success after it removes the stale entry, and the run stops after it. A
+/// project whose downloads fail would not do: mise ends with an error before
+/// it writes anything, and the lockfile stays as it was wherever the run
+/// locked.
 #[tokio::test]
 async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
     let project = Project::new(PHANTOM);
@@ -486,9 +491,12 @@ async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
     assert_eq!(project.read("mise.lock"), stale);
 }
 
-// A field that the entry shares changes every part of the entry, the old
-// table of an untargeted platform among them. Whether `mise lock` keeps that
-// table or removes it, the table stops nothing.
+/// Shows that a run with a changed shared field next to an untargeted platform
+/// fails
+///
+/// A field that the entry shares changes every part of the entry, the old
+/// table of an untargeted platform among them. Whether `mise lock` keeps that
+/// table or removes it, the table stops nothing.
 #[tokio::test]
 async fn run_with_a_changed_shared_field_next_to_an_untargeted_platform_fails() {
     let project = Project::locked(PINNED);
@@ -567,8 +575,10 @@ async fn run_with_a_mise_that_fails_stops_with_what_it_wrote() {
     );
 }
 
-// `mise lock` fills in the checksum that an entry of a targeted platform
-// lacks, in either mode.
+/// Shows that a run with a missing checksum reports the change
+///
+/// `mise lock` fills in the checksum that an entry of a targeted platform
+/// lacks, in either mode.
 #[tokio::test]
 async fn run_with_a_missing_checksum_reports_the_change() {
     let project = Project::locked(PINNED);
@@ -598,8 +608,10 @@ async fn run_with_a_missing_checksum_reports_the_change() {
     );
 }
 
-// The lockfile holds the version of jq, so mise needs the network only for
-// the platforms, and only those fail. Mise then ends with an error.
+/// Shows that a run with a platform that mise fails to resolve stops
+///
+/// The lockfile holds the version of jq, so mise needs the network only for
+/// the platforms, and only those fail. Mise then ends with an error.
 #[tokio::test]
 async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote() {
     let project = Project::locked(PINNED);
@@ -620,8 +632,10 @@ async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote
     );
 }
 
-// A project that asks mise to be quiet still gets the words of mise in the
-// error.
+/// Shows that a run with a quiet project still gets mise words in the error
+///
+/// A project that asks mise to be quiet still gets the words of mise in the
+/// error.
 #[tokio::test]
 async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
     let project = Project::locked(PINNED);
@@ -712,8 +726,10 @@ async fn run_with_an_ignored_local_configuration_passes() {
     );
 }
 
-// The question for the lockfiles in the project makes mise read a lockfile
-// that only the checkout holds, and mise refuses one that is not TOML.
+/// Shows that a run with an ignored lockfile that mise cannot read stops
+///
+/// The question for the lockfiles in the project makes mise read a lockfile
+/// that only the checkout holds, and mise refuses one that is not TOML.
 #[tokio::test]
 async fn run_with_an_ignored_lockfile_that_mise_cannot_read_stops() {
     let project = Project::locked(PINNED);
@@ -824,9 +840,11 @@ async fn run_with_an_unreadable_lockfile_stops() {
     );
 }
 
-// A machine that locks on a platform outside the list of a project, such as
-// the one of a bot that moves the pins, writes entries that `mise lock` on
-// every other machine removes.
+/// Shows that a run with an untargeted platform reports its removal
+///
+/// A machine that locks on a platform outside the list of a project, such as
+/// the one of a bot that moves the pins, writes entries that `mise lock` on
+/// every other machine removes.
 #[tokio::test]
 async fn run_with_an_untargeted_platform_reports_its_removal() {
     let project = Project::locked(PINNED);
@@ -895,13 +913,14 @@ async fn run_with_missing_platforms_leaves_the_lockfile_as_it_was() {
     assert_eq!(project.read("mise.lock"), stripped);
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_missing_platforms_leaves_the_project_unchanged() {
     let project = Project::locked(PINNED);
     project.strip();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(
         &CheckMiseLock,
         &project.context(),
@@ -923,12 +942,14 @@ async fn run_with_missing_platforms_reports_a_finding_for_each() {
     assert_eq!(messages(&findings), reports("adds", &platforms));
 }
 
-// The second gap that the parent of this action, the issue "Catch gaps in mise
-// lockfiles in CI", names: the tables of the platforms held no address and no
-// checksum. In that gap the tables still named the provenance of the
-// download. The project turns the checks of provenance off, and mise can
-// refuse a lockfile that names a provenance whose check is off, so the tables
-// here hold nothing at all.
+/// Shows that a run with platforms without an address reports its change
+///
+/// The second gap that the parent of this action, the issue "Catch gaps in mise
+/// lockfiles in CI", names: the tables of the platforms held no address and no
+/// checksum. In that gap the tables still named the provenance of the
+/// download. The project turns the checks of provenance off, and mise can
+/// refuse a lockfile that names a provenance whose check is off, so the tables
+/// here hold nothing at all.
 #[tokio::test]
 async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
     let project = Project::locked(PINNED);
@@ -956,11 +977,13 @@ async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
     assert_eq!(messages(&findings), reports("changes", &platforms));
 }
 
-// The lockfile already holds the tables without an address that `mise lock`
-// writes for the release, so the run leaves it as it is. Mise asks the API of
-// GitHub about the release as well, and when that API limits the rate of the
-// machine, mise warns, and the warning stops the run first. Either stop is
-// the answer, and the unit tests of the two checks tell them apart.
+/// Shows that a run with targeted platforms without an address stops
+///
+/// The lockfile already holds the tables without an address that `mise lock`
+/// writes for the release, so the run leaves it as it is. Mise asks the API of
+/// GitHub about the release as well, and when that API limits the rate of the
+/// machine, mise warns, and the warning stops the run first. Either stop is
+/// the answer, and the unit tests of the two checks tell them apart.
 #[tokio::test]
 async fn run_with_targeted_platforms_without_an_address_stops() {
     let project = Project::new(PHANTOM);
@@ -1149,8 +1172,10 @@ mod home {
             .collect()
     }
 
-    // This test runs only in the run that the test below starts, because it
-    // reads the project from the variable that the test below sets.
+    /// Shows that a run with fix in a moved home directory passes
+    ///
+    /// This test runs only in the run that the test below starts, because it
+    /// reads the project from the variable that the test below sets.
     #[tokio::test]
     #[ignore = "the test of a project under the home directory runs it"]
     async fn run_with_fix_in_a_moved_home_directory_passes() {
@@ -1167,9 +1192,11 @@ mod home {
         );
     }
 
-    // Mise names the lockfile by its canonical path. It writes `~` only where
-    // that path starts with the home directory, so the moved home directory
-    // is canonical too.
+    /// Shows that a run with fix in a project under the home directory passes
+    ///
+    /// Mise names the lockfile by its canonical path. It writes `~` only where
+    /// that path starts with the home directory, so the moved home directory
+    /// is canonical too.
     #[test]
     fn run_with_fix_in_a_project_under_the_home_directory_passes() {
         let home = tempfile::tempdir().expect("the test creates a temporary directory");

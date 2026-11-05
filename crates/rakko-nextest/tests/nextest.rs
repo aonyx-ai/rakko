@@ -9,9 +9,10 @@
 //! versions that answer are the versions that the repository installs, and a
 //! new pin reaches the tests without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -360,10 +361,12 @@ async fn observe_a_passing_test_finds_nothing() {
     );
 }
 
-// A workspace that nothing resolved yet holds no lockfile, so a run that
-// builds the versions of the lockfile has none to build and refuses. That
-// refusal is a report that the crate cannot answer from, which is what a
-// caller reads when the resolution it asked about is not the one on disk.
+/// Shows that observing without a lockfile stops a locked run
+///
+/// A workspace that nothing resolved yet holds no lockfile, so a run that
+/// builds the versions of the lockfile has none to build and refuses. That
+/// refusal is a report that the crate cannot answer from, which is what a
+/// caller reads when the resolution it asked about is not the one on disk.
 #[tokio::test]
 async fn observe_a_workspace_without_a_lockfile_with_a_locked_run_stops() {
     let project = Project::with_library(PASSING);

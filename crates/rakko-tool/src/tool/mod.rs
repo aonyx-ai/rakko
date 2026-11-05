@@ -290,9 +290,10 @@ fn executable(program: Program) -> Program {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
 
@@ -381,10 +382,12 @@ mod tests {
         assert!(tool.program().get().is_file());
     }
 
-    // A file that mise names for a package of Node is a script on every
-    // platform, and Windows starts a program by the extension of its file, so
-    // this run reaches the tool only when resolution answered with the
-    // launcher beside the script.
+    /// Shows that a package manager tool resolves to a runnable program
+    ///
+    /// A file that mise names for a package of Node is a script on every
+    /// platform, and Windows starts a program by the extension of its file, so
+    /// this run reaches the tool only when resolution answered with the
+    /// launcher beside the script.
     #[tokio::test]
     async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
         let tool = Tool::resolve()
@@ -467,11 +470,13 @@ mod tests {
         assert_eq!(execution.stdout().to_string_lossy().trim(), "two words *");
     }
 
-    // A scheduler runs actions in parallel and can move a run to a different
-    // thread, so a tool that an action holds across a wait travels with it.
-    // This test holds the tool to the auto traits that make this possible,
-    // because a field of a later version could take them away without a word
-    // from the compiler.
+    /// Shows that the tool type satisfies Send and Sync
+    ///
+    /// A scheduler runs actions in parallel and can move a run to a different
+    /// thread, so a tool that an action holds across a wait travels with it.
+    /// This test holds the tool to the auto traits that make this possible,
+    /// because a field of a later version could take them away without a word
+    /// from the compiler.
     #[test]
     fn tool_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

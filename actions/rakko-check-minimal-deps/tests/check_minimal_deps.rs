@@ -20,9 +20,10 @@
 //! versions that answer are the versions that the repository installs, and a
 //! new pin reaches the tests without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -349,9 +350,11 @@ fn action_identifies_itself_as_check_minimal_deps() {
     assert_eq!(name.get(), "check-minimal-deps");
 }
 
-// The library reports the toolchain that built it, and the test in it fails
-// when that toolchain is the nightly of the update. The run passes, so the
-// tests built on the toolchain that the project pins.
+/// Shows that a run builds the tests on the toolchain of the project
+///
+/// The library reports the toolchain that built it, and the test in it fails
+/// when that toolchain is the nightly of the update. The run passes, so the
+/// tests built on the toolchain that the project pins.
 #[tokio::test]
 async fn run_builds_the_tests_on_the_toolchain_of_the_project() {
     let project = Project::with_library(REPORTING_TOOLCHAIN);
@@ -420,9 +423,11 @@ async fn run_in_a_workspace_without_tests_counts_zero() {
     );
 }
 
-// The lockfile of the project is the one file that the recipe this action
-// replaces used to leave rewritten, and the reason that the recipe refused a
-// tree with changes in it.
+/// Shows that a run leaves the lockfile of the project alone
+///
+/// The lockfile of the project is the one file that the recipe this action
+/// replaces used to leave rewritten, and the reason that the recipe refused a
+/// tree with changes in it.
 #[tokio::test]
 async fn run_leaves_the_lockfile_of_the_project_alone() {
     let project = Project::new();
@@ -545,9 +550,11 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote(
     );
 }
 
-// A run that tested a workspace whose resolution failed would answer for a
-// lockfile that nobody wrote, so the finding of the update is the only one
-// that such a run reports.
+/// Shows that a dependency that cargo cannot resolve runs no test
+///
+/// A run that tested a workspace whose resolution failed would answer for a
+/// lockfile that nobody wrote, so the finding of the update is the only one
+/// that such a run reports.
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_runs_no_test() {
     let project = Project::new();
@@ -578,8 +585,10 @@ async fn run_with_a_failing_test_fails() {
     );
 }
 
-// The run works in the copy, and the finding still names the file that the
-// contributor can open.
+/// Shows that a failing test in a second workspace names its path
+///
+/// The run works in the copy, and the finding still names the file that the
+/// contributor can open.
 #[tokio::test]
 async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
@@ -619,6 +628,9 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_stale_lockfile_leaves_the_project_unchanged() {
     let project = Project::new();
@@ -648,16 +660,16 @@ async fn run_with_a_stale_lockfile_leaves_the_project_unchanged() {
         .content(STALE_LOCK)
         .call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckMinimalDeps, &project.context(), &()).await;
 }
 
-// The lockfile of the project names no member, so a build that holds cargo to
-// it ends without success. The run passes, which it can only do when the
-// update wrote the member into the lockfile of the copy and the tests built
-// what that lockfile holds. Cargo refuses the option of the update on every
-// channel but the nightly, so an update that reached this far ran there.
+/// Shows that a run with a stale lockfile passes
+///
+/// The lockfile of the project names no member, so a build that holds cargo to
+/// it ends without success. The run passes, which it can only do when the
+/// update wrote the member into the lockfile of the copy and the tests built
+/// what that lockfile holds. Cargo refuses the option of the update on every
+/// channel but the nightly, so an update that reached this far ran there.
 #[tokio::test]
 async fn run_with_a_stale_lockfile_passes() {
     let project = Project::new();
@@ -749,9 +761,11 @@ async fn run_without_a_manifest_skips() {
     );
 }
 
-// The project pins a cargo, so the run gets past the tool and stops over the
-// channel that the update needs. The message names the nightly, which tells
-// the two conditions apart.
+/// Shows that a run without a nightly toolchain stops
+///
+/// The project pins a cargo, so the run gets past the tool and stops over the
+/// channel that the update needs. The message names the nightly, which tells
+/// the two conditions apart.
 #[tokio::test]
 async fn run_without_a_nightly_toolchain_stops() {
     let project = Project::without_nightly().await;

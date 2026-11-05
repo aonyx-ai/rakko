@@ -14,9 +14,10 @@
 //! the user, so a project answers the same way on the machine of every
 //! contributor.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::{Path, PathBuf};
@@ -400,8 +401,10 @@ async fn run_whose_configuration_selected_nothing_skips() {
     );
 }
 
-// A configuration that tsc refuses belongs to the file that states it, so the
-// run reports it where a reader can repair it.
+/// Shows that run with a refused configuration reports the configuration file
+///
+/// A configuration that tsc refuses belongs to the file that states it, so the
+/// run reports it where a reader can repair it.
 #[tokio::test]
 async fn run_with_a_refused_configuration_reports_the_configuration_file() {
     let project = Project::new();
@@ -443,11 +446,13 @@ async fn run_with_a_type_error_beside_the_project_names_its_place() {
     );
 }
 
-// The message reads like the line that tsc writes, which it does only because
-// the run asks for the diagnostics without the drawing. A drawn report names
-// the place in another shape, and it carries the source of the file and the
-// marks under it, so this test also fails wherever the environment would make
-// tsc draw.
+/// Shows that run with a type error carries the message of tsc
+///
+/// The message reads like the line that tsc writes, which it does only because
+/// the run asks for the diagnostics without the drawing. A drawn report names
+/// the place in another shape, and it carries the source of the file and the
+/// marks under it, so this test also fails wherever the environment would make
+/// tsc draw.
 #[tokio::test]
 async fn run_with_a_type_error_carries_the_message_of_tsc() {
     let project = Project::new();
@@ -473,6 +478,9 @@ async fn run_with_a_type_error_carries_the_message_of_tsc() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_type_error_leaves_the_project_unchanged() {
     let project = Project::new();
@@ -487,15 +495,15 @@ async fn run_with_a_type_error_leaves_the_project_unchanged() {
         .content(WRONG_TYPE)
         .call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckTypeScript, &project.context(), &()).await;
 }
 
-// Tsc draws its diagnostics in color when it writes to a terminal, and an
-// environment that states a terminal is capable of color makes it draw without
-// one, which is how a report that reads on a workstation arrives in escape
-// codes on a build server.
+/// Shows that run with a type error reports a message without color codes
+///
+/// Tsc draws its diagnostics in color when it writes to a terminal, and an
+/// environment that states a terminal is capable of color makes it draw without
+/// one, which is how a report that reads on a workstation arrives in escape
+/// codes on a build server.
 #[tokio::test]
 async fn run_with_a_type_error_reports_a_message_without_color_codes() {
     let project = Project::new();
@@ -603,8 +611,10 @@ async fn run_with_an_explained_diagnostic_reports_one_finding() {
     assert_eq!(findings.len(), 1);
 }
 
-// A project that holds no configuration of tsc is no TypeScript project, and
-// tsc reports that it found none rather than that it found no problem.
+/// Shows that run without a configuration file skips
+///
+/// A project that holds no configuration of tsc is no TypeScript project, and
+/// tsc reports that it found none rather than that it found no problem.
 #[tokio::test]
 async fn run_without_a_configuration_file_skips() {
     let project = Project::new();

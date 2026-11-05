@@ -110,10 +110,10 @@ impl From<ObserveMarkdownlintError> for LintMarkdownError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that builds an
-    // unreadable report expects the reading to fail. A `# Panics` section on
-    // every test would repeat that and give the reader no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that builds an unreadable report expects the reading to fail. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -137,10 +137,12 @@ mod tests {
         );
     }
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read. This test holds the error
-    // to the auto traits that make this possible, because a field of a later
-    // version could take them away without a word from the compiler.
+    /// Shows that error is Send and Sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome
+    /// holds an error that another thread can read. This test holds the error
+    /// to the auto traits that make this possible, because a field of a later
+    /// version could take them away without a word from the compiler.
     #[test]
     fn lint_markdown_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

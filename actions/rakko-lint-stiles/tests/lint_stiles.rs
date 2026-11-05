@@ -6,9 +6,10 @@
 //! what stiles reported live beside the code that reads it, and they read
 //! reports in the shape that stiles writes.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -138,12 +139,13 @@ fn action_identifies_itself_as_lint_stiles() {
     assert_eq!(name.get(), "lint-stiles");
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_without_a_stiles_leaves_the_project_unchanged() {
     let project = Project::without_stiles();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintStiles, &project.context(), &()).await;
 }
 

@@ -74,16 +74,21 @@ pub fn plain(path: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
-    // The helpers of this module exist only for tests.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+    #![allow(
+        clippy::expect_used,
+        reason = "The helpers of this module exist only for tests."
+    )]
 
     use super::*;
 
-    // The paths that a tool reports carry the plain spelling, so a directory
-    // that kept the verbatim one would hold none of the files below it.
+    /// Shows that canonical uses the tool's spelling
+    ///
+    /// The paths that a tool reports carry the plain spelling, so a directory
+    /// that kept the verbatim one would hold none of the files below it.
     #[test]
     fn canonical_names_a_directory_in_the_spelling_that_a_program_writes() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");

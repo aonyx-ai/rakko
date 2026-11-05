@@ -302,11 +302,10 @@ fn diagnosis(stderr: &str, stdout: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that resolves the
-    // validator of this repository expects mise to report it. A `# Panics`
-    // section on every test would repeat that and give the reader no
-    // information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that resolves the validator of this repository expects mise to report it. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use std::path::Path;

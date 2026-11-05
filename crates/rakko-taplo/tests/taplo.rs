@@ -9,9 +9,10 @@
 //! is the version that the repository installs, and a new pin reaches the
 //! tests without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;

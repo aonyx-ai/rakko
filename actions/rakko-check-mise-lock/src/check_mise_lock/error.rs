@@ -182,10 +182,12 @@ pub enum CheckMiseLockError {
 mod tests {
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Checks that the error holds auto traits
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible, because a field of a later version
+    /// could take them away without a word from the compiler.
     #[test]
     fn check_mise_lock_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

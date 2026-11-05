@@ -345,9 +345,10 @@ fn repairs(rewritten: &[PathBuf], root: &ProjectRoot) -> Result<Vec<Finding>, Fo
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
     use rakko_test_utils::path;

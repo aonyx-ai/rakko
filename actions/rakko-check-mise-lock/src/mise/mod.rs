@@ -644,9 +644,10 @@ fn unconfigured(execution: &Execution) -> Option<SkipReason> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::MAIN_SEPARATOR;
 
@@ -834,8 +835,11 @@ mod tests {
         assert_eq!(plain(text), "! No tools configured to lock in this project");
     }
 
-    // Mise replaces the text of the home directory with `~`, so a home
-    // directory that ends with a separator leaves no separator after the `~`.
+    /// Shows that targets with a home directory that ends with a separator name
+    /// its lockfile
+    ///
+    /// Mise replaces the text of the home directory with `~`, so a home
+    /// directory that ends with a separator leaves no separator after the `~`.
     #[test]
     fn targets_with_a_home_directory_that_ends_with_a_separator_name_its_lockfile() {
         let home = PathBuf::from(format!("{}{MAIN_SEPARATOR}", home().display()));
@@ -902,8 +906,10 @@ mod tests {
         );
     }
 
-    // Without a home directory, the action cannot tell where the lockfile
-    // lies, so it cannot place the lockfile inside the directory.
+    /// Shows that targets without a home directory report a lockfile under it
+    ///
+    /// Without a home directory, the action cannot tell where the lockfile
+    /// lies, so it cannot place the lockfile inside the directory.
     #[test]
     fn targets_without_a_home_directory_report_a_lockfile_under_it() {
         let output = targeting_from_home(&separated("project/mise.lock"));

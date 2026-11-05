@@ -125,9 +125,10 @@ impl From<ObserveValidatorError> for CheckRenovateConfigError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -137,10 +138,12 @@ mod tests {
     /// What the validator wrote in a run whose log the action could not read
     const REPORT: &str = "{\"level\":40,\"msg\":\"Something new happened\"}";
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Checks that the error holds auto traits
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible, because a field of a later version
+    /// could take them away without a word from the compiler.
     #[test]
     fn check_renovate_config_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

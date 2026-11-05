@@ -400,9 +400,10 @@ fn unescape(quoted: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::unwrap_used)]
 
     use super::*;
@@ -440,8 +441,10 @@ mod tests {
         assert_send_sync_and_unpin::<BlockState>();
     }
 
-    // A value written over several lines ends where the next entry starts, and
-    // that entry belongs to the block like any other.
+    /// Shows that an entry after a value of several lines reads as an entry
+    ///
+    /// A value written over several lines ends where the next entry starts, and
+    /// that entry belongs to the block like any other.
     #[test]
     fn entry_after_a_value_of_several_lines_reads_as_an_entry() {
         let block = block(&[
@@ -546,8 +549,10 @@ mod tests {
         assert_eq!(block.value("cause").unwrap().flattened(), "");
     }
 
-    // The report writes a value with escapes where the value holds the quote
-    // that it would otherwise be written with.
+    /// Shows that a value of an escaped entry drops the quotes
+    ///
+    /// The report writes a value with escapes where the value holds the quote
+    /// that it would otherwise be written with.
     #[test]
     fn value_of_an_escaped_entry_drops_the_quotes() {
         let block = block(&["  error: \"it's broken\""]);
@@ -572,8 +577,10 @@ mod tests {
         assert_eq!(block.value("exitCode").unwrap().flattened(), "1");
     }
 
-    // A line of a value can read exactly like the line that closes a block,
-    // and it belongs to the value because it stands further in.
+    /// Shows that a value of several lines keeps a line that reads like the close
+    ///
+    /// A line of a value can read exactly like the line that closes a block,
+    /// and it belongs to the value because it stands further in.
     #[test]
     fn value_of_several_lines_keeps_a_line_that_reads_like_the_close() {
         let block = block(&["  stack: |-", "    ...", "  ..."]);

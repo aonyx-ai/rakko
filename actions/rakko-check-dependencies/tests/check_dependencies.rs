@@ -14,9 +14,10 @@
 //! the graph of the project without a registry, so the tests need no network
 //! and answer the same on every machine.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -635,13 +636,14 @@ async fn run_with_a_refused_license_fails() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_refused_license_leaves_the_project_unchanged() {
     let project = Project::with_configuration(ALLOW_APACHE);
     project.lock().await;
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckDependencies, &project.context(), &()).await;
 }
 
@@ -722,9 +724,11 @@ async fn run_without_a_cargo_deny_stops() {
     );
 }
 
-// A workspace that never ran a build has no lockfile, and the action holds
-// cargo to one, so the run stops. The test runs the action directly, because
-// the helper that runs it writes the lockfile first.
+/// Shows that a run without a lockfile says that it needs an update
+///
+/// A workspace that never ran a build has no lockfile, and the action holds
+/// cargo to one, so the run stops. The test runs the action directly, because
+/// the helper that runs it writes the lockfile first.
 #[tokio::test]
 async fn run_without_a_lockfile_says_that_it_needs_an_update() {
     let project = Project::with_configuration(ALLOW_MIT);

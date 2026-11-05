@@ -65,11 +65,14 @@ impl ProjectRoot {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
-    // The helpers of this module exist only for tests.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+    #![allow(
+        clippy::expect_used,
+        reason = "The helpers of this module exist only for tests."
+    )]
 
     use super::*;
 

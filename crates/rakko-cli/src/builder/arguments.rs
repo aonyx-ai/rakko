@@ -116,6 +116,9 @@ fn refuse(reserved: &BTreeSet<String>, declarer: &str, schema: &ArgsSchema) {
 }
 
 /// Returns the flag that renders one argument, with the given help
+///
+/// A path and a text both travel as text, so they render alike. A path that is
+/// not valid UTF-8 reaches no action, and the parser reports it.
 fn flag(argument: &Argument, help: String) -> Arg {
     let name = argument.name().get().to_owned();
     let flag = Arg::new(name.clone()).long(name.clone()).help(help);
@@ -123,9 +126,6 @@ fn flag(argument: &Argument, help: String) -> Arg {
     match argument.shape() {
         ArgumentShape::Boolean => flag.action(ArgAction::SetTrue),
         ArgumentShape::Integer => flag.value_name(placeholder(&name)).value_parser(integer),
-        // A path and a text both travel as text, so they render alike. A path
-        // that is not valid UTF-8 reaches no action, and the parser reports
-        // it.
         ArgumentShape::Path | ArgumentShape::Text => flag.value_name(placeholder(&name)),
     }
 }

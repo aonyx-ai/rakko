@@ -140,6 +140,14 @@ impl Comparison {
     /// compares the index of the checkout with its HEAD, which is what a
     /// contributor staged against what they last committed.
     ///
+    /// The method reads the revisions before it creates the copy, because HEAD
+    /// names the merge commit in the checkout and the base branch in the copy.
+    /// The copy holds the base branch, and its index takes the tree of the
+    /// merge commit, which is what the pull request proposes.
+    /// The temporary directory exists already and `worktree add` refuses a
+    /// directory that exists, so git creates the last segment of the path
+    /// itself.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -179,16 +187,12 @@ impl Comparison {
             return Ok(None);
         }
 
-        // The revisions are read before the copy exists, because HEAD names
-        // the merge commit in the checkout and the base branch in the copy.
         let merge = capture(&repository, HEAD).await?;
         let base = capture(&repository, FIRST_PARENT).await?;
 
         let directory = tempfile::tempdir()
             .map_err(|source| PrepareComparisonError::UnavailableDirectory { source })?;
 
-        // `worktree add` refuses a directory that exists, and the temporary
-        // directory does. Git creates the last segment itself.
         let worktree = directory.path().join(WORKTREE);
 
         run(
@@ -198,8 +202,6 @@ impl Comparison {
         )
         .await?;
 
-        // The copy holds the base branch, and its index takes the tree of the
-        // merge commit, which is what the pull request proposes.
         run(&worktree, ["read-tree"], [merge.as_ref()]).await?;
 
         Ok(Some(Self {
@@ -319,9 +321,10 @@ fn command(directory: &Path) -> Invocation {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 

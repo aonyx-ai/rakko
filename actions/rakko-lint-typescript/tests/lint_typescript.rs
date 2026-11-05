@@ -14,9 +14,10 @@
 //! reads no configuration of the user, so a project without one answers the
 //! same way on the machine of every contributor.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -361,13 +362,14 @@ async fn run_with_a_broken_rule_carries_the_message_of_oxlint() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
     let project = Project::new();
     project.write().path("index.ts").content(DEBUGGER).call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintTypeScript, &project.context(), &()).await;
 }
 
@@ -425,8 +427,10 @@ async fn run_with_a_refused_configuration_stops() {
     );
 }
 
-// Oxlint reports a suppression that the code no longer needs as a problem of
-// the project, with no rule and no file.
+/// Shows that stale suppressions are reported
+///
+/// Oxlint reports a suppression that the code no longer needs as a problem of
+/// the project, with no rule and no file.
 #[tokio::test]
 async fn run_with_a_stale_suppression_reports_it_for_the_project() {
     let project = Project::new();
@@ -453,8 +457,10 @@ async fn run_with_a_stale_suppression_reports_it_for_the_project() {
     );
 }
 
-// A rule that oxlint weighs as a warning leaves it ending with success, so a
-// run that answered from the status of the process would pass this project.
+/// Shows that warnings cause runs to fail
+///
+/// A rule that oxlint weighs as a warning leaves it ending with success, so a
+/// run that answered from the status of the process would pass this project.
 #[tokio::test]
 async fn run_with_a_warning_fails() {
     let project = Project::new();
@@ -468,9 +474,11 @@ async fn run_with_a_warning_fails() {
     );
 }
 
-// Oxlint reports every break of a rule whose count the suppressions file no
-// longer covers, and then a problem of the project. The breaks of the file stay
-// findings beside it.
+/// Shows that uncovered violations are kept as findings
+///
+/// Oxlint reports every break of a rule whose count the suppressions file no
+/// longer covers, and then a problem of the project. The breaks of the file stay
+/// findings beside it.
 #[tokio::test]
 async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
     let project = Project::new();
@@ -511,9 +519,11 @@ async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
     );
 }
 
-// A project that holds no TypeScript is the project that this action skips, and
-// oxlint reports that it found nothing to lint rather than that it found no
-// problem.
+/// Shows that projects without TypeScript files are skipped
+///
+/// A project that holds no TypeScript is the project that this action skips, and
+/// oxlint reports that it found nothing to lint rather than that it found no
+/// problem.
 #[tokio::test]
 async fn run_without_a_file_that_oxlint_lints_skips() {
     let project = Project::new();

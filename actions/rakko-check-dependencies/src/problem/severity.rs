@@ -47,11 +47,10 @@ pub enum Severity {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a word
-    // which cargo-deny writes expects the reading to succeed. A `# Panics`
-    // section on every test would repeat that and give the reader no
-    // information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a word which cargo-deny writes expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -97,9 +96,11 @@ mod tests {
         assert_eq!(severity, Severity::Error);
     }
 
-    // The severity arrives from the report of cargo-deny. A weight that this
-    // crate does not know stops the reading, so that a new weight of a later
-    // version cannot land in the wrong one.
+    /// Shows that an unknown severity word is not read
+    ///
+    /// The severity arrives from the report of cargo-deny. A weight that this
+    /// crate does not know stops the reading, so that a new weight of a later
+    /// version cannot land in the wrong one.
     #[test]
     fn severity_of_an_unknown_word_is_not_read() {
         let severity = serde_json::from_str::<Severity>("\"fatal\"");

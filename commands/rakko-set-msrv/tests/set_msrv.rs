@@ -14,9 +14,10 @@
 //! repository pins that toolchain, and mise has installed it wherever the
 //! tests run.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
@@ -258,6 +259,10 @@ impl Project {
 
     /// Runs the command with the given arguments and a check that answers as
     /// the test asks, and returns what the run left behind
+    ///
+    /// The method drops the context before it reads the output. The context
+    /// holds the sender of the output, and without the sender the receiver ends
+    /// after the last event that the run wrote.
     #[builder]
     async fn run_checked(&self, answer: Answer, msrv: &str, reason: &str) -> Run {
         let args = SetMsrvArgs::from_values(&ArgsValues::new([
@@ -280,8 +285,6 @@ impl Project {
 
         let result = command.run(&project, &clawless, &args).await;
 
-        // The context holds the sender of the output. Without the sender, the
-        // receiver ends after the last event that the run wrote.
         drop(clawless);
         let mut reports = Vec::new();
         while let Some(event) = receiver.recv().await {
@@ -341,8 +344,10 @@ fn locked(lock: &str) -> Vec<(String, String)> {
     toolchains
 }
 
-// A root that is a package and a workspace at once inherits the version of
-// the workspace, so the version of the workspace is the one to change.
+/// Shows that a run in a package-workspace sets the workspace version
+///
+/// A root that is a package and a workspace at once inherits the version of
+/// the workspace, so the version of the workspace is the one to change.
 #[tokio::test]
 async fn run_in_a_package_of_a_workspace_sets_the_version_of_the_workspace() {
     let project = Project::builder().manifest("[package]\nname = \"otter\"\nrust-version.workspace = true\n\n[workspace.package]\nrust-version = \"1.88.0\"\n").pins(TEXTS).build();
@@ -396,8 +401,10 @@ async fn run_in_a_workspace_sets_the_version_and_its_comment() {
     assert_eq!(project.read("Cargo.toml"), BUMPED_WORKSPACE);
 }
 
-// A workspace that declares no version leaves the version of the package in
-// charge.
+/// Shows that a run in a workspace without a version sets the package version
+///
+/// A workspace that declares no version leaves the version of the package in
+/// charge.
 #[tokio::test]
 async fn run_in_a_workspace_without_a_version_sets_the_version_of_the_package() {
     let project = Project::builder().manifest("[package]\nname = \"otter\"\nrust-version = \"1.88.0\"\n\n[workspace.package]\nedition = \"2024\"\n").pins(TEXTS).build();
@@ -488,8 +495,10 @@ async fn run_sets_a_single_pin() {
     assert_eq!(project.read("mise.toml"), "[tools]\nrust = \"1.89.0\"\n");
 }
 
-// A project whose default toolchain is its MSRV pins the version twice. The
-// first pin is the default, and it stays.
+/// Shows that a run with the MSRV as default pins the version twice
+///
+/// A project whose default toolchain is its MSRV pins the version twice. The
+/// first pin is the default, and it stays.
 #[tokio::test]
 async fn run_sets_the_last_matching_pin() {
     let project = Project::builder()
@@ -650,7 +659,9 @@ async fn run_whose_check_repairs_succeeds() {
     assert!(run.result.is_ok());
 }
 
-// A check that skipped did not compile the code on the new version.
+/// Shows that a run with a skipped check fails
+///
+/// A check that skipped did not compile the code on the new version.
 #[tokio::test]
 async fn run_whose_check_skips_fails() {
     let project = Project::installable()

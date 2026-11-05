@@ -77,9 +77,10 @@ impl fmt::Display for Severity {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -118,9 +119,11 @@ mod tests {
         assert_send_sync_and_unpin::<Severity>();
     }
 
-    // The severity arrives from the report of zizmor, which writes the name of
-    // the variant. A severity that this crate does not know stops the reading,
-    // so that a new weight of a later version cannot land in the wrong one.
+    /// Shows that unknown severity words are not read
+    ///
+    /// The severity arrives from the report of zizmor, which writes the name of
+    /// the variant. A severity that this crate does not know stops the reading,
+    /// so that a new weight of a later version cannot land in the wrong one.
     #[test]
     fn severity_of_an_unknown_word_is_not_read() {
         let severity = serde_json::from_str::<Severity>("\"Critical\"");

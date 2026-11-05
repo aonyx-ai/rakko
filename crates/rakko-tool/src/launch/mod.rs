@@ -158,9 +158,10 @@ fn sharing_violation() -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
     #[cfg(windows)]
@@ -251,10 +252,12 @@ mod tests {
         ProjectRoot::from(root)
     }
 
-    // A scheduler runs actions in parallel and can move a run to a different
-    // thread while it waits. This test holds the launch to the auto trait
-    // that makes this possible, because a change to the future could take it
-    // away without a word from the compiler.
+    /// Shows that the launch type satisfies Send
+    ///
+    /// A scheduler runs actions in parallel and can move a run to a different
+    /// thread while it waits. This test holds the launch to the auto trait
+    /// that makes this possible, because a change to the future could take it
+    /// away without a word from the compiler.
     #[test]
     fn launch_is_send() {
         fn assert_send<T: Send>(_: &T) {}

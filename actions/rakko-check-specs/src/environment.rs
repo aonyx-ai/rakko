@@ -41,9 +41,10 @@ pub(crate) fn reserved(names: impl Iterator<Item = OsString>) -> impl Iterator<I
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -54,20 +55,26 @@ mod tests {
             .collect()
     }
 
-    // The underscore of the prefix keeps the variables of other programs.
+    /// Shows that reserved keeps a variable of another program
+    ///
+    /// The underscore of the prefix keeps the variables of other programs.
     #[test]
     fn reserved_keeps_a_variable_of_another_program() {
         assert_eq!(dropped(&["GITHUB_TOKEN", "PATH"]), Vec::<String>::new());
     }
 
-    // The variable that a hook exports is the one that would send every
-    // command of the crate at the repository of the hook.
+    /// Shows that reserved names a variable of git
+    ///
+    /// The variable that a hook exports is the one that would send every
+    /// command of the crate at the repository of the hook.
     #[test]
     fn reserved_names_a_variable_of_git() {
         assert_eq!(dropped(&["GIT_DIR"]), vec!["GIT_DIR"]);
     }
 
-    // A name that nobody has heard of yet is what the prefix is for.
+    /// Shows that reserved names a variable that git has yet to add
+    ///
+    /// A name that nobody has heard of yet is what the prefix is for.
     #[test]
     fn reserved_names_a_variable_that_git_has_yet_to_add() {
         assert_eq!(dropped(&["GIT_SOMETHING_NEW"]), vec!["GIT_SOMETHING_NEW"]);
