@@ -45,7 +45,9 @@
 //! A harness runs the command line from its `main`:
 //!
 //! ```no_run
-//! rakko_cli::builder().run();
+//! fn main() -> std::process::ExitCode {
+//!     rakko_cli::builder().run()
+//! }
 //! ```
 //!
 //! [`Group`]: rakko::Group

@@ -65,7 +65,9 @@ const NAME: &str = "rakko";
 /// # Examples
 ///
 /// ```no_run
-/// rakko_cli::builder().run();
+/// fn main() -> std::process::ExitCode {
+///     rakko_cli::builder().run()
+/// }
 /// ```
 #[must_use]
 pub fn builder() -> Builder {
@@ -307,29 +309,33 @@ impl Builder {
     /// Runs the command line against the arguments of the process
     ///
     /// A request for help, and a request that the command line cannot read,
-    /// end the process in this method. The user gets the message of the parser
-    /// and the process gets an exit code. A run that names nothing ends here
-    /// as well: the user gets the commands that the harness mounted, and the
-    /// process gets the code of a clean run. A run that failed ends here too:
-    /// the user gets the error and every cause of it, and the process gets the
+    /// are reported in this method. The user gets the message of the parser
+    /// and this method returns an exit code. A run that names nothing ends here
+    /// as well: the user gets the commands that the harness mounted, and this
+    /// method returns the code of a clean run. A run that failed ends here too:
+    /// the user gets the error and every cause of it, and this method returns the
     /// code of a run that could not answer, whether the failure stopped an
     /// action, a command, or a group.
-    ///
-    /// The method ends the process itself, so that a harness stays a `main`
-    /// that names what the project mounts and returns nothing.
-    pub fn run(self) {
+    pub fn run(self) -> std::process::ExitCode {
         let (matches, mounted) = match self.resolve(std::env::args_os()) {
             Ok(Resolution::Entry(matches, mounted)) => (matches, mounted),
             Ok(Resolution::Commands(mut command)) => {
-                std::process::exit(i32::from(show_commands(&mut command)));
+                return std::process::ExitCode::from(show_commands(&mut command));
             }
-            Err(error) => error.exit(),
+            Err(error) => {
+                let _ = error.print();
+                return process_exit_code(error.exit_code());
+            }
         };
         let entry = mounted.to_string();
 
         match dispatch(matches, mounted) {
-            Ok(code) => std::process::exit(i32::from(code)),
-            Err(error) => run_error(&entry, error.as_ref()).exit(),
+            Ok(code) => std::process::ExitCode::from(code),
+            Err(error) => {
+                let printed_error = run_error(&entry, error.as_ref());
+                let _ = printed_error.print();
+                process_exit_code(printed_error.exit_code())
+            }
         }
     }
 
@@ -400,6 +406,17 @@ impl Builder {
 
         command
     }
+}
+
+/// Returns the exit code of the process for the code that the parser chose
+///
+/// The parser names its codes as an `i32`, while a process ends with a byte.
+/// A code outside that range reports a failure.
+fn process_exit_code(code: i32) -> std::process::ExitCode {
+    u8::try_from(code).map_or(
+        std::process::ExitCode::FAILURE,
+        std::process::ExitCode::from,
+    )
 }
 
 /// What the arguments of a run describe
