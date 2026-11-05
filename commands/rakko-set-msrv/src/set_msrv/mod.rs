@@ -11,8 +11,8 @@ use std::fmt;
 use std::path::Path;
 
 use rakko::{Action, ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
-use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
+use rakko_cli::clawless::{CommandResult, ErrorContext};
 use rakko_cli::{Command, Report};
 use rakko_tool::{Execution, Invocation};
 use toml_edit::{DocumentMut, Value};
@@ -148,10 +148,18 @@ impl Command for SetMsrv {
     ) -> CommandResult {
         let root = project.root().get();
 
-        set(root, args).await?;
-        lock(root, args.msrv(), self.check.name()).await?;
-        install(root, args.msrv(), self.check.name()).await?;
-        check(self.check.as_ref(), args.msrv(), project, clawless).await?;
+        set(root, args)
+            .await
+            .context("failed to set MSRV in manifest")?;
+        lock(root, args.msrv(), self.check.name())
+            .await
+            .context("failed to lock MSRV pin")?;
+        install(root, args.msrv(), self.check.name())
+            .await
+            .context("failed to install MSRV toolchain")?;
+        check(self.check.as_ref(), args.msrv(), project, clawless)
+            .await
+            .context("failed to run check")?;
 
         Ok(())
     }
