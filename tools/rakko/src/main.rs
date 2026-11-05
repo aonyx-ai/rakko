@@ -31,6 +31,7 @@ use rakko_format_yaml::FormatYaml;
 use rakko_lint_github_actions::LintGitHubActions;
 use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
+use rakko_lint_stiles::LintStiles;
 use rakko_lint_yaml::LintYaml;
 use rakko_pre_commit::PreCommit;
 use rakko_set_msrv::SetMsrv;
@@ -47,6 +48,7 @@ fn main() {
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
+        .mount([Box::new(LintStiles) as Box<dyn ErasedAction>])
         .mount_commands([Box::new(SetMsrv::new(Box::new(CheckMsrv))) as Box<dyn ErasedCommand>])
         .mount_groups([Box::new(pre_commit) as Box<dyn Group>])
         .run();
@@ -76,6 +78,7 @@ fn actions_that_guard_a_commit() -> Vec<Box<dyn ErasedAction>> {
         Box::new(LintGitHubActions),
         Box::new(LintMarkdown),
         Box::new(LintRust),
+        Box::new(LintStiles),
         Box::new(LintYaml),
         Box::new(TestRust),
         Box::new(TestRustDocs),
