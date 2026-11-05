@@ -717,7 +717,7 @@ mod tests {
 
     /// The test binds `fix` only to the formatter, which declares it, as the
     /// command line does. The run adds no value, so the writer, which declares
-    /// nothing, runs without it.
+    /// nothing, runs without it
     #[test]
     fn run_drives_each_member_with_the_values_that_it_was_bound_to() {
         let log = Arc::new(Mutex::new(Vec::new()));
