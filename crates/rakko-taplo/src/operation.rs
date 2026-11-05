@@ -9,6 +9,23 @@
 /// The two formatting operations differ in one thing: whether taplo writes.
 /// A check reports the files that it would rewrite and leaves the project
 /// alone, so a run that a user started in order to look changes nothing.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_taplo::{Operation, Taplo};
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let taplo = Taplo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// // A check reports the files that taplo would format and leaves them as they are.
+/// let observation = taplo.observe(Operation::CheckFormat).await?;
+/// assert!(observation.problems().is_empty());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Operation {
     /// Report the files that taplo would format, and rewrite nothing

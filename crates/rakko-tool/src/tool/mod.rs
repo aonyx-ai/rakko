@@ -57,6 +57,25 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 /// same one. An action therefore resolves a tool once and runs it as often as
 /// it needs.
 ///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_tool::{Tool, ToolName};
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let tool = Tool::resolve()
+///     .name(ToolName::new("taplo"))
+///     .root("/home/otter/project".into())
+///     .call()
+///     .await?;
+///
+/// assert_eq!(tool.name(), &ToolName::new("taplo"));
+/// assert!(tool.invocation().arguments().is_empty());
+/// # Ok(())
+/// # }
+/// ```
+///
 /// [invocation]: Tool::invocation
 /// [resolve]: Tool::resolve
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]

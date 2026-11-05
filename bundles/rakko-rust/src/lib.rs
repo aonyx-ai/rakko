@@ -17,6 +17,15 @@ use rakko_test_rust::TestRust;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_rust::bundle;
+///
+/// let actions = bundle();
+/// assert!(!actions.actions().is_empty());
+/// ```
 #[must_use]
 pub fn bundle() -> Bundle {
     Bundle::new(vec![

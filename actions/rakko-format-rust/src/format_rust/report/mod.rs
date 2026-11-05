@@ -21,6 +21,21 @@ use rakko_action::path::plain;
 use rakko_tool::Execution;
 
 /// Whether rustfmt exited successfully
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_rust::Exit;
+///
+/// match Exit::Succeeded {
+///     Exit::Succeeded => {
+///         // Rustfmt exited successfully
+///     }
+///     Exit::Failed => {
+///         // Rustfmt exited with a failure
+///     }
+/// }
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Exit {
     /// Rustfmt exited successfully
@@ -56,6 +71,26 @@ const WARNING: &str = "Warning:";
 /// writes its diagnostics and its warnings to its standard error stream. The
 /// report keeps the lines that carry an answer and ignores everything else,
 /// so a line that a new version adds does not break the reading.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_format_rust::{Exit, RustfmtReport};
+/// use rakko_tool::Invocation;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let execution = Invocation::new("rustfmt")
+///     .args(["--check", "--files-with-diff", "src/lib.rs"])
+///     .run()
+///     .await?;
+/// let report = RustfmtReport::read(&execution);
+///
+/// if report.exit() == Exit::Failed {
+///     println!("{} files to format", report.listed().len());
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct RustfmtReport {
     /// The files that rustfmt listed, once each, in the order of the output
@@ -85,6 +120,25 @@ impl RustfmtReport {
     ///
     /// Every file that the check listed is a file that rustfmt would
     /// rewrite, and every diagnostic is a file that rustfmt cannot parse.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_format_rust::RustfmtReport;
+    /// use rakko_tool::Invocation;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let execution = Invocation::new("rustfmt")
+    ///     .args(["--check", "--files-with-diff", "src/lib.rs"])
+    ///     .run()
+    ///     .await?;
+    ///
+    /// for problem in RustfmtReport::read(&execution).problems() {
+    ///     println!("{}", problem.path().display());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn problems(&self) -> Vec<RustfmtProblem> {
         let mut problems: Vec<RustfmtProblem> = self
             .listed
@@ -102,6 +156,24 @@ impl RustfmtReport {
     }
 
     /// Reads the report of a run from what rustfmt wrote
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_format_rust::RustfmtReport;
+    /// use rakko_tool::Invocation;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let execution = Invocation::new("rustfmt")
+    ///     .args(["--check", "--files-with-diff", "src/lib.rs"])
+    ///     .run()
+    ///     .await?;
+    /// let report = RustfmtReport::read(&execution);
+    ///
+    /// println!("{:?}", report.listed());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn read(execution: &Execution) -> Self {
         read()
             .stdout(&execution.stdout().to_string_lossy())

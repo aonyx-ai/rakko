@@ -31,6 +31,20 @@ const ITEM_OPENS: &str = " - ";
 /// panic for an example that ran and failed. The failure keeps the output as
 /// it is and reads it on demand, so an example that wrote nothing the crate
 /// knows still names the example.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_rust_docs::DoctestFailure;
+///
+/// let failure = DoctestFailure::builder()
+///     .name("src/lib.rs - add (line 5)")
+///     .output("assertion failed: 2 != 3")
+///     .build();
+///
+/// assert_eq!(failure.name(), "src/lib.rs - add (line 5)");
+/// assert_eq!(failure.output(), "assertion failed: 2 != 3");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct DoctestFailure {
     /// The name of the example, as the harness wrote it
@@ -53,6 +67,31 @@ impl DoctestFailure {
     ///
     /// An example whose name carries no line, and an example in a file
     /// outside the project, get a finding at the level of the project.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use rakko_test_rust_docs::DoctestFailure;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_action::ProjectRoot;
+    ///
+    /// let failure = DoctestFailure::builder()
+    ///     .name("src/lib.rs - add (line 5)")
+    ///     .output("assertion failed")
+    ///     .build();
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(PathBuf::from("/home/otter/project/crates"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// let project = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    ///
+    /// let finding = failure.finding(&root, &project);
+    ///
+    /// assert_eq!(finding.message().get(), "example `src/lib.rs - add (line 5)` failed: assertion failed");
+    /// ```
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = match self.diagnosis() {
             Some(diagnosis) => format!("example `{}` failed: {diagnosis}", self.name),

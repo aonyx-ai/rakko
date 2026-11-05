@@ -8,6 +8,15 @@ use thiserror::Error;
 /// project itself: it travels in the observation, and the caller decides what
 /// it means. The variants here describe output that holds no answer about the
 /// project.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::oxlint::report::ReadReportError;
+///
+/// let error = ReadReportError::Absent;
+/// assert_eq!(error.to_string(), "oxlint wrote no report");
+/// ```
 #[derive(Debug, Error)]
 pub enum ReadReportError {
     /// Oxlint wrote no report

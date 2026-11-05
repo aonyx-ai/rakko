@@ -17,6 +17,28 @@ use crate::root::CargoRoot;
 ///
 /// The value compares by everything it holds, so a report can tell two
 /// reports of one diagnostic apart from two diagnostics.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_cargo::{Cargo, CargoReport};
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// for root in cargo.roots().await? {
+///     let execution = cargo.invocation(&root).arg("check").run().await?;
+///     let report = CargoReport::read(&execution.stdout().to_string_lossy())?;
+///
+///     for diagnostic in report.diagnostics() {
+///         println!("{:?}: {}", diagnostic.level(), diagnostic.message());
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
 pub struct CargoDiagnostic {
     /// How serious the compiler considers the diagnostic
@@ -40,6 +62,21 @@ pub struct CargoDiagnostic {
 #[bon]
 impl CargoDiagnostic {
     /// Creates a diagnostic from what the compiler reported
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::{CargoDiagnostic, DiagnosticLevel};
+    ///
+    /// let diagnostic = CargoDiagnostic::builder()
+    ///     .level(DiagnosticLevel::Warning)
+    ///     .code("clippy::unwrap_used")
+    ///     .message("used `unwrap()` on an `Option` value")
+    ///     .build();
+    ///
+    /// assert_eq!(diagnostic.level(), DiagnosticLevel::Warning);
+    /// assert_eq!(diagnostic.message(), "used `unwrap()` on an `Option` value");
+    /// ```
     #[builder]
     pub fn new(
         level: DiagnosticLevel,
@@ -66,6 +103,31 @@ impl CargoDiagnostic {
     /// the project, such as one in a dependency that a macro pulled in, get
     /// a finding at the level of the project. The message then names the
     /// file and the position, so the place is not lost with the level.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::{Cargo, CargoReport};
+    /// use std::path::PathBuf;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let project = ProjectRoot::new("/home/otter/project".into());
+    /// let cargo = Cargo::resolve(project.clone()).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo.invocation(&root).arg("check").run().await?;
+    ///     let report = CargoReport::read(&execution.stdout().to_string_lossy())?;
+    ///
+    ///     for diagnostic in report.diagnostics() {
+    ///         let finding = diagnostic.finding(&root, &project);
+    ///         println!("{}", finding.message());
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = match &self.code {
             Some(code) => format!("{} [{code}]", self.message),

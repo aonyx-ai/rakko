@@ -16,6 +16,22 @@ use rakko_action::{FilePath, ProjectRoot};
 /// The path stands as Node wrote it, which is absolute. A caller that reports
 /// the failure asks for the [relative][relative] path.
 ///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_test_typescript::failure::Origin;
+///
+/// let origin = Origin::builder()
+///     .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
+///     .line(5)
+///     .column(1)
+///     .build();
+///
+/// assert_eq!(origin.line(), 5);
+/// assert_eq!(origin.column(), 1);
+/// ```
+///
 /// [relative]: Origin::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct Origin {
@@ -39,6 +55,25 @@ impl Origin {
     /// node in the root and lets node walk down from there, so a path that
     /// does not fit points at a report that the caller misread, and the caller
     /// decides what to do about that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_test_typescript::failure::Origin;
+    ///
+    /// let origin = Origin::builder()
+    ///     .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
+    ///     .line(5)
+    ///     .column(1)
+    ///     .build();
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let relative = origin.relative_path(&root);
+    ///
+    /// assert_eq!(relative, Some("src/add.test.ts".parse().unwrap()));
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

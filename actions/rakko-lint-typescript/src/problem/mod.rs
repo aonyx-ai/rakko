@@ -46,6 +46,21 @@ const HELP_OPEN: &str = " help: ";
 /// a finding therefore reads the answer of the tool, and not one that this
 /// crate wrote about it.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::problem::{OxlintProblem, Place, Severity};
+/// use std::path::PathBuf;
+///
+/// let problem = OxlintProblem::builder()
+///     .place(Place::File { path: PathBuf::from("index.ts") })
+///     .severity(Severity::Warning)
+///     .description("unused variable")
+///     .build();
+///
+/// assert_eq!(problem.severity(), Severity::Warning);
+/// ```
+///
 /// [place]: OxlintProblem::place
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct OxlintProblem {
@@ -82,6 +97,24 @@ impl OxlintProblem {
     /// reads like the line that a contributor sees when they run oxlint
     /// themselves. A diagnostic without a rule leaves the rule and its
     /// separator out, so that the sentence holds only the words of oxlint.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_typescript::problem::{OxlintProblem, Place, Severity};
+    ///
+    /// let problem = OxlintProblem::builder()
+    ///     .place(Place::Project)
+    ///     .severity(Severity::Error)
+    ///     .code("eslint(no-debugger)")
+    ///     .description("`debugger` statement is not allowed")
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     problem.message(),
+    ///     "[error] eslint(no-debugger): `debugger` statement is not allowed"
+    /// );
+    /// ```
     pub fn message(&self) -> String {
         let rule = match &self.code {
             Some(code) => format!("{code}{RULE_CLOSE}"),

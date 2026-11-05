@@ -13,6 +13,23 @@ use rakko_action::Span;
 /// root that cargo checked, because the compiler runs there. A caller that
 /// reports the diagnostic asks the root for the path relative to the
 /// project.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::DiagnosticSpan;
+/// use rakko_action::{Position, Span};
+///
+/// let span = DiagnosticSpan::builder()
+///     .path("src/main.rs")
+///     .range(Span::builder()
+///         .start(Position::builder().line(1).column(5).build())
+///         .end(Position::builder().line(1).column(10).build())
+///         .build())
+///     .build();
+///
+/// assert_eq!(span.path().to_string_lossy(), "src/main.rs");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct DiagnosticSpan {
     /// The file that the diagnostic is about, as cargo wrote it

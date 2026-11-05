@@ -12,6 +12,20 @@ use getset::Getters;
 /// unless the plain spelling cannot describe it. A caller that reports the
 /// problem asks the root for the path relative to the project, which is the
 /// name that a reader, a machine, and a code host all recognize.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_format_rust::{RustfmtProblem, RustfmtProblemDetail};
+///
+/// let problem = RustfmtProblem::builder()
+///     .path(PathBuf::from("/home/project/src/lib.rs"))
+///     .detail(RustfmtProblemDetail::Unformatted)
+///     .build();
+///
+/// assert_eq!(problem.path(), &PathBuf::from("/home/project/src/lib.rs"));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct RustfmtProblem {
     /// The absolute path of the file
@@ -29,6 +43,26 @@ pub struct RustfmtProblem {
 /// rewrite gets a path and nothing else, because the difference is the whole
 /// file. A file that it cannot parse gets the position where the parse
 /// stopped and the message of the parser.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_format_rust::{RustfmtProblem, RustfmtProblemDetail};
+///
+/// let problem = RustfmtProblem::builder()
+///     .path(PathBuf::from("/home/project/src/lib.rs"))
+///     .detail(RustfmtProblemDetail::Invalid {
+///         line: 3,
+///         column: 7,
+///         message: "expected item".to_owned(),
+///     })
+///     .build();
+/// assert!(matches!(
+///     problem.detail(),
+///     RustfmtProblemDetail::Invalid { line: 3, column: 7, .. }
+/// ));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum RustfmtProblemDetail {
     /// Rustfmt cannot parse the file

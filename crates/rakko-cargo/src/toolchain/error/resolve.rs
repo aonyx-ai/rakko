@@ -15,6 +15,18 @@ use crate::toolchain::{Channel, Toolchain};
 /// output.
 ///
 /// No variant means that cargo ran. Nothing of the project was examined.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{Channel, ResolveToolchainError};
+///
+/// let error = ResolveToolchainError::UnpinnedToolchain {
+///     channel: Channel::new("nightly"),
+/// };
+///
+/// assert_eq!(error.to_string(), "the project pins no `nightly` toolchain");
+/// ```
 #[derive(Debug, Error)]
 pub enum ResolveToolchainError {
     /// Mise did not run

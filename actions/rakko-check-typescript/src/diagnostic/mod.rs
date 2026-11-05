@@ -37,6 +37,19 @@ const KIND_CLOSE: char = ' ';
 /// it where one sentence does not carry the answer, and those lines name which
 /// type disagreed with which, so a message without them tells a reader that
 /// two types do not fit and never says why.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::{Diagnostic, diagnostic::Category};
+///
+/// let diagnostic = Diagnostic::builder()
+///     .category(Category::Error)
+///     .number("TS2322")
+///     .text("Type 'string' is not assignable to type 'number'.")
+///     .build();
+/// assert_eq!(diagnostic.number(), "TS2322");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct Diagnostic {
     /// The place that the diagnostic points at, or `None` for no place
@@ -64,6 +77,22 @@ impl Diagnostic {
     /// The sentence holds the kind, the number, and the text, in the order
     /// that tsc writes them, so that a finding reads like the line that a
     /// contributor sees when they run tsc themselves.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_typescript::{Diagnostic, diagnostic::Category};
+    ///
+    /// let diagnostic = Diagnostic::builder()
+    ///     .category(Category::Error)
+    ///     .number("TS2322")
+    ///     .text("Type 'string' is not assignable to type 'number'.")
+    ///     .build();
+    /// assert_eq!(
+    ///     diagnostic.message(),
+    ///     "error TS2322: Type 'string' is not assignable to type 'number'."
+    /// );
+    /// ```
     pub fn message(&self) -> String {
         format!(
             "{}{KIND_CLOSE}{}{NUMBER_CLOSE}{}",

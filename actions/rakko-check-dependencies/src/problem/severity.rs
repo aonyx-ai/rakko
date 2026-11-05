@@ -20,6 +20,15 @@ use serde::Deserialize;
 /// reports at its own default level. A report that carries one is read all the
 /// same, because a run that stopped over a word would say nothing about the
 /// project.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_dependencies::problem::Severity;
+///
+/// assert!(Severity::Error > Severity::Warning);
+/// assert!(Severity::Note < Severity::Warning);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {

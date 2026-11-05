@@ -40,6 +40,26 @@ const RULE_CLOSE: &str = ": ";
 /// therefore reads the answer of the tool, and not one that this crate wrote
 /// about it.
 ///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use rakko_action::Position;
+/// use rakko_lint_stiles::{Severity, StilesProblem};
+///
+/// let problem = StilesProblem::builder()
+///     .path(PathBuf::from("src/main.rs"))
+///     .position(Position::builder().line(42).column(5).build())
+///     .severity(Severity::Warning)
+///     .rule("lint.example".to_owned())
+///     .text("example diagnostic".to_owned())
+///     .build();
+///
+/// assert_eq!(problem.rule(), "lint.example");
+/// assert_eq!(problem.position().line().get(), 42);
+/// ```
+///
 /// [relative]: StilesProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct StilesProblem {
@@ -71,6 +91,28 @@ impl StilesProblem {
     ///
     /// The sentence holds the severity, the rule, and what the rule said, so a
     /// reader sees which rule to turn off or to fix the code for.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// use rakko_action::Position;
+    /// use rakko_lint_stiles::{Severity, StilesProblem};
+    ///
+    /// let problem = StilesProblem::builder()
+    ///     .path(PathBuf::from("src/main.rs"))
+    ///     .position(Position::builder().line(10).column(1).build())
+    ///     .severity(Severity::Error)
+    ///     .rule("lint.todo-comment".to_owned())
+    ///     .text("a TODO comment marks unfinished work".to_owned())
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     problem.message(),
+    ///     "[error] lint.todo-comment: a TODO comment marks unfinished work"
+    /// );
+    /// ```
     pub fn message(&self) -> String {
         format!(
             "{SEVERITY_OPEN}{}{SEVERITY_CLOSE}{}{RULE_CLOSE}{}",
@@ -84,6 +126,30 @@ impl StilesProblem {
     /// root as the place to check, so a path that does not fit points at a
     /// report that the caller misread, and the caller decides what to do about
     /// that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// use rakko_action::{FilePath, Position, ProjectRoot};
+    /// use rakko_lint_stiles::{Severity, StilesProblem};
+    ///
+    /// let problem = StilesProblem::builder()
+    ///     .path(PathBuf::from("./src/lib.rs"))
+    ///     .position(Position::builder().line(5).column(10).build())
+    ///     .severity(Severity::Error)
+    ///     .rule("lint.example".to_owned())
+    ///     .text("example problem".to_owned())
+    ///     .build();
+    ///
+    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    ///
+    /// assert_eq!(
+    ///     problem.relative_path(&root),
+    ///     FilePath::try_from(PathBuf::from("src/lib.rs")).ok()
+    /// );
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

@@ -9,6 +9,21 @@ use thiserror::Error;
 /// file that it would reformat travel as problems of the observation. These
 /// variants describe a run whose report cannot be trusted, and the action
 /// that asked for the run reports it instead of answering from it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_taplo::ObserveTaploError;
+///
+/// let error = ObserveTaploError::IncompleteReport {
+///     stderr: "error output".to_string(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "taplo wrote a report that ends before its last line: error output",
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveTaploError {
     /// Every attempt lost part of the report

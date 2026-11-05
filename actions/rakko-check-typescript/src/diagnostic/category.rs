@@ -26,6 +26,15 @@ const SUGGESTION: &str = "suggestion";
 /// The action reports every kind as a finding. A project that runs the type
 /// check asked the compiler to speak, and a diagnostic that the compiler holds
 /// back until it is asked is not one that Rakko decides to hide.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::diagnostic::Category;
+///
+/// let category = Category::Error;
+/// assert_eq!(category.to_string(), "error");
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Category {
     /// The code breaks a rule of the language
@@ -46,6 +55,15 @@ impl Category {
     ///
     /// Returns `None` for a word that is none of the four, which belongs to a
     /// line that is not the start of a diagnostic.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_typescript::diagnostic::Category;
+    ///
+    /// let category = Category::parse("error");
+    /// assert_eq!(category, Some(Category::Error));
+    /// ```
     pub fn parse(word: &str) -> Option<Self> {
         match word {
             ERROR => Some(Self::Error),

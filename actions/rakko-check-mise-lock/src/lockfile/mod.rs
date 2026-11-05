@@ -44,6 +44,15 @@ const PLATFORM_PREFIX: &str = "platforms.";
 ///
 /// A lockfile that does not exist reads as a lockfile without parts, which is
 /// the [`Default`] value.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::Lockfile;
+///
+/// let lockfile = Lockfile::parse("").expect("valid TOML");
+/// assert_eq!(lockfile, Lockfile::default());
+/// ```
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Lockfile {
     /// The content of each part, in the order of the lockfile
@@ -65,6 +74,24 @@ impl Lockfile {
     /// An entry that gains or loses its platforms also loses or gains its
     /// part without a platform. The parts of the platforms name that change,
     /// so the part without a platform gives no difference of its own then.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::Lockfile;
+    ///
+    /// let before = Lockfile::parse("").expect("valid TOML");
+    /// let after = Lockfile::parse(
+    ///     "[[tools.jq]]\nversion = \"1.8.1\"\nbackend = \"aqua:jqlang/jq\"\n",
+    /// )
+    /// .expect("valid TOML");
+    ///
+    /// let differences = before.differences(&after);
+    ///
+    /// assert_eq!(differences.len(), 1);
+    /// assert_eq!(differences[0].finding(), "mise lock adds the entry of jq 1.8.1");
+    /// assert!(before.differences(&before).is_empty());
+    /// ```
     pub fn differences(&self, after: &Self) -> Vec<Difference> {
         let parts: BTreeSet<&Part> = self.parts.keys().chain(after.parts.keys()).collect();
 
@@ -116,6 +143,24 @@ impl Lockfile {
     /// An install in locked mode refuses a platform whose entry names no
     /// download. `mise lock` writes such an entry when it could not resolve
     /// the tool, such as one that holds only the provenance of the download.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::Lockfile;
+    ///
+    /// let lockfile = Lockfile::parse(concat!(
+    ///     "[[tools.jq]]\n",
+    ///     "version = \"1.8.1\"\n",
+    ///     "\n",
+    ///     "[tools.jq.\"platforms.linux-x64\"]\n",
+    ///     "checksum = \"sha256:abc\"\n",
+    /// ))
+    /// .expect("valid TOML");
+    ///
+    /// assert_eq!(lockfile.unaddressed().len(), 1);
+    /// assert!(Lockfile::parse("").expect("valid TOML").unaddressed().is_empty());
+    /// ```
     pub fn unaddressed(&self) -> Vec<&Part> {
         self.parts
             .iter()
@@ -132,6 +177,25 @@ impl Lockfile {
     }
 
     /// Returns whether the lockfile records any platform
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::Lockfile;
+    ///
+    /// let bare = Lockfile::parse("[[tools.jq]]\nversion = \"1.8.1\"\n").expect("valid TOML");
+    /// assert!(!bare.records_platforms());
+    ///
+    /// let platformed = Lockfile::parse(concat!(
+    ///     "[[tools.jq]]\n",
+    ///     "version = \"1.8.1\"\n",
+    ///     "\n",
+    ///     "[tools.jq.\"platforms.linux-x64\"]\n",
+    ///     "url = \"https://example.com/jq-linux\"\n",
+    /// ))
+    /// .expect("valid TOML");
+    /// assert!(platformed.records_platforms());
+    /// ```
     pub fn records_platforms(&self) -> bool {
         self.parts.keys().any(|part| part.platform().is_some())
     }
@@ -143,6 +207,15 @@ impl Lockfile {
     /// Returns [`UnparsableToml`][unparsable] when the text is not TOML, and
     /// the other variants of [`ReadLockfileError`] when the tools, an entry,
     /// or a platform of an entry have a shape that the action does not know.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::Lockfile;
+    ///
+    /// assert!(Lockfile::parse("[[tools.jq]]\nversion = \"1.8.1\"\n").is_ok());
+    /// assert!(Lockfile::parse("tools = [").is_err());
+    /// ```
     ///
     /// [unparsable]: ReadLockfileError::UnparsableToml
     pub fn parse(text: &str) -> Result<Self, ReadLockfileError> {

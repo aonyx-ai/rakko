@@ -54,6 +54,32 @@ const ANNOTATION_CLOSE: char = ')';
 /// at this place. A reader of a finding therefore reads the answer of the
 /// tool, and not one that this crate wrote about it.
 ///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use rakko_action::{Position, Span};
+/// use rakko_lint_github_actions::{Severity, ZizmorProblem};
+///
+/// let problem = ZizmorProblem::builder()
+///     .path(PathBuf::from("./.github/workflows/ci.yml"))
+///     .span(
+///         Span::builder()
+///         .start(Position::builder().line(8).column(24).build())
+///         .end(Position::builder().line(8).column(48).build())
+///         .build()
+///     )
+///     .severity(Severity::High)
+///     .audit("injection".to_owned())
+///     .description("code injection".to_owned())
+///     .annotation("untrusted input".to_owned())
+///     .build();
+///
+/// assert_eq!(problem.audit(), "injection");
+/// assert_eq!(problem.severity(), Severity::High);
+/// ```
+///
 /// [relative]: ZizmorProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct ZizmorProblem {
@@ -93,6 +119,33 @@ impl ZizmorProblem {
     /// what zizmor wrote about this place. A reader therefore sees the two
     /// halves that zizmor draws above and below its block of source, and the
     /// places of one finding read as the same finding.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// use rakko_action::{Position, Span};
+    /// use rakko_lint_github_actions::{Severity, ZizmorProblem};
+    ///
+    /// let problem = ZizmorProblem::builder()
+    ///     .path(PathBuf::from("./.github/workflows/ci.yml"))
+    ///     .span(
+    ///         Span::builder()
+    ///         .start(Position::builder().line(8).column(24).build())
+    ///         .end(Position::builder().line(8).column(48).build())
+    ///         .build()
+    ///     )
+    ///     .severity(Severity::High)
+    ///     .audit("test".to_owned())
+    ///     .description("test description".to_owned())
+    ///     .annotation("test annotation".to_owned())
+    ///     .build();
+    ///
+    /// let message = problem.message();
+    ///
+    /// assert_eq!(message, "[high] test: test description (test annotation)");
+    /// ```
     pub fn message(&self) -> String {
         format!(
             "{SEVERITY_OPEN}{}{SEVERITY_CLOSE}{}{AUDIT_CLOSE}{}{ANNOTATION_OPEN}{}{ANNOTATION_CLOSE}",
@@ -106,6 +159,34 @@ impl ZizmorProblem {
     /// root as the place to look, so a path that does not fit points at a
     /// report that the caller misread, and the caller decides what to do about
     /// that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// use rakko_action::{FilePath, Position, ProjectRoot, Span};
+    /// use rakko_lint_github_actions::{Severity, ZizmorProblem};
+    ///
+    /// let problem = ZizmorProblem::builder()
+    ///     .path(PathBuf::from("./.github/workflows/ci.yml"))
+    ///     .span(
+    ///         Span::builder()
+    ///         .start(Position::builder().line(8).column(24).build())
+    ///         .end(Position::builder().line(8).column(48).build())
+    ///         .build()
+    ///     )
+    ///     .severity(Severity::High)
+    ///     .audit("test".to_owned())
+    ///     .description("test description".to_owned())
+    ///     .annotation("test annotation".to_owned())
+    ///     .build();
+    ///
+    /// let root = ProjectRoot::new(PathBuf::from("/project"));
+    /// let path = problem.relative_path(&root);
+    ///
+    /// assert_eq!(path, FilePath::try_from(PathBuf::from(".github/workflows/ci.yml")).ok());
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

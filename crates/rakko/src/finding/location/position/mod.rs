@@ -14,6 +14,17 @@ pub use self::line::Line;
 /// A position tells where in a file a problem is. It always has a line, and it
 /// can have a column. The first line of a file is line 1, and the first column
 /// of a line is column 1.
+///
+/// # Examples
+///
+/// Create a position at a specific line and column.
+///
+/// ```
+/// use rakko::finding::{Column, Position};
+///
+/// let position = Position::builder().line(10).column(5).build();
+/// assert_eq!(position.column(), &Some(Column::new(5)));
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Position {
     /// The line that the problem is on
@@ -28,6 +39,16 @@ pub struct Position {
 #[bon]
 impl Position {
     /// Creates a position from a line and an optional column
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::finding::Position;
+    ///
+    /// let position = Position::builder().line(10).build();
+    /// assert_eq!(position.line().get(), 10);
+    /// assert!(position.column().is_none());
+    /// ```
     #[builder]
     pub fn new(#[builder(into)] line: Line, #[builder(into)] column: Option<Column>) -> Self {
         Self { line, column }

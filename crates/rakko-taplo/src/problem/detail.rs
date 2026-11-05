@@ -7,6 +7,26 @@
 /// that cannot read a file knows only the reason, and a run that parsed a
 /// file points at the character that broke it. Each variant carries one of
 /// those levels, so a caller reports what taplo knew and invents nothing.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_taplo::{ProblemDetail, TaploProblem};
+///
+/// let problem = TaploProblem::builder()
+///     .path("a.toml".into())
+///     .detail(ProblemDetail::Diagnostic {
+///         line: 1,
+///         column: 5,
+///         message: "unexpected token".to_string(),
+///     })
+///     .build();
+///
+/// let ProblemDetail::Diagnostic { line, column, .. } = problem.detail() else {
+///     panic!("expected a diagnostic");
+/// };
+/// assert_eq!((*line, *column), (1, 5));
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum ProblemDetail {
     /// Taplo reported a diagnostic at a position in the file

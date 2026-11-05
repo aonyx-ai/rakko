@@ -54,6 +54,24 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 /// reviewer reads a diff of a few lines. Mise locks every Rust pin again, so
 /// in a project whose pins name exact versions, only the entry of the moved
 /// pin changes in the lock.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_action::action_name;
+/// use rakko_cli::Command;
+/// use rakko_set_msrv::SetMsrv;
+///
+/// # struct CheckMsrv;
+/// # impl rakko_action::Action for CheckMsrv {
+/// #     type Args = ();
+/// #     fn name(&self) -> rakko_action::Name { action_name!("check-msrv") }
+/// #     async fn run(&self, _: &rakko_action::Context, _: &Self::Args) -> rakko_action::Outcome { rakko_action::Outcome::Passed { summary: None } }
+/// # }
+/// let check = Box::new(CheckMsrv);
+/// let command = SetMsrv::new(check);
+/// assert_eq!(command.name().get(), "set-msrv");
+/// ```
 pub struct SetMsrv {
     /// The action that runs the compiler on the toolchain at the new version
     check: Box<dyn ErasedAction>,
@@ -67,6 +85,23 @@ impl SetMsrv {
     /// `rakko-check-msrv` crate. The command runs it with no arguments, after
     /// it installed the toolchain. The check is independent of the mount, so a
     /// harness that wants a command for the check mounts it as well.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::action_name;
+    /// use rakko_set_msrv::SetMsrv;
+    ///
+    /// # struct StubAction;
+    /// # impl rakko_action::Action for StubAction {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> rakko_action::Name { action_name!("stub") }
+    /// #     async fn run(&self, _: &rakko_action::Context, _: &Self::Args) -> rakko_action::Outcome { rakko_action::Outcome::Passed { summary: None } }
+    /// # }
+    /// let check = Box::new(StubAction);
+    /// let command = SetMsrv::new(check);
+    /// # let _ = command;
+    /// ```
     pub fn new(check: Box<dyn ErasedAction>) -> Self {
         Self { check }
     }

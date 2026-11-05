@@ -13,6 +13,23 @@ use toml_edit::TomlError;
 /// holds, and an answer with a root missing would hide every problem of that
 /// root behind a green run. The discovery therefore stops, and the action
 /// that asked for it reports the error.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_cargo::DiscoverRootsError;
+///
+/// let error = DiscoverRootsError::ForeignWorkspace {
+///     manifest: PathBuf::from("/home/otter/project/Cargo.toml"),
+///     workspace: PathBuf::from("/home/otter"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "the manifest /home/otter/project/Cargo.toml belongs to a workspace outside the project, at /home/otter",
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum DiscoverRootsError {
     /// Cargo did not run

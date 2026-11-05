@@ -8,6 +8,28 @@ use thiserror::Error;
 /// A rule that a file broke is no failure of a run: it travels in the
 /// observation, and the caller decides what it means. The variants here
 /// describe a run that produced no answer at all.
+///
+/// # Examples
+///
+/// A report that the crate cannot read keeps what markdownlint wrote in its
+/// place:
+///
+/// ```
+/// use rakko_lint_markdown::markdownlint::ObserveMarkdownlintError;
+///
+/// let report = "TypeError: cannot read the file";
+/// let source = serde_json::from_str::<Vec<u8>>(report).unwrap_err();
+///
+/// let error = ObserveMarkdownlintError::UnreadableReport {
+///     report: report.to_owned(),
+///     source,
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "failed to read markdownlint's report: TypeError: cannot read the file"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveMarkdownlintError {
     /// Markdownlint did not run

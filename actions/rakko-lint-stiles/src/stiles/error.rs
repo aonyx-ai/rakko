@@ -8,6 +8,21 @@ use thiserror::Error;
 /// A diagnostic that a rule reported is no failure of a run: it travels in
 /// the observation, and the caller decides what it means. The variants here
 /// describe a run that produced no answer that the caller can trust.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_stiles::ObserveStilesError;
+///
+/// let error = ObserveStilesError::IncompleteCheck {
+///     details: "stiles could not read its configuration".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "stiles stopped before it had checked the project: stiles could not read its configuration"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveStilesError {
     /// Stiles stopped before it had checked the project

@@ -18,6 +18,22 @@ use getset::Getters;
 /// The path is the one that tracey reported. Tracey starts in the root of the
 /// project and names a file below it, so the path is already the one that a
 /// finding needs.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::TraceyProblem;
+///
+/// let problem = TraceyProblem::builder()
+///     .path("crates/rakko/src/lib.rs")
+///     .line(12)
+///     .column(4)
+///     .message("Unknown rule reference")
+///     .build();
+///
+/// assert_eq!(problem.path(), "crates/rakko/src/lib.rs");
+/// assert_eq!(*problem.line(), 12);
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct TraceyProblem {
     /// The path of the file that the problem is in
@@ -40,6 +56,22 @@ pub struct TraceyProblem {
 #[bon]
 impl TraceyProblem {
     /// Creates a problem that tracey placed in a file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_specs::TraceyProblem;
+    ///
+    /// let problem = TraceyProblem::builder()
+    ///     .path("crates/rakko/src/lib.rs")
+    ///     .line(12)
+    ///     .column(4)
+    ///     .message("Unknown rule reference")
+    ///     .build();
+    ///
+    /// assert_eq!(problem.message(), "Unknown rule reference");
+    /// assert_eq!(*problem.column(), 4);
+    /// ```
     #[builder]
     pub fn new(
         #[builder(into)] path: String,

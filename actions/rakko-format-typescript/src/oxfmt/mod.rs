@@ -88,6 +88,24 @@ impl Oxfmt {
     /// Returns [`OxfmtUnavailable`][unavailable] when oxfmt does not run.
     ///
     /// [unavailable]: ObserveOxfmtError::OxfmtUnavailable
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_format_typescript::Oxfmt;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let oxfmt = Oxfmt::resolve(root).await?;
+    /// let observation = oxfmt.list().await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn list(&self) -> Result<Observation, ObserveOxfmtError> {
         self.observe(LIST).await
     }
@@ -102,6 +120,21 @@ impl Oxfmt {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no oxfmt for the
     /// project.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_format_typescript::Oxfmt;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let oxfmt = Oxfmt::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve()
             .name(ToolName::new(OXFMT))
@@ -123,6 +156,24 @@ impl Oxfmt {
     /// Returns [`OxfmtUnavailable`][unavailable] when oxfmt does not run.
     ///
     /// [unavailable]: ObserveOxfmtError::OxfmtUnavailable
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_format_typescript::Oxfmt;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let oxfmt = Oxfmt::resolve(root).await?;
+    /// let observation = oxfmt.rewrite().await?;
+    ///
+    /// assert!(observation.rejected_configuration().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn rewrite(&self) -> Result<Observation, ObserveOxfmtError> {
         self.observe(WRITE).await
     }

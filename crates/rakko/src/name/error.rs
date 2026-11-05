@@ -7,6 +7,17 @@ use thiserror::Error;
 /// The name of an action and the name of an argument satisfy one set of
 /// rules, and both report this error. The variant identifies the rule that
 /// the input does not satisfy.
+///
+/// # Examples
+///
+/// Handle an error when parsing an invalid name.
+///
+/// ```
+/// use rakko::name::ParseNameError;
+///
+/// let error = ParseNameError::Empty;
+/// assert_eq!(error.to_string(), "name is empty");
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 pub enum ParseNameError {
     /// The input was empty

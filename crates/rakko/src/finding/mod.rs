@@ -16,6 +16,25 @@ pub use self::message::FindingMessage;
 ///
 /// A finding says what the problem is and where it is. Findings travel in the
 /// outcome of an action run.
+///
+/// # Examples
+///
+/// Create a finding that reports a problem in a file.
+///
+/// ```
+/// use rakko::finding::{Finding, FilePath, Location};
+/// use std::str::FromStr;
+///
+/// let path = FilePath::from_str("src/main.rs").unwrap();
+/// let location = Location::File { path };
+///
+/// let finding = Finding::builder()
+///     .message("missing semicolon")
+///     .location(location)
+///     .build();
+///
+/// assert_eq!(finding.message().get(), "missing semicolon");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Finding {
     /// A message that describes the problem
@@ -29,6 +48,23 @@ pub struct Finding {
 #[bon]
 impl Finding {
     /// Creates a finding from a message and a location
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::finding::{Finding, FilePath, Location};
+    /// use std::str::FromStr;
+    ///
+    /// let path = FilePath::from_str("src/main.rs").unwrap();
+    /// let location = Location::File { path };
+    ///
+    /// let finding = Finding::builder()
+    ///     .message("missing semicolon")
+    ///     .location(location)
+    ///     .build();
+    ///
+    /// assert_eq!(finding.location(), &Location::File { path: FilePath::from_str("src/main.rs").unwrap() });
+    /// ```
     #[builder]
     pub fn new(
         #[builder(into)] message: FindingMessage,

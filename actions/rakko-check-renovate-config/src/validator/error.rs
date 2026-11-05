@@ -11,6 +11,20 @@ use crate::validator::report::ReadReportError;
 /// run: it travels in the observation, and the caller decides what it means.
 /// The variants here describe a run that produced no answer about the project
 /// that the caller can trust.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::validator::ObserveValidatorError;
+///
+/// let error = ObserveValidatorError::MissingReport {
+///     details: "exit code 1".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the validator reported no problem and ended without success: exit code 1"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveValidatorError {
     /// The validator stopped before it had validated the project

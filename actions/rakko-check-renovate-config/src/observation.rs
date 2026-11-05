@@ -19,6 +19,16 @@ use crate::problem::RenovateProblem;
 /// A run that found no configuration is not a run that found nothing wrong.
 /// Both report no problem, and the two mean opposite things for the outcome of
 /// an action: one project is valid, and the other was never looked at.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::Observation;
+///
+/// let observation = Observation::builder().validated(5).build();
+/// assert_eq!(observation.validated(), 5);
+/// assert!(observation.problems().is_empty());
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The problems that the validator reported, in the order of its log
@@ -44,6 +54,23 @@ impl Observation {
     /// started. Every part is optional, so a test names what its case is
     /// about and leaves the rest at the answer of a run that validated nothing
     /// and found nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_renovate_config::Observation;
+    /// use rakko_check_renovate_config::problem::RenovateProblem;
+    /// use std::path::PathBuf;
+    ///
+    /// let problem = RenovateProblem::builder()
+    ///     .path(PathBuf::from("renovate.json"))
+    ///     .topic("Configuration Error".to_owned())
+    ///     .detail("Invalid option: foo".to_owned())
+    ///     .build();
+    /// let observation = Observation::builder().problems(vec![problem]).build();
+    /// assert_eq!(observation.problems().len(), 1);
+    /// assert_eq!(observation.validated(), 0);
+    /// ```
     ///
     /// [`Validator::observe`]: crate::validator::Validator::observe
     #[builder]

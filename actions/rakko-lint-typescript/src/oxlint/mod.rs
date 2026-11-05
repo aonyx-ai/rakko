@@ -89,6 +89,23 @@ impl Oxlint {
     /// through the count of the files, because oxlint writes the same empty
     /// list of diagnostics for a project that it linted and found clean.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_typescript::Oxlint;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let oxlint = Oxlint::resolve(root).await?;
+    ///
+    /// let observation = oxlint.observe().await?;
+    /// assert!(observation.examined() > 0);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`OxlintUnavailable`][unavailable] when oxlint does not run,
@@ -126,6 +143,20 @@ impl Oxlint {
     /// The lookup asks mise about the project whose root the caller names, so
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_typescript::Oxlint;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let oxlint = Oxlint::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

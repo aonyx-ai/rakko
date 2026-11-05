@@ -84,6 +84,16 @@ pub fn builder() -> Builder {
 /// The command line of every project has the same shape, because one type
 /// builds all of them. A harness cannot name a flag of its own.
 ///
+/// # Examples
+///
+/// ```no_run
+/// use std::process::ExitCode;
+///
+/// fn main() -> ExitCode {
+///     rakko_cli::builder().mount([]).run()
+/// }
+/// ```
+///
 /// [`run`]: Builder::run
 #[derive(Debug)]
 pub struct Builder {
@@ -339,6 +349,15 @@ impl Builder {
     /// the user gets the error and every cause of it, and this method returns the
     /// code of a run that could not answer, whether the failure stopped an
     /// action, a command, or a group.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::process::ExitCode;
+    ///
+    /// // A harness that mounts nothing lists no commands and ends cleanly.
+    /// assert_eq!(rakko_cli::builder().run(), ExitCode::SUCCESS);
+    /// ```
     pub fn run(self) -> std::process::ExitCode {
         let (matches, mounted) = match self.resolve(std::env::args_os()) {
             Ok(Resolution::Entry(matches, mounted)) => (matches, mounted),

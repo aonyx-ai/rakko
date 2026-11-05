@@ -101,6 +101,31 @@ impl Nextest {
     /// The lockfile tells a run whether cargo may resolve the dependencies
     /// of the build, or whether it builds the versions that the lockfile
     /// holds and refuses every other one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_nextest::{Lockfile, Nextest};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_action::ProjectRoot;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/project".into());
+    /// let cargo = Cargo::resolve(root.clone()).await?;
+    /// let nextest = Nextest::builder()
+    ///     .cargo(cargo.clone())
+    ///     .lockfile(Lockfile::Locked)
+    ///     .build();
+    /// let writable = Nextest::builder()
+    ///     .cargo(cargo)
+    ///     .lockfile(Lockfile::Writable)
+    ///     .build();
+    ///
+    /// assert_ne!(nextest, writable);
+    /// # Ok(())
+    /// # }
+    /// ```
     #[builder]
     pub fn new(cargo: Cargo, lockfile: Lockfile) -> Self {
         Self { cargo, lockfile }
@@ -117,6 +142,31 @@ impl Nextest {
     /// Nothing outside the workspace of the root changes, whatever the run
     /// finds. Cargo builds in the target directory of that workspace, and it
     /// writes the lockfile of the workspace unless the value forbids it.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_nextest::{Lockfile, Nextest};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_action::ProjectRoot;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/project".into());
+    /// let cargo = Cargo::resolve(root.clone()).await?;
+    /// let roots = cargo.roots().await?;
+    /// let nextest = Nextest::builder()
+    ///     .cargo(cargo)
+    ///     .lockfile(Lockfile::Locked)
+    ///     .build();
+    ///
+    /// for workspace_root in &roots {
+    ///     let observation = nextest.observe(workspace_root, &root).await?;
+    ///     assert!(observation.ran() > 0);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

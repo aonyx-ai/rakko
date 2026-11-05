@@ -83,6 +83,24 @@ impl Node {
     /// ended without success, and [`UnreadableReport`][unreadable] when it
     /// wrote a report that this crate cannot read.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_test_typescript::Node;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let node = Node::resolve(root).await?;
+    /// let report = node.observe().await?;
+    ///
+    /// assert!(report.failures().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// [missing]: ObserveNodeError::MissingFailure
     /// [unavailable]: ObserveNodeError::NodeUnavailable
     /// [unreadable]: ObserveNodeError::UnreadableReport
@@ -126,6 +144,21 @@ impl Node {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no node for the
     /// project.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_test_typescript::Node;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let node = Node::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve()
             .name(ToolName::new(NODE))

@@ -15,6 +15,19 @@ use crate::tool::ToolName;
 ///
 /// Neither variant means that the tool ran. Nothing started, so there is no
 /// exit status and no output to read.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_tool::{ResolveToolError, ToolName};
+///
+/// let error = ResolveToolError::UnresolvedTool {
+///     tool: ToolName::new("taplo"),
+///     details: "not installed".to_owned(),
+/// };
+///
+/// assert_eq!(error.to_string(), "mise reports no location for `taplo`: not installed");
+/// ```
 #[derive(Debug, Error)]
 pub enum ResolveToolError {
     /// Mise did not run

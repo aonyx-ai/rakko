@@ -7,6 +7,16 @@ use thiserror::Error;
 /// A test that failed is no failure of the reading: it arrives as a result of
 /// the report, and the caller decides what it means. The variants here
 /// describe text that is not the report of a run at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::node::report::ReadReportError;
+///
+/// let error = ReadReportError::MissingHeader;
+///
+/// assert_eq!(error.to_string(), "the report does not open with a version of TAP");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Error)]
 pub enum ReadReportError {
     /// The text does not start with the line that opens a TAP report

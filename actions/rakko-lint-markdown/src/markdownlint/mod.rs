@@ -112,6 +112,24 @@ impl Markdownlint {
     /// like a run that found nothing wrong, so the observation also says
     /// whether the run examined a file.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_lint_markdown::Markdownlint;
+    /// use rakko_action::ProjectRoot;
+    /// use std::path::Path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new(Path::new(".").to_path_buf());
+    /// let markdownlint = Markdownlint::resolve(root).await?;
+    ///
+    /// let observation = markdownlint.observe().await?;
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`MarkdownlintUnavailable`][unavailable] when markdownlint
@@ -173,6 +191,21 @@ impl Markdownlint {
     /// The lookup asks mise about the project whose root the caller names, so
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_markdown::Markdownlint;
+    /// use std::path::Path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new(Path::new(".").to_path_buf());
+    /// let markdownlint = Markdownlint::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

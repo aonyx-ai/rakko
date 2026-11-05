@@ -147,6 +147,19 @@ struct Span {
 /// writes a sentence in front of it, so the reading starts at the report and
 /// not at the output.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::oxlint::report::read;
+///
+/// let output = r#"{"diagnostics":[],"number_of_files":0}"#;
+/// let observation = read(output)?;
+///
+/// assert!(observation.problems().is_empty());
+/// assert_eq!(observation.examined(), 0);
+/// # Ok::<(), rakko_lint_typescript::oxlint::report::ReadReportError>(())
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`Absent`][absent] when the output holds no report, which is what a

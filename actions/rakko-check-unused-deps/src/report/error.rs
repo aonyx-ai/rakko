@@ -10,6 +10,24 @@ use thiserror::Error;
 /// skipped a report it did not understand would let a workspace pass with
 /// its unused dependencies unread. The reading therefore stops, and the
 /// action that asked for it reports the error.
+///
+/// # Examples
+///
+/// A line that names the unused dependencies in a shape the crate does not
+/// know produces the error.
+///
+/// ```
+/// use rakko_check_unused_deps::{ReadUdepsReportError, UdepsReport};
+///
+/// let stdout = r#"{"unused_deps":"none"}"#;
+///
+/// let error = UdepsReport::read(stdout).unwrap_err();
+///
+/// assert!(matches!(
+///     error,
+///     ReadUdepsReportError::UnrecognizedReport { .. }
+/// ));
+/// ```
 #[derive(Debug, Error)]
 pub enum ReadUdepsReportError {
     /// Cargo-udeps wrote its report in a shape that the crate cannot read

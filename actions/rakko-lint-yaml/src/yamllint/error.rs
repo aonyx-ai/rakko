@@ -10,6 +10,25 @@ use crate::yamllint::report::ReadReportError;
 /// A rule that a file broke is no failure of a run: it travels in the
 /// observation, and the caller decides what it means. The variants here
 /// describe a run that produced no answer at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::ObserveYamllintError;
+/// use rakko_lint_yaml::ReadReportError;
+///
+/// let error = ObserveYamllintError::UnreadableReport {
+///     report: "invalid output".to_owned(),
+///     source: ReadReportError::UnreadableLine {
+///         line: "bad".to_owned(),
+///     },
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "failed to read the report from yamllint: invalid output"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveYamllintError {
     /// Yamllint wrote a report that the crate cannot read

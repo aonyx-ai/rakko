@@ -21,6 +21,15 @@ use serde::Deserialize;
 /// nothing about the outcome of an action. A rule that a project weighs as a
 /// warning is still a rule that the project asked oxlint to look for, so a
 /// reader of a finding sees the severity, and every severity fails a run.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::problem::Severity;
+///
+/// assert_eq!(Severity::Warning.to_string(), "warning");
+/// assert!(Severity::Warning < Severity::Error);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {

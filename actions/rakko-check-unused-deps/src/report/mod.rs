@@ -63,6 +63,17 @@ impl UdepsReport {
     /// records of the build to the same stream, and it answers `None` when
     /// no line carries the report.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_unused_deps::UdepsReport;
+    ///
+    /// let stdout = r#"{"success":true,"unused_deps":{},"note":null}"#;
+    /// let report = UdepsReport::read(stdout)?;
+    /// assert_eq!(report.map(|r| r.dependencies().len()), Some(0));
+    /// # Ok::<(), rakko_check_unused_deps::ReadUdepsReportError>(())
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`UnrecognizedReport`][unrecognized] when a line carries the

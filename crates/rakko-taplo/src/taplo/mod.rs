@@ -121,6 +121,22 @@ impl Taplo {
     /// project again, and a rewrite formats files that a previous attempt
     /// already formatted.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_taplo::{Operation, Taplo};
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let taplo = Taplo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// let observation = taplo.observe(Operation::CheckFormat).await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`TaploUnavailable`][unavailable] when taplo does not run,
@@ -163,6 +179,22 @@ impl Taplo {
     /// The lookup asks mise about the project whose root the caller names,
     /// so the version that the project pinned answers, whatever the shell
     /// that started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_taplo::Taplo;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let taplo = Taplo::resolve(root.clone()).await?;
+    ///
+    /// assert_eq!(taplo, Taplo::resolve(root).await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

@@ -19,6 +19,16 @@ use serde::Deserialize;
 /// A reader of a finding sees the severity, because a finding of every
 /// severity fails a run, and the severity is what tells the reader which one
 /// to read first.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_github_actions::problem::Severity;
+///
+/// let severity = Severity::High;
+///
+/// assert_eq!(severity.to_string(), "high");
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 pub enum Severity {
     /// The finding tells the reader something about the workflow

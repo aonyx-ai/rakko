@@ -14,6 +14,22 @@ use crate::report::ReadDoctestReportError;
 /// diagnostic of a build that did not finish travel as findings in the
 /// outcome of the run. The variants of this error describe a run whose
 /// answer cannot be trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_rust_docs::TestRustDocsError;
+/// use std::path::PathBuf;
+///
+/// let error = TestRustDocsError::StaleLockfile {
+///     root: PathBuf::from("/home/otter/project"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "the lockfile of the workspace in /home/otter/project needs an update"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum TestRustDocsError {
     /// Cargo did not run

@@ -20,6 +20,21 @@ pub use self::detail::ProblemDetail;
 /// asks for the [relative][relative] path, which strips a root that arrived
 /// in front of it anyway.
 ///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_prettier::problem::ProblemDetail;
+/// use rakko_prettier::PrettierProblem;
+///
+/// let problem = PrettierProblem::builder()
+///     .path(PathBuf::from("src/main.rs"))
+///     .detail(ProblemDetail::Unformatted)
+///     .build();
+///
+/// assert_eq!(problem.path(), &PathBuf::from("src/main.rs"));
+/// ```
+///
 /// [relative]: PrettierProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Debug, Getters)]
 pub struct PrettierProblem {
@@ -35,6 +50,21 @@ pub struct PrettierProblem {
 #[bon]
 impl PrettierProblem {
     /// Creates a problem from the path and the detail that prettier reported
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use rakko_prettier::problem::ProblemDetail;
+    /// use rakko_prettier::PrettierProblem;
+    ///
+    /// let problem = PrettierProblem::builder()
+    ///     .path(PathBuf::from("src/main.rs"))
+    ///     .detail(ProblemDetail::Unformatted)
+    ///     .build();
+    ///
+    /// assert_eq!(problem.detail(), &ProblemDetail::Unformatted);
+    /// ```
     #[builder]
     pub fn new(path: PathBuf, detail: ProblemDetail) -> Self {
         Self { path, detail }
@@ -46,6 +76,25 @@ impl PrettierProblem {
     /// starts in the root and reports what it found below it, so a path that
     /// does not fit points at a report that the caller misread, and the
     /// caller decides what to do about that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_prettier::problem::ProblemDetail;
+    /// use rakko_prettier::PrettierProblem;
+    ///
+    /// let problem = PrettierProblem::builder()
+    ///     .path(PathBuf::from("src/main.rs"))
+    ///     .detail(ProblemDetail::Unformatted)
+    ///     .build();
+    ///
+    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let relative = problem.relative_path(&root).unwrap();
+    ///
+    /// assert_eq!(relative.get().to_str(), Some("src/main.rs"));
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

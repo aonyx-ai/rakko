@@ -13,6 +13,21 @@ use crate::zizmor::ObserveZizmorError;
 /// in a workflow travels as a finding in the outcome of the run. The variants
 /// of this error describe a run whose answer cannot be trusted, and such a run
 /// stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_github_actions::LintGitHubActionsError;
+///
+/// let error = LintGitHubActionsError::IncompleteAudit {
+///     details: "zizmor: cannot read workflow".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "zizmor stopped before it had audited the project: zizmor: cannot read workflow"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum LintGitHubActionsError {
     /// Zizmor reported a path that the project root does not contain

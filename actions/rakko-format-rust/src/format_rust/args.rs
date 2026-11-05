@@ -6,6 +6,15 @@ use rakko_action::{
 };
 
 /// What the run does with files that are not formatted
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_rust::Operation;
+///
+/// assert_eq!(Operation::default(), Operation::Report);
+/// assert_ne!(Operation::Rewrite, Operation::Report);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub enum Operation {
     /// Report files that are not formatted
@@ -24,6 +33,17 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that rustfmt can format";
 /// rustfmt rewrite the files that it can format. Reporting is the safe
 /// default, because a run that was started in order to look must not change
 /// the tree that its caller holds.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_format_rust::{FormatRustArgs, Operation};
+///
+/// let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+/// let args = FormatRustArgs::from_values(&values).unwrap();
+/// assert_eq!(args.operation(), Operation::Rewrite);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatRustArgs {
     /// What the run does with files that are not formatted

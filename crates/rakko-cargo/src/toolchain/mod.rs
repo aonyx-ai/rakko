@@ -50,6 +50,16 @@ impl Toolchain {
     /// The proxy of rustup reads a toolchain from its first argument when
     /// that argument starts with a plus sign, and it takes that argument
     /// over the environment that mise set for the default toolchain.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::Toolchain;
+    ///
+    /// let toolchain = Toolchain::new("nightly-2026-08-11");
+    ///
+    /// assert_eq!(toolchain.argument(), "+nightly-2026-08-11");
+    /// ```
     pub fn argument(&self) -> String {
         format!("+{}", self.get())
     }

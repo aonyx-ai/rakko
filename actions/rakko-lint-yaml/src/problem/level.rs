@@ -15,6 +15,15 @@ use std::fmt;
 /// A reader of a finding sees the level, because a rule that a project called
 /// a warning still points at a problem, and the level says how the project
 /// weighed it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::ProblemLevel;
+///
+/// assert_eq!(ProblemLevel::Error.to_string(), "error");
+/// assert_eq!(ProblemLevel::Warning.to_string(), "warning");
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum ProblemLevel {
     /// The problem breaks a rule that the project treats as an error
@@ -36,6 +45,16 @@ impl ProblemLevel {
     /// Yamllint writes one of two words, and a third word belongs to a
     /// version of yamllint that this crate does not know. The caller stops the
     /// run in that case, instead of guessing what the word means.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_yaml::ProblemLevel;
+    ///
+    /// assert_eq!(ProblemLevel::parse("error"), Some(ProblemLevel::Error));
+    /// assert_eq!(ProblemLevel::parse("warning"), Some(ProblemLevel::Warning));
+    /// assert_eq!(ProblemLevel::parse("notice"), None);
+    /// ```
     pub fn parse(word: &str) -> Option<Self> {
         match word {
             ERROR => Some(Self::Error),

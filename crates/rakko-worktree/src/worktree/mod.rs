@@ -105,6 +105,20 @@ const NO_TOP_LEVEL: &str = "git named no top level";
 ///
 /// The copy is a checkout and not a sandbox. A job that writes outside of it
 /// writes into the project, and nothing here stops that.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_worktree::Worktree;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let worktree = Worktree::create("/home/otter/project".into()).await?;
+///
+/// assert_ne!(worktree.root(), worktree.project());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Getters)]
 pub struct Worktree {
     /// The root of the project that the copy belongs to

@@ -12,6 +12,21 @@ use thiserror::Error;
 /// a file that prettier cannot parse travel as findings in the outcome of the
 /// run. The variants of this error describe a run whose answer cannot be
 /// trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_format_markdown::FormatMarkdownError;
+///
+/// let error = FormatMarkdownError::ForeignPath {
+///     path: PathBuf::from("/etc/passwd"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "prettier reported a path outside the project: /etc/passwd"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum FormatMarkdownError {
     /// Prettier reported a path that the project root does not contain

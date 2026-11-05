@@ -15,6 +15,22 @@ use crate::report::ReadNextestReportError;
 /// observation. The variants of this error describe a run whose reports
 /// cannot be trusted, and the action that asked for the run reports the
 /// error instead of answering from them.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_nextest::ObserveNextestError;
+///
+/// let error = ObserveNextestError::UnrecognizedReport {
+///     root: "/project".into(),
+///     stderr: "unexpected output".to_string(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "nextest wrote a report in /project that the crate does not recognize: unexpected output",
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveNextestError {
     /// Cargo did not run

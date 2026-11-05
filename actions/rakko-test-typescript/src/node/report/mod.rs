@@ -85,6 +85,20 @@ const JOIN: char = ' ';
 ///
 /// A test that passed carries nothing that a caller needs, so the report keeps
 /// no record of it beyond the count.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::node::report::Report;
+///
+/// let report = Report::builder()
+///     .failures(vec![])
+///     .tests(5)
+///     .build();
+///
+/// assert_eq!(report.tests(), 5);
+/// assert!(report.failures().is_empty());
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct Report {
     /// The tests that failed, in the order that the runner reported them
@@ -109,6 +123,18 @@ pub struct Report {
 /// [`MissingCounts`][counts] for a report that ends without the counts of the
 /// run, and [`UnreadableLine`][unreadable] for a line that the reading cannot
 /// place.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::node::report::read;
+///
+/// let report_text = "TAP version 13\nok 1 - passes\n1..1\n# tests 1\n";
+/// let report = read(report_text).unwrap();
+///
+/// assert_eq!(report.tests(), 1);
+/// assert!(report.failures().is_empty());
+/// ```
 ///
 /// [counts]: ReadReportError::MissingCounts
 /// [header]: ReadReportError::MissingHeader

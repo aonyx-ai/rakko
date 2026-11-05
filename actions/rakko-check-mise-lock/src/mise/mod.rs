@@ -161,6 +161,21 @@ struct Listed {
 /// The value holds the directory that every run of mise starts in, and who
 /// trusts its configuration. An action creates one for the project, and one
 /// for the copy of the project when it locks there.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_check_mise_lock::{Mise, Trust};
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let mise = Mise::builder()
+///     .root(ProjectRoot::new("/path/to/project".into()))
+///     .trust(Trust::Inherited)
+///     .build();
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Builder)]
 pub struct Mise {
     /// The directory that every run of mise starts in
@@ -193,6 +208,24 @@ impl Mise {
     /// entry of a platform as it was, and a gap in it would pass unseen.
     /// Returns [`ForeignLockfile`][foreign] when mise names a lockfile outside
     /// the directory.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_mise_lock::{Mise, Trust};
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mise = Mise::builder()
+    ///     .root(ProjectRoot::new("/path/to/project".into()))
+    ///     .trust(Trust::Inherited)
+    ///     .build();
+    ///
+    /// let lock_result = mise.lock().await?;
+    /// println!("Lock result: {:?}", lock_result);
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [foreign]: CheckMiseLockError::ForeignLockfile
     /// [unavailable]: CheckMiseLockError::MiseUnavailable
@@ -243,6 +276,24 @@ impl Mise {
     /// [`InaccessibleLockfile`][inaccessible] and
     /// [`UnreadableLockfile`][unreadable] when a lockfile cannot be read.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_mise_lock::{Mise, Trust};
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mise = Mise::builder()
+    ///     .root(ProjectRoot::new("/path/to/project".into()))
+    ///     .trust(Trust::Inherited)
+    ///     .build();
+    ///
+    /// let lockfiles = mise.lockfiles().await?;
+    /// println!("Read {} lockfiles", lockfiles.len());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// [inaccessible]: CheckMiseLockError::InaccessibleLockfile
     /// [list]: Mise::list
     /// [unreadable]: CheckMiseLockError::UnreadableLockfile
@@ -273,6 +324,24 @@ impl Mise {
     /// that nobody trusted. Returns [`UnreadableListing`][listing] when the
     /// action cannot read the list, and [`ForeignLockfile`][foreign] when mise
     /// names a lockfile outside the directory.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_mise_lock::{Mise, Trust};
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mise = Mise::builder()
+    ///     .root(ProjectRoot::new("/path/to/project".into()))
+    ///     .trust(Trust::Inherited)
+    ///     .build();
+    ///
+    /// let paths = mise.list().await?;
+    /// println!("Found {} lockfiles", paths.len());
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [foreign]: CheckMiseLockError::ForeignLockfile
     /// [listing]: CheckMiseLockError::UnreadableListing

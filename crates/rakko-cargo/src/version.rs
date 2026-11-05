@@ -46,11 +46,30 @@ pub struct RustVersion(String);
 
 impl RustVersion {
     /// Creates a version from the text that names it
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::RustVersion;
+    ///
+    /// // The spelling is kept, so two spellings of one release differ.
+    /// assert_ne!(RustVersion::new("1.88"), RustVersion::new("1.88.0"));
+    /// ```
     pub fn new(version: impl Into<String>) -> Self {
         Self(version.into())
     }
 
     /// Returns the version as it was written
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::RustVersion;
+    ///
+    /// let version = RustVersion::new("1.88");
+    ///
+    /// assert_eq!(version.get(), "1.88");
+    /// ```
     pub fn get(&self) -> &str {
         &self.0
     }

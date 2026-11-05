@@ -129,6 +129,24 @@ impl Zizmor {
     /// audited the project, and [`UnreadableReport`][unreadable] when it wrote
     /// a report that this crate cannot read.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_github_actions::Zizmor;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let zizmor = Zizmor::resolve(root).await?;
+    /// let observation = zizmor.observe().await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// [incomplete]: ObserveZizmorError::IncompleteAudit
     /// [unavailable]: ObserveZizmorError::ZizmorUnavailable
     /// [unreadable]: ObserveZizmorError::UnreadableReport
@@ -178,6 +196,21 @@ impl Zizmor {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no zizmor for the
     /// project.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_github_actions::Zizmor;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let zizmor = Zizmor::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve()
             .name(ToolName::new(ZIZMOR))

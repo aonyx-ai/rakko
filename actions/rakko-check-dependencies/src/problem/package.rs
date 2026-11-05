@@ -22,6 +22,18 @@ const VERSION_SEPARATOR: char = ' ';
 /// Cargo-deny calls this a crate, and so does its message. The type carries
 /// the other name that cargo gives the same thing, because `crate` is a
 /// keyword of Rust and no module can be named for it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_dependencies::problem::Package;
+///
+/// let pkg = Package::builder()
+///     .name("syn")
+///     .version("2.0.0")
+///     .build();
+/// assert_eq!(pkg.to_string(), "syn 2.0.0");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct Package {
     /// The name of the package

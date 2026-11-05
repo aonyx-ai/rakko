@@ -124,6 +124,26 @@ impl Deny {
     /// that the configuration of the project gave it travels with it, and the
     /// caller decides what it means for an outcome.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_check_dependencies::Deny;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let deny = Deny::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// let root = CargoRoot::builder()
+    ///     .directory("/home/otter/project".into())
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    /// let problems = deny.check(&root).await?;
+    /// assert!(problems.iter().all(|problem| !problem.denied()));
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`DenyUnavailable`][unavailable] when cargo-deny does not run,
@@ -197,6 +217,20 @@ impl Deny {
     /// The lookup asks mise about the project whose root the caller names, so
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_dependencies::Deny;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let deny = Deny::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

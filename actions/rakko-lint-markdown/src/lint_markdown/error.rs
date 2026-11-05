@@ -13,6 +13,22 @@ use crate::markdownlint::ObserveMarkdownlintError;
 /// as a finding in the outcome of the run. The variants of this error
 /// describe a run whose answer cannot be trusted, and such a run stops
 /// instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_markdown::LintMarkdownError;
+/// use std::path::PathBuf;
+///
+/// let error = LintMarkdownError::ForeignPath {
+///     path: PathBuf::from("/outside/project/file.md"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "markdownlint reported a path outside the project: /outside/project/file.md"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum LintMarkdownError {
     /// Markdownlint reported a path that the project root does not contain

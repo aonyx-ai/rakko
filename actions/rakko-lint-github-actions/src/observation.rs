@@ -12,6 +12,16 @@ use getset::{CopyGetters, Getters};
 use crate::problem::ZizmorProblem;
 
 /// Whether zizmor collected a file to audit
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_github_actions::observation::Collection;
+///
+/// let collected = Collection::default();
+///
+/// assert_eq!(collected, Collection::Collected);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub enum Collection {
     /// Zizmor collected a file
@@ -30,6 +40,16 @@ pub enum Collection {
 /// reports an empty array in both cases, and the two mean opposite things for
 /// the outcome of an action: one project is clean, and the other was never
 /// looked at.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_github_actions::Observation;
+///
+/// let observation = Observation::builder().build();
+///
+/// assert!(observation.problems().is_empty());
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The places that zizmor reported, in the order of the report
@@ -50,6 +70,20 @@ impl Observation {
     /// Every part is optional, so a test names what its case is about and
     /// leaves the rest at the answer of a run that audited the project and
     /// found nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_github_actions::Observation;
+    /// use rakko_lint_github_actions::observation::Collection;
+    ///
+    /// let observation = Observation::builder()
+    ///     .collected(Collection::default())
+    ///     .build();
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// assert_eq!(observation.collected(), Collection::Collected);
+    /// ```
     ///
     /// [`Zizmor::observe`]: crate::zizmor::Zizmor::observe
     #[builder]

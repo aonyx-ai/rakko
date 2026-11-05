@@ -26,6 +26,18 @@ const POSITION: char = ':';
 /// A run that reported nothing writes nothing, and an empty report holds no
 /// problem. Every other line is one problem.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::yamllint::report::problems;
+///
+/// let report = "./file.yaml:1:1: [error] missing document start (document-start)";
+///
+/// let result = problems(report).expect("parsing succeeds for valid yamllint output");
+///
+/// assert_eq!(result.len(), 1);
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`UnreadableLine`][unreadable] for a line that does not report a

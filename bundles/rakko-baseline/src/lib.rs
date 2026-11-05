@@ -20,6 +20,21 @@ use rakko_lint_yaml::LintYaml;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_baseline::bundle;
+///
+/// let names: Vec<String> = bundle()
+///     .actions()
+///     .iter()
+///     .map(|action| action.name().to_string())
+///     .collect();
+///
+/// assert_eq!(names.first().map(String::as_str), Some("check-mise-lock"));
+/// assert!(names.contains(&"lint-yaml".to_owned()));
+/// ```
 #[must_use]
 pub fn bundle() -> Bundle {
     Bundle::new(vec![

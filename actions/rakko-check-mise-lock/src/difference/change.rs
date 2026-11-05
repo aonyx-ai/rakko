@@ -4,6 +4,20 @@
 ///
 /// The variant says whether the part was missing before the run, is missing
 /// after it, or is there on both sides with other content.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::Change;
+///
+/// let label = match Change::Removed {
+///     Change::Added => "adds",
+///     Change::Removed => "removes",
+///     Change::Changed => "changes",
+/// };
+///
+/// assert_eq!(label, "removes");
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Change {
     /// `mise lock` wrote a part that the lockfile did not hold

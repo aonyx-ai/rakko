@@ -11,6 +11,20 @@ use crate::tsc::report::ReadReportError;
 /// A rule of the language that the code breaks is no failure of a run: it
 /// travels as a diagnostic, and the caller decides what it means. The variants
 /// here describe a run that produced no answer about the project at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::ObserveTscError;
+///
+/// let error = ObserveTscError::MissingReport {
+///     details: "out of memory".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "tsc reported nothing and ended without success: out of memory"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveTscError {
     /// Tsc reported nothing and ended without success

@@ -19,6 +19,18 @@ use crate::problem::OxlintProblem;
 /// no diagnostic for a project that holds no file it lints and for a project
 /// that it linted and found clean, and the two mean opposite things for the
 /// outcome of an action, so the count travels with the diagnostics.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::Observation;
+///
+/// let observation = Observation::builder()
+///     .examined(1)
+///     .build();
+///
+/// assert_eq!(observation.examined(), 1);
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The diagnostics that oxlint reported, in the order of the report
@@ -38,6 +50,18 @@ impl Observation {
     /// builds one where a test stands in for an oxlint that nobody started.
     /// Every part is optional, so a test names what its case is about and
     /// leaves the rest at the answer of a run that examined nothing at all.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_typescript::Observation;
+    ///
+    /// let observation = Observation::builder()
+    ///     .examined(5)
+    ///     .build();
+    ///
+    /// assert_eq!(observation.examined(), 5);
+    /// ```
     ///
     /// [`Oxlint::observe`]: crate::oxlint::Oxlint::observe
     #[builder]

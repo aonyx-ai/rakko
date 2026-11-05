@@ -12,6 +12,19 @@ use getset::{CopyGetters, Getters};
 use crate::problem::YamllintProblem;
 
 /// The completion status of a yamllint run
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::observation::Examination;
+///
+/// let label = match Examination::Stopped {
+///     Examination::Completed => "yamllint examined every file",
+///     Examination::Stopped => "yamllint stopped early",
+/// };
+///
+/// assert_eq!(label, "yamllint stopped early");
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub enum Examination {
     /// Yamllint examined every file that it had collected
@@ -31,6 +44,18 @@ pub enum Examination {
 /// at the first file that it cannot open, and the problems that it had
 /// already reported still arrive, so a caller that ignored this would report
 /// a part of the project as though it were the whole.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::Observation;
+/// use rakko_lint_yaml::observation::Examination;
+///
+/// let observation = Observation::builder().build();
+///
+/// assert!(observation.problems().is_empty());
+/// assert_eq!(observation.examined(), Examination::Completed);
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The rules that yamllint reported, in the order of the report
@@ -58,6 +83,21 @@ impl Observation {
     /// started. Every part is optional, so a test names what its case is
     /// about and leaves the rest at the answer of a run that examined the
     /// project and found nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_yaml::Observation;
+    /// use rakko_lint_yaml::observation::Examination;
+    ///
+    /// let observation = Observation::builder()
+    ///     .examined(Examination::Stopped)
+    ///     .stderr("yamllint: cannot open the file")
+    ///     .build();
+    ///
+    /// assert_eq!(observation.examined(), Examination::Stopped);
+    /// assert_eq!(observation.stderr(), "yamllint: cannot open the file");
+    /// ```
     ///
     /// [`Yamllint::observe`]: crate::yamllint::Yamllint::observe
     #[builder]

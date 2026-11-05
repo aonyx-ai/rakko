@@ -8,6 +8,21 @@ use thiserror::Error;
 /// A pattern that zizmor recognized in a workflow is no failure of a run: it
 /// travels in the observation, and the caller decides what it means. The
 /// variants here describe a run that produced no answer at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_github_actions::zizmor::ObserveZizmorError;
+///
+/// let error = ObserveZizmorError::IncompleteAudit {
+///     details: "zizmor: configuration error".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "zizmor stopped before it had audited the project: zizmor: configuration error"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveZizmorError {
     /// Zizmor stopped before it had audited every file

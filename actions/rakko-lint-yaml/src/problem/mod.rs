@@ -36,6 +36,24 @@ const LEVEL_CLOSE: &str = "] ";
 /// that rule. A reader of a finding therefore reads the answer of the tool,
 /// and not one that this crate wrote about it.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::{YamllintProblem, ProblemLevel};
+///
+/// let problem = YamllintProblem::builder()
+///     .path("./config.yaml")
+///     .line(5)
+///     .column(3)
+///     .level(ProblemLevel::Warning)
+///     .description("truthy value should be one of [false, true]".to_owned())
+///     .build();
+///
+/// assert_eq!(problem.line(), 5);
+/// assert_eq!(problem.column(), 3);
+/// assert_eq!(problem.level(), ProblemLevel::Warning);
+/// ```
+///
 /// [relative]: YamllintProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct YamllintProblem {
@@ -68,6 +86,22 @@ impl YamllintProblem {
     /// The sentence holds the level and the description, in the order that
     /// yamllint writes them, so that a finding reads like the line that a
     /// contributor sees when they run yamllint themselves.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_yaml::{YamllintProblem, ProblemLevel};
+    ///
+    /// let problem = YamllintProblem::builder()
+    ///     .path("./file.yaml")
+    ///     .line(1)
+    ///     .column(1)
+    ///     .level(ProblemLevel::Error)
+    ///     .description("missing document start".to_owned())
+    ///     .build();
+    ///
+    /// assert_eq!(problem.message(), "[error] missing document start");
+    /// ```
     pub fn message(&self) -> String {
         format!(
             "{LEVEL_OPEN}{}{LEVEL_CLOSE}{}",
@@ -81,6 +115,26 @@ impl YamllintProblem {
     /// root as the place to look, so a path that does not fit points at a
     /// report that the caller misread, and the caller decides what to do about
     /// that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_yaml::{ProblemLevel, YamllintProblem};
+    ///
+    /// let root = ProjectRoot::new("/project".into());
+    /// let problem = YamllintProblem::builder()
+    ///     .path("./file.yaml")
+    ///     .line(1)
+    ///     .column(1)
+    ///     .level(ProblemLevel::Error)
+    ///     .description("error".to_owned())
+    ///     .build();
+    ///
+    /// let relative = problem.relative_path(&root).unwrap();
+    ///
+    /// assert_eq!(relative.to_string(), "file.yaml");
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

@@ -18,6 +18,19 @@
 /// binary that stays out of the documentation can still share its name with
 /// another target in the directory of a build, and this value says nothing
 /// about that.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoPackage, DocumentedNames, PackageName};
+///
+/// let package = CargoPackage::builder()
+///     .name(PackageName::new("rakko-cargo"))
+///     .documented_names(DocumentedNames::Shared)
+///     .build();
+///
+/// assert_eq!(package.documented_names(), DocumentedNames::Shared);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum DocumentedNames {
     /// No other package of the workspace documents a target under a crate

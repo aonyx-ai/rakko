@@ -11,6 +11,21 @@ use thiserror::Error;
 /// no failure of a run: it travels as a problem, and the caller decides what
 /// it means. The variants here describe a run that produced no answer about
 /// the workspace at all.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_check_dependencies::deny::CheckWorkspaceError;
+///
+/// let error = CheckWorkspaceError::StaleLockfile {
+///     root: PathBuf::from("/home/otter/project"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the lockfile of the workspace in /home/otter/project needs an update"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum CheckWorkspaceError {
     /// Cargo-deny did not run

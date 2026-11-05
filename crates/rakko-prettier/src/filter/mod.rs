@@ -60,6 +60,15 @@ impl Filter {
     ///
     /// Prettier skips what it cannot assign to a language, so a run with this
     /// filter covers every language that prettier understands.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_prettier::Filter;
+    ///
+    /// let filter = Filter::any();
+    /// assert_eq!(filter.pattern(), "**/*.*");
+    /// ```
     pub fn any() -> Self {
         Self::default()
     }
@@ -69,6 +78,17 @@ impl Filter {
     /// The comparison respects the case of the extension, because the pattern
     /// that prettier reads does the same. A filter that names no extension
     /// accepts every file that has one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// use rakko_prettier::{FileExtension, Filter};
+    ///
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    /// assert!(filter.matches(Path::new("README.md")));
+    /// assert!(!filter.matches(Path::new("main.rs")));
+    /// ```
     pub fn matches(&self, path: &Path) -> bool {
         let Some(extension) = path.extension().and_then(std::ffi::OsStr::to_str) else {
             return false;
@@ -88,6 +108,16 @@ impl Filter {
     /// An extension stands without its dot. A call without an extension
     /// returns the filter that [`any`][any] returns.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_prettier::{FileExtension, Filter};
+    ///
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    /// assert_eq!(filter.extensions().len(), 1);
+    /// assert_eq!(Filter::new([]), Filter::any());
+    /// ```
+    ///
     /// [any]: Filter::any
     pub fn new(extensions: impl IntoIterator<Item = FileExtension>) -> Self {
         Self {
@@ -99,6 +129,15 @@ impl Filter {
     ///
     /// Prettier reads a brace list only when it holds more than one entry, so
     /// a single extension stands alone and several stand in braces.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_prettier::{FileExtension, Filter};
+    ///
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    /// assert_eq!(filter.pattern(), "**/*.md");
+    /// ```
     pub fn pattern(&self) -> String {
         let mut pattern = String::from(EVERY_DIRECTORY);
 

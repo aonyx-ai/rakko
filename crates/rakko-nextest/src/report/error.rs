@@ -10,6 +10,18 @@ use thiserror::Error;
 /// and a reading that skipped a test it did not understand would let a run
 /// pass with its failures unread. The reading therefore stops, and the action
 /// reports the error.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_nextest::{NextestReport, ReadNextestReportError};
+///
+/// let stdout = r#"{"type":"test"}"#;
+/// let error = NextestReport::read(stdout).unwrap_err();
+///
+/// assert!(matches!(error, ReadNextestReportError::UnrecognizedRecord { .. }));
+/// assert!(error.to_string().starts_with("failed to read the record from nextest: "));
+/// ```
 #[derive(Debug, Error)]
 pub enum ReadNextestReportError {
     /// Nextest wrote a record whose kind the crate knows and whose body it

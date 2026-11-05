@@ -22,6 +22,19 @@ pub use self::origin::Origin;
 ///
 /// The name is the name of the test alone, without the tests that hold it, and
 /// that is what Node reports. A reader searches the project for it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::failure::Failure;
+///
+/// let failure = Failure::builder()
+///     .name("add")
+///     .reason("Expected values to be strictly equal: 2 !== 3")
+///     .build();
+///
+/// assert_eq!(*failure.name(), "add");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct Failure {
     /// The name of the test, as Node wrote it
@@ -49,6 +62,31 @@ impl Failure {
     /// A failure that Node reported no place for, and one whose place lies
     /// outside the project, get a finding at the level of the project, because
     /// there is no path in the project to report them at.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_test_typescript::failure::{Failure, Origin};
+    /// use std::path::PathBuf;
+    ///
+    /// let failure = Failure::builder()
+    ///     .name("add")
+    ///     .origin(
+    ///         Origin::builder()
+    ///             .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
+    ///             .line(5)
+    ///             .column(1)
+    ///             .build(),
+    ///     )
+    ///     .reason("Expected values to be strictly equal: 2 !== 3")
+    ///     .build();
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let finding = failure.finding(&root);
+    ///
+    /// assert!(finding.message().get().contains("test `add` failed"));
+    /// ```
     pub fn finding(&self, root: &ProjectRoot) -> Finding {
         let stated = self
             .reason

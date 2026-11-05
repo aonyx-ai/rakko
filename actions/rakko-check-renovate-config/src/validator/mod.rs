@@ -120,6 +120,22 @@ impl Validator {
     /// reports it, because the validator reports no problem for such a
     /// project, the same as for one that it validated and found valid.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_renovate_config::Validator;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let validator = Validator::resolve(root).await?;
+    /// let observation = validator.observe().await?;
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`ValidatorUnavailable`][unavailable] when the validator does
@@ -151,6 +167,20 @@ impl Validator {
     /// The lookup asks mise about the project whose root the caller names, so
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_renovate_config::Validator;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let _validator = Validator::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

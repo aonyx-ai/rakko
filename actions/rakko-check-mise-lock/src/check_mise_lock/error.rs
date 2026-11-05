@@ -15,6 +15,21 @@ use crate::lockfile::ReadLockfileError;
 /// changes, or removes travels as a finding in the outcome of the run. The
 /// variants of this error describe a run whose answer cannot be trusted, and
 /// such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_check_mise_lock::CheckMiseLockError;
+///
+/// let error = CheckMiseLockError::ForeignLockfile {
+///     path: PathBuf::from("/outside/project/mise.lock"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "mise named a lockfile outside the project: /outside/project/mise.lock"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum CheckMiseLockError {
     /// The copy of the project could not be created

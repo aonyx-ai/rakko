@@ -92,6 +92,19 @@ impl DoctestReport {
     /// to the next line that opens a block, closes the failures, or ends a
     /// package.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_test_rust_docs::DoctestReport;
+    ///
+    /// let stdout = "running 1 test\ntest src/lib.rs - add (line 7) ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n";
+    ///
+    /// let report = DoctestReport::read(stdout)?;
+    ///
+    /// assert_eq!(report.ran(), 1);
+    /// # Ok::<(), rakko_test_rust_docs::ReadDoctestReportError>(())
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`UnreadableSummary`][unreadable] when a summary does not

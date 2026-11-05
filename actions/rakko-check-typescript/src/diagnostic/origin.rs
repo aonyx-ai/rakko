@@ -14,6 +14,20 @@ use rakko_action::{FilePath, ProjectRoot};
 /// relative to it. A caller that reports the diagnostic asks for the
 /// [relative][relative] path.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::diagnostic::Origin;
+/// use std::path::PathBuf;
+///
+/// let origin = Origin::builder()
+///     .path(PathBuf::from("src/index.ts"))
+///     .line(2)
+///     .column(14)
+///     .build();
+/// assert_eq!(origin.line(), 2);
+/// ```
+///
 /// [relative]: Origin::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct Origin {
@@ -37,6 +51,22 @@ impl Origin {
     /// configuration of a project can include a file from a parent directory,
     /// and tsc then writes a path that starts with `..`. The caller decides
     /// what to do about such a file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_typescript::diagnostic::Origin;
+    /// use std::path::PathBuf;
+    ///
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let origin = Origin::builder()
+    ///     .path(PathBuf::from("/home/otter/project/src/index.ts"))
+    ///     .line(2)
+    ///     .column(14)
+    ///     .build();
+    /// assert_eq!(origin.relative_path(&root), "src/index.ts".parse().ok());
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

@@ -13,6 +13,22 @@ use crate::oxfmt::ObserveOxfmtError;
 /// a file that oxfmt cannot parse travel as findings in the outcome of the
 /// run. The variants of this error describe a run whose answer cannot be
 /// trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::FormatTypeScriptError;
+/// use rakko_test_utils::path;
+///
+/// let error = FormatTypeScriptError::ForeignPath {
+///     path: path("../outside/project"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "oxfmt reported a path outside the project: ../outside/project"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum FormatTypeScriptError {
     /// Oxfmt reported a path that the project root does not contain

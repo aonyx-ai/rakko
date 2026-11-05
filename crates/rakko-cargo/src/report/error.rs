@@ -10,6 +10,19 @@ use thiserror::Error;
 /// version of cargo, and a reading that skipped a diagnostic it did not
 /// understand would let a build pass with its problems unread. The reading
 /// therefore stops, and the action that asked for it reports the error.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoReport, ReadReportError};
+///
+/// let stdout = r#"{"reason":"build-finished","success":"yes"}"#;
+///
+/// let error = CargoReport::read(stdout).unwrap_err();
+///
+/// assert!(matches!(error, ReadReportError::UnrecognizedRecord { .. }));
+/// assert!(error.to_string().starts_with("failed to read the record from cargo: "));
+/// ```
 #[derive(Debug, Error)]
 pub enum ReadReportError {
     /// Cargo wrote a record whose reason the crate knows and whose body it

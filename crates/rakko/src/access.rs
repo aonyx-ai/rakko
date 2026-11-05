@@ -38,6 +38,25 @@
 /// first of them.
 ///
 /// [`BoundAction`]: crate::BoundAction
+///
+/// # Examples
+///
+/// A caller that orders actions treats a kind that it does not know as an
+/// error.
+///
+/// ```
+/// use rakko::Access;
+///
+/// let access = Access::Read;
+///
+/// let shared = match access {
+///     Access::Read => true,
+///     Access::Write => false,
+///     _ => panic!("update to a release that knows this kind of access"),
+/// };
+///
+/// assert!(shared);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[non_exhaustive]
 pub enum Access {

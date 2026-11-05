@@ -9,6 +9,20 @@ use rakko_action::{
 const FIX_DOCUMENTATION: &str = "Rewrite the files that oxfmt can format";
 
 /// What the run should do with the files that oxfmt can format
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::format_typescript::Operation;
+///
+/// assert_eq!(Operation::default(), Operation::Report);
+///
+/// let writes = match Operation::Rewrite {
+///     Operation::Report => false,
+///     Operation::Rewrite => true,
+/// };
+/// assert!(writes);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub enum Operation {
     /// Report the files that oxfmt would format, and rewrite nothing
@@ -26,6 +40,21 @@ pub enum Operation {
 /// because a run that was started in order to look must not change the tree
 /// that its caller holds. It is also the safe default against the tool, which
 /// rewrites a project when nobody names an operation at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_format_typescript::FormatTypeScriptArgs;
+/// use rakko_format_typescript::format_typescript::Operation;
+///
+/// assert_eq!(FormatTypeScriptArgs::default().operation(), Operation::Report);
+///
+/// let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+/// let args = FormatTypeScriptArgs::from_values(&values).unwrap();
+///
+/// assert_eq!(args.operation(), Operation::Rewrite);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatTypeScriptArgs {
     /// What the run should do with the files that are not formatted

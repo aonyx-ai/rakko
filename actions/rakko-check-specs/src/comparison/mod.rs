@@ -39,6 +39,19 @@ pub use self::error::PrepareComparisonError;
 use crate::environment::inherited;
 
 /// Whether to build a pull request comparison or use the local checkout
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::Mode;
+///
+/// let compares_base = match Mode::PullRequest {
+///     Mode::PullRequest => true,
+///     Mode::Local => false,
+/// };
+///
+/// assert!(compares_base);
+/// ```
 #[derive(Copy, Clone, Debug)]
 pub enum Mode {
     /// Compare the pull request with its base branch
@@ -66,6 +79,23 @@ const SECOND_PARENT: &str = "HEAD^2";
 /// an error and a panic leave nothing behind, and an interrupt that no
 /// destructor survives leaves a directory that the operating system removes
 /// and an entry that `git worktree prune` forgets.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_check_specs::{Comparison, Mode};
+/// use rakko_action::ProjectRoot;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let root = ProjectRoot::new("/home/otter/project".into());
+/// if let Some(comparison) = Comparison::prepare(&root, Mode::PullRequest).await? {
+///     let dir = comparison.directory();
+///     println!("Using worktree at: {}", dir.display());
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct Comparison {
     /// The directory that holds the worktree
@@ -77,6 +107,23 @@ pub struct Comparison {
 
 impl Comparison {
     /// Returns the directory that holds the comparison
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_check_specs::{Comparison, Mode};
+    /// use rakko_action::ProjectRoot;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// if let Some(comparison) = Comparison::prepare(&root, Mode::PullRequest).await? {
+    ///     let dir = comparison.directory();
+    ///     println!("Comparison at: {}", dir.display());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn directory(&self) -> &Path {
         self.directory.path()
     }
@@ -92,6 +139,27 @@ impl Comparison {
     /// A run that is not a pull request answers `None`, and its caller
     /// compares the index of the checkout with its HEAD, which is what a
     /// contributor staged against what they last committed.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_check_specs::{Comparison, Mode};
+    /// use rakko_action::ProjectRoot;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// match Comparison::prepare(&root, Mode::PullRequest).await? {
+    ///     Some(comparison) => {
+    ///         println!("Comparing pull request");
+    ///     }
+    ///     None => {
+    ///         println!("Not a pull request");
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

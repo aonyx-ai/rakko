@@ -16,6 +16,25 @@ use crate::part::Part;
 ///
 /// The value names the part and what happened to it, and it gives the text
 /// that a finding and a repair carry.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::{Change, Difference, Part, Platform, ToolName, Version};
+///
+/// let part = Part::builder()
+///     .tool(ToolName::new("jq"))
+///     .version(Version::new("1.8.1"))
+///     .platform(Platform::new("linux-x64"))
+///     .build();
+///
+/// let difference = Difference::builder()
+///     .part(part)
+///     .change(Change::Added)
+///     .build();
+///
+/// assert_eq!(difference.change(), Change::Added);
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct Difference {
     /// The part that `mise lock` touched
@@ -33,6 +52,28 @@ impl Difference {
     /// The message says what `mise lock` would do to the lockfile, and names
     /// the tool, the version, and the platform of the part, such as
     /// `mise lock adds the entry of jq 1.8.1 for linux-x64`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::{Change, Difference, Part, Platform, ToolName, Version};
+    ///
+    /// let part = Part::builder()
+    ///     .tool(ToolName::new("cargo"))
+    ///     .version(Version::new("1.80"))
+    ///     .platform(Platform::new("darwin-arm64"))
+    ///     .build();
+    ///
+    /// let difference = Difference::builder()
+    ///     .part(part)
+    ///     .change(Change::Added)
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     difference.finding(),
+    ///     "mise lock adds the entry of cargo 1.80 for darwin-arm64"
+    /// );
+    /// ```
     pub fn finding(&self) -> String {
         let verb = match self.change {
             Change::Added => "adds",
@@ -47,6 +88,28 @@ impl Difference {
     ///
     /// The message says what `mise lock` did to the lockfile, such as
     /// `mise lock added the entry of jq 1.8.1 for linux-x64`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::{Change, Difference, Part, Platform, ToolName, Version};
+    ///
+    /// let part = Part::builder()
+    ///     .tool(ToolName::new("node"))
+    ///     .version(Version::new("22.0.0"))
+    ///     .platform(Platform::new("linux-x64"))
+    ///     .build();
+    ///
+    /// let difference = Difference::builder()
+    ///     .part(part)
+    ///     .change(Change::Changed)
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     difference.repair(),
+    ///     "mise lock changed the entry of node 22.0.0 for linux-x64"
+    /// );
+    /// ```
     pub fn repair(&self) -> String {
         let verb = match self.change {
             Change::Added => "added",

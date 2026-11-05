@@ -14,6 +14,21 @@ use crate::oxlint::report::ReadReportError;
 /// a finding in the outcome of the run, even one about the project itself. The
 /// variants of this error describe a run whose answer cannot be trusted, and
 /// such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::LintTypeScriptError;
+/// use std::path::PathBuf;
+///
+/// let error = LintTypeScriptError::ForeignPath {
+///     path: PathBuf::from("../outside/root"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "oxlint reported a path outside the project: ../outside/root"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum LintTypeScriptError {
     /// Oxlint reported a path that the project root does not contain

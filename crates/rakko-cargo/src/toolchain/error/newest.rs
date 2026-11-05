@@ -19,6 +19,24 @@ use crate::toolchain::Toolchain;
 /// for the toolchain of the project and not for the toolchain of a channel.
 ///
 /// No variant means that cargo ran. Nothing of the project was examined.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_cargo::Toolchain;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let root = ProjectRoot::new("/home/otter/project".into());
+///
+/// match Toolchain::newest(&root).await {
+///     Ok(toolchain) => println!("project builds with {}", toolchain.argument()),
+///     Err(error) => eprintln!("failed to find toolchain: {error}"),
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Error)]
 pub enum ResolveNewestToolchainError {
     /// Mise did not run

@@ -12,6 +12,20 @@ use crate::tsc::report::ReadReportError;
 /// code breaks travels as a finding in the outcome of the run. The variants of
 /// this error describe a run whose answer cannot be trusted, and such a run
 /// stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::CheckTypeScriptError;
+///
+/// let error = CheckTypeScriptError::MissingReport {
+///     details: "out of memory".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "tsc reported nothing and ended without success: out of memory"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum CheckTypeScriptError {
     /// Tsc reported nothing and ended without success

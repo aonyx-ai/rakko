@@ -15,6 +15,25 @@ pub use self::name::PackageName;
 /// documents the workspace also needs to know which packages it must
 /// document apart from the others. A package carries both, so a caller reads
 /// them from the root instead of asking cargo again.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_cargo::Cargo;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// for root in cargo.roots().await? {
+///     for package in root.packages() {
+///         println!("{}: {:?}", package.name(), package.documented_names());
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct CargoPackage {
     /// The name that the manifest of the package states

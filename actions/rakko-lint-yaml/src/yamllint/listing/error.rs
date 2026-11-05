@@ -8,6 +8,21 @@ use thiserror::Error;
 /// A project without a YAML file is no failure of the listing: the listing is
 /// empty then, and the caller decides what that means. The variants here
 /// describe a listing that produced no answer at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::ListFilesError;
+///
+/// let error = ListFilesError::RejectedConfiguration {
+///     details: "invalid config option".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "yamllint refused the configuration of the project: invalid config option"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ListFilesError {
     /// Yamllint refused the configuration of the project

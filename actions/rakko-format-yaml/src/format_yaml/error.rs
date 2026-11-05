@@ -12,6 +12,21 @@ use thiserror::Error;
 /// a file that prettier cannot parse travel as findings in the outcome of the
 /// run. The variants of this error describe a run whose answer cannot be
 /// trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_yaml::FormatYamlError;
+///
+/// let error = FormatYamlError::RejectedConfiguration {
+///     details: "prettier: config field unknown".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "prettier did not run with the configuration of the project: prettier: config field unknown"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum FormatYamlError {
     /// Prettier reported a path that the project root does not contain

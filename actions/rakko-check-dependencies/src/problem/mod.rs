@@ -47,6 +47,20 @@ const PACKAGES_CLOSE: char = ')';
 /// cache of the machine, and the report leaves the file out of the entry
 /// altogether. A caller therefore places a problem at the workspace that it
 /// came from, and never at a path.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_dependencies::problem::{DenyProblem, Severity};
+///
+/// let problem = DenyProblem::builder()
+///     .severity(Severity::Warning)
+///     .check("sources")
+///     .message("allowed registry")
+///     .packages(vec![])
+///     .build();
+/// assert_eq!(problem.check(), "sources");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct DenyProblem {
     /// How the configuration of the project weighed the shape
@@ -74,6 +88,28 @@ impl DenyProblem {
     /// A run fails over a problem that answers `true`, and passes over one
     /// that answers `false`. The weight comes from the configuration of the
     /// project, so this asks what the project already decided.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_dependencies::problem::{DenyProblem, Severity};
+    ///
+    /// let error_problem = DenyProblem::builder()
+    ///     .severity(Severity::Error)
+    ///     .check("banned")
+    ///     .message("crate is banned")
+    ///     .packages(vec![])
+    ///     .build();
+    /// assert!(error_problem.denied());
+    ///
+    /// let warning_problem = DenyProblem::builder()
+    ///     .severity(Severity::Warning)
+    ///     .check("notice")
+    ///     .message("not recommended")
+    ///     .packages(vec![])
+    ///     .build();
+    /// assert!(!warning_problem.denied());
+    /// ```
     pub fn denied(&self) -> bool {
         self.severity >= Severity::Error
     }
@@ -85,6 +121,27 @@ impl DenyProblem {
     /// the entry is about. A problem that names no package ends with the
     /// sentence of cargo-deny, because empty parentheses tell a reader
     /// nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_dependencies::problem::{DenyProblem, Package, Severity};
+    ///
+    /// let pkg = Package::builder()
+    ///     .name("log")
+    ///     .version("0.4.0")
+    ///     .build();
+    /// let problem = DenyProblem::builder()
+    ///     .severity(Severity::Error)
+    ///     .check("unlicensed")
+    ///     .message("license not in allow list")
+    ///     .packages(vec![pkg])
+    ///     .build();
+    /// assert_eq!(
+    ///     problem.description(),
+    ///     "[unlicensed] license not in allow list (log 0.4.0)"
+    /// );
+    /// ```
     pub fn description(&self) -> String {
         let head = format!("{CHECK_OPEN}{}{CHECK_CLOSE}{}", self.check, self.message);
 

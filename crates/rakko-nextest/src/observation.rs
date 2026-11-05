@@ -30,6 +30,34 @@ const NO_TESTS: i32 = 4;
 /// An observation describes the run and judges nothing. A run without a
 /// finding says nothing about whether the caller passes, because a caller
 /// that tests several workspaces sums the answers of all of them.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_cargo::Cargo;
+/// use rakko_nextest::{Lockfile, Nextest};
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let project = ProjectRoot::new("/home/otter/project".into());
+/// let cargo = Cargo::resolve(project.clone()).await?;
+/// let nextest = Nextest::builder()
+///     .cargo(cargo.clone())
+///     .lockfile(Lockfile::Locked)
+///     .build();
+///
+/// for root in cargo.roots().await? {
+///     let observation = nextest.observe(&root, &project).await?;
+///
+///     println!("{} tests ran", observation.ran());
+///     for finding in observation.findings() {
+///         println!("{}", finding.message().get());
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The findings of the run: the tests that failed, and the diagnostics
@@ -49,6 +77,37 @@ impl Observation {
     /// The findings name their files relative to the project root, and a
     /// file that the project root does not contain leaves its finding at the
     /// level of the project.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::Cargo;
+    /// use rakko_nextest::Observation;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let project = ProjectRoot::new("/home/otter/project".into());
+    /// let cargo = Cargo::resolve(project.clone()).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo
+    ///         .invocation(&root)
+    ///         .args(["nextest", "run", "--message-format", "libtest-json"])
+    ///         .run()
+    ///         .await?;
+    ///
+    ///     let observation = Observation::read()
+    ///         .execution(&execution)
+    ///         .root(&root)
+    ///         .project(&project)
+    ///         .call()?;
+    ///
+    ///     println!("{} tests ran", observation.ran());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

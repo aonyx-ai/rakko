@@ -12,6 +12,19 @@ use getset::{CopyGetters, Getters};
 use crate::problem::StilesProblem;
 
 /// Whether stiles found a file to check
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_stiles::observation::Examination;
+///
+/// let label = match Examination::Skipped {
+///     Examination::Examined => "stiles found a file to check",
+///     Examination::Skipped => "stiles found no file to check",
+/// };
+///
+/// assert_eq!(label, "stiles found no file to check");
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub enum Examination {
     /// Stiles found a file to check
@@ -30,6 +43,20 @@ pub enum Examination {
 /// reports no diagnostic in both cases, and the two mean opposite things for
 /// the outcome of an action: one project is clean, and the other was never
 /// looked at.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_stiles::Observation;
+/// use rakko_lint_stiles::observation::Examination;
+///
+/// let observation = Observation::builder()
+///     .examined(Examination::Skipped)
+///     .build();
+///
+/// assert_eq!(observation.examined(), Examination::Skipped);
+/// assert!(observation.problems().is_empty());
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The diagnostics that stiles reported, in the order of the report
@@ -50,6 +77,19 @@ impl Observation {
     /// Every part is optional, so a test names what its case is about and
     /// leaves the rest at the answer of a check that examined the project and
     /// found nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_stiles::Observation;
+    ///
+    /// use rakko_lint_stiles::observation::Examination;
+    ///
+    /// let observation = Observation::builder().build();
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// assert_eq!(observation.examined(), Examination::Examined);
+    /// ```
     ///
     /// [`Stiles::observe`]: crate::stiles::Stiles::observe
     #[builder]

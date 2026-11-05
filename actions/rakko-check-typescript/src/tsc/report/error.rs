@@ -7,6 +7,20 @@ use thiserror::Error;
 /// A rule of the language that the code breaks is no failure of a reading: it
 /// travels as a diagnostic, and the caller decides what it means. The variant
 /// here describes output that holds no answer about the project.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::ReadReportError;
+///
+/// let error = ReadReportError::UnreadableLine {
+///     line: "unexpected output".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "tsc wrote a line that is no part of a diagnostic: unexpected output"
+/// );
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Error)]
 pub enum ReadReportError {
     /// Tsc wrote a line that is no part of a diagnostic

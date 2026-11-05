@@ -12,6 +12,21 @@ use thiserror::Error;
 /// a file that taplo cannot parse travel as findings in the outcome of the
 /// run. The variants of this error describe a run whose answer cannot be
 /// trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_toml::FormatTomlError;
+///
+/// let error = FormatTomlError::RejectedConfiguration {
+///     details: "unknown field".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "taplo rejected a configuration file and would have run with its defaults: unknown field"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum FormatTomlError {
     /// Taplo reported a path that the project root does not contain

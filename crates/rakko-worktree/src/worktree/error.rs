@@ -19,6 +19,23 @@ use thiserror::Error;
 /// No variant leaves a copy behind. A failure that happens after git created
 /// the worktree removes the worktree first, so a caller that reads one of
 /// these errors has nothing to clean up.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_worktree::CreateWorktreeError;
+///
+/// let error = CreateWorktreeError::MissingRepository {
+///     project: ProjectRoot::new("/home/otter/project".into()),
+///     details: "fatal: not a git repository".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "`/home/otter/project` is not in a git repository: fatal: not a git repository",
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum CreateWorktreeError {
     /// Git did not run

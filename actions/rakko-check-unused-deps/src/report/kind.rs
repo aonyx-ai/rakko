@@ -18,6 +18,27 @@ const BUILD_DEPENDENCY: &str = "build-dependency";
 /// therefore belongs to a report of an unused dependency: a reader needs it
 /// to find the entry, because one name can appear in more than one table of
 /// the same manifest.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_unused_deps::DependencyKind;
+///
+/// let mut kinds = [
+///     DependencyKind::Build,
+///     DependencyKind::Normal,
+///     DependencyKind::Development,
+/// ];
+/// kinds.sort();
+/// assert_eq!(
+///     kinds,
+///     [
+///         DependencyKind::Normal,
+///         DependencyKind::Development,
+///         DependencyKind::Build,
+///     ]
+/// );
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum DependencyKind {
     /// The package declares the dependency in `[dependencies]`
@@ -35,6 +56,16 @@ impl DependencyKind {
     ///
     /// The word is the singular of the table that declares the dependency,
     /// so that a reader of a finding can search the manifest for it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_unused_deps::DependencyKind;
+    ///
+    /// assert_eq!(DependencyKind::Normal.label(), "dependency");
+    /// assert_eq!(DependencyKind::Development.label(), "dev-dependency");
+    /// assert_eq!(DependencyKind::Build.label(), "build-dependency");
+    /// ```
     pub fn label(self) -> &'static str {
         match self {
             Self::Normal => DEPENDENCY,

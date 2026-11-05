@@ -11,6 +11,17 @@ use crate::oxlint::report::ReadReportError;
 /// A diagnostic of oxlint is no failure of a run, even one about the project
 /// itself: it travels in the observation, and the caller decides what it
 /// means. The variants here describe a run that produced no answer at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::oxlint::ObserveOxlintError;
+///
+/// let error = ObserveOxlintError::MissingReport {
+///     details: "configuration rejected".to_string(),
+/// };
+/// assert_eq!(error.to_string(), "oxlint wrote no report: configuration rejected");
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveOxlintError {
     /// Oxlint wrote no report

@@ -12,6 +12,21 @@ use thiserror::Error;
 /// and a file that taplo cannot open both travel as findings in the outcome
 /// of the run. The variants of this error describe a run whose answer cannot
 /// be trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_toml::LintTomlError;
+/// use std::path::PathBuf;
+///
+/// let error = LintTomlError::ForeignPath {
+///     path: PathBuf::from("../outside/project"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "taplo reported a path outside the project: ../outside/project"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum LintTomlError {
     /// Taplo reported a path that the project root does not contain

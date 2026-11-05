@@ -23,6 +23,20 @@ const BACKTRACE_NOTE: &str = "note: run with `RUST_BACKTRACE=1`";
 /// failure keeps the output as it is and reads the panic out of it on
 /// demand, so a test that failed without a panic, or with an output that
 /// the crate cannot read, still names the test.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_nextest::TestFailure;
+///
+/// let failure = TestFailure::builder()
+///     .name("test_name")
+///     .output("test failed")
+///     .build();
+///
+/// assert_eq!(failure.name(), "test_name");
+/// assert_eq!(failure.output(), "test failed");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct TestFailure {
     /// The name of the test, as nextest wrote it
@@ -37,6 +51,19 @@ pub struct TestFailure {
 #[bon::bon]
 impl TestFailure {
     /// Creates a failure from the name of the test and its output
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_nextest::TestFailure;
+    ///
+    /// let failure = TestFailure::builder()
+    ///     .name("test_name")
+    ///     .output("assertion failed")
+    ///     .build();
+    ///
+    /// assert_eq!(failure.name(), "test_name");
+    /// ```
     #[builder]
     pub fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
         Self {
@@ -53,6 +80,29 @@ impl TestFailure {
     ///
     /// A test whose output names no panic, and a test that panicked in a
     /// file outside the project, get a finding at the level of the project.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_nextest::TestFailure;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_action::ProjectRoot;
+    /// use std::path::PathBuf;
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(PathBuf::from("/project"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    /// let project = ProjectRoot::new(PathBuf::from("/project"));
+    ///
+    /// let failure = TestFailure::builder()
+    ///     .name("test_name")
+    ///     .output("test output")
+    ///     .build();
+    ///
+    /// let finding = failure.finding(&root, &project);
+    /// assert_eq!(finding.message().get(), "test `test_name` failed");
+    /// ```
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let Some(panic) = self.panic() else {
             return Finding::builder()
@@ -90,6 +140,20 @@ impl TestFailure {
     /// the note about the backtrace. A test that ended another way, such as
     /// one that the process killed, wrote no such line, and the method
     /// answers `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_nextest::TestFailure;
+    ///
+    /// let output = "thread 'test' panicked at src/lib.rs:10:5:";
+    /// let failure = TestFailure::builder()
+    ///     .name("test_name")
+    ///     .output(output)
+    ///     .build();
+    ///
+    /// assert!(failure.panic().is_some());
+    /// ```
     pub fn panic(&self) -> Option<Panic> {
         let mut lines = self.output.lines();
         let header = lines.find(|line| line.contains(PANICKED_AT))?;

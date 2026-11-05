@@ -71,6 +71,18 @@ const CAUSE_OPEN: &str = ": ";
 const OPTION_SEPARATOR: &str = ", ";
 
 /// The answer that the log of a run holds
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::validator::report::Report;
+/// use rakko_check_renovate_config::Observation;
+///
+/// let finished = Report::Finished(Observation::builder().validated(3).build());
+/// let halted = Report::Halted { details: "no global configuration".to_owned() };
+/// assert!(matches!(&finished, Report::Finished(observation) if observation.validated() == 3));
+/// assert_ne!(finished, halted);
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Report {
     /// The validator read every configuration that it found
@@ -227,6 +239,19 @@ enum Meaning {
 /// reading does not know stops it instead, because a reading that tolerated
 /// such a record would let a run pass while a problem of the project went
 /// unread.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::validator::report::{read, Report};
+/// use rakko_check_renovate_config::Observation;
+///
+/// let log = r#"{"level":30,"msg":"Validating renovate.json"}
+/// {"level":30,"msg":"Config validated successfully against 1 file(s)"}"#;
+///
+/// let report = read(log).expect("valid log");
+/// assert_eq!(report, Report::Finished(Observation::builder().validated(1).build()));
+/// ```
 ///
 /// # Errors
 ///

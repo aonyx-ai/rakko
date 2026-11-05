@@ -8,6 +8,18 @@ use thiserror::Error;
 /// as a finding in the outcome of the run. This error describes a report
 /// that the crate cannot read, and a run that answered from such a report
 /// would count fewer examples than ran.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_rust_docs::ReadDoctestReportError;
+///
+/// let error = ReadDoctestReportError::UnreadableSummary {
+///     line: "invalid summary".to_string(),
+/// };
+///
+/// assert_eq!(error.to_string(), "the summary of the examples has no count of passed and failed examples: invalid summary");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Error)]
 pub enum ReadDoctestReportError {
     /// A summary of the harness does not count the examples

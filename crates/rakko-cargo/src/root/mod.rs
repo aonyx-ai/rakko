@@ -19,6 +19,14 @@ pub use self::package::{CargoPackage, DocumentedNames, PackageName};
 use crate::version::RustVersion;
 
 /// The name of the file that describes a package or a workspace to cargo
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::root::MANIFEST;
+///
+/// assert_eq!(MANIFEST, "Cargo.toml");
+/// ```
 pub const MANIFEST: &str = "Cargo.toml";
 
 /// One workspace root of a project
@@ -44,6 +52,23 @@ pub const MANIFEST: &str = "Cargo.toml";
 /// The type has no order, because a version has none. A caller that wants
 /// the roots in a fixed order sorts them by their directory, which is how
 /// the discovery reports them.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_cargo::Cargo;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// for root in cargo.roots().await? {
+///     println!("{}", root.directory().display());
+/// }
+/// # Ok(())
+/// # }
+/// ```
 ///
 /// [relative]: CargoRoot::relative_path
 #[derive(Clone, Eq, PartialEq, Hash, Debug, CopyGetters, Getters)]
@@ -75,6 +100,20 @@ impl CargoRoot {
     /// A root whose packages declare no `rust-version` carries none. A root
     /// built without its packages names none, so no package of it shares a
     /// crate name, and a caller treats the workspace as one whole.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use std::path::PathBuf;
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(PathBuf::from("/home/otter/project"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// assert_eq!(root.directory(), &PathBuf::from("/home/otter/project"));
+    /// ```
     #[builder]
     pub fn new(
         directory: PathBuf,
@@ -91,6 +130,20 @@ impl CargoRoot {
     }
 
     /// Returns the path of the manifest of the workspace
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use std::path::PathBuf;
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(PathBuf::from("/home/otter/project"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// assert_eq!(root.manifest(), PathBuf::from("/home/otter/project/Cargo.toml"));
+    /// ```
     pub fn manifest(&self) -> PathBuf {
         self.directory.join(MANIFEST)
     }
@@ -104,6 +157,27 @@ impl CargoRoot {
     ///
     /// The directory of the project root itself has no name, and the empty
     /// path is that name: joining a file to it yields the file.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::Cargo;
+    /// use std::path::PathBuf;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let project = ProjectRoot::new("/home/otter/project".into());
+    /// let cargo = Cargo::resolve(project.clone()).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     if let Some(relative) = root.relative_directory(&project) {
+    ///         println!("{}", relative.display());
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn relative_directory(&self, root: &ProjectRoot) -> Option<PathBuf> {
         strip(&self.directory, root)
     }
@@ -120,6 +194,27 @@ impl CargoRoot {
     /// happens for a diagnostic in a dependency that lives elsewhere on the
     /// machine. A path that climbs through its parents is resolved first, so
     /// a path that leaves the project that way gets no name either.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::Cargo;
+    /// use std::path::Path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let project = ProjectRoot::new("/home/otter/project".into());
+    /// let cargo = Cargo::resolve(project.clone()).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     if let Some(path) = root.relative_path(Path::new("src/main.rs"), &project) {
+    ///         println!("{}", path.get().display());
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn relative_path(&self, path: &Path, root: &ProjectRoot) -> Option<FilePath> {
         let absolute = if path.is_absolute() {
             path.to_path_buf()

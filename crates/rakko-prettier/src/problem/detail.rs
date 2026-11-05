@@ -7,6 +7,27 @@
 /// could not open a file knows only the reason, and a run that parsed a file
 /// points at the character that broke it. Each variant carries one of those
 /// levels, so a caller reports what prettier knew and invents nothing.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_prettier::problem::ProblemDetail;
+/// use rakko_prettier::PrettierProblem;
+///
+/// let problem = PrettierProblem::builder()
+///     .path("a.md".into())
+///     .detail(ProblemDetail::Diagnostic {
+///         line: 1,
+///         column: 10,
+///         message: "SyntaxError: Unexpected token".to_owned(),
+///     })
+///     .build();
+///
+/// let ProblemDetail::Diagnostic { line, column, .. } = problem.detail() else {
+///     panic!("expected a diagnostic");
+/// };
+/// assert_eq!((*line, *column), (1, 10));
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum ProblemDetail {
     /// Prettier reported a diagnostic at a position in the file

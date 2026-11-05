@@ -6,6 +6,15 @@
 /// only after somebody trusted the directory that holds it. The project of a
 /// contributor is trusted already, and a copy of it is a directory that
 /// nobody has seen before.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::Trust;
+///
+/// let trust = Trust::Granted;
+/// assert_ne!(trust, Trust::Inherited);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Trust {
     /// The run of mise trusts what the environment of the action trusts

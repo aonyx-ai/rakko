@@ -16,6 +16,20 @@ use rakko_tool::Execution;
 use crate::problem::OxfmtProblem;
 
 /// Whether oxfmt ended with success
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::observation::Exit;
+///
+/// assert_eq!(Exit::default(), Exit::Failed);
+///
+/// let succeeded = match Exit::Succeeded {
+///     Exit::Succeeded => true,
+///     Exit::Failed => false,
+/// };
+/// assert!(succeeded);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub enum Exit {
     /// Oxfmt ended with success
@@ -27,6 +41,20 @@ pub enum Exit {
 }
 
 /// Whether oxfmt matched the pattern of the run
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::observation::Pattern;
+///
+/// assert_eq!(Pattern::default(), Pattern::Matched);
+///
+/// let nothing_to_examine = match Pattern::Unmatched {
+///     Pattern::Matched => false,
+///     Pattern::Unmatched => true,
+/// };
+/// assert!(nothing_to_examine);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub enum Pattern {
     /// Oxfmt matched the pattern that the run named
@@ -48,6 +76,19 @@ pub enum Pattern {
 /// formatted and a file that oxfmt refused are both problems of the project,
 /// and the action that asked for the run decides what they mean for its
 /// outcome.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::Observation;
+/// use rakko_format_typescript::observation::{Exit, Pattern};
+///
+/// let observation = Observation::builder().exit(Exit::Succeeded).build();
+///
+/// assert_eq!(observation.exit(), Exit::Succeeded);
+/// assert_eq!(observation.pattern(), Pattern::Matched);
+/// assert!(observation.problems().is_empty());
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The problems that oxfmt reported, in the order of the report
@@ -88,6 +129,16 @@ impl Observation {
     /// at the answer of a run that reported nothing.
     ///
     /// [read]: Observation::read
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_format_typescript::Observation;
+    ///
+    /// let observation = Observation::builder().stderr("All done").build();
+    ///
+    /// assert_eq!(observation.stderr(), "All done");
+    /// ```
     #[builder]
     pub fn new(
         #[builder(default)] problems: Vec<OxfmtProblem>,
@@ -108,6 +159,21 @@ impl Observation {
     /// Reads what a run of oxfmt produced
     ///
     /// The reading takes both streams of the run and its exit status.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_format_typescript::Observation;
+    /// use rakko_tool::Invocation;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let execution = Invocation::new("oxfmt").arg("--list-different").run().await?;
+    /// let observation = Observation::read(&execution);
+    ///
+    /// println!("Exit: {:?}", observation.exit());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn read(execution: &Execution) -> Self {
         let exit = if execution.status().success() {
             Exit::Succeeded

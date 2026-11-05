@@ -20,6 +20,18 @@ use crate::operation::Operation;
 use crate::problem::PrettierProblem;
 
 /// The exit status of a prettier run
+///
+/// # Examples
+///
+/// ```
+/// use rakko_prettier::observation::{Exit, Observation};
+///
+/// // A run that reports nothing is a failure until prettier says otherwise.
+/// let observation = Observation::builder().build();
+///
+/// assert_eq!(observation.exit(), Exit::Failed);
+/// assert_eq!(Exit::default(), Exit::Failed);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub enum Exit {
     /// Prettier ended with success
@@ -31,6 +43,18 @@ pub enum Exit {
 }
 
 /// Whether a prettier run matched the given file pattern
+///
+/// # Examples
+///
+/// ```
+/// use rakko_prettier::observation::{Observation, Pattern};
+///
+/// let observation = Observation::builder()
+///     .unmatched_pattern(Pattern::Unmatched)
+///     .build();
+///
+/// assert_eq!(observation.unmatched_pattern(), Pattern::Unmatched);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub enum Pattern {
     /// The pattern matched at least one file
@@ -52,6 +76,21 @@ pub enum Pattern {
 /// formatted and a file that prettier refused are both problems of the
 /// project, and the action that asked for the run decides what they mean for
 /// its outcome.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_prettier::observation::{Exit, Observation};
+///
+/// let observation = Observation::builder()
+///     .exit(Exit::Succeeded)
+///     .stderr("[warn] Ignored unknown option")
+///     .build();
+///
+/// assert!(observation.problems().is_empty());
+/// assert!(observation.rewritten().is_empty());
+/// assert_eq!(observation.stderr(), "[warn] Ignored unknown option");
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The problems that prettier reported, in the order of the report
@@ -100,6 +139,16 @@ impl Observation {
     /// Every part is optional, so a test names what its case is about and
     /// leaves the rest at the answer of a run that reported nothing.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_prettier::observation::{Exit, Observation};
+    ///
+    /// let observation = Observation::builder().exit(Exit::Succeeded).build();
+    ///
+    /// assert_eq!(observation.exit(), Exit::Succeeded);
+    /// ```
+    ///
     /// [read]: Observation::read
     #[builder]
     pub fn new(
@@ -126,6 +175,29 @@ impl Observation {
     /// takes the operation, because a rewrite states how long each file took
     /// and marks the files that it left alone, while a report names paths and
     /// nothing else.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_prettier::observation::{Exit, Observation};
+    /// use rakko_prettier::Operation;
+    /// use rakko_tool::Invocation;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let execution = Invocation::new("prettier")
+    ///     .args(["--list-different", "README.md"])
+    ///     .run()
+    ///     .await?;
+    /// let observation = Observation::read()
+    ///     .execution(&execution)
+    ///     .operation(Operation::Report)
+    ///     .call();
+    ///
+    /// assert_eq!(observation.exit(), Exit::Succeeded);
+    /// # Ok(())
+    /// # }
+    /// ```
     #[builder]
     pub fn read(execution: &Execution, operation: Operation) -> Self {
         let exit = if execution.status().success() {

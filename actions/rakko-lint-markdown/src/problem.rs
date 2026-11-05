@@ -26,6 +26,26 @@ use rakko_action::{FilePath, ProjectRoot};
 /// expected here. A reader of a finding therefore reads the answer of the
 /// tool, and not one that this crate wrote about it.
 ///
+/// # Examples
+///
+/// A problem holds the place that markdownlint named and its message:
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use rakko_lint_markdown::MarkdownlintProblem;
+///
+/// let problem = MarkdownlintProblem::builder()
+///     .path(PathBuf::from("README.md"))
+///     .line(1)
+///     .column(10)
+///     .message("MD041/first-line-heading")
+///     .build();
+///
+/// assert_eq!(problem.line(), 1);
+/// assert_eq!(problem.column(), Some(10));
+/// ```
+///
 /// [relative]: MarkdownlintProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct MarkdownlintProblem {
@@ -56,6 +76,28 @@ impl MarkdownlintProblem {
     /// starts in the root and names what it found below it, so a path that
     /// does not fit points at a report that the caller misread, and the
     /// caller decides what to do about that.
+    ///
+    /// # Examples
+    ///
+    /// A path below the root loses the root:
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// use rakko_action::{FilePath, ProjectRoot};
+    /// use rakko_lint_markdown::MarkdownlintProblem;
+    ///
+    /// let problem = MarkdownlintProblem::builder()
+    ///     .path(PathBuf::from("/project/docs/README.md"))
+    ///     .line(1)
+    ///     .message("MD041/first-line-heading")
+    ///     .build();
+    /// let root = ProjectRoot::new(PathBuf::from("/project"));
+    ///
+    /// let relative = problem.relative_path(&root);
+    ///
+    /// assert_eq!(relative, FilePath::try_from(PathBuf::from("docs/README.md")).ok());
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

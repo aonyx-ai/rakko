@@ -18,6 +18,17 @@ use serde::Deserialize;
 /// A reader of a finding sees the severity, because an error and a warning
 /// both fail a run of the action, and the severity tells the reader which one
 /// to read first.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_stiles::Severity;
+///
+/// let severities = [Severity::Help, Severity::Note, Severity::Warning, Severity::Error];
+///
+/// assert!(severities.is_sorted());
+/// assert_eq!(severities.iter().max(), Some(&Severity::Error));
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
@@ -41,6 +52,17 @@ impl Severity {
     /// project asked stiles to run, and a project that wants a rule to stay
     /// quiet turns that rule off. A note and a help never fail a run, which is
     /// how stiles treats them in its strictest mode as well.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_stiles::Severity;
+    ///
+    /// assert!(Severity::Error.fails());
+    /// assert!(Severity::Warning.fails());
+    /// assert!(!Severity::Note.fails());
+    /// assert!(!Severity::Help.fails());
+    /// ```
     pub fn fails(self) -> bool {
         match self {
             Self::Error | Self::Warning => true,

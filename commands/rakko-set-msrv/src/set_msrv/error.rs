@@ -18,6 +18,20 @@ use super::step::MiseStep;
 /// error that names a file it read, the manifest, or the pin leaves the
 /// project as it was. An error that names a write, the lock, the install, or
 /// the check comes after a write, and the files that the run wrote stay.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_set_msrv::SetMsrvError;
+/// use std::path::PathBuf;
+/// use std::io;
+///
+/// let error = SetMsrvError::UnreadableFile {
+///     path: PathBuf::from("Cargo.toml"),
+///     source: io::Error::new(io::ErrorKind::NotFound, "file not found"),
+/// };
+/// assert_eq!(error.to_string(), "failed to read Cargo.toml");
+/// ```
 #[derive(Debug, Error)]
 pub enum SetMsrvError {
     /// A file of the project could not be read

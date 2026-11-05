@@ -33,6 +33,21 @@ const HERE: &str = ".";
 /// project first, and the file patterns and the exclusions of that
 /// configuration therefore answer here as well.
 ///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_lint_yaml::Yamllint;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let root = ProjectRoot::new("/home/otter/project".into());
+/// let yamllint = Yamllint::resolve(root).await?;
+/// let files = yamllint.list().await?;
+/// # Ok(())
+/// # }
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`YamllintUnavailable`][unavailable] when yamllint does not run,

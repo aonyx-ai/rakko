@@ -112,6 +112,23 @@ impl Stiles {
     /// project with nothing, and a check of it passes whatever the code holds,
     /// so the answer tells a caller that a check would examine nothing.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_stiles::Stiles;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let stiles = Stiles::resolve(root).await?;
+    ///
+    /// let rules = stiles.enabled_rules().await?;
+    /// assert!(!rules.is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`StilesUnavailable`][unavailable] when stiles does not run,
@@ -149,6 +166,23 @@ impl Stiles {
     /// A run that found no file to check is no failure. The observation
     /// reports it, because stiles reports no diagnostic for a project that it
     /// checked and found clean either.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_stiles::Stiles;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let stiles = Stiles::resolve(root).await?;
+    ///
+    /// let observation = stiles.observe().await?;
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -195,6 +229,20 @@ impl Stiles {
     /// The lookup asks mise about the project whose root the caller names, so
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_stiles::Stiles;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let stiles = Stiles::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

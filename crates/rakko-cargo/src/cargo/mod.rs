@@ -121,6 +121,24 @@ impl Cargo {
     /// names in the environment. [`invocation_with_toolchain`][with] selects
     /// another one.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::Cargo;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo.invocation(&root).arg("check").run().await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// [resolve]: Cargo::resolve
     /// [with]: Cargo::invocation_with_toolchain
     pub fn invocation(&self, root: &CargoRoot) -> Invocation {
@@ -135,6 +153,31 @@ impl Cargo {
     /// the toolchain in front of every other argument, in the form that the
     /// proxy of rustup reads. The argument selects which cargo answers, and
     /// it changes nothing about what that cargo does.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::{Cargo, Channel, Toolchain};
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let cargo = Cargo::resolve(root.clone()).await?;
+    /// let toolchain = Toolchain::resolve()
+    ///     .channel(Channel::new("nightly"))
+    ///     .root(&root)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// for cargo_root in cargo.roots().await? {
+    ///     let execution = cargo.invocation_with_toolchain(&cargo_root, &toolchain)
+    ///         .arg("check").run().await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [invocation]: Cargo::invocation
     pub fn invocation_with_toolchain(&self, root: &CargoRoot, toolchain: &Toolchain) -> Invocation {
@@ -151,6 +194,22 @@ impl Cargo {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no cargo for the
     /// project.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::Cargo;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let cargo = Cargo::resolve(root).await?;
+    ///
+    /// assert!(!cargo.roots().await?.is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve()
             .name(ToolName::new(CARGO))
@@ -194,6 +253,23 @@ impl Cargo {
     /// [`UnreadableExclusions`][exclusions] or
     /// [`UnrecognizedExclusions`][unrecognized] when the crate cannot read
     /// the paths that a workspace root excludes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::Cargo;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     assert!(root.directory().starts_with("/home/otter/project"));
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [directory]: DiscoverRootsError::UnreadableDirectory
     /// [exclusions]: DiscoverRootsError::UnreadableExclusions

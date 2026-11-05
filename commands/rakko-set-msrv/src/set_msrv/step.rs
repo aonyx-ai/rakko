@@ -9,6 +9,19 @@ use super::args::Msrv;
 /// Both steps come after the run wrote its files. An error names the step as
 /// the command that the run started, so that the user can start it again
 /// after they fixed the cause.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_set_msrv::{MiseStep, Msrv};
+///
+/// let install = MiseStep::Install {
+///     msrv: Msrv::new("1.89.0"),
+/// };
+///
+/// assert_eq!(install.to_string(), "mise install rust@1.89.0");
+/// assert_eq!(MiseStep::Lock.to_string(), "mise lock rust");
+/// ```
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub enum MiseStep {
     /// Mise locks the Rust pins of the project again
@@ -23,6 +36,19 @@ pub enum MiseStep {
 
 impl MiseStep {
     /// Returns the arguments that ask mise for the step
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_set_msrv::{MiseStep, Msrv};
+    ///
+    /// assert_eq!(MiseStep::Lock.arguments(), ["lock", "rust"]);
+    ///
+    /// let install = MiseStep::Install {
+    ///     msrv: Msrv::new("1.89.0"),
+    /// };
+    /// assert_eq!(install.arguments(), ["install", "rust@1.89.0"]);
+    /// ```
     pub fn arguments(&self) -> Vec<String> {
         match self {
             Self::Lock => vec!["lock".to_owned(), "rust".to_owned()],

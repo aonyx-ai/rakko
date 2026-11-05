@@ -12,6 +12,21 @@ use thiserror::Error;
 /// whether a warning or an error of the compiler, travels as a finding in
 /// the outcome of the run. The variants of this error describe a run whose
 /// answer cannot be trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_build_internal_docs::BuildInternalDocsError;
+///
+/// let error = BuildInternalDocsError::StaleLockfile {
+///     root: PathBuf::from("/home/otter/project"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the lockfile of the workspace in /home/otter/project needs an update"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum BuildInternalDocsError {
     /// Cargo did not run

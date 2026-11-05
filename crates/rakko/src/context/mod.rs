@@ -14,6 +14,17 @@ pub use self::project_root::ProjectRoot;
 /// A context holds the root, which is the directory where the run happens,
 /// and the directory layout of the project. Every action receives a context,
 /// so the type stays small by design.
+///
+/// # Examples
+///
+/// Create a context for a project.
+///
+/// ```
+/// use rakko::Context;
+///
+/// let context = Context::builder().root("/tmp/project").build();
+/// assert_eq!(context.root().get(), "/tmp/project");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Context {
     /// The directory where the run of the action happens
@@ -35,6 +46,15 @@ impl Context {
     ///
     /// When `layout` is absent the context builds the layout from the project
     /// root with default directory paths.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Context;
+    ///
+    /// let context = Context::builder().root("/tmp/project").build();
+    /// assert!(context.layout().config().get().starts_with("/tmp/project"));
+    /// ```
     #[builder]
     pub fn new(#[builder(into)] root: ProjectRoot, layout: Option<Layout>) -> Self {
         let layout = layout.unwrap_or_else(|| Layout::builder().root(root.clone()).build());

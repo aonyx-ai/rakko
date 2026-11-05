@@ -20,6 +20,26 @@ use std::path::{Path, PathBuf};
 /// asks [`FilePath::within`][within] for the path that a finding names.
 ///
 /// [within]: rakko_action::FilePath::within
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::OxfmtProblem;
+/// use rakko_test_utils::path;
+///
+/// let problem = OxfmtProblem::Invalid {
+///     path: path("src/index.ts"),
+///     line: 5,
+///     column: 10,
+///     message: String::from("Unexpected token"),
+/// };
+///
+/// assert!(matches!(
+///     &problem,
+///     OxfmtProblem::Invalid { line: 5, column: 10, .. }
+/// ));
+/// assert_eq!(problem.path(), Some(path("src/index.ts").as_path()));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum OxfmtProblem {
     /// Oxfmt could not format the file, and it named the place that stopped it
@@ -61,6 +81,20 @@ impl OxfmtProblem {
     /// Returns the path of the file that the problem is about
     ///
     /// Returns `None` for a problem that oxfmt placed in no file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// use rakko_format_typescript::OxfmtProblem;
+    /// use rakko_test_utils::path;
+    ///
+    /// let problem = OxfmtProblem::Unformatted {
+    ///     path: path("src/index.ts"),
+    /// };
+    ///
+    /// assert_eq!(problem.path(), Some(path("src/index.ts").as_path()));
+    /// ```
     pub fn path(&self) -> Option<&Path> {
         match self {
             Self::Invalid { path, .. } | Self::Unformatted { path } => Some(path),

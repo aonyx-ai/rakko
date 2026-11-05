@@ -51,6 +51,17 @@ const JOIN: char = ' ';
 /// that means, because tsc writes nothing both for a project that it checked
 /// and found clean and for a run that it never started.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::tsc::report::read;
+///
+/// let report = "src/index.ts(2,14): error TS2322: Type 'string' is not assignable to type 'number'.\n";
+/// let diagnostics = read(report)?;
+/// assert_eq!(diagnostics.len(), 1);
+/// # Ok::<(), rakko_check_typescript::ReadReportError>(())
+/// ```
+///
 /// # Errors
 ///
 /// Returns [`UnreadableLine`][unreadable] for a line that is neither the start

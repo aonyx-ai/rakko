@@ -22,6 +22,22 @@ const UNUSED: &str = "unused";
 /// The manifest is the path that cargo-udeps reported, which is absolute. A
 /// finding names it relative to the project root instead, which is the name
 /// that a reader, a machine, and a code host all recognize.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_check_unused_deps::{UnusedDependency, DependencyKind};
+///
+/// let dep = UnusedDependency::builder()
+///     .kind(DependencyKind::Development)
+///     .name("tempfile")
+///     .manifest(PathBuf::from("/project/Cargo.toml"))
+///     .build();
+///
+/// assert_eq!(dep.name(), "tempfile");
+/// assert_eq!(dep.kind(), DependencyKind::Development);
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct UnusedDependency {
     /// The table of the manifest that declares the dependency
@@ -49,6 +65,29 @@ impl UnusedDependency {
     /// A manifest that lies outside the project gets a finding at the level
     /// of the project. The message then names the manifest, so the place is
     /// not lost with the level.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_unused_deps::{UnusedDependency, DependencyKind};
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(PathBuf::from("/project"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    /// let project = ProjectRoot::new(PathBuf::from("/project"));
+    /// let dep = UnusedDependency::builder()
+    ///     .kind(DependencyKind::Normal)
+    ///     .name("serde")
+    ///     .manifest(PathBuf::from("/project/Cargo.toml"))
+    ///     .build();
+    ///
+    /// let finding = dep.finding(&root, &project);
+    /// assert!(finding.message().get().contains("unused"));
+    /// ```
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = format!("{UNUSED} {}: {}", self.kind.label(), self.name);
 

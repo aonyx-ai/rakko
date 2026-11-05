@@ -28,6 +28,20 @@ pub use self::version::Version;
 ///
 /// Parts order by tool, then by version, then by platform, so the findings of
 /// a run come in an order that does not change from one run to the next.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::{Part, Platform, ToolName, Version};
+///
+/// let part = Part::builder()
+///     .tool(ToolName::new("python"))
+///     .version(Version::new("3.12.0"))
+///     .platform(Platform::new("macos-arm64"))
+///     .build();
+///
+/// assert_eq!(part.to_string(), "python 3.12.0 for macos-arm64");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct Part {
     /// The tool that the part records

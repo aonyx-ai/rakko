@@ -10,6 +10,18 @@ use crate::node::report::ReadReportError;
 /// A test that failed is no failure of a run: it travels in the report, and
 /// the caller decides what it means. The variants here describe a run that
 /// produced no answer about the project at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::ObserveNodeError;
+///
+/// let error = ObserveNodeError::MissingFailure {
+///     details: "out of memory".to_owned(),
+/// };
+///
+/// assert!(error.to_string().contains("out of memory"));
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveNodeError {
     /// The runner reported no failure and ended without success

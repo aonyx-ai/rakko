@@ -82,6 +82,21 @@ pub struct Tracey {
 impl Tracey {
     /// Returns the coverage of the specifications of the project
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_specs::Tracey;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tracey = Tracey::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// let coverage = tracey.coverage().await?;
+    /// assert!(coverage.covered() <= coverage.total());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`TraceyUnavailable`][unavailable] when tracey does not run,
@@ -104,6 +119,19 @@ impl Tracey {
     /// The lookup asks mise about the project whose root the caller names, so
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_specs::Tracey;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tracey = Tracey::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -129,6 +157,20 @@ impl Tracey {
     /// A workspace without a daemon is not a failure. Tracey says so and ends
     /// with success, and the caller wanted no daemon running either way.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_specs::Tracey;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tracey = Tracey::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// tracey.stop().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`TraceyUnavailable`][unavailable] when tracey does not run.
@@ -144,6 +186,22 @@ impl Tracey {
     ///
     /// The question asks tracey to treat a warning as fatal, so that every
     /// link which no longer holds reaches the caller.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_specs::Tracey;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tracey = Tracey::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// let problems = tracey.validate().await?;
+    ///
+    /// assert!(problems.is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -171,6 +229,22 @@ impl Tracey {
     ///
     /// A run that found nothing to report answers `None`. A run that found a
     /// change without a bump answers with what tracey wrote about it.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_specs::Tracey;
+    /// use std::path::Path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tracey = Tracey::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// let issue = tracey.versions(Path::new("/home/otter/project")).await?;
+    /// assert_eq!(issue, None);
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

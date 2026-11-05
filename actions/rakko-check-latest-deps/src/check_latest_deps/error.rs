@@ -15,6 +15,21 @@ use thiserror::Error;
 /// all travel as findings in the outcome of the run. The variants of this
 /// error describe a run whose answer cannot be trusted, and such a run stops
 /// instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_check_latest_deps::CheckLatestDepsError;
+///
+/// let error = CheckLatestDepsError::ForeignRoot {
+///     root: PathBuf::from("/home/otter/project"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the copy of the project holds no directory for the workspace root /home/otter/project"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum CheckLatestDepsError {
     /// Cargo did not run

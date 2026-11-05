@@ -119,6 +119,22 @@ struct ImplCoverage {
 /// The counts add every specification of the project together, because a
 /// summary of a run says what the run examined and not how each specification
 /// fared. The report of tracey holds the detail per specification.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::Coverage;
+///
+/// let coverage = Coverage::builder()
+///     .total(100)
+///     .covered(80)
+///     .verified(70)
+///     .build();
+///
+/// assert_eq!(*coverage.total(), 100);
+/// assert_eq!(*coverage.covered(), 80);
+/// assert_eq!(*coverage.verified(), 70);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Getters)]
 pub struct Coverage {
     /// How many requirements the project holds
@@ -137,6 +153,20 @@ pub struct Coverage {
 #[bon]
 impl Coverage {
     /// Creates a summary of specification coverage
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_specs::Coverage;
+    ///
+    /// let coverage = Coverage::builder()
+    ///     .total(100)
+    ///     .covered(80)
+    ///     .verified(70)
+    ///     .build();
+    ///
+    /// assert_eq!(*coverage.covered(), 80);
+    /// ```
     #[builder]
     pub fn new(total: u64, covered: u64, verified: u64) -> Self {
         Self {

@@ -25,6 +25,18 @@ use crate::operation::Operation;
 use crate::problem::{ProblemDetail, TaploProblem};
 
 /// Whether a run of taplo ended with success or failure
+///
+/// # Examples
+///
+/// ```
+/// use rakko_taplo::Exit;
+///
+/// let success = Exit::Succeeded;
+/// let failure = Exit::Failed;
+///
+/// assert_ne!(success, failure);
+/// assert_eq!(success, Exit::Succeeded);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub enum Exit {
     /// Taplo ended with failure
@@ -46,6 +58,20 @@ pub enum Exit {
 /// formatted and a file that taplo refused are both problems of the project,
 /// and the action that asked for the run decides what they mean for its
 /// exit.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_taplo::{Observation, Exit};
+///
+/// let obs = Observation::builder()
+///     .checked(3)
+///     .exit(Exit::Succeeded)
+///     .build();
+///
+/// assert!(obs.complete());
+/// assert_eq!(obs.checked(), Some(3));
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// How many files the run examined, after its configuration excluded
@@ -100,6 +126,19 @@ impl Observation {
     /// part is optional, so a test names what its case is about and leaves
     /// the rest at the answer of a run that reported nothing.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_taplo::{Observation, Exit};
+    ///
+    /// let obs = Observation::builder()
+    ///     .checked(5)
+    ///     .exit(Exit::Succeeded)
+    ///     .build();
+    ///
+    /// assert_eq!(obs.checked(), Some(5));
+    /// ```
+    ///
     /// [read]: Observation::read
     #[builder]
     pub fn new(
@@ -129,6 +168,18 @@ impl Observation {
     /// names at least one problem. A report of such a run that names none
     /// lost the lines that held them, and the caller must not read a silent
     /// failure as an empty one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_taplo::{Observation, Exit};
+    ///
+    /// let obs = Observation::builder().exit(Exit::Succeeded).build();
+    /// assert!(obs.complete());
+    ///
+    /// let obs = Observation::builder().exit(Exit::Failed).build();
+    /// assert!(!obs.complete());
+    /// ```
     pub fn complete(&self) -> bool {
         self.exit == Exit::Succeeded || !self.problems.is_empty()
     }
@@ -144,6 +195,36 @@ impl Observation {
     /// that ended without success therefore also reads each file that taplo
     /// examined, and a file that it cannot read becomes a problem even when
     /// taplo lost that line. The reading changes no file.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_taplo::{Observation, Operation};
+    /// use rakko_tool::{Launch, Tool, ToolName};
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let tool = Tool::resolve()
+    ///     .name(ToolName::new("taplo"))
+    ///     .root("/home/otter/project".into())
+    ///     .call()
+    ///     .await?;
+    /// let execution = tool
+    ///     .invocation()
+    ///     .args(["format", "--check", "--diff"])
+    ///     .launch()
+    ///     .await?;
+    ///
+    /// let observation = Observation::read()
+    ///     .execution(&execution)
+    ///     .operation(Operation::CheckFormat)
+    ///     .call()
+    ///     .await;
+    ///
+    /// println!("{} problems", observation.problems().len());
+    /// # Ok(())
+    /// # }
+    /// ```
     #[builder]
     pub async fn read(execution: &Execution, operation: Operation) -> Self {
         let observation = self::report::read()

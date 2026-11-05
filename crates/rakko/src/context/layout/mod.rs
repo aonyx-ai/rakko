@@ -13,6 +13,17 @@ use super::project_root::ProjectRoot;
 /// A layout tells an action where the directories of a project are. Each
 /// directory has a default that comes from the project root, and a caller
 /// can supply a path in place of any default.
+///
+/// # Examples
+///
+/// Create a layout for a project.
+///
+/// ```
+/// use rakko::Layout;
+///
+/// let layout = Layout::builder().root("/tmp/project").build();
+/// assert!(layout.config().get().ends_with(".config"));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Layout {
     /// The configuration directory of the project
@@ -26,6 +37,18 @@ impl Layout {
     ///
     /// When `config` is absent the layout uses the default path: `.config`
     /// inside the project root.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{ConfigDirectory, Layout};
+    ///
+    /// let layout = Layout::builder()
+    ///     .root("/tmp/project")
+    ///     .config(ConfigDirectory::new("/etc/project".into()))
+    ///     .build();
+    /// assert_eq!(layout.config().get(), std::path::Path::new("/etc/project"));
+    /// ```
     #[builder]
     pub fn new(
         #[builder(into)] root: ProjectRoot,

@@ -5,6 +5,18 @@
 /// The compiler writes notes and help lines as well, but those explain a
 /// diagnostic above them, and a reader wants the diagnostic. Only the two
 /// levels that name a problem of the project travel in a report.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoReport, DiagnosticLevel};
+///
+/// let stdout = r#"{"reason":"compiler-message","message":{"level":"warning","code":null,"message":"unused variable","spans":[]}}"#;
+/// let report = CargoReport::read(stdout)?;
+///
+/// assert_eq!(report.diagnostics()[0].level(), DiagnosticLevel::Warning);
+/// # Ok::<(), rakko_cargo::ReadReportError>(())
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum DiagnosticLevel {
     /// The compiler refused the code, and the build did not finish

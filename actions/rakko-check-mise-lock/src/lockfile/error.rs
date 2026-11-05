@@ -10,6 +10,17 @@ use crate::part::{Platform, ToolName, Version};
 /// that it reads only in part would hide gaps behind a green result. Each
 /// variant names what in the lockfile has a shape that the action does not
 /// know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::{ReadLockfileError, ToolName};
+///
+/// let error = ReadLockfileError::MissingVersion {
+///     tool: ToolName::new("cargo"),
+/// };
+/// assert_eq!(error.to_string(), "an entry of cargo names no version");
+/// ```
 #[derive(Debug, Error)]
 pub enum ReadLockfileError {
     /// An entry of a tool records a platform that is not a table

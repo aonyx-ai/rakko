@@ -68,6 +68,18 @@ impl NextestReport {
     /// started or passed, the lines of cargo, and a line that is not a
     /// record of nextest at all, so the two tools can share the stream.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_nextest::NextestReport;
+    ///
+    /// let stdout = r#"{"type":"suite","event":"ok","passed":2,"failed":0}"#;
+    /// let report = NextestReport::read(stdout)?;
+    ///
+    /// assert_eq!(report.ran(), 2);
+    /// # Ok::<(), rakko_nextest::ReadNextestReportError>(())
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`UnrecognizedRecord`][unrecognized] when a line is about a
