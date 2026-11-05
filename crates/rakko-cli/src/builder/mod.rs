@@ -299,7 +299,7 @@ impl Builder {
     fn add(&mut self, entries: impl IntoIterator<Item = Mounted>) {
         let entries: Vec<Mounted> = entries.into_iter().collect();
 
-        arguments::refuse_reserved(&entries);
+        self::arguments::refuse_reserved(&entries);
 
         self.registry.add(entries);
     }
@@ -393,7 +393,8 @@ impl Builder {
 
         for mounted in self.registry.entries() {
             command = command.subcommand(
-                Command::new(mounted.name().get().to_owned()).args(arguments::render(mounted)),
+                Command::new(mounted.name().get().to_owned())
+                    .args(self::arguments::render(mounted)),
             );
         }
 
@@ -518,7 +519,7 @@ fn values(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
     matches
         .subcommand()
         .map_or_else(ArgsValues::empty, |(_, command)| {
-            arguments::collect(schema, command)
+            self::arguments::collect(schema, command)
         })
 }
 
@@ -622,8 +623,8 @@ fn drive_command(
 /// [`RunGroupError`] describes. Returns the other errors that [`dispatch`]
 /// describes.
 ///
-/// [`BindMembersError::UnboundMember`]: members::BindMembersError::UnboundMember
-/// [`RunGroupError`]: scheduler::RunGroupError
+/// [`BindMembersError::UnboundMember`]: self::members::BindMembersError::UnboundMember
+/// [`RunGroupError`]: self::scheduler::RunGroupError
 fn drive_group(
     matches: ArgMatches,
     named: Option<PathBuf>,
@@ -633,8 +634,8 @@ fn drive_group(
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
 
-        let members = members::bind(group.members(), &values)?;
-        let code = scheduler::run(&group.name(), members, &project, &context).await?;
+        let members = self::members::bind(group.members(), &values)?;
+        let code = self::scheduler::run(&group.name(), members, &project, &context).await?;
 
         Ok(code)
     })
