@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_prettier::ObservePrettierError;
@@ -10,6 +12,21 @@ use thiserror::Error;
 /// a file that prettier cannot parse travel as findings in the outcome of the
 /// run. The variants of this error describe a run whose answer cannot be
 /// trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_format_json::FormatJsonError;
+///
+/// let error = FormatJsonError::ForeignPath {
+///     path: PathBuf::from("/etc/passwd"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "prettier reported a path outside the project: /etc/passwd"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum FormatJsonError {
     /// Prettier reported a path that the project root does not contain
@@ -35,11 +52,11 @@ pub enum FormatJsonError {
 
     /// A configuration of the project did not reach the run
     ///
-    /// Prettier ignores an option that it does not know with a warning and
-    /// then runs without it, and it reports a configuration file that it
-    /// cannot read at all. A run that lost part of the configuration quietly
-    /// does what the project asked it not to do, so the action stops instead
-    /// of reporting what such a run found.
+    /// Prettier ignores an unknown option with a warning and runs without it.
+    /// It reports a configuration file that it cannot read at all. A run that
+    /// lost part of the configuration quietly does what the project asked it
+    /// not to do. So the action stops instead of reporting what such a run
+    /// found.
     #[error("prettier did not run with the configuration of the project: {details}")]
     RejectedConfiguration {
         /// What prettier reported about the configuration
@@ -50,8 +67,8 @@ pub enum FormatJsonError {
     ///
     /// The shape of the report belongs to a version of prettier. A run that
     /// ended without success and named no problem wrote something the action
-    /// could not read, and an answer built on such a report would hide
-    /// problems behind a green result.
+    /// could not read. An answer built on such a report would hide problems
+    /// behind a green result.
     #[error("prettier wrote a report that the action does not recognize: {stderr}")]
     UnrecognizedReport {
         /// What prettier wrote to its standard error stream
@@ -80,5 +97,17 @@ impl From<ObservePrettierError> for FormatJsonError {
                 Self::PrettierUnavailable { source }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_json_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatJsonError>();
     }
 }

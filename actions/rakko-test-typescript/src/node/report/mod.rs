@@ -1,22 +1,20 @@
 //! The reading of the report that the test runner wrote
 //!
 //! The runner reports a run as TAP: one line per test that says whether it
-//! passed, and an indented block below it that carries the place of the test
-//! and, for a test that failed, what went wrong. The report closes with one
-//! line per count of the run.
+//! passed. An indented block below it carries the place of the test and, for a
+//! test that failed, what went wrong. The report closes with one line per
+//! count of the run.
 //!
 //! This module turns that text into a [`Report`]. It judges nothing: the
 //! caller decides what a failure means for the outcome of a run.
 //!
 //! The reading keeps only what a caller needs, which is the tests that failed
 //! and the counts. It is strict about the shape all the same, because a line
-//! that it cannot place belongs to a report that it does not know, and the
+//! that it cannot place belongs to a report that it does not know. The
 //! failures it collected from such a report are the ones that it happened to
 //! understand.
 
-/// The reading of one indented block of a report
 pub mod block;
-/// The error that leaves a caller without the report of a run
 mod error;
 
 use bon::Builder;
@@ -81,12 +79,26 @@ const JOIN: char = ' ';
 /// What the test runner reported about a run
 ///
 /// The report carries the tests that failed and the count of the tests that
-/// ran. A run that ran no test counted none, which is how a caller tells a
-/// project that holds no test from one whose tests all passed: both report no
-/// failure, and only the first reports no test.
+/// ran. A run that ran no test counted none. This separates a project with no
+/// test from one whose tests all passed: both report no failure, and only the
+/// first reports no test.
 ///
-/// A test that passed carries nothing that a caller needs, so the report keeps
+/// A test that passed carries nothing that a caller needs. So the report keeps
 /// no record of it beyond the count.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::node::report::Report;
+///
+/// let report = Report::builder()
+///     .failures(vec![])
+///     .tests(5)
+///     .build();
+///
+/// assert_eq!(report.tests(), 5);
+/// assert!(report.failures().is_empty());
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct Report {
     /// The tests that failed, in the order that the runner reported them
@@ -102,15 +114,27 @@ pub struct Report {
 ///
 /// The reading collects the tests that failed and the counts that close the
 /// report. A test that the project marked as skipped or as still to do carries
-/// a directive behind its name, and the runner counts neither as a failure
+/// a directive behind its name. The runner counts neither as a failure
 /// however it ended, so the reading leaves it out as well.
 ///
 /// # Errors
 ///
-/// Returns [`MissingHeader`][header] for text that opens no report,
+/// Returns [`MissingHeader`][header] for text that opens no report. Returns
 /// [`MissingCounts`][counts] for a report that ends without the counts of the
-/// run, and [`UnreadableLine`][unreadable] for a line that the reading cannot
-/// place.
+/// run. Returns [`UnreadableLine`][unreadable] for a line that the reading
+/// cannot place.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::node::report::read;
+///
+/// let report_text = "TAP version 13\nok 1 - passes\n1..1\n# tests 1\n";
+/// let report = read(report_text).unwrap();
+///
+/// assert_eq!(report.tests(), 1);
+/// assert!(report.failures().is_empty());
+/// ```
 ///
 /// [counts]: ReadReportError::MissingCounts
 /// [header]: ReadReportError::MissingHeader
@@ -235,8 +259,8 @@ fn number(text: &str) -> bool {
 /// Returns the name of a test, with the escapes of the report undone
 ///
 /// The report escapes the character that opens a comment and the character
-/// that escapes, so that the name of a test always fits on one line and never
-/// reads as a directive.
+/// that escapes. So the name of a test always fits on one line and never reads
+/// as a directive.
 fn unescape(name: &str) -> String {
     let mut unescaped = String::with_capacity(name.len());
     let mut characters = name.chars();
@@ -258,17 +282,17 @@ fn unescape(name: &str) -> String {
 
 /// Returns the key and the value that a line of counts states
 ///
-/// The report writes a count as a comment that holds the name and the number,
-/// so the reading drops the character that opens the comment first.
+/// The report writes a count as a comment that holds the name and the number.
+/// So the reading drops the character that opens the comment first.
 fn stated(line: &str) -> Option<(&str, &str)> {
     line.trim().strip_prefix(HASH)?.trim().split_once(JOIN)
 }
 
 /// Returns the lines of a report, split into its results and its counts
 ///
-/// The report closes with one line per count of the run, and each of them is a
+/// The report closes with one line per count of the run. Each of them is a
 /// comment that holds a name and a number. A test writes to its own output as
-/// a comment as well, so the counts are the block of them that the report ends
+/// a comment as well. So the counts are the block of them that the report ends
 /// with, and nothing before it.
 ///
 /// # Errors
@@ -308,8 +332,11 @@ fn split<'a>(lines: &'a [&'a str]) -> Result<(&'a [&'a str], &'a [&'a str]), Rea
 /// Returns the result that the given line starts
 ///
 /// Returns `None` when the line states no result at all.
+///
+/// A directive excuses whatever the test did, and the runner counts such a test
+/// as neither passed nor failed.
 fn start(line: &str) -> Option<Pending> {
-    let failed = match line.strip_prefix(NOT_OK) {
+    let is_not_ok = match line.strip_prefix(NOT_OK) {
         Some(_) => true,
         None => {
             line.strip_prefix(OK)?;
@@ -320,11 +347,14 @@ fn start(line: &str) -> Option<Pending> {
     let (_, named) = line.split_once(NAME_OPEN)?;
     let (name, directive) = split_directive(named);
 
+    let outcome = match is_not_ok && directive.is_none() {
+        true => TestOutcome::Failed,
+        false => TestOutcome::Passed,
+    };
+
     Some(Pending {
         name: unescape(name),
-        // A directive excuses whatever the test did, and the runner counts
-        // such a test as neither passed nor failed.
-        failed: failed && directive.is_none(),
+        outcome,
         origin: None,
         reason: None,
         kind: None,
@@ -333,7 +363,7 @@ fn start(line: &str) -> Option<Pending> {
 
 /// Returns the name of a test and the directive that follows it
 ///
-/// A directive says that the project excused the test, and it sits behind the
+/// A directive says that the project excused the test. It sits behind the
 /// name after the character that opens a comment. That character is escaped
 /// inside a name, so the first one that is not escaped opens the directive.
 fn split_directive(named: &str) -> (&str, Option<&str>) {
@@ -363,17 +393,27 @@ fn unreadable(line: &str) -> ReadReportError {
     }
 }
 
+/// The outcome of a test
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+enum TestOutcome {
+    /// The test passed
+    #[default]
+    Passed,
+    /// The test failed
+    Failed,
+}
+
 /// One result of a report whose block the reading has yet to see
 ///
-/// The report writes the block of a result below the line that states it, so a
-/// result is complete only once the next one starts or the report ends. This
+/// The report writes the block of a result below the line that states it. So a
+/// result is complete only once the next one starts or the report ends. It
 /// holds the parts until then.
 struct Pending {
     /// The name of the test, with the escapes of the report undone
     name: String,
 
     /// Whether the test counts as failed
-    failed: bool,
+    outcome: TestOutcome,
 
     /// The place where the project declares the test
     origin: Option<Origin>,
@@ -389,10 +429,10 @@ impl Pending {
     /// Adds the failures of this result to the given list
     ///
     /// A result that passed adds nothing. Neither does one that failed only
-    /// because a test below it failed, because that test is in the list
-    /// already, at the place where a reader repairs it.
+    /// because a test below it failed. That test is in the list already, at
+    /// the place where a reader repairs it.
     fn collect(self, failures: &mut Vec<Failure>) {
-        if !self.failed || self.kind.as_deref() == Some(SUBTESTS_FAILED) {
+        if self.outcome == TestOutcome::Passed || self.kind.as_deref() == Some(SUBTESTS_FAILED) {
             return;
         }
 
@@ -415,9 +455,10 @@ impl Pending {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::unwrap_used)]
 
     use std::path::PathBuf;
@@ -456,11 +497,26 @@ mod tests {
                           duration_ms 90.9\n";
 
     /// Returns the report of a run whose one test carries the given lines
+    #[bon::builder]
     fn one(result: &str, block: &str) -> String {
         format!(
             "TAP version 13\n{result}\n  ---\n{block}  ...\n1..1\n# tests 1\n# suites 0\n# pass \
              0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 9.9\n"
         )
+    }
+
+    #[test]
+    fn pending_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Pending>();
+    }
+
+    #[test]
+    fn read_of_a_report_of_a_run_that_passed_counts_its_tests() {
+        let report = read(PASSED).unwrap();
+
+        assert_eq!(report.tests(), 2);
     }
 
     #[test]
@@ -475,13 +531,6 @@ mod tests {
     }
 
     #[test]
-    fn read_of_a_report_of_a_run_that_passed_counts_its_tests() {
-        let report = read(PASSED).unwrap();
-
-        assert_eq!(report.tests(), 2);
-    }
-
-    #[test]
     fn read_of_a_report_of_a_run_without_a_test_counts_none() {
         let report = read(UNTESTED).unwrap();
 
@@ -489,19 +538,16 @@ mod tests {
     }
 
     #[test]
-    fn read_of_a_report_of_a_test_that_failed_names_the_test() {
-        let report = read(FAILED).unwrap();
-
-        assert_eq!(report.failures()[0].name(), "counts");
-    }
-
-    #[test]
-    fn read_of_a_report_of_a_test_that_failed_carries_the_reason_on_one_line() {
-        let report = read(FAILED).unwrap();
+    fn read_of_a_report_of_a_suite_reports_only_the_test_below_it() {
+        let report = read(NESTED).unwrap();
 
         assert_eq!(
-            report.failures()[0].reason().as_deref(),
-            Some("Expected values to be strictly equal: 2 !== 3")
+            report
+                .failures()
+                .iter()
+                .map(Failure::name)
+                .collect::<Vec<_>>(),
+            ["counts"]
         );
     }
 
@@ -522,32 +568,30 @@ mod tests {
     }
 
     #[test]
-    fn read_of_a_report_of_a_test_without_a_place_carries_none() {
-        let report = read(&one("not ok 1 - counts", "  error: 'test failed'\n")).unwrap();
-
-        assert_eq!(report.failures()[0].origin(), &None);
-    }
-
-    #[test]
-    fn read_of_a_report_of_a_suite_reports_only_the_test_below_it() {
-        let report = read(NESTED).unwrap();
+    fn read_of_a_report_of_a_test_that_failed_carries_the_reason_on_one_line() {
+        let report = read(FAILED).unwrap();
 
         assert_eq!(
-            report
-                .failures()
-                .iter()
-                .map(Failure::name)
-                .collect::<Vec<_>>(),
-            ["counts"]
+            report.failures()[0].reason().as_deref(),
+            Some("Expected values to be strictly equal: 2 !== 3")
         );
     }
 
     #[test]
+    fn read_of_a_report_of_a_test_that_failed_names_the_test() {
+        let report = read(FAILED).unwrap();
+
+        assert_eq!(report.failures()[0].name(), "counts");
+    }
+
+    #[test]
     fn read_of_a_report_of_a_test_that_is_still_to_do_reports_no_failure() {
-        let report = read(&one(
-            "not ok 1 - counts # TODO",
-            "  failureType: 'testCodeFailure'\n",
-        ))
+        let report = read(
+            &one()
+                .result("not ok 1 - counts # TODO")
+                .block("  failureType: 'testCodeFailure'\n")
+                .call(),
+        )
         .unwrap();
 
         assert!(
@@ -557,22 +601,42 @@ mod tests {
         );
     }
 
-    // The report escapes the character that opens a directive inside a name,
-    // so a name that holds one is no directive and the test still counts.
+    /// Shows that a read of a report of a test whose name holds a hash reports
+    /// the failure
+    ///
+    /// The report escapes the character that opens a directive inside a name.
+    /// A name that holds one is no directive, so the test still counts.
     #[test]
     fn read_of_a_report_of_a_test_whose_name_holds_a_hash_reports_the_failure() {
-        let report = read(&one(
-            "not ok 1 - counts \\# twice",
-            "  failureType: 'testCodeFailure'\n",
-        ))
+        let report = read(
+            &one()
+                .result("not ok 1 - counts \\# twice")
+                .block("  failureType: 'testCodeFailure'\n")
+                .call(),
+        )
         .unwrap();
 
         assert_eq!(report.failures()[0].name(), "counts # twice");
     }
 
-    // A test writes its own output into the report as a comment, and a line of
-    // it can read exactly like a result. The reading takes it for a comment,
-    // because that is what the runner wrote.
+    #[test]
+    fn read_of_a_report_of_a_test_without_a_place_carries_none() {
+        let report = read(
+            &one()
+                .result("not ok 1 - counts")
+                .block("  error: 'test failed'\n")
+                .call(),
+        )
+        .unwrap();
+
+        assert_eq!(report.failures()[0].origin(), &None);
+    }
+
+    /// Shows that a read of a report whose test wrote a result reports no failure
+    ///
+    /// A test writes its own output into the report as a comment, and a line of
+    /// it can read exactly like a result. The reading takes it for a comment,
+    /// because that is what the runner wrote.
     #[test]
     fn read_of_a_report_whose_test_wrote_a_result_reports_no_failure() {
         let report =
@@ -587,10 +651,15 @@ mod tests {
     }
 
     #[test]
-    fn read_of_text_that_opens_no_report_stops() {
-        let error = read("node: bad option: --test-reporter=tap\n").unwrap_err();
+    fn read_of_a_report_with_a_line_that_states_no_result_stops() {
+        let report = PASSED.replace("ok 1 - adds", "PASS adds");
 
-        assert_eq!(error, ReadReportError::MissingHeader);
+        let error = read(&report).unwrap_err();
+
+        assert!(
+            matches!(&error, ReadReportError::UnreadableLine { line } if line == "PASS adds"),
+            "expected the line that the reading could not place, got {error:?}"
+        );
     }
 
     #[test]
@@ -601,14 +670,23 @@ mod tests {
     }
 
     #[test]
-    fn read_of_a_report_with_a_line_that_states_no_result_stops() {
-        let report = PASSED.replace("ok 1 - adds", "PASS adds");
+    fn read_of_text_that_opens_no_report_stops() {
+        let error = read("node: bad option: --test-reporter=tap\n").unwrap_err();
 
-        let error = read(&report).unwrap_err();
+        assert_eq!(error, ReadReportError::MissingHeader);
+    }
 
-        assert!(
-            matches!(&error, ReadReportError::UnreadableLine { line } if line == "PASS adds"),
-            "expected the line that the reading could not place, got {error:?}"
-        );
+    #[test]
+    fn report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Report>();
+    }
+
+    #[test]
+    fn test_outcome_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TestOutcome>();
     }
 }

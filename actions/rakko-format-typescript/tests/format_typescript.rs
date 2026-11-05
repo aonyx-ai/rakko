@@ -1,22 +1,23 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately unformatted file sits in this
+//! against it. So no fixture with a deliberately unformatted file sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the oxfmt that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project states no configuration of oxfmt unless the test is about one.
-//! Oxfmt formats with its own defaults in that case, and it reads no
-//! configuration of the user, so a project without one answers the same way on
-//! the machine of every contributor.
+//! Oxfmt formats with its own defaults in that case. It reads no configuration
+//! of the user. So a project without one answers the same way on the machine of
+//! every contributor.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -38,8 +39,8 @@ const BROKEN: &str = "export const = ;;;\n";
 
 /// Markdown that oxfmt would rewrite if the action asked it about Markdown
 ///
-/// Oxfmt formats the code that a fenced block of a Markdown file holds, and
-/// the action that wraps prettier owns Markdown in a project that mounts it.
+/// Oxfmt formats the code that a fenced block of a Markdown file holds. The
+/// action that wraps prettier owns Markdown in a project that mounts it.
 const UNFORMATTED_MARKDOWN: &str = "# Guide\n\n```js\nexport  const   answer=42\n```\n";
 
 /// A configuration that oxfmt refuses to read
@@ -51,6 +52,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without an oxfmt to resolve
     ///
@@ -81,7 +83,7 @@ impl Project {
 
     /// Creates a project that pins an oxfmt that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about oxfmt.
     fn without_oxfmt() -> Self {
@@ -123,6 +125,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -182,12 +185,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 
@@ -227,8 +230,16 @@ fn action_identifies_itself_as_format_typescript() {
 #[tokio::test]
 async fn fixing_run_leaves_the_other_languages_of_a_project_alone() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
-    project.write("docs/guide.md", UNFORMATTED_MARKDOWN);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("docs/guide.md")
+        .content(UNFORMATTED_MARKDOWN)
+        .call();
 
     project.run(&fixing()).await;
 
@@ -238,7 +249,11 @@ async fn fixing_run_leaves_the_other_languages_of_a_project_alone() {
 #[tokio::test]
 async fn fixing_run_reports_the_file_that_it_rewrote() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(&fixing()).await;
 
@@ -251,7 +266,11 @@ async fn fixing_run_reports_the_file_that_it_rewrote() {
 #[tokio::test]
 async fn fixing_run_rewrites_an_unformatted_file() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     project.run(&fixing()).await;
 
@@ -261,8 +280,12 @@ async fn fixing_run_rewrites_an_unformatted_file() {
 #[tokio::test]
 async fn fixing_run_that_left_a_problem_fails() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
-    project.write("src/broken.ts", BROKEN);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("src/broken.ts").content(BROKEN).call();
 
     let outcome = project.run(&fixing()).await;
 
@@ -275,8 +298,12 @@ async fn fixing_run_that_left_a_problem_fails() {
 #[tokio::test]
 async fn fixing_run_that_left_a_problem_holds_the_repairs_beside_it() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
-    project.write("src/broken.ts", BROKEN);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("src/broken.ts").content(BROKEN).call();
 
     let outcome = project.run(&fixing()).await;
 
@@ -289,7 +316,7 @@ async fn fixing_run_that_left_a_problem_holds_the_repairs_beside_it() {
 #[tokio::test]
 async fn report_of_a_file_that_oxfmt_cannot_parse_sits_at_the_place_of_oxfmt() {
     let project = Project::new();
-    project.write("src/index.ts", BROKEN);
+    project.write().path("src/index.ts").content(BROKEN).call();
 
     let outcome = project.report().await;
 
@@ -308,7 +335,11 @@ async fn report_of_a_file_that_oxfmt_cannot_parse_sits_at_the_place_of_oxfmt() {
 #[tokio::test]
 async fn report_of_a_formatted_project_passes() {
     let project = Project::new();
-    project.write("src/index.ts", FORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(FORMATTED)
+        .call();
 
     let outcome = project.report().await;
 
@@ -321,7 +352,11 @@ async fn report_of_a_formatted_project_passes() {
 #[tokio::test]
 async fn report_of_a_project_whose_oxfmt_mise_does_not_report_holds_the_error() {
     let project = Project::without_oxfmt();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.report().await;
 
@@ -334,7 +369,11 @@ async fn report_of_a_project_whose_oxfmt_mise_does_not_report_holds_the_error() 
 #[tokio::test]
 async fn report_of_a_project_without_typescript_names_the_tool() {
     let project = Project::new();
-    project.write("docs/guide.md", "# Guide\n");
+    project
+        .write()
+        .path("docs/guide.md")
+        .content("# Guide\n")
+        .call();
 
     let outcome = project.report().await;
 
@@ -350,7 +389,11 @@ async fn report_of_a_project_without_typescript_names_the_tool() {
 #[tokio::test]
 async fn report_of_a_project_without_typescript_skips() {
     let project = Project::new();
-    project.write("docs/guide.md", "# Guide\n");
+    project
+        .write()
+        .path("docs/guide.md")
+        .content("# Guide\n")
+        .call();
 
     let outcome = project.report().await;
 
@@ -363,8 +406,16 @@ async fn report_of_a_project_without_typescript_skips() {
 #[tokio::test]
 async fn report_of_a_refused_configuration_holds_what_oxfmt_reported() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
-    project.write(".oxfmtrc.json", REFUSED_CONFIGURATION);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path(".oxfmtrc.json")
+        .content(REFUSED_CONFIGURATION)
+        .call();
 
     let outcome = project.report().await;
 
@@ -380,20 +431,29 @@ async fn report_of_a_refused_configuration_holds_what_oxfmt_reported() {
 #[tokio::test]
 async fn report_of_an_unformatted_file_leaves_it_alone() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     project.report().await;
 
     assert_eq!(project.read("src/index.ts"), UNFORMATTED);
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn report_of_an_unformatted_file_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(
         &FormatTypeScript,
         &project.context(),
@@ -405,7 +465,11 @@ async fn report_of_an_unformatted_file_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn report_of_an_unformatted_file_names_it() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.report().await;
 

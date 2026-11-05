@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+//!
 use std::path::PathBuf;
 
 use rakko_tool::{ResolveToolError, RunCommandError};
@@ -12,12 +14,26 @@ use crate::validator::report::ReadReportError;
 /// refuse travels as a finding in the outcome of the run. The variants of this
 /// error describe a run whose answer cannot be trusted, and such a run stops
 /// instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::CheckRenovateConfigError;
+///
+/// let error = CheckRenovateConfigError::AbortedValidation {
+///     details: "no global configuration".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the validator stopped before it had validated the project: no global configuration"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum CheckRenovateConfigError {
     /// The validator stopped before it had validated the project
     ///
-    /// The validator ends with a status of its own when it crashes, and it
-    /// writes a fatal record when it cannot read the global configuration that
+    /// The validator ends with a status of its own when it crashes. It writes a
+    /// fatal record when it cannot read the global configuration that
     /// a run of Renovate would start with. It validated less than the project
     /// in both cases, and an outcome built on such a run would hide the rest
     /// behind that part.
@@ -29,10 +45,10 @@ pub enum CheckRenovateConfigError {
 
     /// The validator reported a configuration outside the project
     ///
-    /// A finding names its path relative to the project root, and a path
-    /// outside the root has no such name. The validator starts in the root, so
-    /// this points at a global configuration that the environment of the run
-    /// named elsewhere, or at a log that the action misread.
+    /// A finding names its path relative to the project root. A path outside
+    /// the root has no such name. The validator starts in the root, so this
+    /// points at a global configuration that the environment of the run named
+    /// elsewhere. It can also point at a log that the action misread.
     #[error("the validator reported a configuration outside the project: {}", path.display())]
     ForeignPath {
         /// The path that the validator reported
@@ -41,9 +57,9 @@ pub enum CheckRenovateConfigError {
 
     /// The validator reported no problem and ended without success
     ///
-    /// The validator reports every problem that it finds before it fails a
-    /// run, so a run that failed and said nothing failed for a reason that the
-    /// action cannot name.
+    /// The validator reports every problem that it finds before it fails a run.
+    /// So a run that failed and said nothing failed for a reason that the action
+    /// cannot name.
     #[error("the validator reported no problem and ended without success: {details}")]
     MissingReport {
         /// What the validator wrote in place of a problem
@@ -54,8 +70,8 @@ pub enum CheckRenovateConfigError {
     ///
     /// The shape of the log belongs to a version of Renovate. A log that the
     /// action cannot read therefore points at a version that this crate does
-    /// not know, and the findings of such a run would be the ones that the
-    /// reading happened to understand.
+    /// not know. The findings of such a run would be the ones that the reading
+    /// happened to understand.
     #[error("failed to read the log of the validator: {report}")]
     UnreadableReport {
         /// What the validator wrote in place of a log that the action reads
@@ -109,9 +125,10 @@ impl From<ObserveValidatorError> for CheckRenovateConfigError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -121,15 +138,24 @@ mod tests {
     /// What the validator wrote in a run whose log the action could not read
     const REPORT: &str = "{\"level\":40,\"msg\":\"Something new happened\"}";
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Checks that the error holds auto traits
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. The reason is that a field of a later version could
+    /// take them away without a word from the compiler.
     #[test]
     fn check_renovate_config_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<CheckRenovateConfigError>();
+    }
+
+    #[test]
+    fn check_renovate_config_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckRenovateConfigError>();
     }
 
     #[test]

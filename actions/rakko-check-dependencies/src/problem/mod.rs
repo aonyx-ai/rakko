@@ -1,15 +1,14 @@
 //! One thing that cargo-deny reported about a workspace
 //!
 //! A run of cargo-deny reports one entry for every shape that it recognized
-//! in the dependencies of a workspace. This module holds one of those
-//! entries: how the project weighed the shape, which check recognized it,
-//! what cargo-deny wrote about it, and the packages that it is about.
+//! in the dependencies of a workspace. This module holds one of those entries.
+//! Each entry shows how the project weighed the shape, which check recognized
+//! it, what cargo-deny wrote about it, and the packages that it is about.
 
-/// One package that a report of cargo-deny is about
 mod package;
-/// The weight that cargo-deny gave a report
 mod severity;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 
 pub use self::package::Package;
@@ -32,33 +31,50 @@ const PACKAGES_CLOSE: char = ')';
 
 /// One thing that cargo-deny reported about a workspace
 ///
-/// The value holds one entry of a report: the weight that the configuration
-/// of the project gave it, the check that recognized the shape, the sentence
-/// that cargo-deny wrote about it, and the packages that the entry is about.
+/// The value holds one entry of a report. The entry holds the weight that the
+/// configuration of the project gave it and the check that recognized the
+/// shape. It also holds the sentence that cargo-deny wrote about it and the
+/// packages that the entry is about.
 ///
 /// The packages travel with the entry because the message often does not name
 /// them. Cargo-deny draws a block for a reader with the manifest of the
-/// package above it, so the identity of a package whose license was rejected
-/// sits in the path of that block. The report keeps the same identity in the
-/// inclusion graph of the entry, and a problem carries it in a field, so that
-/// a reader of a finding learns which package the answer is about.
+/// package above it. So the identity of a package whose license was rejected sits
+/// in the path of that block. The report keeps the same identity in the
+/// inclusion graph of the entry. A problem carries it in a field so that a
+/// reader of a finding learns which package the answer is about.
 ///
 /// An entry names no file of the project. The place that cargo-deny
-/// underlines is a line of a lock file, or of a manifest in the registry
-/// cache of the machine, and the report leaves the file out of the entry
-/// altogether. A caller therefore places a problem at the workspace that it
-/// came from, and never at a path.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+/// underlines is a line of a lock file or of a manifest in the registry
+/// cache. The report leaves the file out of the entry altogether. A caller
+/// therefore places a problem at the workspace that it came from, and never
+/// at a path.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_dependencies::problem::{DenyProblem, Severity};
+///
+/// let problem = DenyProblem::builder()
+///     .severity(Severity::Warning)
+///     .check("sources")
+///     .message("allowed registry")
+///     .packages(vec![])
+///     .build();
+/// assert_eq!(problem.check(), "sources");
+/// ```
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct DenyProblem {
     /// How the configuration of the project weighed the shape
     #[getset(get_copy = "pub")]
     severity: Severity,
 
     /// The check that recognized the shape, in the words of cargo-deny
+    #[builder(into)]
     #[getset(get = "pub")]
     check: String,
 
     /// What cargo-deny wrote about the shape
+    #[builder(into)]
     #[getset(get = "pub")]
     message: String,
 
@@ -68,21 +84,33 @@ pub struct DenyProblem {
 }
 
 impl DenyProblem {
-    /// Creates a problem from one entry that cargo-deny reported
-    pub fn new(severity: Severity, check: String, message: String, packages: Vec<Package>) -> Self {
-        Self {
-            severity,
-            check,
-            message,
-            packages,
-        }
-    }
-
     /// Returns whether the project said that the shape must not appear
     ///
     /// A run fails over a problem that answers `true`, and passes over one
     /// that answers `false`. The weight comes from the configuration of the
     /// project, so this asks what the project already decided.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_dependencies::problem::{DenyProblem, Severity};
+    ///
+    /// let error_problem = DenyProblem::builder()
+    ///     .severity(Severity::Error)
+    ///     .check("banned")
+    ///     .message("crate is banned")
+    ///     .packages(vec![])
+    ///     .build();
+    /// assert!(error_problem.denied());
+    ///
+    /// let warning_problem = DenyProblem::builder()
+    ///     .severity(Severity::Warning)
+    ///     .check("notice")
+    ///     .message("not recommended")
+    ///     .packages(vec![])
+    ///     .build();
+    /// assert!(!warning_problem.denied());
+    /// ```
     pub fn denied(&self) -> bool {
         self.severity >= Severity::Error
     }
@@ -90,10 +118,30 @@ impl DenyProblem {
     /// Returns the sentence that cargo-deny wrote about the problem
     ///
     /// The sentence opens with the check that recognized the shape, in the
-    /// place where cargo-deny writes it, and it ends with the packages that
-    /// the entry is about. A problem that names no package ends with the
-    /// sentence of cargo-deny, because empty parentheses tell a reader
-    /// nothing.
+    /// place where cargo-deny writes it. It ends with the packages that the
+    /// entry is about. A problem that names no package ends with the sentence
+    /// of cargo-deny, because empty parentheses tell a reader nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_dependencies::problem::{DenyProblem, Package, Severity};
+    ///
+    /// let pkg = Package::builder()
+    ///     .name("log")
+    ///     .version("0.4.0")
+    ///     .build();
+    /// let problem = DenyProblem::builder()
+    ///     .severity(Severity::Error)
+    ///     .check("unlicensed")
+    ///     .message("license not in allow list")
+    ///     .packages(vec![pkg])
+    ///     .build();
+    /// assert_eq!(
+    ///     problem.description(),
+    ///     "[unlicensed] license not in allow list (log 0.4.0)"
+    /// );
+    /// ```
     pub fn description(&self) -> String {
         let head = format!("{CHECK_OPEN}{}{CHECK_CLOSE}{}", self.check, self.message);
 
@@ -112,20 +160,26 @@ impl DenyProblem {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     /// Returns a problem of the given weight that names one package
     fn problem(severity: Severity) -> DenyProblem {
-        DenyProblem::new(
-            severity,
-            "rejected".to_owned(),
-            "failed to satisfy license requirements".to_owned(),
-            vec![Package::new("option-ext".to_owned(), "0.2.0".to_owned())],
-        )
+        DenyProblem::builder()
+            .severity(severity)
+            .check("rejected".to_owned())
+            .message("failed to satisfy license requirements".to_owned())
+            .packages(vec![
+                Package::builder()
+                    .name("option-ext".to_owned())
+                    .version("0.2.0".to_owned())
+                    .build(),
+            ])
+            .build()
     }
 
     #[test]
@@ -143,6 +197,13 @@ mod tests {
     }
 
     #[test]
+    fn deny_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DenyProblem>();
+    }
+
+    #[test]
     fn description_holds_the_check_and_the_words_of_cargo_deny() {
         let description = problem(Severity::Error).description();
 
@@ -154,12 +215,12 @@ mod tests {
 
     #[test]
     fn description_of_a_problem_about_no_package_ends_with_the_words_of_cargo_deny() {
-        let problem = DenyProblem::new(
-            Severity::Warning,
-            "license-not-encountered".to_owned(),
-            "license was not encountered".to_owned(),
-            Vec::new(),
-        );
+        let problem = DenyProblem::builder()
+            .severity(Severity::Warning)
+            .check("license-not-encountered".to_owned())
+            .message("license was not encountered".to_owned())
+            .packages(Vec::new())
+            .build();
 
         let description = problem.description();
 
@@ -171,15 +232,21 @@ mod tests {
 
     #[test]
     fn description_of_a_problem_about_several_packages_names_every_one() {
-        let problem = DenyProblem::new(
-            Severity::Error,
-            "duplicate".to_owned(),
-            "found 2 duplicate entries for crate 'syn'".to_owned(),
-            vec![
-                Package::new("syn".to_owned(), "2.0.119".to_owned()),
-                Package::new("syn".to_owned(), "3.0.4".to_owned()),
-            ],
-        );
+        let problem = DenyProblem::builder()
+            .severity(Severity::Error)
+            .check("duplicate".to_owned())
+            .message("found 2 duplicate entries for crate 'syn'".to_owned())
+            .packages(vec![
+                Package::builder()
+                    .name("syn".to_owned())
+                    .version("2.0.119".to_owned())
+                    .build(),
+                Package::builder()
+                    .name("syn".to_owned())
+                    .version("3.0.4".to_owned())
+                    .build(),
+            ])
+            .build();
 
         let description = problem.description();
 

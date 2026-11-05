@@ -1,6 +1,6 @@
-/// The directory layout of a project, with default and overridable paths
+//! Types for the data that an action reads when it runs
+
 mod layout;
-/// The directory where the run of an action happens
 mod project_root;
 
 use bon::bon;
@@ -14,6 +14,17 @@ pub use self::project_root::ProjectRoot;
 /// A context holds the root, which is the directory where the run happens,
 /// and the directory layout of the project. Every action receives a context,
 /// so the type stays small by design.
+///
+/// # Examples
+///
+/// Create a context for a project.
+///
+/// ```
+/// use rakko::Context;
+///
+/// let context = Context::builder().root("/tmp/project").build();
+/// assert_eq!(context.root().get(), "/tmp/project");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Context {
     /// The directory where the run of the action happens
@@ -35,6 +46,15 @@ impl Context {
     ///
     /// When `layout` is absent the context builds the layout from the project
     /// root with default directory paths.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Context;
+    ///
+    /// let context = Context::builder().root("/tmp/project").build();
+    /// assert!(context.layout().config().get().starts_with("/tmp/project"));
+    /// ```
     #[builder]
     pub fn new(#[builder(into)] root: ProjectRoot, layout: Option<Layout>) -> Self {
         let layout = layout.unwrap_or_else(|| Layout::builder().root(root.clone()).build());
@@ -45,9 +65,10 @@ impl Context {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -57,6 +78,13 @@ mod tests {
     #[test]
     fn context_is_send() {
         assert_send::<Context>();
+    }
+
+    #[test]
+    fn context_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Context>();
     }
 
     #[test]

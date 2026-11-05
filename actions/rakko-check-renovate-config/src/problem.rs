@@ -7,6 +7,7 @@
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, Location, Position, ProjectRoot};
 
@@ -22,16 +23,31 @@ const TOPIC_CLOSE: &str = ": ";
 ///
 /// The topic and the detail are the words of the validator. The topic names
 /// the kind of problem, such as `Configuration Error` for an error or `Config
-/// migration necessary` for a migration, and the detail says what the
-/// validator found. A reader of a finding therefore reads the answer of the
-/// tool, and not one that this crate wrote about it.
+/// migration necessary` for a migration. The detail says what the validator
+/// found. A reader of a finding therefore reads the answer of the tool, not
+/// one this crate wrote.
 ///
 /// A problem sits at a position only where the validator names one. Most of
 /// what the validator reports is about an option and not about a place in the
-/// file, and the problem then belongs to the file as a whole.
+/// file. The problem then belongs to the file as a whole.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::problem::RenovateProblem;
+/// use std::path::PathBuf;
+///
+/// let problem = RenovateProblem::builder()
+///     .path(PathBuf::from("renovate.json"))
+///     .topic("Configuration Error".to_owned())
+///     .detail("Invalid option: foo".to_owned())
+///     .build();
+/// assert_eq!(problem.topic(), "Configuration Error");
+/// assert_eq!(problem.detail(), "Invalid option: foo");
+/// ```
 ///
 /// [relative]: RenovateProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct RenovateProblem {
     /// The path of the file, as the validator wrote it
     #[getset(get = "pub")]
@@ -42,35 +58,45 @@ pub struct RenovateProblem {
     position: Option<Position>,
 
     /// The kind of the problem, in the words of the validator
+    #[builder(into)]
     #[getset(get = "pub")]
     topic: String,
 
     /// What the validator found, in its own words
+    #[builder(into)]
     #[getset(get = "pub")]
     detail: String,
 }
 
 impl RenovateProblem {
-    /// Creates a problem from what the validator reported
-    pub fn new(path: PathBuf, position: Option<Position>, topic: String, detail: String) -> Self {
-        Self {
-            path,
-            position,
-            topic,
-            detail,
-        }
-    }
-
     /// Returns where the problem is, relative to the project root
     ///
     /// The location is the position that the validator named, or the whole
     /// file where it named none.
     ///
     /// Returns `None` when the root does not contain the file. The validator
-    /// starts in the root, so a path that does not fit points at a report that
-    /// the caller misread, or at a global configuration that the environment
-    /// of the run named outside the project, and the caller decides what to
-    /// do about that.
+    /// starts in the root. So a path that does not fit points at a report that
+    /// the caller misread. It can also point at a global configuration that the
+    /// environment of the run named outside the project. The caller decides
+    /// what to do about
+    /// that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::{Location, ProjectRoot};
+    /// use rakko_check_renovate_config::problem::RenovateProblem;
+    /// use std::path::PathBuf;
+    ///
+    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let problem = RenovateProblem::builder()
+    ///     .path(PathBuf::from("/home/otter/project/renovate.json"))
+    ///     .topic("Config Error".to_owned())
+    ///     .detail("Invalid option".to_owned())
+    ///     .build();
+    /// let path = "renovate.json".parse().unwrap();
+    /// assert_eq!(problem.location(&root), Some(Location::File { path }));
+    /// ```
     pub fn location(&self, root: &ProjectRoot) -> Option<Location> {
         let path = self.relative_path(root)?;
 
@@ -84,6 +110,23 @@ impl RenovateProblem {
     ///
     /// The sentence starts with the topic and ends with the detail. A problem
     /// without a detail is its topic alone.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_renovate_config::problem::RenovateProblem;
+    /// use std::path::PathBuf;
+    ///
+    /// let problem = RenovateProblem::builder()
+    ///     .path(PathBuf::from("renovate.json"))
+    ///     .topic("Configuration Error".to_owned())
+    ///     .detail("Invalid option: foo".to_owned())
+    ///     .build();
+    /// assert_eq!(
+    ///     problem.message(),
+    ///     "Configuration Error: Invalid option: foo"
+    /// );
+    /// ```
     pub fn message(&self) -> String {
         if self.detail.is_empty() {
             return self.topic.clone();
@@ -95,16 +138,39 @@ impl RenovateProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_renovate_config::problem::RenovateProblem;
+    /// use std::path::PathBuf;
+    ///
+    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let inside = RenovateProblem::builder()
+    ///     .path(PathBuf::from("/home/otter/project/renovate.json"))
+    ///     .topic("Config Error".to_owned())
+    ///     .detail("Invalid option".to_owned())
+    ///     .build();
+    /// let outside = RenovateProblem::builder()
+    ///     .path(PathBuf::from("/elsewhere/renovate.json"))
+    ///     .topic("Config Error".to_owned())
+    ///     .detail("Invalid option".to_owned())
+    ///     .build();
+    /// assert_eq!(inside.relative_path(&root), "renovate.json".parse().ok());
+    /// assert_eq!(outside.relative_path(&root), None);
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -112,12 +178,11 @@ mod tests {
 
     /// Returns an error of the validator about the given path
     fn problem(path: PathBuf) -> RenovateProblem {
-        RenovateProblem::new(
-            path,
-            None,
-            "Configuration Error".to_owned(),
-            "Invalid configuration option: foo".to_owned(),
-        )
+        RenovateProblem::builder()
+            .path(path)
+            .topic("Configuration Error".to_owned())
+            .detail("Invalid configuration option: foo".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -135,12 +200,12 @@ mod tests {
     #[test]
     fn location_of_a_problem_at_a_position_names_the_position() {
         let position = Position::builder().line(2).column(1).build();
-        let problem = RenovateProblem::new(
-            path("renovate.json"),
-            Some(position),
-            "File could not be parsed".to_owned(),
-            "JSON5: invalid end of input at 2:1".to_owned(),
-        );
+        let problem = RenovateProblem::builder()
+            .path(path("renovate.json"))
+            .position(position)
+            .topic("File could not be parsed".to_owned())
+            .detail("JSON5: invalid end of input at 2:1".to_owned())
+            .build();
 
         let location = problem.location(&root());
 
@@ -184,12 +249,11 @@ mod tests {
 
     #[test]
     fn message_without_a_detail_is_the_topic() {
-        let problem = RenovateProblem::new(
-            path("renovate.json"),
-            None,
-            "Config migration necessary".to_owned(),
-            String::new(),
-        );
+        let problem = RenovateProblem::builder()
+            .path(path("renovate.json"))
+            .topic("Config migration necessary".to_owned())
+            .detail(String::new())
+            .build();
 
         let message = problem.message();
 
@@ -208,5 +272,12 @@ mod tests {
         let relative = problem(path("./config.js")).relative_path(&root());
 
         assert_eq!(relative, FilePath::try_from(path("config.js")).ok());
+    }
+
+    #[test]
+    fn renovate_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RenovateProblem>();
     }
 }

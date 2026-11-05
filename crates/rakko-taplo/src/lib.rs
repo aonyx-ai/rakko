@@ -1,16 +1,16 @@
 //! The machinery that the actions which wrap taplo share
 //!
-//! [Taplo] does several jobs of project maintenance, and one action wraps
-//! each of them. Every one of those actions asks the same questions: does
-//! this project hold TOML files at all, which taplo does it run, and what
-//! did that taplo report? This crate answers all three, so that an action
-//! states the operation that it wants and reads the answer as data.
+//! [Taplo] does several jobs of project maintenance, and one action wraps each
+//! of them. Every one of those actions asks the same questions. Does this
+//! project hold TOML files at all? Which taplo does it run? What did that taplo
+//! report? This crate answers all three, so that an action states the operation
+//! that it wants and reads the answer as data.
 //!
 //! Taplo reports as text on its standard error stream, and this crate reads
-//! that text. The shape of the text belongs to a version of taplo, so
-//! keeping the reading in one place keeps the version surface in one place
-//! as well: a taplo that reports differently breaks one crate, and not one
-//! crate per operation.
+//! that text. The shape of the text belongs to a version of taplo. So keeping
+//! the reading in one place keeps the version surface in one place as well. A
+//! taplo that reports differently breaks one crate, and not one crate per
+//! operation.
 //!
 //! # Asynchronous Runtime
 //!
@@ -40,16 +40,12 @@
 //! [taplo]: https://taplo.tamasfe.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for what one run of taplo produced
 pub mod observation;
-/// Types for the operations of taplo that an action runs
 pub mod operation;
-/// Types for one problem that taplo reported about a file
 pub mod problem;
-/// Types for the taplo that a project runs
 pub mod taplo;
 
-pub use self::observation::Observation;
+pub use self::observation::{Exit, Observation};
 pub use self::operation::Operation;
 pub use self::problem::{ProblemDetail, TaploProblem};
 pub use self::taplo::{ObserveTaploError, Taplo};

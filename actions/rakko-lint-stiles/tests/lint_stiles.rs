@@ -2,13 +2,14 @@
 //!
 //! The tests cover what the action declares, and the run that stops when the
 //! project pins a stiles that nothing installed. This repository pins no
-//! stiles, because it holds no stiles rule to apply, so the tests that read
+//! stiles because it holds no stiles rule to apply. So the tests that read
 //! what stiles reported live beside the code that reads it, and they read
 //! reports in the shape that stiles writes.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -31,10 +32,11 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project that pins a stiles that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about stiles.
     fn without_stiles() -> Self {
@@ -46,8 +48,12 @@ impl Project {
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
 
-        project.write(".config/stiles.toml", CONFIGURATION);
-        project.write("src/lib.rs", SOURCE);
+        project
+            .write()
+            .path(".config/stiles.toml")
+            .content(CONFIGURATION)
+            .call();
+        project.write().path("src/lib.rs").content(SOURCE).call();
 
         project
     }
@@ -69,6 +75,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -83,9 +90,9 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
     /// reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
@@ -132,12 +139,13 @@ fn action_identifies_itself_as_lint_stiles() {
     assert_eq!(name.get(), "lint-stiles");
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_without_a_stiles_leaves_the_project_unchanged() {
     let project = Project::without_stiles();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintStiles, &project.context(), &()).await;
 }
 

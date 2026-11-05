@@ -5,11 +5,11 @@
 //! one of those places: where it is, how zizmor weighed the pattern, and what
 //! zizmor said about the place.
 
-/// The severity that zizmor gave a finding
 mod severity;
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, ProjectRoot, Span};
 
@@ -33,8 +33,8 @@ const ANNOTATION_CLOSE: char = ')';
 /// One place that zizmor reported about a workflow
 ///
 /// A finding of zizmor names one or more places. The first of them is where
-/// the finding is, and the others are what a reader needs to read it, such as
-/// the step that holds an expression or the job that permissions belong to.
+/// the finding is. The others are what a reader needs to read it, such as the
+/// step that holds an expression or the job that permissions belong to.
 /// Zizmor draws them together in one block of source. A problem holds one of
 /// those places on its own, and the audit and the severity say which problems
 /// came from the same finding.
@@ -49,13 +49,39 @@ const ANNOTATION_CLOSE: char = ')';
 /// and never sits at a single position.
 ///
 /// The audit, the description, and the annotation are the words of zizmor.
-/// The audit names the pattern that zizmor looked for, the description says
+/// The audit names the pattern that zizmor looked for. The description says
 /// what that pattern is about, and the annotation says what zizmor recognized
 /// at this place. A reader of a finding therefore reads the answer of the
 /// tool, and not one that this crate wrote about it.
 ///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use rakko_action::{Position, Span};
+/// use rakko_lint_github_actions::{Severity, ZizmorProblem};
+///
+/// let problem = ZizmorProblem::builder()
+///     .path(PathBuf::from("./.github/workflows/ci.yml"))
+///     .span(
+///         Span::builder()
+///         .start(Position::builder().line(8).column(24).build())
+///         .end(Position::builder().line(8).column(48).build())
+///         .build()
+///     )
+///     .severity(Severity::High)
+///     .audit("injection".to_owned())
+///     .description("code injection".to_owned())
+///     .annotation("untrusted input".to_owned())
+///     .build();
+///
+/// assert_eq!(problem.audit(), "injection");
+/// assert_eq!(problem.severity(), Severity::High);
+/// ```
+///
 /// [relative]: ZizmorProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct ZizmorProblem {
     /// The path of the file, as zizmor wrote it
     #[getset(get = "pub")]
@@ -70,45 +96,56 @@ pub struct ZizmorProblem {
     severity: Severity,
 
     /// The name of the audit that recognized the pattern
+    #[builder(into)]
     #[getset(get = "pub")]
     audit: String,
 
     /// What the audit is about, in the words of zizmor
+    #[builder(into)]
     #[getset(get = "pub")]
     description: String,
 
     /// What zizmor wrote about this place of the finding
+    #[builder(into)]
     #[getset(get = "pub")]
     annotation: String,
 }
 
 impl ZizmorProblem {
-    /// Creates a problem from one place that zizmor reported
-    pub fn new(
-        path: PathBuf,
-        span: Span,
-        severity: Severity,
-        audit: String,
-        description: String,
-        annotation: String,
-    ) -> Self {
-        Self {
-            path,
-            span,
-            severity,
-            audit,
-            description,
-            annotation,
-        }
-    }
-
     /// Returns the sentence that zizmor wrote about the problem
     ///
     /// The sentence holds the severity, the audit, and what the audit is
-    /// about, in the order that zizmor heads a finding with, and it ends with
-    /// what zizmor wrote about this place. A reader therefore sees the two
-    /// halves that zizmor draws above and below its block of source, and the
+    /// about, in the order that zizmor heads a finding with. It ends with what
+    /// zizmor wrote about this place. A reader therefore sees the two
+    /// halves that zizmor draws above and below its block of source. The
     /// places of one finding read as the same finding.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// use rakko_action::{Position, Span};
+    /// use rakko_lint_github_actions::{Severity, ZizmorProblem};
+    ///
+    /// let problem = ZizmorProblem::builder()
+    ///     .path(PathBuf::from("./.github/workflows/ci.yml"))
+    ///     .span(
+    ///         Span::builder()
+    ///         .start(Position::builder().line(8).column(24).build())
+    ///         .end(Position::builder().line(8).column(48).build())
+    ///         .build()
+    ///     )
+    ///     .severity(Severity::High)
+    ///     .audit("test".to_owned())
+    ///     .description("test description".to_owned())
+    ///     .annotation("test annotation".to_owned())
+    ///     .build();
+    ///
+    /// let message = problem.message();
+    ///
+    /// assert_eq!(message, "[high] test: test description (test annotation)");
+    /// ```
     pub fn message(&self) -> String {
         format!(
             "{SEVERITY_OPEN}{}{SEVERITY_CLOSE}{}{AUDIT_CLOSE}{}{ANNOTATION_OPEN}{}{ANNOTATION_CLOSE}",
@@ -119,19 +156,47 @@ impl ZizmorProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. A run names the
-    /// root as the place to look, so a path that does not fit points at a
-    /// report that the caller misread, and the caller decides what to do about
-    /// that.
+    /// root as the place to look. A path that does not fit points at a report
+    /// that the caller misread, and the caller decides what to do about that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    ///
+    /// use rakko_action::{FilePath, Position, ProjectRoot, Span};
+    /// use rakko_lint_github_actions::{Severity, ZizmorProblem};
+    ///
+    /// let problem = ZizmorProblem::builder()
+    ///     .path(PathBuf::from("./.github/workflows/ci.yml"))
+    ///     .span(
+    ///         Span::builder()
+    ///         .start(Position::builder().line(8).column(24).build())
+    ///         .end(Position::builder().line(8).column(48).build())
+    ///         .build()
+    ///     )
+    ///     .severity(Severity::High)
+    ///     .audit("test".to_owned())
+    ///     .description("test description".to_owned())
+    ///     .annotation("test annotation".to_owned())
+    ///     .build();
+    ///
+    /// let root = ProjectRoot::new(PathBuf::from("/project"));
+    /// let path = problem.relative_path(&root);
+    ///
+    /// assert_eq!(path, FilePath::try_from(PathBuf::from(".github/workflows/ci.yml")).ok());
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_action::Position;
     use rakko_test_utils::path;
@@ -145,14 +210,14 @@ mod tests {
 
     /// Returns a problem of the given severity about the given path
     fn weighed(path: PathBuf, severity: Severity) -> ZizmorProblem {
-        ZizmorProblem::new(
-            path,
-            span(),
-            severity,
-            "template-injection".to_owned(),
-            "code injection via template expansion".to_owned(),
-            "may expand into attacker-controllable code".to_owned(),
-        )
+        ZizmorProblem::builder()
+            .path(path)
+            .span(span())
+            .severity(severity)
+            .audit("template-injection".to_owned())
+            .description("code injection via template expansion".to_owned())
+            .annotation("may expand into attacker-controllable code".to_owned())
+            .build()
     }
 
     /// Returns the range that the problems of a test cover
@@ -214,5 +279,12 @@ mod tests {
             relative,
             FilePath::try_from(path(".github/workflows/ci.yml")).ok()
         );
+    }
+
+    #[test]
+    fn zizmor_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ZizmorProblem>();
     }
 }

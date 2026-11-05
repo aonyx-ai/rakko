@@ -1,7 +1,28 @@
+//! The arguments that a run of the action reads
+
 use getset::CopyGetters;
 use rakko_action::{
     Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name,
 };
+
+/// What the run does with files that are not formatted
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_toml::FormatOperation;
+///
+/// assert_eq!(FormatOperation::default(), FormatOperation::Report);
+/// assert_ne!(FormatOperation::Rewrite, FormatOperation::Report);
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub enum FormatOperation {
+    /// Report files that are not formatted
+    #[default]
+    Report,
+    /// Rewrite files that are not formatted
+    Rewrite,
+}
 
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Rewrite the files that taplo can format";
@@ -12,11 +33,27 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that taplo can format";
 /// taplo rewrite the files that it can format. Reporting is the safe
 /// default, because a run that was started in order to look must not change
 /// the tree that its caller holds.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_format_toml::{FormatOperation, FormatTomlArgs};
+///
+/// let values = ArgsValues::new([(
+///     argument_name!("fix"),
+///     ArgumentValue::new("true"),
+/// )]);
+///
+/// let args = FormatTomlArgs::from_values(&values).unwrap();
+///
+/// assert_eq!(args.operation(), FormatOperation::Rewrite);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatTomlArgs {
-    /// Whether the run rewrites the files that are not formatted
+    /// What the run does with files that are not formatted
     #[getset(get_copy = "pub")]
-    fix: bool,
+    operation: FormatOperation,
 }
 
 impl Args for FormatTomlArgs {
@@ -30,26 +67,35 @@ impl Args for FormatTomlArgs {
 
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let name = argument_name!("fix");
-        let fix = match values.get(&name) {
-            Some(value) => value
-                .get()
-                .parse()
-                .map_err(|_| ReadArgsError::UnreadableValue {
-                    name,
-                    value: value.clone(),
-                })?,
-            None => false,
+        let operation = match values.get(&name) {
+            Some(value) => {
+                let fix: bool =
+                    value
+                        .get()
+                        .parse()
+                        .map_err(|_| ReadArgsError::UnreadableValue {
+                            name,
+                            value: value.clone(),
+                        })?;
+                if fix {
+                    FormatOperation::Rewrite
+                } else {
+                    FormatOperation::Report
+                }
+            }
+            None => FormatOperation::Report,
         };
 
-        Ok(Self { fix })
+        Ok(Self { operation })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_action::ArgumentValue;
 
@@ -58,6 +104,20 @@ mod tests {
     /// Returns the values of a run that gives `fix` the given text
     fn values(fix: &str) -> ArgsValues {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new(fix))])
+    }
+
+    #[test]
+    fn format_operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatOperation>();
+    }
+
+    #[test]
+    fn format_toml_args_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatTomlArgs>();
     }
 
     #[test]
@@ -74,14 +134,14 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = FormatTomlArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.operation(), FormatOperation::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = FormatTomlArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.operation(), FormatOperation::Report);
     }
 
     #[test]

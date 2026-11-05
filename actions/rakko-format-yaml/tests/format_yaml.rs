@@ -1,21 +1,22 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately unformatted file sits in this
+//! against it. So no fixture with a deliberately unformatted file sits in this
 //! repository, where the formatting of the repository itself would fight it.
 //!
 //! The tests run the prettier that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! Prettier runs on Node, and the program that mise reports starts Node from
 //! the environment of the process. The tests therefore run inside the
 //! environment of mise, which the task that starts the harness enters.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -26,6 +27,7 @@ use rakko_action::{
     argument_name,
 };
 use rakko_format_yaml::{FormatYaml, FormatYamlArgs};
+use rakko_prettier::Operation;
 use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
@@ -56,6 +58,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a prettier to resolve
     ///
@@ -87,7 +90,7 @@ impl Project {
 
     /// Creates a project that pins a prettier that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about prettier.
     fn without_prettier() -> Self {
@@ -119,11 +122,12 @@ impl Project {
     }
 
     /// Runs the action against this project
-    async fn run(&self, fix: bool) -> Outcome {
-        let values = if fix {
-            ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
-        } else {
-            ArgsValues::empty()
+    async fn run(&self, operation: Operation) -> Outcome {
+        let values = match operation {
+            Operation::Rewrite => {
+                ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
+            }
+            Operation::Report => ArgsValues::empty(),
         };
         let args = FormatYamlArgs::from_values(&values)
             .expect("the test builds the arguments from values that the action reads");
@@ -132,6 +136,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -171,9 +176,9 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
     /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
@@ -195,9 +200,9 @@ fn action_identifies_itself_as_format_yaml() {
 #[tokio::test]
 async fn run_in_a_formatted_project_passes() {
     let project = Project::new();
-    project.write("clean.yaml", FORMATTED);
+    project.write().path("clean.yaml").content(FORMATTED).call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
@@ -208,9 +213,9 @@ async fn run_in_a_formatted_project_passes() {
 #[tokio::test]
 async fn run_in_a_project_without_yaml_skips() {
     let project = Project::new();
-    project.write("notes.txt", FORMATTED);
+    project.write().path("notes.txt").content(FORMATTED).call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Skipped { .. }),
@@ -221,10 +226,14 @@ async fn run_in_a_project_without_yaml_skips() {
 #[tokio::test]
 async fn run_with_a_broken_configuration_stops() {
     let project = Project::new();
-    project.write(".prettierrc.json", BROKEN_CONFIGURATION);
-    project.write("clean.yaml", FORMATTED);
+    project
+        .write()
+        .path(".prettierrc.json")
+        .content(BROKEN_CONFIGURATION)
+        .call();
+    project.write().path("clean.yaml").content(FORMATTED).call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -235,10 +244,14 @@ async fn run_with_a_broken_configuration_stops() {
 #[tokio::test]
 async fn run_with_an_ignored_option_reports_what_prettier_said() {
     let project = Project::new();
-    project.write(".prettierrc.json", IGNORED_CONFIGURATION);
-    project.write("clean.yaml", FORMATTED);
+    project
+        .write()
+        .path(".prettierrc.json")
+        .content(IGNORED_CONFIGURATION)
+        .call();
+    project.write().path("clean.yaml").content(FORMATTED).call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Errored { source } = &outcome else {
         panic!("expected the run to stop, got {outcome:?}");
@@ -249,109 +262,12 @@ async fn run_with_an_ignored_option_reports_what_prettier_said() {
     );
 }
 
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_an_unreadable_file_and_fix_keeps_the_problem() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let project = Project::new();
-    project.write("messy.yaml", UNFORMATTED);
-    project.write("secret.yaml", FORMATTED);
-    let path = project.directory.path().join("secret.yaml");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
-        .expect("the test removes the permissions of a file");
-
-    let outcome = project.run(true).await;
-
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
-        .expect("the test restores the permissions of a file");
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(findings.len(), 1);
-}
-
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_an_unreadable_file_and_fix_reports_the_repair() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let project = Project::new();
-    project.write("messy.yaml", UNFORMATTED);
-    project.write("secret.yaml", FORMATTED);
-    let path = project.directory.path().join("secret.yaml");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
-        .expect("the test removes the permissions of a file");
-
-    let outcome = project.run(true).await;
-
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
-        .expect("the test restores the permissions of a file");
-    let Outcome::Failed { repairs, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(repairs.len(), 1);
-}
-
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_an_unreadable_file_carries_the_reason_of_prettier() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let project = Project::new();
-    project.write("secret.yaml", FORMATTED);
-    let path = project.directory.path().join("secret.yaml");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
-        .expect("the test removes the permissions of a file");
-
-    let outcome = project.run(false).await;
-
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
-        .expect("the test restores the permissions of a file");
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings[0].message().get().contains("EACCES"),
-        "expected the reason of prettier, got {:?}",
-        findings[0].message()
-    );
-}
-
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_an_unreadable_file_names_the_file() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let project = Project::new();
-    project.write("secret.yaml", FORMATTED);
-    let path = project.directory.path().join("secret.yaml");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
-        .expect("the test removes the permissions of a file");
-
-    let outcome = project.run(false).await;
-
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
-        .expect("the test restores the permissions of a file");
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(
-        findings[0].location(),
-        &Location::File {
-            path: "secret.yaml"
-                .parse()
-                .expect("the test names a relative path"),
-        }
-    );
-}
-
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
     let project = Project::new();
-    project.write("broken.yaml", INVALID);
+    project.write().path("broken.yaml").content(INVALID).call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -366,9 +282,9 @@ async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
-    project.write("broken.yaml", INVALID);
+    project.write().path("broken.yaml").content(INVALID).call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -388,9 +304,13 @@ async fn run_with_an_invalid_file_reports_the_position() {
 #[tokio::test]
 async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::new();
-    project.write("sub/messy.yaml", UNFORMATTED);
+    project
+        .write()
+        .path("sub/messy.yaml")
+        .content(UNFORMATTED)
+        .call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -405,13 +325,142 @@ async fn run_with_an_unformatted_file_names_the_file() {
     );
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn run_with_an_unreadable_file_and_fix_keeps_the_problem() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.yaml")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("secret.yaml")
+        .content(FORMATTED)
+        .call();
+    let path = project.directory.path().join("secret.yaml");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a file");
+
+    let outcome = project.run(Operation::Rewrite).await;
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+        .expect("the test restores the permissions of a file");
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(findings.len(), 1);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn run_with_an_unreadable_file_and_fix_reports_the_repair() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.yaml")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("secret.yaml")
+        .content(FORMATTED)
+        .call();
+    let path = project.directory.path().join("secret.yaml");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a file");
+
+    let outcome = project.run(Operation::Rewrite).await;
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+        .expect("the test restores the permissions of a file");
+    let Outcome::Failed { repairs, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(repairs.len(), 1);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn run_with_an_unreadable_file_carries_the_reason_of_prettier() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    project
+        .write()
+        .path("secret.yaml")
+        .content(FORMATTED)
+        .call();
+    let path = project.directory.path().join("secret.yaml");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a file");
+
+    let outcome = project.run(Operation::Report).await;
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+        .expect("the test restores the permissions of a file");
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings[0].message().get().contains("EACCES"),
+        "expected the reason of prettier, got {:?}",
+        findings[0].message()
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn run_with_an_unreadable_file_names_the_file() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    project
+        .write()
+        .path("secret.yaml")
+        .content(FORMATTED)
+        .call();
+    let path = project.directory.path().join("secret.yaml");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a file");
+
+    let outcome = project.run(Operation::Report).await;
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+        .expect("the test restores the permissions of a file");
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        findings[0].location(),
+        &Location::File {
+            path: "secret.yaml"
+                .parse()
+                .expect("the test names a relative path"),
+        }
+    );
+}
+
 #[tokio::test]
 async fn run_with_fix_leaves_the_other_languages_alone() {
     let project = Project::new();
-    project.write("messy.yaml", UNFORMATTED);
-    project.write("data.json", UNFORMATTED_JSON);
+    project
+        .write()
+        .path("messy.yaml")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("data.json")
+        .content(UNFORMATTED_JSON)
+        .call();
 
-    project.run(true).await;
+    project.run(Operation::Rewrite).await;
 
     assert_eq!(project.read("data.json"), UNFORMATTED_JSON);
 }
@@ -419,9 +468,13 @@ async fn run_with_fix_leaves_the_other_languages_alone() {
 #[tokio::test]
 async fn run_with_fix_names_the_file_that_it_repaired() {
     let project = Project::new();
-    project.write("sub/messy.yaml", UNFORMATTED);
+    project
+        .write()
+        .path("sub/messy.yaml")
+        .content(UNFORMATTED)
+        .call();
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     let Outcome::Changed { repairs } = &outcome else {
         panic!("expected the run to report a change, got {outcome:?}");
@@ -439,42 +492,55 @@ async fn run_with_fix_names_the_file_that_it_repaired() {
 #[tokio::test]
 async fn run_with_fix_rewrites_the_file() {
     let project = Project::new();
-    project.write("messy.yaml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.yaml")
+        .content(UNFORMATTED)
+        .call();
 
-    project.run(true).await;
+    project.run(Operation::Rewrite).await;
 
     assert_eq!(project.read("messy.yaml"), FORMATTED);
 }
 
 #[tokio::test]
-async fn run_without_fix_leaves_the_file_unchanged() {
-    let project = Project::new();
-    project.write("messy.yaml", UNFORMATTED);
-
-    project.run(false).await;
-
-    assert_eq!(project.read("messy.yaml"), UNFORMATTED);
-}
-
-#[tokio::test]
-async fn run_without_fix_leaves_the_project_unchanged() {
-    let project = Project::new();
-    project.write("messy.yaml", UNFORMATTED);
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&FormatYaml, &project.context(), &FormatYamlArgs::default()).await;
-}
-
-#[tokio::test]
 async fn run_without_a_prettier_stops() {
     let project = Project::without_prettier();
-    project.write("clean.yaml", FORMATTED);
+    project.write().path("clean.yaml").content(FORMATTED).call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_file_unchanged() {
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.yaml")
+        .content(UNFORMATTED)
+        .call();
+
+    project.run(Operation::Report).await;
+
+    assert_eq!(project.read("messy.yaml"), UNFORMATTED);
+}
+
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
+#[tokio::test]
+async fn run_without_fix_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.yaml")
+        .content(UNFORMATTED)
+        .call();
+
+    run_checking_access(&FormatYaml, &project.context(), &FormatYamlArgs::default()).await;
 }

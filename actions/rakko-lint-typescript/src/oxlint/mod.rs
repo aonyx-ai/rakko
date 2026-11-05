@@ -4,9 +4,7 @@
 //! that produces a report. An action asks for a run, and everything between the
 //! action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the report that oxlint wrote
 pub mod report;
 
 use rakko_action::ProjectRoot;
@@ -22,12 +20,12 @@ const OXLINT: &str = "oxlint";
 ///
 /// Oxlint draws a block of source per diagnostic by default, with the rule
 /// above it and the places that it marks drawn into it. The same run writes the
-/// diagnostics as one JSON object on request, and each of them then carries the
-/// severity and the message in fields, and the rule, the file, and the places
-/// where oxlint names them, instead of in a block that a reader has to take
-/// apart. The object also counts the files that the run examined, which no
-/// other format reports. The format protects a run from its environment as
-/// well, because the default format changes on a terminal and on a build
+/// diagnostics as one JSON object on request. Each diagnostic then carries the
+/// severity and the message in fields instead of in a block that a reader has
+/// to take apart. It carries the rule, the file, and the places in fields as
+/// well, where oxlint names them. The object also counts the files that the run
+/// examined, which no other format reports. The format protects a run from its
+/// environment, because the default format changes on a terminal and on a build
 /// server. The option selects the presentation of the report and not the
 /// behavior of the tool.
 const FORMAT: &str = "--format";
@@ -44,9 +42,9 @@ const HERE: &str = ".";
 /// The oxlint that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// editor and the terminal of a contributor. Nothing here installs a tool:
-/// provisioning is the job of mise, and an oxlint that mise does not report
+/// version that the project pinned. A run reaches the same program as the
+/// editor and the terminal of a contributor. Nothing here installs a tool.
+/// Provisioning is the job of mise. An oxlint that mise does not report
 /// stops the caller.
 ///
 /// # Examples
@@ -78,18 +76,35 @@ impl Oxlint {
     /// Runs oxlint over the project and reads what it reported
     ///
     /// The run names the root of the project and asks for the report as data.
-    /// Oxlint writes the report on its standard output stream, and it writes
+    /// Oxlint writes the report on its standard output stream. It writes
     /// the diagnosis of a run that it could not start on the same stream.
     ///
     /// The status of the process answers nothing here, and the report answers
     /// everything. Oxlint ends with success for a project whose broken rules
-    /// the project weighs as warnings, and it ends without success for a
-    /// project that holds no file to lint, so a caller that read the status
-    /// would pass a project with problems and fail a project with none.
+    /// the project weighs as warnings. It ends without success for a project
+    /// that holds no file to lint. So a caller that read the status would pass
+    /// a project with problems and fail a project with none.
     ///
     /// A run that examined no file is no failure. The observation reports it
-    /// through the count of the files, because oxlint writes the same empty
+    /// through the count of the files. Oxlint writes the same empty
     /// list of diagnostics for a project that it linted and found clean.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_typescript::Oxlint;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let oxlint = Oxlint::resolve(root).await?;
+    ///
+    /// let observation = oxlint.observe().await?;
+    /// assert!(observation.examined() > 0);
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -115,23 +130,57 @@ impl Oxlint {
         let stdout = execution.stdout().to_string_lossy();
 
         self::report::read(&stdout).map_err(|source| {
-            ObserveOxlintError::of(source, &stdout, &execution.stderr().to_string_lossy())
+            ObserveOxlintError::of()
+                .source(source)
+                .stdout(&*stdout)
+                .stderr(&*execution.stderr().to_string_lossy())
+                .call()
         })
     }
 
     /// Returns the oxlint that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
+    /// The lookup asks mise about the project whose root the caller names. The
+    /// version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_typescript::Oxlint;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let oxlint = Oxlint::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
     /// Returns a [`ResolveToolError`] when mise reports no oxlint for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(OXLINT), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(OXLINT))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn oxlint_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Oxlint>();
     }
 }

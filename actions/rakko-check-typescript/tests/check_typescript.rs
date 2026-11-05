@@ -1,27 +1,29 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken file sits in this
+//! against it. So no fixture with a deliberately broken file sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the tsc that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project states the compiler options that its test is about and no others.
 //! Tsc applies its own defaults for the rest, and it reads no configuration of
-//! the user, so a project answers the same way on the machine of every
+//! the user. So a project answers the same way on the machine of every
 //! contributor.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use bon::bon;
 use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_check_typescript::CheckTypeScript;
 use rakko_test_utils::{path_text, run_checking_access};
@@ -42,9 +44,9 @@ const EMITTING: &str = "{\n  \"compilerOptions\": { \"outDir\": \"dist\" },\n  \
 
 /// A configuration that asks tsc for a rule that it applies to nothing else
 ///
-/// The rule reports a parameter that the body of a function never reads, and
-/// tsc applies it only where the project asks for it, so a project that states
-/// this and a project that states nothing disagree about the same file.
+/// The rule reports a parameter that the body of a function never reads. Tsc
+/// applies it only where the project asks for it. So a project that states this
+/// and a project that states nothing disagree about the same file.
 const UNUSED_PARAMETERS: &str = "{\n  \"compilerOptions\": { \"noUnusedParameters\": true },\n  \
                                  \"include\": [\"src\"]\n}\n";
 
@@ -79,6 +81,7 @@ struct Project {
     root: PathBuf,
 }
 
+#[bon]
 impl Project {
     /// Creates a project without a tsc to resolve
     ///
@@ -93,10 +96,10 @@ impl Project {
 
     /// Returns the project with the tsc of this repository pinned in its root
     ///
-    /// The project copies the `mise.toml` of this repository into its root,
-    /// so the tsc that mise resolves for it is the tsc that the repository
-    /// pins and installs. Mise ignores a configuration that nobody trusts, so
-    /// the copy is trusted right away.
+    /// The project copies the `mise.toml` of this repository into its root. So
+    /// the tsc that mise resolves for it is the tsc that the repository pins
+    /// and installs. Mise ignores a configuration that nobody trusts, so the
+    /// copy is trusted right away.
     fn pinned(self) -> Self {
         let pins = repository().join("mise.toml");
         let copy = self.root.join("mise.toml");
@@ -128,7 +131,7 @@ impl Project {
 
     /// Creates a project that pins a TypeScript that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about TypeScript.
     fn without_tsc() -> Self {
@@ -169,6 +172,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         create(&self.root.join(path), content);
     }
@@ -180,6 +184,7 @@ impl Project {
     /// there the file lands in the project.
     ///
     /// [nested]: Project::nested
+    #[builder]
     fn write_beside(&self, path: &str, content: &str) {
         create(&self.directory.path().join(path), content);
     }
@@ -234,12 +239,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.root.join("mise.toml");
 
@@ -277,8 +282,12 @@ fn action_identifies_itself_as_check_typescript() {
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", VALID);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -291,8 +300,16 @@ async fn run_in_a_valid_project_passes() {
 #[tokio::test]
 async fn run_leaves_a_file_with_a_type_error_unchanged() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     project.run().await;
 
@@ -300,11 +317,37 @@ async fn run_leaves_a_file_with_a_type_error_unchanged() {
 }
 
 #[tokio::test]
+async fn run_of_a_project_that_builds_writes_no_output() {
+    let project = Project::new();
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(EMITTING)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
+
+    project.run().await;
+
+    assert!(
+        !project.holds("dist"),
+        "expected the run to write no output directory"
+    );
+}
+
+#[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", VALID);
-    project.write("src/deep/sub/broken.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
+    project
+        .write()
+        .path("src/deep/sub/broken.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -317,8 +360,16 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
-    project.write("tsconfig.json", UNUSED_PARAMETERS);
-    project.write("src/index.ts", UNUSED_PARAMETER);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(UNUSED_PARAMETERS)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNUSED_PARAMETER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -329,51 +380,40 @@ async fn run_reads_the_configuration_of_the_project() {
 }
 
 #[tokio::test]
-async fn run_with_a_type_error_leaves_the_project_unchanged() {
+async fn run_whose_configuration_selected_nothing_skips() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&CheckTypeScript, &project.context(), &()).await;
-}
-
-#[tokio::test]
-async fn run_without_the_option_of_the_project_passes_the_same_file() {
-    let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", UNUSED_PARAMETER);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(ELSEWHERE)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the defaults of tsc to answer, got {outcome:?}"
+        matches!(outcome, Outcome::Skipped { .. }),
+        "expected the run to skip, got {outcome:?}"
     );
 }
 
-#[tokio::test]
-async fn run_of_a_project_that_builds_writes_no_output() {
-    let project = Project::new();
-    project.write("tsconfig.json", EMITTING);
-    project.write("src/index.ts", VALID);
-
-    project.run().await;
-
-    assert!(
-        !project.holds("dist"),
-        "expected the run to write no output directory"
-    );
-}
-
-// A configuration that tsc refuses belongs to the file that states it, so the
-// run reports it where a reader can repair it.
+/// Shows that run with a refused configuration reports the configuration file
+///
+/// A configuration that tsc refuses belongs to the file that states it, so the
+/// run reports it where a reader can repair it.
 #[tokio::test]
 async fn run_with_a_refused_configuration_reports_the_configuration_file() {
     let project = Project::new();
-    project.write("tsconfig.json", UNKNOWN_OPTION);
-    project.write("src/index.ts", VALID);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(UNKNOWN_OPTION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -386,9 +426,13 @@ async fn run_with_a_refused_configuration_reports_the_configuration_file() {
 #[tokio::test]
 async fn run_with_a_type_error_beside_the_project_names_its_place() {
     let project = Project::nested();
-    project.write("tsconfig.json", PARENT);
-    project.write("src/index.ts", VALID);
-    project.write_beside("shared/index.ts", WRONG_TYPE);
+    project.write().path("tsconfig.json").content(PARENT).call();
+    project.write().path("src/index.ts").content(VALID).call();
+    project
+        .write_beside()
+        .path("shared/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -402,16 +446,26 @@ async fn run_with_a_type_error_beside_the_project_names_its_place() {
     );
 }
 
-// The message reads like the line that tsc writes, which it does only because
-// the run asks for the diagnostics without the drawing. A drawn report names
-// the place in another shape, and it carries the source of the file and the
-// marks under it, so this test also fails wherever the environment would make
-// tsc draw.
+/// Shows that run with a type error carries the message of tsc
+///
+/// The message reads like the line that tsc writes, which it does only because
+/// the run asks for the diagnostics without the drawing. A drawn report names
+/// the place in another shape. It carries the source of the file and the marks
+/// under it. So this test also fails wherever the environment would make tsc
+/// draw.
 #[tokio::test]
 async fn run_with_a_type_error_carries_the_message_of_tsc() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -424,15 +478,45 @@ async fn run_with_a_type_error_carries_the_message_of_tsc() {
     );
 }
 
-// Tsc draws its diagnostics in color when it writes to a terminal, and an
-// environment that states a terminal is capable of color makes it draw without
-// one, which is how a report that reads on a workstation arrives in escape
-// codes on a build server.
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
+#[tokio::test]
+async fn run_with_a_type_error_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
+
+    run_checking_access(&CheckTypeScript, &project.context(), &()).await;
+}
+
+/// Shows that run with a type error reports a message without color codes
+///
+/// Tsc draws its diagnostics in color when it writes to a terminal. An
+/// environment that states a terminal is capable of color makes it draw without
+/// one. That is how a report that reads on a workstation arrives in escape
+/// codes on a build server.
 #[tokio::test]
 async fn run_with_a_type_error_reports_a_message_without_color_codes() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -449,8 +533,16 @@ async fn run_with_a_type_error_reports_a_message_without_color_codes() {
 #[tokio::test]
 async fn run_with_a_type_error_reports_the_position_of_tsc() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -471,8 +563,16 @@ async fn run_with_a_type_error_reports_the_position_of_tsc() {
 #[tokio::test]
 async fn run_with_an_explained_diagnostic_carries_the_explanation() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", EXPLAINED);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(EXPLAINED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -492,8 +592,16 @@ async fn run_with_an_explained_diagnostic_carries_the_explanation() {
 #[tokio::test]
 async fn run_with_an_explained_diagnostic_reports_one_finding() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", EXPLAINED);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(EXPLAINED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -503,12 +611,18 @@ async fn run_with_an_explained_diagnostic_reports_one_finding() {
     assert_eq!(findings.len(), 1);
 }
 
-// A project that holds no configuration of tsc is no TypeScript project, and
-// tsc reports that it found none rather than that it found no problem.
+/// Shows that run without a configuration file skips
+///
+/// A project that holds no configuration of tsc is no TypeScript project.
+/// Tsc reports that it found none rather than that it found no problem.
 #[tokio::test]
 async fn run_without_a_configuration_file_skips() {
     let project = Project::new();
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -522,29 +636,41 @@ async fn run_without_a_configuration_file_skips() {
 }
 
 #[tokio::test]
-async fn run_whose_configuration_selected_nothing_skips() {
-    let project = Project::new();
-    project.write("tsconfig.json", ELSEWHERE);
-    project.write("src/index.ts", WRONG_TYPE);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_without_a_tsc_stops() {
     let project = Project::without_tsc();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", VALID);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_the_option_of_the_project_passes_the_same_file() {
+    let project = Project::new();
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNUSED_PARAMETER)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the defaults of tsc to answer, got {outcome:?}"
     );
 }

@@ -2,29 +2,27 @@
 //!
 //! A harness is the small binary that a project runs to maintain itself. It
 //! mounts the actions that the project uses, alone or through a bundle, and
-//! this crate turns them into a command-line interface: one command for each
-//! action, the help text of each command, and the flags that every command
-//! shares.
+//! this crate turns them into a command-line interface. The interface holds one
+//! command for each action, the help text of each command, and the flags that
+//! every command shares.
 //!
-//! A harness also writes commands of its own, for a maintenance activity of
-//! the project that does not fit an action, and mounts them beside its
-//! actions. Such a command implements the [`Command`] trait of this crate,
-//! and it is an ordinary command of Clawless underneath: it receives the
-//! context of Clawless and writes its output through it. This crate
-//! re-exports Clawless, so a harness names what a command receives and
-//! returns without a dependency of its own.
+//! A harness also writes commands of its own, for a maintenance activity of the
+//! project that does not fit an action. It mounts them beside its actions. Such
+//! a command implements the [`Command`] trait of this crate. It is an ordinary
+//! command of Clawless underneath: it receives the context of Clawless and
+//! writes its output through it. This crate re-exports Clawless, so a harness
+//! names what a command receives and returns without a dependency of its own.
 //!
 //! Some of these activities run a list of actions, such as the actions that
-//! guard a commit. A harness forms a [`Group`] for such an activity: a name
-//! and a list of actions, its members. This crate gives the group a command
-//! with the name of the group, and it derives the flags of that command from
-//! the arguments that the members declare. It binds every member to the
-//! values of a run, and it runs the members itself. A run of a group answers
-//! as a run of one action does, with one summary and one exit code.
+//! guard a commit. A harness forms a [`Group`] for such an activity: a name and
+//! a list of actions, its members. This crate gives the group a command with
+//! the name of the group. It derives the flags of that command from the
+//! arguments that the members declare. It binds every member to the values of a
+//! run, and it runs the members itself. A run of a group answers as a run of
+//! one action does, with one summary and one exit code.
 //!
 //! A command that drives actions shows what they found with the [`Report`] of
-//! this crate, so that its output takes the shape that a run of one action
-//! has.
+//! this crate. So its output takes the shape that a run of one action has.
 //!
 //! A harness depends on this crate, and so does a crate that provides a
 //! command for a harness to mount. An action, and a crate that provides a
@@ -40,23 +38,18 @@
 //! A harness runs the command line from its `main`:
 //!
 //! ```no_run
-//! rakko_cli::builder().run();
+//! fn main() -> std::process::ExitCode {
+//!     rakko_cli::builder().run()
+//! }
 //! ```
 //!
 //! [`Group`]: rakko_action::Group
 
-/// The command line that a harness builds and runs
 mod builder;
-/// An error and every cause behind it, as a reader sees them
 mod chain;
-/// The command that a harness writes for an activity that does not fit an
-/// action
 mod command;
-/// The view of a command that hides its type
 mod erased_command;
-/// What a run reports about the action that it drove
 mod report;
-/// The root of the project that a run maintains
 mod root;
 
 /// The framework that a command receives its context from and writes through

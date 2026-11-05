@@ -1,14 +1,14 @@
 //! One rule that yamllint reported about a file
 //!
-//! A run of yamllint reports one problem for each rule that a file broke, and
-//! this module holds one of them: where the rule was broken, how the project
-//! weighed it, and what yamllint said about it.
+//! A run of yamllint reports one problem for each rule that a file broke.
+//! This module holds one of them. It names where the rule was broken, how the
+//! project weighed it, and what yamllint said about it.
 
-/// The level that yamllint gave a problem
 mod level;
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko_action::{FilePath, ProjectRoot};
 
@@ -36,10 +36,29 @@ const LEVEL_CLOSE: &str = "] ";
 /// that rule. A reader of a finding therefore reads the answer of the tool,
 /// and not one that this crate wrote about it.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::{YamllintProblem, ProblemLevel};
+///
+/// let problem = YamllintProblem::builder()
+///     .path("./config.yaml")
+///     .line(5)
+///     .column(3)
+///     .level(ProblemLevel::Warning)
+///     .description("truthy value should be one of [false, true]".to_owned())
+///     .build();
+///
+/// assert_eq!(problem.line(), 5);
+/// assert_eq!(problem.column(), 3);
+/// assert_eq!(problem.level(), ProblemLevel::Warning);
+/// ```
+///
 /// [relative]: YamllintProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct YamllintProblem {
     /// The path of the file, as yamllint wrote it
+    #[builder(into)]
     #[getset(get = "pub")]
     path: PathBuf,
 
@@ -56,33 +75,33 @@ pub struct YamllintProblem {
     level: ProblemLevel,
 
     /// What yamllint said about the rule and the file
+    #[builder(into)]
     #[getset(get = "pub")]
     description: String,
 }
 
 impl YamllintProblem {
-    /// Creates a problem from what yamllint reported about a file
-    pub fn new(
-        path: PathBuf,
-        line: u32,
-        column: u32,
-        level: ProblemLevel,
-        description: String,
-    ) -> Self {
-        Self {
-            path,
-            line,
-            column,
-            level,
-            description,
-        }
-    }
-
     /// Returns the sentence that yamllint wrote about the problem
     ///
-    /// The sentence holds the level and the description, in the order that
-    /// yamllint writes them, so that a finding reads like the line that a
-    /// contributor sees when they run yamllint themselves.
+    /// The sentence holds the level and the description in the order yamllint
+    /// writes them. So a finding reads like the line that a contributor sees
+    /// when they run yamllint themselves.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_yaml::{YamllintProblem, ProblemLevel};
+    ///
+    /// let problem = YamllintProblem::builder()
+    ///     .path("./file.yaml")
+    ///     .line(1)
+    ///     .column(1)
+    ///     .level(ProblemLevel::Error)
+    ///     .description("missing document start".to_owned())
+    ///     .build();
+    ///
+    /// assert_eq!(problem.message(), "[error] missing document start");
+    /// ```
     pub fn message(&self) -> String {
         format!(
             "{LEVEL_OPEN}{}{LEVEL_CLOSE}{}",
@@ -93,19 +112,40 @@ impl YamllintProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. A run names the
-    /// root as the place to look, so a path that does not fit points at a
-    /// report that the caller misread, and the caller decides what to do about
+    /// root as the place to look. A path that does not fit therefore points at
+    /// a report that the caller misread. The caller decides what to do about
     /// that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_lint_yaml::{ProblemLevel, YamllintProblem};
+    ///
+    /// let root = ProjectRoot::new("/project".into());
+    /// let problem = YamllintProblem::builder()
+    ///     .path("./file.yaml")
+    ///     .line(1)
+    ///     .column(1)
+    ///     .level(ProblemLevel::Error)
+    ///     .description("error".to_owned())
+    ///     .build();
+    ///
+    /// let relative = problem.relative_path(&root).unwrap();
+    ///
+    /// assert_eq!(relative.to_string(), "file.yaml");
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -113,13 +153,13 @@ mod tests {
 
     /// Returns a problem about the given path
     fn problem(path: PathBuf) -> YamllintProblem {
-        YamllintProblem::new(
-            path,
-            1,
-            1,
-            ProblemLevel::Warning,
-            "missing document start \"---\" (document-start)".to_owned(),
-        )
+        YamllintProblem::builder()
+            .path(path)
+            .line(1)
+            .column(1)
+            .level(ProblemLevel::Warning)
+            .description("missing document start \"---\" (document-start)".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -156,5 +196,12 @@ mod tests {
         let relative = problem(path("./sub/a.yaml")).relative_path(&root());
 
         assert_eq!(relative, FilePath::try_from(path("sub/a.yaml")).ok());
+    }
+
+    #[test]
+    fn yamllint_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<YamllintProblem>();
     }
 }

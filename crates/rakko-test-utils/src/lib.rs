@@ -7,24 +7,24 @@
 //! # Paths
 //!
 //! A test that names a file compares a path, and a path reads differently on
-//! each platform: Windows separates the parts of one with a different
-//! character, and it calls a path absolute only when the path names a volume
-//! as well. A literal in a test therefore describes one path on one platform
-//! and another, or no absolute path at all, on the next.
+//! each platform. Windows separates the parts of one with a different
+//! character, and it calls a path absolute only when the path names a volume as
+//! well. A literal in a test therefore describes one path on one platform and
+//! another, or no absolute path at all, on the next.
 //!
 //! This crate takes a literal in the one form that a reader knows, with a
-//! forward slash between the parts, and builds the path that the platform
-//! names. One literal then describes the same file everywhere, and no test
-//! states a path twice. [`path`][path] answers with the path, and
-//! [`path_text`][path_text] with the text of that path, which is what a
-//! program writes and what a test that reads a report compares.
+//! forward slash between the parts. It builds the path that the platform names.
+//! One literal then describes the same file everywhere, and no test states a
+//! path twice. [`path`][path] answers with the path. [`path_text`][path_text]
+//! answers with the text of that path, which is what a program writes and what
+//! a test that reads a report compares.
 //!
 //! # Access
 //!
 //! An action declares whether a run reads or writes the project, and nothing
 //! enforces the declaration yet. [`run_checking_access`][run_checking_access]
-//! runs an action and fails the test when a run that declares a read changed
-//! a file of the project, so a test of an action keeps its declaration honest.
+//! runs an action and fails the test when a run that declares a read changed a
+//! file of the project. So a test of an action keeps its declaration honest.
 //!
 //! A crate depends on this one as a development dependency, so nothing that a
 //! project runs carries it.
@@ -44,7 +44,6 @@
 //! [path_text]: path_text()
 //! [run_checking_access]: run_checking_access()
 
-/// The check that a run keeps its declaration of access
 mod access;
 
 use std::path::PathBuf;
@@ -69,9 +68,9 @@ const SEPARATOR: char = '/';
 /// Returns the path that the parts of a literal name on this platform
 ///
 /// The literal writes a forward slash between the parts, and the answer joins
-/// them the way the platform joins them. A literal that opens with a
-/// separator names an absolute path, and the answer opens with what the
-/// platform reads as the root of the file system.
+/// them the way the platform joins them. A literal that opens with a separator
+/// names an absolute path. The answer opens with what the platform reads as the
+/// root of the file system.
 ///
 /// # Examples
 ///
@@ -117,26 +116,27 @@ pub fn path_text(literal: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
 
     use super::*;
 
     #[test]
-    fn path_of_a_literal_that_opens_with_a_separator_is_absolute() {
-        let path = path("/home/otter/project");
-
-        assert!(path.is_absolute());
-    }
-
-    #[test]
     fn path_of_a_literal_joins_its_parts() {
         let path = path("src/lib.rs");
 
         assert_eq!(path, Path::new("src").join("lib.rs"));
+    }
+
+    #[test]
+    fn path_of_a_literal_that_opens_with_a_separator_is_absolute() {
+        let path = path("/home/otter/project");
+
+        assert!(path.is_absolute());
     }
 
     #[test]

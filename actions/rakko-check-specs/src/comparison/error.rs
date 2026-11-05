@@ -1,3 +1,5 @@
+//! The error that leaves a run without the comparison it asked for
+//!
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -6,6 +8,20 @@ use thiserror::Error;
 /// A run that finds no pull request to compare is no failure: it answers that
 /// there is none, and the caller compares the checkout itself. The variants
 /// here describe a comparison that could not be built at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::PrepareComparisonError;
+///
+/// let error = PrepareComparisonError::RefusedCopy {
+///     details: "not a git repository".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "git refused to copy the repository: not a git repository"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum PrepareComparisonError {
     /// Git did not run
@@ -41,18 +57,28 @@ pub enum PrepareComparisonError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read.
+    /// Shows that the error is send and sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome
+    /// holds an error that another thread can read.
     #[test]
     fn prepare_comparison_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<PrepareComparisonError>();
+    }
+
+    #[test]
+    fn prepare_comparison_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<PrepareComparisonError>();
     }
 }

@@ -1,10 +1,10 @@
 //! A version of the Rust compiler
 //!
-//! Two questions of this crate answer with a version: which toolchain a
-//! project pins for its builds, and which toolchain the packages of a
-//! workspace promise to compile on. Both read a version out of text that
-//! another program wrote, and both pick the newest of several, so this
-//! module holds the version and the comparison that orders them.
+//! Two questions of this crate answer with a version. The first asks which
+//! toolchain a project pins for its builds. The second asks which toolchain
+//! the packages of a workspace promise to compile on. Both read a version out
+//! of text that another program wrote, and both pick the newest of several. So
+//! this module holds the version and the comparison that orders them.
 //!
 //! Nothing here fails. A version that a program wrote is either a version or
 //! a name that is none, and the reading says which.
@@ -17,9 +17,10 @@ const SEPARATOR: char = '.';
 /// A version of the Rust compiler
 ///
 /// A version names a release of the compiler, such as `1.88.0`. It reaches
-/// the crate as text that another program wrote: mise reports the version
-/// that a pin of a project resolved to, and cargo reports the version that a
-/// package declares as the oldest one it compiles on.
+/// the crate as text that another program wrote.
+/// Mise reports the version that a pin of a project resolved to.
+/// Cargo reports the version that a package declares as the oldest one it
+/// compiles on.
 ///
 /// The value carries that text as it was written, because it is the name
 /// that rustup and a provisioning layer know the toolchain by. `1.88` and
@@ -27,8 +28,8 @@ const SEPARATOR: char = '.';
 /// here.
 ///
 /// The type has no order, because the order of the text is not the order of
-/// the versions: `1.9` comes before `1.88` as text and after it as a
-/// version. [`highest`][highest] reads the numbers instead.
+/// the versions. For example, `1.9` comes before `1.88` as text and after it
+/// as a version. [`highest`][highest] reads the numbers instead.
 ///
 /// # Examples
 ///
@@ -46,11 +47,30 @@ pub struct RustVersion(String);
 
 impl RustVersion {
     /// Creates a version from the text that names it
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::RustVersion;
+    ///
+    /// // The spelling is kept, so two spellings of one release differ.
+    /// assert_ne!(RustVersion::new("1.88"), RustVersion::new("1.88.0"));
+    /// ```
     pub fn new(version: impl Into<String>) -> Self {
         Self(version.into())
     }
 
     /// Returns the version as it was written
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::RustVersion;
+    ///
+    /// let version = RustVersion::new("1.88");
+    ///
+    /// assert_eq!(version.get(), "1.88");
+    /// ```
     pub fn get(&self) -> &str {
         &self.0
     }
@@ -82,9 +102,10 @@ impl RustVersion {
     /// Returns the highest of the versions, or `None` when there is none
     ///
     /// A caller that holds several versions and needs one asks for the
-    /// newest of them: the newest pin of a project is the toolchain that it
-    /// builds with, and the newest declaration of a workspace is the only
-    /// toolchain that can compile every package in it.
+    /// newest of them.
+    /// The newest pin of a project is the toolchain that it builds with.
+    /// The newest declaration of a workspace is the only toolchain that
+    /// can compile every package in it.
     ///
     /// # Examples
     ///
@@ -123,18 +144,18 @@ fn compare(left: &RustVersion, right: &RustVersion) -> Ordering {
 
 /// Returns the number at an index of a version, and zero past its end
 ///
-/// A version can leave the parts behind the first one out, and `1.88` and
-/// `1.88.0` name one toolchain, so a part that is not there is a zero.
+/// A version can leave the parts behind the first one out. `1.88` and `1.88.0`
+/// name one toolchain, so a part that is not there is a zero.
 fn part(parts: &[u64], index: usize) -> u64 {
     parts.get(index).copied().unwrap_or(0)
 }
 
 /// Returns the numbers of a version, in the order that it wrote them
 ///
-/// Cargo refuses a manifest whose `rust-version` is not a version, so a part
-/// that is not a number cannot come from a manifest that cargo read. Such a
-/// part counts as zero, so that the comparison answers for every value that
-/// a caller can build.
+/// Cargo refuses a manifest whose `rust-version` is not a version.
+/// So a part that is not a number cannot come from a manifest that cargo read.
+/// Such a part counts as zero, so the comparison answers for every value
+/// that a caller can build.
 fn parts(version: &RustVersion) -> Vec<u64> {
     version
         .0
@@ -145,24 +166,20 @@ fn parts(version: &RustVersion) -> Vec<u64> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     #[test]
-    fn parse_a_name_that_is_not_a_version_answers_nothing() {
-        let version = RustVersion::parse("nightly-2026-08-11");
+    fn highest_counts_a_part_that_a_version_leaves_out_as_zero() {
+        let versions = [RustVersion::new("1.88"), RustVersion::new("1.88.1")];
 
-        assert_eq!(version, None);
-    }
+        let highest = RustVersion::highest(versions);
 
-    #[test]
-    fn parse_a_version_answers_it() {
-        let version = RustVersion::parse("1.88.0");
-
-        assert_eq!(version, Some(RustVersion::new("1.88.0")));
+        assert_eq!(highest, Some(RustVersion::new("1.88.1")));
     }
 
     #[test]
@@ -195,11 +212,23 @@ mod tests {
     }
 
     #[test]
-    fn highest_counts_a_part_that_a_version_leaves_out_as_zero() {
-        let versions = [RustVersion::new("1.88"), RustVersion::new("1.88.1")];
+    fn parse_a_name_that_is_not_a_version_answers_nothing() {
+        let version = RustVersion::parse("nightly-2026-08-11");
 
-        let highest = RustVersion::highest(versions);
+        assert_eq!(version, None);
+    }
 
-        assert_eq!(highest, Some(RustVersion::new("1.88.1")));
+    #[test]
+    fn parse_a_version_answers_it() {
+        let version = RustVersion::parse("1.88.0");
+
+        assert_eq!(version, Some(RustVersion::new("1.88.0")));
+    }
+
+    #[test]
+    fn rust_version_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RustVersion>();
     }
 }

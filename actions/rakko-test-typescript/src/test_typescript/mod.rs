@@ -1,11 +1,10 @@
 //! The action that runs the tests of a Node project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps the test runner of Node as a subprocess: Node finds the test files,
-//! runs them, and reports what every test did, and the action translates that
+//! wraps the test runner of Node as a subprocess. Node finds the test files,
+//! runs them, and reports what every test did. The action translates that
 //! into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{
@@ -21,20 +20,21 @@ const NO_TEST: &str = "node found no test in the project";
 
 /// The action that runs the tests of a Node project
 ///
-/// The action wraps the [test runner] that Node carries: Node walks the
-/// project for its test files, runs each of them, and reports what every test
-/// did. The node that runs is the one that [mise] installed for the project,
-/// at the version that the project pinned, and the action installs nothing.
+/// The action wraps the [test runner] that Node carries. Node walks the
+/// project for its test files and runs each of them. Node reports what every
+/// test did. The node that runs is the one that [mise] installed for the
+/// project, at the version that the project pinned, and the action installs
+/// nothing.
 ///
 /// A run only reports, and it takes no argument. A test that failed becomes a
 /// finding that names the test and carries what Node said, at the place where
 /// the project declares the test. A test that holds tests reports no finding
 /// of its own when one of those failed, because that one reports it already.
 ///
-/// The action applies to a project that holds a test, and a run whose Node
-/// found none skips visibly. A run stops with an error when mise reports no
-/// node, when node reports no failure and ends without success, and when node
-/// writes a report that the action cannot read.
+/// The action applies to a project that holds a test. A run whose Node found
+/// none skips visibly. A run stops with an error when mise reports no node or
+/// when node writes a report that the action cannot read. It also stops when
+/// node reports no failure and ends without success.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write. The declaration covers the
@@ -101,7 +101,7 @@ async fn drive(context: &Context) -> Result<Outcome, TestTypeScriptError> {
 /// Returns what a run reports about the given report of node
 ///
 /// A run that examined no test at all is an action that does not apply, and
-/// not a project whose tests all passed, so it comes before everything else.
+/// not a project whose tests all passed. So it comes before everything else.
 fn outcome(report: &Report, root: &ProjectRoot) -> Outcome {
     if report.tests() == 0 {
         return Outcome::Skipped {
@@ -139,9 +139,10 @@ fn summary(tests: u64) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -188,6 +189,16 @@ mod tests {
     }
 
     #[test]
+    fn outcome_of_a_run_that_ran_no_test_skips() {
+        let outcome = outcome(&report(0, Vec::new()), &root());
+
+        let Outcome::Skipped { reason } = &outcome else {
+            panic!("expected the run to skip, got {outcome:?}");
+        };
+        assert_eq!(reason.get(), "node found no test in the project");
+    }
+
+    #[test]
     fn outcome_of_a_run_with_a_failure_fails() {
         let outcome = outcome(&report(3, vec![failure("counts")]), &root());
 
@@ -217,7 +228,9 @@ mod tests {
         assert_eq!(summary.as_ref().map(Summary::get), Some("ran 3 tests"));
     }
 
-    // A summary that reads "ran 1 tests" tells a reader that nobody read it.
+    /// Shows that a summary of a run that ran one test names it in the singular
+    ///
+    /// A summary that reads "ran 1 tests" tells a reader that nobody read it.
     #[test]
     fn summary_of_a_run_that_ran_one_test_names_it_in_the_singular() {
         let summary = summary(1);
@@ -226,12 +239,9 @@ mod tests {
     }
 
     #[test]
-    fn outcome_of_a_run_that_ran_no_test_skips() {
-        let outcome = outcome(&report(0, Vec::new()), &root());
+    fn test_type_script_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        let Outcome::Skipped { reason } = &outcome else {
-            panic!("expected the run to skip, got {outcome:?}");
-        };
-        assert_eq!(reason.get(), "node found no test in the project");
+        assert_send_sync_and_unpin::<TestTypeScript>();
     }
 }

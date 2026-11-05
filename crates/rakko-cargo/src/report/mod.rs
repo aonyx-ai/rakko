@@ -1,17 +1,13 @@
 //! What cargo reported about a build
 //!
 //! Cargo writes the diagnostics of a build as one JSON document per line on
-//! its standard output when a run asks for that format, and this module
-//! reads those lines. The shape of the lines belongs to a version of cargo,
-//! and this module is the one place that knows it.
+//! its standard output when a run asks for that format. This module reads
+//! those lines. The shape of the lines belongs to a version of cargo, and
+//! this module is the one place that knows it.
 
-/// One diagnostic of the compiler
 mod diagnostic;
-/// The error that stops the reading
 mod error;
-/// How serious the compiler considers a diagnostic
 mod level;
-/// The source that a diagnostic points at
 mod span;
 
 use std::collections::HashSet;
@@ -75,12 +71,23 @@ impl CargoReport {
     /// Reads the report of a build from what cargo wrote to its standard
     /// output
     ///
-    /// The reading keeps every compiler message at the level of a warning
-    /// or an error, once each, and the line that says whether the build
-    /// finished. It ignores every other line: the artifacts that cargo
-    /// lists, the notes and the help lines of the compiler, and a line that
-    /// is not a record of cargo at all, so the output of a tool that cargo
-    /// runs can share the stream.
+    /// The reading keeps every compiler message at the level of a warning or
+    /// an error, once each. It keeps the line that says whether the build
+    /// finished. It ignores every other line. It ignores the artifacts that
+    /// cargo lists and the notes and the help lines of the compiler. It also
+    /// ignores a line that is not a record of cargo at all. So the output of a
+    /// tool that cargo runs can share the stream.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::CargoReport;
+    ///
+    /// let report = CargoReport::read(r#"{"reason":"build-finished","success":false}"#)?;
+    ///
+    /// assert_eq!(report.finished(), Some(false));
+    /// # Ok::<(), rakko_cargo::ReadReportError>(())
+    /// ```
     ///
     /// # Errors
     ///
@@ -217,8 +224,8 @@ struct SourceSpan {
 ///
 /// A note, a help line, and the line that ends a failed build explain other
 /// diagnostics, and they answer `None`. The primary span is the source that
-/// the diagnostic is about; a message without one gets the first span it
-/// has, and a message without any span gets none.
+/// the diagnostic is about. A message without one gets the first span it has.
+/// A message without any span gets none.
 fn diagnostic(message: Message) -> Option<CargoDiagnostic> {
     let level = match message.level.as_str() {
         ERROR => DiagnosticLevel::Error,
@@ -232,30 +239,43 @@ fn diagnostic(message: Message) -> Option<CargoDiagnostic> {
         .find(|span| span.is_primary)
         .or_else(|| message.spans.first())
         .map(|span| {
-            DiagnosticSpan::new(
-                span.file_name.clone(),
-                Span::builder()
-                    .start(
-                        Position::builder()
-                            .line(span.line_start)
-                            .column(span.column_start)
-                            .build(),
-                    )
-                    .end(
-                        Position::builder()
-                            .line(span.line_end)
-                            .column(span.column_end)
-                            .build(),
-                    )
-                    .build(),
-            )
+            let SourceSpan {
+                ref file_name,
+                line_start,
+                column_start,
+                line_end,
+                column_end,
+                ..
+            } = *span;
+            DiagnosticSpan::builder()
+                .path(file_name.clone())
+                .range(
+                    Span::builder()
+                        .start(
+                            Position::builder()
+                                .line(line_start)
+                                .column(column_start)
+                                .build(),
+                        )
+                        .end(
+                            Position::builder()
+                                .line(line_end)
+                                .column(column_end)
+                                .build(),
+                        )
+                        .build(),
+                )
+                .build()
         });
 
+    let Message {
+        code, message: msg, ..
+    } = message;
     Some(
         CargoDiagnostic::builder()
             .level(level)
-            .maybe_code(message.code.map(|code| code.code))
-            .message(message.message)
+            .maybe_code(code.map(|code| code.code))
+            .message(msg)
             .maybe_span(span)
             .build(),
     )
@@ -263,11 +283,10 @@ fn diagnostic(message: Message) -> Option<CargoDiagnostic> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a report
-    // which cargo could have written expects the reading to succeed. A
-    // `# Panics` section on every test would repeat that and give the reader
-    // no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a report which cargo could have written expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -310,6 +329,48 @@ mod tests {
     /// Returns the report of a build made of the given lines
     fn read(lines: &[&str]) -> CargoReport {
         CargoReport::read(&output(lines)).expect("the test reads a report that cargo could write")
+    }
+
+    #[test]
+    fn build_finished_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<BuildFinished>();
+    }
+
+    #[test]
+    fn cargo_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CargoReport>();
+    }
+
+    #[test]
+    fn code_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Code>();
+    }
+
+    #[test]
+    fn compiler_message_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CompilerMessage>();
+    }
+
+    #[test]
+    fn message_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Message>();
+    }
+
+    #[test]
+    fn probe_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Probe>();
     }
 
     #[test]
@@ -382,13 +443,17 @@ mod tests {
             .and_then(|diagnostic| diagnostic.span().as_ref());
         assert_eq!(
             span,
-            Some(&DiagnosticSpan::new(
-                PathBuf::from("src/lib.rs"),
-                Span::builder()
-                    .start(Position::builder().line(8).column(88).build())
-                    .end(Position::builder().line(8).column(98).build())
-                    .build(),
-            ))
+            Some(
+                &DiagnosticSpan::builder()
+                    .path(PathBuf::from("src/lib.rs"))
+                    .range(
+                        Span::builder()
+                            .start(Position::builder().line(8).column(88).build())
+                            .end(Position::builder().line(8).column(98).build())
+                            .build()
+                    )
+                    .build()
+            )
         );
     }
 
@@ -442,5 +507,12 @@ mod tests {
         let report = read(&[WARNING]);
 
         assert_eq!(report.finished(), None);
+    }
+
+    #[test]
+    fn source_span_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<SourceSpan>();
     }
 }

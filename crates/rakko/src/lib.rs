@@ -1,13 +1,13 @@
 //! The contract that every Rakko action depends on
 //!
 //! An action is a library crate that does one piece of project maintenance.
-//! This crate holds what every action and every harness shares: the trait
-//! that an action implements, the name that identifies an action, the
-//! arguments that a run reads, the context that an action reads when it runs,
-//! the finding that an action produces, and the outcome that the run returns.
-//! It also holds the view of an action that hides its type, which is how a
-//! registry holds many actions at once, and the list of such views that a
-//! bundle exports.
+//! This crate holds what every action and every harness shares. First, it holds
+//! the trait that an action implements and the name that identifies an action.
+//! Second, it holds the arguments that a run reads and the context that an
+//! action reads when it runs. Third, it holds the finding that an action
+//! produces and the outcome that the run returns. It also holds the view of an
+//! action that hides its type, which is how a registry holds many actions at
+//! once. Last, it holds the list of such views that a bundle exports.
 //!
 //! This crate builds no command line. A harness is the small binary that a
 //! project runs to maintain itself, and the author of a harness starts with
@@ -33,29 +33,17 @@
 //! [`ErasedAction::run`]: ErasedAction::run
 //! [rakko-cli]: https://docs.rs/rakko-cli
 
-/// How a run of an action uses the project
 pub mod access;
-/// The trait that every action implements
 pub mod action;
-/// Types for the arguments that a run of an action reads
 pub mod args;
-/// The view of an action whose arguments are bound for one run
 pub mod bound_action;
-/// The list of actions that a bundle exports
 pub mod bundle;
-/// Types for the data that an action reads when it runs
 pub mod context;
-/// The view of an action that hides its type
 pub mod erased_action;
-/// Types for a problem that an action found in a project
 pub mod finding;
-/// The named list of actions that the command line runs as one command
 pub mod group;
-/// Types for the identifier of an action
 pub mod name;
-/// Types for the result of an action run
 pub mod outcome;
-/// The spelling of a path that an action reports
 pub mod path;
 
 pub use self::access::Access;

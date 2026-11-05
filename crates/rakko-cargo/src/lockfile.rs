@@ -3,14 +3,14 @@
 //! Cargo records the versions that it resolved for a workspace in
 //! `Cargo.lock`. A build whose manifests ask for something that the lockfile
 //! does not hold resolves the dependencies again and rewrites the file. A job
-//! that only examines the project would then change a tracked file, and it
-//! would examine a resolution that is not the one in the history of the
+//! that only examines the project would then change a tracked file. It would
+//! also examine a resolution that is not the one in the history of the
 //! project.
 //!
 //! The flag of this module forbids that rewrite, and cargo refuses the job
-//! instead. [`refused`][refused] tells such a refusal apart from every other
-//! failure of a run, so that a caller can say that the lockfile needs an
-//! update instead of reporting an output that it cannot read.
+//! instead. [`refused`] tells such a refusal apart from every other failure of
+//! a run. A caller can then say that the lockfile needs an update instead of
+//! reporting an output that it cannot read.
 //!
 //! # Examples
 //!
@@ -36,24 +36,32 @@
 //! # Ok(())
 //! # }
 //! ```
-//!
-//! [refused]: crate::lockfile::refused
 
 /// The flag that forbids cargo to write the lockfile of a workspace
 ///
 /// Cargo builds the versions that the lockfile holds. It ends without
 /// success when the build needs another version, and when the lockfile is
 /// missing. Cargo does not give a flag of its own command line to a
-/// subcommand that another program supplies, such as clippy or nextest, so
-/// the flag goes after the name of the subcommand.
+/// subcommand that another program supplies, such as clippy or nextest. So the
+/// flag goes after the name of the subcommand.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::lockfile::LOCKED;
+///
+/// let arguments = ["clippy", LOCKED];
+///
+/// assert_eq!(arguments, ["clippy", "--locked"]);
+/// ```
 pub const LOCKED: &str = "--locked";
 
 /// The words that cargo writes when the flag stops it
 ///
-/// Cargo says the refusal in more than one way: a lockfile that needs an
-/// update, one that it cannot update, and one that it cannot create. Each of
-/// these sentences ends with these words, in the releases of cargo before
-/// 1.99 as well.
+/// Cargo says the refusal in more than one way. The three cases are a
+/// lockfile that needs an update, one that it cannot update, and one that it
+/// cannot create. Each of these sentences ends with these words, in the
+/// releases of cargo before 1.99 as well.
 const REFUSAL: &str = "--locked was passed to prevent this";
 
 /// Returns whether cargo refused a run because it would have to write the
@@ -64,15 +72,27 @@ const REFUSAL: &str = "--locked was passed to prevent this";
 /// cargo-deny, writes the words of cargo into its own log on that stream.
 /// The answer is `false` for every other failure, and for a run without
 /// [`LOCKED`].
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::lockfile::refused;
+///
+/// let stderr = "error: cannot update the lock file /project/Cargo.lock \
+///               because --locked was passed to prevent this\n";
+///
+/// assert!(refused(stderr));
+/// ```
 pub fn refused(stderr: &str) -> bool {
     stderr.contains(REFUSAL)
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 

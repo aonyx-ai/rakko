@@ -1,18 +1,18 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken TOML file sits in
-//! this repository, where the checks of the repository itself would fight
-//! it.
+//! against it. So no fixture with a deliberately broken TOML file sits in this
+//! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the taplo that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers
-//! is the version that the repository installs, and a new pin reaches the
-//! tests without a change to them.
+//! `mise.toml` of the repository and trusts it, so the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
+//! without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -36,8 +36,8 @@ const INVALID: &str = "broken = [1,\n";
 
 /// A taplo configuration that taplo rejects
 ///
-/// The file is valid TOML, and the value of the option has the wrong type,
-/// so taplo warns and falls back to its defaults instead of failing.
+/// The file is valid TOML, and the value of the option has the wrong type. So
+/// taplo warns and falls back to its defaults instead of failing.
 const REJECTED_CONFIGURATION: &str = "[formatting]\nalign_entries = \"banana\"\n";
 
 /// A project that a test builds in a temporary directory
@@ -46,6 +46,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a taplo to resolve
     ///
@@ -77,9 +78,9 @@ impl Project {
 
     /// Creates a project that pins a taplo that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine
-    /// says about taplo.
+    /// The pin names a version that no machine installs. So mise reports no
+    /// location for it, whatever the global configuration of the machine says
+    /// about taplo.
     fn without_taplo() -> Self {
         let project = Self::bare();
 
@@ -114,6 +115,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -169,10 +171,10 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
-    /// would pile up there forever. A failure stays quiet, because the test
-    /// already reported what it was about.
+    /// Mise records the trust of a configuration in the user's state. The
+    /// temporary directory of a test never comes back, so the record would
+    /// pile up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")
@@ -202,19 +204,9 @@ fn action_identifies_itself_as_lint_toml() {
 }
 
 #[tokio::test]
-async fn run_leaves_an_unformatted_file_unchanged() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-
-    project.run().await;
-
-    assert_eq!(project.read("messy.toml"), UNFORMATTED);
-}
-
-#[tokio::test]
 async fn run_in_a_valid_project_counts_the_files() {
     let project = Project::new();
-    project.write("clean.toml", VALID);
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -231,7 +223,7 @@ async fn run_in_a_valid_project_counts_the_files() {
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
-    project.write("clean.toml", VALID);
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -242,10 +234,28 @@ async fn run_in_a_valid_project_passes() {
 }
 
 #[tokio::test]
+async fn run_leaves_an_unformatted_file_unchanged() {
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+
+    project.run().await;
+
+    assert_eq!(project.read("messy.toml"), UNFORMATTED);
+}
+
+#[tokio::test]
 async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
     let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", VALID);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -261,8 +271,12 @@ async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
 #[tokio::test]
 async fn run_with_a_rejected_configuration_stops() {
     let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", VALID);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -275,7 +289,7 @@ async fn run_with_a_rejected_configuration_stops() {
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     let outcome = project.run().await;
 
@@ -289,20 +303,25 @@ async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_an_invalid_file_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintToml, &project.context(), &()).await;
 }
 
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
-    project.write("sub/broken.toml", INVALID);
+    project
+        .write()
+        .path("sub/broken.toml")
+        .content(INVALID)
+        .call();
 
     let outcome = project.run().await;
 
@@ -327,7 +346,7 @@ async fn run_with_an_unreadable_file_carries_the_reason_of_taplo() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.toml", VALID);
+    project.write().path("secret.toml").content(VALID).call();
     let path = project.directory.path().join("secret.toml");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -352,7 +371,7 @@ async fn run_with_an_unreadable_file_names_the_file() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.toml", VALID);
+    project.write().path("secret.toml").content(VALID).call();
     let path = project.directory.path().join("secret.toml");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -370,7 +389,7 @@ async fn run_with_an_unreadable_file_names_the_file() {
 #[tokio::test]
 async fn run_without_a_taplo_stops() {
     let project = Project::without_taplo();
-    project.write("clean.toml", VALID);
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 

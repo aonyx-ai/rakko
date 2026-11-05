@@ -1,7 +1,23 @@
+//! What `mise lock` did to a part
+//!
 /// What `mise lock` did to one part of a lockfile
 ///
 /// The variant says whether the part was missing before the run, is missing
 /// after it, or is there on both sides with other content.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::Change;
+///
+/// let label = match Change::Removed {
+///     Change::Added => "adds",
+///     Change::Removed => "removes",
+///     Change::Changed => "changes",
+/// };
+///
+/// assert_eq!(label, "removes");
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Change {
     /// `mise lock` wrote a part that the lockfile did not hold
@@ -12,4 +28,16 @@ pub enum Change {
 
     /// `mise lock` took away a part that the lockfile held
     Removed,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn change_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Change>();
+    }
 }

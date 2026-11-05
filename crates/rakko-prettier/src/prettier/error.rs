@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -7,6 +9,28 @@ use thiserror::Error;
 /// a file that it would rewrite travel as problems of the observation. This
 /// variant describes a run whose report cannot be trusted, and the action that
 /// asked for the run reports it instead of answering from it.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_prettier::{FileExtension, Filter, ObservePrettierError, Operation, Prettier};
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let prettier = Prettier::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// let filter = Filter::new([FileExtension::new("yaml")]);
+///
+/// match prettier.observe(Operation::Report, &filter).await {
+///     Ok(observation) => println!("{} problems", observation.problems().len()),
+///     Err(ObservePrettierError::PrettierUnavailable { source }) => {
+///         eprintln!("prettier did not run: {source}");
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Error)]
 pub enum ObservePrettierError {
     /// Prettier did not run
@@ -22,4 +46,16 @@ pub enum ObservePrettierError {
         /// The cause of the failure
         source: RunCommandError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observe_prettier_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObservePrettierError>();
+    }
 }

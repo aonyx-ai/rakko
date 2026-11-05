@@ -1,13 +1,13 @@
 //! One problem that prettier reported about a file
 //!
-//! A run of prettier names the files that it could not leave alone, and this
-//! module holds one of them together with what prettier knew about it.
+//! A run of prettier names the files that it could not leave alone. This module
+//! holds one of them together with what prettier knew about it.
 
-/// What prettier reported about a file
 mod detail;
 
 use std::path::PathBuf;
 
+use bon::bon;
 use getset::Getters;
 use rakko_action::{FilePath, ProjectRoot};
 
@@ -16,9 +16,24 @@ pub use self::detail::ProblemDetail;
 /// One problem that prettier reported about a file
 ///
 /// The path stands as prettier wrote it. Prettier starts in the project root
-/// and names a file relative to it, and a caller that reports the problem
-/// asks for the [relative][relative] path, which strips a root that arrived
-/// in front of it anyway.
+/// and names a file relative to it. A caller that reports the problem asks for
+/// the [relative][relative] path, which strips a root that arrived in front of
+/// it anyway.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_prettier::problem::ProblemDetail;
+/// use rakko_prettier::PrettierProblem;
+///
+/// let problem = PrettierProblem::builder()
+///     .path(PathBuf::from("src/main.rs"))
+///     .detail(ProblemDetail::Unformatted)
+///     .build();
+///
+/// assert_eq!(problem.path(), &PathBuf::from("src/main.rs"));
+/// ```
 ///
 /// [relative]: PrettierProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Debug, Getters)]
@@ -32,28 +47,65 @@ pub struct PrettierProblem {
     detail: ProblemDetail,
 }
 
+#[bon]
 impl PrettierProblem {
     /// Creates a problem from the path and the detail that prettier reported
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use rakko_prettier::problem::ProblemDetail;
+    /// use rakko_prettier::PrettierProblem;
+    ///
+    /// let problem = PrettierProblem::builder()
+    ///     .path(PathBuf::from("src/main.rs"))
+    ///     .detail(ProblemDetail::Unformatted)
+    ///     .build();
+    ///
+    /// assert_eq!(problem.detail(), &ProblemDetail::Unformatted);
+    /// ```
+    #[builder]
     pub fn new(path: PathBuf, detail: ProblemDetail) -> Self {
         Self { path, detail }
     }
 
     /// Returns the path of the file, relative to the project root
     ///
-    /// Returns `None` when the root does not contain the file. Prettier
-    /// starts in the root and reports what it found below it, so a path that
-    /// does not fit points at a report that the caller misread, and the
-    /// caller decides what to do about that.
+    /// Returns `None` when the root does not contain the file. Prettier starts
+    /// in the root and reports what it found below it. So a path that does not
+    /// fit points at a report that the caller misread. The caller decides what
+    /// to do about that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_prettier::problem::ProblemDetail;
+    /// use rakko_prettier::PrettierProblem;
+    ///
+    /// let problem = PrettierProblem::builder()
+    ///     .path(PathBuf::from("src/main.rs"))
+    ///     .detail(ProblemDetail::Unformatted)
+    ///     .build();
+    ///
+    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let relative = problem.relative_path(&root).unwrap();
+    ///
+    /// assert_eq!(relative.get().to_str(), Some("src/main.rs"));
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -61,7 +113,17 @@ mod tests {
 
     /// Returns a problem about the given path
     fn problem(path: PathBuf) -> PrettierProblem {
-        PrettierProblem::new(path, ProblemDetail::Unformatted)
+        PrettierProblem::builder()
+            .path(path)
+            .detail(ProblemDetail::Unformatted)
+            .build()
+    }
+
+    #[test]
+    fn prettier_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<PrettierProblem>();
     }
 
     #[test]

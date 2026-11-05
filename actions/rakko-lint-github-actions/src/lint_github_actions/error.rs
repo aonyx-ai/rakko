@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_tool::{ResolveToolError, RunCommandError};
@@ -11,6 +13,21 @@ use crate::zizmor::ObserveZizmorError;
 /// in a workflow travels as a finding in the outcome of the run. The variants
 /// of this error describe a run whose answer cannot be trusted, and such a run
 /// stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_github_actions::LintGitHubActionsError;
+///
+/// let error = LintGitHubActionsError::IncompleteAudit {
+///     details: "zizmor: cannot read workflow".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "zizmor stopped before it had audited the project: zizmor: cannot read workflow"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum LintGitHubActionsError {
     /// Zizmor reported a path that the project root does not contain
@@ -29,10 +46,10 @@ pub enum LintGitHubActionsError {
     /// Zizmor reads the configuration of the project before it collects a
     /// single file, and it audits nothing when it cannot accept that
     /// configuration. It also stops at a file that it collected and cannot
-    /// read, because the run asks it to instead of letting the file leave the
-    /// audit through a warning. Either way the report describes less than the
-    /// project, and an outcome built on it would hide the rest behind that
-    /// part.
+    /// read. It does so because the run asks it to, instead of letting the file
+    /// leave the audit through a warning. Either way the report describes less
+    /// than the project, and an outcome built on it would hide the rest behind
+    /// that part.
     #[error("zizmor stopped before it had audited the project: {details}")]
     IncompleteAudit {
         /// What zizmor wrote about the run that it stopped
@@ -43,9 +60,9 @@ pub enum LintGitHubActionsError {
     ///
     /// The shape of the report belongs to a version of zizmor. A report that
     /// the action cannot read therefore points at a version that this crate
-    /// does not know, and the findings of such a run would be the ones that
-    /// the reading happened to understand.
-    #[error("zizmor wrote a report that the action cannot read: {report}")]
+    /// does not know. The findings of such a run would be the ones that the
+    /// reading happened to understand.
+    #[error("failed to read zizmor's report: {report}")]
     UnreadableReport {
         /// What zizmor wrote in place of a report that the action reads
         report: String,
@@ -93,10 +110,10 @@ impl From<ObserveZizmorError> for LintGitHubActionsError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that builds the
-    // cause of a failure expects the reading to fail. A `# Panics` section on
-    // every test would repeat that and give the reader no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that builds the cause of a failure expects the reading to fail. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -134,10 +151,19 @@ mod tests {
         );
     }
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read. This test holds the error
-    // to the auto traits that make this possible, because a field of a later
-    // version could take them away without a word from the compiler.
+    #[test]
+    fn lint_git_hub_actions_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintGitHubActionsError>();
+    }
+
+    /// Shows that error is Send and Sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. The test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn lint_github_actions_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

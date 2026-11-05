@@ -6,6 +6,7 @@
 
 use std::fmt;
 
+use bon::Builder;
 use getset::Getters;
 
 /// The character between the name and the version of a package in a message
@@ -13,30 +14,37 @@ const VERSION_SEPARATOR: char = ' ';
 
 /// One package that a report of cargo-deny is about
 ///
-/// The value holds a name and a version, because a dependency graph can hold
-/// several versions of one package, and a report about a duplicate is about
-/// all of them. The name alone would leave a reader with the question that
-/// the report answers.
+/// The value holds a name and a version. The reason is that a dependency graph can hold several
+/// versions of one package, and a report about a duplicate is about all of
+/// them. The name alone would leave a reader with the question that the report
+/// answers.
 ///
 /// Cargo-deny calls this a crate, and so does its message. The type carries
-/// the other name that cargo gives the same thing, because `crate` is a
-/// keyword of Rust and no module can be named for it.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+/// the other name that cargo gives the same thing. Because `crate` is a
+/// keyword of Rust, no module can be named for it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_dependencies::problem::Package;
+///
+/// let pkg = Package::builder()
+///     .name("syn")
+///     .version("2.0.0")
+///     .build();
+/// assert_eq!(pkg.to_string(), "syn 2.0.0");
+/// ```
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct Package {
     /// The name of the package
+    #[builder(into)]
     #[getset(get = "pub")]
     name: String,
 
     /// The version of the package
+    #[builder(into)]
     #[getset(get = "pub")]
     version: String,
-}
-
-impl Package {
-    /// Creates a package from the name and the version that cargo-deny wrote
-    pub fn new(name: String, version: String) -> Self {
-        Self { name, version }
-    }
 }
 
 impl fmt::Display for Package {
@@ -48,16 +56,28 @@ impl fmt::Display for Package {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     #[test]
     fn display_names_the_package_and_its_version() {
-        let name = Package::new("option-ext".to_owned(), "0.2.0".to_owned()).to_string();
+        let name = Package::builder()
+            .name("option-ext".to_owned())
+            .version("0.2.0".to_owned())
+            .build()
+            .to_string();
 
         assert_eq!(name, "option-ext 0.2.0");
+    }
+
+    #[test]
+    fn package_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Package>();
     }
 }

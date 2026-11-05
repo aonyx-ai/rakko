@@ -1,13 +1,26 @@
+//! The error that keeps the action from reading a lockfile
+
 use thiserror::Error;
 
 use crate::part::{Platform, ToolName, Version};
 
 /// An error that keeps the action from reading a lockfile of mise
 ///
-/// The action reads the entries of a lockfile to compare them, and a lockfile
-/// that it reads only in part would hide gaps behind a green result. Each
+/// The action reads the entries of a lockfile to compare them. A lockfile that
+/// it reads only in part would hide gaps behind a green result. Each
 /// variant names what in the lockfile has a shape that the action does not
 /// know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::{ReadLockfileError, ToolName};
+///
+/// let error = ReadLockfileError::MissingVersion {
+///     tool: ToolName::new("cargo"),
+/// };
+/// assert_eq!(error.to_string(), "an entry of cargo names no version");
+/// ```
 #[derive(Debug, Error)]
 pub enum ReadLockfileError {
     /// An entry of a tool records a platform that is not a table
@@ -49,4 +62,16 @@ pub enum ReadLockfileError {
         /// The cause of the failure
         source: toml_edit::de::Error,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_lockfile_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ReadLockfileError>();
+    }
 }

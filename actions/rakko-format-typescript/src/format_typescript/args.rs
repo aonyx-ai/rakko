@@ -1,3 +1,5 @@
+//! The arguments that a run of the action reads
+
 use getset::CopyGetters;
 use rakko_action::{
     Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name,
@@ -6,6 +8,31 @@ use rakko_action::{
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Rewrite the files that oxfmt can format";
 
+/// What the run should do with the files that oxfmt can format
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::format_typescript::Operation;
+///
+/// assert_eq!(Operation::default(), Operation::Report);
+///
+/// let writes = match Operation::Rewrite {
+///     Operation::Report => false,
+///     Operation::Rewrite => true,
+/// };
+/// assert!(writes);
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub enum Operation {
+    /// Report the files that oxfmt would format, and rewrite nothing
+    #[default]
+    Report,
+
+    /// Rewrite the files that oxfmt can format
+    Rewrite,
+}
+
 /// The arguments that a run of the format-typescript action reads
 ///
 /// The action reads one argument. A run reports by default, and `fix` lets
@@ -13,11 +40,26 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that oxfmt can format";
 /// because a run that was started in order to look must not change the tree
 /// that its caller holds. It is also the safe default against the tool, which
 /// rewrites a project when nobody names an operation at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_format_typescript::FormatTypeScriptArgs;
+/// use rakko_format_typescript::format_typescript::Operation;
+///
+/// assert_eq!(FormatTypeScriptArgs::default().operation(), Operation::Report);
+///
+/// let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+/// let args = FormatTypeScriptArgs::from_values(&values).unwrap();
+///
+/// assert_eq!(args.operation(), Operation::Rewrite);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatTypeScriptArgs {
-    /// Whether the run rewrites the files that are not formatted
+    /// What the run should do with the files that are not formatted
     #[getset(get_copy = "pub")]
-    fix: bool,
+    operation: Operation,
 }
 
 impl Args for FormatTypeScriptArgs {
@@ -31,26 +73,34 @@ impl Args for FormatTypeScriptArgs {
 
     fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
         let name = argument_name!("fix");
-        let fix = match values.get(&name) {
-            Some(value) => value
-                .get()
-                .parse()
-                .map_err(|_| ReadArgsError::UnreadableValue {
-                    name,
-                    value: value.clone(),
-                })?,
-            None => false,
-        };
+        let operation =
+            match values.get(&name) {
+                Some(value) => {
+                    let fix = value.get().parse::<bool>().map_err(|_| {
+                        ReadArgsError::UnreadableValue {
+                            name,
+                            value: value.clone(),
+                        }
+                    })?;
+                    if fix {
+                        Operation::Rewrite
+                    } else {
+                        Operation::Report
+                    }
+                }
+                None => Operation::Report,
+            };
 
-        Ok(Self { fix })
+        Ok(Self { operation })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_action::ArgumentValue;
 
@@ -59,6 +109,13 @@ mod tests {
     /// Returns the values of a run that gives `fix` the given text
     fn values(fix: &str) -> ArgsValues {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new(fix))])
+    }
+
+    #[test]
+    fn format_type_script_args_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatTypeScriptArgs>();
     }
 
     #[test]
@@ -75,14 +132,21 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = FormatTypeScriptArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.operation(), Operation::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = FormatTypeScriptArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.operation(), Operation::Report);
+    }
+
+    #[test]
+    fn operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Operation>();
     }
 
     #[test]

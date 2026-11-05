@@ -1,15 +1,32 @@
+//! One problem that rustfmt reported about a file
+
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::Getters;
 
 /// One problem that rustfmt reported about a file
 ///
-/// The path is absolute, because rustfmt names the files that it read, and
-/// it carries the plain spelling, without the verbatim prefix of Windows,
-/// unless the plain spelling cannot describe it. A caller that reports the
-/// problem asks the root for the path relative to the project, which is the
-/// name that a reader, a machine, and a code host all recognize.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+/// The path is absolute because rustfmt names the files that it read. It
+/// carries the plain spelling, without the verbatim prefix of Windows, unless
+/// the plain spelling cannot describe it. A caller that reports the problem
+/// asks the root for the path relative to the project. This is the name that
+/// a reader, a machine, and a code host all recognize.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_format_rust::{RustfmtProblem, RustfmtProblemDetail};
+///
+/// let problem = RustfmtProblem::builder()
+///     .path(PathBuf::from("/home/project/src/lib.rs"))
+///     .detail(RustfmtProblemDetail::Unformatted)
+///     .build();
+///
+/// assert_eq!(problem.path(), &PathBuf::from("/home/project/src/lib.rs"));
+/// ```
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct RustfmtProblem {
     /// The absolute path of the file
     #[getset(get = "pub")]
@@ -20,19 +37,32 @@ pub struct RustfmtProblem {
     detail: RustfmtProblemDetail,
 }
 
-impl RustfmtProblem {
-    /// Creates a problem from the path and the detail that rustfmt reported
-    pub fn new(path: PathBuf, detail: RustfmtProblemDetail) -> Self {
-        Self { path, detail }
-    }
-}
-
 /// What rustfmt reported about a file
 ///
 /// Rustfmt names a problem as precisely as it can. A file that it would
 /// rewrite gets a path and nothing else, because the difference is the whole
 /// file. A file that it cannot parse gets the position where the parse
 /// stopped and the message of the parser.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_format_rust::{RustfmtProblem, RustfmtProblemDetail};
+///
+/// let problem = RustfmtProblem::builder()
+///     .path(PathBuf::from("/home/project/src/lib.rs"))
+///     .detail(RustfmtProblemDetail::Invalid {
+///         line: 3,
+///         column: 7,
+///         message: "expected item".to_owned(),
+///     })
+///     .build();
+/// assert!(matches!(
+///     problem.detail(),
+///     RustfmtProblemDetail::Invalid { line: 3, column: 7, .. }
+/// ));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum RustfmtProblemDetail {
     /// Rustfmt cannot parse the file
@@ -49,4 +79,23 @@ pub enum RustfmtProblemDetail {
 
     /// Rustfmt would rewrite the file
     Unformatted,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rustfmt_problem_detail_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RustfmtProblemDetail>();
+    }
+
+    #[test]
+    fn rustfmt_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RustfmtProblem>();
+    }
 }

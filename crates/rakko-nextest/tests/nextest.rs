@@ -1,17 +1,18 @@
 //! Tests that drive the crate against real projects
 //!
-//! Each test builds a project in a temporary directory and runs nextest
-//! against it, so no fixture with a deliberately failing test sits in this
-//! repository, where the tests of the repository itself would fight it.
+//! Each test builds a project in a temporary directory and runs nextest against
+//! it. So no fixture with a deliberately failing test sits in this repository,
+//! where the tests of the repository itself would fight it.
 //!
-//! The tests run the cargo and the nextest that this repository pins. A
-//! project copies the `mise.toml` of the repository and trusts it, so the
-//! versions that answer are the versions that the repository installs, and a
-//! new pin reaches the tests without a change to them.
+//! The tests run the cargo and the nextest that this repository pins. A project
+//! copies the `mise.toml` of the repository and trusts it. So the versions that
+//! answer are the versions that the repository installs, and a new pin reaches
+//! the tests without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -29,7 +30,7 @@ const PACKAGE: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition
 /// A manifest with a build script that fails
 ///
 /// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the report holds nothing that the crate
+/// diagnostic of the compiler. So the report holds nothing that the crate
 /// recognizes.
 const FAILING_BUILD: &str =
     "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\nbuild = \"build.rs\"\n";
@@ -60,13 +61,14 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project with the cargo of this repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the cargo
-    /// and the nextest that mise resolves for it are the ones that the
-    /// repository pins and installs. Mise ignores a configuration that
-    /// nobody trusts, so the copy is trusted right away.
+    /// The project copies the `mise.toml` of this repository. So the cargo and
+    /// the nextest that mise resolves for it are the ones that the repository
+    /// pins and installs. Mise ignores a configuration that nobody trusts, so
+    /// the copy is trusted right away.
     fn new() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let project = Self { directory };
@@ -83,8 +85,8 @@ impl Project {
     /// source
     fn with_library(source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", source);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(source).call();
 
         project
     }
@@ -121,7 +123,10 @@ impl Project {
             .next()
             .expect("the project holds one workspace");
 
-        Nextest::new(cargo, lockfile)
+        Nextest::builder()
+            .cargo(cargo)
+            .lockfile(lockfile)
+            .build()
             .observe(&workspace, &root)
             .await
     }
@@ -141,6 +146,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -155,10 +161,10 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
-    /// would pile up there forever. A failure stays quiet, because the test
-    /// already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")
@@ -197,9 +203,17 @@ fn trust(configuration: &Path) {
 #[tokio::test]
 async fn observe_a_build_script_that_fails_holds_what_nextest_wrote() {
     let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let observation = project.observe().await;
 
@@ -215,9 +229,17 @@ async fn observe_a_build_script_that_fails_holds_what_nextest_wrote() {
 #[tokio::test]
 async fn observe_a_build_script_that_fails_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let observation = project.observe().await;
 
@@ -339,10 +361,12 @@ async fn observe_a_passing_test_finds_nothing() {
     );
 }
 
-// A workspace that nothing resolved yet holds no lockfile, so a run that
-// builds the versions of the lockfile has none to build and refuses. That
-// refusal is a report that the crate cannot answer from, which is what a
-// caller reads when the resolution it asked about is not the one on disk.
+/// Shows that observing without a lockfile stops a locked run
+///
+/// A workspace that nothing resolved yet holds no lockfile, so a run that
+/// builds the versions of the lockfile has none to build and refuses. That
+/// refusal is a report that the crate cannot answer from. A caller reads that
+/// report when the resolution it asked about is not the one on disk.
 #[tokio::test]
 async fn observe_a_workspace_without_a_lockfile_with_a_locked_run_stops() {
     let project = Project::with_library(PASSING);

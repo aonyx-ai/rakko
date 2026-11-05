@@ -1,3 +1,5 @@
+//! The error that stops a run of a group
+
 use clawless::event::SendError;
 use rakko_action::Name;
 use thiserror::Error;
@@ -32,7 +34,7 @@ pub(crate) enum RunGroupError {
 
     /// What a member found did not reach the reader
     ///
-    /// The run writes each report when its member finishes, and it stops at a
+    /// The run writes each report when its member finishes. It stops at a
     /// report that nothing takes, because the reader would learn nothing about
     /// the members that follow either.
     #[error("failed to report the outcome of the {member} action")]
@@ -62,14 +64,22 @@ pub(crate) enum RunGroupError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use clawless::event::Event;
     use rakko_action::action_name;
 
     use super::*;
+
+    #[test]
+    fn run_group_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RunGroupError>();
+    }
 
     #[test]
     fn unknown_access_tells_the_user_to_update_rakko() {

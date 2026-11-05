@@ -1,3 +1,5 @@
+//! The range of a file that a problem covers
+
 use bon::bon;
 use getset::Getters;
 
@@ -12,6 +14,20 @@ use super::Position;
 /// A span does not make sure that the end is at or after the start. A range
 /// that runs backwards comes from an action that read its tool wrong, and no
 /// reader of a span can repair it.
+///
+/// # Examples
+///
+/// Create a span that covers a range in a file.
+///
+/// ```
+/// use rakko::finding::{Position, Span};
+///
+/// let start = Position::builder().line(5).column(1).build();
+/// let end = Position::builder().line(7).column(10).build();
+///
+/// let span = Span::builder().start(start).end(end).build();
+/// assert_eq!(span.start().line().get(), 5);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Span {
     /// The position where the range starts
@@ -26,6 +42,18 @@ pub struct Span {
 impl Span {
     /// Creates a span from the position where a range starts and the position
     /// where it ends
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::finding::{Position, Span};
+    ///
+    /// let start = Position::builder().line(5).column(1).build();
+    /// let end = Position::builder().line(7).column(10).build();
+    ///
+    /// let span = Span::builder().start(start).end(end).build();
+    /// assert_eq!(span.end().line().get(), 7);
+    /// ```
     #[builder]
     pub fn new(start: Position, end: Position) -> Self {
         Self { start, end }
@@ -34,9 +62,10 @@ impl Span {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -50,6 +79,13 @@ mod tests {
             .build();
 
         assert_eq!(span.end(), &end);
+    }
+
+    #[test]
+    fn span_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Span>();
     }
 
     #[test]

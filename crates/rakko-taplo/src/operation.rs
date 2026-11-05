@@ -1,12 +1,31 @@
+//! Types for the operations of taplo that an action runs
+
 /// One operation of taplo that an action runs
 ///
 /// Taplo does more than one job, and an action wraps one of them. This
 /// vocabulary names the jobs that Rakko uses, so that an action states what
 /// it wants and never writes a command line of its own.
 ///
-/// The two formatting operations differ in one thing: whether taplo writes.
-/// A check reports the files that it would rewrite and leaves the project
-/// alone, so a run that a user started in order to look changes nothing.
+/// The two formatting operations differ in one thing: whether taplo writes. A
+/// check reports the files that it would rewrite and leaves the project alone.
+/// So a run that a user started in order to look changes nothing.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_taplo::{Operation, Taplo};
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let taplo = Taplo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// // A check reports the files that taplo would format and leaves them as they are.
+/// let observation = taplo.observe(Operation::CheckFormat).await?;
+/// assert!(observation.problems().is_empty());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Operation {
     /// Report the files that taplo would format, and rewrite nothing
@@ -17,4 +36,16 @@ pub enum Operation {
 
     /// Report the files that taplo cannot read, parse, or validate
     Lint,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Operation>();
+    }
 }

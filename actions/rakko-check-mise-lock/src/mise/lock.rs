@@ -1,3 +1,5 @@
+//! What a run of `mise lock` that ended with success did
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use rakko_action::{FilePath, SkipReason};
@@ -9,6 +11,19 @@ use crate::part::Platform;
 /// Mise ends with success both when it wrote the lockfiles of the project and
 /// when the project configures nothing to lock. The two mean opposite things
 /// for the outcome of the action, so the value tells them apart.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::BTreeMap;
+///
+/// use rakko_action::SkipReason;
+/// use rakko_check_mise_lock::Lock;
+///
+/// let written = Lock::Written { targets: BTreeMap::new() };
+/// let unconfigured = Lock::Unconfigured { reason: SkipReason::new("no tools to lock") };
+/// assert_ne!(written, unconfigured);
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Lock {
     /// Mise locked the tools of the project and wrote its lockfiles
@@ -26,4 +41,16 @@ pub enum Lock {
         /// What mise wrote about the project
         reason: SkipReason,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lock_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Lock>();
+    }
 }

@@ -1,3 +1,5 @@
+//! The path of a file that a problem is in
+
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
@@ -5,15 +7,14 @@ use std::str::FromStr;
 use crate::ProjectRoot;
 use crate::path::canonical;
 
-/// The error type for file path parsing
 mod error;
 pub use self::error::ParseFilePathError;
 
 /// The path of a file that a problem is in
 ///
 /// The path is relative to the project root. A reader, a machine, and a code
-/// host therefore see the same path for the same file, and none of them has to
-/// know where the project lives on disk.
+/// host therefore see the same path for the same file. None of them has to know
+/// where the project lives on disk.
 ///
 /// Construct a file path through [`FromStr`], [`TryFrom<&str>`],
 /// [`TryFrom<String>`], [`TryFrom<&Path>`], or [`TryFrom<PathBuf>`]. Each of
@@ -21,11 +22,34 @@ pub use self::error::ParseFilePathError;
 /// [`ParseFilePathError`]. A path that a tool reported can start with the
 /// project root or with `./`, and [`FilePath::within`] makes a file path from
 /// it.
+///
+/// # Examples
+///
+/// Parse a relative file path.
+///
+/// ```
+/// use rakko::FilePath;
+/// use std::str::FromStr;
+///
+/// assert!(FilePath::from_str("src/main.rs").is_ok());
+/// assert!(FilePath::from_str("/tmp/project/src/main.rs").is_err());
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct FilePath(PathBuf);
 
+#[bon::bon]
 impl FilePath {
     /// Returns the path of the file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::FilePath;
+    /// use std::str::FromStr;
+    ///
+    /// let path = FilePath::from_str("src/main.rs").unwrap();
+    /// assert_eq!(path.get().to_str(), Some("src/main.rs"));
+    /// ```
     pub fn get(&self) -> &Path {
         &self.0
     }
@@ -45,15 +69,15 @@ impl FilePath {
     /// system resolves it, which asks the file system and can take time.
     ///
     /// Returns `None` when the path does not name a file below the root. That
-    /// is the case for an absolute path that does not start with the root,
-    /// and for a path that holds `..`. The answer does not resolve `..`,
-    /// because a symbolic link makes a resolution from the text alone wrong.
-    /// It is also the case for a relative path that names a root directory or
-    /// a drive, which a relative path on Windows can do, and for a path that
-    /// names the root itself. A tool that starts in the root reports files
-    /// below it, so a path that does not fit points at a report that the
-    /// caller misread, or at a file outside the project. The caller decides
-    /// what to do about that.
+    /// is the case for an absolute path that does not start with the root, and
+    /// for a path that holds `..`. The answer does not resolve `..`, because a
+    /// symbolic link makes a resolution from the text alone wrong. It is also
+    /// the case for a relative path that names a root directory or a drive,
+    /// which a relative path on Windows can do. It is also the case for a path
+    /// that names the root itself. A tool that starts in the root reports files
+    /// below it. So a path that does not fit points at a report that the caller
+    /// misread, or at a file outside the project. The caller decides what to do
+    /// about that.
     ///
     /// # Examples
     ///
@@ -64,19 +88,23 @@ impl FilePath {
     ///
     /// let root = ProjectRoot::new(PathBuf::from("project"));
     ///
-    /// let path = FilePath::within(Path::new("./src/main.rs"), &root);
+    /// let path = FilePath::within().path(Path::new("./src/main.rs")).root(&root).call();
     ///
     /// assert_eq!(path, "src/main.rs".parse().ok());
     /// ```
+    #[builder]
     pub fn within(path: &Path, root: &ProjectRoot) -> Option<Self> {
         let relative = if path.is_relative() {
             path.to_path_buf()
-        } else if let Ok(stripped) = path.strip_prefix(root.get()) {
-            stripped.to_path_buf()
         } else {
-            let resolved = canonical(root.get()).ok()?;
+            match path.strip_prefix(root.get()) {
+                Ok(stripped) => stripped.to_path_buf(),
+                Err(_) => {
+                    let resolved = canonical(root.get()).ok()?;
 
-            path.strip_prefix(resolved).ok()?.to_path_buf()
+                    path.strip_prefix(resolved).ok()?.to_path_buf()
+                }
+            }
         };
 
         let mut plain = PathBuf::new();
@@ -162,9 +190,10 @@ impl fmt::Display for FilePath {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::fs;
 
@@ -179,10 +208,10 @@ mod tests {
 
     /// A path that the platform of the test reads as absolute
     ///
-    /// A path that starts with a separator is absolute on Unix and relative
-    /// on Windows, where a path is absolute only when it names a volume as
-    /// well. The tests below need a path that the platform they run on
-    /// refuses, so each platform names one of its own.
+    /// A path that starts with a separator is absolute on Unix and relative on
+    /// Windows. On Windows, a path is absolute only when it names a volume as
+    /// well. The tests below need a path that the platform they run on refuses,
+    /// so each platform names one of its own.
     const ABSOLUTE: &str = if cfg!(windows) {
         r"C:\Windows\system.ini"
     } else {
@@ -194,6 +223,13 @@ mod tests {
         let path: FilePath = "src/main.rs".parse().unwrap();
 
         assert_eq!(path.to_string(), "src/main.rs");
+    }
+
+    #[test]
+    fn file_path_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FilePath>();
     }
 
     #[test]
@@ -300,25 +336,36 @@ mod tests {
 
     #[test]
     fn within_of_a_path_that_climbs_above_the_root_is_none() {
-        let within = FilePath::within(&path("../elsewhere/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("../elsewhere/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_a_path_that_climbs_inside_the_root_is_none() {
-        let within = FilePath::within(&path("src/../main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("src/../main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
-    // A path that names a drive or a root directory is relative only on
-    // Windows. Every other platform reads the first as a name and the second
-    // as an absolute path.
+    /// Shows that a drive path is relative on Windows
+    ///
+    /// A path that names a drive or a root directory is relative only on
+    /// Windows. Every other platform reads the first as a name and the second
+    /// as an absolute path.
     #[cfg(windows)]
     #[test]
     fn within_of_a_path_that_names_a_drive_is_none() {
-        let within = FilePath::within(Path::new("C:main.rs"), &root());
+        let within = FilePath::within()
+            .path(Path::new("C:main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
@@ -326,29 +373,40 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn within_of_a_path_that_names_a_root_directory_is_none() {
-        let within = FilePath::within(Path::new(r"\elsewhere\main.rs"), &root());
+        let within = FilePath::within()
+            .path(Path::new(r"\elsewhere\main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_a_path_that_names_the_current_directory_drops_it() {
-        let within = FilePath::within(&path("./src/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("./src/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
 
     #[test]
     fn within_of_a_relative_path_keeps_it() {
-        let within = FilePath::within(&path("src/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("src/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
 
-    // The root names the temporary directory through `sub/..`, so it never
-    // starts the path that the file system resolves. Without that, the
-    // temporary directory of Linux is already resolved, and the test passes
-    // without the resolution that it is about.
+    /// Shows that the resolved root must drop from absolute paths
+    ///
+    /// The root names the temporary directory through `sub/..`, so it never
+    /// starts the path that the file system resolves. Without that, the
+    /// temporary directory of Linux is already resolved, and the test passes
+    /// without the resolution that it is about.
     #[test]
     fn within_of_an_absolute_path_below_the_resolved_root_drops_the_root() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -356,42 +414,57 @@ mod tests {
         let resolved = canonical(directory.path()).expect("the directory exists");
         let root = ProjectRoot::new(directory.path().join("sub").join(".."));
 
-        let within = FilePath::within(&resolved.join("notes.md"), &root);
+        let within = FilePath::within()
+            .path(&resolved.join("notes.md"))
+            .root(&root)
+            .call();
 
         assert_eq!(within, Some(FilePath(path("notes.md"))));
     }
 
     #[test]
     fn within_of_an_absolute_path_below_the_root_drops_the_root() {
-        let within = FilePath::within(&path("/home/otter/project/src/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("/home/otter/project/src/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
 
     #[test]
     fn within_of_an_absolute_path_outside_the_root_is_none() {
-        let within = FilePath::within(&path("/home/otter/elsewhere/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("/home/otter/elsewhere/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_an_absolute_path_that_climbs_out_of_the_root_is_none() {
-        let within = FilePath::within(&path("/home/otter/project/../elsewhere/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("/home/otter/project/../elsewhere/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_the_current_directory_is_none() {
-        let within = FilePath::within(&path("."), &root());
+        let within = FilePath::within().path(&path(".")).root(&root()).call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_the_root_is_none() {
-        let within = FilePath::within(&path("/home/otter/project"), &root());
+        let within = FilePath::within()
+            .path(&path("/home/otter/project"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }

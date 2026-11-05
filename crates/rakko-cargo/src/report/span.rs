@@ -1,5 +1,8 @@
+//! The source that a diagnostic points at
+
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::Getters;
 use rakko_action::Span;
 
@@ -10,9 +13,27 @@ use rakko_action::Span;
 /// root that cargo checked, because the compiler runs there. A caller that
 /// reports the diagnostic asks the root for the path relative to the
 /// project.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::DiagnosticSpan;
+/// use rakko_action::{Position, Span};
+///
+/// let span = DiagnosticSpan::builder()
+///     .path("src/main.rs")
+///     .range(Span::builder()
+///         .start(Position::builder().line(1).column(5).build())
+///         .end(Position::builder().line(1).column(10).build())
+///         .build())
+///     .build();
+///
+/// assert_eq!(span.path().to_string_lossy(), "src/main.rs");
+/// ```
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct DiagnosticSpan {
     /// The file that the diagnostic is about, as cargo wrote it
+    #[builder(into)]
     #[getset(get = "pub")]
     path: PathBuf,
 
@@ -21,9 +42,14 @@ pub struct DiagnosticSpan {
     range: Span,
 }
 
-impl DiagnosticSpan {
-    /// Creates a span from the path and the range that the compiler named
-    pub fn new(path: PathBuf, range: Span) -> Self {
-        Self { path, range }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn diagnostic_span_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DiagnosticSpan>();
     }
 }

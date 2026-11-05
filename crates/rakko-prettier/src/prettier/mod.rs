@@ -5,7 +5,6 @@
 //! files it cares about, and everything between the action and the process
 //! lives here.
 
-/// The error that leaves a run without an answer
 mod error;
 
 use rakko_action::ProjectRoot;
@@ -34,21 +33,21 @@ const IGNORE_UNKNOWN: &str = "--ignore-unknown";
 
 /// The flag that asks prettier for a report without color codes
 ///
-/// The report is read as data, and a color code inside the marker of a line
-/// would corrupt the reading. Prettier colors its report when it takes its
-/// output for a terminal, and it takes a continuous integration job for one,
-/// so a run that asked for nothing would be read correctly on the machine of
-/// a contributor and not in the job that gates a pull request.
+/// The report is read as data. A color code inside the marker of a line would
+/// corrupt the reading. Prettier colors its report when it takes its output for
+/// a terminal, and it takes a continuous integration job for one. So a run that
+/// asked for nothing would be read correctly on the machine of a contributor.
+/// It would not be read correctly in the job that gates a pull request.
 ///
-/// The flag selects the presentation of the report and not the behavior of
-/// the tool: what prettier does to a project comes from the configuration of
-/// that project alone.
+/// The flag selects the presentation of the report and not the behavior of the
+/// tool. What prettier does to a project comes from the configuration of that
+/// project alone.
 const NO_COLOR: &str = "--no-color";
 
 /// The prettier that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
+/// version that the project pinned. So a run reaches the same program as the
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and a prettier that mise does not report
 /// stops the caller.
@@ -79,6 +78,23 @@ pub struct Prettier {
 impl Prettier {
     /// Runs one operation over the files that the filter selects
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_prettier::{FileExtension, Filter, Operation, Prettier};
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let prettier = Prettier::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    /// let observation = prettier.observe(Operation::Report, &filter).await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`PrettierUnavailable`][unavailable] when prettier does not
@@ -106,22 +122,57 @@ impl Prettier {
             .await
             .map_err(|source| ObservePrettierError::PrettierUnavailable { source })?;
 
-        Ok(Observation::read(&execution, operation))
+        Ok(Observation::read()
+            .execution(&execution)
+            .operation(operation)
+            .call())
     }
 
     /// Returns the prettier that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
+    /// The lookup asks mise about the project whose root the caller names. So
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_prettier::Prettier;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let prettier = Prettier::resolve(root.clone()).await?;
+    ///
+    /// assert_eq!(prettier, Prettier::resolve(root).await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
     /// Returns a [`ResolveToolError`] when mise reports no prettier for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(PRETTIER), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(PRETTIER))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prettier_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Prettier>();
     }
 }

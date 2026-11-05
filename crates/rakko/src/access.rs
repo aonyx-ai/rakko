@@ -1,3 +1,5 @@
+//! How a run of an action uses the project
+
 /// How a run of an action uses the project
 ///
 /// An action declares its access after its arguments are bound and before it
@@ -26,16 +28,35 @@
 ///
 /// A later release can add a kind of access. So a match on `Access` outside
 /// this crate needs an arm for a kind that it does not know. A caller outside
-/// this crate that runs a [`BoundAction`] asks for its access first, also
-/// when it runs only one action. A caller that meets a kind that it does not
-/// know must not run the action, because the caller does not know what the
+/// this crate that runs a [`BoundAction`] asks for its access first, also when
+/// it runs only one action. A caller that meets a kind that it does not know
+/// must not run the action. That is because the caller does not know what the
 /// kind asks of the run. If the caller runs the action anyway, the run can
 /// change the project. The caller stops with an error instead, and the error
 /// tells the user to update to a release that knows the kind. A caller that
-/// orders several actions by their declarations stops before it runs the
-/// first of them.
+/// orders several actions by their declarations stops before it runs the first
+/// of them.
 ///
 /// [`BoundAction`]: crate::BoundAction
+///
+/// # Examples
+///
+/// A caller that orders actions treats a kind that it does not know as an
+/// error.
+///
+/// ```
+/// use rakko::Access;
+///
+/// let access = Access::Read;
+///
+/// let shared = match access {
+///     Access::Read => true,
+///     Access::Write => false,
+///     _ => panic!("update to a release that knows this kind of access"),
+/// };
+///
+/// assert!(shared);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[non_exhaustive]
 pub enum Access {
@@ -49,4 +70,16 @@ pub enum Access {
     /// during the run. This is the answer of an action that declares nothing,
     /// and the cautious answer when the arguments alone do not settle it.
     Write,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn access_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Access>();
+    }
 }

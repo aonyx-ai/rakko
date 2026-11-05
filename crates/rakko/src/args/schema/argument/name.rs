@@ -1,3 +1,5 @@
+//! The name of one argument
+
 use crate::name::kebab_case_name;
 
 /// Constructs an [`ArgumentName`] from a literal string at compile time
@@ -38,11 +40,11 @@ kebab_case_name! {
     /// user types, so the projection owns the syntax and the name owns only
     /// the identity.
     ///
-    /// A name holds only what such a token can carry. It holds lowercase
-    /// ASCII letters, ASCII digits, and hyphens, it starts with a lowercase
-    /// ASCII letter, it holds no two hyphens next to each other, and it does
-    /// not end with a hyphen. These are the rules that the name of an action
-    /// satisfies, because both names reach a user in the same place.
+    /// A name holds only what such a token can carry. It holds lowercase ASCII
+    /// letters, ASCII digits, and hyphens. It starts with a lowercase ASCII
+    /// letter. It holds no two hyphens next to each other. It does not end with
+    /// a hyphen. These are the rules that the name of an action satisfies,
+    /// because both names reach a user in the same place.
     ///
     /// Construct a name through [`FromStr`], [`TryFrom<&str>`], or
     /// [`TryFrom<String>`]. Every constructor validates the input and returns
@@ -58,9 +60,10 @@ kebab_case_name! {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
     use crate::name::ParseNameError;

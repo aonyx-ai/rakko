@@ -1,3 +1,5 @@
+//! One diagnostic of the compiler
+
 use bon::bon;
 use getset::{CopyGetters, Getters};
 use rakko_action::{Finding, Location, ProjectRoot};
@@ -8,13 +10,35 @@ use crate::root::CargoRoot;
 /// One diagnostic that the compiler reported through cargo
 ///
 /// A diagnostic carries what a reader needs to find and understand a
-/// problem: the level, the code that names the lint or the error, the
+/// problem. It contains the level, the code that names the lint or the error, the
 /// message, and the source that it points at. The compiler writes more, such
-/// as the notes and the suggestions below a diagnostic, and those stay
-/// behind, because a finding carries one message and one location.
+/// as notes and suggestions below a diagnostic. Those stay behind because a
+/// finding carries one message and one location.
 ///
 /// The value compares by everything it holds, so a report can tell two
 /// reports of one diagnostic apart from two diagnostics.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_cargo::{Cargo, CargoReport};
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// for root in cargo.roots().await? {
+///     let execution = cargo.invocation(&root).arg("check").run().await?;
+///     let report = CargoReport::read(&execution.stdout().to_string_lossy())?;
+///
+///     for diagnostic in report.diagnostics() {
+///         println!("{:?}: {}", diagnostic.level(), diagnostic.message());
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
 pub struct CargoDiagnostic {
     /// How serious the compiler considers the diagnostic
@@ -38,6 +62,21 @@ pub struct CargoDiagnostic {
 #[bon]
 impl CargoDiagnostic {
     /// Creates a diagnostic from what the compiler reported
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::{CargoDiagnostic, DiagnosticLevel};
+    ///
+    /// let diagnostic = CargoDiagnostic::builder()
+    ///     .level(DiagnosticLevel::Warning)
+    ///     .code("clippy::unwrap_used")
+    ///     .message("used `unwrap()` on an `Option` value")
+    ///     .build();
+    ///
+    /// assert_eq!(diagnostic.level(), DiagnosticLevel::Warning);
+    /// assert_eq!(diagnostic.message(), "used `unwrap()` on an `Option` value");
+    /// ```
     #[builder]
     pub fn new(
         level: DiagnosticLevel,
@@ -55,15 +94,40 @@ impl CargoDiagnostic {
 
     /// Returns the finding that reports this diagnostic
     ///
-    /// The message of the finding is the message of the compiler, followed
-    /// by the code in brackets when the diagnostic has one, so a reader can
-    /// look the lint up. The location is the range that the diagnostic
-    /// covers, with the path relative to the project root.
+    /// The message of the finding equals the message of the compiler. When the
+    /// diagnostic has a code, the finding adds it in brackets so a reader can
+    /// look the lint up. The location is the range that the diagnostic covers,
+    /// with the path relative to the project root.
     ///
-    /// A diagnostic without a span, and a diagnostic whose file lies outside
-    /// the project, such as one in a dependency that a macro pulled in, get
-    /// a finding at the level of the project. The message then names the
-    /// file and the position, so the place is not lost with the level.
+    /// A diagnostic without a span gets a finding at the level of the project.
+    /// A diagnostic whose file lies outside the project, such as one in a
+    /// dependency that a macro pulled in, gets one too. The message then names
+    /// the file and the position, so the place is not lost with the level.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_cargo::{Cargo, CargoReport};
+    /// use std::path::PathBuf;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let project = ProjectRoot::new("/home/otter/project".into());
+    /// let cargo = Cargo::resolve(project.clone()).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo.invocation(&root).arg("check").run().await?;
+    ///     let report = CargoReport::read(&execution.stdout().to_string_lossy())?;
+    ///
+    ///     for diagnostic in report.diagnostics() {
+    ///         let finding = diagnostic.finding(&root, &project);
+    ///         println!("{}", finding.message());
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = match &self.code {
             Some(code) => format!("{} [{code}]", self.message),
@@ -106,9 +170,10 @@ impl CargoDiagnostic {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::PathBuf;
 
@@ -144,8 +209,20 @@ mod tests {
             .level(DiagnosticLevel::Warning)
             .code("clippy::unwrap_used")
             .message("used `unwrap()` on an `Option` value")
-            .span(DiagnosticSpan::new(PathBuf::from(path), range()))
+            .span(
+                DiagnosticSpan::builder()
+                    .path(PathBuf::from(path))
+                    .range(range())
+                    .build(),
+            )
             .build()
+    }
+
+    #[test]
+    fn cargo_diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CargoDiagnostic>();
     }
 
     #[test]
@@ -215,7 +292,12 @@ mod tests {
         let diagnostic = CargoDiagnostic::builder()
             .level(DiagnosticLevel::Warning)
             .message("unused variable")
-            .span(DiagnosticSpan::new(PathBuf::from("src/main.rs"), range()))
+            .span(
+                DiagnosticSpan::builder()
+                    .path(PathBuf::from("src/main.rs"))
+                    .range(range())
+                    .build(),
+            )
             .build();
 
         let finding = diagnostic.finding(&harness(), &project());

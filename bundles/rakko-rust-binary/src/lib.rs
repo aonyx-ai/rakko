@@ -5,11 +5,27 @@ use rakko_action::Bundle;
 /// Returns the actions that a Rust project which ships a binary runs
 ///
 /// The list is the one of the core, in the order in which `rakko-rust` lists
-/// it, because a binary runs no check that a library does not run as well.
-/// A check that only a binary runs joins the list here when there is one.
+/// it. It is the same list because a binary runs no check that a library does
+/// not run as well. A check that only a binary runs joins the list here when
+/// there is one.
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_rust_binary::bundle;
+///
+/// let names: Vec<String> = bundle()
+///     .actions()
+///     .iter()
+///     .map(|action| action.name().to_string())
+///     .collect();
+///
+/// assert!(names.contains(&"test-rust".to_owned()));
+/// assert!(!names.contains(&"lint-yaml".to_owned()));
+/// ```
 #[must_use]
 pub fn bundle() -> Bundle {
     rakko_rust::bundle()
@@ -17,9 +33,10 @@ pub fn bundle() -> Bundle {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 

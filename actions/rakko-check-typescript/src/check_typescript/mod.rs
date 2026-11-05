@@ -1,11 +1,10 @@
 //! The action that type checks the TypeScript of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps tsc as a subprocess: tsc reads the configuration of the project,
-//! collects the files that it selects, and reports what it found, and the
-//! action translates that into an outcome.
+//! wraps tsc as a subprocess. Tsc reads the configuration of the project,
+//! collects the files that it selects, and reports what it found. The action
+//! translates that into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{
@@ -40,20 +39,20 @@ const UNINHABITED: &str = "TS18003";
 
 /// The action that type checks the TypeScript of a project
 ///
-/// The action wraps [tsc]: tsc reads the `tsconfig.json` of the project,
+/// The action wraps [tsc]. Tsc reads the `tsconfig.json` of the project,
 /// collects the files that the configuration selects, and reports every rule
 /// of the language that the code breaks. The tsc that runs is the one that
 /// [mise] installed for the project, at the version that the project pinned,
 /// and the action installs nothing.
 ///
 /// A run reports and emits nothing, and it takes no argument. Every diagnostic
-/// of tsc becomes a finding, at the place that tsc marked, and the message of
-/// the finding is the sentence that tsc wrote for a reader.
+/// of tsc becomes a finding at the place that tsc marked. The message of the
+/// finding is the sentence that tsc wrote for a reader.
 ///
 /// The action applies to a project that tsc has something to check in, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
-/// tsc, when tsc reports nothing and ends without success, and when tsc writes
-/// a report that the action cannot read.
+/// skips visibly otherwise. A run stops with an error when mise reports no tsc.
+/// It stops when tsc reports nothing and ends without success. It stops when
+/// tsc writes a report that the action cannot read.
 ///
 /// A run declares a read of the project. The TypeScript compiler can write a
 /// `.tsbuildinfo` file, which only the compiler reads, so that file does not
@@ -126,10 +125,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckTypeScriptError> {
 
 /// Returns the finding that reports one diagnostic of tsc
 ///
-/// The finding sits at the place that tsc marked, and it belongs to the
-/// project where tsc marked none. A place outside the project root has no path
-/// that a finding can name, so the finding belongs to the project as well, and
-/// the message names the place. The message comes from tsc, so a reader of a
+/// The finding sits at the place that tsc marked, and it belongs to the project
+/// where tsc marked none. A place outside the project root has no path that a
+/// finding can name. So the finding belongs to the project as well, and the
+/// message names the place. The message comes from tsc, so a reader of a
 /// finding reads what the compiler itself would have told them.
 fn finding(diagnostic: &Diagnostic, root: &ProjectRoot) -> Finding {
     let message = diagnostic.message();
@@ -176,12 +175,12 @@ fn findings(diagnostics: &[Diagnostic], root: &ProjectRoot) -> Vec<Finding> {
 ///
 /// Two answers of tsc end a run before its findings matter. A run that
 /// reported one diagnostic about having nothing to check found no TypeScript
-/// project here, which is not a clean project but an action that does not
+/// project here, which is not a clean project. It is an action that does not
 /// apply. A run that reported nothing found a project that holds together.
 ///
-/// A diagnostic about having nothing to check is the only thing that such a
-/// run reports, so a report that holds one beside other diagnostics belongs to
-/// a project that tsc did check, and the findings answer for it.
+/// A diagnostic about having nothing to check is the only thing that such a run
+/// reports. So a report that holds one beside other diagnostics belongs to a
+/// project that tsc did check, and the findings answer for it.
 ///
 /// Returns `None` when the caller reports what the run found.
 fn guard(diagnostics: &[Diagnostic]) -> Option<Outcome> {
@@ -214,9 +213,10 @@ fn unexamined(diagnostic: &Diagnostic) -> Option<SkipReason> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -246,6 +246,7 @@ mod tests {
     }
 
     /// Returns a diagnostic about the run, which names no file
+    #[bon::builder]
     fn about_the_run(number: &str, text: &str) -> Diagnostic {
         Diagnostic::builder()
             .category(Category::Error)
@@ -280,6 +281,13 @@ mod tests {
         let access = CheckTypeScript.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn check_type_script_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckTypeScript>();
     }
 
     #[test]
@@ -371,14 +379,42 @@ mod tests {
 
     #[test]
     fn finding_of_a_diagnostic_without_a_file_belongs_to_the_project() {
-        let diagnostic = about_the_run(
-            "TS6379",
-            "Composite projects may not disable incremental compilation.",
-        );
+        let diagnostic = about_the_run()
+            .number("TS6379")
+            .text("Composite projects may not disable incremental compilation.")
+            .call();
 
         let finding = finding(&diagnostic, &root());
 
         assert_eq!(finding.location(), &Location::Project);
+    }
+
+    #[test]
+    fn guard_of_a_run_that_reported_a_diagnostic_reports_nothing() {
+        let outcome = guard(&[about_the_code()]);
+
+        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+    }
+
+    /// Shows that guard of a run that reported more than one diagnostic reports
+    /// nothing
+    ///
+    /// A project that tsc checked can break a rule about its own configuration.
+    /// It can also break a rule of the language, and such a run examined the
+    /// project.
+    #[test]
+    fn guard_of_a_run_that_reported_more_than_one_diagnostic_reports_nothing() {
+        let diagnostics = [
+            about_the_run()
+                .number("TS18003")
+                .text("No inputs were found in config file.")
+                .call(),
+            about_the_code(),
+        ];
+
+        let outcome = guard(&diagnostics);
+
+        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 
     #[test]
@@ -392,33 +428,29 @@ mod tests {
     }
 
     #[test]
-    fn guard_of_a_run_that_reported_a_diagnostic_reports_nothing() {
-        let outcome = guard(&[about_the_code()]);
-
-        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
-    }
-
-    // A project that tsc checked can break a rule about its own configuration
-    // beside a rule of the language, and such a run examined the project.
-    #[test]
-    fn guard_of_a_run_that_reported_more_than_one_diagnostic_reports_nothing() {
-        let diagnostics = [
-            about_the_run("TS18003", "No inputs were found in config file."),
-            about_the_code(),
-        ];
+    fn guard_of_a_run_whose_configuration_selected_nothing_skips() {
+        let diagnostics = [about_the_run()
+            .number("TS18003")
+            .text("No inputs were found in config file '/home/otter/project/tsconfig.json'.")
+            .call()];
 
         let outcome = guard(&diagnostics);
 
-        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+        assert!(
+            matches!(outcome, Some(Outcome::Skipped { .. })),
+            "expected the run to skip, got {outcome:?}"
+        );
     }
 
     #[test]
     fn guard_of_a_run_without_a_configuration_file_skips() {
-        let diagnostics = [about_the_run(
-            "TS5081",
-            "Cannot find a tsconfig.json file at the current directory: \
+        let diagnostics = [about_the_run()
+            .number("TS5081")
+            .text(
+                "Cannot find a tsconfig.json file at the current directory: \
              /home/otter/project/tsconfig.json.",
-        )];
+            )
+            .call()];
 
         let outcome = guard(&diagnostics);
 
@@ -429,21 +461,6 @@ mod tests {
             reason.get(),
             "Cannot find a tsconfig.json file at the current directory: \
              /home/otter/project/tsconfig.json."
-        );
-    }
-
-    #[test]
-    fn guard_of_a_run_whose_configuration_selected_nothing_skips() {
-        let diagnostics = [about_the_run(
-            "TS18003",
-            "No inputs were found in config file '/home/otter/project/tsconfig.json'.",
-        )];
-
-        let outcome = guard(&diagnostics);
-
-        assert!(
-            matches!(outcome, Some(Outcome::Skipped { .. })),
-            "expected the run to skip, got {outcome:?}"
         );
     }
 }

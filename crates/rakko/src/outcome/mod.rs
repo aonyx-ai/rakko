@@ -1,6 +1,6 @@
-/// The reason why an action does not apply to a project
+//! Types for the result of an action run
+
 mod skip_reason;
-/// What a passing run examined
 mod summary;
 
 use std::error::Error;
@@ -11,7 +11,7 @@ use crate::finding::Finding;
 
 /// The result of one action run
 ///
-/// An outcome has one of five states: the action passed, the action changed the
+/// An outcome has one of five states. The action passed, the action changed the
 /// project, the action failed, the action does not apply, or the action
 /// stopped. The machinery maps each state to output and to an exit code.
 ///
@@ -20,6 +20,27 @@ use crate::finding::Finding;
 /// it found, and it failed when a problem remains. Both states hold the
 /// repairs, so that whoever started the run learns what it rewrote instead of
 /// finding it in a diff.
+///
+/// # Examples
+///
+/// Report the result of an action run.
+///
+/// ```
+/// use rakko::Outcome;
+/// use rakko::finding::{Finding, Location};
+///
+/// let finding = Finding::builder()
+///     .message("missing semicolon")
+///     .location(Location::Project)
+///     .build();
+/// let outcome = Outcome::Failed { findings: vec![finding], repairs: vec![] };
+///
+/// let Outcome::Failed { findings, repairs } = outcome else {
+///     panic!("expected a failed outcome");
+/// };
+/// assert_eq!(findings.len(), 1);
+/// assert!(repairs.is_empty());
+/// ```
 #[derive(Debug)]
 pub enum Outcome {
     /// The action examined the project and found no problem
@@ -72,9 +93,10 @@ pub enum Outcome {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
     use crate::finding::{FilePath, Location};
@@ -162,6 +184,13 @@ mod tests {
     #[test]
     fn outcome_is_send() {
         assert_send::<Outcome>();
+    }
+
+    #[test]
+    fn outcome_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Outcome>();
     }
 
     #[test]

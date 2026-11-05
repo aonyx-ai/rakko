@@ -9,17 +9,26 @@ use serde::Deserialize;
 /// The weight that cargo-deny gave a report
 ///
 /// The weight is the answer that the project already gave. Every check of
-/// cargo-deny carries a level in the configuration: `deny` for a shape that
-/// must not appear, `warn` for one that a maintainer wants to read about, and
-/// `allow` for one that the project does not care about. A check that the
+/// cargo-deny carries a level in the configuration. `deny` marks a shape that
+/// must not appear. `warn` marks one that a maintainer wants to read about.
+/// `allow` marks one that the project does not care about. A check that the
 /// project turned off reports nothing, and the other two arrive here.
 ///
 /// Cargo-deny counts four weights in the summary that it ends a run with, and
 /// all four are held here. The two below a warning carry the detail that a
-/// report adds about a crate, and cargo-deny writes neither of them while it
+/// report adds about a crate. Cargo-deny writes neither of them while it
 /// reports at its own default level. A report that carries one is read all the
 /// same, because a run that stopped over a word would say nothing about the
 /// project.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_dependencies::problem::Severity;
+///
+/// assert!(Severity::Error > Severity::Warning);
+/// assert!(Severity::Note < Severity::Warning);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
@@ -38,11 +47,10 @@ pub enum Severity {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a word
-    // which cargo-deny writes expects the reading to succeed. A `# Panics`
-    // section on every test would repeat that and give the reader no
-    // information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a word which cargo-deny writes expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -54,10 +62,10 @@ mod tests {
     }
 
     #[test]
-    fn severity_of_an_error_reads_the_word_of_cargo_deny() {
-        let severity = severity("error");
+    fn severity_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert_eq!(severity, Severity::Error);
+        assert_send_sync_and_unpin::<Severity>();
     }
 
     #[test]
@@ -81,9 +89,18 @@ mod tests {
         assert_eq!(severity, Severity::Warning);
     }
 
-    // The severity arrives from the report of cargo-deny. A weight that this
-    // crate does not know stops the reading, so that a new weight of a later
-    // version cannot land in the wrong one.
+    #[test]
+    fn severity_of_an_error_reads_the_word_of_cargo_deny() {
+        let severity = severity("error");
+
+        assert_eq!(severity, Severity::Error);
+    }
+
+    /// Shows that an unknown severity word is not read
+    ///
+    /// The severity arrives from the report of cargo-deny. A weight that this
+    /// crate does not know stops the reading. This way a new weight of a later
+    /// version cannot land in the wrong one.
     #[test]
     fn severity_of_an_unknown_word_is_not_read() {
         let severity = serde_json::from_str::<Severity>("\"fatal\"");

@@ -1,14 +1,12 @@
 //! The action that formats the Markdown files of a project
 //!
 //! This module holds the action, the arguments that a run reads, and the error
-//! that stops a run. The action wraps prettier as a subprocess: it names the
-//! Markdown files, prettier reads its own configuration and does the
-//! formatting, and the action translates what prettier reported into an
-//! outcome.
+//! that stops a run.
+//! The action wraps prettier as a subprocess: it names the Markdown files.
+//! Prettier reads its own configuration and does the formatting.
+//! The action translates what prettier reported into an outcome.
 
-/// The arguments that a run of the action reads
 mod args;
-/// The error that stops a run of the action
 mod error;
 
 use std::path::PathBuf;
@@ -42,26 +40,29 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 
 /// The action that formats the Markdown files of a project
 ///
-/// The action wraps [prettier]: the action names the Markdown files, prettier
-/// reads its own configuration and formats what its ignore files leave, so a
+/// The action wraps [prettier]. The action names the Markdown files. Prettier
+/// reads its own configuration and formats what its ignore files leave. So a
 /// run agrees with an editor and with a contributor that runs prettier bare.
 /// The prettier that runs is the one that [mise] installed for the project, at
 /// the version that the project pinned, and the action installs nothing.
 ///
-/// A run reports by default. A file that is not formatted becomes a finding
-/// that names the file, and a file that prettier cannot parse becomes a
-/// finding at the position that prettier reports. With the `fix` argument,
-/// prettier rewrites the files that it can format, and the outcome carries one
-/// repair for each file that it rewrote, next to the problems that remain.
+/// A run reports by default.
+/// A file that is not formatted becomes a finding that names the file.
+/// A file that prettier cannot parse becomes a finding at the position that
+/// prettier reports.
+/// With the `fix` argument, prettier rewrites the files that it can format.
+/// The outcome carries one repair for each file that it rewrote, next to the
+/// problems that remain.
 ///
 /// A run that reports declares a read of the project, and a run with `fix`
 /// declares a write. A caller that orders runs by their declarations can
 /// then run a rewrite before the actions that read.
 ///
 /// A run whose prettier found no Markdown file to examine skips visibly, and
-/// says so. A run stops with an error when mise reports no prettier,
-/// when a configuration of the project did not reach the run, and when
-/// prettier writes a report that the action does not recognize.
+/// says so.
+/// A run stops with an error when mise reports no prettier.
+/// It also stops when a configuration of the project did not reach the run.
+/// It stops when prettier writes a report that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -87,7 +88,7 @@ impl Action for FormatMarkdown {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
+        if args.operation() == Operation::Rewrite {
             Access::Write
         } else {
             Access::Read
@@ -124,7 +125,7 @@ async fn drive(
         .await
         .map_err(|source| FormatMarkdownError::UnresolvedTool { source })?;
 
-    if args.fix() {
+    if args.operation() == Operation::Rewrite {
         fix(&prettier, &filter, context.root()).await
     } else {
         report(&prettier, &filter, context.root()).await
@@ -138,12 +139,11 @@ fn filter() -> Filter {
 
 /// Returns the finding that reports one problem of the project
 ///
-/// A file that is not formatted gets a finding at the level of the file, a
-/// file that prettier could not read gets the reason, and a file that prettier
-/// could not parse gets a finding at the position that prettier named. The
-/// message for an unformatted file comes from the caller, because a finding
-/// states a problem that the project has and a repair states one that the run
-/// took away.
+/// A file that is not formatted gets a finding at the level of the file. A file
+/// that prettier could not read gets the reason. A file that prettier could not
+/// parse gets a finding at the position that prettier named. The message for an
+/// unformatted file comes from the caller. This is because a finding states a
+/// problem that the project has. A repair states one that the run took away.
 ///
 /// # Errors
 ///
@@ -208,15 +208,16 @@ fn findings(
 /// Lets prettier rewrite the project and reports what the rewrite left
 ///
 /// Prettier names every file that it examined and marks the ones that it left
-/// alone, so one run both repairs the project and says what it repaired. A
-/// file that prettier cannot parse or cannot read remains, because a rewrite
-/// repairs formatting and a broken file needs a hand.
+/// alone. So one run both repairs the project and says what it repaired. A file
+/// that prettier cannot parse or cannot read remains, because a rewrite repairs
+/// formatting and a broken file needs a hand.
 ///
 /// # Errors
 ///
-/// Returns the error of a rewrite that could not finish: prettier did not run,
-/// a configuration of the project did not reach it, it wrote a report that the
-/// action does not recognize, or it reported a path outside the project.
+/// Returns the error of a rewrite that could not finish. Prettier did not run,
+/// or a configuration of the project did not reach it. Or it wrote a report
+/// that the action does not recognize, or it reported a path outside the
+/// project.
 async fn fix(
     prettier: &Prettier,
     filter: &Filter,
@@ -246,12 +247,12 @@ async fn fix(
 ///
 /// Three conditions end a run before its findings matter. A configuration that
 /// did not reach prettier stops it, because prettier ignores an option that it
-/// does not know and then runs without it, and a run without it quietly does
-/// what the project asked it not to do. A prettier that matched no file leaves
-/// the action with nothing to examine, which the ignore files of the project
-/// explain, so the run skips. A run that ended without success and named no
-/// problem wrote a report that the action could not read, and an answer built
-/// on it would hide every problem behind a green result.
+/// does not know and then runs without it. A run without it quietly does what
+/// the project asked it not to do. A prettier that matched no file leaves the
+/// action with nothing to examine. The ignore files of the project explain
+/// this, so the run skips. A run that ended without success and named no
+/// problem wrote a report that the action could not read. An answer built on it
+/// would hide every problem behind a green result.
 ///
 /// Returns `None` when the caller reports what the run found.
 ///
@@ -270,13 +271,13 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatMarkdownErr
         });
     }
 
-    if observation.unmatched_pattern() {
+    if observation.unmatched_pattern() == rakko_prettier::Pattern::Unmatched {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         }));
     }
 
-    if observation.problems().is_empty() && !observation.succeeded() {
+    if observation.problems().is_empty() && observation.exit() != rakko_prettier::Exit::Succeeded {
         return Err(FormatMarkdownError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
         });
@@ -287,15 +288,15 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatMarkdownErr
 
 /// Asks prettier what it would change and reports the answer
 ///
-/// The run changes nothing: prettier names the files that a rewrite would
-/// change, and each of them becomes a finding next to the files that prettier
-/// could not parse or read.
+/// The run changes nothing. Prettier names the files that a rewrite would
+/// change. Each of them becomes a finding next to the files that prettier could
+/// not parse or read.
 ///
 /// # Errors
 ///
-/// Returns the error of a run that could not finish: prettier did not run, a
-/// configuration of the project did not reach it, it wrote a report that the
-/// action does not recognize, or it reported a path outside the project.
+/// Returns the error of a run that could not finish. Prettier did not run, or
+/// a configuration of the project did not reach it. Or it wrote a report that
+/// the action does not recognize, or it reported a path outside the project.
 async fn report(
     prettier: &Prettier,
     filter: &Filter,
@@ -332,7 +333,10 @@ fn repairs(rewritten: &[PathBuf], root: &ProjectRoot) -> Result<Vec<Finding>, Fo
     rewritten
         .iter()
         .map(|path| {
-            let problem = PrettierProblem::new(path.clone(), ProblemDetail::Unformatted);
+            let problem = PrettierProblem::builder()
+                .path(path.clone())
+                .detail(ProblemDetail::Unformatted)
+                .build();
 
             finding(&problem, root, UNFORMATTED_REPAIR)
         })
@@ -341,9 +345,10 @@ fn repairs(rewritten: &[PathBuf], root: &ProjectRoot) -> Result<Vec<Finding>, Fo
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
     use rakko_test_utils::path;
@@ -388,14 +393,14 @@ mod tests {
 
     #[test]
     fn finding_of_a_diagnostic_carries_the_message_of_prettier() {
-        let problem = PrettierProblem::new(
-            PathBuf::from("notes.md"),
-            ProblemDetail::Diagnostic {
+        let problem = PrettierProblem::builder()
+            .path(PathBuf::from("notes.md"))
+            .detail(ProblemDetail::Diagnostic {
                 line: 2,
                 column: 5,
                 message: "SyntaxError: Unexpected token".to_owned(),
-            },
-        );
+            })
+            .build();
 
         let finding = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap();
 
@@ -404,14 +409,14 @@ mod tests {
 
     #[test]
     fn finding_of_a_diagnostic_sits_at_the_position_of_prettier() {
-        let problem = PrettierProblem::new(
-            PathBuf::from("notes.md"),
-            ProblemDetail::Diagnostic {
+        let problem = PrettierProblem::builder()
+            .path(PathBuf::from("notes.md"))
+            .detail(ProblemDetail::Diagnostic {
                 line: 2,
                 column: 5,
                 message: "SyntaxError: Unexpected token".to_owned(),
-            },
-        );
+            })
+            .build();
 
         let finding = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap();
 
@@ -426,7 +431,10 @@ mod tests {
 
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = PrettierProblem::new(path("/elsewhere/notes.md"), ProblemDetail::Unformatted);
+        let problem = PrettierProblem::builder()
+            .path(path("/elsewhere/notes.md"))
+            .detail(ProblemDetail::Unformatted)
+            .build();
 
         let error = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap_err();
 
@@ -434,18 +442,10 @@ mod tests {
     }
 
     #[test]
-    fn guard_of_a_run_that_matched_no_file_skips() {
-        let observation = Observation::builder()
-            .succeeded(true)
-            .unmatched_pattern(true)
-            .build();
+    fn format_markdown_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        let outcome = guard(&observation).unwrap();
-
-        assert!(
-            matches!(outcome, Some(Outcome::Skipped { .. })),
-            "expected the run to skip, got {outcome:?}"
-        );
+        assert_send_sync_and_unpin::<FormatMarkdown>();
     }
 
     #[test]
@@ -461,9 +461,35 @@ mod tests {
     }
 
     #[test]
+    fn guard_of_a_run_that_matched_no_file_skips() {
+        let observation = Observation::builder()
+            .exit(rakko_prettier::Exit::Succeeded)
+            .unmatched_pattern(rakko_prettier::Pattern::Unmatched)
+            .build();
+
+        let outcome = guard(&observation).unwrap();
+
+        assert!(
+            matches!(outcome, Some(Outcome::Skipped { .. })),
+            "expected the run to skip, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_run_that_reported_normally_reports_nothing() {
+        let observation = Observation::builder()
+            .exit(rakko_prettier::Exit::Succeeded)
+            .build();
+
+        let outcome = guard(&observation).unwrap();
+
+        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+    }
+
+    #[test]
     fn guard_of_a_run_without_its_configuration_stops() {
         let observation = Observation::builder()
-            .succeeded(true)
+            .exit(rakko_prettier::Exit::Succeeded)
             .rejected_configuration("Ignored unknown option { notAnOption: 5 }.".to_owned())
             .build();
 
@@ -473,14 +499,5 @@ mod tests {
             error,
             FormatMarkdownError::RejectedConfiguration { .. }
         ));
-    }
-
-    #[test]
-    fn guard_of_a_run_that_reported_normally_reports_nothing() {
-        let observation = Observation::builder().succeeded(true).build();
-
-        let outcome = guard(&observation).unwrap();
-
-        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 }

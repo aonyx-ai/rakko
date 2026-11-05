@@ -1,3 +1,5 @@
+//! The value of one argument
+
 typed_fields::name! {
     /// The value that a run reads for one argument
     ///

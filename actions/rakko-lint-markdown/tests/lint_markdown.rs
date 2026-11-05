@@ -1,17 +1,18 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken Markdown file sits in
+//! against it. So no fixture with a deliberately broken Markdown file sits in
 //! this repository, where the checks of the repository itself would fight it.
 //!
-//! The tests run the markdownlint that this repository pins. A project copies
-//! the `mise.toml` of the repository and trusts it, so the version that
-//! answers is the version that the repository installs, and a new pin reaches
-//! the tests without a change to them.
+//! The tests run the markdownlint that this repository pins.
+//! A project copies the `mise.toml` of the repository and trusts it.
+//! So the version that answers is the version that the repository installs.
+//! A new pin reaches the tests without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -52,6 +53,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a markdownlint to resolve
     ///
@@ -66,9 +68,9 @@ impl Project {
 
     /// Creates a project with the markdownlint of this repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the
-    /// markdownlint that mise resolves for it is the markdownlint that the
-    /// repository pins and installs, on the node that it pins next to it.
+    /// The project copies the `mise.toml` of this repository.
+    /// The markdownlint that mise resolves for it is the markdownlint that the
+    /// repository pins and installs, on the node it pins next to it.
     /// Mise ignores a configuration that nobody trusts, so the copy is
     /// trusted right away.
     fn new() -> Self {
@@ -84,9 +86,9 @@ impl Project {
 
     /// Creates a project that pins a markdownlint that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about markdownlint.
+    /// The pin names a version that no machine installs.
+    /// So mise reports no location for it, whatever the global configuration of
+    /// the machine says about markdownlint.
     fn without_markdownlint() -> Self {
         let project = Self::bare();
 
@@ -121,6 +123,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -172,12 +175,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 
@@ -213,9 +216,26 @@ fn action_identifies_itself_as_lint_markdown() {
 }
 
 #[tokio::test]
+async fn run_in_a_valid_project_passes() {
+    let project = Project::new();
+    project.write().path("notes.md").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     project.run().await;
 
@@ -225,10 +245,22 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
 #[tokio::test]
 async fn run_leaves_out_a_directory_that_the_ignore_file_names() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write(".markdownlintignore", IGNORE_DOT_DIRECTORY);
-    project.write("notes.md", VALID);
-    project.write(".claude/notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path(".markdownlintignore")
+        .content(IGNORE_DOT_DIRECTORY)
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+    project
+        .write()
+        .path(".claude/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -241,10 +273,22 @@ async fn run_leaves_out_a_directory_that_the_ignore_file_names() {
 #[tokio::test]
 async fn run_leaves_out_the_directories_of_git() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", VALID);
-    project.write(".git/notes.md", UNSPACED_HEADING);
-    project.write("vendor/.git/notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+    project
+        .write()
+        .path(".git/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
+    project
+        .write()
+        .path("vendor/.git/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -255,23 +299,64 @@ async fn run_leaves_out_the_directories_of_git() {
 }
 
 #[tokio::test]
-async fn run_in_a_valid_project_passes() {
+async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write("notes.md", VALID);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+    project
+        .write()
+        .path("deep/sub/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [path_text("deep/sub/notes.md")]);
+}
+
+#[tokio::test]
+async fn run_reaches_a_file_in_a_directory_with_a_dot() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+    project
+        .write()
+        .path(".changeset/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [path_text(".changeset/notes.md")]);
 }
 
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", CONFIGURATION);
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -282,10 +367,43 @@ async fn run_reads_the_configuration_of_the_project() {
 }
 
 #[tokio::test]
+async fn run_whose_markdownlint_examined_nothing_skips() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlintignore")
+        .content(IGNORE_EVERYTHING)
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
+    };
+    assert!(
+        reason.get().contains("markdownlint"),
+        "expected the reason to name the tool, got {reason:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_markdownlint() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -298,37 +416,60 @@ async fn run_with_a_broken_rule_carries_the_message_of_markdownlint() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintMarkdown, &project.context(), &()).await;
 }
 
+/// Shows that run names a nested file with the separator of the platform
+///
+/// Markdownlint writes a path with a forward slash on every platform, and the
+/// action rebuilds it with the separator of the platform.
 #[tokio::test]
 async fn run_with_a_broken_rule_names_the_file() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("sub/notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path("sub/notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
     };
-    // Markdownlint writes a path with a forward slash on every platform, and
-    // the action rebuilds it with the separator of the platform.
     assert_eq!(locations(findings), [path_text("sub/notes.md")]);
 }
 
 #[tokio::test]
 async fn run_with_a_rule_that_names_a_column_reports_it() {
     let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", UNSPACED_HEADING);
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -347,7 +488,7 @@ async fn run_with_a_rule_that_names_a_column_reports_it() {
 #[tokio::test]
 async fn run_with_a_rule_that_names_no_column_reports_the_line_alone() {
     let project = Project::new();
-    project.write("notes.md", BLANK_LINES);
+    project.write().path("notes.md").content(BLANK_LINES).call();
 
     let outcome = project.run().await;
 
@@ -369,7 +510,7 @@ async fn run_with_an_unreadable_file_stops() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.md", VALID);
+    project.write().path("secret.md").content(VALID).call();
     let path = project.directory.path().join("secret.md");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -385,26 +526,9 @@ async fn run_with_an_unreadable_file_stops() {
 }
 
 #[tokio::test]
-async fn run_whose_markdownlint_examined_nothing_skips() {
-    let project = Project::new();
-    project.write(".markdownlintignore", IGNORE_EVERYTHING);
-    project.write("notes.md", UNSPACED_HEADING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains("markdownlint"),
-        "expected the reason to name the tool, got {reason:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_without_a_markdownlint_stops() {
     let project = Project::without_markdownlint();
-    project.write("notes.md", VALID);
+    project.write().path("notes.md").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -417,7 +541,11 @@ async fn run_without_a_markdownlint_stops() {
 #[tokio::test]
 async fn run_without_markdown_files_skips() {
     let project = Project::new();
-    project.write("notes.txt", "Not Markdown.\n");
+    project
+        .write()
+        .path("notes.txt")
+        .content("Not Markdown.\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -425,34 +553,4 @@ async fn run_without_markdown_files_skips() {
         matches!(outcome, Outcome::Skipped { .. }),
         "expected the run to skip, got {outcome:?}"
     );
-}
-
-#[tokio::test]
-async fn run_reaches_a_file_below_a_directory_of_the_project() {
-    let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", VALID);
-    project.write("deep/sub/notes.md", UNSPACED_HEADING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(locations(findings), [path_text("deep/sub/notes.md")]);
-}
-
-#[tokio::test]
-async fn run_reaches_a_file_in_a_directory_with_a_dot() {
-    let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", VALID);
-    project.write(".changeset/notes.md", UNSPACED_HEADING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(locations(findings), [path_text(".changeset/notes.md")]);
 }

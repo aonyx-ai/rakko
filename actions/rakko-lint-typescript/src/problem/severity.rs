@@ -11,16 +11,25 @@ use serde::Deserialize;
 
 /// The severity that oxlint gave a diagnostic
 ///
-/// The severity of a broken rule belongs to the rule and not to the file: a
+/// The severity of a broken rule belongs to the rule and not to the file. A
 /// project that wants a rule to speak without stopping anyone weighs that rule
-/// as a warning, and the rules that oxlint enables by itself carry the warning
+/// as a warning. The rules that oxlint enables by itself carry the warning
 /// severity. A diagnostic that no rule reports, such as a syntax error or a
 /// diagnostic about the project, carries the severity that oxlint gives it.
 ///
 /// The severity decides the status that oxlint ends with, and it decides
 /// nothing about the outcome of an action. A rule that a project weighs as a
-/// warning is still a rule that the project asked oxlint to look for, so a
+/// warning is still a rule that the project asked oxlint to look for. So a
 /// reader of a finding sees the severity, and every severity fails a run.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::problem::Severity;
+///
+/// assert_eq!(Severity::Warning.to_string(), "warning");
+/// assert!(Severity::Warning < Severity::Error);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
@@ -53,11 +62,19 @@ impl fmt::Display for Severity {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
+
+    #[test]
+    fn display_of_a_warning_writes_the_word_of_oxlint() {
+        let word = Severity::Warning.to_string();
+
+        assert_eq!(word, "warning");
+    }
 
     #[test]
     fn display_of_an_error_writes_the_word_of_oxlint() {
@@ -67,15 +84,17 @@ mod tests {
     }
 
     #[test]
-    fn display_of_a_warning_writes_the_word_of_oxlint() {
-        let word = Severity::Warning.to_string();
+    fn severity_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert_eq!(word, "warning");
+        assert_send_sync_and_unpin::<Severity>();
     }
 
-    // The severity arrives from the report of oxlint, which writes it in lower
-    // case. A severity that this crate does not know stops the reading, so
-    // that a new weight of a later version cannot land in the wrong one.
+    /// Shows that unknown severity words are not read
+    ///
+    /// The severity arrives from the report of oxlint, which writes it in lower
+    /// case. A severity that this crate does not know stops the reading. So a
+    /// new weight of a later version cannot land in the wrong one.
     #[test]
     fn severity_of_an_unknown_word_is_not_read() {
         let severity = serde_json::from_str::<Severity>("\"advice\"");

@@ -1,9 +1,20 @@
+//! Who trusts the configuration that a run of mise reads
+
 /// Who trusts the configuration that a run of mise reads
 ///
 /// Mise reads a configuration that needs trust, such as one with settings,
 /// only after somebody trusted the directory that holds it. The project of a
 /// contributor is trusted already, and a copy of it is a directory that
 /// nobody has seen before.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::Trust;
+///
+/// let trust = Trust::Granted;
+/// assert_ne!(trust, Trust::Inherited);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Trust {
     /// The run of mise trusts what the environment of the action trusts
@@ -18,7 +29,19 @@ pub enum Trust {
     ///
     /// The run skips the question whether anybody trusted the configuration
     /// of the directory. A caller grants it only for a directory whose
-    /// configuration somebody trusted in another place, such as a copy of a
-    /// project whose lockfiles mise already listed in the project.
+    /// configuration somebody trusted in another place. One example is a copy
+    /// of a project whose lockfiles mise already listed in the project.
     Granted,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trust_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Trust>();
+    }
 }

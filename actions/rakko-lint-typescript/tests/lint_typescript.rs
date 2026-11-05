@@ -1,22 +1,23 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken file sits in this
+//! against it. So no fixture with a deliberately broken file sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the oxlint that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project states no configuration of oxlint unless the test is about one.
-//! Oxlint applies the rules that it enables by itself in that case, and it
-//! reads no configuration of the user, so a project without one answers the
-//! same way on the machine of every contributor.
+//! Oxlint applies the rules that it enables by itself in that case. It reads no
+//! configuration of the user. So a project without one answers the same way on
+//! the machine of every contributor.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -34,9 +35,9 @@ const VALID: &str = "export function add(a: number, b: number): number {\n  retu
 ///
 /// Every rule that oxlint enables by itself carries the warning severity, so a
 /// project that states nothing weighs this one that way. Oxlint ends with
-/// success for a run that finds only warnings, which is why a run over this
-/// file is what holds the action to its own answer instead of to the status of
-/// the process.
+/// success for a run that finds only warnings. This is why a run over this file
+/// is what holds the action to its own answer instead of to the status of the
+/// process.
 const DEBUGGER: &str = "export function bad(): void {\n  debugger;\n}\n";
 
 /// TypeScript that breaks the rule of the broken file twice
@@ -69,6 +70,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without an oxlint to resolve
     ///
@@ -99,7 +101,7 @@ impl Project {
 
     /// Creates a project that pins an oxlint that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about oxlint.
     fn without_oxlint() -> Self {
@@ -136,6 +138,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -187,12 +190,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 
@@ -230,7 +233,7 @@ fn action_identifies_itself_as_lint_typescript() {
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
-    project.write("index.ts", VALID);
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -243,7 +246,7 @@ async fn run_in_a_valid_project_passes() {
 #[tokio::test]
 async fn run_in_a_valid_project_says_how_many_files_oxlint_examined() {
     let project = Project::new();
-    project.write("index.ts", VALID);
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -256,7 +259,7 @@ async fn run_in_a_valid_project_says_how_many_files_oxlint_examined() {
 #[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     project.run().await;
 
@@ -266,8 +269,12 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write("index.ts", VALID);
-    project.write("deep/sub/broken.ts", DEBUGGER);
+    project.write().path("index.ts").content(VALID).call();
+    project
+        .write()
+        .path("deep/sub/broken.ts")
+        .content(DEBUGGER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -280,8 +287,12 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
-    project.write(".oxlintrc.json", PERMISSIVE_CONFIGURATION);
-    project.write("index.ts", DEBUGGER);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(PERMISSIVE_CONFIGURATION)
+        .call();
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -292,10 +303,35 @@ async fn run_reads_the_configuration_of_the_project() {
 }
 
 #[tokio::test]
+async fn run_whose_oxlint_examined_nothing_skips() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(IGNORE_EVERYTHING)
+        .call();
+    project.write().path("index.ts").content(DEBUGGER).call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
+    };
+    assert!(
+        reason.get().contains("oxlint"),
+        "expected the reason to name the tool, got {reason:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_a_broken_rule_at_the_error_severity_reports_it() {
     let project = Project::new();
-    project.write(".oxlintrc.json", STRICT_CONFIGURATION);
-    project.write("index.ts", DEBUGGER);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(STRICT_CONFIGURATION)
+        .call();
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -312,7 +348,7 @@ async fn run_with_a_broken_rule_at_the_error_severity_reports_it() {
 #[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_oxlint() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -326,20 +362,25 @@ async fn run_with_a_broken_rule_carries_the_message_of_oxlint() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintTypeScript, &project.context(), &()).await;
 }
 
 #[tokio::test]
 async fn run_with_a_broken_rule_names_the_file() {
     let project = Project::new();
-    project.write("src/index.ts", DEBUGGER);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(DEBUGGER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -352,7 +393,7 @@ async fn run_with_a_broken_rule_names_the_file() {
 #[tokio::test]
 async fn run_with_a_broken_rule_reports_the_position_of_oxlint() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -371,8 +412,12 @@ async fn run_with_a_broken_rule_reports_the_position_of_oxlint() {
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::new();
-    project.write(".oxlintrc.json", BROKEN_CONFIGURATION);
-    project.write("index.ts", VALID);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(BROKEN_CONFIGURATION)
+        .call();
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -382,14 +427,24 @@ async fn run_with_a_refused_configuration_stops() {
     );
 }
 
-// Oxlint reports a suppression that the code no longer needs as a problem of
-// the project, with no rule and no file.
+/// Shows that stale suppressions are reported
+///
+/// Oxlint reports a suppression that the code no longer needs as a problem of
+/// the project, with no rule and no file.
 #[tokio::test]
 async fn run_with_a_stale_suppression_reports_it_for_the_project() {
     let project = Project::new();
-    project.write(".oxlintrc.json", STRICT_CONFIGURATION);
-    project.write("oxlint-suppressions.json", SUPPRESSIONS);
-    project.write("index.ts", VALID);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(STRICT_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("oxlint-suppressions.json")
+        .content(SUPPRESSIONS)
+        .call();
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -402,12 +457,14 @@ async fn run_with_a_stale_suppression_reports_it_for_the_project() {
     );
 }
 
-// A rule that oxlint weighs as a warning leaves it ending with success, so a
-// run that answered from the status of the process would pass this project.
+/// Shows that warnings cause runs to fail
+///
+/// A rule that oxlint weighs as a warning leaves it ending with success. So a
+/// run that answered from the status of the process would pass this project.
 #[tokio::test]
 async fn run_with_a_warning_fails() {
     let project = Project::new();
-    project.write("index.ts", DEBUGGER);
+    project.write().path("index.ts").content(DEBUGGER).call();
 
     let outcome = project.run().await;
 
@@ -417,15 +474,29 @@ async fn run_with_a_warning_fails() {
     );
 }
 
-// Oxlint reports every break of a rule whose count the suppressions file no
-// longer covers, and then a problem of the project. The breaks of the file stay
-// findings beside it.
+/// Shows that uncovered violations are kept as findings
+///
+/// Oxlint reports every break of a rule whose count the suppressions file no
+/// longer covers, and then a problem of the project. The breaks of the file stay
+/// findings beside it.
 #[tokio::test]
 async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
     let project = Project::new();
-    project.write(".oxlintrc.json", STRICT_CONFIGURATION);
-    project.write("oxlint-suppressions.json", SUPPRESSIONS);
-    project.write("index.ts", TWO_DEBUGGERS);
+    project
+        .write()
+        .path(".oxlintrc.json")
+        .content(STRICT_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("oxlint-suppressions.json")
+        .content(SUPPRESSIONS)
+        .call();
+    project
+        .write()
+        .path("index.ts")
+        .content(TWO_DEBUGGERS)
+        .call();
 
     let outcome = project.run().await;
 
@@ -448,30 +519,19 @@ async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
     );
 }
 
-#[tokio::test]
-async fn run_whose_oxlint_examined_nothing_skips() {
-    let project = Project::new();
-    project.write(".oxlintrc.json", IGNORE_EVERYTHING);
-    project.write("index.ts", DEBUGGER);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains("oxlint"),
-        "expected the reason to name the tool, got {reason:?}"
-    );
-}
-
-// A project that holds no TypeScript is the project that this action skips, and
-// oxlint reports that it found nothing to lint rather than that it found no
-// problem.
+/// Shows that projects without TypeScript files are skipped
+///
+/// A project that holds no TypeScript is the project that this action skips.
+/// Oxlint reports that it found nothing to lint rather than that it found no
+/// problem.
 #[tokio::test]
 async fn run_without_a_file_that_oxlint_lints_skips() {
     let project = Project::new();
-    project.write("README.md", "# Notes\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Notes\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -484,7 +544,7 @@ async fn run_without_a_file_that_oxlint_lints_skips() {
 #[tokio::test]
 async fn run_without_an_oxlint_stops() {
     let project = Project::without_oxlint();
-    project.write("index.ts", VALID);
+    project.write().path("index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 

@@ -1,11 +1,10 @@
 //! The action that builds the internal documentation of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps cargo as a subprocess: cargo reads the manifests, runs rustdoc over
-//! every package of a workspace, and reports what rustdoc said, and the
-//! action translates that report into an outcome.
+//! wraps cargo as a subprocess. Cargo reads the manifests, runs rustdoc over
+//! every package of a workspace, and reports what rustdoc said. The action
+//! translates that report into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use std::collections::HashSet;
@@ -24,17 +23,17 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The arguments that ask cargo to document the packages that a run selects
 ///
-/// The private items belong to the internal documentation, and a feature
-/// that is off by default can carry documentation of its own, so the run
-/// covers both. The dependencies stay out, because the documentation of a
+/// The private items belong to the internal documentation. A feature that is
+/// off by default can carry documentation of its own. So the run covers both. The
+/// dependencies stay out, because the documentation of a
 /// dependency belongs to the project that publishes it. Cargo builds the
 /// versions that the lockfile holds and does not write the lockfile, because
 /// the action only examines the project.
 ///
 /// The report arrives as JSON, because the action reads it as data. The
-/// format selects the presentation of the report and not the behavior of the
-/// tool: which lints apply, and at which level, comes from the configuration
-/// of the project alone.
+/// format selects the presentation of the report, not the behavior of the
+/// tool. Which lints apply and at which level comes from the configuration of
+/// the project alone.
 const DOC: [&str; 6] = [
     "doc",
     LOCKED,
@@ -56,23 +55,24 @@ const PACKAGE: &str = "--package";
 /// The action that builds the internal documentation of a project
 ///
 /// The action wraps [rustdoc]: cargo reads the manifests of the project and
-/// renders the documentation of every package, with the private items and
-/// with every feature. The cargo that runs is the one that [mise] installed for
+/// renders the documentation of every package. The rendering includes private
+/// items and every feature. The cargo that runs is the one that [mise] installed for
 /// the project, at the version that the project pinned, and the action
 /// installs nothing.
 ///
 /// Building the documentation is also the only examination that it gets.
 /// Rustdoc resolves the links between items while it renders them, and a link
 /// that names nothing is a warning that no other tool reports. Every
-/// diagnostic becomes a finding at the range that the compiler named, with
-/// the message of the compiler and the code of the lint, and a run with a
-/// finding fails, whether the diagnostic is a warning or an error.
+/// diagnostic becomes a finding at the range that the compiler named. The
+/// finding includes the message of the compiler and the code of the lint. A
+/// run with a finding fails, whether the diagnostic is a warning or an error.
 ///
 /// A run takes no argument. It documents every workspace of the project,
 /// because the harness of a project is a package of its own. A package that
-/// shares a crate name with another package, such as a binary that carries
-/// the name of a library, is documented in a cargo run of its own, because
-/// cargo would otherwise write both into one directory at once. Cargo builds
+/// shares a crate name with another package is documented in a cargo run of its
+/// own. The reason is that cargo would otherwise write both into one directory
+/// at once. Such packages include a binary that carries the name of a library.
+/// Cargo builds
 /// the dependencies of each run with the features of the packages of that
 /// run only. A package that relies on a feature which only a package of
 /// another run enables then fails. The compiler can also report other
@@ -82,13 +82,13 @@ const PACKAGE: &str = "--package";
 /// stay as they are.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// cargo, when the workspaces of the project cannot be discovered, when the
-/// lockfile of a workspace needs an update, and when cargo writes a report
-/// that the action does not recognize.
+/// A run stops with an error when mise reports no cargo. It also stops when
+/// the workspaces of the project cannot be discovered or the lockfile of a
+/// workspace needs an update. It also stops when cargo writes a report that
+/// the action does not recognize.
 ///
-/// A run declares a read of the project. It holds cargo to the lockfile of each
-/// workspace, and cargo writes what it builds into the `target` directory,
+/// A run declares a read of the project. It holds cargo to the lockfile of
+/// each workspace. Cargo writes what it builds into the `target` directory,
 /// which cargo locks against parallel use itself. The declaration covers the
 /// action and cargo, and not the build scripts and procedural macros of the
 /// project, which can write files of their own. A caller that orders runs by
@@ -139,9 +139,9 @@ impl Action for BuildInternalDocs {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of
-/// the tool, the discovery of the workspaces, a cargo run, or the reading
-/// of a report.
+/// Returns the error of the step that could not finish. This includes the
+/// resolution of the tool, the discovery of the workspaces, a cargo run, or
+/// the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
     let cargo = Cargo::resolve(context.root().clone())
         .await
@@ -190,13 +190,13 @@ async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
 /// Returns the arguments that select the packages of each cargo run at a
 /// root
 ///
-/// Cargo documents the packages of a workspace in parallel, and two targets
-/// of different packages that share a crate name write one directory at
-/// once, which fails at random. Each package that shares a crate name
+/// Cargo documents the packages of a workspace in parallel. Two targets of
+/// different packages that share a crate name write one directory at once,
+/// which fails at random. Each package that shares a crate name
 /// therefore gets a run of its own, and the other packages share one run. A
-/// workspace without a shared name keeps its one run, and a workspace whose
-/// every package shares a name has no run for the rest, because cargo
-/// refuses a run that excludes every package.
+/// workspace without a shared name keeps its one run. A workspace whose every
+/// package shares a name has no run for the rest. The reason is that cargo refuses a run that
+/// excludes every package.
 fn selections(root: &CargoRoot) -> Vec<Vec<&str>> {
     let (shared, unique): (Vec<&CargoPackage>, Vec<&CargoPackage>) = root
         .packages()
@@ -231,10 +231,10 @@ fn selections(root: &CargoRoot) -> Vec<Vec<&str>> {
 ///
 /// # Errors
 ///
-/// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
-/// [`StaleLockfile`][stale] when cargo refused to document because the
-/// lockfile needs an update, and [`UnrecognizedReport`][unrecognized] when
-/// cargo writes a report that the action cannot answer from.
+/// Returns [`CargoUnavailable`][unavailable] when cargo does not run.
+/// Returns [`StaleLockfile`][stale] when cargo refused to document because
+/// the lockfile needs an update. Returns [`UnrecognizedReport`][unrecognized]
+/// when cargo writes a report that the action cannot answer from.
 ///
 /// [stale]: BuildInternalDocsError::StaleLockfile
 /// [unavailable]: BuildInternalDocsError::CargoUnavailable
@@ -277,10 +277,10 @@ async fn document(
 
 /// Returns whether the action can answer from a report
 ///
-/// A run that ended without success and named no diagnostic, and a run that
-/// ended with success without saying that the build finished, both wrote a
-/// report that the action cannot read, and an answer built on such a report
-/// would hide problems behind a green result.
+/// A run without success that names no diagnostic wrote a report the action
+/// cannot read. A run with success that does not say the build finished also
+/// wrote such a report. An answer built on such a report hides problems behind
+/// a green result.
 fn recognized(report: &CargoReport, execution: &Execution) -> bool {
     if execution.status().success() {
         report.finished() == Some(true)
@@ -295,8 +295,8 @@ fn recognized(report: &CargoReport, execution: &Execution) -> bool {
 ///
 /// Returns [`UnreadableReport`][unreadable] when the report holds a record
 /// of cargo that the action cannot read. The shape of a record belongs to a
-/// version of cargo, and an answer built on a report with such a record
-/// would hide problems behind a green result.
+/// version of cargo. An answer built on a report with such a record hides
+/// problems behind a green result.
 ///
 /// [unreadable]: BuildInternalDocsError::UnreadableReport
 fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, BuildInternalDocsError> {
@@ -317,9 +317,10 @@ fn summary(roots: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::{Path, PathBuf};
 
@@ -342,7 +343,10 @@ mod tests {
                 packages
                     .iter()
                     .map(|&(name, documented_names)| {
-                        CargoPackage::new(PackageName::new(name), documented_names)
+                        CargoPackage::builder()
+                            .name(PackageName::new(name))
+                            .documented_names(documented_names)
+                            .build()
                     })
                     .collect(),
             )
@@ -354,6 +358,13 @@ mod tests {
         let access = BuildInternalDocs.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn build_internal_docs_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<BuildInternalDocs>();
     }
 
     #[test]

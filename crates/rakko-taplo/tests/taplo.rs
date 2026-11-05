@@ -1,22 +1,24 @@
 //! Tests that drive the crate against real projects
 //!
-//! Each test builds a project in a temporary directory, so no fixture with a
-//! deliberately broken TOML file sits in this repository, where the
-//! formatting of the repository itself would fight it.
+//! Each test builds a project in a temporary directory. So no fixture with a
+//! deliberately broken TOML file sits in this repository, where the formatting
+//! of the repository itself would fight it.
 //!
 //! The tests run the taplo that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers
-//! is the version that the repository installs, and a new pin reaches the
-//! tests without a change to them.
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs, and a new pin reaches the tests
+//! without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
 use std::process::Command;
 
+use bon::bon;
 use rakko_action::ProjectRoot;
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo};
 use tempfile::TempDir;
@@ -36,6 +38,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon]
 impl Project {
     /// Creates a project without a taplo to resolve
     ///
@@ -66,9 +69,9 @@ impl Project {
 
     /// Creates a project that pins a taplo that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine
-    /// says about taplo.
+    /// The pin names a version that no machine installs. So mise reports no
+    /// location for it, whatever the global configuration of the machine says
+    /// about taplo.
     fn without_taplo() -> Self {
         let project = Self::bare();
 
@@ -102,6 +105,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -141,10 +145,10 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
-    /// would pile up there forever. A failure stays quiet, because the test
-    /// already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")
@@ -158,7 +162,11 @@ impl Drop for Project {
 #[tokio::test]
 async fn observe_a_format_check_reports_a_file_that_is_not_formatted() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let observation = project.observe(Operation::CheckFormat).await;
 
@@ -174,7 +182,11 @@ async fn observe_a_format_check_reports_a_file_that_is_not_formatted() {
 #[tokio::test]
 async fn observe_a_format_rewrites_the_project() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     project.observe(Operation::Format).await;
 
@@ -186,7 +198,11 @@ async fn observe_a_format_rewrites_the_project() {
 #[tokio::test]
 async fn observe_a_lint_ignores_a_file_that_is_not_formatted() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     let observation = project.observe(Operation::Lint).await;
 
@@ -200,7 +216,7 @@ async fn observe_a_lint_ignores_a_file_that_is_not_formatted() {
 #[tokio::test]
 async fn observe_a_lint_reports_a_file_that_taplo_cannot_parse() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     let observation = project.observe(Operation::Lint).await;
 
@@ -220,7 +236,7 @@ async fn observe_a_lint_reports_a_file_that_taplo_cannot_parse() {
 #[tokio::test]
 async fn observe_reads_a_report_without_color_codes() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     let observation = project.observe(Operation::Lint).await;
 

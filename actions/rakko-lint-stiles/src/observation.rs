@@ -11,15 +11,52 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::StilesProblem;
 
+/// Whether stiles found a file to check
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_stiles::observation::Examination;
+///
+/// let label = match Examination::Skipped {
+///     Examination::Examined => "stiles found a file to check",
+///     Examination::Skipped => "stiles found no file to check",
+/// };
+///
+/// assert_eq!(label, "stiles found no file to check");
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
+pub enum Examination {
+    /// Stiles found a file to check
+    #[default]
+    Examined,
+    /// Stiles found no file to check
+    Skipped,
+}
+
 /// What one check of stiles produced
 ///
 /// The value holds the answer of one check: the diagnostics that stiles
 /// reported, and whether stiles found a file to check at all.
 ///
-/// A check that found no file is not a check that found nothing. Stiles
-/// reports no diagnostic in both cases, and the two mean opposite things for
-/// the outcome of an action: one project is clean, and the other was never
-/// looked at.
+/// A check that found no file is not a check that found nothing.
+/// Stiles reports no diagnostic in both cases.
+/// The two mean opposite things for the outcome of an action.
+/// One project is clean, and the other was never looked at.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_stiles::Observation;
+/// use rakko_lint_stiles::observation::Examination;
+///
+/// let observation = Observation::builder()
+///     .examined(Examination::Skipped)
+///     .build();
+///
+/// assert_eq!(observation.examined(), Examination::Skipped);
+/// assert!(observation.problems().is_empty());
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The diagnostics that stiles reported, in the order of the report
@@ -28,7 +65,7 @@ pub struct Observation {
 
     /// Whether stiles found a file to check
     #[getset(get_copy = "pub")]
-    examined: bool,
+    examined: Examination,
 }
 
 #[bon]
@@ -37,16 +74,48 @@ impl Observation {
     ///
     /// A run of stiles builds one through [`Stiles::observe`], and a caller
     /// builds one where a test stands in for a stiles that nobody started.
-    /// Every part is optional, so a test names what its case is about and
+    /// Every part is optional. So a test names what its case is about. It
     /// leaves the rest at the answer of a check that examined the project and
     /// found nothing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_lint_stiles::Observation;
+    ///
+    /// use rakko_lint_stiles::observation::Examination;
+    ///
+    /// let observation = Observation::builder().build();
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// assert_eq!(observation.examined(), Examination::Examined);
+    /// ```
     ///
     /// [`Stiles::observe`]: crate::stiles::Stiles::observe
     #[builder]
     pub fn new(
         #[builder(default)] problems: Vec<StilesProblem>,
-        #[builder(default = true)] examined: bool,
+        #[builder(default)] examined: Examination,
     ) -> Self {
         Self { problems, examined }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn examination_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Examination>();
+    }
+
+    #[test]
+    fn observation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Observation>();
     }
 }

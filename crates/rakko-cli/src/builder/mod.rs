@@ -1,12 +1,9 @@
-/// The projection of the arguments of an action into flags
+//! The command line that a harness builds and runs
+
 mod arguments;
-/// The error of a run that the runner ended before it started
 mod error;
-/// The check, the flags, and the bind of the members of a group
 mod members;
-/// The actions that a harness mounted
 mod registry;
-/// The part of the command line that runs the members of a group
 mod scheduler;
 
 use std::error::Error;
@@ -42,7 +39,7 @@ const EXIT_FINDINGS: u8 = 1;
 ///
 /// The parser gives this code to a command line that it cannot read. A run
 /// that never reached an action and a run whose action stopped are the same
-/// event for whoever reads the result, so one code covers both.
+/// event for whoever reads the result. So one code covers both.
 const EXIT_UNANSWERED: u8 = 2;
 
 /// The name of the argument with which a user names the project root
@@ -53,9 +50,9 @@ const PROJECT_ROOT: &str = "project-root";
 
 /// The name that the command line carries
 ///
-/// A reader sees the name of the harness binary instead of this name, because
-/// clap takes the name of a usage line from the command that started the
-/// process. This name is the fallback for the places that have nothing else.
+/// A reader sees the name of the harness binary instead of this name. This is
+/// because clap takes the name of a usage line from the command that started
+/// the process. This name is the fallback for the places that have nothing else.
 const NAME: &str = "rakko";
 
 /// Creates the builder of the command line of a harness
@@ -66,7 +63,9 @@ const NAME: &str = "rakko";
 /// # Examples
 ///
 /// ```no_run
-/// rakko_cli::builder().run();
+/// fn main() -> std::process::ExitCode {
+///     rakko_cli::builder().run()
+/// }
 /// ```
 #[must_use]
 pub fn builder() -> Builder {
@@ -78,12 +77,22 @@ pub fn builder() -> Builder {
 /// The command line of a harness
 ///
 /// A harness is the small binary that a project runs to maintain itself. This
-/// type is the whole surface that the harness touches: the harness creates it
+/// type is the whole surface that the harness touches. The harness creates it
 /// with [`builder`], mounts the actions, the commands, and the groups that the
 /// project uses, and then calls [`run`].
 ///
 /// The command line of every project has the same shape, because one type
 /// builds all of them. A harness cannot name a flag of its own.
+///
+/// # Examples
+///
+/// ```no_run
+/// use std::process::ExitCode;
+///
+/// fn main() -> ExitCode {
+///     rakko_cli::builder().mount([]).run()
+/// }
+/// ```
 ///
 /// [`run`]: Builder::run
 #[derive(Debug)]
@@ -96,7 +105,7 @@ impl Builder {
     /// Mounts actions in the command line
     ///
     /// Each action becomes one command, and the command tree stays flat. A
-    /// harness passes a list, and a list is an ordinary value: the harness can
+    /// harness passes a list, and a list is an ordinary value. The harness can
     /// mount the list that a bundle exports, join two lists, or leave one
     /// action out. Reading the harness therefore reports what the project
     /// runs.
@@ -220,8 +229,8 @@ impl Builder {
     ///
     /// A [`Group`] is a named list of actions, its members, that the command
     /// line runs as one command. The command line derives the flags of the
-    /// group from the arguments of the members: each argument that a member
-    /// declares becomes one flag, and an argument that several members declare
+    /// group from the arguments of the members. Each argument that a member
+    /// declares becomes one flag. An argument that several members declare
     /// stays one flag. A flag reaches every member that declares its argument,
     /// and no other member. A group has no arguments of its own, so it defines
     /// no flag. The help of a flag shows one line for each member that declares
@@ -234,7 +243,7 @@ impl Builder {
     /// gives the member and the argument. Then the run asks every member how
     /// its run uses the project, as [`Access`] declares it. When a member
     /// declares a kind of access that the command line does not know, no
-    /// member runs either, and the error tells the user to update Rakko.
+    /// member runs either. The error tells the user to update Rakko.
     ///
     /// Then the members that write run, one at a time and in the order of the
     /// list. A member that declares nothing writes. The members that read
@@ -285,7 +294,7 @@ impl Builder {
     /// and both shapes.
     ///
     /// Panics when a member of a group declares an argument whose name the
-    /// command line defines itself, and reports the group, the member, and
+    /// command line defines itself. It reports the group, the member, and
     /// the argument.
     ///
     /// Panics when a mounted group carries the name of another mounted group,
@@ -310,7 +319,7 @@ impl Builder {
     pub fn mount_groups(mut self, groups: impl IntoIterator<Item = Box<dyn Group>>) -> Self {
         self.add(groups.into_iter().map(|group| {
             self::members::refuse_repeated(&group.name(), group.members());
-            let arguments = members::merge(&group.name(), group.members());
+            let arguments = self::members::merge(&group.name(), group.members());
 
             Mounted::Group { group, arguments }
         }));
@@ -325,7 +334,7 @@ impl Builder {
     fn add(&mut self, entries: impl IntoIterator<Item = Mounted>) {
         let entries: Vec<Mounted> = entries.into_iter().collect();
 
-        arguments::refuse_reserved(&entries);
+        self::arguments::refuse_reserved(&entries);
 
         self.registry.add(entries);
     }
@@ -333,41 +342,58 @@ impl Builder {
     /// Runs the command line against the arguments of the process
     ///
     /// A request for help, and a request that the command line cannot read,
-    /// end the process in this method. The user gets the message of the parser
-    /// and the process gets an exit code. A run that names nothing ends here
-    /// as well: the user gets the commands that the harness mounted, and the
-    /// process gets the code of a clean run. A run that failed ends here too:
-    /// the user gets the error and every cause of it, and the process gets the
+    /// are reported in this method. The user gets the message of the parser
+    /// and this method returns an exit code. A run that names nothing ends here
+    /// as well. The user gets the commands that the harness mounted, and this
+    /// method returns the code of a clean run. A run that failed ends here too.
+    /// The user gets the error and every cause of it. This method returns the
     /// code of a run that could not answer, whether the failure stopped an
     /// action, a command, or a group.
     ///
-    /// The method ends the process itself, so that a harness stays a `main`
-    /// that names what the project mounts and returns nothing.
-    pub fn run(self) {
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::process::ExitCode;
+    ///
+    /// // A harness that mounts nothing lists no commands and ends cleanly.
+    /// assert_eq!(rakko_cli::builder().run(), ExitCode::SUCCESS);
+    /// ```
+    pub fn run(self) -> std::process::ExitCode {
         let (matches, mounted) = match self.resolve(std::env::args_os()) {
             Ok(Resolution::Entry(matches, mounted)) => (matches, mounted),
             Ok(Resolution::Commands(mut command)) => {
-                std::process::exit(i32::from(show_commands(&mut command)));
+                return std::process::ExitCode::from(show_commands(&mut command));
             }
-            Err(error) => error.exit(),
+            Err(error) => {
+                let _ = error.print();
+                return process_exit_code(error.exit_code());
+            }
         };
         let entry = mounted.to_string();
 
         match dispatch(matches, mounted) {
-            Ok(code) => std::process::exit(i32::from(code)),
-            Err(error) => run_error(&entry, error.as_ref()).exit(),
+            Ok(code) => std::process::ExitCode::from(code),
+            Err(error) => {
+                let printed_error = run_error(&entry, error.as_ref());
+                let _ = printed_error.print();
+                process_exit_code(printed_error.exit_code())
+            }
         }
     }
 
     /// Parses the arguments and takes the action, the command, or the group
     /// that the run asks for
     ///
-    /// A run that gives no argument names nothing, and it gets the command
+    /// A run that gives no argument names nothing. It gets the command
     /// line back instead of an error, so that the caller lists the commands
     /// that the harness mounted.
     ///
     /// The method takes the arguments as a parameter, so that a test drives
     /// the command line without the arguments of the test process.
+    ///
+    /// The parser reports `ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand`
+    /// for a run that gives no argument at all, and for no other run. That kind
+    /// is the whole test for a run that names nothing.
     ///
     /// # Errors
     ///
@@ -384,9 +410,6 @@ impl Builder {
 
         let matches = match command.try_get_matches_from_mut(arguments) {
             Ok(matches) => matches,
-            // The parser reports this kind for a run that gives no argument
-            // at all, and for no other run, so it is the whole test for a run
-            // that names nothing.
             Err(error) if error.kind() == ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
                 return Ok(Resolution::Commands(Box::new(command)));
             }
@@ -412,19 +435,31 @@ impl Builder {
     /// appears in no signature that a harness or an action can see.
     ///
     /// The command of an action, a command that a harness wrote, and a group
-    /// take the same shape here: a name, the flags of the arguments, and a
-    /// place directly under the command line.
+    /// take the same shape here. The shape has a name, the flags of the
+    /// arguments, and a place directly under the command line.
     fn command(&self) -> Command {
         let mut command = shell();
 
         for mounted in self.registry.entries() {
             command = command.subcommand(
-                Command::new(mounted.name().get().to_owned()).args(arguments::render(mounted)),
+                Command::new(mounted.name().get().to_owned())
+                    .args(self::arguments::render(mounted)),
             );
         }
 
         command
     }
+}
+
+/// Returns the exit code of the process for the code that the parser chose
+///
+/// The parser names its codes as an `i32`, while a process ends with a byte.
+/// A code outside that range reports a failure.
+fn process_exit_code(code: i32) -> std::process::ExitCode {
+    u8::try_from(code).map_or(
+        std::process::ExitCode::FAILURE,
+        std::process::ExitCode::from,
+    )
 }
 
 /// What the arguments of a run describe
@@ -447,9 +482,9 @@ enum Resolution {
 
 /// Shows the commands that a harness mounted and returns the code of the run
 ///
-/// The help of the command line lists the commands, so a user who wrote the
+/// The help of the command line lists the commands. So a user who wrote the
 /// name of the harness and nothing else reads what the project runs. The run
-/// drove no action and found no problem, so it is clean, and a workflow that
+/// drove no action and found no problem, so it is clean. A workflow that
 /// calls the harness without a command reads a code that says as much.
 ///
 /// A reader that closed the stream loses the list. The parser drops its own
@@ -503,9 +538,10 @@ fn project_root() -> Arg {
 /// # Errors
 ///
 /// Returns the error of the command line when it cannot build the context of
-/// a command, and when it cannot start the runtime that drives the run.
-/// Returns an error for a run that names no root and stands in no project,
-/// because a run that receives a guessed root reports paths that mean nothing.
+/// a command. It also returns that error when it cannot start the runtime
+/// that drives the run. Returns an error for a run that names no root and
+/// stands in no project. This is because a run that receives a guessed root
+/// reports paths that mean nothing.
 /// Returns an error for a group whose member cannot bind its values or
 /// declares a kind of access that the command line does not know. Returns the
 /// error of a command that failed, and the error of a report that cannot reach
@@ -544,7 +580,7 @@ fn values(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
     matches
         .subcommand()
         .map_or_else(ArgsValues::empty, |(_, command)| {
-            arguments::collect(schema, command)
+            self::arguments::collect(schema, command)
         })
 }
 
@@ -557,9 +593,9 @@ fn values(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
 /// command line does not know ends the run in the same way, before the action
 /// runs. Its error tells the user to update Rakko.
 ///
-/// What the action returned reaches the reader as one report, and the flags
+/// What the action returned reaches the reader as one report. The flags
 /// of the run decide whether that report renders as text or as JSON. The
-/// report travels as the result of the command and not as a message, so the
+/// report travels as the result of the command and not as a message. So the
 /// flags that reduce the output do not suppress what the run found.
 ///
 /// # Errors
@@ -592,7 +628,7 @@ fn drive_action(
 
         context
             .output()
-            .artifact(Report::new(name, outcome))
+            .artifact(Report::builder().action(name).outcome(outcome).build())
             .await?;
 
         Ok(code)
@@ -604,9 +640,9 @@ fn drive_action(
 /// The command receives the context of the project and the context of
 /// Clawless, and it writes what it has to say through the latter. A run that
 /// ends in success is clean. A run that ends in an error carries that error
-/// to the caller, which shows it and gives the process the code of a run
-/// that could not answer, because the command line cannot tell a problem of
-/// the project from a failure of the command.
+/// to the caller. The caller shows it and gives the process the code of a run
+/// that could not answer. This is because the command line cannot tell a
+/// problem of the project from a failure of the command.
 ///
 /// # Errors
 ///
@@ -659,8 +695,8 @@ fn drive_group(
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
 
-        let members = members::bind(group.members(), &values)?;
-        let code = scheduler::run(&group.name(), members, &project, &context).await?;
+        let members = self::members::bind(group.members(), &values)?;
+        let code = self::scheduler::run(&group.name(), members, &project, &context).await?;
 
         Ok(code)
     })
@@ -671,7 +707,7 @@ fn drive_group(
 /// The runner renders everything that the entry sends before it returns, and
 /// it ends every run with an exit of its own. That exit holds an error only
 /// as text, and it holds a code that the process cannot read back. The entry
-/// therefore gives its result back beside the runner, so that the caller gets
+/// therefore gives its result back beside the runner. This lets the caller get
 /// the code that the entry chose and an error with every cause.
 ///
 /// # Errors
@@ -717,10 +753,10 @@ where
 
 /// Returns the error of the command line that ends a run that failed
 ///
-/// The message carries every cause of the error, because the error of a
-/// command usually states only what failed, and the reason sits in its
+/// The message carries every cause of the error. This is because the error of
+/// a command usually states only what failed, and the reason sits in its
 /// source. The parser exits with the code of a run that could not answer for
-/// every error of this kind, so the message and the code travel together.
+/// every error of this kind. So the message and the code travel together.
 fn run_error(entry: &str, error: &dyn Error) -> clap::Error {
     clap::Error::raw(
         ErrorKind::Io,
@@ -730,7 +766,7 @@ fn run_error(entry: &str, error: &dyn Error) -> clap::Error {
 
 /// Returns the context of the project that a run maintains
 ///
-/// A user who named the project root gets that root, and every other run
+/// A user who named the project root gets that root. Every other run
 /// searches for the directory that marks the project, from the directory
 /// that the run started in.
 ///
@@ -748,10 +784,10 @@ fn locate(
 
 /// Returns the code that a run gives back for the given outcome
 ///
-/// A run that does not apply is clean, because a skip is an answer: a bundle
+/// A run that does not apply is clean, because a skip is an answer. A bundle
 /// that mounts an action for a stack that a project does not use must not turn
-/// that project red. A run that repaired the project is clean as well: the
-/// caller asked for the repair, and the repairs travel in the report, so a
+/// that project red. A run that repaired the project is clean as well. The
+/// caller asked for the repair, and the repairs travel in the report. So a
 /// step that runs a fix in CI must not go red over its success. A run that
 /// repaired some of what it found still has a problem, so it takes the code
 /// for a problem.
@@ -769,9 +805,10 @@ fn exit_code(outcome: &Outcome) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::marker::PhantomData;
     use std::path::Path;
@@ -803,8 +840,8 @@ mod tests {
 
     /// The arguments that the reader reads
     ///
-    /// The set holds one argument of every shape, and it keeps the values that
-    /// it was built from, so that a test reads what the command line
+    /// The set holds one argument of every shape. It keeps the values that
+    /// it was built from so that a test reads what the command line
     /// collected.
     #[derive(Clone, Eq, PartialEq, Debug)]
     struct Arguments {
@@ -815,22 +852,26 @@ mod tests {
     impl Args for Arguments {
         fn schema() -> ArgsSchema {
             ArgsSchema::new([
-                argument("fix", ArgumentShape::Boolean, FIX),
-                argument(
-                    "jobs",
-                    ArgumentShape::Integer,
-                    "Examine this many files at once",
-                ),
-                argument(
-                    "report",
-                    ArgumentShape::Path,
-                    "Write the report to this file",
-                ),
-                argument(
-                    "extension",
-                    ArgumentShape::Text,
-                    "Examine only the files with this extension",
-                ),
+                argument()
+                    .name("fix")
+                    .shape(ArgumentShape::Boolean)
+                    .documentation(FIX)
+                    .call(),
+                argument()
+                    .name("jobs")
+                    .shape(ArgumentShape::Integer)
+                    .documentation("Examine this many files at once")
+                    .call(),
+                argument()
+                    .name("report")
+                    .shape(ArgumentShape::Path)
+                    .documentation("Write the report to this file")
+                    .call(),
+                argument()
+                    .name("extension")
+                    .shape(ArgumentShape::Text)
+                    .documentation("Examine only the files with this extension")
+                    .call(),
             ])
         }
 
@@ -860,7 +901,7 @@ mod tests {
 
     /// The arguments that a member of a group declares
     ///
-    /// The description of an argument set belongs to its type, so each set of
+    /// The description of an argument set belongs to its type. So each set of
     /// arguments that a test member declares is a type of its own.
     trait Declaration: Send + Sync + 'static {
         /// Returns the arguments that the member declares
@@ -872,7 +913,11 @@ mod tests {
 
     impl Declaration for Fix {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([argument("fix", ArgumentShape::Boolean, FIX)])
+            ArgsSchema::new([argument()
+                .name("fix")
+                .shape(ArgumentShape::Boolean)
+                .documentation(FIX)
+                .call()])
         }
     }
 
@@ -881,11 +926,11 @@ mod tests {
 
     impl Declaration for FixAsText {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([argument(
-                "fix",
-                ArgumentShape::Text,
-                "Repair the files that match this pattern",
-            )])
+            ArgsSchema::new([argument()
+                .name("fix")
+                .shape(ArgumentShape::Text)
+                .documentation("Repair the files that match this pattern")
+                .call()])
         }
     }
 
@@ -1083,11 +1128,11 @@ mod tests {
 
     impl Declaration for ReportPath {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([argument(
-                "report",
-                ArgumentShape::Path,
-                "Write the report to this file",
-            )])
+            ArgsSchema::new([argument()
+                .name("report")
+                .shape(ArgumentShape::Path)
+                .documentation("Write the report to this file")
+                .call()])
         }
     }
 
@@ -1096,11 +1141,11 @@ mod tests {
 
     impl Args for Reserved {
         fn schema() -> ArgsSchema {
-            ArgsSchema::new([argument(
-                "json",
-                ArgumentShape::Boolean,
-                "Report what the action found as JSON",
-            )])
+            ArgsSchema::new([argument()
+                .name("json")
+                .shape(ArgumentShape::Boolean)
+                .documentation("Report what the action found as JSON")
+                .call()])
         }
 
         fn from_values(_values: &ArgsValues) -> Result<Self, ReadArgsError> {
@@ -1262,6 +1307,7 @@ mod tests {
     }
 
     /// Returns the description of an argument
+    #[bon::builder]
     fn argument(name: &str, shape: ArgumentShape, documentation: &str) -> Argument {
         Argument::builder()
             .name(name.parse().expect("the test names an argument correctly"))
@@ -1485,12 +1531,35 @@ mod tests {
     }
 
     #[test]
+    fn builder_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Builder>();
+    }
+
+    #[test]
     fn builder_returns_a_builder_of_a_command_line() {
         let builder = builder();
 
         let name = builder.command().get_name().to_owned();
 
         assert_eq!(name, NAME);
+    }
+
+    #[test]
+    fn command_carries_the_flags_that_control_the_output() {
+        let command = builder().command();
+
+        let flags: Vec<&str> = command
+            .get_arguments()
+            .map(|argument| argument.get_id().as_str())
+            .collect();
+
+        assert!(
+            ["quiet", "verbose", "json"]
+                .iter()
+                .all(|flag| flags.contains(flag))
+        );
     }
 
     #[test]
@@ -1567,6 +1636,13 @@ mod tests {
     }
 
     #[test]
+    fn command_refuses_a_run_that_gives_an_argument_and_names_no_action() {
+        let kind = error_kind(&["rakko", "--json"]);
+
+        assert_eq!(kind, ErrorKind::MissingSubcommand);
+    }
+
+    #[test]
     fn command_refuses_a_value_that_is_not_a_number() {
         let builder = builder().mount([reader()]);
 
@@ -1584,29 +1660,6 @@ mod tests {
         let help = flag.get_help().map(ToString::to_string);
 
         assert_eq!(help, Some(FIX.to_owned()));
-    }
-
-    #[test]
-    fn command_refuses_a_run_that_gives_an_argument_and_names_no_action() {
-        let kind = error_kind(&["rakko", "--json"]);
-
-        assert_eq!(kind, ErrorKind::MissingSubcommand);
-    }
-
-    #[test]
-    fn command_carries_the_flags_that_control_the_output() {
-        let command = builder().command();
-
-        let flags: Vec<&str> = command
-            .get_arguments()
-            .map(|argument| argument.get_id().as_str())
-            .collect();
-
-        assert!(
-            ["quiet", "verbose", "json"]
-                .iter()
-                .all(|flag| flags.contains(flag))
-        );
     }
 
     #[test]
@@ -1711,19 +1764,6 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_reports_another_code_for_an_action_that_stopped() {
-        let findings = code_for(|| Outcome::Failed {
-            findings: Vec::new(),
-            repairs: Vec::new(),
-        });
-        let stopped = code_for(|| Outcome::Errored {
-            source: Box::new(std::io::Error::other("boom")),
-        });
-
-        assert_ne!(findings, stopped);
-    }
-
-    #[test]
     fn dispatch_reports_a_nonzero_code_for_an_action_that_stopped() {
         let code = code_for(|| Outcome::Errored {
             source: Box::new(std::io::Error::other("boom")),
@@ -1743,6 +1783,19 @@ mod tests {
         .expect("expected the command line to drive the action");
 
         assert_eq!(code, EXIT_UNANSWERED);
+    }
+
+    #[test]
+    fn dispatch_reports_another_code_for_an_action_that_stopped() {
+        let findings = code_for(|| Outcome::Failed {
+            findings: Vec::new(),
+            repairs: Vec::new(),
+        });
+        let stopped = code_for(|| Outcome::Errored {
+            source: Box::new(std::io::Error::other("boom")),
+        });
+
+        assert_ne!(findings, stopped);
     }
 
     #[test]
@@ -1892,6 +1945,19 @@ mod tests {
     }
 
     #[test]
+    fn mount_builds_a_flat_command_tree() {
+        let command = builder()
+            .mount([probe("format-toml"), probe("lint-rust")])
+            .command();
+
+        let nested = command
+            .get_subcommands()
+            .any(|action| action.get_subcommands().next().is_some());
+
+        assert!(!nested);
+    }
+
+    #[test]
     fn mount_commands_builds_a_flat_command_tree() {
         let command = builder()
             .mount_commands([written("serve"), written("watch")])
@@ -1945,19 +2011,6 @@ mod tests {
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
         assert_eq!(names, ["format-toml", "lint-rust"]);
-    }
-
-    #[test]
-    fn mount_builds_a_flat_command_tree() {
-        let command = builder()
-            .mount([probe("format-toml"), probe("lint-rust")])
-            .command();
-
-        let nested = command
-            .get_subcommands()
-            .any(|action| action.get_subcommands().next().is_some());
-
-        assert!(!nested);
     }
 
     #[test]
@@ -2143,15 +2196,29 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "json")]
+    fn mount_refuses_an_action_whose_argument_the_command_line_carries() {
+        let _builder = builder().mount([Box::new(Colliding) as Box<dyn ErasedAction>]);
+    }
+
+    #[test]
     #[should_panic(expected = "format-toml")]
     fn mount_refuses_two_actions_with_one_name() {
         let _builder = builder().mount([probe("format-toml"), probe("format-toml")]);
     }
 
     #[test]
-    #[should_panic(expected = "json")]
-    fn mount_refuses_an_action_whose_argument_the_command_line_carries() {
-        let _builder = builder().mount([Box::new(Colliding) as Box<dyn ErasedAction>]);
+    fn resolution_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Resolution>();
+    }
+
+    #[test]
+    fn resolve_reports_a_run_that_it_cannot_read() {
+        let kind = error_kind(&["rakko", "--unknown"]);
+
+        assert_eq!(kind, ErrorKind::UnknownArgument);
     }
 
     #[test]
@@ -2196,6 +2263,17 @@ mod tests {
         };
 
         assert_eq!(group.name().get(), GROUP);
+    }
+
+    #[test]
+    fn resolve_shows_the_help_for_a_run_without_arguments() {
+        let Ok(Resolution::Commands(mut command)) = builder().resolve(["rakko"]) else {
+            panic!("expected the run to ask for the commands");
+        };
+
+        let help = command.render_help().to_string();
+
+        assert!(help.contains(ABOUT));
     }
 
     #[test]
@@ -2267,15 +2345,6 @@ mod tests {
     }
 
     #[test]
-    fn run_gives_the_command_the_text_that_the_user_wrote() {
-        let values = values_of_command(&["serve", "--extension", "md"]);
-
-        let value = values.get(&argument_name!("extension"));
-
-        assert_eq!(value, Some(&ArgumentValue::new("md")));
-    }
-
-    #[test]
     fn run_gives_the_action_true_for_a_boolean_that_the_user_gave() {
         let values = values_of(&[READER, "--fix"]);
 
@@ -2285,21 +2354,12 @@ mod tests {
     }
 
     #[test]
-    fn resolve_shows_the_help_for_a_run_without_arguments() {
-        let Ok(Resolution::Commands(mut command)) = builder().resolve(["rakko"]) else {
-            panic!("expected the run to ask for the commands");
-        };
+    fn run_gives_the_command_the_text_that_the_user_wrote() {
+        let values = values_of_command(&["serve", "--extension", "md"]);
 
-        let help = command.render_help().to_string();
+        let value = values.get(&argument_name!("extension"));
 
-        assert!(help.contains(ABOUT));
-    }
-
-    #[test]
-    fn resolve_reports_a_run_that_it_cannot_read() {
-        let kind = error_kind(&["rakko", "--unknown"]);
-
-        assert_eq!(kind, ErrorKind::UnknownArgument);
+        assert_eq!(value, Some(&ArgumentValue::new("md")));
     }
 
     #[test]

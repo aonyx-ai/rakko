@@ -1,3 +1,5 @@
+//! The view of an action that hides its type
+
 use std::future::Future;
 use std::pin::Pin;
 
@@ -16,13 +18,13 @@ use crate::outcome::Outcome;
 /// actions at once and cannot name a different type for each of them, so it
 /// holds erased actions instead.
 ///
-/// An erased action answers everything that the machinery needs without
-/// naming the type of the action: the name that identifies it, the
-/// description of the arguments that a projection turns into a command, and a
-/// bind that takes the values of that command. The conversion from those
-/// values into the arguments of the action happens inside, where the type is
-/// still known. The bind returns a [`BoundAction`], which declares how the run
-/// uses the project and then runs with the same arguments.
+/// An erased action answers everything that the machinery needs without naming
+/// the type of the action. It provides the name that identifies it and the
+/// description of the arguments that a projection turns into a command. It also
+/// provides a bind that takes the values of that command. The conversion from
+/// those values into the arguments of the action happens inside, where the type
+/// is still known. The bind returns a [`BoundAction`], which declares how the
+/// run uses the project and then runs with the same arguments.
 ///
 /// Every action has an erased view, because this trait is implemented for all
 /// of them. An action author never writes this implementation and never names
@@ -64,9 +66,9 @@ pub trait ErasedAction: Send + Sync {
     /// Converts the values of a run into the arguments of the action
     ///
     /// The values hold what the machinery parsed for the arguments of the
-    /// action. The answer holds the action together with its arguments, so a
-    /// caller can ask it how the run uses the project and then run it, and
-    /// both see the same arguments.
+    /// action. The answer holds the action together with its arguments. So a
+    /// caller can ask it how the run uses the project and then run it, and both
+    /// see the same arguments.
     ///
     /// # Errors
     ///
@@ -140,9 +142,10 @@ impl<A: Action> BoundAction for Bound<'_, A> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::pin::pin;
     use std::task::{Context as TaskContext, Poll, Waker};
@@ -151,10 +154,20 @@ mod tests {
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
     use crate::{action_name, argument_name};
 
+    /// What a formatter run does
+    #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+    enum Operation {
+        /// Report the files that the tool would change
+        Report,
+
+        /// Rewrite the files that the tool can format
+        Rewrite,
+    }
+
     /// The arguments of the formatter: whether the run repairs what it finds
     struct Fix {
         /// Whether the run rewrites the files that it can format
-        fix: bool,
+        fix: Operation,
     }
 
     impl Args for Fix {
@@ -167,9 +180,12 @@ mod tests {
         }
 
         fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
-            Ok(Self {
-                fix: values.get(&argument_name!("fix")).is_some(),
-            })
+            let fix = if values.get(&argument_name!("fix")).is_some() {
+                Operation::Rewrite
+            } else {
+                Operation::Report
+            };
+            Ok(Self { fix })
         }
     }
 
@@ -184,10 +200,9 @@ mod tests {
         }
 
         fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-            if args.fix {
-                Access::Write
-            } else {
-                Access::Read
+            match args.fix {
+                Operation::Rewrite => Access::Write,
+                Operation::Report => Access::Read,
             }
         }
 
@@ -284,21 +299,21 @@ mod tests {
     }
 
     #[test]
-    fn arguments_returns_the_schema_of_the_arguments() {
-        let action = Unbuildable;
-
-        let schema = ErasedAction::arguments(&action);
-
-        assert_eq!(schema.arguments().len(), 1);
-    }
-
-    #[test]
     fn arguments_of_an_action_without_arguments_is_empty() {
         let action = Probe;
 
         let schema = ErasedAction::arguments(&action);
 
         assert!(schema.arguments().is_empty());
+    }
+
+    #[test]
+    fn arguments_returns_the_schema_of_the_arguments() {
+        let action = Unbuildable;
+
+        let schema = ErasedAction::arguments(&action);
+
+        assert_eq!(schema.arguments().len(), 1);
     }
 
     #[test]
@@ -342,6 +357,13 @@ mod tests {
         let access = bound.access(&context());
 
         assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn bound_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Bound<'static, Formatter>>();
     }
 
     #[test]

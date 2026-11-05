@@ -1,3 +1,5 @@
+//! The place in the project that a diagnostic points at
+
 use std::path::PathBuf;
 
 use bon::Builder;
@@ -7,10 +9,24 @@ use rakko_action::{FilePath, ProjectRoot};
 /// The place in the project that a diagnostic points at
 ///
 /// Tsc writes the path, the line, and the column in front of a diagnostic that
-/// it found in a file. The path stands as tsc wrote it: a run starts tsc in
-/// the project root and names the root as the project, so tsc reports a path
+/// it found in a file. The path stands as tsc wrote it. A run starts tsc in the
+/// project root and names the root as the project, so tsc reports a path
 /// relative to it. A caller that reports the diagnostic asks for the
 /// [relative][relative] path.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::diagnostic::Origin;
+/// use std::path::PathBuf;
+///
+/// let origin = Origin::builder()
+///     .path(PathBuf::from("src/index.ts"))
+///     .line(2)
+///     .column(14)
+///     .build();
+/// assert_eq!(origin.line(), 2);
+/// ```
 ///
 /// [relative]: Origin::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
@@ -35,16 +51,33 @@ impl Origin {
     /// configuration of a project can include a file from a parent directory,
     /// and tsc then writes a path that starts with `..`. The caller decides
     /// what to do about such a file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_check_typescript::diagnostic::Origin;
+    /// use std::path::PathBuf;
+    ///
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let origin = Origin::builder()
+    ///     .path(PathBuf::from("/home/otter/project/src/index.ts"))
+    ///     .line(2)
+    ///     .column(14)
+    ///     .build();
+    /// assert_eq!(origin.relative_path(&root), "src/index.ts".parse().ok());
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -58,6 +91,13 @@ mod tests {
     /// The root that the diagnostics of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn origin_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Origin>();
     }
 
     #[test]

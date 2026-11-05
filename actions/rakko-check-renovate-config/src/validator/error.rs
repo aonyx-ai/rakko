@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -5,19 +7,33 @@ use crate::validator::report::ReadReportError;
 
 /// An error that leaves a run of the validator without an answer
 ///
-/// A problem that the validator found in a configuration is no failure of a
-/// run: it travels in the observation, and the caller decides what it means.
-/// The variants here describe a run that produced no answer about the project
-/// that the caller can trust.
+/// A problem the validator found in a configuration is no failure of a run.
+/// It travels in the observation, and the caller decides what it means. The
+/// variants here describe a run that produced no answer about the project that
+/// the caller can trust.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::validator::ObserveValidatorError;
+///
+/// let error = ObserveValidatorError::MissingReport {
+///     details: "exit code 1".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the validator reported no problem and ended without success: exit code 1"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveValidatorError {
     /// The validator stopped before it had validated the project
     ///
-    /// The validator ends with a status of its own when it crashes, and it
-    /// writes a fatal record when it cannot read the global configuration that
-    /// a run of Renovate would start with. It validated less than the project
-    /// in both cases, so an answer built on such a run would describe a part
-    /// of the project as though it were the whole.
+    /// The validator ends with a status of its own when it crashes. It writes
+    /// a fatal record when it cannot read the global configuration that a run
+    /// of Renovate would start with. It validated less than the project in both
+    /// cases. So an answer built on such a run would describe a part of
+    /// the project as though it were the whole.
     #[error("the validator stopped before it had validated the project: {details}")]
     AbortedValidation {
         /// What the validator wrote about the run that it stopped
@@ -58,20 +74,30 @@ pub enum ObserveValidatorError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Checks that the error holds auto traits
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. The reason is that a field of a later version could
+    /// take them away without a word from the compiler.
     #[test]
     fn observe_validator_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ObserveValidatorError>();
+    }
+
+    #[test]
+    fn observe_validator_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveValidatorError>();
     }
 }

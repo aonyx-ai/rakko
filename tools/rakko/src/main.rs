@@ -31,6 +31,7 @@ use rakko_format_yaml::FormatYaml;
 use rakko_lint_github_actions::LintGitHubActions;
 use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
+use rakko_lint_stiles::LintStiles;
 use rakko_lint_yaml::LintYaml;
 use rakko_pre_commit::PreCommit;
 use rakko_set_msrv::SetMsrv;
@@ -38,18 +39,16 @@ use rakko_test_rust::TestRust;
 use rakko_test_rust_docs::TestRustDocs;
 
 /// Builds the command line of this repository and runs it
-///
-/// The call ends the process itself, so a harness stays a `main` that names
-/// what the repository mounts and returns nothing.
-fn main() {
+fn main() -> std::process::ExitCode {
     let pre_commit = PreCommit::new(actions_that_guard_a_commit());
 
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
+        .mount([Box::new(LintStiles) as Box<dyn ErasedAction>])
         .mount_commands([Box::new(SetMsrv::new(Box::new(CheckMsrv))) as Box<dyn ErasedCommand>])
         .mount_groups([Box::new(pre_commit) as Box<dyn Group>])
-        .run();
+        .run()
 }
 
 /// Returns the actions that guard a commit
@@ -76,6 +75,7 @@ fn actions_that_guard_a_commit() -> Vec<Box<dyn ErasedAction>> {
         Box::new(LintGitHubActions),
         Box::new(LintMarkdown),
         Box::new(LintRust),
+        Box::new(LintStiles),
         Box::new(LintYaml),
         Box::new(TestRust),
         Box::new(TestRustDocs),

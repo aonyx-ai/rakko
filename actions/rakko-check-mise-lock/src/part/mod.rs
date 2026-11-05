@@ -7,11 +7,8 @@
 //! platform. A finding names the part, so a reader knows which download is
 //! missing or changed.
 
-/// The platform of a part
 mod platform;
-/// The name of the tool of a part
 mod tool_name;
-/// The version of the tool of a part
 mod version;
 
 use std::fmt;
@@ -29,8 +26,22 @@ pub use self::version::Version;
 /// that records no platform, such as the entry of a tool that mise builds from
 /// source, has one part without a platform.
 ///
-/// Parts order by tool, then by version, then by platform, so the findings of
-/// a run come in an order that does not change from one run to the next.
+/// Parts order by tool, then by version, then by platform. So the findings of a
+/// run come in an order that does not change from one run to the next.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::{Part, Platform, ToolName, Version};
+///
+/// let part = Part::builder()
+///     .tool(ToolName::new("python"))
+///     .version(Version::new("3.12.0"))
+///     .platform(Platform::new("macos-arm64"))
+///     .build();
+///
+/// assert_eq!(part.to_string(), "python 3.12.0 for macos-arm64");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub struct Part {
     /// The tool that the part records
@@ -64,9 +75,10 @@ impl fmt::Display for Part {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -89,5 +101,12 @@ mod tests {
             .build();
 
         assert_eq!(part.to_string(), "cargo:cargo-deny 0.20.2");
+    }
+
+    #[test]
+    fn part_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Part>();
     }
 }

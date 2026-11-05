@@ -1,16 +1,13 @@
 //! What cargo-udeps reported about a workspace
 //!
-//! Cargo-udeps ends a run with one JSON document that names every dependency
-//! no target loaded. Cargo writes its own records to the same stream, so the
-//! report is one line among many, and this module picks it out and reads it.
-//! The shape belongs to a version of cargo-udeps, and keeping the reading in
-//! one place keeps the version surface in one place as well.
+//! Cargo-udeps ends a run with one JSON document that names every dependency no
+//! target loaded. Cargo writes its own records to the same stream, so the
+//! report is one line among many. This module picks it out and reads it. The
+//! shape belongs to a version of cargo-udeps. Keeping the reading in one place
+//! keeps the version surface in one place as well.
 
-/// One dependency that a package declares and never uses
 mod dependency;
-/// The error that stops the reading
 mod error;
-/// The table of a manifest that declares a dependency
 mod kind;
 
 use std::collections::BTreeMap;
@@ -61,17 +58,28 @@ impl UdepsReport {
     /// Reads the report of a run from what cargo-udeps wrote to its standard
     /// output
     ///
-    /// The reading looks for the one line that names the unused
-    /// dependencies. It ignores every other line, because cargo writes the
-    /// records of the build to the same stream, and it answers `None` when
-    /// no line carries the report.
+    /// The reading looks for the one line that names the unused dependencies.
+    /// It ignores every other line, because cargo writes the records of the
+    /// build to the same stream. It answers `None` when no line carries the
+    /// report.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_unused_deps::UdepsReport;
+    ///
+    /// let stdout = r#"{"success":true,"unused_deps":{},"note":null}"#;
+    /// let report = UdepsReport::read(stdout)?;
+    /// assert_eq!(report.map(|r| r.dependencies().len()), Some(0));
+    /// # Ok::<(), rakko_check_unused_deps::ReadUdepsReportError>(())
+    /// ```
     ///
     /// # Errors
     ///
     /// Returns [`UnrecognizedReport`][unrecognized] when a line carries the
     /// report and the crate cannot read its body. The shape belongs to a
-    /// version of cargo-udeps, and a reading that skipped such a line would
-    /// let a workspace pass with its unused dependencies unread.
+    /// version of cargo-udeps. A reading that skipped such a line would let
+    /// a workspace pass with its unused dependencies unread.
     ///
     /// [unrecognized]: ReadUdepsReportError::UnrecognizedReport
     pub fn read(stdout: &str) -> Result<Option<Self>, ReadUdepsReportError> {
@@ -94,10 +102,10 @@ impl UdepsReport {
 
 /// Returns whether a line carries the report of cargo-udeps
 ///
-/// Cargo writes its records to the same stream, and none of them names the
-/// unused dependencies of a run, so the field that does tells the report
-/// apart. The reading looks at the names of the fields and steps over the
-/// values, which is what keeps the look cheap on a line of a build.
+/// Cargo writes its records to the same stream. None of them names the unused
+/// dependencies of a run, so the field that does tells the report apart. The
+/// reading looks at the names of the fields. It steps over the values. This is
+/// what keeps the look cheap on a line of a build.
 fn carries_report(line: &str) -> bool {
     serde_json::from_str::<BTreeMap<String, IgnoredAny>>(line)
         .is_ok_and(|fields| fields.contains_key(UNUSED_DEPS))
@@ -135,10 +143,9 @@ struct Package {
 impl Record {
     /// Returns the unused dependencies of every package of the report
     ///
-    /// The packages arrive in the order of their identifiers, and the
-    /// dependencies of a package in the order that cargo-udeps named them,
-    /// so two runs over the same workspace report the same findings in the
-    /// same order.
+    /// The packages arrive in the order of their identifiers. The dependencies
+    /// of a package arrive in the order that cargo-udeps named them. So two
+    /// runs over the same workspace report the same findings in the same order.
     fn into_dependencies(self) -> Vec<UnusedDependency> {
         self.unused_deps
             .into_values()
@@ -163,9 +170,13 @@ impl Package {
             .flat_map(|(kind, names)| {
                 let manifest = manifest.clone();
 
-                names
-                    .into_iter()
-                    .map(move |name| UnusedDependency::new(kind, name, manifest.clone()))
+                names.into_iter().map(move |name| {
+                    UnusedDependency::builder()
+                        .kind(kind)
+                        .name(name)
+                        .manifest(manifest.clone())
+                        .build()
+                })
             })
             .collect()
     }
@@ -173,9 +184,10 @@ impl Package {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
 
@@ -186,6 +198,44 @@ mod tests {
 
     /// A record that cargo wrote about the build
     const RECORD: &str = r#"{"reason":"build-finished","success":true}"#;
+
+    #[test]
+    fn package_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Package>();
+    }
+
+    #[test]
+    fn read_a_report_beside_the_records_of_cargo_names_every_dependency() {
+        let stdout = format!("{RECORD}\n{FOUND}\n");
+
+        let report = UdepsReport::read(&stdout);
+
+        assert_eq!(
+            report
+                .ok()
+                .flatten()
+                .map(|report| report.dependencies().to_vec()),
+            Some(vec![
+                UnusedDependency::builder()
+                    .kind(DependencyKind::Normal)
+                    .name("serde".to_owned())
+                    .manifest(PathBuf::from("/project/Cargo.toml"))
+                    .build(),
+                UnusedDependency::builder()
+                    .kind(DependencyKind::Development)
+                    .name("tempfile".to_owned())
+                    .manifest(PathBuf::from("/project/Cargo.toml"))
+                    .build(),
+                UnusedDependency::builder()
+                    .kind(DependencyKind::Build)
+                    .name("cc".to_owned())
+                    .manifest(PathBuf::from("/project/Cargo.toml"))
+                    .build(),
+            ])
+        );
+    }
 
     #[test]
     fn read_a_report_in_a_shape_the_crate_does_not_know_holds_the_line() {
@@ -204,40 +254,15 @@ mod tests {
     }
 
     #[test]
-    fn read_a_stream_without_a_report_answers_nothing() {
-        let report = UdepsReport::read(RECORD);
-
-        assert_eq!(report.ok(), Some(None));
-    }
-
-    #[test]
-    fn read_a_report_beside_the_records_of_cargo_names_every_dependency() {
-        let stdout = format!("{RECORD}\n{FOUND}\n");
-
-        let report = UdepsReport::read(&stdout);
+    fn read_a_report_names_the_manifest_of_the_package() {
+        let report = UdepsReport::read(FOUND);
 
         assert_eq!(
             report
                 .ok()
                 .flatten()
-                .map(|report| report.dependencies().to_vec()),
-            Some(vec![
-                UnusedDependency::new(
-                    DependencyKind::Normal,
-                    "serde".to_owned(),
-                    PathBuf::from("/project/Cargo.toml"),
-                ),
-                UnusedDependency::new(
-                    DependencyKind::Development,
-                    "tempfile".to_owned(),
-                    PathBuf::from("/project/Cargo.toml"),
-                ),
-                UnusedDependency::new(
-                    DependencyKind::Build,
-                    "cc".to_owned(),
-                    PathBuf::from("/project/Cargo.toml"),
-                ),
-            ])
+                .map(|report| report.dependencies()[0].manifest().clone()),
+            Some(Path::new("/project/Cargo.toml").to_path_buf())
         );
     }
 
@@ -255,15 +280,23 @@ mod tests {
     }
 
     #[test]
-    fn read_a_report_names_the_manifest_of_the_package() {
-        let report = UdepsReport::read(FOUND);
+    fn read_a_stream_without_a_report_answers_nothing() {
+        let report = UdepsReport::read(RECORD);
 
-        assert_eq!(
-            report
-                .ok()
-                .flatten()
-                .map(|report| report.dependencies()[0].manifest().clone()),
-            Some(Path::new("/project/Cargo.toml").to_path_buf())
-        );
+        assert_eq!(report.ok(), Some(None));
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
+    }
+
+    #[test]
+    fn udeps_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<UdepsReport>();
     }
 }

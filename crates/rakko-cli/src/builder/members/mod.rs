@@ -1,8 +1,7 @@
-/// One member of a group, bound to the values of one run
+//! The check, the flags, and the bind of the members of a group
+
 mod bound_member;
-/// The error of a run whose member cannot bind its values
 mod error;
-/// One flag of a group, merged from the arguments of its members
 mod merged_argument;
 
 use std::collections::BTreeSet;
@@ -56,7 +55,7 @@ pub(super) fn refuse_repeated(group: &Name, members: &[Box<dyn ErasedAction>]) {
 /// Panics when two members declare one argument with two different shapes,
 /// and reports the group, both members, the argument, and both shapes. One
 /// flag cannot hold two shapes, and only a change of the harness or of an
-/// action corrects that, so the failure happens where the harness mounts the
+/// action corrects that. So the failure happens where the harness mounts the
 /// group and not where a user runs it.
 pub(super) fn merge(group: &Name, members: &[Box<dyn ErasedAction>]) -> Vec<MergedArgument> {
     let mut merged: Vec<MergedArgument> = Vec::new();
@@ -70,7 +69,12 @@ pub(super) fn merge(group: &Name, members: &[Box<dyn ErasedAction>]) -> Vec<Merg
                 .find(|flag| flag.argument().name() == argument.name())
             {
                 Some(flag) => flag.add(group, member.name(), argument),
-                None => merged.push(MergedArgument::new(member.name(), argument)),
+                None => merged.push(
+                    MergedArgument::builder()
+                        .member(member.name())
+                        .argument(argument)
+                        .build(),
+                ),
             }
         }
     }
@@ -80,8 +84,8 @@ pub(super) fn merge(group: &Name, members: &[Box<dyn ErasedAction>]) -> Vec<Merg
 
 /// Binds every member of a group to the values of the run
 ///
-/// The values hold one entry for each member, in the order of the members, and
-/// each entry holds the values of the arguments that its member declares. The
+/// The values hold one entry for each member, in the order of the members.
+/// Each entry holds the values of the arguments that its member declares. The
 /// members are bound before any of them runs, so a run that cannot bind one of
 /// them runs none of them.
 ///
@@ -97,12 +101,14 @@ pub(super) fn bind<'a>(
         .iter()
         .zip(values)
         .map(|(member, values)| {
-            BoundMember::bind(member.as_ref(), values).map_err(|source| {
-                BindMembersError::UnboundMember {
+            BoundMember::bind()
+                .action(member.as_ref())
+                .values(values)
+                .call()
+                .map_err(|source| BindMembersError::UnboundMember {
                     member: member.name(),
                     source,
-                }
-            })
+                })
         })
         .collect()
 }

@@ -10,14 +10,30 @@ use getset::Getters;
 
 /// A problem that tracey found in the specifications of a project
 ///
-/// Tracey places every problem in a file, at a line and a column, and writes
-/// a message about it. The message is the one that tracey wrote, so a reader
-/// of a finding reads the answer of the tool instead of one that Rakko wrote
-/// about it.
+/// Tracey places every problem in a file, at a line and a column, and writes a
+/// message about it. The message is the one that tracey wrote. So a reader of a
+/// finding reads the answer of the tool instead of one that Rakko wrote about
+/// it.
 ///
 /// The path is the one that tracey reported. Tracey starts in the root of the
 /// project and names a file below it, so the path is already the one that a
 /// finding needs.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::TraceyProblem;
+///
+/// let problem = TraceyProblem::builder()
+///     .path("crates/rakko/src/lib.rs")
+///     .line(12)
+///     .column(4)
+///     .message("Unknown rule reference")
+///     .build();
+///
+/// assert_eq!(problem.path(), "crates/rakko/src/lib.rs");
+/// assert_eq!(*problem.line(), 12);
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct TraceyProblem {
     /// The path of the file that the problem is in
@@ -40,6 +56,22 @@ pub struct TraceyProblem {
 #[bon]
 impl TraceyProblem {
     /// Creates a problem that tracey placed in a file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_specs::TraceyProblem;
+    ///
+    /// let problem = TraceyProblem::builder()
+    ///     .path("crates/rakko/src/lib.rs")
+    ///     .line(12)
+    ///     .column(4)
+    ///     .message("Unknown rule reference")
+    ///     .build();
+    ///
+    /// assert_eq!(problem.message(), "Unknown rule reference");
+    /// assert_eq!(*problem.column(), 4);
+    /// ```
     #[builder]
     pub fn new(
         #[builder(into)] path: String,
@@ -58,9 +90,10 @@ impl TraceyProblem {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -82,5 +115,12 @@ mod tests {
             ),
             ("crates/rakko/src/lib.rs", 12, 4, "Unknown rule reference")
         );
+    }
+
+    #[test]
+    fn tracey_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TraceyProblem>();
     }
 }

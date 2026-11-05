@@ -1,10 +1,10 @@
 //! The action that formats the TOML files of a project
 //!
-//! [Taplo] does the work: it discovers the TOML files, reads its own
-//! configuration, and formats what that configuration selects, so a run of
+//! [Taplo] does the work. It discovers the TOML files, reads its own
+//! configuration, and formats what that configuration selects. So a run of
 //! the action agrees with an editor and with a contributor that runs taplo
-//! bare. The action starts the taplo that [mise] installed for the project,
-//! at the version that the project pinned, and translates what taplo
+//! bare. The action starts the taplo that [mise] installed for the project
+//! at the version that the project pinned. It translates what taplo
 //! reported into the outcome of the run.
 //!
 //! A run reports by default and rewrites with the `fix` argument. A project
@@ -27,7 +27,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [taplo]: https://taplo.tamasfe.dev
 
-/// Types for the action that formats the TOML files of a project
 pub mod format_toml;
 
-pub use self::format_toml::{FormatToml, FormatTomlArgs, FormatTomlError};
+pub use self::format_toml::{FormatOperation, FormatToml, FormatTomlArgs, FormatTomlError};

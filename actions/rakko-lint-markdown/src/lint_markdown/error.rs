@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_tool::{ResolveToolError, RunCommandError};
@@ -11,6 +13,22 @@ use crate::markdownlint::ObserveMarkdownlintError;
 /// as a finding in the outcome of the run. The variants of this error
 /// describe a run whose answer cannot be trusted, and such a run stops
 /// instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_markdown::LintMarkdownError;
+/// use std::path::PathBuf;
+///
+/// let error = LintMarkdownError::ForeignPath {
+///     path: PathBuf::from("/outside/project/file.md"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "markdownlint reported a path outside the project: /outside/project/file.md"
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum LintMarkdownError {
     /// Markdownlint reported a path that the project root does not contain
@@ -36,12 +54,11 @@ pub enum LintMarkdownError {
 
     /// Markdownlint wrote a report that the action cannot read
     ///
-    /// The shape of the report belongs to a version of markdownlint. A run
-    /// that could not open a file also ends this way, because markdownlint
-    /// then writes the failure of its runtime in place of the report, and an
-    /// answer built on such a report would leave an unknown part of the
-    /// project unread.
-    #[error("markdownlint wrote a report that the action cannot read: {report}")]
+    /// The report shape belongs to a version of markdownlint. A run that could
+    /// not open a file also ends this way. Markdownlint then writes the failure
+    /// of its runtime in place of the report. So an answer built on such a
+    /// report would leave an unknown part of the project unread.
+    #[error("failed to read markdownlint's report: {report}")]
     UnreadableReport {
         /// What markdownlint wrote in place of a report
         report: String,
@@ -52,9 +69,9 @@ pub enum LintMarkdownError {
 
     /// Markdownlint ended without success and reported no rule
     ///
-    /// A run that failed says why in its report, so a failure without one
-    /// happened for a reason that the action cannot name, and an answer built
-    /// on it would hide every problem behind a green result.
+    /// A run that failed says why in its report. So a failure without one
+    /// happened for a reason that the action cannot name. An answer built on it
+    /// would hide every problem behind a green result.
     #[error("markdownlint ended without success and reported nothing: {stderr}")]
     UnrecognizedReport {
         /// What markdownlint wrote to its standard error stream
@@ -92,10 +109,10 @@ impl From<ObserveMarkdownlintError> for LintMarkdownError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that builds an
-    // unreadable report expects the reading to fail. A `# Panics` section on
-    // every test would repeat that and give the reader no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that builds an unreadable report expects the reading to fail. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -119,14 +136,23 @@ mod tests {
         );
     }
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read. This test holds the error
-    // to the auto traits that make this possible, because a field of a later
-    // version could take them away without a word from the compiler.
+    /// Shows that error is Send and Sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn lint_markdown_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<LintMarkdownError>();
+    }
+
+    #[test]
+    fn lint_markdown_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintMarkdownError>();
     }
 }

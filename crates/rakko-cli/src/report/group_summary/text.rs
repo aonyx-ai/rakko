@@ -1,3 +1,5 @@
+//! The text that a run of a group emits for a reader at a terminal
+
 use std::fmt;
 
 use rakko_action::Outcome;
@@ -44,11 +46,31 @@ pub(super) fn render(summary: &GroupSummary, formatter: &mut fmt::Formatter<'_>)
     write!(formatter, "{}: ", summary.group)?;
 
     match (problems, stops) {
-        (0, 0) => render_share(total, total, "passed", formatter),
-        (0, stops) => render_share(stops, total, "stopped", formatter),
-        (problems, 0) => render_share(problems, total, "found problems", formatter),
+        (0, 0) => render_share()
+            .count(total)
+            .total(total)
+            .verdict("passed")
+            .formatter(formatter)
+            .call(),
+        (0, stops) => render_share()
+            .count(stops)
+            .total(total)
+            .verdict("stopped")
+            .formatter(formatter)
+            .call(),
+        (problems, 0) => render_share()
+            .count(problems)
+            .total(total)
+            .verdict("found problems")
+            .formatter(formatter)
+            .call(),
         (problems, stops) => {
-            render_share(problems, total, "found problems", formatter)?;
+            render_share()
+                .count(problems)
+                .total(total)
+                .verdict("found problems")
+                .formatter(formatter)
+                .call()?;
             write!(formatter, ", {stops} stopped")
         }
     }
@@ -61,6 +83,7 @@ pub(super) fn render(summary: &GroupSummary, formatter: &mut fmt::Formatter<'_>)
 ///
 /// Returns the error of the formatter when the formatter cannot take what the
 /// share writes.
+#[bon::builder]
 fn render_share(
     count: usize,
     total: usize,
@@ -74,9 +97,10 @@ fn render_share(
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_action::{Name, SkipReason, action_name};
 
@@ -85,33 +109,40 @@ mod tests {
 
     /// Returns the report of a member that found a problem
     fn failed(name: Name) -> Report {
-        Report::new(
-            name,
-            Outcome::Failed {
+        Report::builder()
+            .action(name)
+            .outcome(Outcome::Failed {
                 findings: Vec::new(),
                 repairs: Vec::new(),
-            },
-        )
+            })
+            .build()
     }
 
     /// Returns the report of a member that passed
     fn passed(name: Name) -> Report {
-        Report::new(name, Outcome::Passed { summary: None })
+        Report::builder()
+            .action(name)
+            .outcome(Outcome::Passed { summary: None })
+            .build()
     }
 
     /// Returns the text of the summary of a run of the group `check`
     fn rendered(members: Vec<Report>) -> String {
-        GroupSummary::new(action_name!("check"), members).to_string()
+        GroupSummary::builder()
+            .group(action_name!("check"))
+            .members(members)
+            .build()
+            .to_string()
     }
 
     /// Returns the report of a member that stopped
     fn stopped(name: Name) -> Report {
-        Report::new(
-            name,
-            Outcome::Errored {
+        Report::builder()
+            .action(name)
+            .outcome(Outcome::Errored {
                 source: Box::new(std::io::Error::other("the tool is missing")),
-            },
-        )
+            })
+            .build()
     }
 
     #[test]
@@ -145,18 +176,18 @@ mod tests {
     #[test]
     fn render_with_members_that_changed_or_skipped_counts_them_as_passed() {
         let text = rendered(vec![
-            Report::new(
-                action_name!("format-yaml"),
-                Outcome::Changed {
+            Report::builder()
+                .action(action_name!("format-yaml"))
+                .outcome(Outcome::Changed {
                     repairs: Vec::new(),
-                },
-            ),
-            Report::new(
-                action_name!("lint-yaml"),
-                Outcome::Skipped {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("lint-yaml"))
+                .outcome(Outcome::Skipped {
                     reason: SkipReason::new("the project has no YAML file"),
-                },
-            ),
+                })
+                .build(),
         ]);
 
         assert_eq!(text, "check: 2 of 2 actions passed");

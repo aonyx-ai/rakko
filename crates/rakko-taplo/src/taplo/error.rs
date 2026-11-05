@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -7,12 +9,27 @@ use thiserror::Error;
 /// file that it would reformat travel as problems of the observation. These
 /// variants describe a run whose report cannot be trusted, and the action
 /// that asked for the run reports it instead of answering from it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_taplo::ObserveTaploError;
+///
+/// let error = ObserveTaploError::IncompleteReport {
+///     stderr: "error output".to_string(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "taplo wrote a report that ends before its last line: error output",
+/// );
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveTaploError {
     /// Every attempt lost part of the report
     ///
     /// Taplo can lose the end of its report when it exits. A run that ended
-    /// without success names at least one problem, so a report of such a run
+    /// without success names at least one problem. So a report of such a run
     /// that names none lost the lines that held them. The run repeats a few
     /// times, and this is what remains when no attempt held an answer.
     #[error("taplo wrote a report that ends before its last line: {stderr}")]
@@ -30,4 +47,16 @@ pub enum ObserveTaploError {
         /// The cause of the failure
         source: RunCommandError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observe_taplo_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveTaploError>();
+    }
 }

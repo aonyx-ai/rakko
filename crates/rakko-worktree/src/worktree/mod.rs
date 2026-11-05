@@ -1,18 +1,15 @@
 //! The disposable copy of a project that a job runs in
 //!
 //! A copy is a detached checkout of the commit that the HEAD of the project
-//! names, with the changed files of the checkout synced over it. It therefore
-//! holds what the contributor holds, and a job that writes into it changes
-//! nothing that the contributor can see.
+//! names. The changed files of the checkout are synced over it. The copy
+//! therefore holds what the contributor holds , and a job that writes into it
+//! changes nothing that the contributor can see.
 //!
 //! The value owns the copy. It lives for as long as the jobs that run in it,
 //! and the drop takes the copy with it.
 
-/// What the crate reports when it cannot stand up a copy of a project
 mod error;
-/// The commands of git that the crate starts
 mod git;
-/// The paths where the tree of a contributor differs from its commit
 mod status;
 
 use std::fs;
@@ -79,14 +76,14 @@ const UNTRACKED: &str = "--untracked-files=all";
 /// The option of `status` that reports a rename as a removal and an addition
 ///
 /// The sync copies a path that the project holds and removes a path that it
-/// does not, so the two entries of a rename need no rule of their own.
+/// does not. So the two entries of a rename need no rule of their own.
 const NO_RENAMES: &str = "--no-renames";
 
 /// The name of the checkout inside the directory that the crate creates
 ///
-/// Git names the entry of a worktree after this directory, and it makes the
-/// name unique when a repository already holds one, so two copies of one
-/// project can live at the same time.
+/// Git names the entry of a worktree after this directory. It makes the name
+/// unique when a repository already holds one. So two copies of one project can
+/// live at the same time.
 const CHECKOUT: &str = "worktree";
 
 /// The details of a failure that git did not explain
@@ -97,10 +94,10 @@ const NO_TOP_LEVEL: &str = "git named no top level";
 
 /// A disposable copy of a project that a job runs in
 ///
-/// The copy is a git worktree in a directory of the temporary directory of
-/// the system. It holds the commit that the HEAD of the project names, and
-/// the files that the contributor changed on top of it, so a job that runs
-/// there reads the tree that the contributor is working on.
+/// The copy is a git worktree in a directory of the temporary directory of the
+/// system. It holds the commit that the HEAD of the project names, and the
+/// files that the contributor changed on top of it. So a job that runs there
+/// reads the tree that the contributor is working on.
 ///
 /// The value owns the copy, and the drop removes it. A caller therefore holds
 /// the value for as long as the jobs run, and lets it go when the answers are
@@ -108,6 +105,20 @@ const NO_TOP_LEVEL: &str = "git named no top level";
 ///
 /// The copy is a checkout and not a sandbox. A job that writes outside of it
 /// writes into the project, and nothing here stops that.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_worktree::Worktree;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let worktree = Worktree::create("/home/otter/project".into()).await?;
+///
+/// assert_ne!(worktree.root(), worktree.project());
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Getters)]
 pub struct Worktree {
     /// The root of the project that the copy belongs to
@@ -116,7 +127,7 @@ pub struct Worktree {
 
     /// The root of the copy
     ///
-    /// The copy holds the tree of the project at this directory, so it is a
+    /// The copy holds the tree of the project at this directory. So it is a
     /// project root of its own: the file that marks the root of the project
     /// arrived with the checkout.
     #[getset(get = "pub")]
@@ -132,9 +143,9 @@ pub struct Worktree {
 impl Worktree {
     /// Creates a copy of the project and syncs the changed files into it
     ///
-    /// The copy checks out the commit that the HEAD of the project names, and
-    /// every path that git reports as changed or as untracked travels from the
-    /// project into it: a path that the project holds is copied, and a path
+    /// The copy checks out the commit that the HEAD of the project names. Every
+    /// path that git reports as changed or as untracked travels from the
+    /// project into it. A path that the project holds is copied, and a path
     /// that the project holds nothing at is removed. Ignored files are never
     /// reported and never copied, so the build directory of the project stays
     /// where it is and the copy builds from nothing.
@@ -144,6 +155,9 @@ impl Worktree {
     ///
     /// The project must be a git repository, and its root must be the top
     /// level of that repository.
+    ///
+    /// Once the worktree exists, the value owns it. A failure of the sync then
+    /// drops the value, and git takes the worktree away.
     ///
     /// # Errors
     ///
@@ -200,8 +214,6 @@ impl Worktree {
 
         add(&project, &root).await?;
 
-        // From here on the value owns the worktree, so a failure of the sync
-        // drops it and git takes the worktree away.
         let worktree = Self {
             project,
             root,
@@ -215,10 +227,10 @@ impl Worktree {
 
     /// Returns the path that a path of the project has inside the copy
     ///
-    /// The copy holds the tree of the project at its own root, so the answer
-    /// is the same path relative to the root. A caller that runs a job at a
-    /// directory of the project asks for the directory inside the copy, and
-    /// keeps reporting its findings at the path of the project.
+    /// The copy holds the tree of the project at its own root, so the answer is
+    /// the same path relative to the root. A caller that runs a job at a
+    /// directory of the project asks for the directory inside the copy. The
+    /// caller keeps reporting its findings at the path of the project.
     ///
     /// A relative path is read against the root of the project, and a path
     /// that climbs through `..` is resolved before the answer.
@@ -312,9 +324,13 @@ impl Worktree {
     /// Carries one changed path of the project into the copy
     ///
     /// A path that the project holds a file at is copied over the path in the
-    /// copy, and a path that the project holds nothing at is removed from the
-    /// copy. A path that names a directory in the project is a submodule that
-    /// moved, and the copy keeps the revision that the commit names.
+    /// copy. A path that the project holds nothing at is removed from the copy.
+    /// A path that names a directory in the project is a submodule that moved.
+    /// The copy keeps the revision that the commit names.
+    ///
+    /// The copy can hold a file where the project holds a link. A write through
+    /// a link would reach the file that the link names. The method removes the
+    /// path first, so the write creates what the project has.
     ///
     /// # Errors
     ///
@@ -338,9 +354,6 @@ impl Worktree {
             fs::create_dir_all(parent)?;
         }
 
-        // The copy can hold a file where the project holds a link, and a
-        // write through a link would reach the file that the link names, so
-        // the path goes first and the write creates what the project has.
         remove(&target)?;
 
         write(&source, &target, &metadata)
@@ -357,6 +370,10 @@ impl Worktree {
 /// still goes with the value, and `git worktree prune` forgets the entry that
 /// it leaves.
 impl Drop for Worktree {
+    /// Takes the checkout and then its directory away
+    ///
+    /// Git takes the checkout away, and the method removes the directory that
+    /// held it, with whatever a git that failed left behind.
     fn drop(&mut self) {
         let _ = self::git::blocking_command(self.project.get())
             .arg(WORKTREE)
@@ -367,8 +384,6 @@ impl Drop for Worktree {
             .stderr(Stdio::null())
             .status();
 
-        // Git takes the checkout away, and the directory that held it goes
-        // here, with whatever a git that failed left behind.
         let _ = fs::remove_dir_all(self.directory.path());
     }
 }
@@ -407,7 +422,7 @@ async fn add(project: &ProjectRoot, root: &ProjectRoot) -> Result<(), CreateWork
 ///
 /// Git writes its diagnosis to the standard error stream, and that diagnosis
 /// names the condition in the words of git. The text travels into the message
-/// of the error, so whoever reads the failure reads the answer of git instead
+/// of the error. So whoever reads the failure reads the answer of git instead
 /// of a sentence that Rakko wrote about it.
 fn diagnosis(execution: &Execution) -> String {
     let stderr = execution.stderr().to_string_lossy();
@@ -422,9 +437,9 @@ fn diagnosis(execution: &Execution) -> String {
 
 /// Returns whether the two paths name one directory
 ///
-/// A project root can reach a directory through a symbolic link, and git
-/// answers with the directory that it resolved, so the resolved forms decide
-/// when the paths differ as text.
+/// A project root can reach a directory through a symbolic link. Git answers
+/// with the directory that it resolved. So the resolved forms decide when the
+/// paths differ as text.
 fn names_the_same_directory(top_level: &Path, project: &ProjectRoot) -> bool {
     if top_level == project.get() {
         return true;
@@ -440,9 +455,9 @@ fn names_the_same_directory(top_level: &Path, project: &ProjectRoot) -> bool {
 /// component before it
 ///
 /// A check that asks whether a directory contains a path that climbs through
-/// its parents answers for the wrong directory, so the climb is resolved
-/// first. The resolution is lexical: a component that is a symbolic link
-/// resolves as a directory, which is how the caller wrote the path.
+/// its parents answers for the wrong directory. So the climb is resolved first.
+/// The resolution is lexical: a component that is a symbolic link resolves as a
+/// directory, which is how the caller wrote the path.
 fn normalize(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
 
@@ -480,9 +495,9 @@ fn remove(target: &Path) -> IoResult<()> {
 
 /// Returns the path without the project root that prefixes it
 ///
-/// The root of a project can name the same directory through a symbolic link,
-/// and a caller can hold the directory that the link resolves to, which is why
-/// the canonical root is tried as well.
+/// The root of a project can name the same directory through a symbolic link. A
+/// caller can hold the directory that the link resolves to. So the canonical
+/// root is tried as well.
 fn strip(path: &Path, project: &ProjectRoot) -> Option<PathBuf> {
     if let Ok(stripped) = path.strip_prefix(project.get()) {
         return Some(stripped.to_path_buf());
@@ -495,7 +510,7 @@ fn strip(path: &Path, project: &ProjectRoot) -> Option<PathBuf> {
 
 /// Writes what the project holds at the source to the target
 ///
-/// A symbolic link becomes a link to the same target, so the copy holds what
+/// A symbolic link becomes a link to the same target. So the copy holds what
 /// the project holds and not the file that the link names.
 ///
 /// # Errors
@@ -564,12 +579,15 @@ async fn top_level(project: &ProjectRoot) -> Result<PathBuf, CreateWorktreeError
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::env;
     use std::process::Output;
+
+    use bon::bon;
 
     use super::*;
 
@@ -577,21 +595,26 @@ mod tests {
     ///
     /// The tests need a project of their own, because they read and write the
     /// tree of the project and remove it afterwards. A repository of the
-    /// machine would carry the configuration of the contributor into the test,
-    /// so each repository is a fresh one in a directory that goes with the
+    /// machine would carry the configuration of the contributor into the test.
+    /// So each repository is a fresh one in a directory that goes with the
     /// value.
     struct Repository {
         /// The directory that holds the repository
         directory: TempDir,
     }
 
+    #[bon]
     impl Repository {
         /// Creates a repository with one commit that holds one file
         fn new() -> Self {
             let repository = Self::empty();
 
-            repository.write("tracked.txt", "one");
-            repository.write("crates/example/lib.rs", "// example");
+            repository.write().path("tracked.txt").content("one").call();
+            repository
+                .write()
+                .path("crates/example/lib.rs")
+                .content("// example")
+                .call();
             repository.git(&["add", "--all"]);
             repository.git(&["commit", "--message", "The first commit"]);
 
@@ -618,9 +641,9 @@ mod tests {
 
         /// Runs git in the repository and returns what it produced
         ///
-        /// The command forgets the variables that name a repository, so a
-        /// test that runs inside a hook of another repository still works on
-        /// the one that it created.
+        /// The command forgets the variables that name a repository. So a test
+        /// that runs inside a hook of another repository still works on the one
+        /// that it created.
         fn git(&self, arguments: &[&str]) -> Output {
             self::git::blocking_command(self.directory.path())
                 .args(arguments)
@@ -661,6 +684,7 @@ mod tests {
         }
 
         /// Writes a file of the working tree, and its parent directories
+        #[builder]
         fn write(&self, path: &str, content: &str) {
             let file = self.root().get().join(path);
 
@@ -732,7 +756,7 @@ mod tests {
     #[tokio::test]
     async fn create_copies_a_changed_file() {
         let repository = Repository::new();
-        repository.write("tracked.txt", "two");
+        repository.write().path("tracked.txt").content("two").call();
 
         let worktree = Worktree::create(repository.root())
             .await
@@ -741,9 +765,28 @@ mod tests {
         assert_eq!(content(&worktree, "tracked.txt").as_deref(), Some("two"));
     }
 
-    // The copy holds what the project holds, and a link is not the file that
-    // it names. A write through the link would reach that file instead, which
-    // is the failure that this test rules out.
+    #[tokio::test]
+    async fn create_copies_a_staged_file() {
+        let repository = Repository::new();
+        repository
+            .write()
+            .path("staged.txt")
+            .content("staged")
+            .call();
+        repository.git(&["add", "staged.txt"]);
+
+        let worktree = Worktree::create(repository.root())
+            .await
+            .expect("expected git to create the copy");
+
+        assert_eq!(content(&worktree, "staged.txt").as_deref(), Some("staged"));
+    }
+
+    /// Preserves symbolic links when copying a worktree
+    ///
+    /// The copy holds what the project holds, and a link is not the file that
+    /// it names. A write through the link would reach that file instead, which
+    /// is the failure that this test rules out.
     #[cfg(unix)]
     #[tokio::test]
     async fn create_copies_a_symbolic_link_as_a_link() {
@@ -759,22 +802,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn create_copies_a_staged_file() {
-        let repository = Repository::new();
-        repository.write("staged.txt", "staged");
-        repository.git(&["add", "staged.txt"]);
-
-        let worktree = Worktree::create(repository.root())
-            .await
-            .expect("expected git to create the copy");
-
-        assert_eq!(content(&worktree, "staged.txt").as_deref(), Some("staged"));
-    }
-
-    #[tokio::test]
     async fn create_copies_an_untracked_file_in_a_new_directory() {
         let repository = Repository::new();
-        repository.write("fresh/deep/new.txt", "new");
+        repository
+            .write()
+            .path("fresh/deep/new.txt")
+            .content("new")
+            .call();
 
         let worktree = Worktree::create(repository.root())
             .await
@@ -789,10 +823,18 @@ mod tests {
     #[tokio::test]
     async fn create_ignores_a_file_that_git_ignores() {
         let repository = Repository::new();
-        repository.write(".gitignore", "target/\n");
+        repository
+            .write()
+            .path(".gitignore")
+            .content("target/\n")
+            .call();
         repository.git(&["add", ".gitignore"]);
         repository.git(&["commit", "--message", "Ignore the build directory"]);
-        repository.write("target/artifact.bin", "a gigabyte, in spirit");
+        repository
+            .write()
+            .path("target/artifact.bin")
+            .content("a gigabyte, in spirit")
+            .call();
 
         let worktree = Worktree::create(repository.root())
             .await
@@ -815,7 +857,7 @@ mod tests {
     #[tokio::test]
     async fn create_in_a_modified_project_reports_the_copy_as_modified() {
         let repository = Repository::new();
-        repository.write("tracked.txt", "two");
+        repository.write().path("tracked.txt").content("two").call();
 
         let worktree = Worktree::create(repository.root())
             .await
@@ -827,8 +869,12 @@ mod tests {
     #[tokio::test]
     async fn create_leaves_the_project_as_it_was() {
         let repository = Repository::new();
-        repository.write("tracked.txt", "two");
-        repository.write("untracked.txt", "new");
+        repository.write().path("tracked.txt").content("two").call();
+        repository
+            .write()
+            .path("untracked.txt")
+            .content("new")
+            .call();
         repository.git(&["add", "tracked.txt"]);
         let before = repository.state();
 
@@ -964,6 +1010,18 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn path_of_a_relative_path_of_the_project_names_the_same_path() {
+        let repository = Repository::new();
+        let worktree = Worktree::create(repository.root())
+            .await
+            .expect("expected git to create the copy");
+
+        let inside = worktree.path_of(Path::new("crates/example"));
+
+        assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
+    }
+
+    #[tokio::test]
     async fn path_of_an_absolute_path_of_the_project_names_the_same_path() {
         let repository = Repository::new();
         let worktree = Worktree::create(repository.root())
@@ -975,11 +1033,13 @@ mod tests {
         assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
     }
 
-    // A caller can hold the directory that the file system resolved, and on
-    // some platforms the temporary directory differs from it as text: a
-    // symbolic link on macOS, and a short name on Windows. The resolved root
-    // must then carry the spelling that the caller holds, or no path gets a
-    // name inside the copy.
+    /// Returns the same path when resolved on different platforms
+    ///
+    /// A caller can hold the directory that the file system resolved. On some
+    /// platforms the temporary directory differs from it as text. On macOS the
+    /// difference is a symbolic link. On Windows the difference is a short
+    /// name. The resolved root must then carry the spelling that the caller
+    /// holds, or no path gets a name inside the copy.
     #[tokio::test]
     async fn path_of_an_absolute_path_under_the_resolved_root_names_the_same_path() {
         let repository = Repository::new();
@@ -993,27 +1053,24 @@ mod tests {
         assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
     }
 
-    #[tokio::test]
-    async fn path_of_a_relative_path_of_the_project_names_the_same_path() {
-        let repository = Repository::new();
-        let worktree = Worktree::create(repository.root())
-            .await
-            .expect("expected git to create the copy");
-
-        let inside = worktree.path_of(Path::new("crates/example"));
-
-        assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
-    }
-
-    // A scheduler runs actions in parallel and can move a run to a different
-    // thread, so a copy that an action holds across a wait travels with it.
-    // This test holds the copy to the auto traits that make this possible,
-    // because a field of a later version could take them away without a word
-    // from the compiler.
+    /// Shows that a `Worktree` holds auto traits
+    ///
+    /// A scheduler runs actions in parallel. It can move a run to a different
+    /// thread, so a copy that an action holds across a wait travels with it.
+    /// This test holds the copy to the auto traits that make this possible. It
+    /// does so because a field of a later version could take them away without
+    /// a word from the compiler.
     #[test]
     fn worktree_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<Worktree>();
+    }
+
+    #[test]
+    fn worktree_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Worktree>();
     }
 }

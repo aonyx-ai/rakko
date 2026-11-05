@@ -404,6 +404,7 @@ dependencies = [
  "rakko-lint-github-actions",
  "rakko-lint-markdown",
  "rakko-lint-rust",
+ "rakko-lint-stiles",
  "rakko-lint-yaml",
  "rakko-pre-commit",
  "rakko-rust-library",
@@ -663,6 +664,7 @@ dependencies = [
 name = "rakko-check-dependencies"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko-action",
  "rakko-cargo",
@@ -742,6 +744,7 @@ dependencies = [
 name = "rakko-check-unused-deps"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko-action",
  "rakko-cargo",
@@ -755,6 +758,7 @@ dependencies = [
 name = "rakko-cli"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "clap",
  "clawless",
  "futures-util",
@@ -790,6 +794,7 @@ dependencies = [
 name = "rakko-format-rust"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko-action",
  "rakko-cargo",
@@ -858,6 +863,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-lint-stiles"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko-action",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "rakko-lint-toml"
 version = "0.1.0"
 dependencies = [
@@ -883,6 +901,7 @@ dependencies = [
 name = "rakko-nextest"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko-action",
  "rakko-cargo",
@@ -978,6 +997,7 @@ dependencies = [
 name = "rakko-test-rust-docs"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko-action",
  "rakko-cargo",
@@ -989,6 +1009,7 @@ dependencies = [
 name = "rakko-tool"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "kawauso-process",
  "rakko-action",

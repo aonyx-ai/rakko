@@ -1,3 +1,5 @@
+//! The reading of the text that prettier wrote
+
 use std::path::PathBuf;
 
 use super::Observation;
@@ -21,7 +23,7 @@ const UNMATCHED_PATTERN: &str = "No files matching the pattern were found";
 
 /// The marker of the line that reports an option prettier did not apply
 ///
-/// Prettier writes the line and then runs without the option, so the line is
+/// Prettier writes the line and then runs without the option. So the line is
 /// the only trace of a configuration that did not reach the run.
 const IGNORED_OPTION: &str = "Ignored unknown option";
 
@@ -43,10 +45,11 @@ const SECONDS: &str = "s";
 /// prettier could not do arrives on the standard error stream. The reading
 /// walks both, recognizes the lines that carry an answer, and ignores the
 /// rest.
+#[bon::builder]
 pub(super) fn read(
     stdout: &str,
     stderr: &str,
-    succeeded: bool,
+    exit: super::Exit,
     operation: Operation,
 ) -> Observation {
     let mut observation = Observation {
@@ -54,16 +57,18 @@ pub(super) fn read(
         rejected_configuration: None,
         rewritten: Vec::new(),
         stderr: stderr.to_owned(),
-        succeeded,
-        unmatched_pattern: false,
+        exit,
+        unmatched_pattern: super::Pattern::Matched,
     };
 
     for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
         match operation {
-            Operation::Report => observation.problems.push(PrettierProblem::new(
-                PathBuf::from(line),
-                ProblemDetail::Unformatted,
-            )),
+            Operation::Report => observation.problems.push(
+                PrettierProblem::builder()
+                    .path(PathBuf::from(line))
+                    .detail(ProblemDetail::Unformatted)
+                    .build(),
+            ),
             Operation::Rewrite => {
                 if let Some(path) = rewritten(line) {
                     observation.rewritten.push(PathBuf::from(path));
@@ -92,17 +97,24 @@ pub(super) fn read(
                 observation.rejected_configuration = Some(rejection(report, &lines[index + 1..]));
             }
         } else if report.starts_with(UNMATCHED_PATTERN) {
-            observation.unmatched_pattern = true;
-        } else if let Some(path) = quoted_path(report, UNREADABLE) {
-            let detail = ProblemDetail::Unreadable {
-                reason: reason(&lines[index + 1..]),
-            };
+            observation.unmatched_pattern = super::Pattern::Unmatched;
+        } else {
+            match quoted_path().report(report).marker(UNREADABLE).call() {
+                Some(path) => {
+                    let detail = ProblemDetail::Unreadable {
+                        reason: reason(&lines[index + 1..]),
+                    };
 
-            observation
-                .problems
-                .push(PrettierProblem::new(path, detail));
-        } else if let Some(problem) = diagnostic(report) {
-            observation.problems.push(problem);
+                    observation
+                        .problems
+                        .push(PrettierProblem::builder().path(path).detail(detail).build());
+                }
+                None => {
+                    if let Some(problem) = diagnostic(report) {
+                        observation.problems.push(problem);
+                    }
+                }
+            }
         }
     }
 
@@ -113,8 +125,8 @@ pub(super) fn read(
 ///
 /// Prettier writes the path, the message, and the position of the failure on
 /// one line, and draws the offending text below it. The excerpt carries the
-/// same prefix as the line above, so the position tells the two apart: only
-/// the line that reports the failure ends with one.
+/// same prefix as the line above. So the position tells the two apart: only the
+/// line that reports the failure ends with one.
 fn diagnostic(report: &str) -> Option<PrettierProblem> {
     let (line, column) = position(report)?;
     let (path, message) = report.split_once(DETAIL_SEPARATOR)?;
@@ -126,7 +138,12 @@ fn diagnostic(report: &str) -> Option<PrettierProblem> {
         message: message.to_owned(),
     };
 
-    Some(PrettierProblem::new(PathBuf::from(path), detail))
+    Some(
+        PrettierProblem::builder()
+            .path(PathBuf::from(path))
+            .detail(detail)
+            .build(),
+    )
 }
 
 /// Returns whether a word of a line states how long prettier took
@@ -146,6 +163,7 @@ fn position(report: &str) -> Option<(u32, u32)> {
 }
 
 /// Returns the path that a marker of a line quotes, if the line carries it
+#[bon::builder]
 fn quoted_path(report: &str, marker: &str) -> Option<PathBuf> {
     let quoted = report.strip_prefix(marker)?;
 
@@ -205,15 +223,17 @@ fn rewritten(line: &str) -> Option<&str> {
 
     match line.rsplit_once(' ') {
         Some((path, last)) if duration(last) => Some(path),
-        _ => Some(line),
+        None => Some(line),
+        Some(_) => Some(line),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -241,7 +261,12 @@ mod tests {
 
     /// Returns the detail of the only problem of a report
     fn detail(stderr: &str) -> ProblemDetail {
-        let observation = read("", stderr, false, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(stderr)
+            .exit(crate::Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
         let [problem] = observation.problems.as_slice() else {
             panic!("expected one problem, got {:?}", observation.problems);
@@ -252,7 +277,12 @@ mod tests {
 
     #[test]
     fn read_a_clean_report_finds_no_problem() {
-        let observation = read("", "", true, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr("")
+            .exit(crate::Exit::Succeeded)
+            .operation(Operation::Report)
+            .call();
 
         assert!(observation.problems.is_empty());
     }
@@ -273,21 +303,36 @@ mod tests {
 
     #[test]
     fn read_a_failed_run_reports_the_failure() {
-        let observation = read("", INVALID, false, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(INVALID)
+            .exit(crate::Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
-        assert!(!observation.succeeded);
+        assert_eq!(observation.exit(), crate::Exit::Failed);
     }
 
     #[test]
     fn read_a_pattern_without_a_match_reports_it() {
-        let observation = read("", UNMATCHED, false, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(UNMATCHED)
+            .exit(crate::Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
-        assert!(observation.unmatched_pattern);
+        assert_eq!(observation.unmatched_pattern(), crate::Pattern::Unmatched);
     }
 
     #[test]
     fn read_a_rejected_configuration_reports_what_prettier_said() {
-        let observation = read("", REJECTED, false, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(REJECTED)
+            .exit(crate::Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
         assert_eq!(
             observation.rejected_configuration.as_deref(),
@@ -299,7 +344,12 @@ mod tests {
 
     #[test]
     fn read_a_report_names_the_files_that_differ() {
-        let observation = read(DIFFERENT, "", false, Operation::Report);
+        let observation = read()
+            .stdout(DIFFERENT)
+            .stderr("")
+            .exit(crate::Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
         let paths: Vec<&PathBuf> = observation
             .problems
@@ -315,21 +365,36 @@ mod tests {
 
     #[test]
     fn read_a_rewrite_names_the_files_that_changed() {
-        let observation = read(WRITTEN, "", true, Operation::Rewrite);
+        let observation = read()
+            .stdout(WRITTEN)
+            .stderr("")
+            .exit(crate::Exit::Succeeded)
+            .operation(Operation::Rewrite)
+            .call();
 
         assert_eq!(observation.rewritten, [PathBuf::from("sub/messy.md")]);
     }
 
     #[test]
     fn read_a_rewrite_reports_no_problem_of_its_own() {
-        let observation = read(WRITTEN, "", true, Operation::Rewrite);
+        let observation = read()
+            .stdout(WRITTEN)
+            .stderr("")
+            .exit(crate::Exit::Succeeded)
+            .operation(Operation::Rewrite)
+            .call();
 
         assert!(observation.problems.is_empty());
     }
 
     #[test]
     fn read_an_ignored_option_reports_what_prettier_said() {
-        let observation = read("", IGNORED, true, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(IGNORED)
+            .exit(crate::Exit::Succeeded)
+            .operation(Operation::Report)
+            .call();
 
         assert_eq!(
             observation.rejected_configuration.as_deref(),

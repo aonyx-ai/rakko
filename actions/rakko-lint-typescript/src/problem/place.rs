@@ -19,6 +19,27 @@ use rakko_action::Position;
 /// A path stands as oxlint wrote it. A run starts oxlint in the project root
 /// and names the root as the place to look, so oxlint reports every path
 /// relative to it.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use rakko_action::Position;
+/// use rakko_lint_typescript::Place;
+///
+/// let place = Place::Position {
+///     path: PathBuf::from("src/main.ts"),
+///     position: Position::builder().line(3).column(7).build(),
+/// };
+///
+/// let path = match &place {
+///     Place::Project => None,
+///     Place::File { path } | Place::Position { path, .. } => Some(path),
+/// };
+///
+/// assert_eq!(path, Some(&PathBuf::from("src/main.ts")));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Place {
     /// The diagnostic belongs to the project, and to no file in it
@@ -42,4 +63,16 @@ pub enum Place {
         /// The first place in the file that oxlint marked
         position: Position,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn place_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Place>();
+    }
 }

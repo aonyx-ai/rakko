@@ -1,22 +1,22 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a license that this repository refuses sits
-//! in the repository, where the checks of the repository itself would fight
-//! it.
+//! against it. So no fixture with a license that this repository refuses sits
+//! in the repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the cargo-deny that this repository pins. A project copies
-//! the `mise.toml` of the repository and trusts it, so the version that
-//! answers is the version that the repository installs, and a new pin reaches
-//! the tests without a change to them.
+//! the `mise.toml` of the repository and trusts it. So the version that answers
+//! is the version that the repository installs. A new pin reaches the tests
+//! without a change to them.
 //!
 //! Every project depends on nothing outside itself. Cargo-deny then resolves
 //! the graph of the project without a registry, so the tests need no network
 //! and answer the same on every machine.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -39,8 +39,8 @@ license = \"MIT\"
 
 /// A workspace that holds one member next to the package of its root
 ///
-/// The member is no dependency of the root package, so a run that takes the
-/// root package as the only root of the graph never reaches it.
+/// The member is no dependency of the root package. So a run that takes the root
+/// package as the only root of the graph never reaches it.
 const WORKSPACE_WITH_MEMBER: &str = "\
 [package]
 name = \"otter\"
@@ -86,9 +86,8 @@ const ALLOW_APACHE: &str = "[licenses]\nallow = [\"Apache-2.0\"]\n";
 
 /// A configuration that allows a license which no package of a project has
 ///
-/// Cargo-deny reports the unused permission as a warning, which is the weight
-/// that a project gives a shape that it wants to read about and not fail
-/// over.
+/// Cargo-deny reports the unused permission as a warning. This is the weight
+/// that a project gives to shapes it wants to read about but not fail over.
 const UNUSED: &str = "[licenses]\nallow = [\"MIT\", \"MPL-2.0\"]\n";
 
 /// A configuration that cargo-deny refuses to read
@@ -96,7 +95,7 @@ const BROKEN: &str = "no-such-key = true\n";
 
 /// A configuration whose advisory database no run can reach
 ///
-/// The path cannot be created and the address does not resolve, so a run that
+/// The path cannot be created and the address does not resolve. So a run that
 /// asked cargo-deny for the advisories check would stop before it checked
 /// anything. A run that asks for the other three checks never reads either.
 const UNREACHABLE_ADVISORIES: &str = "\
@@ -149,6 +148,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a tool to resolve
     ///
@@ -162,10 +162,10 @@ impl Project {
 
     /// Creates a project with the tools of this repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the cargo
-    /// and the cargo-deny that mise resolves for it are the ones that the
-    /// repository pins and installs. Mise ignores a configuration that nobody
-    /// trusts, so the copy is trusted right away.
+    /// The project copies the `mise.toml` of this repository. The cargo and
+    /// cargo-deny that mise resolves for it are the ones that the repository
+    /// pins and installs. Mise ignores a configuration that nobody trusts, so
+    /// the copy is trusted right away.
     fn new() -> Self {
         let project = Self::bare();
         project.pin(&pins());
@@ -176,9 +176,13 @@ impl Project {
     /// Creates a project with one package that the given configuration judges
     fn with_configuration(configuration: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", LIBRARY);
-        project.write("deny.toml", configuration);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(LIBRARY).call();
+        project
+            .write()
+            .path("deny.toml")
+            .content(configuration)
+            .call();
 
         project
     }
@@ -187,19 +191,27 @@ impl Project {
     /// the manifest declares
     fn stale() -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", STALE);
-        project.write("Cargo.lock", LOCKFILE);
-        project.write("src/lib.rs", LIBRARY);
-        project.write("helper/Cargo.toml", HELPER);
-        project.write("helper/src/lib.rs", LIBRARY);
-        project.write("deny.toml", ALLOW_MIT);
+        project.write().path("Cargo.toml").content(STALE).call();
+        project.write().path("Cargo.lock").content(LOCKFILE).call();
+        project.write().path("src/lib.rs").content(LIBRARY).call();
+        project
+            .write()
+            .path("helper/Cargo.toml")
+            .content(HELPER)
+            .call();
+        project
+            .write()
+            .path("helper/src/lib.rs")
+            .content(LIBRARY)
+            .call();
+        project.write().path("deny.toml").content(ALLOW_MIT).call();
 
         project
     }
 
     /// Creates a project that pins a cargo-deny that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for cargo-deny, whatever the global configuration of the
     /// machine says about it. The other pins of the repository stay, so the
     /// cargo of the run resolves and the run reaches the missing tool.
@@ -240,12 +252,12 @@ impl Project {
 
     /// Writes the lockfile of every workspace of the project that has none
     ///
-    /// The action holds cargo to the lockfile of a workspace, and cargo
-    /// refuses a workspace without one, as a project that commits its
-    /// lockfile never is. A test that writes a workspace therefore gets the
-    /// lockfile that a first build would write. A project in which cargo
-    /// cannot find its workspaces stays as it is, so that the run reports
-    /// what stops it.
+    /// The action holds cargo to the lockfile of a workspace. Cargo refuses a
+    /// workspace without one. A project that commits its lockfile is never
+    /// without one. A test
+    /// that writes a workspace therefore gets the lockfile that a first build
+    /// would write. A project in which cargo cannot find its workspaces stays
+    /// as it is, so that the run reports what stops it.
     async fn lock(&self) {
         let Ok(cargo) = Cargo::resolve(self.context().root().clone()).await else {
             return;
@@ -276,6 +288,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -290,12 +303,12 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 
@@ -361,14 +374,26 @@ fn summary(outcome: &Outcome) -> String {
 /// Returns a project of two workspaces, the second below `tools/harness`
 ///
 /// The package at the root of the project carries one license and the package
-/// of the second workspace carries the other, and each workspace holds the
+/// of the second workspace carries the other. Each workspace holds the
 /// configuration that the caller gives it. A caller therefore decides which of
 /// the two answers, and whether either of them refuses what it found.
 fn two_workspaces(harness: &str) -> Project {
     let project = Project::with_configuration(ALLOW_MIT);
-    project.write(&format!("{TOOLS}/Cargo.toml"), HARNESS);
-    project.write(&format!("{TOOLS}/src/lib.rs"), LIBRARY);
-    project.write(&format!("{TOOLS}/deny.toml"), harness);
+    project
+        .write()
+        .path(&format!("{TOOLS}/Cargo.toml"))
+        .content(HARNESS)
+        .call();
+    project
+        .write()
+        .path(&format!("{TOOLS}/src/lib.rs"))
+        .content(LIBRARY)
+        .call();
+    project
+        .write()
+        .path(&format!("{TOOLS}/deny.toml"))
+        .content(harness)
+        .call();
 
     project
 }
@@ -451,7 +476,11 @@ async fn run_in_a_clean_project_passes() {
 #[tokio::test]
 async fn run_in_a_project_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Notes\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Notes\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -473,11 +502,23 @@ async fn run_leaves_the_manifest_of_a_refused_package_unchanged() {
 #[tokio::test]
 async fn run_reaches_a_member_that_no_other_member_depends_on() {
     let project = Project::new();
-    project.write("Cargo.toml", WORKSPACE_WITH_MEMBER);
-    project.write("src/lib.rs", LIBRARY);
-    project.write("crates/sidecar/Cargo.toml", MEMBER);
-    project.write("crates/sidecar/src/lib.rs", LIBRARY);
-    project.write("deny.toml", ALLOW_MIT);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(WORKSPACE_WITH_MEMBER)
+        .call();
+    project.write().path("src/lib.rs").content(LIBRARY).call();
+    project
+        .write()
+        .path("crates/sidecar/Cargo.toml")
+        .content(MEMBER)
+        .call();
+    project
+        .write()
+        .path("crates/sidecar/src/lib.rs")
+        .content(LIBRARY)
+        .call();
+    project.write().path("deny.toml").content(ALLOW_MIT).call();
 
     let outcome = project.run().await;
 
@@ -505,7 +546,11 @@ async fn run_reads_the_configuration_that_lies_closest_to_a_workspace() {
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -589,13 +634,14 @@ async fn run_with_a_refused_license_fails() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_refused_license_leaves_the_project_unchanged() {
     let project = Project::with_configuration(ALLOW_APACHE);
     project.lock().await;
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckDependencies, &project.context(), &()).await;
 }
 
@@ -664,9 +710,9 @@ async fn run_with_a_warning_passes() {
 #[tokio::test]
 async fn run_without_a_cargo_deny_stops() {
     let project = Project::without_deny();
-    project.write("Cargo.toml", PACKAGE);
-    project.write("src/lib.rs", LIBRARY);
-    project.write("deny.toml", ALLOW_MIT);
+    project.write().path("Cargo.toml").content(PACKAGE).call();
+    project.write().path("src/lib.rs").content(LIBRARY).call();
+    project.write().path("deny.toml").content(ALLOW_MIT).call();
 
     let outcome = project.run().await;
 
@@ -676,9 +722,11 @@ async fn run_without_a_cargo_deny_stops() {
     );
 }
 
-// A workspace that never ran a build has no lockfile, and the action holds
-// cargo to one, so the run stops. The test runs the action directly, because
-// the helper that runs it writes the lockfile first.
+/// Shows that a run without a lockfile says that it needs an update
+///
+/// A workspace that never ran a build has no lockfile, and the action holds
+/// cargo to one, so the run stops. The test runs the action directly, because
+/// the helper that runs it writes the lockfile first.
 #[tokio::test]
 async fn run_without_a_lockfile_says_that_it_needs_an_update() {
     let project = Project::with_configuration(ALLOW_MIT);

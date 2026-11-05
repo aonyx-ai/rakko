@@ -1,10 +1,11 @@
-/// The JSON that a run of a group emits for a machine
+//! What a run of a group reports about the members that it drove
+
 mod schema;
-/// The text that a run of a group emits for a reader at a terminal
 mod text;
 
 use std::fmt;
 
+use bon::Builder;
 use rakko_action::Name;
 use serde::{Serialize, Serializer};
 
@@ -28,24 +29,12 @@ use super::Report;
 /// The JSON holds the name of the group, the number of members in each state,
 /// and the report of each member. Each report has the shape that a run of that
 /// action alone emits.
-#[derive(Debug)]
+#[derive(Debug, Builder)]
 pub(crate) struct GroupSummary {
     /// The name of the group that the run drove
     group: Name,
     /// The report of each member, in the order of the list of the group
     members: Vec<Report>,
-}
-
-impl GroupSummary {
-    /// Creates the summary of a run of a group from the name of the group and
-    /// the report of each member
-    ///
-    /// The reports keep the order in which the caller gives them, so the caller
-    /// gives them in the order of the list of the group.
-    #[must_use]
-    pub(crate) fn new(group: Name, members: Vec<Report>) -> Self {
-        Self { group, members }
-    }
 }
 
 impl fmt::Display for GroupSummary {
@@ -57,5 +46,17 @@ impl fmt::Display for GroupSummary {
 impl Serialize for GroupSummary {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self::schema::Payload::of(self).serialize(serializer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn group_summary_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<GroupSummary>();
     }
 }

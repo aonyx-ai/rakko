@@ -1,25 +1,45 @@
 //! One problem that oxfmt reported about a project
 //!
-//! A run of oxfmt names the files that it could not leave alone and the
-//! things that it could not do, and this module holds one of them together
-//! with what oxfmt knew about it.
+//! A run of oxfmt names the files that it could not leave alone. It also
+//! names the things that it could not do. This module holds one of them
+//! together with what oxfmt knew about it.
 
 use std::path::{Path, PathBuf};
 
 /// One problem that oxfmt reported about a project
 ///
 /// Oxfmt names a problem as precisely as the operation allows, and a variant
-/// carries one of those levels. A list of the files that a rewrite would
-/// change knows the file and nothing in it. A file that oxfmt read and could
-/// not parse points at the character that broke it. A file that oxfmt could
-/// not read at all, or could not write back, has a sentence and no place,
-/// because oxfmt never got far enough to have one.
+/// carries one of those levels. A list of the files that a rewrite would change
+/// knows the file and nothing in it. A file that oxfmt read and could not parse
+/// points at the character that broke it. A file that oxfmt could not read at
+/// all or could not write back has a sentence and no place. That is because
+/// oxfmt never got far enough to have one.
 ///
 /// A path stands as oxfmt wrote it. A run starts oxfmt in the project root, so
-/// oxfmt reports a path relative to it, and a caller that reports the problem
-/// asks [`FilePath::within`][within] for the path that a finding names.
+/// oxfmt reports a path relative to it. A caller that reports the problem asks
+/// [`FilePath::within`][within] for the path that a finding names.
 ///
 /// [within]: rakko_action::FilePath::within
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::OxfmtProblem;
+/// use rakko_test_utils::path;
+///
+/// let problem = OxfmtProblem::Invalid {
+///     path: path("src/index.ts"),
+///     line: 5,
+///     column: 10,
+///     message: String::from("Unexpected token"),
+/// };
+///
+/// assert!(matches!(
+///     &problem,
+///     OxfmtProblem::Invalid { line: 5, column: 10, .. }
+/// ));
+/// assert_eq!(problem.path(), Some(path("src/index.ts").as_path()));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum OxfmtProblem {
     /// Oxfmt could not format the file, and it named the place that stopped it
@@ -49,7 +69,7 @@ pub enum OxfmtProblem {
     ///
     /// A file that oxfmt cannot open and a file that it cannot write back both
     /// end this way. Oxfmt writes the path of the file into the sentence
-    /// instead of reporting it as a place, so the message carries it and the
+    /// instead of reporting it as a place. So the message carries it and the
     /// problem belongs to the project.
     Unplaced {
         /// What oxfmt said about the failure
@@ -61,6 +81,20 @@ impl OxfmtProblem {
     /// Returns the path of the file that the problem is about
     ///
     /// Returns `None` for a problem that oxfmt placed in no file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// use rakko_format_typescript::OxfmtProblem;
+    /// use rakko_test_utils::path;
+    ///
+    /// let problem = OxfmtProblem::Unformatted {
+    ///     path: path("src/index.ts"),
+    /// };
+    ///
+    /// assert_eq!(problem.path(), Some(path("src/index.ts").as_path()));
+    /// ```
     pub fn path(&self) -> Option<&Path> {
         match self {
             Self::Invalid { path, .. } | Self::Unformatted { path } => Some(path),
@@ -71,13 +105,21 @@ impl OxfmtProblem {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
     use super::*;
+
+    #[test]
+    fn oxfmt_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<OxfmtProblem>();
+    }
 
     #[test]
     fn path_of_a_failure_without_a_place_names_no_file() {

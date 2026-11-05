@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -6,6 +8,24 @@ use thiserror::Error;
 /// A problem of the project is not one of these. A file that is not formatted
 /// and a file that oxfmt could not format both travel in the observation of
 /// the run.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko_action::ProjectRoot;
+/// use rakko_format_typescript::{ObserveOxfmtError, Oxfmt};
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let oxfmt = Oxfmt::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// match oxfmt.list().await {
+///     Ok(observation) => println!("{} problems", observation.problems().len()),
+///     Err(ObserveOxfmtError::OxfmtUnavailable { source }) => println!("no answer: {source}"),
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug, Error)]
 pub enum ObserveOxfmtError {
     /// Oxfmt did not run
@@ -17,4 +37,16 @@ pub enum ObserveOxfmtError {
         /// The cause of the failure
         source: RunCommandError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observe_oxfmt_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveOxfmtError>();
+    }
 }

@@ -1,8 +1,10 @@
+//! The reading of the text that taplo wrote
+
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::Chars;
 
-use super::Observation;
+use super::{Exit, Observation};
 use crate::problem::{ProblemDetail, TaploProblem};
 
 /// The marker of the line that reports a rejected configuration file
@@ -47,31 +49,32 @@ const LOCATION_ARROW: &str = "┌─ ";
 
 /// The prefix of the line of a difference that names the file it rewrites
 ///
-/// A formatting run prints one difference for each file that it would
-/// rewrite, and the header of a difference names the file twice: once as the
-/// text on disk and once as the text that taplo would write. The reading
-/// takes the second name. No line inside a difference can be mistaken for
-/// it, because taplo marks an added line with a single `+`.
+/// A formatting run prints one difference for each file that it would rewrite.
+/// The header of a difference names the file twice: once as the text on disk
+/// and once as the text that taplo would write. The reading takes the second
+/// name. No line inside a difference can be mistaken for it, because taplo
+/// marks an added line with a single `+`.
 const DIFF_TARGET: &str = "+++ b/";
 
 /// Reads what a run of taplo produced
 ///
 /// The reading walks each stream line by line. A diagnostic spans several
-/// lines, and the reading looks ahead from its header without consuming the
-/// block, because the lines of a block match no other rule.
+/// lines. The reading looks ahead from its header without consuming the block,
+/// because the lines of a block match no other rule.
 ///
 /// The standard error stream is read first, so the files that taplo could
 /// not parse stand before the files that it would rewrite. The two streams
 /// name different files: taplo offers no difference for a file that it never
 /// parsed.
-pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
+#[bon::builder]
+pub(super) fn read(stdout: &str, stderr: &str, exit: Exit) -> Observation {
     let mut observation = Observation {
         checked: None,
         examined: Vec::new(),
         problems: Vec::new(),
         rejected_configuration: None,
         stderr: stderr.to_owned(),
-        succeeded,
+        exit,
     };
     let lines: Vec<&str> = observation.stderr.lines().collect();
 
@@ -89,7 +92,9 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
                     reason: reason(line),
                 };
 
-                observation.problems.push(TaploProblem::new(path, detail));
+                observation
+                    .problems
+                    .push(TaploProblem::builder().path(path).detail(detail).build());
             }
         } else if let Some(header) = line.strip_prefix(DIAGNOSTIC)
             && let Some(problem) = diagnostic(header, &lines[index + 1..])
@@ -100,9 +105,12 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
 
     for line in stdout.lines() {
         if let Some(path) = diff_target(line) {
-            observation
-                .problems
-                .push(TaploProblem::new(path, ProblemDetail::Unformatted));
+            observation.problems.push(
+                TaploProblem::builder()
+                    .path(path)
+                    .detail(ProblemDetail::Unformatted)
+                    .build(),
+            );
         }
     }
 
@@ -114,9 +122,9 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
 /// Returns the label that a caret line of a diagnostic carries
 ///
 /// The excerpt of a diagnostic draws the offending text and then a line of
-/// carets with a label, such as `^ unexpected EOF`. The caret line starts
-/// with the gutter of the excerpt and no line number, which is how it
-/// differs from a line of the offending text itself.
+/// carets with a label, such as `^ unexpected EOF`. The caret line starts with
+/// the gutter of the excerpt and no line number. That is how it differs from a
+/// line of the offending text itself.
 fn caret_label(line: &str) -> Option<String> {
     let content = line.trim_start().strip_prefix('│')?;
     let start = content.find('^')?;
@@ -127,8 +135,8 @@ fn caret_label(line: &str) -> Option<String> {
 
 /// Returns how many files a run checked, from the line that counts them
 fn checked(line: &str) -> Option<u64> {
-    let total = field(line, TOTAL_FIELD)?;
-    let excluded = field(line, EXCLUDED_FIELD)?;
+    let total = field().line(line).name(TOTAL_FIELD).call()?;
+    let excluded = field().line(line).name(EXCLUDED_FIELD).call()?;
 
     total.checked_sub(excluded)
 }
@@ -158,11 +166,11 @@ fn coordinates(location: &str) -> Option<(PathBuf, u32, u32)> {
 
 /// Returns the problem that a diagnostic block describes
 ///
-/// The header carries the message, the arrow line that follows carries the
-/// position, and the caret line of the excerpt can carry a label that makes
-/// the message precise. A block without a position describes no file, and
-/// the reading drops it, because the caller reports what it cannot read
-/// through the exit status of the run.
+/// The header carries the message. The arrow line that follows carries the
+/// position. The caret line of the excerpt can carry a label that makes the
+/// message precise. A block without a position describes no file. The reading
+/// drops it, because the caller reports what it cannot read through the exit
+/// status of the run.
 fn diagnostic(header: &str, following: &[&str]) -> Option<TaploProblem> {
     let arrow = following
         .iter()
@@ -180,14 +188,16 @@ fn diagnostic(header: &str, following: &[&str]) -> Option<TaploProblem> {
         None => header.trim().to_owned(),
     };
 
-    Some(TaploProblem::new(
-        path,
-        ProblemDetail::Diagnostic {
-            line,
-            column,
-            message,
-        },
-    ))
+    Some(
+        TaploProblem::builder()
+            .path(path)
+            .detail(ProblemDetail::Diagnostic {
+                line,
+                column,
+                message,
+            })
+            .build(),
+    )
 }
 
 /// Returns the files that the count line lists
@@ -212,6 +222,7 @@ fn examined(line: &str) -> Option<Vec<PathBuf>> {
 }
 
 /// Returns the number that a field of the count line carries
+#[bon::builder]
 fn field(line: &str, name: &str) -> Option<u64> {
     let start = line.find(name)? + name.len();
     let rest = &line[start..];
@@ -235,9 +246,9 @@ fn quoted_path(line: &str) -> Option<PathBuf> {
 
 /// Returns what a line about a refused file says about the file
 ///
-/// The reason stands between the field that carries it and the path that
-/// closes the line, and the whole line stands in when the reading finds no
-/// such text, so the caller always has something to show.
+/// The reason stands between the field that carries it and the path that closes
+/// the line. The whole line stands in when the reading finds no such text. So
+/// the caller always has something to show.
 fn reason(line: &str) -> String {
     let detail = line
         .split_once(INVALID_FILE)
@@ -253,9 +264,9 @@ fn reason(line: &str) -> String {
 
 /// Returns what a rejection line says about the configuration file
 ///
-/// The line carries the diagnosis of taplo behind its `error=` field, and
-/// the whole line stands in when the field is missing, so the caller always
-/// has something to show.
+/// The line carries the diagnosis of taplo behind its `error=` field. The whole
+/// line stands in when the field is missing. So the caller always has something
+/// to show.
 fn rejection(line: &str) -> String {
     line.split_once(ERROR_FIELD).map_or_else(
         || line.trim().to_owned(),
@@ -265,21 +276,24 @@ fn rejection(line: &str) -> String {
 
 /// Drops the summary of a file that a diagnostic already describes
 ///
-/// Taplo closes the diagnostics of a file with a line that names the file
-/// and sums up why it refused it. The summary repeats what the diagnostics
-/// said, at a level that says less, so it survives only for a file that got
-/// no diagnostic at all — a file that taplo could not open, where the
+/// Taplo closes the diagnostics of a file with a line that names the file and
+/// sums up why it refused it. The summary repeats what the diagnostics said, at
+/// a level that says less. So it survives only for a file that got no
+/// diagnostic at all. That is a file that taplo could not open, where the
 /// summary is the whole answer.
 fn summarized(problems: &mut Vec<TaploProblem>) {
     let positioned: HashSet<PathBuf> = problems
         .iter()
-        .filter(|problem| matches!(problem.detail(), ProblemDetail::Diagnostic { .. }))
+        .filter(|problem| match problem.detail() {
+            ProblemDetail::Diagnostic { .. } => true,
+            ProblemDetail::Invalid { .. } | ProblemDetail::Unformatted => false,
+        })
         .map(|problem| problem.path().clone())
         .collect();
 
-    problems.retain(|problem| {
-        !matches!(problem.detail(), ProblemDetail::Invalid { .. })
-            || !positioned.contains(problem.path())
+    problems.retain(|problem| match problem.detail() {
+        ProblemDetail::Invalid { .. } => !positioned.contains(problem.path()),
+        ProblemDetail::Diagnostic { .. } | ProblemDetail::Unformatted => true,
     });
 }
 
@@ -312,11 +326,11 @@ fn unescaped(characters: &mut Chars<'_>) -> Option<char> {
 
 /// Returns the text of a quoted path, up to the quote that closes it
 ///
-/// The reading starts after the opening quote. Taplo quotes a path the way
-/// that Rust prints a path for debugging: a quote, a backslash, and a
-/// character that does not print stand escaped, and the reading turns each
-/// escape back into its character. A path with an escape that the reading
-/// cannot decode, and a path without a closing quote, have no text.
+/// The reading starts after the opening quote. Taplo quotes a path the way that
+/// Rust prints a path for debugging. A quote, a backslash, and a character that
+/// does not print stand escaped. The reading turns each escape back into its
+/// character. A path with an escape that the reading cannot decode, and a path
+/// without a closing quote, have no text.
 fn unquoted(characters: &mut Chars<'_>) -> Option<String> {
     let mut text = String::new();
 
@@ -331,9 +345,10 @@ fn unquoted(characters: &mut Chars<'_>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -357,7 +372,7 @@ mod tests {
 
     /// Returns the detail of the only problem of a report
     fn detail(stderr: &str) -> ProblemDetail {
-        let observation = read("", stderr, false);
+        let observation = read().stdout("").stderr(stderr).exit(Exit::Failed).call();
 
         let [problem] = observation.problems().as_slice() else {
             panic!("expected one problem, got {:?}", observation.problems());
@@ -398,21 +413,21 @@ mod tests {
 
     #[test]
     fn read_clean_report_counts_the_examined_files() {
-        let observation = read("", CLEAN, true);
+        let observation = read().stdout("").stderr(CLEAN).exit(Exit::Succeeded).call();
 
         assert_eq!(observation.checked(), Some(2));
     }
 
     #[test]
     fn read_clean_report_finds_no_problem() {
-        let observation = read("", CLEAN, true);
+        let observation = read().stdout("").stderr(CLEAN).exit(Exit::Succeeded).call();
 
         assert!(observation.problems().is_empty());
     }
 
     #[test]
     fn read_clean_report_lists_the_examined_files() {
-        let observation = read("", CLEAN, true);
+        let observation = read().stdout("").stderr(CLEAN).exit(Exit::Succeeded).call();
 
         assert_eq!(
             observation.examined,
@@ -424,8 +439,18 @@ mod tests {
     }
 
     #[test]
+    fn read_diagnostic_reads_the_path() {
+        let observation = read().stdout("").stderr(INVALID).exit(Exit::Failed).call();
+
+        assert_eq!(
+            observation.problems().first().map(TaploProblem::path),
+            Some(&PathBuf::from("/home/otter/project/broken.toml"))
+        );
+    }
+
+    #[test]
     fn read_diagnostic_reads_the_position() {
-        let observation = read("", INVALID, false);
+        let observation = read().stdout("").stderr(INVALID).exit(Exit::Failed).call();
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::detail),
@@ -434,16 +459,6 @@ mod tests {
                 column: 1,
                 message: "invalid TOML: unexpected EOF".to_owned(),
             })
-        );
-    }
-
-    #[test]
-    fn read_diagnostic_reads_the_path() {
-        let observation = read("", INVALID, false);
-
-        assert_eq!(
-            observation.problems().first().map(TaploProblem::path),
-            Some(&PathBuf::from("/home/otter/project/broken.toml"))
         );
     }
 
@@ -459,20 +474,26 @@ mod tests {
 
     #[test]
     fn read_difference_names_the_file_that_it_would_rewrite() {
-        let observation = read(DIFFERENCE, "", false);
+        let observation = read()
+            .stdout(DIFFERENCE)
+            .stderr("")
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems(),
-            &vec![TaploProblem::new(
-                PathBuf::from("/home/otter/project/sub/messy.toml"),
-                ProblemDetail::Unformatted,
-            )]
+            &vec![
+                TaploProblem::builder()
+                    .path(PathBuf::from("/home/otter/project/sub/messy.toml"))
+                    .detail(ProblemDetail::Unformatted,)
+                    .build()
+            ]
         );
     }
 
     #[test]
     fn read_empty_report_finds_nothing() {
-        let observation = read("", "", true);
+        let observation = read().stdout("").stderr("").exit(Exit::Succeeded).call();
 
         assert_eq!(
             observation,
@@ -482,7 +503,7 @@ mod tests {
                 problems: Vec::new(),
                 rejected_configuration: None,
                 stderr: String::new(),
-                succeeded: true,
+                exit: Exit::Succeeded,
             }
         );
     }
@@ -501,7 +522,7 @@ mod tests {
 
     #[test]
     fn read_refused_file_reads_the_path() {
-        let observation = read("", REFUSED, false);
+        let observation = read().stdout("").stderr(REFUSED).exit(Exit::Failed).call();
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::path),
@@ -511,7 +532,11 @@ mod tests {
 
     #[test]
     fn read_rejected_configuration_keeps_the_diagnosis() {
-        let observation = read("", REJECTED, true);
+        let observation = read()
+            .stdout("")
+            .stderr(REJECTED)
+            .exit(Exit::Succeeded)
+            .call();
 
         assert_eq!(
             observation.rejected_configuration().as_deref(),
@@ -521,18 +546,14 @@ mod tests {
 
     #[test]
     fn read_summary_of_a_file_with_a_diagnostic_drops_out() {
-        let observation = read("", INVALID, false);
+        let observation = read().stdout("").stderr(INVALID).exit(Exit::Failed).call();
 
         assert_eq!(observation.problems().len(), 1);
     }
 
     #[test]
     fn read_unrecognized_failure_finds_nothing() {
-        let observation = read(
-            "",
-            " INFO taplo:format_files:collect_files: found files total=1 excluded=0 files=[] cwd=\"/p\"\nERROR operation failed error=Permission denied (os error 13)\n",
-            false,
-        );
+        let observation = read().stdout("").stderr(" INFO taplo:format_files:collect_files: found files total=1 excluded=0 files=[] cwd=\"/p\"\nERROR operation failed error=Permission denied (os error 13)\n").exit(Exit::Failed).call();
 
         assert!(observation.problems().is_empty());
     }

@@ -1,11 +1,22 @@
+//! The error that leaves a caller without the report of a run
+
 use thiserror::Error;
 
 /// An error that leaves a caller without the report of a run
 ///
 /// A diagnostic of oxlint is no failure of a reading, even one about the
-/// project itself: it travels in the observation, and the caller decides what
+/// project itself. It travels in the observation. The caller decides what
 /// it means. The variants here describe output that holds no answer about the
 /// project.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::oxlint::report::ReadReportError;
+///
+/// let error = ReadReportError::Absent;
+/// assert_eq!(error.to_string(), "oxlint wrote no report");
+/// ```
 #[derive(Debug, Error)]
 pub enum ReadReportError {
     /// Oxlint wrote no report
@@ -21,8 +32,8 @@ pub enum ReadReportError {
     ///
     /// The shape of the report belongs to a version of oxlint. A report that
     /// does not fit therefore points at a version that this crate does not
-    /// know, and the diagnostics of such a run would be the ones that the
-    /// reading happened to understand.
+    /// know. The diagnostics of such a run would be the ones that the reading
+    /// happened to understand.
     #[error("failed to read the report of oxlint")]
     Unreadable {
         /// The cause of the failure
@@ -32,20 +43,30 @@ pub enum ReadReportError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Shows that error is Send and Sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn read_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ReadReportError>();
+    }
+
+    #[test]
+    fn read_report_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ReadReportError>();
     }
 }

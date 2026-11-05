@@ -1,3 +1,5 @@
+//! One test that failed
+
 use std::path::PathBuf;
 
 use getset::Getters;
@@ -16,11 +18,25 @@ const BACKTRACE_NOTE: &str = "note: run with `RUST_BACKTRACE=1`";
 
 /// One test that failed
 ///
-/// Nextest names the test and keeps what the test wrote, and the test
-/// harness of Rust writes the location and the message of a panic there. The
-/// failure keeps the output as it is and reads the panic out of it on
-/// demand, so a test that failed without a panic, or with an output that
-/// the crate cannot read, still names the test.
+/// Nextest names the test and keeps what the test wrote. The test harness of
+/// Rust writes the location and the message of a panic there. The failure keeps
+/// the output as it is and reads the panic out of it on demand. So a test that
+/// failed without a panic, or with an output that the crate cannot read, still
+/// names the test.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_nextest::TestFailure;
+///
+/// let failure = TestFailure::builder()
+///     .name("test_name")
+///     .output("test failed")
+///     .build();
+///
+/// assert_eq!(failure.name(), "test_name");
+/// assert_eq!(failure.output(), "test failed");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct TestFailure {
     /// The name of the test, as nextest wrote it
@@ -32,8 +48,23 @@ pub struct TestFailure {
     output: String,
 }
 
+#[bon::bon]
 impl TestFailure {
     /// Creates a failure from the name of the test and its output
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_nextest::TestFailure;
+    ///
+    /// let failure = TestFailure::builder()
+    ///     .name("test_name")
+    ///     .output("assertion failed")
+    ///     .build();
+    ///
+    /// assert_eq!(failure.name(), "test_name");
+    /// ```
+    #[builder]
     pub fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -43,12 +74,35 @@ impl TestFailure {
 
     /// Returns the finding that reports the failure
     ///
-    /// The finding names the test and carries the message of the panic, at
-    /// the position where the test panicked, with the path relative to the
-    /// project root.
+    /// The finding names the test and carries the message of the panic, at the
+    /// position where the test panicked. The path is relative to the project
+    /// root.
     ///
-    /// A test whose output names no panic, and a test that panicked in a
-    /// file outside the project, get a finding at the level of the project.
+    /// A test whose output names no panic gets a finding at the level of the
+    /// project. So does a test that panicked in a file outside the project.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_nextest::TestFailure;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_action::ProjectRoot;
+    /// use std::path::PathBuf;
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(PathBuf::from("/project"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    /// let project = ProjectRoot::new(PathBuf::from("/project"));
+    ///
+    /// let failure = TestFailure::builder()
+    ///     .name("test_name")
+    ///     .output("test output")
+    ///     .build();
+    ///
+    /// let finding = failure.finding(&root, &project);
+    /// assert_eq!(finding.message().get(), "test `test_name` failed");
+    /// ```
     pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let Some(panic) = self.panic() else {
             return Finding::builder()
@@ -81,11 +135,24 @@ impl TestFailure {
 
     /// Returns where and why the test panicked, when its output says
     ///
-    /// The test harness of Rust writes one line that names the location,
-    /// and the message of the panic follows on the lines below it, up to
-    /// the note about the backtrace. A test that ended another way, such as
-    /// one that the process killed, wrote no such line, and the method
-    /// answers `None`.
+    /// The test harness of Rust writes one line that names the location. The
+    /// message of the panic follows on the lines below it, up to the note about
+    /// the backtrace. A test that ended another way, such as one that the
+    /// process killed, wrote no such line, and the method answers `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_nextest::TestFailure;
+    ///
+    /// let output = "thread 'test' panicked at src/lib.rs:10:5:";
+    /// let failure = TestFailure::builder()
+    ///     .name("test_name")
+    ///     .output(output)
+    ///     .build();
+    ///
+    /// assert!(failure.panic().is_some());
+    /// ```
     pub fn panic(&self) -> Option<Panic> {
         let mut lines = self.output.lines();
         let header = lines.find(|line| line.contains(PANICKED_AT))?;
@@ -102,12 +169,14 @@ impl TestFailure {
             .filter(|line| !line.is_empty())
             .collect();
 
-        Some(Panic::new(
-            path,
-            line,
-            column,
-            (!message.is_empty()).then(|| message.join(" ")),
-        ))
+        Some(
+            Panic::builder()
+                .path(path)
+                .line(line)
+                .column(column)
+                .maybe_message((!message.is_empty()).then(|| message.join(" ")))
+                .build(),
+        )
     }
 }
 
@@ -126,9 +195,10 @@ fn coordinates(location: &str) -> Option<(PathBuf, u32, u32)> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -140,7 +210,10 @@ mod tests {
 
     #[test]
     fn panic_joins_the_lines_of_the_message() {
-        let failure = TestFailure::new("probe::suite$fails", ASSERTION);
+        let failure = TestFailure::builder()
+            .name("probe::suite$fails")
+            .output(ASSERTION)
+            .build();
 
         let panic = failure.panic();
 
@@ -155,7 +228,10 @@ mod tests {
 
     #[test]
     fn panic_reads_the_location() {
-        let failure = TestFailure::new("probe::suite$fails", ASSERTION);
+        let failure = TestFailure::builder()
+            .name("probe::suite$fails")
+            .output(ASSERTION)
+            .build();
 
         let panic = failure.panic();
 
@@ -166,8 +242,23 @@ mod tests {
     }
 
     #[test]
+    fn panic_without_a_location_is_none() {
+        let failure = TestFailure::builder()
+            .name("probe::suite$killed")
+            .output("the process was killed\n")
+            .build();
+
+        let panic = failure.panic();
+
+        assert_eq!(panic, None);
+    }
+
+    #[test]
     fn panic_without_a_message_has_none() {
-        let failure = TestFailure::new("probe::probe$tests::fails", BARE);
+        let failure = TestFailure::builder()
+            .name("probe::probe$tests::fails")
+            .output(BARE)
+            .build();
 
         let panic = failure.panic();
 
@@ -175,11 +266,9 @@ mod tests {
     }
 
     #[test]
-    fn panic_without_a_location_is_none() {
-        let failure = TestFailure::new("probe::suite$killed", "the process was killed\n");
+    fn test_failure_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        let panic = failure.panic();
-
-        assert_eq!(panic, None);
+        assert_send_sync_and_unpin::<TestFailure>();
     }
 }

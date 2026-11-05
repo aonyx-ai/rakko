@@ -1,11 +1,10 @@
 //! The action that lints the Markdown files of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps markdownlint as a subprocess: markdownlint discovers the files,
-//! reads its own configuration, and applies its rules, and the action
-//! translates what markdownlint reported into an outcome.
+//! wraps markdownlint as a subprocess. Markdownlint discovers the files, reads
+//! its configuration, and applies its rules. The action translates what
+//! markdownlint reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{
@@ -15,25 +14,24 @@ use rakko_action::{
 
 pub use self::error::LintMarkdownError;
 use crate::markdownlint::Markdownlint;
-use crate::observation::Observation;
+use crate::observation::{Examination, Exit, Observation};
 use crate::problem::MarkdownlintProblem;
 
 /// The reason of a run whose markdownlint examined nothing
 ///
-/// Markdownlint answers with its usage text or with a sentence of its own
-/// when it resolves no file, so this is what a project without Markdown files
-/// reports. A project whose ignore file excludes every one of them reports the
-/// same way.
+/// Markdownlint answers with its usage text or with a sentence of its own when
+/// it resolves no file. This is what a project without Markdown files reports.
+/// A project whose ignore file excludes every one of them reports the same way.
 const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine";
 
 /// The action that lints the Markdown files of a project
 ///
-/// The action wraps [markdownlint]: markdownlint discovers the Markdown files
-/// of the project, reads its own configuration, and applies the rules that
-/// the project turned on, so a run agrees with an editor and with a
-/// contributor that runs markdownlint bare. The markdownlint that runs is the
-/// one that [mise] installed for the project, at the version that the project
-/// pinned, and the action installs nothing.
+/// The action wraps [markdownlint]. Markdownlint discovers the Markdown files
+/// of the project, reads its configuration, and applies the rules that the
+/// project turned on. So a run agrees with an editor and with a contributor
+/// that runs markdownlint bare. The markdownlint that runs is the one that
+/// [mise] installed for the project, at the version that the project pinned,
+/// and the action installs nothing.
 ///
 /// A run examines the files and directories whose name starts with a dot,
 /// such as `.github`, which markdownlint skips by default. It leaves out every
@@ -42,8 +40,8 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 ///
 /// A run only reports, and it takes no argument. Every rule that a file broke
 /// becomes a finding on the line that markdownlint named, at the column when
-/// the rule points at one, and the message of the finding is the sentence
-/// that markdownlint would have written for a reader.
+/// the rule points at one. The message of the finding is the sentence that
+/// markdownlint would have written for a reader.
 ///
 /// The action applies to a project that holds Markdown files, and it skips
 /// visibly otherwise. A run stops with an error when mise reports no
@@ -171,12 +169,11 @@ fn findings(
 /// Returns what a run reports when it cannot answer from its findings
 ///
 /// Three conditions end a run before its findings matter. A markdownlint that
-/// examined no file leaves the action with nothing to answer for, which the
-/// ignore file of the project explains, so the run skips. A run that reported
+/// examined no file leaves the action with nothing to answer for. The ignore
+/// file of the project explains this, so the run skips. A run that reported
 /// no rule and ended with success found a clean project. A run that reported
-/// no rule and ended without success failed for a reason that the action
-/// cannot name, and an answer built on it would hide every problem behind a
-/// green result.
+/// no rule and ended without success failed for a reason the action cannot
+/// name. An answer built on it would hide every problem behind a green result.
 ///
 /// Returns `None` when the caller reports what the run found.
 ///
@@ -187,7 +184,7 @@ fn findings(
 ///
 /// [unrecognized]: LintMarkdownError::UnrecognizedReport
 fn guard(observation: &Observation) -> Result<Option<Outcome>, LintMarkdownError> {
-    if !observation.examined() {
+    if observation.examined() == Examination::Skipped {
         return Ok(Some(Outcome::Skipped {
             reason: SkipReason::new(NOTHING_TO_EXAMINE),
         }));
@@ -197,7 +194,7 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, LintMarkdownError
         return Ok(None);
     }
 
-    if !observation.succeeded() {
+    if observation.exit() == Exit::Failed {
         return Err(LintMarkdownError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
         });
@@ -208,9 +205,10 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, LintMarkdownError
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::PathBuf;
 
@@ -226,12 +224,12 @@ mod tests {
 
     /// Returns a problem at the given position of a file of the project
     fn problem(line: u32, column: Option<u32>) -> MarkdownlintProblem {
-        MarkdownlintProblem::new(
-            PathBuf::from("notes.md"),
-            line,
-            column,
-            "MD013/line-length Line length [Expected: 80; Actual: 92]".to_owned(),
-        )
+        MarkdownlintProblem::builder()
+            .path(PathBuf::from("notes.md"))
+            .line(line)
+            .maybe_column(column)
+            .message("MD013/line-length Line length [Expected: 80; Actual: 92]".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -244,6 +242,19 @@ mod tests {
         let access = LintMarkdown.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = MarkdownlintProblem::builder()
+            .path(path("/elsewhere/notes.md"))
+            .line(1)
+            .message("MD041/first-line-heading".to_owned())
+            .build();
+
+        let error = finding(&problem, &root()).unwrap_err();
+
+        assert!(matches!(error, LintMarkdownError::ForeignPath { .. }));
     }
 
     #[test]
@@ -283,20 +294,6 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = MarkdownlintProblem::new(
-            path("/elsewhere/notes.md"),
-            1,
-            None,
-            "MD041/first-line-heading".to_owned(),
-        );
-
-        let error = finding(&problem, &root()).unwrap_err();
-
-        assert!(matches!(error, LintMarkdownError::ForeignPath { .. }));
-    }
-
-    #[test]
     fn guard_of_a_clean_run_passes() {
         let outcome = guard(&Observation::builder().build()).unwrap();
 
@@ -308,7 +305,7 @@ mod tests {
 
     #[test]
     fn guard_of_a_failed_run_without_a_problem_stops() {
-        let observation = Observation::builder().succeeded(false).build();
+        let observation = Observation::builder().exit(Exit::Failed).build();
 
         let error = guard(&observation).unwrap_err();
 
@@ -319,10 +316,24 @@ mod tests {
     }
 
     #[test]
+    fn guard_of_a_run_that_examined_nothing_skips() {
+        let observation = Observation::builder()
+            .examined(Examination::Skipped)
+            .build();
+
+        let outcome = guard(&observation).unwrap();
+
+        assert!(
+            matches!(outcome, Some(Outcome::Skipped { .. })),
+            "expected the run to skip, got {outcome:?}"
+        );
+    }
+
+    #[test]
     fn guard_of_a_run_that_reported_a_problem_reports_nothing() {
         let observation = Observation::builder()
             .problems(vec![problem(4, None)])
-            .succeeded(false)
+            .exit(Exit::Failed)
             .build();
 
         let outcome = guard(&observation).unwrap();
@@ -331,14 +342,9 @@ mod tests {
     }
 
     #[test]
-    fn guard_of_a_run_that_examined_nothing_skips() {
-        let observation = Observation::builder().examined(false).build();
+    fn lint_markdown_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        let outcome = guard(&observation).unwrap();
-
-        assert!(
-            matches!(outcome, Some(Outcome::Skipped { .. })),
-            "expected the run to skip, got {outcome:?}"
-        );
+        assert_send_sync_and_unpin::<LintMarkdown>();
     }
 }

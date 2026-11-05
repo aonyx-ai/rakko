@@ -1,12 +1,12 @@
-/// What a run of a group reports about the members that it drove
+//! What a run reports about the action that it drove
+
 mod group_summary;
-/// The JSON that a run emits for a machine
 mod schema;
-/// The text that a run emits for a reader at a terminal
 mod text;
 
 use std::fmt;
 
+use bon::Builder;
 use rakko_action::{Name, Outcome};
 use serde::{Serialize, Serializer};
 
@@ -15,21 +15,21 @@ pub(crate) use self::group_summary::GroupSummary;
 /// What a run reports about the action that it drove
 ///
 /// A report owns the name of the action and the outcome that the action
-/// returned, and it is what a run hands to the command line. Every way of
-/// showing a run reads this one value: [`Display`] writes the text that a
-/// reader at a terminal gets, and [`Serialize`] writes the JSON that a
-/// machine gets. The report of an action that stopped shows the error and
-/// every cause of it, in text and in JSON.
+/// returned. It is what a run hands to the command line. Every way of showing a
+/// run reads this one value. [`Display`] writes the text that a reader at a
+/// terminal gets, and [`Serialize`] writes the JSON that a machine gets. The
+/// report of an action that stopped shows the error and every cause of it, in
+/// text and in JSON.
 ///
 /// An action produces none of this. It returns an outcome, and the report
-/// decides how that outcome reaches a reader, so the output of every project
-/// in the fleet has one shape and no action carries code that draws it.
+/// decides how that outcome reaches a reader. So the output of every project in
+/// the fleet has one shape, and no action carries code that draws it.
 ///
 /// A command that a harness wrote reports what it wants, and a command that
 /// drives actions itself wants exactly this. It creates one report for each
-/// action that it ran and writes that report as an artifact of Clawless, so
-/// the run shows what a run of each action alone shows, in text and in JSON,
-/// and the harness carries no renderer of its own.
+/// action that it ran and writes that report as an artifact of Clawless. So the
+/// run shows what a run of each action alone shows, in text and in JSON. The
+/// harness carries no renderer of its own.
 ///
 /// # Examples
 ///
@@ -41,27 +41,21 @@ pub(crate) use self::group_summary::GroupSummary;
 ///     summary: Some(Summary::new("checked 3 files")),
 /// };
 ///
-/// let report = Report::new(action_name!("format-toml"), outcome);
+/// let report = Report::builder()
+///     .action(action_name!("format-toml"))
+///     .outcome(outcome)
+///     .build();
 ///
 /// assert_eq!(report.to_string(), "format-toml: passed, checked 3 files");
 /// ```
 ///
 /// [`Display`]: fmt::Display
-#[derive(Debug)]
+#[derive(Debug, Builder)]
 pub struct Report {
     /// The name of the action that the run drove
     action: Name,
     /// What that action returned
     outcome: Outcome,
-}
-
-impl Report {
-    /// Creates a report from the name of an action and what that action
-    /// returned
-    #[must_use]
-    pub fn new(action: Name, outcome: Outcome) -> Self {
-        Self { action, outcome }
-    }
 }
 
 impl fmt::Display for Report {
@@ -73,5 +67,17 @@ impl fmt::Display for Report {
 impl Serialize for Report {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self::schema::Payload::of(self).serialize(serializer)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Report>();
     }
 }

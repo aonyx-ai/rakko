@@ -1,3 +1,5 @@
+//! The error type for directory path parsing
+
 use std::path::PathBuf;
 
 use thiserror::Error;
@@ -8,6 +10,21 @@ use thiserror::Error;
 /// root. This error reports the path that it refused.
 ///
 /// [`DirectoryPath`]: super::DirectoryPath
+///
+/// # Examples
+///
+/// Handle an error when parsing an absolute path.
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko::finding::ParseDirectoryPathError;
+///
+/// let error = ParseDirectoryPathError::AbsolutePath {
+///     path: PathBuf::from("/tmp/project"),
+/// };
+///
+/// assert_eq!(error.to_string(), "path is absolute: /tmp/project");
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 pub enum ParseDirectoryPathError {
     /// The path starts at the root of the file system
@@ -16,4 +33,16 @@ pub enum ParseDirectoryPathError {
         /// The path that the caller gave
         path: PathBuf,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_directory_path_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ParseDirectoryPathError>();
+    }
 }

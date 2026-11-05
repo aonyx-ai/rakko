@@ -1,3 +1,5 @@
+//! The text that a run emits for a reader at a terminal
+
 use std::fmt;
 
 use rakko_action::{Finding, Location, Outcome, Position};
@@ -8,17 +10,17 @@ use crate::chain::Chain;
 /// Writes a report as the text that a reader at a terminal gets
 ///
 /// A finding takes one line, and that line starts with the place that the
-/// finding names. One line is what a finding of any granularity can produce,
-/// and it is the form that a reader greps and that an editor jumps to.
+/// finding names. One line is what a finding of any granularity can produce. It
+/// is the form that a reader greps and that an editor jumps to.
 ///
 /// A repair takes the same line, because it is the problem that the run took
 /// away. A run that repaired part of what it found writes its repairs first.
 /// The problems that remain follow them, so that the lines a reader has to act
 /// on sit next to the summary.
 ///
-/// A pass shows what the run examined when the action said so, in the way
-/// that a skip shows its reason, so a reader can question a pass that
-/// examined less than they expect.
+/// A pass shows what the run examined when the action said so, in the way that
+/// a skip shows its reason. So a reader can question a pass that examined less
+/// than they expect.
 ///
 /// # Errors
 ///
@@ -135,7 +137,7 @@ fn render_finding(finding: &Finding, formatter: &mut fmt::Formatter<'_>) -> fmt:
 
 /// Writes the line, and the column, that a position names
 ///
-/// The column follows the line only when the position carries one, so a tool
+/// The column follows the line only when the position carries one. So a tool
 /// that reports a line alone does not get a column that nobody measured.
 ///
 /// # Errors
@@ -154,9 +156,10 @@ fn render_position(position: &Position, formatter: &mut fmt::Formatter<'_>) -> f
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_action::{DirectoryPath, FilePath, SkipReason, Span, Summary};
 
@@ -177,7 +180,11 @@ mod tests {
 
     /// Returns the text that a run of the action `probe` reports
     fn rendered(outcome: Outcome) -> String {
-        Report::new("probe".parse().expect("the test names an action"), outcome).to_string()
+        Report::builder()
+            .action("probe".parse().expect("the test names an action"))
+            .outcome(outcome)
+            .build()
+            .to_string()
     }
 
     #[test]

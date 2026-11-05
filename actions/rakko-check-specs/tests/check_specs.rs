@@ -1,21 +1,22 @@
 //! Tests of the action that need no installation of tracey
 //!
-//! The tests cover what the action declares, the run that stops when the
-//! project pins a tracey that nothing installed, and the comparison of a pull
-//! request with its base, which only runs git. A test that needs files builds
-//! a project in a temporary directory, so no fixture with a deliberately
-//! changed specification sits in this repository.
+//! The tests cover what the action declares. They cover the run that stops when
+//! the project pins a tracey that nothing installed. They also cover the
+//! comparison of a pull request with its base, which only runs git. A test that
+//! needs files builds a project in a temporary directory, so no fixture with a
+//! deliberately changed specification sits in this repository.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
 use std::process::Command;
 
 use rakko_action::{Action, Args, Context, Outcome, ProjectRoot};
-use rakko_check_specs::{CheckSpecs, Comparison};
+use rakko_check_specs::{CheckSpecs, Comparison, Mode};
 use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
@@ -53,6 +54,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates an empty project without a tracey to resolve
     ///
@@ -76,9 +78,21 @@ impl Project {
         .expect("the test writes the mise.toml of the project");
         trust(&pins);
 
-        project.write(".config/tracey/config.styx", CONFIGURATION);
-        project.write("SPECIFICATION.md", SPECIFICATION);
-        project.write("src/lib.rs", IMPLEMENTATION);
+        project
+            .write()
+            .path(".config/tracey/config.styx")
+            .content(CONFIGURATION)
+            .call();
+        project
+            .write()
+            .path("SPECIFICATION.md")
+            .content(SPECIFICATION)
+            .call();
+        project
+            .write()
+            .path("src/lib.rs")
+            .content(IMPLEMENTATION)
+            .call();
 
         project
     }
@@ -103,6 +117,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -120,9 +135,15 @@ impl Project {
 }
 
 /// Runs one command of git in the directory
+///
+/// The commits of a fixture are thrown away with its directory, and the signing
+/// key of a contributor is not the test's to ask for.
+/// A test that runs inside a git hook inherits the variables that name the
+/// repository of the hook. Those variables beat the working directory, so the
+/// fixture would act on the checkout of the contributor.
+/// The function removes every variable with the prefix `GIT_`. It sets the
+/// identity afterwards, because the identity carries the prefix too.
 fn git(directory: &Path, arguments: &[&str]) -> String {
-    // The commits of a fixture are thrown away with its directory, and
-    // the signing key of a contributor is not the test's to ask for.
     let mut command = Command::new("git");
     command
         .arg("-c")
@@ -130,10 +151,6 @@ fn git(directory: &Path, arguments: &[&str]) -> String {
         .args(arguments)
         .current_dir(directory);
 
-    // A test that runs inside a git hook inherits the variables that name
-    // the repository of the hook, and those beat the working directory, so
-    // the fixture would act on the checkout of the contributor. The
-    // identity below is set afterwards, because it carries the prefix too.
     for (name, _) in std::env::vars_os() {
         if name.as_encoded_bytes().starts_with(b"GIT_") {
             command.env_remove(name);
@@ -160,14 +177,16 @@ fn git(directory: &Path, arguments: &[&str]) -> String {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
     /// pile up there forever.
+    ///
+    /// A project that never pinned a tool trusted nothing, and mise reads a
+    /// path that is not there as its parent directory. The method skips such a
+    /// project.
     fn drop(&mut self) {
         let configuration = self.directory.path().join("mise.toml");
 
-        // A project that never pinned a tool trusted nothing, and mise reads a
-        // path that is not there as its parent directory.
         if !configuration.is_file() {
             return;
         }
@@ -214,30 +233,12 @@ fn action_identifies_itself_as_check_specs() {
     assert_eq!(name.get(), "check-specs");
 }
 
-// A code host checks out a merge commit of the branch and its base, and stages
-// nothing, so a comparison of that index with that HEAD finds no change at all.
-#[tokio::test]
-async fn comparison_of_a_merge_commit_stages_the_pull_request() {
-    let project = merged();
-
-    let comparison = Comparison::prepare(&project.root(), true)
-        .await
-        .expect("the test compares the pull request with its base")
-        .expect("the test checks out a merge commit");
-
-    let staged = git(
-        &comparison.directory().join("base"),
-        &["diff", "--cached", "--name-only"],
-    );
-    assert_eq!(staged, "SPECIFICATION.md");
-}
-
 #[tokio::test]
 async fn comparison_leaves_the_commit_of_the_checkout_alone() {
     let project = merged();
     let before = project.git(&["rev-parse", "HEAD"]);
 
-    let comparison = Comparison::prepare(&project.root(), true)
+    let comparison = Comparison::prepare(&project.root(), Mode::PullRequest)
         .await
         .expect("the test compares the pull request with its base");
     drop(comparison);
@@ -249,7 +250,7 @@ async fn comparison_leaves_the_commit_of_the_checkout_alone() {
 async fn comparison_leaves_the_index_of_the_checkout_alone() {
     let project = merged();
 
-    let comparison = Comparison::prepare(&project.root(), true)
+    let comparison = Comparison::prepare(&project.root(), Mode::PullRequest)
         .await
         .expect("the test compares the pull request with its base");
     drop(comparison);
@@ -257,24 +258,48 @@ async fn comparison_leaves_the_index_of_the_checkout_alone() {
     assert_eq!(project.git(&["diff", "--cached", "--name-only"]), "");
 }
 
-// A run that no environment calls a pull request compares the checkout itself.
+/// Shows that comparison of a merge commit stages the pull request
+///
+/// A code host checks out a merge commit of the branch and its base.
+/// It stages nothing, so a comparison of that index with that HEAD finds no
+/// change at all.
+#[tokio::test]
+async fn comparison_of_a_merge_commit_stages_the_pull_request() {
+    let project = merged();
+
+    let comparison = Comparison::prepare(&project.root(), Mode::PullRequest)
+        .await
+        .expect("the test compares the pull request with its base")
+        .expect("the test checks out a merge commit");
+
+    let staged = git(
+        &comparison.directory().join("base"),
+        &["diff", "--cached", "--name-only"],
+    );
+    assert_eq!(staged, "SPECIFICATION.md");
+}
+
+/// Shows that comparison that nothing asked for is none
+///
+/// A run that no environment calls a pull request compares the checkout itself.
 #[tokio::test]
 async fn comparison_that_nothing_asked_for_is_none() {
     let project = merged();
 
-    let comparison = Comparison::prepare(&project.root(), false)
+    let comparison = Comparison::prepare(&project.root(), Mode::Local)
         .await
         .expect("the test asks for no comparison");
 
     assert!(comparison.is_none(), "expected no comparison");
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_without_a_tracey_leaves_the_project_unchanged() {
     let project = Project::without_tracey();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckSpecs, &project.context(), &()).await;
 }
 
@@ -297,13 +322,21 @@ async fn run_without_a_tracey_stops() {
 /// runs git, so the project holds the specification and nothing else.
 fn merged() -> Project {
     let project = Project::bare();
-    project.write("SPECIFICATION.md", SPECIFICATION);
+    project
+        .write()
+        .path("SPECIFICATION.md")
+        .content(SPECIFICATION)
+        .call();
 
     project.git(&["init", "--quiet", "--initial-branch", "main", "."]);
     project.git(&["add", "-A"]);
     project.git(&["commit", "--quiet", "-m", "base"]);
     project.git(&["checkout", "--quiet", "-b", "feature"]);
-    project.write("SPECIFICATION.md", CHANGED);
+    project
+        .write()
+        .path("SPECIFICATION.md")
+        .content(CHANGED)
+        .call();
     project.git(&["add", "-A"]);
     project.git(&["commit", "--quiet", "-m", "change the requirement"]);
     project.git(&["checkout", "--quiet", "main"]);

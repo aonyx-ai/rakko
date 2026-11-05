@@ -1,3 +1,5 @@
+//! What kebab case holds, and the names that hold only that
+
 use super::ParseNameError;
 
 /// Defines a name that holds only what kebab case holds
@@ -8,7 +10,7 @@ use super::ParseNameError;
 /// two of them from drifting apart.
 ///
 /// The caller writes the documentation of the type, because a reader of the
-/// type needs to know what it identifies, and only the caller knows that.
+/// type needs to know what it identifies. Only the caller knows that.
 macro_rules! kebab_case_name {
     ($(#[$attribute:meta])* $name:ident) => {
         $(#[$attribute])*
@@ -81,7 +83,7 @@ pub(crate) use kebab_case_name;
 ///
 /// The function is `const`, so a constant context evaluates it during the
 /// build. A name that a literal string states is part of the source of an
-/// action, so a literal that breaks a rule is a defect that the build reports
+/// action. So a literal that breaks a rule is a defect that the build reports
 /// and never a run.
 ///
 /// # Panics

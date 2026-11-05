@@ -5,9 +5,7 @@
 //! caller names the workspace that it wants tested, and everything between
 //! the caller and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// What a run does with the lockfile of the workspace
 mod lockfile;
 
 use rakko_action::ProjectRoot;
@@ -19,10 +17,10 @@ use crate::observation::Observation;
 
 /// The arguments that ask nextest to run every test with every feature
 ///
-/// The reports of nextest and of cargo arrive as JSON, because the crate
-/// reads them as data. The formats select the presentation of the reports
-/// and not the behavior of the tools: how the tests run comes from the
-/// configuration of the project alone.
+/// The reports of nextest and of cargo arrive as JSON, because the crate reads
+/// them as data. The formats select the presentation of the reports, not the
+/// behavior of the tools. How the tests run comes from the configuration of the
+/// project alone.
 const NEXTEST: [&str; 8] = [
     "nextest",
     "run",
@@ -36,9 +34,9 @@ const NEXTEST: [&str; 8] = [
 
 /// The argument that asks cargo to build the versions of the lockfile
 ///
-/// Cargo refuses the build when it would have to write the lockfile, so a
-/// dependency that arrived since the lockfile was written ends the run
-/// without success instead of joining the build unannounced.
+/// Cargo refuses the build when it would have to write the lockfile. So a
+/// dependency that arrived since the lockfile was written ends the run without
+/// success instead of joining the build unannounced.
 const LOCKED: &str = "--locked";
 
 /// The variable that gives consent to the experimental report of nextest
@@ -50,20 +48,19 @@ const CONSENT_VALUE: &str = "1";
 /// The nextest that a project runs
 ///
 /// The value holds the cargo that mise installed for the project, because
-/// nextest is a plugin of cargo: cargo finds it on the path of the
-/// environment that mise sets, at the version that the project pinned.
-/// Nothing here installs a tool, and nothing here resolves one. The caller
-/// resolves cargo for the project and hands it over, so that an action which
-/// also runs cargo for a job of its own asks mise once.
+/// nextest is a plugin of cargo. Cargo finds it on the path of the environment
+/// that mise sets, at the version that the project pinned. Nothing here
+/// installs a tool, and nothing here resolves one. The caller resolves cargo
+/// for the project and hands it over. So an action which also runs cargo for a
+/// job of its own asks mise once.
 ///
 /// A run tests one workspace root and reports what nextest and cargo said
 /// about it. The caller discovers the roots of the project and decides what
 /// the answers mean for its outcome.
 ///
-/// The caller also decides what a run does with the lockfile of the
-/// workspace. A run that only examines the project holds cargo to the
-/// lockfile, and a run that may change the project can let cargo resolve
-/// the dependencies and write it.
+/// The caller also decides what a run does with the lockfile of the workspace.
+/// A run that only examines the project holds cargo to the lockfile. A run that
+/// may change the project can let cargo resolve the dependencies and write it.
 ///
 /// # Examples
 ///
@@ -77,7 +74,7 @@ const CONSENT_VALUE: &str = "1";
 /// let root = ProjectRoot::new("/home/otter/project".into());
 /// let cargo = Cargo::resolve(root.clone()).await?;
 /// let roots = cargo.roots().await?;
-/// let nextest = Nextest::new(cargo, Lockfile::Locked);
+/// let nextest = Nextest::builder().cargo(cargo).lockfile(Lockfile::Locked).build();
 ///
 /// for workspace in &roots {
 ///     let observation = nextest.observe(workspace, &root).await?;
@@ -96,27 +93,79 @@ pub struct Nextest {
     lockfile: Lockfile,
 }
 
+#[bon::bon]
 impl Nextest {
     /// Creates the nextest that the given cargo runs
     ///
-    /// The lockfile tells a run whether cargo may resolve the dependencies
-    /// of the build, or whether it builds the versions that the lockfile
-    /// holds and refuses every other one.
+    /// The lockfile tells a run whether cargo may resolve the dependencies of
+    /// the build. It also tells whether cargo builds the versions that the
+    /// lockfile holds and refuses every other one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_nextest::{Lockfile, Nextest};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_action::ProjectRoot;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/project".into());
+    /// let cargo = Cargo::resolve(root.clone()).await?;
+    /// let nextest = Nextest::builder()
+    ///     .cargo(cargo.clone())
+    ///     .lockfile(Lockfile::Locked)
+    ///     .build();
+    /// let writable = Nextest::builder()
+    ///     .cargo(cargo)
+    ///     .lockfile(Lockfile::Writable)
+    ///     .build();
+    ///
+    /// assert_ne!(nextest, writable);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[builder]
     pub fn new(cargo: Cargo, lockfile: Lockfile) -> Self {
         Self { cargo, lockfile }
     }
 
     /// Tests one workspace of the project and reads what the run reported
     ///
-    /// The run starts in the directory of the root, and it names the files
-    /// of its findings relative to the project root that the caller gives.
-    /// The two need not be the directories of the contributor: a caller that
-    /// tests a copy of the project names the roots of the copy, and the
+    /// The run starts in the directory of the root. It names the files of its
+    /// findings relative to the project root that the caller gives. The two
+    /// need not be the directories of the contributor. For example, a caller
+    /// that tests a copy of the project names the roots of the copy. The
     /// findings then carry the paths that the project has.
     ///
     /// Nothing outside the workspace of the root changes, whatever the run
     /// finds. Cargo builds in the target directory of that workspace, and it
     /// writes the lockfile of the workspace unless the value forbids it.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_nextest::{Lockfile, Nextest};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_action::ProjectRoot;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/project".into());
+    /// let cargo = Cargo::resolve(root.clone()).await?;
+    /// let roots = cargo.roots().await?;
+    /// let nextest = Nextest::builder()
+    ///     .cargo(cargo)
+    ///     .lockfile(Lockfile::Locked)
+    ///     .build();
+    ///
+    /// for workspace_root in &roots {
+    ///     let observation = nextest.observe(workspace_root, &root).await?;
+    ///     assert!(observation.ran() > 0);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -146,6 +195,22 @@ impl Nextest {
             .await
             .map_err(|source| ObserveNextestError::CargoUnavailable { source })?;
 
-        Observation::read(&execution, root, project)
+        Observation::read()
+            .execution(&execution)
+            .root(root)
+            .project(project)
+            .call()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nextest_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Nextest>();
     }
 }

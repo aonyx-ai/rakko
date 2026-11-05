@@ -1,12 +1,11 @@
 //! The entries of one lockfile of mise
 //!
-//! The action reads a lockfile before and after `mise lock`, and compares the
-//! two readings part by part. This module holds the reading and the
-//! comparison. It reads text and starts nothing, so the comparison does not
-//! depend on the order of the keys, on the comments, or on the spaces of the
+//! The action reads a lockfile before and after `mise lock`. It compares the
+//! two readings part by part. This module holds the reading and comparison
+//! logic. It reads text and starts nothing. So the comparison does not depend
+//! on the order of the keys, on the comments, or on the spaces of the
 //! file.
 
-/// The error that keeps the action from reading a lockfile
 mod error;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -37,14 +36,23 @@ const PLATFORM_PREFIX: &str = "platforms.";
 
 /// The entries of one lockfile of mise, part by part
 ///
-/// Each part holds the table of its platform together with the fields that
-/// its entry shares, so a change of a shared field, such as the backend,
-/// changes every part of the entry. A tool can hold more than one entry for
-/// the same version, and the parts of such entries keep the order of the
-/// lockfile.
+/// Each part holds the table of its platform together with the fields that its
+/// entry shares. So a change of a shared field, such as the backend, changes
+/// every part. A tool can hold more than one entry for the same version, and
+/// the
+/// parts of such entries keep the order of the lockfile.
 ///
 /// A lockfile that does not exist reads as a lockfile without parts, which is
 /// the [`Default`] value.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::Lockfile;
+///
+/// let lockfile = Lockfile::parse("").expect("valid TOML");
+/// assert_eq!(lockfile, Lockfile::default());
+/// ```
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Lockfile {
     /// The content of each part, in the order of the lockfile
@@ -55,17 +63,35 @@ impl Lockfile {
     /// Returns the differences between this lockfile and the same lockfile
     /// after a run of `mise lock`
     ///
-    /// The comparison takes every part that either side holds. A part that
-    /// only the other side holds was added, a part that only this side holds
-    /// was removed, and a part that both sides hold with other content was
-    /// changed. A part that a tool records in more than one entry for the
-    /// same version was added when the other side holds more of those
-    /// entries, and removed when it holds fewer. The differences come in the
-    /// order of their parts.
+    /// The comparison takes every part that either side holds. A part is
+    /// added when only the other side holds it. It is removed when only
+    /// this side holds it. It is changed when both sides hold it with different
+    /// content. A part from a tool with more than one entry for the same
+    /// version is added when the other side holds more of them. It is
+    /// removed when the other side holds fewer entries. The differences come
+    /// in the order of their parts.
     ///
     /// An entry that gains or loses its platforms also loses or gains its
     /// part without a platform. The parts of the platforms name that change,
     /// so the part without a platform gives no difference of its own then.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::Lockfile;
+    ///
+    /// let before = Lockfile::parse("").expect("valid TOML");
+    /// let after = Lockfile::parse(
+    ///     "[[tools.jq]]\nversion = \"1.8.1\"\nbackend = \"aqua:jqlang/jq\"\n",
+    /// )
+    /// .expect("valid TOML");
+    ///
+    /// let differences = before.differences(&after);
+    ///
+    /// assert_eq!(differences.len(), 1);
+    /// assert_eq!(differences[0].finding(), "mise lock adds the entry of jq 1.8.1");
+    /// assert!(before.differences(&before).is_empty());
+    /// ```
     pub fn differences(&self, after: &Self) -> Vec<Difference> {
         let parts: BTreeSet<&Part> = self.parts.keys().chain(after.parts.keys()).collect();
 
@@ -84,7 +110,12 @@ impl Lockfile {
                     _ => return None,
                 };
 
-                Some(Difference::new(part.clone(), change))
+                Some(
+                    Difference::builder()
+                        .part(part.clone())
+                        .change(change)
+                        .build(),
+                )
             })
             .collect();
 
@@ -112,6 +143,24 @@ impl Lockfile {
     /// An install in locked mode refuses a platform whose entry names no
     /// download. `mise lock` writes such an entry when it could not resolve
     /// the tool, such as one that holds only the provenance of the download.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::Lockfile;
+    ///
+    /// let lockfile = Lockfile::parse(concat!(
+    ///     "[[tools.jq]]\n",
+    ///     "version = \"1.8.1\"\n",
+    ///     "\n",
+    ///     "[tools.jq.\"platforms.linux-x64\"]\n",
+    ///     "checksum = \"sha256:abc\"\n",
+    /// ))
+    /// .expect("valid TOML");
+    ///
+    /// assert_eq!(lockfile.unaddressed().len(), 1);
+    /// assert!(Lockfile::parse("").expect("valid TOML").unaddressed().is_empty());
+    /// ```
     pub fn unaddressed(&self) -> Vec<&Part> {
         self.parts
             .iter()
@@ -128,6 +177,25 @@ impl Lockfile {
     }
 
     /// Returns whether the lockfile records any platform
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::Lockfile;
+    ///
+    /// let bare = Lockfile::parse("[[tools.jq]]\nversion = \"1.8.1\"\n").expect("valid TOML");
+    /// assert!(!bare.records_platforms());
+    ///
+    /// let platformed = Lockfile::parse(concat!(
+    ///     "[[tools.jq]]\n",
+    ///     "version = \"1.8.1\"\n",
+    ///     "\n",
+    ///     "[tools.jq.\"platforms.linux-x64\"]\n",
+    ///     "url = \"https://example.com/jq-linux\"\n",
+    /// ))
+    /// .expect("valid TOML");
+    /// assert!(platformed.records_platforms());
+    /// ```
     pub fn records_platforms(&self) -> bool {
         self.parts.keys().any(|part| part.platform().is_some())
     }
@@ -136,9 +204,18 @@ impl Lockfile {
     ///
     /// # Errors
     ///
-    /// Returns [`UnparsableToml`][unparsable] when the text is not TOML, and
-    /// the other variants of [`ReadLockfileError`] when the tools, an entry,
-    /// or a platform of an entry have a shape that the action does not know.
+    /// Returns [`UnparsableToml`][unparsable] when the text is not TOML.
+    /// Returns the other variants of [`ReadLockfileError`] when the tools, an
+    /// entry, or a platform of an entry have a shape the action does not know.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_check_mise_lock::Lockfile;
+    ///
+    /// assert!(Lockfile::parse("[[tools.jq]]\nversion = \"1.8.1\"\n").is_ok());
+    /// assert!(Lockfile::parse("tools = [").is_err());
+    /// ```
     ///
     /// [unparsable]: ReadLockfileError::UnparsableToml
     pub fn parse(text: &str) -> Result<Self, ReadLockfileError> {
@@ -244,9 +321,10 @@ impl Lockfile {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -270,6 +348,7 @@ backend = "cargo:cargo-deny"
 "#;
 
     /// Returns the differences between two lockfiles, as finding messages
+    #[bon::builder]
     fn compare(before: &str, after: &str) -> Vec<String> {
         let before = Lockfile::parse(before).unwrap();
         let after = Lockfile::parse(after).unwrap();
@@ -288,7 +367,7 @@ backend = "cargo:cargo-deny"
             "backend = \"cargo:other\"",
         );
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -300,7 +379,7 @@ backend = "cargo:cargo-deny"
     fn differences_with_a_changed_platform_name_the_platform() {
         let after = COMPLETE.replace("jq-linux", "jq-linux-amd64");
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -312,7 +391,7 @@ backend = "cargo:cargo-deny"
     fn differences_with_a_changed_shared_field_name_every_platform() {
         let after = COMPLETE.replace("aqua:jqlang/jq", "github:jqlang/jq");
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -330,7 +409,7 @@ backend = "cargo:cargo-deny"
             "",
         );
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -344,7 +423,7 @@ backend = "cargo:cargo-deny"
             "{COMPLETE}\n[[tools.jq]]\nversion = \"1.8.1\"\nbackend = \"aqua:jqlang/jq\"\n\n[tools.jq.\"platforms.linux-x64\"]\nurl = \"https://example.com/jq-linux\"\n"
         );
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -359,7 +438,7 @@ backend = "cargo:cargo-deny"
             "",
         );
 
-        let differences = compare(&before, COMPLETE);
+        let differences = compare().before(&before).after(COMPLETE).call();
 
         assert_eq!(
             differences,
@@ -374,7 +453,7 @@ backend = "cargo:cargo-deny"
             "{before}\n[tools.jq.\"platforms.linux-x64\"]\nurl = \"https://example.com/jq-linux\"\n"
         );
 
-        let differences = compare(before, &after);
+        let differences = compare().before(before).after(&after).call();
 
         assert_eq!(
             differences,
@@ -400,7 +479,7 @@ backend = "cargo:cargo-deny"
             )
             .replace("lockfile_version = 1", "# a comment\nlockfile_version = 1");
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert!(
             differences.is_empty(),
@@ -410,7 +489,7 @@ backend = "cargo:cargo-deny"
 
     #[test]
     fn differences_with_the_same_lockfile_are_empty() {
-        let differences = compare(COMPLETE, COMPLETE);
+        let differences = compare().before(COMPLETE).after(COMPLETE).call();
 
         assert!(
             differences.is_empty(),
@@ -424,12 +503,19 @@ backend = "cargo:cargo-deny"
             "{COMPLETE}\n[[tools.jq]]\nversion = \"1.8.1\"\nbackend = \"aqua:jqlang/jq\"\n\n[tools.jq.\"platforms.linux-x64\"]\nurl = \"https://example.com/jq-linux\"\n"
         );
 
-        let differences = compare(&before, COMPLETE);
+        let differences = compare().before(&before).after(COMPLETE).call();
 
         assert_eq!(
             differences,
             ["mise lock removes the entry of jq 1.8.1 for linux-x64"]
         );
+    }
+
+    #[test]
+    fn lockfile_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Lockfile>();
     }
 
     #[test]

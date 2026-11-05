@@ -1,3 +1,5 @@
+//! The reason why an action does not apply to a project
+
 typed_fields::name! {
     /// The reason why an action does not apply to a project
     ///

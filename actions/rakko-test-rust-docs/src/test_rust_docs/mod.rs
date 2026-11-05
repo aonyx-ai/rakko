@@ -5,7 +5,6 @@
 //! the examples of every workspace whose documentation cargo can test. What
 //! cargo and the test harness reported becomes the outcome of the run.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko_action::{
@@ -28,7 +27,7 @@ const NO_LIBRARY: &str = "no workspace of the project holds a library";
 ///
 /// Every package of the workspace answers, with every feature, so that an
 /// example behind a feature runs as well. Cargo stops at the first package
-/// whose examples fail unless a run asks it to continue, and a run that
+/// whose examples fail unless a run asks it to continue. A run that
 /// stopped there would leave the packages behind that one unexamined.
 ///
 /// Cargo builds the versions that the lockfile holds and does not write the
@@ -49,40 +48,39 @@ const TEST: [&str; 7] = [
 
 /// The action that runs the examples in the documentation of a project
 ///
-/// The action wraps cargo: it builds the examples of every package of a
-/// workspace with every feature, against the library that documents them,
-/// and runs them, so a run agrees with a contributor that runs
+/// The action wraps cargo. It builds the examples of every package of a
+/// workspace with every feature, against the library that documents them.
+/// It runs them. As a result, a run agrees with a contributor that runs
 /// `cargo test --doc` bare. The cargo that runs is the one that [mise]
-/// installed for the project, at the version that the project pinned, and
-/// the action installs nothing.
+/// installed for the project, at the version that the project pinned. The
+/// action installs nothing.
 ///
 /// The action runs beside the action that runs the tests, because [nextest]
 /// leaves the examples out. A run only reports, and it takes no argument. It
-/// tests every workspace of the project that holds a library, because the
-/// harness of a project is a package of its own, and cargo can test the
-/// documentation of a library and of nothing else. It builds the versions
-/// that the lockfile of a workspace holds, and it leaves the lockfile as it
-/// is.
+/// tests every workspace of the project that holds a library. It does so
+/// because the harness of a project is a package of its own. Cargo can test
+/// the documentation of a library and of nothing else. It builds the versions
+/// that the lockfile of a workspace holds, and it leaves the lockfile as it is.
 ///
-/// An example that failed becomes a finding at the line that documents it,
-/// which carries the message of the panic for an example that ran, and what
-/// the compiler wrote for an example that it refused. A build that does not
-/// finish becomes findings from the diagnostics of the compiler. A library
-/// without an example ran no example, and the run says so instead of
-/// failing.
+/// An example that failed becomes a finding at the line that documents it.
+/// The finding carries the message of the panic for an example that ran. It
+/// carries what the compiler wrote for an example that it refused. A build
+/// that does not finish becomes findings from the diagnostics of the
+/// compiler. A library without an example ran no example, and the run says so
+/// instead of failing.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and so does a
 /// project whose workspaces hold no library. A run stops with an error when
-/// mise reports no cargo, when the workspaces of the project cannot be
-/// discovered, when the lockfile of a workspace needs an update, and when a
-/// run of cargo leaves the action without an answer.
+/// mise reports no cargo or when the workspaces of the project cannot be
+/// discovered. A run also stops when the lockfile of a workspace needs an
+/// update or when a run of cargo leaves the action without an answer.
 ///
-/// A run declares a read of the project. It holds cargo to the lockfile of each
-/// workspace, and cargo writes what it builds into the `target` directory,
-/// which cargo locks against parallel use itself. The declaration covers the
-/// action and cargo, and not the tests, build scripts, and procedural macros of
-/// the project, which can write files of their own. A caller that orders runs
-/// by their declarations runs it after the actions that write.
+/// A run declares a read of the project. It holds cargo to the lockfile of
+/// each workspace. Cargo writes what it builds into the `target` directory
+/// and locks it against parallel use. The declaration covers the action and
+/// cargo. It excludes the tests, build scripts, and procedural macros of the
+/// project, which can write files of their own. A caller that orders runs by
+/// their declarations runs it after the actions that write.
 ///
 /// # Examples
 ///
@@ -139,9 +137,9 @@ struct Examined {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of
-/// the tool, the discovery of the workspaces, a run of cargo, or the reading
-/// of a report.
+/// Returns the error of a step that could not finish. These are the
+/// resolution of the tool, the discovery of the workspaces, a run of cargo,
+/// or the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
     let cargo = Cargo::resolve(context.root().clone())
         .await
@@ -196,11 +194,11 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
 ///
 /// # Errors
 ///
-/// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
-/// [`StaleLockfile`][stale] when cargo refused to build because the
-/// lockfile needs an update, [`UnreadableDiagnostics`][diagnostics] and
-/// [`UnreadableReport`][report] when the action cannot read what cargo or
-/// the harness wrote, and [`UnrecognizedReport`][unrecognized] when the run
+/// Returns [`CargoUnavailable`][unavailable] when cargo does not run.
+/// Returns [`StaleLockfile`][stale] when cargo refused to build because the
+/// lockfile needs an update. Returns [`UnreadableDiagnostics`][diagnostics] and
+/// [`UnreadableReport`][report] when the action cannot read what cargo or the
+/// harness wrote. Returns [`UnrecognizedReport`][unrecognized] when the run
 /// leaves the action without an answer.
 ///
 /// [diagnostics]: TestRustDocsError::UnreadableDiagnostics
@@ -268,9 +266,10 @@ async fn examine(
 ///
 /// A run that ended with success and left no summary of the harness examined
 /// nothing that the action can report. A run that ended without success and
-/// named neither a failed example nor a diagnostic failed for a reason that
-/// the action cannot read, such as a build script that ended badly. An
-/// answer built on either would hide problems behind a green result.
+/// named neither a failed example nor a diagnostic failed for a reason the
+/// action cannot read. Build scripts that ended badly are examples of such
+/// reasons. An answer built on either would hide problems behind a green
+/// result.
 fn recognized(report: &DoctestReport, build: &CargoReport, execution: &Execution) -> bool {
     if execution.status().success() {
         report.summaries() > 0
@@ -296,9 +295,10 @@ fn summary(ran: u64, roots: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -313,6 +313,13 @@ mod tests {
         let access = TestRustDocs.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn examined_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Examined>();
     }
 
     #[test]
@@ -334,5 +341,12 @@ mod tests {
         let summary = summary(1, 1);
 
         assert_eq!(summary.get(), "ran 1 example in 1 workspace");
+    }
+
+    #[test]
+    fn test_rust_docs_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TestRustDocs>();
     }
 }

@@ -1,3 +1,5 @@
+//! One thing that a harness mounted: an action, a command, or a group
+
 use std::fmt;
 
 use rakko_action::{ErasedAction, Group, Name};
@@ -7,13 +9,12 @@ use crate::erased_command::ErasedCommand;
 
 /// One entry of the command tree: an action, a command, or a group
 ///
-/// The projection derives a command from an action, it places a command that
-/// the harness wrote as it is, and it derives the flags of a group from the
-/// arguments of its members when the harness mounts the group. Each of the
-/// three carries a name and a place in one flat tree, so the registry holds
-/// them as one type. Their flags and their runs differ, so the code that
-/// renders the flags, checks them at the mount, and drives a run tells the
-/// three apart.
+/// The projection derives a command from an action. It places a command that
+/// the harness wrote as it is. When the harness mounts a group, it derives the
+/// flags of the group from the arguments of its members. Each of the three
+/// carries a name and a place in one flat tree, so the registry holds them as
+/// one type. Their flags and their runs differ. So the code that renders the
+/// flags, checks them at the mount, and drives a run tells the three apart.
 pub(crate) enum Mounted {
     /// An action, whose command the projection derives
     Action(Box<dyn ErasedAction>),
@@ -51,5 +52,17 @@ impl fmt::Display for Mounted {
             Self::Command(command) => write!(formatter, "command '{}'", command.name()),
             Self::Group { group, .. } => write!(formatter, "group '{}'", group.name()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mounted_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Mounted>();
     }
 }

@@ -1,3 +1,5 @@
+//! The directory where the run of an action happens
+
 use std::io::Result as IoResult;
 use std::path::Path;
 
@@ -31,13 +33,13 @@ typed_fields::path! {
 impl ProjectRoot {
     /// Returns the root at a path, as the file system names the directory
     ///
-    /// The file system resolves the path, so a relative path and a path
-    /// through a symbolic link both reach an action as the directory that
-    /// they name. A caller that has a path instead of a root uses this rather
-    /// than the plain constructor: an action reports every location relative
-    /// to the root, and a root that spells a directory differently from the
-    /// programs that the action starts leaves every path they report outside
-    /// the root.
+    /// The file system resolves the path. So a relative path and a path through
+    /// a symbolic link both reach an action as the directory that they name. A
+    /// caller that has a path instead of a root uses this rather than the plain
+    /// constructor. The reason is that an action reports every location
+    /// relative to the root. A root that spells a directory differently from
+    /// the programs that the action starts leaves every path they report
+    /// outside the root.
     ///
     /// # Errors
     ///
@@ -63,22 +65,16 @@ impl ProjectRoot {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
-    // The helpers of this module exist only for tests.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+    #![allow(
+        clippy::expect_used,
+        reason = "The helpers of this module exist only for tests."
+    )]
 
     use super::*;
-
-    #[test]
-    fn canonical_of_a_directory_that_exists_names_it() {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        let root = ProjectRoot::canonical(directory.path()).expect("the directory exists");
-
-        assert!(root.get().is_dir());
-    }
 
     #[test]
     fn canonical_of_a_directory_that_does_not_exist_reports_the_error() {
@@ -87,5 +83,14 @@ mod tests {
         let root = ProjectRoot::canonical(directory.path().join("absent"));
 
         assert!(root.is_err());
+    }
+
+    #[test]
+    fn canonical_of_a_directory_that_exists_names_it() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let root = ProjectRoot::canonical(directory.path()).expect("the directory exists");
+
+        assert!(root.get().is_dir());
     }
 }

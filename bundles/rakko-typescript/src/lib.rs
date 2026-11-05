@@ -8,12 +8,21 @@ use rakko_test_typescript::TestTypeScript;
 
 /// Returns the actions that any TypeScript project runs
 ///
-/// The list is in alphabetical order. The order is for whoever reads the
-/// list, because the command line that a harness builds decides for itself
-/// how it lists the commands, and a run of one command starts no other.
+/// The list is in alphabetical order. The order is for whoever reads the list,
+/// because the command line that a harness builds decides for itself how it
+/// lists the commands. A run of one command starts no other.
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_typescript::bundle;
+///
+/// let actions = bundle();
+/// assert!(!actions.actions().is_empty());
+/// ```
 #[must_use]
 pub fn bundle() -> Bundle {
     Bundle::new(vec![
@@ -26,9 +35,10 @@ pub fn bundle() -> Bundle {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 

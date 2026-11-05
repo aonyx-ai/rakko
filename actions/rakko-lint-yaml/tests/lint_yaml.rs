@@ -1,24 +1,25 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken YAML file sits in this
-//! repository, where the checks of the repository itself would fight it.
+//! against it. No fixture with a deliberately broken YAML file sits in this
+//! repository. The checks of the repository itself would fight such a file.
 //!
 //! The tests run the yamllint that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. The version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project also writes its own configuration. Yamllint looks for one in
-//! every directory above the run, and it falls back to the configuration of
-//! the user, so a project without one would answer differently on the machine
-//! of every contributor. The configuration file is a YAML file that yamllint
-//! examines like any other, which is why the counts below are one higher than
+//! every directory above the run. It falls back to the configuration of the
+//! user, so a project without one would answer differently on the machine of
+//! every contributor. The configuration file is a YAML file that yamllint
+//! examines like any other. This is why the counts below are one higher than
 //! the number of files that a test wrote itself.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -57,6 +58,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a yamllint to resolve
     ///
@@ -84,7 +86,11 @@ impl Project {
         std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
         trust(&copy);
 
-        project.write(".yamllint", DEFAULT_CONFIGURATION);
+        project
+            .write()
+            .path(".yamllint")
+            .content(DEFAULT_CONFIGURATION)
+            .call();
 
         project
     }
@@ -92,8 +98,8 @@ impl Project {
     /// Creates a project that pins a yamllint that nothing installed
     ///
     /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about yamllint.
+    /// location for it. This holds whatever the global configuration of the
+    /// machine says about yamllint.
     fn without_yamllint() -> Self {
         let project = Self::bare();
 
@@ -128,6 +134,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -179,12 +186,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record
+    /// piles up there forever. A project that never wrote a configuration
+    /// has nothing to withdraw. Mise resolves a path that is not there to the
+    /// directory above it, so the file must exist first. A failure stays quiet,
+    /// because the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 
@@ -222,7 +229,7 @@ fn action_identifies_itself_as_lint_yaml() {
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
-    project.write("notes.yaml", VALID);
+    project.write().path("notes.yaml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -235,7 +242,7 @@ async fn run_in_a_valid_project_passes() {
 #[tokio::test]
 async fn run_in_a_valid_project_says_how_many_files_yamllint_examined() {
     let project = Project::new();
-    project.write("notes.yaml", VALID);
+    project.write().path("notes.yaml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -248,7 +255,11 @@ async fn run_in_a_valid_project_says_how_many_files_yamllint_examined() {
 #[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
-    project.write("notes.yaml", TRAILING_SPACES);
+    project
+        .write()
+        .path("notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
 
     project.run().await;
 
@@ -258,8 +269,12 @@ async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write("notes.yaml", VALID);
-    project.write("deep/sub/notes.yaml", TRAILING_SPACES);
+    project.write().path("notes.yaml").content(VALID).call();
+    project
+        .write()
+        .path("deep/sub/notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
 
     let outcome = project.run().await;
 
@@ -272,7 +287,11 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
 #[tokio::test]
 async fn run_reaches_a_file_under_a_hidden_directory() {
     let project = Project::new();
-    project.write(".github/workflows/ci.yml", VALID);
+    project
+        .write()
+        .path(".github/workflows/ci.yml")
+        .content(VALID)
+        .call();
 
     let outcome = project.run().await;
 
@@ -285,8 +304,16 @@ async fn run_reaches_a_file_under_a_hidden_directory() {
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
-    project.write(".yamllint", PERMISSIVE_CONFIGURATION);
-    project.write("notes.yaml", TRAILING_SPACES);
+    project
+        .write()
+        .path(".yamllint")
+        .content(PERMISSIVE_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
 
     let outcome = project.run().await;
 
@@ -297,9 +324,38 @@ async fn run_reads_the_configuration_of_the_project() {
 }
 
 #[tokio::test]
+async fn run_whose_yamllint_examined_nothing_skips() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".yamllint")
+        .content(IGNORE_EVERYTHING)
+        .call();
+    project
+        .write()
+        .path("notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
+    };
+    assert!(
+        reason.get().contains("yamllint"),
+        "expected the reason to name the tool, got {reason:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_yamllint() {
     let project = Project::new();
-    project.write("notes.yaml", TRAILING_SPACES);
+    project
+        .write()
+        .path("notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
 
     let outcome = project.run().await;
 
@@ -312,20 +368,29 @@ async fn run_with_a_broken_rule_carries_the_message_of_yamllint() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_broken_rule_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("notes.yaml", TRAILING_SPACES);
+    project
+        .write()
+        .path("notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintYaml, &project.context(), &()).await;
 }
 
 #[tokio::test]
 async fn run_with_a_broken_rule_names_the_file() {
     let project = Project::new();
-    project.write("sub/notes.yaml", TRAILING_SPACES);
+    project
+        .write()
+        .path("sub/notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
 
     let outcome = project.run().await;
 
@@ -338,7 +403,11 @@ async fn run_with_a_broken_rule_names_the_file() {
 #[tokio::test]
 async fn run_with_a_broken_rule_reports_the_position_of_yamllint() {
     let project = Project::new();
-    project.write("notes.yaml", TRAILING_SPACES);
+    project
+        .write()
+        .path("notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
 
     let outcome = project.run().await;
 
@@ -359,8 +428,12 @@ async fn run_with_a_broken_rule_reports_the_position_of_yamllint() {
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::new();
-    project.write(".yamllint", BROKEN_CONFIGURATION);
-    project.write("notes.yaml", VALID);
+    project
+        .write()
+        .path(".yamllint")
+        .content(BROKEN_CONFIGURATION)
+        .call();
+    project.write().path("notes.yaml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -373,7 +446,7 @@ async fn run_with_a_refused_configuration_stops() {
 #[tokio::test]
 async fn run_with_a_warning_fails() {
     let project = Project::new();
-    project.write("notes.yaml", TRUTHY);
+    project.write().path("notes.yaml").content(TRUTHY).call();
 
     let outcome = project.run().await;
 
@@ -392,7 +465,7 @@ async fn run_with_an_unreadable_file_stops() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.yaml", VALID);
+    project.write().path("secret.yaml").content(VALID).call();
     let path = project.directory.path().join("secret.yaml");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -408,26 +481,9 @@ async fn run_with_an_unreadable_file_stops() {
 }
 
 #[tokio::test]
-async fn run_whose_yamllint_examined_nothing_skips() {
-    let project = Project::new();
-    project.write(".yamllint", IGNORE_EVERYTHING);
-    project.write("notes.yaml", TRAILING_SPACES);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains("yamllint"),
-        "expected the reason to name the tool, got {reason:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_without_a_yamllint_stops() {
     let project = Project::without_yamllint();
-    project.write("notes.yaml", VALID);
+    project.write().path("notes.yaml").content(VALID).call();
 
     let outcome = project.run().await;
 

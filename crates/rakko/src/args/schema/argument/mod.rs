@@ -1,8 +1,7 @@
-/// The documentation of one argument
+//! The description of one argument
+
 mod documentation;
-/// The name of one argument
 mod name;
-/// The kind of value that one argument holds
 mod shape;
 
 use bon::bon;
@@ -14,19 +13,34 @@ pub use self::shape::ArgumentShape;
 
 /// The description of one argument that an action reads
 ///
-/// An argument describes itself as data. It gives the name that identifies
-/// it, the shape of the value that it holds, and the sentence that tells a
-/// user what it does. A projection builds a command from those three, and an
-/// action names no flag.
+/// An argument describes itself as data. It gives the name that identifies it,
+/// the shape of the value that it holds, and the sentence that tells a user
+/// what it does. A projection builds a command from those three, and an action
+/// names no flag.
 ///
 /// All three are mandatory. An argument without a shape is one that no
-/// projection can render, and an argument without documentation reaches a
-/// user who cannot tell what it does.
+/// projection can render. An argument without documentation reaches a user who
+/// cannot tell what it does.
 ///
 /// The description carries no default and does not say that the argument is
-/// required. The argument set of an action decides what an absent value
-/// means, so a run from a command line and a run from a test read the same
-/// rules.
+/// required. The argument set of an action decides what an absent value means.
+/// So a run from a command line and a run from a test read the same rules.
+///
+/// # Examples
+///
+/// Create an argument that the action reads.
+///
+/// ```
+/// use rakko::{Argument, ArgumentShape, argument_name};
+///
+/// let argument = Argument::builder()
+///     .name(argument_name!("fix"))
+///     .shape(ArgumentShape::Boolean)
+///     .documentation("Rewrite files that need repairs")
+///     .build();
+///
+/// assert_eq!(argument.name().get(), "fix");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Argument {
     /// The name that identifies the argument
@@ -73,9 +87,10 @@ impl Argument {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
     use crate::argument_name;
@@ -87,6 +102,13 @@ mod tests {
             .shape(shape)
             .documentation("Rewrite the files that the tool can format")
             .build()
+    }
+
+    #[test]
+    fn argument_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Argument>();
     }
 
     #[test]

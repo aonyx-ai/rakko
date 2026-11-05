@@ -1,11 +1,10 @@
 //! The oxfmt that a project runs
 //!
 //! This module holds the program that mise installed for a project and the two
-//! runs that an action asks for: the list of the files that a rewrite would
-//! change, and the rewrite itself. An action asks for a run, and everything
-//! between the action and the process lives here.
+//! runs that an action asks for. These are the list of files a rewrite would
+//! change and the rewrite itself. An action asks for a run. Everything between
+//! the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
 
 use rakko_action::ProjectRoot;
@@ -20,36 +19,36 @@ const OXFMT: &str = "oxfmt";
 /// The option that asks oxfmt to name the files that a rewrite would change
 ///
 /// Oxfmt writes one path per file and rewrites nothing. Its other reporting
-/// operation counts the files and draws a line per file with the time that it
-/// took, which says nothing more about what is wrong and costs a reading of
-/// the decoration that oxfmt puts around it. The option selects the
-/// presentation of the report and not the behavior of the tool.
+/// operation counts the files and draws a line per file with the time it took.
+/// This says nothing more about what is wrong. It costs a reading of the
+/// decoration that oxfmt puts around it. The option selects the presentation
+/// of the report and not the behavior of the tool.
 const LIST: &str = "--list-different";
 
 /// The option that asks oxfmt to rewrite the files that it can format
 ///
-/// Oxfmt rewrites a project when no operation is named at all, so a run that
+/// Oxfmt rewrites a project when no operation is named at all. So a run that
 /// only reports names its operation as deliberately as a run that rewrites.
 const WRITE: &str = "--write";
 
 /// The files that a run of the action names to oxfmt
 ///
-/// Oxfmt formats more languages than this action asks it about, and the
-/// actions that wrap prettier own those languages in a project that mounts
-/// them, so the pattern names the extensions of this one and oxfmt never sees
-/// the rest. The name of the action says TypeScript and the pattern holds
-/// JavaScript as well, because a TypeScript project carries configuration and
-/// scripts in that language and the tool reads both with one parser.
+/// Oxfmt formats more languages than this action asks it about. The actions
+/// that wrap prettier own those languages in a project that mounts them. So the
+/// pattern names the extensions of this one and oxfmt never sees the rest. The
+/// name of the action says TypeScript. The pattern holds JavaScript as well,
+/// because a TypeScript project carries configuration and scripts in that
+/// language. The tool reads both with one parser.
 ///
-/// Oxfmt skips the dependencies of a Node project and reads the ignore files
-/// of the project on its own, so the extensions are the whole of what the
-/// action decides about the selection.
+/// Oxfmt skips the dependencies of a Node project. It reads the ignore files of
+/// the project on its own. So the extensions are the whole of what the action
+/// decides about the selection.
 const PATTERN: &str = "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}";
 
 /// The oxfmt that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
+/// version that the project pinned. So a run reaches the same program as the
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and an oxfmt that mise does not report
 /// stops the caller.
@@ -80,22 +79,40 @@ pub struct Oxfmt {
 impl Oxfmt {
     /// Names the files that a rewrite would change, and changes nothing
     ///
-    /// Oxfmt writes the paths on its standard output stream and everything
-    /// that it could not do on its standard error stream, and the observation
-    /// carries both.
+    /// Oxfmt writes the paths on its standard output stream. Everything that it
+    /// could not do goes to its standard error stream. The observation carries
+    /// both.
     ///
     /// # Errors
     ///
     /// Returns [`OxfmtUnavailable`][unavailable] when oxfmt does not run.
     ///
     /// [unavailable]: ObserveOxfmtError::OxfmtUnavailable
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_format_typescript::Oxfmt;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let oxfmt = Oxfmt::resolve(root).await?;
+    /// let observation = oxfmt.list().await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn list(&self) -> Result<Observation, ObserveOxfmtError> {
         self.observe(LIST).await
     }
 
     /// Returns the oxfmt that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
+    /// The lookup asks mise about the project whose root the caller names. So
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
     ///
@@ -103,8 +120,27 @@ impl Oxfmt {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no oxfmt for the
     /// project.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_format_typescript::Oxfmt;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let oxfmt = Oxfmt::resolve(root).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(OXFMT), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(OXFMT))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }
@@ -120,6 +156,24 @@ impl Oxfmt {
     /// Returns [`OxfmtUnavailable`][unavailable] when oxfmt does not run.
     ///
     /// [unavailable]: ObserveOxfmtError::OxfmtUnavailable
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko_action::ProjectRoot;
+    /// use rakko_format_typescript::Oxfmt;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    ///
+    /// let oxfmt = Oxfmt::resolve(root).await?;
+    /// let observation = oxfmt.rewrite().await?;
+    ///
+    /// assert!(observation.rejected_configuration().is_none());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn rewrite(&self) -> Result<Observation, ObserveOxfmtError> {
         self.observe(WRITE).await
     }
@@ -142,5 +196,17 @@ impl Oxfmt {
             .map_err(|source| ObserveOxfmtError::OxfmtUnavailable { source })?;
 
         Ok(Observation::read(&execution))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn oxfmt_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Oxfmt>();
     }
 }
