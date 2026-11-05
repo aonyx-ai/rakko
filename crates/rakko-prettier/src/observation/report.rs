@@ -95,16 +95,23 @@ pub(super) fn read(
             }
         } else if report.starts_with(UNMATCHED_PATTERN) {
             observation.unmatched_pattern = true;
-        } else if let Some(path) = quoted_path(report, UNREADABLE) {
-            let detail = ProblemDetail::Unreadable {
-                reason: reason(&lines[index + 1..]),
-            };
+        } else {
+            match quoted_path(report, UNREADABLE) {
+                Some(path) => {
+                    let detail = ProblemDetail::Unreadable {
+                        reason: reason(&lines[index + 1..]),
+                    };
 
-            observation
-                .problems
-                .push(PrettierProblem::new(path, detail));
-        } else if let Some(problem) = diagnostic(report) {
-            observation.problems.push(problem);
+                    observation
+                        .problems
+                        .push(PrettierProblem::new(path, detail));
+                }
+                None => {
+                    if let Some(problem) = diagnostic(report) {
+                        observation.problems.push(problem);
+                    }
+                }
+            }
         }
     }
 

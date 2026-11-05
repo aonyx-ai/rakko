@@ -108,24 +108,40 @@ impl DoctestReport {
         let mut summaries = 0;
 
         for line in stdout.lines() {
-            if let Some(name) = opens_output(line) {
-                open = Some(blocks.len());
-                blocks.push((name, String::new()));
-            } else if let Some(counts) = line.strip_prefix(SUMMARY) {
-                ran +=
-                    examples(counts).ok_or_else(|| ReadDoctestReportError::UnreadableSummary {
-                        line: line.to_owned(),
-                    })?;
-                summaries += 1;
-                open = None;
-            } else if line.trim_end() == FAILURES {
-                open = None;
-            } else if let Some(index) = open {
-                let output = &mut blocks[index].1;
-                output.push_str(line);
-                output.push('\n');
-            } else if let Some(name) = failed(line) {
-                names.push(name);
+            match opens_output(line) {
+                Some(name) => {
+                    open = Some(blocks.len());
+                    blocks.push((name, String::new()));
+                }
+                None => match line.strip_prefix(SUMMARY) {
+                    Some(counts) => {
+                        ran += examples(counts).ok_or_else(|| {
+                            ReadDoctestReportError::UnreadableSummary {
+                                line: line.to_owned(),
+                            }
+                        })?;
+                        summaries += 1;
+                        open = None;
+                    }
+                    None => {
+                        if line.trim_end() == FAILURES {
+                            open = None;
+                        } else {
+                            match open {
+                                Some(index) => {
+                                    let output = &mut blocks[index].1;
+                                    output.push_str(line);
+                                    output.push('\n');
+                                }
+                                None => {
+                                    if let Some(name) = failed(line) {
+                                        names.push(name);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
             }
         }
 

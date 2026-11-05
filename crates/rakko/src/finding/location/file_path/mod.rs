@@ -72,12 +72,15 @@ impl FilePath {
     pub fn within(path: &Path, root: &ProjectRoot) -> Option<Self> {
         let relative = if path.is_relative() {
             path.to_path_buf()
-        } else if let Ok(stripped) = path.strip_prefix(root.get()) {
-            stripped.to_path_buf()
         } else {
-            let resolved = canonical(root.get()).ok()?;
+            match path.strip_prefix(root.get()) {
+                Ok(stripped) => stripped.to_path_buf(),
+                Err(_) => {
+                    let resolved = canonical(root.get()).ok()?;
 
-            path.strip_prefix(resolved).ok()?.to_path_buf()
+                    path.strip_prefix(resolved).ok()?.to_path_buf()
+                }
+            }
         };
 
         let mut plain = PathBuf::new();

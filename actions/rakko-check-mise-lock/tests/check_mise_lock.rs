@@ -292,11 +292,16 @@ impl Project {
         let lockfile = self.read("mise.lock");
 
         for line in lockfile.lines() {
-            if let Some(rest) = line.strip_prefix(JQ_PLATFORM) {
-                platforms.push(rest.trim_end_matches("\"]").to_owned());
-                skipping = true;
-            } else if skipping && line.starts_with('[') {
-                skipping = false;
+            match line.strip_prefix(JQ_PLATFORM) {
+                Some(rest) => {
+                    platforms.push(rest.trim_end_matches("\"]").to_owned());
+                    skipping = true;
+                }
+                None => {
+                    if skipping && line.starts_with('[') {
+                        skipping = false;
+                    }
+                }
             }
 
             if !skipping {
