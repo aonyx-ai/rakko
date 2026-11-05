@@ -47,6 +47,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn finding_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Finding>();
+    }
+
+    #[test]
     fn location_returns_given_location() {
         let location = Location::File {
             path: FilePath::try_from("src/main.rs").unwrap(),

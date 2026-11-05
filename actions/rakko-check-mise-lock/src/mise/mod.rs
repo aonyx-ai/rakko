@@ -668,6 +668,13 @@ mod tests {
     }
 
     #[test]
+    fn listed_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Listed>();
+    }
+
+    #[test]
     fn listed_with_a_list_that_is_not_json_reports_the_list() {
         let error = listed("mise.lock", &root()).unwrap_err();
 
@@ -742,6 +749,13 @@ mod tests {
             .collect();
 
         assert_eq!(arguments, [LOCK]);
+    }
+
+    #[test]
+    fn mise_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Mise>();
     }
 
     #[test]

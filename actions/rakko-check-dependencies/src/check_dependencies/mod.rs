@@ -305,6 +305,13 @@ mod tests {
     }
 
     #[test]
+    fn check_dependencies_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckDependencies>();
+    }
+
+    #[test]
     fn finding_of_a_problem_carries_the_message_of_cargo_deny() {
         let finding = finding(&problem(Severity::Error), &project_workspace(), &root()).unwrap();
 

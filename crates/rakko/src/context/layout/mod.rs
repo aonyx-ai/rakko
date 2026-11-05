@@ -58,6 +58,13 @@ mod tests {
     }
 
     #[test]
+    fn layout_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Layout>();
+    }
+
+    #[test]
     fn override_accepts_custom_config_directory() {
         let layout = Layout::builder()
             .root("/tmp/my-project")

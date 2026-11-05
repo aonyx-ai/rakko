@@ -161,4 +161,11 @@ mod tests {
             "[error] eslint(id-length): Identifier name `x` is too short"
         );
     }
+
+    #[test]
+    fn oxlint_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<OxlintProblem>();
+    }
 }

@@ -165,6 +165,13 @@ mod tests {
     }
 
     #[test]
+    fn listed_rule_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ListedRule>();
+    }
+
+    #[test]
     fn problems_of_a_diagnostic_carry_its_position() {
         let problems = read(WARNING);
 
@@ -213,5 +220,12 @@ mod tests {
         let result = problems("warning: something\n");
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
     }
 }

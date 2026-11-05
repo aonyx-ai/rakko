@@ -81,6 +81,20 @@ mod tests {
     }
 
     #[test]
+    fn format_operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatOperation>();
+    }
+
+    #[test]
+    fn format_toml_args_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatTomlArgs>();
+    }
+
+    #[test]
     fn from_values_with_an_unreadable_value_reports_the_argument() {
         let error = FormatTomlArgs::from_values(&values("maybe")).unwrap_err();
 

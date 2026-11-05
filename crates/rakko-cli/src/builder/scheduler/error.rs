@@ -74,6 +74,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn run_group_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RunGroupError>();
+    }
+
+    #[test]
     fn unknown_access_tells_the_user_to_update_rakko() {
         let error = RunGroupError::UnknownAccess {
             member: action_name!("format-sdk"),

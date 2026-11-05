@@ -156,6 +156,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn observation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Observation>();
+    }
+
+    #[test]
     fn read_diagnostics_in_a_shape_the_crate_does_not_know_names_the_root() {
         let root = CargoRoot::builder()
             .directory(PathBuf::from("/home/otter/project"))

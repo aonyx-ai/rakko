@@ -83,4 +83,11 @@ mod tests {
 
         assert_send_and_sync::<ResolveNewestToolchainError>();
     }
+
+    #[test]
+    fn resolve_newest_toolchain_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ResolveNewestToolchainError>();
+    }
 }

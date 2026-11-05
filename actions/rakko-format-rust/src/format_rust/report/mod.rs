@@ -225,6 +225,13 @@ mod tests {
     const UNKNOWN_OPTION: &str = "Warning: Unknown configuration option `no_such_option`\nWarning: Unknown configuration option `no_such_option`\n";
 
     #[test]
+    fn exit_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Exit>();
+    }
+
+    #[test]
     fn problems_of_a_check_hold_the_invalid_files_after_the_listed_ones() {
         let report = read()
             .stdout(LISTED)
@@ -319,5 +326,12 @@ mod tests {
                 exit: Exit::Succeeded,
             }
         );
+    }
+
+    #[test]
+    fn rustfmt_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RustfmtReport>();
     }
 }

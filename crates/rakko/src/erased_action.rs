@@ -359,6 +359,13 @@ mod tests {
     }
 
     #[test]
+    fn bound_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Bound<'static, Formatter>>();
+    }
+
+    #[test]
     fn bound_run_produces_the_outcome_of_the_action() {
         let action = Probe;
         let values = ArgsValues::empty();

@@ -179,6 +179,13 @@ mod tests {
     }
 
     #[test]
+    fn bound_member_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<BoundMember<'static>>();
+    }
+
+    #[test]
     fn name_returns_the_name_of_the_action() {
         let member = BoundMember::bind()
             .action(&Formatter)

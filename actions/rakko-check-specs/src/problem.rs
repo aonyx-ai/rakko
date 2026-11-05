@@ -83,4 +83,11 @@ mod tests {
             ("crates/rakko/src/lib.rs", 12, 4, "Unknown rule reference")
         );
     }
+
+    #[test]
+    fn tracey_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TraceyProblem>();
+    }
 }

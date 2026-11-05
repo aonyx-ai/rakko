@@ -81,6 +81,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Diagnostic>();
+    }
+
+    #[test]
     fn message_reads_like_the_line_that_tsc_writes() {
         let diagnostic = Diagnostic::builder()
             .category(Category::Error)

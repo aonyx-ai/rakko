@@ -293,6 +293,13 @@ mod tests {
     }
 
     #[test]
+    fn entry_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Entry>();
+    }
+
+    #[test]
     #[should_panic(expected = "failed to list the directory")]
     fn run_checking_access_fails_a_reader_in_a_project_that_cannot_be_read() {
         let directory = tempfile::tempdir().unwrap();

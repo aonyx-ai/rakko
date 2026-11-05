@@ -231,6 +231,20 @@ mod tests {
     }
 
     #[test]
+    fn finding_payload_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FindingPayload<'static>>();
+    }
+
+    #[test]
+    fn payload_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Payload<'static>>();
+    }
+
+    #[test]
     fn payload_of_changed_outcome_carries_every_repair() {
         let json = payload(Outcome::Changed {
             repairs: vec![

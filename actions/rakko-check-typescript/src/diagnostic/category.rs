@@ -80,6 +80,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn category_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Category>();
+    }
+
+    #[test]
     fn category_of_a_word_that_tsc_does_not_write_is_none() {
         let category = Category::parse("notice");
 

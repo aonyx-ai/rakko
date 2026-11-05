@@ -48,3 +48,15 @@ impl Serialize for GroupSummary {
         self::schema::Payload::of(self).serialize(serializer)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn group_summary_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<GroupSummary>();
+    }
+}

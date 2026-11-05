@@ -107,6 +107,13 @@ mod tests {
     }
 
     #[test]
+    fn location_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Location>();
+    }
+
+    #[test]
     fn position_level_holds_file_path_and_position() {
         let location = Location::Position {
             path: FilePath::try_from("src/main.rs").unwrap(),

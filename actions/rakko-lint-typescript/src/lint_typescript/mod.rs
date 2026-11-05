@@ -428,6 +428,13 @@ mod tests {
     }
 
     #[test]
+    fn lint_type_script_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintTypeScript>();
+    }
+
+    #[test]
     fn relative_path_that_arrived_absolute_drops_the_root() {
         let relative = relative_path(&path("/home/otter/project/src/index.ts"), &root());
 

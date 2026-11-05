@@ -238,6 +238,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn deny_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Deny>();
+    }
+
+    #[test]
     fn details_of_a_run_that_stopped_holds_what_cargo_deny_wrote() {
         let details = details("  failed to deserialize config from 'deny.toml'\n");
 

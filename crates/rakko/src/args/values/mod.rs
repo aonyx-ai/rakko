@@ -56,6 +56,13 @@ mod tests {
     use crate::argument_name;
 
     #[test]
+    fn args_values_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ArgsValues>();
+    }
+
+    #[test]
     fn empty_holds_no_value() {
         let values = ArgsValues::empty();
 

@@ -307,6 +307,13 @@ mod tests {
     }
 
     #[test]
+    fn check_msrv_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckMsrv>();
+    }
+
+    #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
         let root = CargoRoot::builder()
             .directory(PathBuf::from("/home/otter/project"))

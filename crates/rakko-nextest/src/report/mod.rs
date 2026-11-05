@@ -217,6 +217,20 @@ mod tests {
     }
 
     #[test]
+    fn nextest_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<NextestReport>();
+    }
+
+    #[test]
+    fn probe_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Probe>();
+    }
+
+    #[test]
     fn read_a_failed_test_keeps_its_name() {
         let report = read(&[FAILED_TEST, FAILED_SUITE]);
 
@@ -279,5 +293,12 @@ mod tests {
         let report = read(&[PASSED_SUITE, FAILED_TEST, FAILED_SUITE]);
 
         assert_eq!(report.ran(), 4);
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
     }
 }

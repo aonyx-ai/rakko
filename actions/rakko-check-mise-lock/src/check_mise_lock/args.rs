@@ -85,6 +85,13 @@ mod tests {
     }
 
     #[test]
+    fn check_mise_lock_args_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckMiseLockArgs>();
+    }
+
+    #[test]
     fn from_values_with_an_unreadable_value_reports_the_argument() {
         let error = CheckMiseLockArgs::from_values(&values("maybe")).unwrap_err();
 
@@ -106,6 +113,13 @@ mod tests {
         let args = CheckMiseLockArgs::from_values(&ArgsValues::empty()).unwrap();
 
         assert_eq!(args.operation(), Operation::Report);
+    }
+
+    #[test]
+    fn operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Operation>();
     }
 
     #[test]

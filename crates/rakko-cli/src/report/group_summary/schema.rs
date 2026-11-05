@@ -100,6 +100,13 @@ mod tests {
     }
 
     #[test]
+    fn counts_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Counts>();
+    }
+
+    #[test]
     fn payload_carries_the_group_and_the_report_of_every_member() {
         let json = payload(vec![
             Report::builder()
@@ -166,6 +173,13 @@ mod tests {
                 r#""counts":{"passed":1,"changed":2,"failed":1,"skipped":1,"errored":1}"#
             )
         );
+    }
+
+    #[test]
+    fn payload_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Payload<'static>>();
     }
 
     #[test]

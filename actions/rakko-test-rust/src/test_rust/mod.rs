@@ -194,4 +194,11 @@ mod tests {
 
         assert_eq!(summary.get(), "ran 1 test in 1 workspace");
     }
+
+    #[test]
+    fn test_rust_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TestRust>();
+    }
 }

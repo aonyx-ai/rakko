@@ -217,6 +217,48 @@ mod tests {
     }
 
     #[test]
+    fn concrete_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Concrete>();
+    }
+
+    #[test]
+    fn determinations_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Determinations>();
+    }
+
+    #[test]
+    fn key_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Key>();
+    }
+
+    #[test]
+    fn local_key_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LocalKey>();
+    }
+
+    #[test]
+    fn location_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Location>();
+    }
+
+    #[test]
+    fn point_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Point>();
+    }
+
+    #[test]
     fn problems_of_a_finding_carry_the_words_of_zizmor() {
         let problem = problem(SINGLE);
 
@@ -285,5 +327,26 @@ mod tests {
         let problems = problems("[]").expect("the test reads the report of a run that passed");
 
         assert!(problems.is_empty(), "expected no problem, got {problems:?}");
+    }
+
+    #[test]
+    fn range_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Range>();
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
+    }
+
+    #[test]
+    fn symbolic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Symbolic>();
     }
 }

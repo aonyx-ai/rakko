@@ -53,6 +53,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn dependency_kind_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DependencyKind>();
+    }
+
+    #[test]
     fn label_of_a_build_dependency_names_its_table() {
         let label = DependencyKind::Build.label();
 

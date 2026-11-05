@@ -534,6 +534,20 @@ mod tests {
     }
 
     #[test]
+    fn pin_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Pin>();
+    }
+
+    #[test]
+    fn pins_failure_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<PinsFailure>();
+    }
+
+    #[test]
     fn select_a_channel_that_a_dated_pin_names_answers_that_toolchain() {
         let pins = vec![
             pin()

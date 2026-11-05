@@ -140,6 +140,13 @@ mod tests {
     }
 
     #[test]
+    fn filter_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Filter>();
+    }
+
+    #[test]
     fn matches_a_file_of_another_extension_reports_no_match() {
         let matched = filter(&["md"]).matches(&PathBuf::from("sub/a.rs"));
 

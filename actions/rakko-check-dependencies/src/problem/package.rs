@@ -60,4 +60,11 @@ mod tests {
 
         assert_eq!(name, "option-ext 0.2.0");
     }
+
+    #[test]
+    fn package_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Package>();
+    }
 }

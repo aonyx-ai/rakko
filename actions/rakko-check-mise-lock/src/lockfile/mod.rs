@@ -438,6 +438,13 @@ backend = "cargo:cargo-deny"
     }
 
     #[test]
+    fn lockfile_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Lockfile>();
+    }
+
+    #[test]
     fn parse_with_a_platform_that_is_not_a_table_reports_the_platform() {
         let text = "[[tools.jq]]\nversion = \"1.8.1\"\n\"platforms.linux-x64\" = \"here\"\n";
 

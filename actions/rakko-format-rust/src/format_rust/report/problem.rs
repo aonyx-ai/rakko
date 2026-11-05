@@ -46,3 +46,22 @@ pub enum RustfmtProblemDetail {
     /// Rustfmt would rewrite the file
     Unformatted,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rustfmt_problem_detail_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RustfmtProblemDetail>();
+    }
+
+    #[test]
+    fn rustfmt_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RustfmtProblem>();
+    }
+}

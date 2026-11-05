@@ -19,3 +19,15 @@ pub enum ParseDirectoryPathError {
         path: PathBuf,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_directory_path_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ParseDirectoryPathError>();
+    }
+}

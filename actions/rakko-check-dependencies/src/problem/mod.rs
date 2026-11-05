@@ -139,6 +139,13 @@ mod tests {
     }
 
     #[test]
+    fn deny_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DenyProblem>();
+    }
+
+    #[test]
     fn description_holds_the_check_and_the_words_of_cargo_deny() {
         let description = problem(Severity::Error).description();
 

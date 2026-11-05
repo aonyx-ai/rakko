@@ -208,6 +208,13 @@ mod tests {
     }
 
     #[test]
+    fn check_renovate_config_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckRenovateConfig>();
+    }
+
+    #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
         let error = finding(&problem(path("/elsewhere/config.js")), &root()).unwrap_err();
 

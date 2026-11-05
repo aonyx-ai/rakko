@@ -1509,6 +1509,13 @@ mod tests {
     }
 
     #[test]
+    fn builder_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Builder>();
+    }
+
+    #[test]
     fn builder_returns_a_builder_of_a_command_line() {
         let builder = builder();
 
@@ -2176,6 +2183,13 @@ mod tests {
     #[should_panic(expected = "format-toml")]
     fn mount_refuses_two_actions_with_one_name() {
         let _builder = builder().mount([probe("format-toml"), probe("format-toml")]);
+    }
+
+    #[test]
+    fn resolution_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Resolution>();
     }
 
     #[test]

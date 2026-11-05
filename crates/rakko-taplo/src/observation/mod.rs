@@ -268,6 +268,13 @@ mod tests {
     }
 
     #[test]
+    fn exit_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Exit>();
+    }
+
+    #[test]
     fn failed_run_that_named_a_problem_is_complete() {
         let observation = observation(Exit::Failed, vec![problem()]);
 
@@ -279,6 +286,13 @@ mod tests {
         let observation = observation(Exit::Failed, Vec::new());
 
         assert!(!observation.complete());
+    }
+
+    #[test]
+    fn observation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Observation>();
     }
 
     #[test]

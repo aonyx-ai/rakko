@@ -101,6 +101,13 @@ mod tests {
         assert_eq!(word, "informational");
     }
 
+    #[test]
+    fn severity_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Severity>();
+    }
+
     // The severity arrives from the report of zizmor, which writes the name of
     // the variant. A severity that this crate does not know stops the reading,
     // so that a new weight of a later version cannot land in the wrong one.

@@ -441,6 +441,13 @@ mod tests {
     }
 
     #[test]
+    fn format_json_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatJson>();
+    }
+
+    #[test]
     fn guard_of_a_failed_run_without_a_problem_stops() {
         let observation = Observation::builder().stderr("something new").build();
 

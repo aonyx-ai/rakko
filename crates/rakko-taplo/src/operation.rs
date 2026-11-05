@@ -20,3 +20,15 @@ pub enum Operation {
     /// Report the files that taplo cannot read, parse, or validate
     Lint,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Operation>();
+    }
+}

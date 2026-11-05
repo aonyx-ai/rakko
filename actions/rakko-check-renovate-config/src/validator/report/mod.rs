@@ -536,6 +536,27 @@ mod tests {
     }
 
     #[test]
+    fn cause_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Cause>();
+    }
+
+    #[test]
+    fn entry_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Entry>();
+    }
+
+    #[test]
+    fn meaning_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Meaning>();
+    }
+
+    #[test]
     fn read_of_a_configuration_in_package_json_names_package_json() {
         let paths = paths(EMBEDDED);
 
@@ -718,5 +739,19 @@ mod tests {
         let validated = observation(PRESETS).validated();
 
         assert_eq!(validated, 2);
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
+    }
+
+    #[test]
+    fn report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Report>();
     }
 }

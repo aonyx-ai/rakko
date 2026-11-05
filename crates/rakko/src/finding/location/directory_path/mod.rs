@@ -111,6 +111,13 @@ mod tests {
     const ABSOLUTE: &str = if cfg!(windows) { r"C:\Windows" } else { "/etc" };
 
     #[test]
+    fn directory_path_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DirectoryPath>();
+    }
+
+    #[test]
     fn display_shows_the_path_that_the_directory_path_was_made_from() {
         let path: DirectoryPath = "crates/rakko".parse().unwrap();
 

@@ -104,6 +104,13 @@ mod tests {
     }
 
     #[test]
+    fn severity_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Severity>();
+    }
+
+    #[test]
     fn to_string_of_a_warning_is_the_word_of_stiles() {
         assert_eq!(Severity::Warning.to_string(), "warning");
     }

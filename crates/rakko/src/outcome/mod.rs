@@ -165,6 +165,13 @@ mod tests {
     }
 
     #[test]
+    fn outcome_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Outcome>();
+    }
+
+    #[test]
     fn outcome_is_sync() {
         assert_sync::<Outcome>();
     }

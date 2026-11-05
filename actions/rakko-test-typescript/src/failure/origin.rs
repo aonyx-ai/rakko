@@ -65,6 +65,13 @@ mod tests {
     }
 
     #[test]
+    fn origin_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Origin>();
+    }
+
+    #[test]
     fn relative_path_of_a_path_below_the_root_keeps_it() {
         let relative = origin(path("src/add.test.ts")).relative_path(&root());
 
