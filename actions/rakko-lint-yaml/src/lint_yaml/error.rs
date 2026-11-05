@@ -56,7 +56,7 @@ pub enum LintYamlError {
     /// holds a line which names no problem therefore points at a version that
     /// this crate does not know, and the findings of such a run would be the
     /// lines that the reading happened to understand.
-    #[error("yamllint wrote a report that the action cannot read: {report}")]
+    #[error("failed to read the report from yamllint: {report}")]
     UnreadableReport {
         /// What yamllint wrote in place of a report that the action reads
         report: String,

@@ -40,7 +40,7 @@ pub enum ObserveOxlintError {
     /// does not fit therefore points at a version that this crate does not
     /// know, and the diagnostics of such a run would be the ones that the
     /// reading happened to understand.
-    #[error("oxlint wrote a report that the action cannot read: {report}")]
+    #[error("failed to read the report from oxlint: {report}")]
     UnreadableReport {
         /// What oxlint wrote in place of a report that the crate reads
         report: String,

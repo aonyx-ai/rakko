@@ -19,7 +19,7 @@ pub enum CheckSpecsError {
     /// Tracey starts in the root of the project and names a file below it, so
     /// a path that the root does not contain points at a tracey that reports
     /// something else than the crate expects.
-    #[error("tracey reported a problem in {path}, which is not a file of the project")]
+    #[error("failed to parse {path} as a path of the project")]
     ForeignPath {
         /// The path that tracey reported
         path: String,

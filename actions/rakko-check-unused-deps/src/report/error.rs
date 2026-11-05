@@ -16,7 +16,7 @@ pub enum ReadUdepsReportError {
     ///
     /// The line names the unused dependencies of the run, and its fields
     /// differ from the shape that the crate expects.
-    #[error("cargo-udeps wrote a report that the crate cannot read: {line}")]
+    #[error("failed to read cargo-udeps's report: {line}")]
     UnrecognizedReport {
         /// The line as cargo-udeps wrote it
         line: String,

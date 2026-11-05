@@ -26,7 +26,7 @@ pub enum ObserveTraceyError {
     /// this crate cannot read therefore points at a version that it does not
     /// know, and the problems of such a run would be the ones that the reading
     /// happened to understand.
-    #[error("tracey wrote a report that the action cannot read: {report}")]
+    #[error("failed to read tracey's report: {report}")]
     UnreadableReport {
         /// What tracey wrote in place of a report that the crate reads
         report: String,

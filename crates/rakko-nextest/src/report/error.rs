@@ -17,7 +17,7 @@ pub enum ReadNextestReportError {
     ///
     /// The line is about a test or a binary of tests, and its fields differ
     /// from the shape that the crate expects.
-    #[error("nextest wrote a record that the action cannot read: {line}")]
+    #[error("failed to read the record from nextest: {line}")]
     UnrecognizedRecord {
         /// The line as nextest wrote it
         line: String,

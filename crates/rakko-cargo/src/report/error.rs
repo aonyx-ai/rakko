@@ -17,7 +17,7 @@ pub enum ReadReportError {
     ///
     /// The line names a compiler message or the end of the build, and its
     /// fields differ from the shape that the crate expects.
-    #[error("cargo wrote a record that the crate cannot read: {line}")]
+    #[error("failed to read the record from cargo: {line}")]
     UnrecognizedRecord {
         /// The line as cargo wrote it
         line: String,

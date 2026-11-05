@@ -41,7 +41,7 @@ pub enum ObserveTscError {
     /// not fit therefore points at a version that this crate does not know,
     /// and the diagnostics of such a run would be the ones that the reading
     /// happened to understand.
-    #[error("tsc wrote a report that the action cannot read: {report}")]
+    #[error("failed to read tsc's report: {report}")]
     UnreadableReport {
         /// What tsc wrote in place of a report that the crate reads
         report: String,

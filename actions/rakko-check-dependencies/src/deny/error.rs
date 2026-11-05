@@ -61,7 +61,7 @@ pub enum CheckWorkspaceError {
     /// that this crate cannot read therefore points at a version that it does
     /// not know, and the problems of such a run would be the ones that the
     /// reading happened to understand.
-    #[error("cargo-deny wrote a record that the action cannot read in {}: {record}", root.display())]
+    #[error("failed to read cargo-deny's record in {}: {record}", root.display())]
     UnreadableReport {
         /// The workspace root that the run was about
         root: PathBuf,
