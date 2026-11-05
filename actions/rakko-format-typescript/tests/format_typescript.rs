@@ -225,22 +225,6 @@ fn action_identifies_itself_as_format_typescript() {
 }
 
 #[tokio::test]
-async fn fixing_run_changes_only_the_files_that_it_declares() {
-    let project = Project::new();
-    project.write(".config/messy.ts", UNFORMATTED);
-    project.write(".config/guide.md", UNFORMATTED_MARKDOWN);
-
-    // The helper fails the test when the run changed a file outside its
-    // expanded write list, such as the Markdown file.
-    let outcome = run_checking_access(&FormatTypeScript, &project.context(), &fixing()).await;
-
-    assert!(
-        matches!(outcome, Outcome::Changed { .. }),
-        "expected the run to rewrite the TypeScript file, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
 async fn fixing_run_leaves_the_other_languages_of_a_project_alone() {
     let project = Project::new();
     project.write("src/index.ts", UNFORMATTED);

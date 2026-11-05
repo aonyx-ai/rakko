@@ -9,8 +9,7 @@
 mod error;
 
 use rakko_action::{
-    Access, Action, Context, FileAccess, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
-    action_name,
+    Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary, action_name,
 };
 
 pub use self::error::CheckRenovateConfigError;
@@ -38,11 +37,8 @@ use crate::validator::Validator;
 /// validator, when the validator stops before it has validated the project,
 /// and when the validator writes a log that the action cannot read.
 ///
-/// A run declares a read, and it writes no file. It reads the configurations of
-/// Renovate that the validator looks for, the global configuration, and the
-/// files that mise reads to find the validator. A caller that orders runs by
-/// their declarations can then run it after the actions that write these files.
-/// It can also run it beside the runs that touch none of these files.
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
 ///
 /// # Examples
 ///
@@ -69,10 +65,6 @@ impl Action for CheckRenovateConfig {
 
     fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
         Access::Read
-    }
-
-    fn files(&self, _context: &Context, _args: &Self::Args) -> FileAccess {
-        Validator::files()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -184,9 +176,8 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rakko_action::{Files, Location, Pattern, Position};
+    use rakko_action::{Location, Position};
     use rakko_test_utils::path;
-    use rakko_tool::Tool;
 
     use super::*;
 
@@ -216,42 +207,6 @@ mod tests {
         let access = CheckRenovateConfig.access(&context(), &());
 
         assert_eq!(access, Access::Read);
-    }
-
-    #[test]
-    fn files_read_the_configurations_of_renovate() {
-        let mut expected: Vec<Pattern> = [
-            ".github/renovate.json",
-            ".github/renovate.json5",
-            ".github/renovate.jsonc",
-            ".gitlab/renovate.json",
-            ".gitlab/renovate.json5",
-            ".gitlab/renovate.jsonc",
-            ".renovaterc",
-            ".renovaterc.json",
-            ".renovaterc.json5",
-            ".renovaterc.jsonc",
-            "package.json",
-            "renovate.json",
-            "renovate.json5",
-            "renovate.jsonc",
-            "config.js",
-        ]
-        .into_iter()
-        .map(Pattern::from_static)
-        .collect();
-        expected.extend(Tool::resolution_files());
-
-        let files = CheckRenovateConfig.files(&context(), &());
-
-        assert_eq!(files.reads(), &Files::Matching(expected));
-    }
-
-    #[test]
-    fn files_write_no_file() {
-        let files = CheckRenovateConfig.files(&context(), &());
-
-        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
     }
 
     #[test]

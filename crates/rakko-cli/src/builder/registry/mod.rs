@@ -1,4 +1,4 @@
-/// One thing that a harness mounted: an action or a command
+/// One thing that a harness mounted: an action, a command, or a group
 mod mounted;
 
 use std::collections::BTreeMap;
@@ -9,7 +9,7 @@ use rakko_action::Name;
 
 pub(crate) use self::mounted::Mounted;
 
-/// The actions and the commands that a harness mounted
+/// The actions, the commands, and the groups that a harness mounted
 ///
 /// A registry holds one entry for each name. A harness mounts lists that come
 /// from different crates, two of those lists can carry the same action, and a
@@ -22,7 +22,7 @@ pub(super) struct Registry {
 }
 
 impl Registry {
-    /// Adds actions and commands to the registry
+    /// Adds actions, commands, and groups to the registry
     ///
     /// # Panics
     ///
@@ -38,7 +38,7 @@ impl Registry {
                 }
                 Entry::Occupied(entry) => {
                     panic!(
-                        "the harness mounts two actions or commands with the name '{}'",
+                        "the harness mounts two actions, commands, or groups with the name '{}'",
                         entry.key()
                     )
                 }
@@ -53,10 +53,10 @@ impl Registry {
 
     /// Removes the entry with the given name and returns it
     ///
-    /// A run drives one action or one command, and the run owns it for as
-    /// long as it lasts, so the registry gives the entry away instead of
-    /// lending it. The method returns [`None`] when the registry holds no
-    /// entry for the name.
+    /// A run drives one action, one command, or one group, and the run owns
+    /// it for as long as it lasts, so the registry gives the entry away
+    /// instead of lending it. The method returns [`None`] when the registry
+    /// holds no entry for the name.
     pub(super) fn take(&mut self, name: &str) -> Option<Mounted> {
         let name: Name = name.parse().ok()?;
 

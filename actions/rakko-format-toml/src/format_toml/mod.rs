@@ -15,8 +15,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use rakko_action::{
-    Access, Action, Context, FileAccess, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    Summary, action_name,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary,
+    action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
@@ -44,12 +44,9 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// rewrites the files that it can format, and the outcome carries one repair
 /// for each file that it rewrote, next to the problems that remain.
 ///
-/// A run that reports declares a read, and a run with `fix` declares a write.
-/// Each run reads the configuration of taplo and the files that mise reads to
-/// find taplo. A run that reports reads the TOML files as well, and a run with
-/// `fix` writes them. A caller that orders runs by their declarations can then
-/// run a rewrite before the actions that read, and beside the runs that touch
-/// none of these files.
+/// A run that reports declares a read of the project, and a run with `fix`
+/// declares a write. A caller that orders runs by their declarations can
+/// then run a rewrite before the actions that read.
 ///
 /// A project that holds no TOML file passes, having formatted nothing. A run stops
 /// with an error when mise reports no taplo,
@@ -85,10 +82,6 @@ impl Action for FormatToml {
         } else {
             Access::Read
         }
-    }
-
-    fn files(&self, context: &Context, args: &Self::Args) -> FileAccess {
-        Taplo::files(self.access(context, args))
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
@@ -292,8 +285,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Args, ArgsValues, ArgumentValue, Files, Pattern, argument_name};
-    use rakko_tool::Tool;
+    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
 
     use super::*;
 
@@ -301,20 +293,6 @@ mod tests {
     /// of access reads no file
     fn context() -> Context {
         Context::builder().root("/tmp/project").build()
-    }
-
-    /// Returns the patterns of the files that every run reads as configuration
-    ///
-    /// They are the configuration of taplo and the files that mise reads to
-    /// find taplo.
-    fn configuration() -> Vec<Pattern> {
-        let mut configuration: Vec<Pattern> = [".taplo.toml", "taplo.toml"]
-            .into_iter()
-            .map(Pattern::from_static)
-            .collect();
-        configuration.extend(Tool::resolution_files());
-
-        configuration
     }
 
     /// Returns the arguments of a run that asks for a repair
@@ -340,46 +318,5 @@ mod tests {
         let access = FormatToml.access(&context(), &args);
 
         assert_eq!(access, Access::Read);
-    }
-
-    #[test]
-    fn files_with_fix_read_the_configuration() {
-        let args = fixing();
-
-        let files = FormatToml.files(&context(), &args);
-
-        assert_eq!(files.reads(), &Files::Matching(configuration()));
-    }
-
-    #[test]
-    fn files_with_fix_write_the_toml_files() {
-        let args = fixing();
-
-        let files = FormatToml.files(&context(), &args);
-
-        assert_eq!(
-            files.writes(),
-            &Files::Matching(vec![Pattern::from_static("**/*.toml")])
-        );
-    }
-
-    #[test]
-    fn files_without_fix_read_the_toml_files_and_the_configuration() {
-        let args = FormatTomlArgs::default();
-        let mut expected = vec![Pattern::from_static("**/*.toml")];
-        expected.extend(configuration());
-
-        let files = FormatToml.files(&context(), &args);
-
-        assert_eq!(files.reads(), &Files::Matching(expected));
-    }
-
-    #[test]
-    fn files_without_fix_write_no_file() {
-        let args = FormatTomlArgs::default();
-
-        let files = FormatToml.files(&context(), &args);
-
-        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
     }
 }

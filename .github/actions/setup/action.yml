@@ -90,14 +90,14 @@ runs:
         fi
 
     - name: Install the tools
-      uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+      uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
       with:
         # Without a pin the action installs the release that mise reports as
         # the newest one, and a release whose upload failed carries no file to
         # download. Renovate advances the pin, so a release that breaks costs
         # one revert instead of a red pull request.
         # renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
-        version: 2026.10.21
+        version: 2026.11.1
         cache: ${{ steps.earlier.outputs.found != 'true' }}
       env:
         # When the binary of mise on the runner is not the version above, the

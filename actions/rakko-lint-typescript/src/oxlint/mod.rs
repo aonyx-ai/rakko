@@ -1,16 +1,16 @@
 //! The oxlint that a project runs
 //!
-//! This module holds the program that mise installed for a project, the run
-//! that produces a report, and the files that such a run reads. An action asks
-//! for a run, and everything between the action and the process lives here.
+//! This module holds the program that mise installed for a project and the run
+//! that produces a report. An action asks for a run, and everything between the
+//! action and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 /// The reading of the report that oxlint wrote
 pub mod report;
 
-use rakko_action::{FileAccess, Files, Pattern, ProjectRoot};
-use rakko_tool::{ResolveToolError, Tool, ToolName};
+use rakko_action::ProjectRoot;
+use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveOxlintError;
 use crate::observation::Observation;
@@ -23,12 +23,13 @@ const OXLINT: &str = "oxlint";
 /// Oxlint draws a block of source per diagnostic by default, with the rule
 /// above it and the places that it marks drawn into it. The same run writes the
 /// diagnostics as one JSON object on request, and each of them then carries the
-/// rule, the severity, the file, the place, and the message in fields instead
-/// of in a block that a reader has to take apart. The object also counts the
-/// files that the run examined, which no other format reports. The format
-/// protects a run from its environment as well, because the default format
-/// changes on a terminal and on a build server. The option selects the
-/// presentation of the report and not the behavior of the tool.
+/// severity and the message in fields, and the rule, the file, and the places
+/// where oxlint names them, instead of in a block that a reader has to take
+/// apart. The object also counts the files that the run examined, which no
+/// other format reports. The format protects a run from its environment as
+/// well, because the default format changes on a terminal and on a build
+/// server. The option selects the presentation of the report and not the
+/// behavior of the tool.
 const FORMAT: &str = "--format";
 
 /// The name of the format that carries the diagnostics as data
@@ -39,33 +40,6 @@ const JSON: &str = "json";
 /// A run starts in the root of the project, so the working directory is the
 /// place, and oxlint reports every path relative to it.
 const HERE: &str = ".";
-
-/// The pattern of the files that oxlint selects
-///
-/// A run names the root of the project. Oxlint then selects every file whose
-/// extension it lints, in every directory. It also looks in a directory whose
-/// name starts with a dot. The extensions are those of TypeScript and
-/// JavaScript, and those of the components of Vue, Svelte, and Astro, whose
-/// scripts oxlint lints too.
-const SELECTION: &str = "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,vue,svelte,astro}";
-
-/// The patterns of the files that oxlint reads as its configuration
-///
-/// Oxlint looks for a configuration file and for the ignore files of ESLint
-/// and git in every directory of the project. It reads the ignore rules of
-/// `.git/info/exclude` as well. In the root of the project alone, it reads
-/// `oxlint-suppressions.json`, which lists the problems that the project
-/// suppresses.
-const CONFIGURATION: [&str; 8] = [
-    "**/.eslintignore",
-    "**/.gitignore",
-    "**/.oxlintrc.json",
-    "**/.oxlintrc.jsonc",
-    "**/oxlint.config.mts",
-    "**/oxlint.config.ts",
-    ".git/info/exclude",
-    "oxlint-suppressions.json",
-];
 
 /// The oxlint that a project runs
 ///
@@ -101,47 +75,6 @@ pub struct Oxlint {
 }
 
 impl Oxlint {
-    /// Returns the files that a run of oxlint reads and writes
-    ///
-    /// The answer is the declaration of an action that calls
-    /// [`observe`][observe]. The run reads the files that oxlint lints, the
-    /// configuration of oxlint, and the files that mise reads to find oxlint.
-    /// It writes no file.
-    ///
-    /// The patterns cover the files that oxlint reads when the project
-    /// configures nothing else. A configuration that makes oxlint read
-    /// another file is outside the patterns. Examples are a file that its
-    /// `extends` key names, and the `tsconfig.json` that its import plugin
-    /// reads.
-    ///
-    /// The function does no I/O, so a declaration can call it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko_action::Files;
-    /// use rakko_lint_typescript::Oxlint;
-    ///
-    /// let files = Oxlint::files();
-    ///
-    /// assert_eq!(files.writes(), &Files::Matching(Vec::new()));
-    /// ```
-    ///
-    /// [observe]: Oxlint::observe
-    pub fn files() -> FileAccess {
-        let reads = [SELECTION]
-            .into_iter()
-            .chain(CONFIGURATION)
-            .map(Pattern::from_static)
-            .chain(Tool::resolution_files())
-            .collect();
-
-        FileAccess::builder()
-            .reads(Files::Matching(reads))
-            .writes(Files::Matching(Vec::new()))
-            .build()
-    }
-
     /// Runs oxlint over the project and reads what it reported
     ///
     /// The run names the root of the project and asks for the report as data.
@@ -175,7 +108,7 @@ impl Oxlint {
             .arg(FORMAT)
             .arg(JSON)
             .arg(HERE)
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveOxlintError::OxlintUnavailable { source })?;
 

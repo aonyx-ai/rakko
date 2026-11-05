@@ -9,7 +9,7 @@ use crate::chain::Chain;
 /// The payload promises nothing yet: a consumer that reads this value knows
 /// that the shape can change in any release, and a stable schema replaces it
 /// later.
-const UNSTABLE: &str = "unstable";
+pub(super) const UNSTABLE: &str = "unstable";
 
 /// The JSON that a run emits for a machine
 ///

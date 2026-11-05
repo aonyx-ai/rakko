@@ -39,6 +39,18 @@ const VALID: &str = "export function add(a: number, b: number): number {\n  retu
 /// the process.
 const DEBUGGER: &str = "export function bad(): void {\n  debugger;\n}\n";
 
+/// TypeScript that breaks the rule of the broken file twice
+const TWO_DEBUGGERS: &str = "export function bad(): void {\n  debugger;\n  debugger;\n}\n";
+
+/// A suppressions file that accepts one break of the rule of the broken file
+///
+/// Oxlint reads the file in the root of the project, and it compares the
+/// count with the code. A suppression covers only a rule that the project
+/// weighs as an error, so a project with this file uses the strict
+/// configuration as well.
+const SUPPRESSIONS: &str =
+    "{\n  \"index.ts\": {\n    \"no-debugger\": {\n      \"count\": 1\n    }\n  }\n}\n";
+
 /// A configuration that turns the rule of the broken file off
 const PERMISSIVE_CONFIGURATION: &str = "{\n  \"rules\": {\n    \"no-debugger\": \"off\"\n  }\n}\n";
 
@@ -370,6 +382,26 @@ async fn run_with_a_refused_configuration_stops() {
     );
 }
 
+// Oxlint reports a suppression that the code no longer needs as a problem of
+// the project, with no rule and no file.
+#[tokio::test]
+async fn run_with_a_stale_suppression_reports_it_for_the_project() {
+    let project = Project::new();
+    project.write(".oxlintrc.json", STRICT_CONFIGURATION);
+    project.write("oxlint-suppressions.json", SUPPRESSIONS);
+    project.write("index.ts", VALID);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        findings.iter().map(Finding::location).collect::<Vec<_>>(),
+        [&Location::Project]
+    );
+}
+
 // A rule that oxlint weighs as a warning leaves it ending with success, so a
 // run that answered from the status of the process would pass this project.
 #[tokio::test]
@@ -382,6 +414,37 @@ async fn run_with_a_warning_fails() {
     assert!(
         matches!(outcome, Outcome::Failed { .. }),
         "expected the run to fail, got {outcome:?}"
+    );
+}
+
+// Oxlint reports every break of a rule whose count the suppressions file no
+// longer covers, and then a problem of the project. The breaks of the file stay
+// findings beside it.
+#[tokio::test]
+async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
+    let project = Project::new();
+    project.write(".oxlintrc.json", STRICT_CONFIGURATION);
+    project.write("oxlint-suppressions.json", SUPPRESSIONS);
+    project.write("index.ts", TWO_DEBUGGERS);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        findings.iter().map(Finding::location).collect::<Vec<_>>(),
+        [
+            &Location::Position {
+                path: "index.ts".parse().expect("the test names a relative path"),
+                position: Position::builder().line(2).column(3).build(),
+            },
+            &Location::Position {
+                path: "index.ts".parse().expect("the test names a relative path"),
+                position: Position::builder().line(3).column(3).build(),
+            },
+            &Location::Project,
+        ]
     );
 }
 

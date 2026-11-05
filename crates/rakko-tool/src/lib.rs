@@ -14,9 +14,10 @@
 //! a run. An action can therefore write the command to a log, or name it in
 //! an error, before anything runs.
 //!
-//! Mise reads the configuration of the project to find a tool, so an action
-//! that resolves its tool reads those files. The crate gives their patterns,
-//! and an action adds them to its declaration of access.
+//! An action runs the command with [`launch`][launch]. On Windows, a tool that
+//! a package manager for Node installed starts through a launcher, and the
+//! launch starts that launcher again when the operating system refused it a
+//! file for a moment.
 //!
 //! # Asynchronous Runtime
 //!
@@ -27,22 +28,25 @@
 //! # Examples
 //!
 //! ```no_run
-//! use rakko_tool::{Tool, ToolName};
+//! use rakko_tool::{Launch, Tool, ToolName};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let tool = Tool::resolve(ToolName::new("prettier"), "/home/otter/project".into()).await?;
 //!
-//! let execution = tool.invocation().arg("--check").arg(".").run().await?;
+//! let execution = tool.invocation().arg("--check").arg(".").launch().await?;
 //!
 //! println!("{}", execution.status());
 //! # Ok(())
 //! # }
 //! ```
 //!
+//! [launch]: Launch::launch
 //! [mise]: https://mise.jdx.dev
 //! [tokio]: https://tokio.rs
 
+/// The run of a tool that survives a launcher that Windows stopped
+pub mod launch;
 /// Types for an external program that an action runs
 pub mod tool;
 
@@ -50,4 +54,5 @@ pub use kawauso_process::error::RunCommandError;
 pub use kawauso_process::invocation::Program;
 pub use kawauso_process::{Execution, Invocation};
 
+pub use self::launch::Launch;
 pub use self::tool::{ResolveToolError, Tool, ToolName};

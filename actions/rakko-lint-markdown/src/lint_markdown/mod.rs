@@ -9,8 +9,8 @@
 mod error;
 
 use rakko_action::{
-    Access, Action, Context, FileAccess, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    SkipReason, action_name,
+    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
+    action_name,
 };
 
 pub use self::error::LintMarkdownError;
@@ -50,11 +50,8 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 /// markdownlint, and when markdownlint writes a report that the action cannot
 /// read.
 ///
-/// A run declares a read, and it writes no file. It reads the Markdown files,
-/// the configuration of markdownlint, and the files that mise reads to find
-/// markdownlint. A caller that orders runs by their declarations can then run
-/// it after the actions that write these files. It can also run it beside the
-/// runs that touch none of these files.
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
 ///
 /// # Examples
 ///
@@ -81,10 +78,6 @@ impl Action for LintMarkdown {
 
     fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
         Access::Read
-    }
-
-    fn files(&self, _context: &Context, _args: &Self::Args) -> FileAccess {
-        Markdownlint::files()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
@@ -221,9 +214,7 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rakko_action::{Files, Pattern};
     use rakko_test_utils::path;
-    use rakko_tool::Tool;
 
     use super::*;
 
@@ -253,35 +244,6 @@ mod tests {
         let access = LintMarkdown.access(&context(), &());
 
         assert_eq!(access, Access::Read);
-    }
-
-    #[test]
-    fn files_read_the_markdown_files_and_the_configuration() {
-        let mut expected: Vec<Pattern> = [
-            "**/*.[mM][aA][rR][kK][dD][oO][wW][nN]",
-            "**/*.[mM][dD]",
-            ".markdownlint.json",
-            ".markdownlint.jsonc",
-            ".markdownlint.yaml",
-            ".markdownlint.yml",
-            ".markdownlintignore",
-            ".markdownlintrc",
-        ]
-        .into_iter()
-        .map(Pattern::from_static)
-        .collect();
-        expected.extend(Tool::resolution_files());
-
-        let files = LintMarkdown.files(&context(), &());
-
-        assert_eq!(files.reads(), &Files::Matching(expected));
-    }
-
-    #[test]
-    fn files_write_no_file() {
-        let files = LintMarkdown.files(&context(), &());
-
-        assert_eq!(files.writes(), &Files::Matching(Vec::new()));
     }
 
     #[test]

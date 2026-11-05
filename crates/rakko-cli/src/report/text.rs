@@ -82,7 +82,11 @@ fn render_findings(findings: &[Finding], formatter: &mut fmt::Formatter<'_>) -> 
 ///
 /// Returns the error of the formatter when the formatter cannot take what the
 /// count writes.
-fn render_count(count: usize, noun: &str, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+pub(super) fn render_count(
+    count: usize,
+    noun: &str,
+    formatter: &mut fmt::Formatter<'_>,
+) -> fmt::Result {
     write!(formatter, "{count} {noun}")?;
 
     if count != 1 {

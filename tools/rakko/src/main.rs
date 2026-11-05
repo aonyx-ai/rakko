@@ -12,10 +12,15 @@
 //! names it. When a command runs actions, this file names those actions as
 //! well and gives them to the command.
 //!
+//! It also mounts groups, such as pre-commit. A group is a name and a list of
+//! actions that the command line runs as one command. This file gives each
+//! group its list. The command line takes the flags of the group from those
+//! actions, and it runs them.
+//!
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
 
-use rakko_action::ErasedAction;
+use rakko_action::{ErasedAction, Group};
 use rakko_check_msrv::CheckMsrv;
 use rakko_cli::ErasedCommand;
 use rakko_format_json::FormatJson;
@@ -42,10 +47,8 @@ fn main() {
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
-        .mount_commands([
-            Box::new(pre_commit) as Box<dyn ErasedCommand>,
-            Box::new(SetMsrv::new(Box::new(CheckMsrv))),
-        ])
+        .mount_commands([Box::new(SetMsrv::new(Box::new(CheckMsrv))) as Box<dyn ErasedCommand>])
+        .mount_groups([Box::new(pre_commit) as Box<dyn Group>])
         .run();
 }
 
@@ -60,6 +63,9 @@ fn main() {
 /// formatters is the one in which this repository formatted before the
 /// pre-commit command existed. The formatters overlap in the files that they
 /// write, so the last formatter that writes a file decides its content.
+///
+/// The command takes its flags from these actions. The formatters declare
+/// `fix`, so `pre-commit --fix` reaches them and no other action.
 fn actions_that_guard_a_commit() -> Vec<Box<dyn ErasedAction>> {
     vec![
         Box::new(FormatJson),

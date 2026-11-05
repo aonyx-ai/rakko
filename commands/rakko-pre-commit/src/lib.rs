@@ -1,6 +1,6 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
-/// The command, the arguments that a run reads, and the errors that stop a run
+/// The group of the actions that guard a commit
 pub mod pre_commit;
 
-pub use self::pre_commit::{PreCommit, PreCommitArgs, PreCommitError};
+pub use self::pre_commit::PreCommit;

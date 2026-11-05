@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 clap = { workspace = true, features = ["string"] }
 clawless = { workspace = true }
+futures-util = { workspace = true }
 kawauso-project = { workspace = true }
 rakko-action = { workspace = true }
 serde = { workspace = true }

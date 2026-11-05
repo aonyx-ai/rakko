@@ -11,6 +11,11 @@ describes. A command comes from a crate, as an action does, and `src/main.rs`
 names it. When a command runs actions, `src/main.rs` names those actions as
 well and gives them to the command.
 
+It also mounts groups, such as pre-commit. A group is a name and a list of
+actions that the command line runs as one command. `src/main.rs` gives each
+group its list. The command line takes the flags of the group from those
+actions, and it runs them.
+
 ## Usage
 
 Run the harness from any directory of the repository:
@@ -28,10 +33,11 @@ command.
 
 The command comes from [`rakko-pre-commit`][rakko-pre-commit]. It runs the
 actions that guard a commit. `src/main.rs` names them in one list, and the
-command runs the actions that write before the actions that read. With
-`--fix`, the formatters write, so they run first, in the order of the list, and
-the checks then read what they wrote. The README of the crate describes what a
-run does and when it fails.
+command runs the actions that write before the actions that read. The command
+takes its flags from these actions, so `--fix` reaches the formatters, which
+declare it, and no other action. With `--fix`, the formatters write, so they
+run first, in the order of the list, and the checks then read what they wrote.
+The README of the crate describes what a run does and when it fails.
 
 ```console
 mise run rakko -- pre-commit --fix

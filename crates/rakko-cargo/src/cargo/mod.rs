@@ -13,7 +13,9 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use rakko_action::ProjectRoot;
-use rakko_tool::{Execution, Invocation, ResolveToolError, RunCommandError, Tool, ToolName};
+use rakko_tool::{
+    Execution, Invocation, Launch, ResolveToolError, RunCommandError, Tool, ToolName,
+};
 use serde::Deserialize;
 use toml_edit::DocumentMut;
 
@@ -268,7 +270,7 @@ impl Cargo {
             .args(METADATA)
             .arg(MANIFEST_PATH)
             .arg(manifest)
-            .run()
+            .launch()
             .await
             .map_err(|source| MetadataFailure::Unavailable { source })?;
 

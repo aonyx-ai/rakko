@@ -8,10 +8,10 @@ use crate::oxlint::report::ReadReportError;
 
 /// An error that stops a run of the action before it has an answer
 ///
-/// Nothing here is a problem of the project. A rule that a file broke travels
-/// as a finding in the outcome of the run. The variants of this error describe
-/// a run whose answer cannot be trusted, and such a run stops instead of
-/// reporting one.
+/// Nothing here is a problem of the project. A diagnostic of oxlint travels as
+/// a finding in the outcome of the run, even one about the project itself. The
+/// variants of this error describe a run whose answer cannot be trusted, and
+/// such a run stops instead of reporting one.
 #[derive(Debug, Error)]
 pub enum LintTypeScriptError {
     /// Oxlint reported a path that the project root does not contain

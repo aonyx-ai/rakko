@@ -14,13 +14,22 @@
 //! re-exports Clawless, so a harness names what a command receives and
 //! returns without a dependency of its own.
 //!
-//! A command that drives actions itself shows what they found with the
-//! [`Report`] of this crate, so that its output takes the shape that a run of
-//! one action has.
+//! Some of these activities run a list of actions, such as the actions that
+//! guard a commit. A harness forms a [`Group`] for such an activity: a name
+//! and a list of actions, its members. This crate gives the group a command
+//! with the name of the group, and it derives the flags of that command from
+//! the arguments that the members declare. It binds every member to the
+//! values of a run, and it runs the members itself. A run of a group answers
+//! as a run of one action does, with one summary and one exit code.
+//!
+//! A command that drives actions shows what they found with the [`Report`] of
+//! this crate, so that its output takes the shape that a run of one action
+//! has.
 //!
 //! A harness depends on this crate, and so does a crate that provides a
-//! command for a harness to mount. An action depends on the contract crate
-//! alone, so the command-line framework stays out of the build of an action.
+//! command for a harness to mount. An action, and a crate that provides a
+//! group, depend on the contract crate alone, so the command-line framework
+//! stays out of their build.
 //!
 //! The crate builds the command line when the harness runs, and not when the
 //! harness compiles. A command can therefore come from a crate that the project
@@ -33,6 +42,8 @@
 //! ```no_run
 //! rakko_cli::builder().run();
 //! ```
+//!
+//! [`Group`]: rakko_action::Group
 
 /// The command line that a harness builds and runs
 mod builder;

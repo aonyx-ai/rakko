@@ -15,7 +15,7 @@ mod report;
 use std::path::Path;
 
 use rakko_action::ProjectRoot;
-use rakko_tool::{Execution, Invocation, ResolveToolError, Tool, ToolName};
+use rakko_tool::{Execution, Invocation, Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveTraceyError;
 pub use self::report::Coverage;
@@ -180,7 +180,7 @@ impl Tracey {
             .invocation()
             .arg(PRE_COMMIT)
             .arg(directory.as_os_str())
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveTraceyError::TraceyUnavailable { source })?;
 
@@ -211,7 +211,7 @@ impl Tracey {
     async fn start(&self, question: Question) -> Result<Execution, ObserveTraceyError> {
         self.invocation()
             .args(arguments(question).iter().copied())
-            .run()
+            .launch()
             .await
             .map_err(|source| ObserveTraceyError::TraceyUnavailable { source })
     }
