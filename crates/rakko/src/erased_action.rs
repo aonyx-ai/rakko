@@ -31,7 +31,7 @@ use crate::outcome::Outcome;
 /// # Examples
 ///
 /// ```
-/// use rakko_action::{Action, Context, ErasedAction, Name, Outcome, action_name};
+/// use rakko::{Action, Context, ErasedAction, Name, Outcome, action_name};
 ///
 /// struct LineCount;
 ///

@@ -28,7 +28,7 @@ pub use self::values::{ArgsValues, ArgumentValue};
 /// # Examples
 ///
 /// ```
-/// use rakko_action::{
+/// use rakko::{
 ///     Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name,
 /// };
 ///

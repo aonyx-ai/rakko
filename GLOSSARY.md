@@ -42,12 +42,12 @@ from the design discussions to the terms that replaced them.
   variables and loaded configuration. Clawless uses the same name for a
   similar concept. This parallel is intentional. An action never sees the
   Clawless type, and a command receives both.
-- **Contract crate** — The `rakko-action` crate. It contains the `Action`
-  trait, the access types, and the other shared types. The contract crate
-  stays small, because every action and every harness depends on it. The
-  `rakko` crate is a placeholder today, and it becomes a facade over the
-  contract later. The contract crate also contains the trait of a group,
-  which uses only its types.
+- **Contract crate** — The `rakko` crate. It contains the `Action` trait,
+  the access types, and the other shared types. The contract crate stays
+  small, because every action and every harness depends on it. The contract
+  crate also contains the trait of a group, which uses only its types. The
+  `rakko-action` crate re-exports every item of `rakko` under the old name
+  of the contract crate. It stays until no crate imports it.
 - **Erased action** — The internal, object-safe view of an action. Bundles
   export erased actions, and the registry in the harness holds them. Action
   authors do not see this type.
@@ -157,7 +157,7 @@ from the design discussions to the terms that replaced them.
 | -------------------------------------- | ---------------- | ------------------------------------------------------------------------- |
 | `cargo ra`                             | `mise run rakko` | A cargo alias needs the harness in the workspace, which couples the MSRV. |
 | chassis                                | Clawless         | A second name for the framework that Clawless already names.              |
-| core crate, framework crate, hub crate | contract crate   | Four names were in use for the `rakko-action` crate.                      |
+| core crate, framework crate, hub crate | contract crate   | Four names were in use for the contract crate.                            |
 | descriptor, metadata object            | erased action    | Three names were in use for the registry view of an action.               |
 | host                                   | harness          | "Host" reads as the machine that programs run on.                         |
 | machinery crate                        | projection       | The design documents described the crate but never named it.              |

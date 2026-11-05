@@ -28,8 +28,8 @@ use crate::erased_action::ErasedAction;
 /// A bundle exports its actions as one list:
 ///
 /// ```
-/// use rakko_action::Bundle;
-/// # use rakko_action::{Action, Context, Name, Outcome, action_name};
+/// use rakko::Bundle;
+/// # use rakko::{Action, Context, Name, Outcome, action_name};
 /// # struct FormatJson;
 /// # impl Action for FormatJson {
 /// #     type Args = ();
@@ -60,10 +60,10 @@ use crate::erased_action::ErasedAction;
 /// `rakko_rust` and exports every action of it:
 ///
 /// ```
-/// # use rakko_action::Bundle;
+/// # use rakko::Bundle;
 /// mod rakko_rust {
-///     use rakko_action::Bundle;
-/// #   use rakko_action::{Action, Context, Name, Outcome, action_name};
+///     use rakko::Bundle;
+/// #   use rakko::{Action, Context, Name, Outcome, action_name};
 /// #   struct LintRust;
 /// #   impl Action for LintRust {
 /// #       type Args = ();
@@ -80,8 +80,8 @@ use crate::erased_action::ErasedAction;
 /// }
 ///
 /// mod rakko_rust_library {
-///     use rakko_action::Bundle;
-/// #   use rakko_action::{Action, Context, Name, Outcome, action_name};
+///     use rakko::Bundle;
+/// #   use rakko::{Action, Context, Name, Outcome, action_name};
 /// #   use super::rakko_rust;
 /// #   struct CheckMsrv;
 /// #   impl Action for CheckMsrv {

@@ -577,10 +577,6 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 [[package]]
 name = "rakko"
 version = "0.1.0"
-
-[[package]]
-name = "rakko-action"
-version = "0.1.0"
 dependencies = [
  "bon",
  "dunce",
@@ -589,6 +585,13 @@ dependencies = [
  "tempfile",
  "thiserror",
  "typed-fields",
+]
+
+[[package]]
+name = "rakko-action"
+version = "0.1.0"
+dependencies = [
+ "rakko",
 ]
 
 [[package]]

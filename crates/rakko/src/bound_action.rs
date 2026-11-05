@@ -22,7 +22,7 @@ use crate::outcome::Outcome;
 /// # Examples
 ///
 /// ```
-/// use rakko_action::{Access, Action, ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
+/// use rakko::{Access, Action, ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
 ///
 /// struct LineCount;
 ///

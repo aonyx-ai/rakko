@@ -47,7 +47,7 @@ impl ProjectRoot {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko_action::ProjectRoot;
+    /// use rakko::ProjectRoot;
     ///
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let root = ProjectRoot::canonical(".")?;

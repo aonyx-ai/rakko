@@ -60,7 +60,7 @@ impl FilePath {
     /// ```
     /// use std::path::{Path, PathBuf};
     ///
-    /// use rakko_action::{FilePath, ProjectRoot};
+    /// use rakko::{FilePath, ProjectRoot};
     ///
     /// let root = ProjectRoot::new(PathBuf::from("project"));
     ///
