@@ -28,11 +28,12 @@ pub(super) struct Payload<'a> {
 impl<'a> Payload<'a> {
     /// Returns the payload that describes the given summary
     pub(super) fn of(summary: &'a GroupSummary) -> Self {
+        let GroupSummary { group, members } = summary;
         Self {
             schema: UNSTABLE,
-            group: summary.group.get(),
-            counts: Counts::of(&summary.members),
-            members: &summary.members,
+            group: group.get(),
+            counts: Counts::of(members),
+            members,
         }
     }
 }

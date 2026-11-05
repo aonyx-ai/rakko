@@ -47,13 +47,15 @@ impl Record {
         self.locations
             .into_iter()
             .map(|location| {
+                let Location { symbolic, concrete } = location;
+                let Symbolic { key, annotation } = symbolic;
                 ZizmorProblem::new(
-                    location.symbolic.key.local.verbatim_path,
-                    span(&location.concrete.location),
+                    key.local.verbatim_path,
+                    span(&concrete.location),
                     severity,
                     self.ident.clone(),
                     self.desc.clone(),
-                    location.symbolic.annotation,
+                    annotation,
                 )
             })
             .collect()
@@ -171,9 +173,13 @@ pub(super) fn problems(report: &str) -> Result<Vec<ZizmorProblem>, serde_json::E
 
 /// Returns the range of a finding that a range of zizmor covers
 fn span(range: &Range) -> Span {
+    let Range {
+        start_point,
+        end_point,
+    } = range;
     Span::builder()
-        .start(range.start_point.position())
-        .end(range.end_point.position())
+        .start(start_point.position())
+        .end(end_point.position())
         .build()
 }
 
