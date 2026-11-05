@@ -1,11 +1,11 @@
 //! The action that validates the TOML files of a project
 //!
-//! [Taplo] does the work: it discovers the TOML files, reads its own
-//! configuration, and validates what that configuration selects, so a run of
+//! [Taplo] does the work: it discovers the TOML files and reads its own
+//! configuration. It validates what that configuration selects, so a run of
 //! the action agrees with an editor and with a contributor that runs taplo
 //! bare. The action starts the taplo that [mise] installed for the project,
-//! at the version that the project pinned, and translates what taplo
-//! reported into the outcome of the run.
+//! at the version that the project pinned. It translates what taplo reported
+//! into the outcome of the run.
 //!
 //! A run only reports. Taplo repairs nothing that a validation finds, so the
 //! action takes no argument. A project that holds no TOML file passes,

@@ -8,8 +8,8 @@ use crate::problem::MarkdownlintProblem;
 
 /// The separator between the name of a rule and its aliases
 ///
-/// Markdownlint joins them this way when it writes its report for a reader,
-/// and a message that a contributor can search for reads the same either way.
+/// Markdownlint joins them this way when writing its report for a reader.
+/// A message a contributor searches for reads the same either way.
 const ALIAS_SEPARATOR: &str = "/";
 
 /// One result of the report that markdownlint wrote
@@ -64,10 +64,10 @@ impl Record {
 
 /// Returns the sentence that markdownlint would have written for a reader
 ///
-/// Markdownlint builds it from the rule, what the rule is about, what it
-/// expected, and the text that broke it, and it leaves out the parts that a
-/// rule does not report. Building the same sentence here means that a finding
-/// says what a contributor sees when they run markdownlint themselves.
+/// Markdownlint includes the rule, what the rule is about, what it expected,
+/// and the text that broke it. It omits parts that a rule does not report.
+/// Building the same sentence here means that a finding says what a
+/// contributor sees when they run markdownlint themselves.
 fn message(record: &Record) -> String {
     let mut message = record.rule_names.join(ALIAS_SEPARATOR);
 
@@ -97,9 +97,9 @@ fn message(record: &Record) -> String {
 /// # Errors
 ///
 /// Returns the error of a report that is not the array that markdownlint
-/// writes. Markdownlint answers a file that it cannot open by ending the run
-/// with a stack trace and no report, so a reading that tolerated such a
-/// report would let a run pass with an unknown part of the project unread.
+/// writes. Markdownlint answers when it cannot open a file by writing a stack
+/// trace and no report. A reading that tolerates such a report would let a
+/// run pass with an unknown part of the project unread.
 pub(super) fn problems(report: &str) -> Result<Vec<MarkdownlintProblem>, serde_json::Error> {
     let text = report.trim();
 

@@ -39,8 +39,8 @@ pub enum ReadReportError {
     /// A line of the report is no part of the report that this crate reads
     ///
     /// The shape of a report belongs to a version of Node. A line that does
-    /// not fit therefore points at a version that this crate does not know,
-    /// and the results of such a reading would be the ones that it happened to
+    /// not fit therefore points at a version that this crate does not know. The
+    /// results of such a reading would be the ones that it happened to
     /// understand.
     #[error("the report holds a line that the action cannot read: {line}")]
     UnreadableLine {
@@ -60,10 +60,10 @@ mod tests {
 
     /// Shows that `ReadReportError` is `Send` and `Sync`
     ///
-    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// An action puts the error in the outcome of a run. That outcome holds
     /// an error that another thread can read. This test holds the error to the
-    /// auto traits that make this possible, because a field of a later version
-    /// could take them away without a word from the compiler.
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn read_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

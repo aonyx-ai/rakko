@@ -10,11 +10,11 @@ pub use self::values::{ArgsValues, ArgumentValue};
 
 /// The arguments that a run of an action reads
 ///
-/// Every action defines its own type of arguments, and that type implements
-/// this trait. The trait does two things that the machinery cannot do for
-/// itself: it describes the arguments as data, so that a projection can build
-/// a command before any value exists, and it builds a value of the type from
-/// what the machinery parsed.
+/// Every action defines its own type of arguments. That type implements this
+/// trait. The trait does two things the machinery cannot do for itself. It
+/// describes the arguments as data, so a projection can build a command before
+/// any value exists. It also builds a value of the type from what the machinery
+/// parsed.
 ///
 /// Both halves have to live with the type, because only the crate that defines
 /// a type can generate code from its fields. The machinery never sees the

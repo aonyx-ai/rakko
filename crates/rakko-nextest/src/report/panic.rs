@@ -7,11 +7,11 @@ use getset::{CopyGetters, Getters};
 
 /// Where and why a test panicked
 ///
-/// The test harness of Rust writes the location of a panic and its message
-/// to the output of the test, and nextest keeps that output for a test that
-/// failed. The path stands as the compiler embedded it, which is relative to
-/// the root that cargo built, so a caller asks the root for the path
-/// relative to the project.
+/// The test harness of Rust writes the location of a panic and its message to
+/// the output of the test. Nextest keeps that output for a test that failed.
+/// The path stands as the compiler embedded it, which is relative to the root
+/// that cargo built. So a caller asks the root for the path relative to the
+/// project.
 ///
 /// # Examples
 ///

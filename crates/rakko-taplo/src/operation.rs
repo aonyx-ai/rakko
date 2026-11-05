@@ -6,9 +6,9 @@
 /// vocabulary names the jobs that Rakko uses, so that an action states what
 /// it wants and never writes a command line of its own.
 ///
-/// The two formatting operations differ in one thing: whether taplo writes.
-/// A check reports the files that it would rewrite and leaves the project
-/// alone, so a run that a user started in order to look changes nothing.
+/// The two formatting operations differ in one thing: whether taplo writes. A
+/// check reports the files that it would rewrite and leaves the project alone.
+/// So a run that a user started in order to look changes nothing.
 ///
 /// # Examples
 ///

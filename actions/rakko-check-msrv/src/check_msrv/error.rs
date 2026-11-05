@@ -41,11 +41,12 @@ pub enum CheckMsrvError {
 
     /// The lockfile of a workspace needs an update
     ///
-    /// The manifests of the workspace ask for something that the lockfile does
-    /// not hold, such as a new dependency or a new version of a member, or the
-    /// workspace has no lockfile. The action checks the versions that the
-    /// lockfile holds and never writes it, so cargo refused the run. A build of
-    /// the workspace writes the lockfile.
+    /// The manifests of the workspace ask for something the lockfile
+    /// does not hold, such as a new dependency or a new version of a member.
+    /// Or the workspace has no lockfile.
+    /// The action checks the versions that the lockfile holds and never
+    /// writes it, so cargo refused the run.
+    /// A build of the workspace writes the lockfile.
     #[error("the lockfile of the workspace in {} needs an update", root.display())]
     StaleLockfile {
         /// The workspace root whose lockfile needs an update
@@ -54,9 +55,9 @@ pub enum CheckMsrvError {
 
     /// The workspaces of the project could not be discovered
     ///
-    /// A run checks every workspace that declares a Rust version, and a run
-    /// that does not know them all would hide every problem of the missing
-    /// one behind a green result.
+    /// A run checks every workspace that declares a Rust version.
+    /// A run that does not know them all would hide every problem
+    /// of the missing one behind a green result.
     #[error("failed to discover the workspaces of the project")]
     UndiscoveredRoots {
         /// The cause of the failure
@@ -65,10 +66,10 @@ pub enum CheckMsrvError {
 
     /// Cargo wrote a record that the action cannot read
     ///
-    /// The shape of a record belongs to a version of cargo. A line that
-    /// names a compiler message or the end of the build in a shape that the
-    /// action does not know leaves the report untrusted, and an answer built
-    /// on it would hide problems behind a green result.
+    /// The shape of a record belongs to a version of cargo.
+    /// A line that names a compiler message or the end of the build
+    /// in a shape the action does not know leaves the report untrusted.
+    /// An answer built on it would hide problems behind a green result.
     #[error("failed to read what cargo reported in {}", root.display())]
     UnreadableReport {
         /// The workspace root that cargo worked on
@@ -80,11 +81,13 @@ pub enum CheckMsrvError {
 
     /// Cargo wrote a report that the action does not recognize
     ///
-    /// The shape of the report belongs to a version of cargo. A run that
-    /// ended without success and named no diagnostic, and a run that ended
-    /// with success without saying that the build finished, both wrote
-    /// something the action could not read, and an answer built on such a
-    /// report would hide problems behind a green result.
+    /// The shape of the report belongs to a version of cargo.
+    /// A run that ended without success and named no diagnostic wrote
+    /// something the action could not read.
+    /// A run that ended with success without saying the build finished
+    /// also wrote something the action could not read.
+    /// An answer built on such a report would hide problems behind
+    /// a green result.
     #[error("cargo wrote a report in {} that the action does not recognize: {stderr}", root.display())]
     UnrecognizedReport {
         /// The workspace root that cargo worked on

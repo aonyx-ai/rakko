@@ -63,11 +63,11 @@ enum Entry {
 /// # Panics
 ///
 /// Panics when the action declares a read and the run added, removed, or
-/// changed a file of the project. The message gives each such file relative
-/// to the root. Panics as well when a file or a directory of the project
-/// cannot be read, because then the comparison has no answer. Panics before
-/// the run when the action declares a kind of access that the helper does not
-/// know, and the message tells the author to update Rakko.
+/// changed a file of the project. The message gives each such file relative to
+/// the root. Panics as well when a file or a directory of the project cannot be
+/// read, because then the comparison has no answer. Panics before the run when
+/// the action declares a kind of access that the helper does not know. The
+/// message tells the author to update Rakko.
 ///
 /// # Examples
 ///

@@ -1,9 +1,11 @@
 //! The action that applies the stiles rules of a project
 //!
-//! This module holds the action and the error that stops a run. The action
-//! wraps stiles as a subprocess: stiles reads its own configuration, loads the
-//! lints that the configuration names, discovers the files, and applies the
-//! rules, and the action translates what stiles reported into an outcome.
+//! This module holds the action and the error that stops a run.
+//! The action wraps stiles as a subprocess.
+//! Stiles reads its own configuration and loads the lints that the
+//! configuration names.
+//! Stiles discovers the files and applies the rules.
+//! The action translates what stiles reported into an outcome.
 
 mod error;
 
@@ -33,35 +35,40 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 
 /// The action that applies the stiles rules of a project
 ///
-/// The action wraps [stiles]: stiles reads the configuration of the project
-/// in `.config/stiles.toml`, loads the lints that it names, discovers the Rust
-/// and TypeScript files, and applies the rules that the configuration turns
-/// on, so a run agrees with a contributor that runs stiles bare. The stiles
-/// that runs is the one that [mise] installed for the project, at the version
-/// that the project pinned, and the action installs nothing.
+/// The action wraps [stiles].
+/// Stiles reads the configuration of the project in `.config/stiles.toml`,
+/// loads the lints that it names, and discovers the Rust and TypeScript files.
+/// It applies the rules that the configuration turns on, so a run agrees with a
+/// contributor that runs stiles bare.
+/// The stiles that runs is the one that [mise] installed for the project, at
+/// the version that the project pinned, and the action installs nothing.
 ///
-/// A run only reports, and it takes no argument. Stiles repairs nothing that a
-/// rule finds. Every diagnostic that a rule weighs as an error or as a warning
-/// becomes a finding at the position that stiles reported, and the message
-/// holds the severity, the rule, and the words of stiles. A warning fails a
-/// run like an error, because a project that wants a rule to stay quiet turns
-/// that rule off. A note and a help fail no run, as in stiles itself.
+/// A run only reports, and it takes no argument.
+/// Stiles repairs nothing that a rule finds.
+/// Every diagnostic that a rule weighs as an error or a warning becomes a
+/// finding at the position stiles reported.
+/// The message holds the severity, the rule, and the words of stiles.
+/// A warning fails a run like an error, because a project that wants a rule to
+/// stay quiet turns that rule off.
+/// A note and a help fail no run, as in stiles itself.
 ///
 /// The action applies to a project that runs stiles rules, and it skips
-/// visibly otherwise. Before it checks the project, a run asks stiles to list
-/// the rules that the configuration turns on, and it skips when that list is
-/// empty, because stiles checks such a project with no rule at all. It also
-/// skips when stiles finds no file to check. A run stops with an error when
-/// mise reports no stiles, when stiles stops before it has checked the whole
-/// project, and when stiles writes a report that the action cannot read.
+/// visibly otherwise.
+/// Before it checks the project, a run asks stiles to list the rules that the
+/// configuration turns on.
+/// It skips when that list is empty, because stiles checks such a project with
+/// no rule at all.
+/// It also skips when stiles finds no file to check.
+/// A run stops with an error when mise reports no stiles.
+/// It stops when stiles stops before checking the whole project.
+/// It stops when stiles writes a report that the action cannot read.
 ///
-/// A run declares a read of the whole project. Stiles analyzes the types of
-/// the code it checks, so it reads the manifests and the sources that the
-/// files of the project refer to, and not only the files that it checks. It
-/// builds a lint that the configuration names from source, in a directory
-/// that cargo locks itself, so that build does not count as a write. A caller
-/// that orders runs by their declarations runs it after the actions that
-/// write.
+/// A run declares a read of the whole project. Stiles analyzes the types of the
+/// code it checks. So it reads the manifests and the sources that the files of
+/// the project refer to, and not only the files that it checks. It builds a
+/// lint that the configuration names from source. The build happens in a
+/// directory that cargo locks itself, so it does not count as a write. A caller
+/// that orders runs by their declarations runs it after the actions that write.
 ///
 /// # Examples
 ///
@@ -152,7 +159,7 @@ async fn drive(context: &Context) -> Result<Outcome, LintStilesError> {
 /// Returns the finding that reports one diagnostic of stiles
 ///
 /// The finding sits at the position where stiles said the diagnostic starts.
-/// The message comes from stiles, so a reader of a finding reads what the tool
+/// The message comes from stiles. So a reader of a finding reads what the tool
 /// itself would have told them, including the severity and the rule.
 ///
 /// # Errors

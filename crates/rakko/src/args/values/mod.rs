@@ -11,8 +11,8 @@ use crate::args::schema::ArgumentName;
 ///
 /// The machinery parses what a user asked for and collects the result here,
 /// keyed by the name of each argument. An argument set turns these values into
-/// its own type, so this collection is the boundary between the machinery and
-/// the action: the machinery fills it without knowing the type of the
+/// its own type. So this collection is the boundary between the machinery and
+/// the action. The machinery fills it without knowing the type of the
 /// arguments, and the action reads it without knowing the command line.
 ///
 /// # Examples

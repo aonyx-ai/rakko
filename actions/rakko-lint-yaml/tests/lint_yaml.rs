@@ -1,19 +1,19 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken YAML file sits in this
-//! repository, where the checks of the repository itself would fight it.
+//! against it. No fixture with a deliberately broken YAML file sits in this
+//! repository. The checks of the repository itself would fight such a file.
 //!
 //! The tests run the yamllint that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. The version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project also writes its own configuration. Yamllint looks for one in
-//! every directory above the run, and it falls back to the configuration of
-//! the user, so a project without one would answer differently on the machine
-//! of every contributor. The configuration file is a YAML file that yamllint
-//! examines like any other, which is why the counts below are one higher than
+//! every directory above the run. It falls back to the configuration of the
+//! user, so a project without one would answer differently on the machine of
+//! every contributor. The configuration file is a YAML file that yamllint
+//! examines like any other. This is why the counts below are one higher than
 //! the number of files that a test wrote itself.
 
 #![allow(
@@ -98,8 +98,8 @@ impl Project {
     /// Creates a project that pins a yamllint that nothing installed
     ///
     /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about yamllint.
+    /// location for it. This holds whatever the global configuration of the
+    /// machine says about yamllint.
     fn without_yamllint() -> Self {
         let project = Self::bare();
 
@@ -186,12 +186,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record
+    /// piles up there forever. A project that never wrote a configuration
+    /// has nothing to withdraw. Mise resolves a path that is not there to the
+    /// directory above it, so the file must exist first. A failure stays quiet,
+    /// because the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 

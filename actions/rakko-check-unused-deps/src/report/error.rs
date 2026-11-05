@@ -6,10 +6,10 @@ use thiserror::Error;
 ///
 /// The reading tolerates every line that is not the report, because cargo
 /// writes its own records to the same stream. The report itself is another
-/// matter: its shape belongs to a version of cargo-udeps, and a reading that
-/// skipped a report it did not understand would let a workspace pass with
-/// its unused dependencies unread. The reading therefore stops, and the
-/// action that asked for it reports the error.
+/// matter. Its shape belongs to a version of cargo-udeps. A reading that
+/// skipped a report it did not understand would let a workspace pass with its
+/// unused dependencies unread. The reading therefore stops. The action that
+/// asked for it reports the error.
 ///
 /// # Examples
 ///
@@ -55,10 +55,10 @@ mod tests {
 
     /// Shows that error is Send and Sync
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run. That outcome holds an
+    /// error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn read_udeps_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

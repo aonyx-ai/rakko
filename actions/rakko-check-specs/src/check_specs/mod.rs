@@ -1,8 +1,8 @@
 //! The action that checks the specifications of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps tracey as a subprocess: tracey reads the specifications and the code
-//! that answers them, and the action asks it the questions that gate a project
+//! wraps tracey as a subprocess. Tracey reads the specifications and the code
+//! that answers them. The action asks tracey the questions that gate a project
 //! and translates the answers into an outcome.
 
 mod error;
@@ -29,21 +29,21 @@ const BASE_REF: &str = "GITHUB_BASE_REF";
 /// The action that checks the specifications of a project
 ///
 /// The action wraps [tracey]. A specification states what a crate does as a
-/// list of requirements, each with an identifier, and the code that implements
-/// or verifies a requirement names that identifier in a comment. Tracey holds
-/// the two together, and the tracey that runs is the one that [mise] installed
-/// for the project, at the version that the project pinned.
+/// list of requirements with identifiers. The code that implements or verifies
+/// a requirement names that identifier in a comment. Tracey holds the two
+/// together. The tracey that runs is the one that [mise] installed for the
+/// project at the version that the project pinned.
 ///
 /// A run asks three questions. Does every reference point at a requirement
 /// that exists, at the version it carries now? Does a change to the text of a
 /// requirement carry the version bump that such a change needs? And how much
-/// of the specification does the code answer for? The first two gate the run,
-/// and the third travels in the summary of a run that passed, because a
-/// specification may land before the code that answers it.
+/// of the specification does the code answer for? The first two gate the run.
+/// The third travels in the summary of a run that passed. The reason is that a specification may
+/// land before the code that answers it.
 ///
-/// A run only reports, and it takes no argument. It changes nothing about the
-/// project, and nothing about the repository of the project: the comparison
-/// that a pull request needs is built in a copy.
+/// A run only reports. It takes no argument. It changes nothing about the
+/// project or its repository. The comparison that a pull request needs is
+/// built in a copy.
 ///
 /// A project whose tracey tracks no requirement skips visibly, and says so.
 ///
@@ -99,9 +99,9 @@ impl Action for CheckSpecs {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of the
-/// tool, a question that tracey left unanswered, or the comparison that a pull
-/// request needs.
+/// Returns the error of the step that could not finish. That step is the
+/// resolution of the tool, a question that tracey left unanswered, or the
+/// comparison that a pull request needs.
 async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
     let tracey = Tracey::resolve(context.root().clone())
         .await

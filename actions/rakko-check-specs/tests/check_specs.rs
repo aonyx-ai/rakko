@@ -1,10 +1,10 @@
 //! Tests of the action that need no installation of tracey
 //!
-//! The tests cover what the action declares, the run that stops when the
-//! project pins a tracey that nothing installed, and the comparison of a pull
-//! request with its base, which only runs git. A test that needs files builds
-//! a project in a temporary directory, so no fixture with a deliberately
-//! changed specification sits in this repository.
+//! The tests cover what the action declares. They cover the run that stops when
+//! the project pins a tracey that nothing installed. They also cover the
+//! comparison of a pull request with its base, which only runs git. A test that
+//! needs files builds a project in a temporary directory, so no fixture with a
+//! deliberately changed specification sits in this repository.
 
 #![allow(
     clippy::expect_used,
@@ -177,8 +177,8 @@ fn git(directory: &Path, arguments: &[&str]) -> String {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
     /// pile up there forever.
     ///
     /// A project that never pinned a tool trusted nothing, and mise reads a
@@ -260,8 +260,9 @@ async fn comparison_leaves_the_index_of_the_checkout_alone() {
 
 /// Shows that comparison of a merge commit stages the pull request
 ///
-/// A code host checks out a merge commit of the branch and its base, and stages
-/// nothing, so a comparison of that index with that HEAD finds no change at all.
+/// A code host checks out a merge commit of the branch and its base.
+/// It stages nothing, so a comparison of that index with that HEAD finds no
+/// change at all.
 #[tokio::test]
 async fn comparison_of_a_merge_commit_stages_the_pull_request() {
     let project = merged();

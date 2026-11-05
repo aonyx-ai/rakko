@@ -1,26 +1,26 @@
 //! The action that lints the YAML files of a project
 //!
-//! [Yamllint] does the work: it discovers the YAML files, reads its own
-//! configuration, and applies the rules that the project turned on, so a run
-//! of the action agrees with an editor and with a contributor that runs
-//! yamllint bare. The action starts the yamllint that [mise] installed for
-//! the project, at the version that the project pinned, and translates what
-//! yamllint reported into the outcome of the run.
+//! [Yamllint] does the work: it discovers the YAML files and reads its own
+//! configuration. It applies the rules that the project turned on. So a run of
+//! the action agrees with an editor and with a contributor that runs yamllint
+//! bare. The action starts the yamllint that [mise] installed for the project.
+//! It uses the version that the project pinned and translates what yamllint
+//! reported into the outcome of the run.
 //!
 //! A run only reports, so the action takes no argument, and yamllint repairs
 //! nothing that it finds. The action applies to a project that holds YAML
 //! files, and it skips visibly otherwise.
 //!
 //! Yamllint gives each problem a level, and the configuration of the project
-//! decides that level for each rule. This crate reports a warning and an
-//! error alike, because both are problems that the project asked yamllint to
-//! look for, and a run with either fails.
+//! decides that level for each rule. This crate reports a warning and an error
+//! alike, because both are problems that the project asked yamllint to look
+//! for. A run with either fails.
 //!
 //! A run starts yamllint twice. The first run asks which files yamllint
-//! examines, because a yamllint that collected no file writes the same empty
-//! report as one that examined the whole project and found nothing. The
-//! second run lints those files. A line of the report that this crate cannot
-//! read stops the run instead of passing quietly.
+//! examines. It needs this because a yamllint that collected no file writes the
+//! same empty report as one that examined the whole project and found nothing.
+//! The second run lints those files. A line of the report that this crate
+//! cannot read stops the run instead of passing quietly.
 //!
 //! # Asynchronous Runtime
 //!

@@ -1,10 +1,10 @@
 //! The mise that a run asks to lock a project
 //!
 //! The tool of the action is mise itself. This module starts it in one
-//! directory, the project or a copy of it, and asks it two questions: which
+//! directory, the project or a copy of it. It asks two questions: which
 //! lockfiles the directory keeps, and what `mise lock` does there. It turns
-//! what mise wrote into data, and it stops on a warning that is not one of
-//! the harmless kinds, because such a warning can mean an unresolved tool.
+//! what mise wrote into data. It stops on a warning that is not one of the
+//! harmless kinds, because such a warning can mean an unresolved tool.
 
 mod lock;
 mod trust;
@@ -47,10 +47,10 @@ const JSON: &str = "--json";
 ///
 /// The run reads a warning of mise to learn that it failed to resolve a tool,
 /// so the run of `mise lock` sets these. A variable of the environment beats
-/// the same setting in a configuration, so the warnings show whatever the
+/// the same setting in a configuration. So the warnings show whatever the
 /// environment, the project, or the global configuration of the contributor
-/// asks for. Each setting selects what mise shows, and not what it locks, and
-/// each of them silences mise on its own, so the run sets all three.
+/// asks for. Each setting selects what mise shows, not what it locks. Each of
+/// them silences mise on its own, so the run sets all three.
 const VERBOSITY: [(&str, &str); 3] = [
     ("MISE_QUIET", "false"),
     ("MISE_SILENT", "false"),
@@ -62,18 +62,18 @@ const VERBOSITY: [(&str, &str); 3] = [
 ///
 /// Mise asks whether to trust a configuration that nobody trusted, and with
 /// this variable it trusts the configuration and records the trust for good.
-/// Every run of mise takes it out of its environment, so that the action
-/// never trusts a project in the place of whoever owns it, and a project that
-/// nobody trusted stops the run.
+/// Every run of mise takes it out of its environment. This way the action never
+/// trusts a project in the place of whoever owns it, and a project that nobody
+/// trusted stops the run.
 const YES: &str = "MISE_YES";
 
 /// The variables with which an environment says that it is a job of CI
 ///
 /// Mise trusts a configuration that nobody trusted, without a question and
 /// without a record, when either of them is set. Every run of mise takes them
-/// out of its environment, so that a project that nobody trusted stops the
-/// run on a job of CI as well. A project that a job checks stays trusted
-/// through the directories that `MISE_TRUSTED_CONFIG_PATHS` names.
+/// out of its environment. This way a project that nobody trusted stops the run on
+/// a job of CI as well. A project that a job checks stays trusted through the
+/// directories that `MISE_TRUSTED_CONFIG_PATHS` names.
 const CI: [&str; 2] = ["CI", "GITHUB_ACTIONS"];
 
 /// The variable that names the directories that mise trusts for one run
@@ -101,8 +101,8 @@ const UNCONFIGURED: &str = "No tools configured to lock";
 
 /// The words with which mise reports a failure of its own
 ///
-/// A warning with these words is never harmless, whatever else it says, such
-/// as the name of a deprecated backend in the chain of its causes.
+/// A warning with these words is never harmless, whatever else it says. One
+/// example is the name of a deprecated backend in the chain of its causes.
 const FAILED_TO: &str = "failed to ";
 
 /// The mark with which mise starts a warning of its log
@@ -111,12 +111,12 @@ const WARNING: &str = "mise WARN";
 /// The words of the warnings of mise that say nothing about what it locked
 ///
 /// Mise warns that a lockfile keeps an older format, that the registry moved
-/// a tool to another backend, that a backend is deprecated, that a request
-/// failed and is tried again or elsewhere, and that a newer mise exists. None
-/// of these leaves an entry unresolved. Every other warning of a run that
-/// ended with success can be the only sign that mise could not resolve a
-/// tool, such as one that it failed to resolve, one that it failed to fetch
-/// what it needs for, and a limit of the rate of an API.
+/// a tool to another backend, and that a backend is deprecated. It also warns
+/// that a request failed and is tried again or elsewhere, and that a newer
+/// mise exists. None of these leaves an entry unresolved. Every other warning
+/// of a run that ended with success can be the only sign that mise could not
+/// resolve a tool. Examples are one that it failed to resolve and one that it
+/// failed to fetch what it needs for. Another is a limit of the rate of an API.
 const HARMLESS: [&str; 7] = [
     "uses lockfile format version",
     "is locked to ",
@@ -194,9 +194,9 @@ impl Mise {
     ///
     /// The answer names each lockfile relative to the directory, also one that
     /// mise names relative to the home directory. On a Unix-like system, the
-    /// run reads the home directory as mise reads it: from `HOME`, or from the
-    /// account of the user when `HOME` is not set. On other systems, mise
-    /// names no path relative to the home directory.
+    /// run reads the home directory as mise reads it. It reads from `HOME`, or
+    /// from the account of the user when `HOME` is not set. On other systems,
+    /// mise names no path relative to the home directory.
     ///
     /// # Errors
     ///
@@ -204,10 +204,11 @@ impl Mise {
     /// [`UnlockedProject`][unlocked] with what mise wrote when it ends without
     /// success. Returns [`UnexpectedWarnings`][unresolved] with each warning
     /// when mise ends with success and gives a warning that is not one of the
-    /// harmless kinds, because such a warning can mean that mise left the
-    /// entry of a platform as it was, and a gap in it would pass unseen.
-    /// Returns [`ForeignLockfile`][foreign] when mise names a lockfile outside
-    /// the directory.
+    /// harmless kinds. The reason is that such a warning can mean that mise
+    /// left the entry of a platform as it was. A gap in it would then pass
+    /// unseen. Returns
+    /// [`ForeignLockfile`][foreign] when mise names a lockfile outside the
+    /// directory.
     ///
     /// # Examples
     ///
@@ -313,15 +314,15 @@ impl Mise {
     ///
     /// Mise names the lockfiles that the root of the directory keeps, relative
     /// to the directory. Mise refuses the question for a configuration that
-    /// needs trust and that nobody trusted, so an answer also says that mise
+    /// needs trust and that nobody trusted. So an answer also says that mise
     /// reads the configuration of the directory.
     ///
     /// # Errors
     ///
-    /// Returns [`MiseUnavailable`][unavailable] when mise does not start, and
-    /// [`UnlistedLockfiles`][unlisted] with what mise wrote when it ends
-    /// without success, which includes a configuration that needs trust and
-    /// that nobody trusted. Returns [`UnreadableListing`][listing] when the
+    /// Returns [`MiseUnavailable`][unavailable] when mise does not start.
+    /// Returns [`UnlistedLockfiles`][unlisted] with what mise wrote when it
+    /// ends without success, which includes a configuration that needs trust
+    /// and that nobody trusted. Returns [`UnreadableListing`][listing] when the
     /// action cannot read the list, and [`ForeignLockfile`][foreign] when mise
     /// names a lockfile outside the directory.
     ///
@@ -370,10 +371,10 @@ impl Mise {
     ///
     /// A directory that the run trusts gets the variable that tells mise so,
     /// for this one run of mise. The command takes the variable that answers
-    /// the questions of mise out of its environment, so that mise asks no
-    /// question that the environment answers in the place of the contributor,
-    /// and the variables that tell mise it runs on a job of CI, with which it
-    /// trusts every configuration.
+    /// the questions of mise out of its environment. Mise then asks no question
+    /// that the environment answers in the place of the contributor. The command
+    /// also removes the variables that tell mise it runs on a job of CI, which
+    /// allow it to trust every configuration.
     fn invocation(&self) -> Invocation {
         let invocation = CI.into_iter().fold(
             Invocation::new(MISE)
@@ -391,8 +392,8 @@ impl Mise {
     /// Returns the command that runs `mise lock` in the directory
     ///
     /// The command sets the settings that make mise show its warnings in its
-    /// environment, because the run reads a warning to learn that mise failed
-    /// to resolve a tool.
+    /// environment. The reason is that the run reads a warning to learn that mise failed to
+    /// resolve a tool.
     fn lock_invocation(&self) -> Invocation {
         VERBOSITY
             .into_iter()
@@ -428,8 +429,8 @@ impl Mise {
 
 /// Returns what mise wrote about a run that ended without success
 ///
-/// Mise writes its diagnosis to the standard error stream, so whoever reads
-/// the error reads the answer of mise instead of a sentence that Rakko wrote
+/// Mise writes its diagnosis to the standard error stream. So whoever reads the
+/// error reads the answer of mise instead of a sentence that Rakko wrote
 /// about it.
 fn details(execution: &Execution) -> String {
     let diagnosis = plain(&execution.stderr().to_string_lossy());
@@ -444,8 +445,8 @@ fn details(execution: &Execution) -> String {
 
 /// Returns the text without the sequences that a terminal reads as colors
 ///
-/// Mise colors its output when the environment asks it to, and the codes of
-/// a color would otherwise reach the reason of a skip and the words of an
+/// Mise colors its output when the environment asks it to. The codes of a
+/// color would otherwise reach the reason of a skip and the words of an
 /// error. A sequence starts with the escape character and a bracket, and it
 /// ends with its first letter.
 fn plain(text: &str) -> String {
@@ -482,7 +483,7 @@ fn plain(text: &str) -> String {
 ///
 /// Returns [`ForeignLockfile`][foreign] when a line names a lockfile outside
 /// the directory. Mise writes such a lockfile when the configuration of the
-/// tools lies in a directory above, and a run that went on would compare no
+/// tools lies in a directory above. A run that went on would compare no
 /// lockfile of the project and could write outside it. A line can name a
 /// lockfile under the home directory when no home directory is given. That
 /// line gives the same error, because nothing places its lockfile inside the
@@ -584,10 +585,10 @@ fn listed(listing: &str, root: &ProjectRoot) -> Result<Vec<FilePath>, CheckMiseL
 /// Mise can end with success when it could not resolve a tool, and a warning
 /// is then the only sign of it. Each warning that is not one of the harmless
 /// kinds therefore counts. A warning starts on a line with the mark of a
-/// warning, and it can go on over the lines that follow, which say how to
-/// resolve it. The answer holds each such warning as a whole, as mise wrote
-/// it, and once, also when mise gave it for several requests. A warning ends
-/// where the next record of mise starts.
+/// warning. It can go on over the lines that follow, which say how to resolve
+/// it. The answer holds each such warning as a whole, as mise wrote it, and
+/// once, also when mise gave it for several requests. A warning ends where
+/// the next record of mise starts.
 fn unresolved(output: &str) -> Option<String> {
     let mut warnings: Vec<Vec<&str>> = Vec::new();
     let mut inside = false;

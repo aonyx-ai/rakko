@@ -33,8 +33,8 @@ const ANNOTATION_CLOSE: char = ')';
 /// One place that zizmor reported about a workflow
 ///
 /// A finding of zizmor names one or more places. The first of them is where
-/// the finding is, and the others are what a reader needs to read it, such as
-/// the step that holds an expression or the job that permissions belong to.
+/// the finding is. The others are what a reader needs to read it, such as the
+/// step that holds an expression or the job that permissions belong to.
 /// Zizmor draws them together in one block of source. A problem holds one of
 /// those places on its own, and the audit and the severity say which problems
 /// came from the same finding.
@@ -49,7 +49,7 @@ const ANNOTATION_CLOSE: char = ')';
 /// and never sits at a single position.
 ///
 /// The audit, the description, and the annotation are the words of zizmor.
-/// The audit names the pattern that zizmor looked for, the description says
+/// The audit names the pattern that zizmor looked for. The description says
 /// what that pattern is about, and the annotation says what zizmor recognized
 /// at this place. A reader of a finding therefore reads the answer of the
 /// tool, and not one that this crate wrote about it.
@@ -115,9 +115,9 @@ impl ZizmorProblem {
     /// Returns the sentence that zizmor wrote about the problem
     ///
     /// The sentence holds the severity, the audit, and what the audit is
-    /// about, in the order that zizmor heads a finding with, and it ends with
-    /// what zizmor wrote about this place. A reader therefore sees the two
-    /// halves that zizmor draws above and below its block of source, and the
+    /// about, in the order that zizmor heads a finding with. It ends with what
+    /// zizmor wrote about this place. A reader therefore sees the two
+    /// halves that zizmor draws above and below its block of source. The
     /// places of one finding read as the same finding.
     ///
     /// # Examples
@@ -156,9 +156,8 @@ impl ZizmorProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. A run names the
-    /// root as the place to look, so a path that does not fit points at a
-    /// report that the caller misread, and the caller decides what to do about
-    /// that.
+    /// root as the place to look. A path that does not fit points at a report
+    /// that the caller misread, and the caller decides what to do about that.
     ///
     /// # Examples
     ///

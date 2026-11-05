@@ -19,14 +19,14 @@ const NODE: &str = "node";
 /// The option that starts the test runner of Node
 ///
 /// A run that names no file after it leaves the discovery of the test files to
-/// Node, which walks the directory that the run started in with the patterns
+/// Node. Node walks the directory that the run started in with the patterns
 /// that it carries.
 const TEST: &str = "--test";
 
 /// The option that decides how the runner reports a run
 ///
 /// The runner draws a run for a reader otherwise, with a summary that a person
-/// reads and a machine does not, and the drawing changes with the width of a
+/// reads and a machine does not. The drawing changes with the width of a
 /// terminal. This selects the presentation of the report and not the behavior
 /// of the runner.
 const REPORTER: &str = "--test-reporter=tap";
@@ -34,9 +34,9 @@ const REPORTER: &str = "--test-reporter=tap";
 /// The node that a project runs
 ///
 /// The value holds the runtime that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// terminal of a contributor. The version decides what the test runner does:
-/// it gained the discovery of its files, the reading of TypeScript, and the
+/// version that the project pinned. So a run reaches the same program as the
+/// terminal of a contributor. The version decides what the test runner does.
+/// It gained the discovery of its files, the reading of TypeScript, and the
 /// shape of its report over several releases of Node. Nothing here installs a
 /// tool: provisioning is the job of mise, and a node that mise does not report
 /// stops the caller.
@@ -78,10 +78,10 @@ impl Node {
     ///
     /// # Errors
     ///
-    /// Returns [`NodeUnavailable`][unavailable] when node does not run,
-    /// [`MissingFailure`][missing] when the runner reported no failure and
-    /// ended without success, and [`UnreadableReport`][unreadable] when it
-    /// wrote a report that this crate cannot read.
+    /// Returns [`NodeUnavailable`][unavailable] when node does not run.
+    /// Returns [`MissingFailure`][missing] when the runner reported no failure
+    /// and ended without success. Returns [`UnreadableReport`][unreadable] when
+    /// it wrote a report that this crate cannot read.
     ///
     /// # Examples
     ///
@@ -136,8 +136,8 @@ impl Node {
 
     /// Returns the node that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
+    /// The lookup asks mise about the project whose root the caller names.
+    /// The version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
     ///
     /// # Errors

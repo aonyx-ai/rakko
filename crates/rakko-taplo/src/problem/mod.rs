@@ -12,10 +12,10 @@ pub use self::detail::ProblemDetail;
 
 /// One problem that taplo reported about a file
 ///
-/// The path stands as taplo wrote it, which is absolute, because taplo
-/// starts in the project root. A caller that reports the problem asks for
-/// the path [relative][relative] to that root, which is the name that a
-/// reader, a machine, and a code host all recognize.
+/// The path stands as taplo wrote it, which is absolute, because taplo starts
+/// in the project root. A caller that reports the problem asks for the path
+/// [relative][relative] to that root. That is the name that a reader, a
+/// machine, and a code host all recognize.
 ///
 /// # Examples
 ///
@@ -68,10 +68,10 @@ impl TaploProblem {
 
     /// Returns the path of the file, relative to the project root
     ///
-    /// Returns `None` when the root does not contain the file. Taplo starts
-    /// in the root and reports what it found below it, so a path that does
-    /// not fit points at a report that the caller misread, and the caller
-    /// decides what to do about that.
+    /// Returns `None` when the root does not contain the file. Taplo starts in
+    /// the root and reports what it found below it. So a path that does not fit
+    /// points at a report that the caller misread. The caller decides what to
+    /// do about that.
     ///
     /// # Examples
     ///

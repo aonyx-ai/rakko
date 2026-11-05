@@ -24,8 +24,8 @@ use thiserror::Error;
 pub enum ReadDoctestReportError {
     /// A summary of the harness does not count the examples
     ///
-    /// The harness closes the examples of a package with a summary that
-    /// counts what passed and what failed, and the shape of that line
+    /// The harness closes the examples of a package with a summary. The
+    /// summary counts what passed and what failed. The shape of that line
     /// belongs to a version of the harness.
     #[error("the summary of the examples has no count of passed and failed examples: {line}")]
     UnreadableSummary {
@@ -47,8 +47,8 @@ mod tests {
     ///
     /// An action puts the error in the outcome of a run, and that outcome
     /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// to the auto traits that make this possible. A field of a later version
+    /// could take them away without a word from the compiler.
     #[test]
     fn read_doctest_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

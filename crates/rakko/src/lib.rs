@@ -1,13 +1,13 @@
 //! The contract that every Rakko action depends on
 //!
 //! An action is a library crate that does one piece of project maintenance.
-//! This crate holds what every action and every harness shares: the trait
-//! that an action implements, the name that identifies an action, the
-//! arguments that a run reads, the context that an action reads when it runs,
-//! the finding that an action produces, and the outcome that the run returns.
-//! It also holds the view of an action that hides its type, which is how a
-//! registry holds many actions at once, and the list of such views that a
-//! bundle exports.
+//! This crate holds what every action and every harness shares. First, it holds
+//! the trait that an action implements and the name that identifies an action.
+//! Second, it holds the arguments that a run reads and the context that an
+//! action reads when it runs. Third, it holds the finding that an action
+//! produces and the outcome that the run returns. It also holds the view of an
+//! action that hides its type, which is how a registry holds many actions at
+//! once. Last, it holds the list of such views that a bundle exports.
 //!
 //! This crate builds no command line. A harness is the small binary that a
 //! project runs to maintain itself, and the author of a harness starts with

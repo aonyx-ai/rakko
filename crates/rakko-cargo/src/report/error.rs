@@ -6,10 +6,10 @@ use thiserror::Error;
 ///
 /// The reading tolerates every line that is not a record of cargo, so the
 /// output of a tool that cargo runs can share the stream. A record of cargo
-/// that the crate cannot read is another matter: the shape belongs to a
-/// version of cargo, and a reading that skipped a diagnostic it did not
-/// understand would let a build pass with its problems unread. The reading
-/// therefore stops, and the action that asked for it reports the error.
+/// that the crate cannot read is another matter. The shape belongs to a
+/// version of cargo. A reading that skipped a diagnostic it did not understand
+/// would let a build pass with its problems unread. The reading therefore
+/// stops, and the action that asked for it reports the error.
 ///
 /// # Examples
 ///
@@ -53,8 +53,9 @@ mod tests {
     ///
     /// An action puts the error in the outcome of a run, and that outcome
     /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// to the auto traits that make this possible. It does so because a field
+    /// of a later version could take them away without a word from the
+    /// compiler.
     #[test]
     fn read_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

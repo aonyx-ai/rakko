@@ -18,13 +18,13 @@ use crate::outcome::Outcome;
 /// actions at once and cannot name a different type for each of them, so it
 /// holds erased actions instead.
 ///
-/// An erased action answers everything that the machinery needs without
-/// naming the type of the action: the name that identifies it, the
-/// description of the arguments that a projection turns into a command, and a
-/// bind that takes the values of that command. The conversion from those
-/// values into the arguments of the action happens inside, where the type is
-/// still known. The bind returns a [`BoundAction`], which declares how the run
-/// uses the project and then runs with the same arguments.
+/// An erased action answers everything that the machinery needs without naming
+/// the type of the action. It provides the name that identifies it and the
+/// description of the arguments that a projection turns into a command. It also
+/// provides a bind that takes the values of that command. The conversion from
+/// those values into the arguments of the action happens inside, where the type
+/// is still known. The bind returns a [`BoundAction`], which declares how the
+/// run uses the project and then runs with the same arguments.
 ///
 /// Every action has an erased view, because this trait is implemented for all
 /// of them. An action author never writes this implementation and never names
@@ -66,9 +66,9 @@ pub trait ErasedAction: Send + Sync {
     /// Converts the values of a run into the arguments of the action
     ///
     /// The values hold what the machinery parsed for the arguments of the
-    /// action. The answer holds the action together with its arguments, so a
-    /// caller can ask it how the run uses the project and then run it, and
-    /// both see the same arguments.
+    /// action. The answer holds the action together with its arguments. So a
+    /// caller can ask it how the run uses the project and then run it, and both
+    /// see the same arguments.
     ///
     /// # Errors
     ///

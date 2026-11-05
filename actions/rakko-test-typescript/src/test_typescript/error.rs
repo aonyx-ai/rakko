@@ -30,8 +30,8 @@ pub enum TestTypeScriptError {
     ///
     /// The test runner reports every test that it ran and every one that
     /// failed. A run that ended without success and reported no failure
-    /// therefore stopped for a reason that the action cannot name, and the
-    /// tests of the project never ran to the end.
+    /// therefore stopped for a reason that the action cannot name. The tests
+    /// of the project never ran to the end.
     #[error("node reported no failure and ended without success: {details}")]
     MissingFailure {
         /// What node wrote in place of a failure
@@ -51,9 +51,9 @@ pub enum TestTypeScriptError {
     /// Node wrote a report that the action cannot read
     ///
     /// The shape of the report belongs to a version of Node. A report that
-    /// does not fit therefore points at a version that this crate does not
-    /// know, and the findings of such a run would be the failures that the
-    /// reading happened to understand.
+    /// does not fit therefore points at a version that this crate does not know. The
+    /// findings of such a run would be the failures that the reading happened
+    /// to understand.
     #[error("failed to read the report from node: {report}")]
     UnreadableReport {
         /// What node wrote in place of a report that the action reads
@@ -132,10 +132,10 @@ mod tests {
 
     /// Shows that `TestTypeScriptError` is `Send` and `Sync`
     ///
-    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// An action puts the error in the outcome of a run. That outcome holds
     /// an error that another thread can read. This test holds the error to the
-    /// auto traits that make this possible, because a field of a later version
-    /// could take them away without a word from the compiler.
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn test_type_script_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

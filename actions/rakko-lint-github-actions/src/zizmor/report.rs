@@ -10,9 +10,9 @@ use crate::problem::{Severity, ZizmorProblem};
 /// The distance between a point of zizmor and a position of a finding
 ///
 /// Zizmor counts rows and columns from zero, and a position of Rakko counts
-/// lines and columns from one. The report of zizmor and the block that it
-/// draws for a reader therefore disagree by this much, and the reading closes
-/// the gap so that a finding names the line that an editor shows.
+/// lines and columns from one. The report of zizmor and the block that it draws
+/// for a reader therefore disagree by this much. The reading closes the gap so
+/// that a finding names the line that an editor shows.
 const ORIGIN: u32 = 1;
 
 /// One finding of the report that zizmor wrote
@@ -37,10 +37,10 @@ struct Record {
 impl Record {
     /// Returns one problem for each place that the finding names
     ///
-    /// Zizmor draws every place of a finding in one block of source, which an
-    /// outcome of Rakko has no place for, so each place becomes a problem of
-    /// its own. The audit and the severity travel with each of them, so that
-    /// a reader sees which problems came from the same finding.
+    /// Zizmor draws every place in one source block. Rakko has no place for
+    /// this, so each place becomes a problem of its own. The audit and
+    /// severity travel with each problem so a reader sees which problems came
+    /// from the same finding.
     fn into_problems(self) -> Vec<ZizmorProblem> {
         let severity = self.determinations.severity;
 
@@ -91,10 +91,10 @@ struct Symbolic {
 
 /// The file that a place is in
 ///
-/// Zizmor audits a repository of a code host as well as a checkout on disk,
-/// and it names the file of a remote repository differently. A run of this
-/// action names a directory of the machine, so every file arrives as a local
-/// one, and a report that names another kind stops the reading.
+/// Zizmor audits both remote repositories and local checkouts. It names files
+/// differently for each. A run of this action names a machine directory, so
+/// files arrive as local ones. A report that names another kind stops the
+/// reading.
 #[derive(Deserialize)]
 struct Key {
     /// The file below the place that the run named

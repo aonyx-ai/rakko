@@ -31,9 +31,9 @@ use crate::tracey::ObserveTraceyError;
 pub enum CheckSpecsError {
     /// Tracey reported a problem in a file outside the project
     ///
-    /// Tracey starts in the root of the project and names a file below it, so
-    /// a path that the root does not contain points at a tracey that reports
-    /// something else than the crate expects.
+    /// Tracey starts in the project root and names a file below it. So a path
+    /// that the root does not contain points at a tracey that reports something
+    /// else than the crate expects.
     #[error("failed to parse {path} as a path of the project")]
     ForeignPath {
         /// The path that tracey reported

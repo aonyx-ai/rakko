@@ -42,8 +42,8 @@ const POSITION: char = ':';
 ///
 /// Returns [`UnreadableLine`][unreadable] for a line that does not report a
 /// problem. A reading that skipped such a line would drop a problem of the
-/// project without a word, and a reader would never learn that the report
-/// held more than the findings that arrived.
+/// project without a word. A reader would never learn that the report held
+/// more than the findings that arrived.
 ///
 /// [unreadable]: ReadReportError::UnreadableLine
 pub fn problems(report: &str) -> Result<Vec<YamllintProblem>, ReadReportError> {
@@ -63,9 +63,9 @@ pub fn problems(report: &str) -> Result<Vec<YamllintProblem>, ReadReportError> {
 /// Yamllint writes the path, the line, the column, the level, and the
 /// description of a problem, in that order and without escaping any of them.
 /// The reading therefore takes the line apart from the marks that separate
-/// the fields, and it takes the path from what is left. A path that holds a
-/// mark of its own keeps it, because the position is read from the end of
-/// that part and the description from the start of the rest.
+/// the fields. It takes the path from what is left. A path that holds a
+/// mark of its own keeps it. This works because the position is read from the
+/// end of that part and the description from the start of the rest.
 ///
 /// Returns `None` for a line that does not carry all five fields.
 fn problem(line: &str) -> Option<YamllintProblem> {
@@ -106,7 +106,7 @@ mod tests {
     /// What yamllint writes when a file is not YAML at all
     ///
     /// The description of the rule holds the marks that separate the fields
-    /// of a line, so a reading that searched for them from the end would take
+    /// of a line. So a reading that searched for them from the end would take
     /// the line apart in the wrong place.
     const SYNTAX: &str =
         "./a.yaml:3:1: [error] syntax error: expected ',' or ']', but got '<stream end>' (syntax)";

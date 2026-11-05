@@ -27,10 +27,10 @@ use thiserror::Error;
 pub enum ListFilesError {
     /// Yamllint refused the configuration of the project
     ///
-    /// Yamllint reads its configuration before it collects a single file, and
-    /// it stops when it cannot accept that configuration. A run of the action
-    /// stops with it, because yamllint lints nothing in this state, and a
-    /// report that never arrived says nothing about the project.
+    /// Yamllint reads its configuration before it collects a single file. It
+    /// stops when it cannot accept that configuration. A run of the action
+    /// stops with it, because yamllint lints nothing in this state. A report
+    /// that never arrived says nothing about the project.
     #[error("yamllint refused the configuration of the project: {details}")]
     RejectedConfiguration {
         /// What yamllint wrote about the configuration
@@ -59,10 +59,10 @@ mod tests {
 
     /// Shows that `ListFilesError` is `Send` and `Sync`
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run. That outcome holds an
+    /// error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn list_files_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

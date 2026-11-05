@@ -1,18 +1,18 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken file sits in this
+//! against it. So no fixture with a deliberately broken file sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the oxlint that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project states no configuration of oxlint unless the test is about one.
-//! Oxlint applies the rules that it enables by itself in that case, and it
-//! reads no configuration of the user, so a project without one answers the
-//! same way on the machine of every contributor.
+//! Oxlint applies the rules that it enables by itself in that case. It reads no
+//! configuration of the user. So a project without one answers the same way on
+//! the machine of every contributor.
 
 #![allow(
     clippy::expect_used,
@@ -35,9 +35,9 @@ const VALID: &str = "export function add(a: number, b: number): number {\n  retu
 ///
 /// Every rule that oxlint enables by itself carries the warning severity, so a
 /// project that states nothing weighs this one that way. Oxlint ends with
-/// success for a run that finds only warnings, which is why a run over this
-/// file is what holds the action to its own answer instead of to the status of
-/// the process.
+/// success for a run that finds only warnings. This is why a run over this file
+/// is what holds the action to its own answer instead of to the status of the
+/// process.
 const DEBUGGER: &str = "export function bad(): void {\n  debugger;\n}\n";
 
 /// TypeScript that breaks the rule of the broken file twice
@@ -101,7 +101,7 @@ impl Project {
 
     /// Creates a project that pins an oxlint that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about oxlint.
     fn without_oxlint() -> Self {
@@ -190,12 +190,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 
@@ -459,7 +459,7 @@ async fn run_with_a_stale_suppression_reports_it_for_the_project() {
 
 /// Shows that warnings cause runs to fail
 ///
-/// A rule that oxlint weighs as a warning leaves it ending with success, so a
+/// A rule that oxlint weighs as a warning leaves it ending with success. So a
 /// run that answered from the status of the process would pass this project.
 #[tokio::test]
 async fn run_with_a_warning_fails() {
@@ -521,8 +521,8 @@ async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
 
 /// Shows that projects without TypeScript files are skipped
 ///
-/// A project that holds no TypeScript is the project that this action skips, and
-/// oxlint reports that it found nothing to lint rather than that it found no
+/// A project that holds no TypeScript is the project that this action skips.
+/// Oxlint reports that it found nothing to lint rather than that it found no
 /// problem.
 #[tokio::test]
 async fn run_without_a_file_that_oxlint_lints_skips() {

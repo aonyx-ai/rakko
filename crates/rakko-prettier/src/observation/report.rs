@@ -23,7 +23,7 @@ const UNMATCHED_PATTERN: &str = "No files matching the pattern were found";
 
 /// The marker of the line that reports an option prettier did not apply
 ///
-/// Prettier writes the line and then runs without the option, so the line is
+/// Prettier writes the line and then runs without the option. So the line is
 /// the only trace of a configuration that did not reach the run.
 const IGNORED_OPTION: &str = "Ignored unknown option";
 
@@ -125,8 +125,8 @@ pub(super) fn read(
 ///
 /// Prettier writes the path, the message, and the position of the failure on
 /// one line, and draws the offending text below it. The excerpt carries the
-/// same prefix as the line above, so the position tells the two apart: only
-/// the line that reports the failure ends with one.
+/// same prefix as the line above. So the position tells the two apart: only the
+/// line that reports the failure ends with one.
 fn diagnostic(report: &str) -> Option<PrettierProblem> {
     let (line, column) = position(report)?;
     let (path, message) = report.split_once(DETAIL_SEPARATOR)?;

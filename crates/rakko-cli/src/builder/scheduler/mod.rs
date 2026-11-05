@@ -20,14 +20,13 @@ use crate::report::{GroupSummary, Report};
 /// project before any member runs. So a kind of access that the scheduler does
 /// not know stops the run before any member changes the project.
 ///
-/// The members that write run first, so that the members that read examine
-/// the project as the writers left it. The writers can write the same files,
-/// so no two of them run at the same time, and they run in the order of the
-/// list. When the last writer finished, all the readers start at the same
-/// time, with no limit on their number. They share the task of the run, so
-/// only one of them runs code at a time. They overlap while they wait, such as
-/// for a tool. So a reader that blocks the thread delays the other readers
-/// until it returns.
+/// The members that write run first, so that the members that read examine the
+/// project as the writers left it. The writers can write the same files, so no
+/// two of them run at the same time. They run in the order of the list. When
+/// the last writer finished, all the readers start at the same time, with no
+/// limit on their number. They share the task of the run, so only one of them
+/// runs code at a time. They overlap while they wait, such as for a tool. So a
+/// reader that blocks the thread delays the other readers until it returns.
 ///
 /// The report of each member goes out as a message when the member finishes.
 /// So the reports of the readers follow the order in which the readers
@@ -116,11 +115,11 @@ struct Finished {
 /// Runs the members that write one at a time, in the order of the list, and
 /// returns them as they finished
 ///
-/// The run reports a member as soon as that member finishes, so whoever runs
+/// The run reports a member as soon as that member finishes. So whoever runs
 /// the group learns what one member found while the next one runs.
 ///
 /// A member that found problems or stopped does not end the run. A run that
-/// stopped at the first problem would hide the problems after it, and whoever
+/// stopped at the first problem would hide the problems after it. Whoever
 /// started it would learn them one run at a time.
 ///
 /// # Errors
@@ -404,7 +403,7 @@ mod tests {
     }
 
     /// An action that declares `fix` and writes only when a run gives it, as a
-    /// formatter does, and otherwise runs as the recorder that it wraps
+    /// formatter does. Otherwise it runs as the recorder that it wraps
     struct Formatter {
         /// The recorder that gives the action its name and runs it
         recorder: Recorder,

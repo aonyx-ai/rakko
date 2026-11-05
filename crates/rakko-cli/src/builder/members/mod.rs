@@ -55,7 +55,7 @@ pub(super) fn refuse_repeated(group: &Name, members: &[Box<dyn ErasedAction>]) {
 /// Panics when two members declare one argument with two different shapes,
 /// and reports the group, both members, the argument, and both shapes. One
 /// flag cannot hold two shapes, and only a change of the harness or of an
-/// action corrects that, so the failure happens where the harness mounts the
+/// action corrects that. So the failure happens where the harness mounts the
 /// group and not where a user runs it.
 pub(super) fn merge(group: &Name, members: &[Box<dyn ErasedAction>]) -> Vec<MergedArgument> {
     let mut merged: Vec<MergedArgument> = Vec::new();
@@ -84,8 +84,8 @@ pub(super) fn merge(group: &Name, members: &[Box<dyn ErasedAction>]) -> Vec<Merg
 
 /// Binds every member of a group to the values of the run
 ///
-/// The values hold one entry for each member, in the order of the members, and
-/// each entry holds the values of the arguments that its member declares. The
+/// The values hold one entry for each member, in the order of the members.
+/// Each entry holds the values of the arguments that its member declares. The
 /// members are bound before any of them runs, so a run that cannot bind one of
 /// them runs none of them.
 ///

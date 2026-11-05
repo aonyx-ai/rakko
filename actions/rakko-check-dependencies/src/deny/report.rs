@@ -18,8 +18,8 @@ pub(super) enum Entry {
 
     /// A record that this crate does not read
     ///
-    /// Cargo-deny logs what it is doing on the same stream as the report, and
-    /// the log says nothing about the project that a finding could carry.
+    /// Cargo-deny logs what it is doing on the same stream as the report. The
+    /// log says nothing about the project that a finding could carry.
     Ignored,
 }
 
@@ -27,9 +27,9 @@ pub(super) enum Entry {
 ///
 /// Cargo-deny writes more fields than these, and the reading ignores the
 /// rest, so a field that a new version adds does not break it. A record of a
-/// kind that this crate does not know is ignored rather than refused: the
-/// records that a run answers from are the two below, and a new kind next to
-/// them says nothing about the workspace.
+/// kind that this crate does not know is ignored rather than refused. The
+/// records that a run answers from are the two below. A new kind next to them
+/// says nothing about the workspace.
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 enum Record {
@@ -61,9 +61,9 @@ struct Diagnostic {
 
     /// The inclusion graph of every package that the shape is about
     ///
-    /// A record that is about no package of the graph, such as a license that
-    /// the configuration allows and no dependency carries, holds no graph at
-    /// all.
+    /// A record about no package of the graph holds no graph at all. A
+    /// license that the configuration allows and no dependency carries is
+    /// such a record.
     #[serde(default)]
     graphs: Vec<Graph>,
 }
@@ -71,9 +71,8 @@ struct Diagnostic {
 /// The inclusion graph of one package that a shape is about
 ///
 /// The graph names the package at its root and then the packages that depend
-/// on it, up to the workspace. The reading takes the root and leaves the rest,
-/// because a finding names what the answer is about and not how the project
-/// arrived at it.
+/// on it, up to the workspace. The reading takes the root and leaves the rest.
+/// The reason is that a finding names what the answer is about, not how the project arrived at it.
 #[derive(Deserialize)]
 struct Graph {
     /// The package that the graph is rooted at

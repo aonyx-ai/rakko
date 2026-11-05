@@ -24,10 +24,10 @@ const EVERY_EXTENSION: &str = "*";
 /// them. A filter that names none examines every file that has an extension,
 /// and prettier then skips the files whose language it does not know.
 ///
-/// The filter selects files and nothing else. It excludes no directory,
-/// because prettier reads the ignore files of the project, and it changes no
-/// option of prettier, because the behavior of the tool comes from the
-/// configuration of the project alone.
+/// The filter selects files and nothing else. It excludes no directory, because
+/// prettier reads the ignore files of the project. It changes no option of
+/// prettier, because the behavior of the tool comes from the configuration of
+/// the project alone.
 ///
 /// # Examples
 ///

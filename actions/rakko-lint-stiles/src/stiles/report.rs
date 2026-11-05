@@ -11,8 +11,8 @@ use crate::problem::{Severity, StilesProblem};
 /// One diagnostic of the report that stiles wrote
 ///
 /// Stiles writes more than these fields, such as the byte offsets where the
-/// diagnostic starts and ends, and the reading ignores the rest, so a field
-/// that a new version adds does not break it.
+/// diagnostic starts and ends. The reading ignores the rest, so a field that
+/// a new version adds does not break it.
 #[derive(Deserialize)]
 struct Record {
     /// The identifier of the rule that fired
@@ -84,8 +84,8 @@ pub(super) fn problems(report: &str) -> Result<Vec<StilesProblem>, serde_json::E
 /// Returns the identifiers of the rules that a listing of stiles turns on
 ///
 /// Stiles writes one object per line, one for each rule that the configured
-/// lints declare, and it marks a rule that the configuration of the project
-/// turns off. A project that configures no lint gets an empty listing.
+/// lints declare. It marks a rule that the configuration of the project turns
+/// off. A project that configures no lint gets an empty listing.
 ///
 /// # Errors
 ///

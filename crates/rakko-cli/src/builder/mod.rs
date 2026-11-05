@@ -39,7 +39,7 @@ const EXIT_FINDINGS: u8 = 1;
 ///
 /// The parser gives this code to a command line that it cannot read. A run
 /// that never reached an action and a run whose action stopped are the same
-/// event for whoever reads the result, so one code covers both.
+/// event for whoever reads the result. So one code covers both.
 const EXIT_UNANSWERED: u8 = 2;
 
 /// The name of the argument with which a user names the project root
@@ -50,9 +50,9 @@ const PROJECT_ROOT: &str = "project-root";
 
 /// The name that the command line carries
 ///
-/// A reader sees the name of the harness binary instead of this name, because
-/// clap takes the name of a usage line from the command that started the
-/// process. This name is the fallback for the places that have nothing else.
+/// A reader sees the name of the harness binary instead of this name. This is
+/// because clap takes the name of a usage line from the command that started
+/// the process. This name is the fallback for the places that have nothing else.
 const NAME: &str = "rakko";
 
 /// Creates the builder of the command line of a harness
@@ -77,7 +77,7 @@ pub fn builder() -> Builder {
 /// The command line of a harness
 ///
 /// A harness is the small binary that a project runs to maintain itself. This
-/// type is the whole surface that the harness touches: the harness creates it
+/// type is the whole surface that the harness touches. The harness creates it
 /// with [`builder`], mounts the actions, the commands, and the groups that the
 /// project uses, and then calls [`run`].
 ///
@@ -105,7 +105,7 @@ impl Builder {
     /// Mounts actions in the command line
     ///
     /// Each action becomes one command, and the command tree stays flat. A
-    /// harness passes a list, and a list is an ordinary value: the harness can
+    /// harness passes a list, and a list is an ordinary value. The harness can
     /// mount the list that a bundle exports, join two lists, or leave one
     /// action out. Reading the harness therefore reports what the project
     /// runs.
@@ -229,8 +229,8 @@ impl Builder {
     ///
     /// A [`Group`] is a named list of actions, its members, that the command
     /// line runs as one command. The command line derives the flags of the
-    /// group from the arguments of the members: each argument that a member
-    /// declares becomes one flag, and an argument that several members declare
+    /// group from the arguments of the members. Each argument that a member
+    /// declares becomes one flag. An argument that several members declare
     /// stays one flag. A flag reaches every member that declares its argument,
     /// and no other member. A group has no arguments of its own, so it defines
     /// no flag. The help of a flag shows one line for each member that declares
@@ -243,7 +243,7 @@ impl Builder {
     /// gives the member and the argument. Then the run asks every member how
     /// its run uses the project, as [`Access`] declares it. When a member
     /// declares a kind of access that the command line does not know, no
-    /// member runs either, and the error tells the user to update Rakko.
+    /// member runs either. The error tells the user to update Rakko.
     ///
     /// Then the members that write run, one at a time and in the order of the
     /// list. A member that declares nothing writes. The members that read
@@ -294,7 +294,7 @@ impl Builder {
     /// and both shapes.
     ///
     /// Panics when a member of a group declares an argument whose name the
-    /// command line defines itself, and reports the group, the member, and
+    /// command line defines itself. It reports the group, the member, and
     /// the argument.
     ///
     /// Panics when a mounted group carries the name of another mounted group,
@@ -344,9 +344,9 @@ impl Builder {
     /// A request for help, and a request that the command line cannot read,
     /// are reported in this method. The user gets the message of the parser
     /// and this method returns an exit code. A run that names nothing ends here
-    /// as well: the user gets the commands that the harness mounted, and this
-    /// method returns the code of a clean run. A run that failed ends here too:
-    /// the user gets the error and every cause of it, and this method returns the
+    /// as well. The user gets the commands that the harness mounted, and this
+    /// method returns the code of a clean run. A run that failed ends here too.
+    /// The user gets the error and every cause of it. This method returns the
     /// code of a run that could not answer, whether the failure stopped an
     /// action, a command, or a group.
     ///
@@ -384,7 +384,7 @@ impl Builder {
     /// Parses the arguments and takes the action, the command, or the group
     /// that the run asks for
     ///
-    /// A run that gives no argument names nothing, and it gets the command
+    /// A run that gives no argument names nothing. It gets the command
     /// line back instead of an error, so that the caller lists the commands
     /// that the harness mounted.
     ///
@@ -435,8 +435,8 @@ impl Builder {
     /// appears in no signature that a harness or an action can see.
     ///
     /// The command of an action, a command that a harness wrote, and a group
-    /// take the same shape here: a name, the flags of the arguments, and a
-    /// place directly under the command line.
+    /// take the same shape here. The shape has a name, the flags of the
+    /// arguments, and a place directly under the command line.
     fn command(&self) -> Command {
         let mut command = shell();
 
@@ -482,9 +482,9 @@ enum Resolution {
 
 /// Shows the commands that a harness mounted and returns the code of the run
 ///
-/// The help of the command line lists the commands, so a user who wrote the
+/// The help of the command line lists the commands. So a user who wrote the
 /// name of the harness and nothing else reads what the project runs. The run
-/// drove no action and found no problem, so it is clean, and a workflow that
+/// drove no action and found no problem, so it is clean. A workflow that
 /// calls the harness without a command reads a code that says as much.
 ///
 /// A reader that closed the stream loses the list. The parser drops its own
@@ -538,9 +538,10 @@ fn project_root() -> Arg {
 /// # Errors
 ///
 /// Returns the error of the command line when it cannot build the context of
-/// a command, and when it cannot start the runtime that drives the run.
-/// Returns an error for a run that names no root and stands in no project,
-/// because a run that receives a guessed root reports paths that mean nothing.
+/// a command. It also returns that error when it cannot start the runtime
+/// that drives the run. Returns an error for a run that names no root and
+/// stands in no project. This is because a run that receives a guessed root
+/// reports paths that mean nothing.
 /// Returns an error for a group whose member cannot bind its values or
 /// declares a kind of access that the command line does not know. Returns the
 /// error of a command that failed, and the error of a report that cannot reach
@@ -592,9 +593,9 @@ fn values(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
 /// command line does not know ends the run in the same way, before the action
 /// runs. Its error tells the user to update Rakko.
 ///
-/// What the action returned reaches the reader as one report, and the flags
+/// What the action returned reaches the reader as one report. The flags
 /// of the run decide whether that report renders as text or as JSON. The
-/// report travels as the result of the command and not as a message, so the
+/// report travels as the result of the command and not as a message. So the
 /// flags that reduce the output do not suppress what the run found.
 ///
 /// # Errors
@@ -639,9 +640,9 @@ fn drive_action(
 /// The command receives the context of the project and the context of
 /// Clawless, and it writes what it has to say through the latter. A run that
 /// ends in success is clean. A run that ends in an error carries that error
-/// to the caller, which shows it and gives the process the code of a run
-/// that could not answer, because the command line cannot tell a problem of
-/// the project from a failure of the command.
+/// to the caller. The caller shows it and gives the process the code of a run
+/// that could not answer. This is because the command line cannot tell a
+/// problem of the project from a failure of the command.
 ///
 /// # Errors
 ///
@@ -706,7 +707,7 @@ fn drive_group(
 /// The runner renders everything that the entry sends before it returns, and
 /// it ends every run with an exit of its own. That exit holds an error only
 /// as text, and it holds a code that the process cannot read back. The entry
-/// therefore gives its result back beside the runner, so that the caller gets
+/// therefore gives its result back beside the runner. This lets the caller get
 /// the code that the entry chose and an error with every cause.
 ///
 /// # Errors
@@ -752,10 +753,10 @@ where
 
 /// Returns the error of the command line that ends a run that failed
 ///
-/// The message carries every cause of the error, because the error of a
-/// command usually states only what failed, and the reason sits in its
+/// The message carries every cause of the error. This is because the error of
+/// a command usually states only what failed, and the reason sits in its
 /// source. The parser exits with the code of a run that could not answer for
-/// every error of this kind, so the message and the code travel together.
+/// every error of this kind. So the message and the code travel together.
 fn run_error(entry: &str, error: &dyn Error) -> clap::Error {
     clap::Error::raw(
         ErrorKind::Io,
@@ -765,7 +766,7 @@ fn run_error(entry: &str, error: &dyn Error) -> clap::Error {
 
 /// Returns the context of the project that a run maintains
 ///
-/// A user who named the project root gets that root, and every other run
+/// A user who named the project root gets that root. Every other run
 /// searches for the directory that marks the project, from the directory
 /// that the run started in.
 ///
@@ -783,10 +784,10 @@ fn locate(
 
 /// Returns the code that a run gives back for the given outcome
 ///
-/// A run that does not apply is clean, because a skip is an answer: a bundle
+/// A run that does not apply is clean, because a skip is an answer. A bundle
 /// that mounts an action for a stack that a project does not use must not turn
-/// that project red. A run that repaired the project is clean as well: the
-/// caller asked for the repair, and the repairs travel in the report, so a
+/// that project red. A run that repaired the project is clean as well. The
+/// caller asked for the repair, and the repairs travel in the report. So a
 /// step that runs a fix in CI must not go red over its success. A run that
 /// repaired some of what it found still has a problem, so it takes the code
 /// for a problem.
@@ -839,8 +840,8 @@ mod tests {
 
     /// The arguments that the reader reads
     ///
-    /// The set holds one argument of every shape, and it keeps the values that
-    /// it was built from, so that a test reads what the command line
+    /// The set holds one argument of every shape. It keeps the values that
+    /// it was built from so that a test reads what the command line
     /// collected.
     #[derive(Clone, Eq, PartialEq, Debug)]
     struct Arguments {
@@ -900,7 +901,7 @@ mod tests {
 
     /// The arguments that a member of a group declares
     ///
-    /// The description of an argument set belongs to its type, so each set of
+    /// The description of an argument set belongs to its type. So each set of
     /// arguments that a test member declares is a type of its own.
     trait Declaration: Send + Sync + 'static {
         /// Returns the arguments that the member declares

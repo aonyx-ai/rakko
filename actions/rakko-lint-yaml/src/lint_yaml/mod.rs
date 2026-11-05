@@ -1,9 +1,10 @@
 //! The action that lints the YAML files of a project
 //!
-//! This module holds the action and the error that stops a run. The action
-//! wraps yamllint as a subprocess: yamllint discovers the files, reads its
-//! own configuration, and applies its rules, and the action translates what
-//! yamllint reported into an outcome.
+//! This module holds the action and the error that stops a run.
+//! The action wraps yamllint as a subprocess: yamllint discovers the files
+//! and reads its own configuration.
+//! It applies its rules and translates what yamllint reported into an
+//! outcome.
 
 mod error;
 
@@ -27,22 +28,22 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 /// The action that lints the YAML files of a project
 ///
 /// The action wraps [yamllint]: yamllint discovers the YAML files of the
-/// project, reads its own configuration, and applies the rules that the
-/// project turned on, so a run agrees with an editor and with a contributor
+/// project and reads its own configuration. It applies the rules that the
+/// project turned on. So a run agrees with an editor and with a contributor
 /// that runs yamllint bare. The yamllint that runs is the one that [mise]
-/// installed for the project, at the version that the project pinned, and the
-/// action installs nothing.
+/// installed for the project. It uses the version that the project pinned, and
+/// the action installs nothing.
 ///
 /// A run only reports, and it takes no argument. Every rule that a file broke
-/// becomes a finding at the position that yamllint named, and the message of
-/// the finding is the sentence that yamllint wrote for a reader. A problem
-/// that yamllint calls a warning becomes a finding like one that it calls an
-/// error, because a project that wants a rule to stay quiet turns that rule
+/// becomes a finding at the position that yamllint named. The message of the
+/// finding is the sentence that yamllint wrote for a reader. A problem that
+/// yamllint calls a warning becomes a finding like one that it calls an error.
+/// This is because a project that wants a rule to stay quiet turns that rule
 /// off.
 ///
-/// The action applies to a project that holds YAML files, and it skips
-/// visibly otherwise. A run stops with an error when mise reports no
-/// yamllint, when yamllint refuses the configuration of the project, and when
+/// The action applies to a project that holds YAML files, and it skips visibly
+/// otherwise. A run stops with an error when mise reports no yamllint. It also
+/// stops when yamllint refuses the configuration of the project. It stops when
 /// yamllint writes a report that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
@@ -93,9 +94,8 @@ impl Action for LintYaml {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of the
-/// tool, the listing of the files, the yamllint run, or the reading of the
-/// report.
+/// Returns the error of the step that failed: tool resolution, file listing,
+/// the yamllint run, or report reading.
 async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
     let yamllint = Yamllint::resolve(context.root().clone())
         .await
@@ -123,9 +123,9 @@ async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
 
 /// Returns the finding that reports one rule that a file broke
 ///
-/// The finding sits at the position that yamllint named. The message comes
-/// from yamllint, so a reader of a finding reads what the tool itself would
-/// have told them, including the level that the project gave the rule.
+/// The finding sits at the position that yamllint named. The message comes from
+/// yamllint. So a reader of a finding reads what the tool itself would have
+/// told them, including the level that the project gave the rule.
 ///
 /// # Errors
 ///
@@ -171,11 +171,11 @@ fn findings(
 
 /// Returns what a run reports when it cannot answer from its findings
 ///
-/// Two conditions end a run before its findings matter. A yamllint that
-/// stopped before it examined every file leaves the action with an answer
-/// about a part of the project, and an outcome built on it would hide the
-/// rest behind that part. A run that reported no rule found a clean project,
-/// and it says how many files it examined for that answer.
+/// Two conditions end a run before its findings matter. A yamllint that stopped
+/// before examining every file leaves the action with an answer about a part of
+/// the project. An outcome built on it would hide the rest behind that part. A
+/// run that reported no rule found a clean project. It says how many files it
+/// examined for that answer.
 ///
 /// Returns `None` when the caller reports what the run found.
 ///

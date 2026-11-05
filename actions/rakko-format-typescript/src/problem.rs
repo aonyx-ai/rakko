@@ -1,23 +1,23 @@
 //! One problem that oxfmt reported about a project
 //!
-//! A run of oxfmt names the files that it could not leave alone and the
-//! things that it could not do, and this module holds one of them together
-//! with what oxfmt knew about it.
+//! A run of oxfmt names the files that it could not leave alone. It also
+//! names the things that it could not do. This module holds one of them
+//! together with what oxfmt knew about it.
 
 use std::path::{Path, PathBuf};
 
 /// One problem that oxfmt reported about a project
 ///
 /// Oxfmt names a problem as precisely as the operation allows, and a variant
-/// carries one of those levels. A list of the files that a rewrite would
-/// change knows the file and nothing in it. A file that oxfmt read and could
-/// not parse points at the character that broke it. A file that oxfmt could
-/// not read at all, or could not write back, has a sentence and no place,
-/// because oxfmt never got far enough to have one.
+/// carries one of those levels. A list of the files that a rewrite would change
+/// knows the file and nothing in it. A file that oxfmt read and could not parse
+/// points at the character that broke it. A file that oxfmt could not read at
+/// all or could not write back has a sentence and no place. That is because
+/// oxfmt never got far enough to have one.
 ///
 /// A path stands as oxfmt wrote it. A run starts oxfmt in the project root, so
-/// oxfmt reports a path relative to it, and a caller that reports the problem
-/// asks [`FilePath::within`][within] for the path that a finding names.
+/// oxfmt reports a path relative to it. A caller that reports the problem asks
+/// [`FilePath::within`][within] for the path that a finding names.
 ///
 /// [within]: rakko_action::FilePath::within
 ///
@@ -69,7 +69,7 @@ pub enum OxfmtProblem {
     ///
     /// A file that oxfmt cannot open and a file that it cannot write back both
     /// end this way. Oxfmt writes the path of the file into the sentence
-    /// instead of reporting it as a place, so the message carries it and the
+    /// instead of reporting it as a place. So the message carries it and the
     /// problem belongs to the project.
     Unplaced {
         /// What oxfmt said about the failure

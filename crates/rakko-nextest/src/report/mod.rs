@@ -1,9 +1,9 @@
 //! What nextest reported about a run
 //!
-//! Nextest writes its structured report as one JSON document per line on
-//! its standard output, next to the JSON of cargo, and this module reads the
-//! lines of nextest. The shape of the lines belongs to a version of nextest,
-//! and this module is the one place that knows it.
+//! Nextest writes its structured report as one JSON document per line on its
+//! standard output, next to the JSON of cargo. This module reads the lines of
+//! nextest. The shape of the lines belongs to a version of nextest, and this
+//! module is the one place that knows it.
 
 mod error;
 mod failure;
@@ -64,9 +64,9 @@ impl NextestReport {
     /// output
     ///
     /// The reading keeps every test that failed and sums the tests of every
-    /// binary that finished. It ignores every other line: a test that
-    /// started or passed, the lines of cargo, and a line that is not a
-    /// record of nextest at all, so the two tools can share the stream.
+    /// binary that finished. It ignores every other line. These are a test that
+    /// started or passed, the lines of cargo, and a line that is not a record
+    /// of nextest at all. So the two tools can share the stream.
     ///
     /// # Examples
     ///

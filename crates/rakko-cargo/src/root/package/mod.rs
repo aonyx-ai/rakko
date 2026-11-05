@@ -11,10 +11,10 @@ pub use self::name::PackageName;
 
 /// One package of a workspace, as a root names it
 ///
-/// A job selects the packages of a workspace by name, and a job that
-/// documents the workspace also needs to know which packages it must
-/// document apart from the others. A package carries both, so a caller reads
-/// them from the root instead of asking cargo again.
+/// A job selects the packages of a workspace by name. A job that documents the
+/// workspace also needs to know which packages it must document apart from the
+/// others. A package carries both, so a caller reads them from the root
+/// instead of asking cargo again.
 ///
 /// # Examples
 ///

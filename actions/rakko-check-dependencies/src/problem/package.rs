@@ -14,14 +14,14 @@ const VERSION_SEPARATOR: char = ' ';
 
 /// One package that a report of cargo-deny is about
 ///
-/// The value holds a name and a version, because a dependency graph can hold
-/// several versions of one package, and a report about a duplicate is about
-/// all of them. The name alone would leave a reader with the question that
-/// the report answers.
+/// The value holds a name and a version. The reason is that a dependency graph can hold several
+/// versions of one package, and a report about a duplicate is about all of
+/// them. The name alone would leave a reader with the question that the report
+/// answers.
 ///
 /// Cargo-deny calls this a crate, and so does its message. The type carries
-/// the other name that cargo gives the same thing, because `crate` is a
-/// keyword of Rust and no module can be named for it.
+/// the other name that cargo gives the same thing. Because `crate` is a
+/// keyword of Rust, no module can be named for it.
 ///
 /// # Examples
 ///

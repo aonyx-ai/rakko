@@ -5,7 +5,7 @@ use thiserror::Error;
 /// An error that stops the reading of a report of yamllint
 ///
 /// A rule that a file broke is no failure of the reading. The variant here
-/// describes a report whose shape this crate does not know, which belongs to
+/// describes a report whose shape this crate does not know. Such a report belongs to
 /// a version of yamllint that the project pinned after this crate was
 /// written.
 ///
@@ -49,9 +49,9 @@ mod tests {
 
     /// Shows that `ReadReportError` is `Send` and `Sync`
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
+    /// An action puts the error in the outcome of a run. That outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a later
     /// version could take them away without a word from the compiler.
     #[test]
     fn read_report_error_is_send_and_sync() {

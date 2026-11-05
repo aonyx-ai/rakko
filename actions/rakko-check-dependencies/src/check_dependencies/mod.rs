@@ -1,10 +1,12 @@
 //! The action that examines the dependencies of a project
 //!
-//! This module holds the action and the error that stops a run. The action
-//! wraps cargo-deny as a subprocess: cargo-deny reads the manifests and the
-//! lock file of a workspace, reads its own configuration, and applies the
-//! checks that the project asked for, and the action translates what
-//! cargo-deny reported into an outcome.
+//! This module holds the action and the error that stops a run.
+//!
+//! The action wraps cargo-deny as a subprocess. Cargo-deny reads the manifests
+//! and lock file of a workspace and reads its own configuration. It applies the
+//! checks that the project asked for. The action translates what
+//! cargo-deny reported
+//! into an outcome.
 
 mod error;
 
@@ -35,37 +37,44 @@ const WARNINGS: &str = "warnings";
 
 /// The action that examines the dependencies of a project
 ///
-/// The action wraps [cargo-deny]: cargo-deny reads the manifests and the lock
-/// file of a workspace, reads its own configuration, and answers whether every
-/// package carries a license that the project accepts, whether the packages
-/// come from a registry that the project trusts, and whether the graph holds a
-/// shape that the project banned. The cargo-deny that runs is the one that
-/// [mise] installed for the project, at the version that the project pinned,
-/// and the action installs nothing.
+/// The action wraps [cargo-deny]: cargo-deny reads the manifests and lock file
+/// of a workspace, reads its own configuration, and answers three questions
+/// about the project.
+///
+/// The first question is whether every package carries a license that the
+/// project accepts. The second is whether the packages come from a registry
+/// that the project trusts. The third is whether the graph holds a shape that
+/// the project banned. The
+/// cargo-deny that runs is the one that [mise] installed for the project, at
+/// the version that the project pinned. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. It checks every workspace of
-/// the project, because the harness of a project is a package of its own, and
-/// it asks cargo for those workspaces. It checks the versions that the
+/// the project because the harness of a project is a package of its own.
+///
+/// It asks cargo for those workspaces. It checks the versions that the
 /// lockfile of a workspace holds, and it leaves the lockfile as it is.
 ///
 /// Cargo-deny weighs everything that it reports with the level that the
 /// configuration of the project gave the check. An error is a shape that the
-/// project said must not appear, and a run that reports one fails. A warning
-/// is a shape that the project asked to read about, and a run that reports one
-/// passes and says how many warnings it read. The action adds no weight of its
-/// own.
+/// project said must not appear, and a run that reports one fails.
 ///
-/// A finding names the workspace that the error came from and no path,
-/// because a report of cargo-deny names no file that the project holds: the
-/// place that it underlines is a line of a lock file, or of a manifest in the
+/// A warning is a shape that the project asked to read about. A run that
+/// reports one passes and says how many warnings it read. The action adds no
+/// weight of its own.
+///
+/// A finding names the workspace that the error came from, not a file path,
+/// because cargo-deny reports no file the project holds.
+///
+/// The place it underlines is a line of a lock file or a manifest in the
 /// registry cache of the machine.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// tool, when the workspaces of the project cannot be discovered, when the
-/// lockfile of a workspace needs an update, when cargo-deny stops before it
-/// has checked a workspace, and when it writes a record that the action
-/// cannot read.
+/// A run stops with an error when mise reports no tool. It also stops when the
+/// workspaces of the project cannot be discovered or the lockfile of a
+/// workspace needs an update.
+///
+/// The run also stops when cargo-deny stops before it has checked a workspace,
+/// and when it writes a record that the action cannot read.
 ///
 /// A run declares a read of the project. It holds cargo-deny to the lockfile of
 /// each workspace, so the run leaves every lockfile as it is. A caller that
@@ -116,9 +125,8 @@ impl Action for CheckDependencies {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of a
-/// tool, the discovery of the workspaces, a cargo-deny run, or the reading of
-/// a report.
+/// Returns the error of the step that could not finish. The step can be tool
+/// resolution, workspace discovery, a cargo-deny run, or report reading.
 async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
     let cargo = Cargo::resolve(context.root().clone())
         .await
@@ -191,9 +199,10 @@ fn finding(
 /// Returns the place that a finding of a workspace belongs to
 ///
 /// A workspace below the project root is a directory of the project, and the
-/// workspace at the project root is the project itself. The directory of the
-/// project root has no name of its own, and the empty path is that name, so
-/// an empty answer means the project.
+/// workspace at the project root is the project itself.
+///
+/// The directory of the project root has no name of its own, and the empty
+/// path is that name. So an empty answer means the project.
 ///
 /// # Errors
 ///
@@ -224,10 +233,12 @@ fn location(root: &CargoRoot, project: &ProjectRoot) -> Result<Location, CheckDe
 /// Returns the summary that tells what a passing run examined and read
 ///
 /// The summary counts the workspaces, so that a reader can question a pass
-/// that covered less than they expect. It counts the warnings next to them,
-/// because a warning is a shape that the project asked to read about, and a
-/// warning that no outcome carried would be one that nobody reads. A run
-/// without a warning says nothing about warnings.
+/// that covered less than they expect.
+///
+/// It counts the warnings next to them because a warning is a shape that
+/// the project asked to read about. A warning that no outcome carried would
+/// be one that nobody reads. A run without a warning says nothing about
+/// warnings.
 #[bon::builder]
 fn summary(roots: usize, warnings: usize) -> Summary {
     let workspaces = if roots == 1 { WORKSPACE } else { WORKSPACES };

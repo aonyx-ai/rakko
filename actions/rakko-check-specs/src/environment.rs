@@ -1,21 +1,21 @@
 //! The variables that a run keeps away from git
 //!
-//! Git reads a set of variables for itself, and they name the repository, the
+//! Git reads a set of variables for itself. They name the repository, the
 //! working tree, and the index that a command works on. They beat both the
-//! working directory of a command and its `-C` option, so a process that runs
+//! working directory of a command and its `-C` option. So a process that runs
 //! inside a git hook, a rebase, or a bisect passes them to every program that
-//! it starts, and a program that reads a repository then reads the one of the
-//! run above it.
+//! it starts. A program that reads a repository then reads the one of the run
+//! above it.
 //!
 //! This crate names the directory that each command works on, and it means the
 //! directory that it named. The variables therefore leave the environment of
 //! every command that reads a repository, whether the crate starts git itself
 //! or starts a tool that does.
 //!
-//! What leaves is the whole prefix, and not a list of the names that redirect
-//! a command today. A list is a promise that nobody renews: git adds a
-//! variable, the list stays as it was, and the command that it redirects is
-//! the one that writes.
+//! What leaves is the whole prefix, not a list of the names that redirect a
+//! command today. A list is a promise that nobody renews. Git adds a variable,
+//! but the list stays as it was. The command that it redirects is the one that
+//! writes.
 
 use std::ffi::OsString;
 
@@ -32,9 +32,9 @@ pub(crate) fn inherited() -> impl Iterator<Item = OsString> {
 
 /// Returns the names that git reads for itself
 ///
-/// The check reads the bytes of a name, because a name of the environment need
-/// not be valid text, and a name that the crate could not read would be a name
-/// that it could not drop.
+/// The check reads the bytes of a name. The reason is that a name of the environment need not be
+/// valid text. A name that the crate could not read would be a name that it
+/// could not drop.
 pub(crate) fn reserved(names: impl Iterator<Item = OsString>) -> impl Iterator<Item = OsString> {
     names.filter(|name| name.as_encoded_bytes().starts_with(PREFIX))
 }

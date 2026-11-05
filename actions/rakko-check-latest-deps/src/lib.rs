@@ -8,14 +8,14 @@
 //!
 //! [Cargo] resolves, [nextest] tests, and both run at the version that [mise]
 //! installed for the project. The whole run happens in a disposable copy of
-//! the project, because a resolution rewrites a lockfile, and the checkout of
-//! a contributor is no place for that.
+//! the project. The reason is that a resolution rewrites a lockfile, and the checkout of a
+//! contributor is no place for that.
 //!
 //! A run only reports, and it takes no argument. An update that cargo could
-//! not finish becomes a finding at the manifest of its workspace, a test that
-//! failed becomes a finding at the position where it panicked, and a build
-//! that does not finish becomes findings from the diagnostics of the compiler.
-//! A project whose cargo discovers no workspace skips visibly, and says so.
+//! not finish becomes a finding at the manifest of its workspace. A test that
+//! failed becomes a finding at the position where it panicked. A build that
+//! does not finish becomes findings from the diagnostics of the compiler. A
+//! project whose cargo discovers no workspace skips visibly, and says so.
 //!
 //! # Examples
 //!

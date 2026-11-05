@@ -13,11 +13,11 @@ const BUILD_DEPENDENCY: &str = "build-dependency";
 
 /// The kind of dependency that a manifest declares an entry as
 ///
-/// A manifest declares a dependency in one of three tables, and the table
-/// decides which targets of the package may reach the dependency. The kind
-/// therefore belongs to a report of an unused dependency: a reader needs it
-/// to find the entry, because one name can appear in more than one table of
-/// the same manifest.
+/// A manifest declares a dependency in one of three tables. The table decides
+/// which targets of the package may reach the dependency. The kind therefore
+/// belongs to a report of an unused dependency. A reader needs it to find the
+/// entry, because one name can appear in more than one table of the same
+/// manifest.
 ///
 /// # Examples
 ///

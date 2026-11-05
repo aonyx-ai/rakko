@@ -44,8 +44,8 @@ pub enum LintTomlError {
     ///
     /// Taplo warns about a configuration that it cannot read and then runs
     /// with its defaults. A run on the defaults quietly does what the project
-    /// asked it not to do, so the action stops instead of reporting what such
-    /// a run found.
+    /// asked it not to do. The action stops instead of reporting what such a
+    /// run found.
     #[error("taplo rejected a configuration file and would have run with its defaults: {details}")]
     RejectedConfiguration {
         /// What taplo reported about the file

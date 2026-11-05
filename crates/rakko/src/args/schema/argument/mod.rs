@@ -13,19 +13,18 @@ pub use self::shape::ArgumentShape;
 
 /// The description of one argument that an action reads
 ///
-/// An argument describes itself as data. It gives the name that identifies
-/// it, the shape of the value that it holds, and the sentence that tells a
-/// user what it does. A projection builds a command from those three, and an
-/// action names no flag.
+/// An argument describes itself as data. It gives the name that identifies it,
+/// the shape of the value that it holds, and the sentence that tells a user
+/// what it does. A projection builds a command from those three, and an action
+/// names no flag.
 ///
 /// All three are mandatory. An argument without a shape is one that no
-/// projection can render, and an argument without documentation reaches a
-/// user who cannot tell what it does.
+/// projection can render. An argument without documentation reaches a user who
+/// cannot tell what it does.
 ///
 /// The description carries no default and does not say that the argument is
-/// required. The argument set of an action decides what an absent value
-/// means, so a run from a command line and a run from a test read the same
-/// rules.
+/// required. The argument set of an action decides what an absent value means.
+/// So a run from a command line and a run from a test read the same rules.
 ///
 /// # Examples
 ///

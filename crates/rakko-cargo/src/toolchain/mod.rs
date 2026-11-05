@@ -1,9 +1,9 @@
 //! The Rust toolchain that a job runs on
 //!
 //! Mise pins the Rust toolchains of a project, and it can pin more than one.
-//! This module asks mise which toolchain a channel resolved to, so that a
-//! run names the toolchain that the project pinned instead of whatever
-//! rustup calls by the name of the channel on the machine.
+//! This module asks mise which toolchain a channel resolved to.
+//! A run then names the toolchain that the project pinned instead of
+//! whatever rustup calls by the name of the channel on the machine.
 
 mod channel;
 mod error;
@@ -25,9 +25,9 @@ const MISE: &str = "mise";
 
 /// The arguments that ask mise for the Rust toolchains of the project
 ///
-/// Mise lists the versions of one tool that the project pins, and the JSON
-/// form carries the version that a pin resolved to next to the pin as the
-/// project wrote it.
+/// Mise lists the versions of one tool that the project pins.
+/// The JSON form carries the version that a pin resolved to next to the pin
+/// as the project wrote it.
 const LIST: [&str; 4] = ["ls", "--current", "--json", "rust"];
 
 /// The details of a run of mise that ended without success and wrote nothing
@@ -38,7 +38,7 @@ typed_fields::name! {
     ///
     /// Mise installs a channel such as `nightly` as a dated toolchain, and
     /// `nightly-2026-08-11` is the name that rustup knows. A run selects the
-    /// toolchain by that name, so it reaches the toolchain that the project
+    /// toolchain by that name. So it reaches the toolchain that the project
     /// pinned and not whatever rustup calls `nightly` on the machine.
     Toolchain
 }
@@ -48,8 +48,9 @@ impl Toolchain {
     /// Returns the argument that selects this toolchain for cargo
     ///
     /// The proxy of rustup reads a toolchain from its first argument when
-    /// that argument starts with a plus sign, and it takes that argument
-    /// over the environment that mise set for the default toolchain.
+    /// that argument starts with a plus sign.
+    /// It takes that argument over the environment that mise set for the
+    /// default toolchain.
     ///
     /// # Examples
     ///
@@ -76,13 +77,13 @@ impl Toolchain {
     ///
     /// # Errors
     ///
-    /// Returns [`MiseUnavailable`][unavailable] when mise does not run,
-    /// [`UnpinnedToolchain`][unpinned] when the project pins no toolchain of
-    /// the channel, [`UninstalledToolchain`][uninstalled] when the pin
-    /// resolved to a toolchain that nothing installed, and
-    /// [`UnreadableReport`][unreadable] when mise answered in a shape that
-    /// the crate cannot read. Rakko installs nothing, so a toolchain that no
-    /// one installed is a failure and not a step that this method takes.
+    /// Returns [`MiseUnavailable`][unavailable] when mise does not run.
+    /// Returns [`UnpinnedToolchain`][unpinned] when the project pins no
+    /// toolchain of the channel. Returns [`UninstalledToolchain`][uninstalled]
+    /// when the pin resolved to a toolchain that nothing installed. Returns
+    /// [`UnreadableReport`][unreadable] when mise answered in a shape that the
+    /// crate cannot read. Rakko installs nothing, so a toolchain that no one
+    /// installed is a failure and not a step that this method takes.
     ///
     /// # Panics
     ///
@@ -131,11 +132,11 @@ impl Toolchain {
 
     /// Returns the toolchain that a project builds with
     ///
-    /// A project pins the toolchain of its builds by an exact version, next
-    /// to the channels that it pins for a job that needs one, such as
+    /// A project pins the toolchain of its builds by an exact version. Next to
+    /// it, the project pins channels for a job that needs one, such as
     /// `nightly`. Mise resolves a channel to another name, so the pins that
-    /// name their own version are the candidates, and the newest of them is
-    /// the toolchain of the project.
+    /// name their own version are the candidates. The newest of them is the
+    /// toolchain of the project.
     ///
     /// Mise lists the pins in an order of its own, so the choice reads the
     /// versions and not the order. It reads each part of a version as a
@@ -147,13 +148,13 @@ impl Toolchain {
     ///
     /// # Errors
     ///
-    /// Returns [`MiseUnavailable`][unavailable] when mise does not run,
-    /// [`UnpinnedToolchain`][unpinned] when every Rust pin of the project
-    /// names a channel, [`UninstalledToolchain`][uninstalled] when the
-    /// newest pin is absent from the machine, and
-    /// [`UnreadableReport`][unreadable] when mise answered in a shape that
-    /// the crate cannot read. Rakko installs nothing, so a toolchain that no
-    /// one installed is a failure and not a step that this method takes.
+    /// Returns [`MiseUnavailable`][unavailable] when mise does not run.
+    /// Returns [`UnpinnedToolchain`][unpinned] when every Rust pin of the
+    /// project names a channel. Returns [`UninstalledToolchain`][uninstalled]
+    /// when the newest pin is absent from the machine. Returns
+    /// [`UnreadableReport`][unreadable] when mise answered in a shape that the
+    /// crate cannot read. Rakko installs nothing, so a toolchain that no one
+    /// installed is a failure and not a step that this method takes.
     ///
     /// # Panics
     ///
@@ -236,10 +237,10 @@ impl Pin {
     /// Returns the version that the pin resolved to, when it resolved to one
     ///
     /// A project pins a toolchain by a version, such as `1.98.0` or `1.85`,
-    /// and mise resolves both to a version of the compiler. It resolves a
-    /// channel such as `nightly` to a dated toolchain instead, whose name is
-    /// no version, and such a pin says nothing about which compiler the
-    /// project builds with.
+    /// and mise resolves both to a version of the compiler.
+    /// It resolves a channel such as `nightly` to a dated toolchain instead.
+    /// The name of such a toolchain is no version.
+    /// Such a pin says nothing about which compiler the project builds with.
     fn version(&self) -> Option<RustVersion> {
         RustVersion::parse(&self.version)
     }
@@ -247,8 +248,8 @@ impl Pin {
     /// Returns whether the pin belongs to the channel
     ///
     /// A project writes the channel itself, or it writes a dated toolchain
-    /// of the channel, and the second form is the first with a date behind
-    /// a hyphen.
+    /// of the channel.
+    /// The second form is the first with a date behind a hyphen.
     fn belongs_to(&self, channel: &Channel) -> bool {
         self.requested_version == channel.get()
             || self
@@ -283,8 +284,9 @@ async fn report(root: &ProjectRoot) -> Result<Vec<Pin>, PinsFailure> {
 ///
 /// # Errors
 ///
-/// Returns what mise wrote when it ended without success, and what could not
-/// be read when its answer has a shape that the crate does not recognize.
+/// Returns what mise wrote when it ended without success.
+/// Returns what could not be read when its answer has a shape that the crate
+/// does not recognize.
 fn pins(execution: &Execution) -> Result<Vec<Pin>, String> {
     if !execution.status().success() {
         let diagnosis = execution.stderr().to_string_lossy();
@@ -303,9 +305,9 @@ fn pins(execution: &Execution) -> Result<Vec<Pin>, String> {
 /// Returns the newest toolchain that the pins of a project name by an exact
 /// version
 ///
-/// A pin that mise resolved to a name which is no version is no candidate,
-/// because such a pin names a channel and says nothing about which compiler
-/// the project builds with.
+/// A pin that mise resolved to a name which is no version is no candidate.
+/// This is because such a pin names a channel and says nothing about which
+/// compiler the project builds with.
 ///
 /// # Errors
 ///

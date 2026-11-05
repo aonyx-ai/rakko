@@ -10,10 +10,10 @@ use crate::root::CargoRoot;
 /// One diagnostic that the compiler reported through cargo
 ///
 /// A diagnostic carries what a reader needs to find and understand a
-/// problem: the level, the code that names the lint or the error, the
+/// problem. It contains the level, the code that names the lint or the error, the
 /// message, and the source that it points at. The compiler writes more, such
-/// as the notes and the suggestions below a diagnostic, and those stay
-/// behind, because a finding carries one message and one location.
+/// as notes and suggestions below a diagnostic. Those stay behind because a
+/// finding carries one message and one location.
 ///
 /// The value compares by everything it holds, so a report can tell two
 /// reports of one diagnostic apart from two diagnostics.
@@ -94,15 +94,15 @@ impl CargoDiagnostic {
 
     /// Returns the finding that reports this diagnostic
     ///
-    /// The message of the finding is the message of the compiler, followed
-    /// by the code in brackets when the diagnostic has one, so a reader can
-    /// look the lint up. The location is the range that the diagnostic
-    /// covers, with the path relative to the project root.
+    /// The message of the finding equals the message of the compiler. When the
+    /// diagnostic has a code, the finding adds it in brackets so a reader can
+    /// look the lint up. The location is the range that the diagnostic covers,
+    /// with the path relative to the project root.
     ///
-    /// A diagnostic without a span, and a diagnostic whose file lies outside
-    /// the project, such as one in a dependency that a macro pulled in, get
-    /// a finding at the level of the project. The message then names the
-    /// file and the position, so the place is not lost with the level.
+    /// A diagnostic without a span gets a finding at the level of the project.
+    /// A diagnostic whose file lies outside the project, such as one in a
+    /// dependency that a macro pulled in, gets one too. The message then names
+    /// the file and the position, so the place is not lost with the level.
     ///
     /// # Examples
     ///

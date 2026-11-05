@@ -1,8 +1,9 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately failing test sits in this
-//! repository, where the tests of the repository itself would fight it.
+//! against it.
+//! So no fixture with a deliberately failing test sits in this repository,
+//! where the tests of the repository itself would fight it.
 //!
 //! A project of a test is a git repository with one empty commit, and the
 //! files of the project are untracked on top of it. That is the tree of a
@@ -13,10 +14,10 @@
 //! resolution then needs no network, and what a test asserts does not depend
 //! on what crates.io published this morning.
 //!
-//! The tests run the cargo and the nextest that this repository pins. A
-//! project copies the `mise.toml` of the repository and trusts it, so the
-//! versions that answer are the versions that the repository installs, and a
-//! new pin reaches the tests without a change to them.
+//! The tests run the cargo and the nextest that this repository pins.
+//! A project copies the `mise.toml` of the repository and trusts it.
+//! So the versions that answer are the versions that the repository installs.
+//! A new pin reaches the tests without a change to them.
 
 #![allow(
     clippy::expect_used,
@@ -37,9 +38,8 @@ const PACKAGE: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition
 
 /// The manifest of a package that belongs to no workspace
 ///
-/// The empty workspace table tells cargo that the package is a root of its
-/// own, which cargo demands from a package below a workspace that does not
-/// list it.
+/// The empty workspace table tells cargo that the package is a root of its own.
+/// Cargo demands this from a package below a workspace that does not list it.
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
@@ -58,9 +58,9 @@ const MEMBER_LIBRARY: &str = "pub fn value() -> i32 {\n    1\n}\n";
 /// The manifest of a package whose dependency lies at a path that nothing
 /// holds
 ///
-/// Cargo describes the workspace of such a manifest without a word, because
-/// the description reads no dependency, and the resolution then fails over the
-/// directory that is not there.
+/// Cargo describes the workspace of such a manifest without a word.
+/// The reason is that the description reads no dependency.
+/// The resolution then fails over the directory that is not there.
 const MISSING_DEPENDENCY: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nmissing = { path = \"missing\" }\n";
 
 /// A lockfile that names the package of the project and not its member
@@ -72,9 +72,9 @@ const STALE_LOCK: &str = "version = 4\n\n[[package]]\nname = \"probe\"\nversion 
 
 /// A manifest with a build script that fails
 ///
-/// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the report holds nothing that the action
-/// recognizes.
+/// Cargo reports the failure on its standard error stream and not
+/// as a diagnostic of the compiler.
+/// So the report holds nothing that the action recognizes.
 const FAILING_BUILD: &str =
     "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\nbuild = \"build.rs\"\n";
 
@@ -99,9 +99,9 @@ const BROKEN: &str = "pub fn broken() -> i32 {\n    \"no\"\n}\n";
 /// The prefix of the names of the environment that git reads for itself
 ///
 /// A test that runs inside a hook, a rebase, or a bisect of another repository
-/// inherits variables that name that repository, and those beat the directory
-/// that a command runs in. They therefore leave the environment of every git
-/// command of a test.
+/// inherits variables that name that repository.
+/// Those variables beat the directory that a command runs in.
+/// They therefore leave the environment of every git command of a test.
 const GIT_PREFIX: &[u8] = b"GIT_";
 
 /// A project that a test builds in a temporary directory
@@ -125,14 +125,15 @@ impl Project {
 
     /// Creates a project with the cargo of this repository, in a repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the cargo and
-    /// the nextest that mise resolves for it are the ones that the repository
-    /// pins and installs. Mise ignores a configuration that nobody trusts, so
-    /// the copy is trusted right away.
+    /// The project copies the `mise.toml` of this repository.
+    /// So the cargo and the nextest that mise resolves for it are the ones
+    /// that the repository pins and installs.
+    /// Mise ignores a configuration that nobody trusts.
+    /// So the copy is trusted right away.
     ///
-    /// The repository holds one empty commit, and every file that a test
-    /// writes afterwards is untracked, which is the tree of a contributor who
-    /// has not committed their work yet.
+    /// The repository holds one empty commit.
+    /// Every file that a test writes afterwards is untracked.
+    /// This is the tree of a contributor who has not committed their work yet.
     fn new() -> Self {
         let project = Self::without_repository();
 
@@ -172,9 +173,9 @@ impl Project {
 
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for cargo, whatever the global configuration of the machine
-    /// says about Rust.
+    /// The pin names a version that no machine installs.
+    /// So mise reports no location for cargo, whatever the global
+    /// configuration of the machine says about Rust.
     fn without_cargo() -> Self {
         let project = Self::bare();
 
@@ -190,8 +191,9 @@ impl Project {
 
     /// Returns the context of a run against this project
     ///
-    /// The root is canonical, so the paths that the run reports do not depend
-    /// on the symbolic links of the temporary directory.
+    /// The root is canonical.
+    /// So the paths that the run reports do not depend on the symbolic
+    /// links of the temporary directory.
     fn context(&self) -> Context {
         let root = ProjectRoot::canonical(self.directory.path())
             .expect("the test names a directory that exists");
@@ -201,9 +203,9 @@ impl Project {
 
     /// Runs git in the project
     ///
-    /// The command forgets the variables that name a repository, so a test
-    /// that runs inside a hook of another repository still works on the one
-    /// that it created.
+    /// The command forgets the variables that name a repository.
+    /// So a test that runs inside a hook of another repository
+    /// still works on the one that it created.
     fn git(&self, arguments: &[&str]) {
         let mut command = Command::new("git");
         command.current_dir(self.directory.path()).args(arguments);
@@ -251,9 +253,9 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
     /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
@@ -376,8 +378,8 @@ async fn run_in_a_workspace_without_tests_counts_zero() {
 /// Shows that a run leaves the lockfile of the project alone
 ///
 /// The lockfile of the project is the one file that the recipe this action
-/// replaces used to leave rewritten, and the reason that the recipe refused a
-/// tree with changes in it.
+/// replaces used to leave rewritten.
+/// That is the reason that the recipe refused a tree with changes in it.
 #[tokio::test]
 async fn run_leaves_the_lockfile_of_the_project_alone() {
     let project = Project::new();
@@ -502,9 +504,9 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote(
 
 /// Shows that a dependency that cargo cannot resolve runs no test
 ///
-/// A run that tested a workspace whose resolution failed would answer for a
-/// lockfile that nobody wrote, so the finding of the update is the only one
-/// that such a run reports.
+/// A run that tested a workspace whose resolution failed would answer
+/// for a lockfile that nobody wrote.
+/// So the finding of the update is the only one that such a run reports.
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_runs_no_test() {
     let project = Project::new();
@@ -537,8 +539,8 @@ async fn run_with_a_failing_test_fails() {
 
 /// Shows that a failing test in a second workspace names its path
 ///
-/// The run works in the copy, and the finding still names the file that the
-/// contributor can open.
+/// The run works in the copy.
+/// The finding still names the file that the contributor can open.
 #[tokio::test]
 async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
@@ -615,9 +617,10 @@ async fn run_with_a_stale_lockfile_leaves_the_project_unchanged() {
 
 /// Shows that a run with a stale lockfile passes
 ///
-/// The lockfile of the project names no member, so a build that holds cargo to
-/// it ends without success. The run passes, which it can only do when the
-/// update wrote the member into the lockfile of the copy and the tests built
+/// The lockfile of the project names no member.
+/// So a build that holds cargo to it ends without success.
+/// The run passes. It can only do so when the update wrote
+/// the member into the lockfile of the copy and the tests built
 /// what that lockfile holds.
 #[tokio::test]
 async fn run_with_a_stale_lockfile_passes() {

@@ -26,10 +26,10 @@ use crate::node::report::ReadReportError;
 pub enum ObserveNodeError {
     /// The runner reported no failure and ended without success
     ///
-    /// The runner reports every test that it ran and every one that failed, so
-    /// a run that ended without success and reported no failure stopped for a
-    /// reason that this crate cannot name, and the tests of the project never
-    /// ran to the end.
+    /// The runner reports every test that it ran and every one that failed.
+    /// So a run that ended without success and reported no failure stopped for
+    /// a reason that this crate cannot name. The tests of the project never ran
+    /// to the end.
     #[error("node reported no failure and ended without success: {details}")]
     MissingFailure {
         /// What node wrote in place of a failure
@@ -50,7 +50,7 @@ pub enum ObserveNodeError {
     ///
     /// The shape of the report belongs to a version of Node. A report that
     /// does not fit therefore points at a version that this crate does not
-    /// know, and the failures of such a run would be the ones that the reading
+    /// know. The failures of such a run would be the ones that the reading
     /// happened to understand.
     #[error("failed to read the report from node: {report}")]
     UnreadableReport {
@@ -80,9 +80,9 @@ impl ObserveNodeError {
 /// Returns what node wrote about a run that reported no failure
 ///
 /// The standard error stream answers first, because a run that stopped for a
-/// reason of its own writes that reason there, while the standard output
-/// stream carries the report that said nothing. A run that wrote nothing there
-/// leaves only the report.
+/// reason of its own writes that reason there. The standard output stream, in
+/// contrast, carries the report that said nothing. A run that wrote nothing
+/// there leaves only the report.
 #[bon::builder]
 fn diagnosis(stdout: &str, stderr: &str) -> String {
     let written = stderr.trim();
@@ -131,10 +131,10 @@ mod tests {
 
     /// Shows that `ObserveNodeError` is `Send` and `Sync`
     ///
-    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// An action puts the error in the outcome of a run. That outcome holds
     /// an error that another thread can read. This test holds the error to the
-    /// auto traits that make this possible, because a field of a later version
-    /// could take them away without a word from the compiler.
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_node_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

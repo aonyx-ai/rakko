@@ -1,7 +1,7 @@
 //! One problem that prettier reported about a file
 //!
-//! A run of prettier names the files that it could not leave alone, and this
-//! module holds one of them together with what prettier knew about it.
+//! A run of prettier names the files that it could not leave alone. This module
+//! holds one of them together with what prettier knew about it.
 
 mod detail;
 
@@ -16,9 +16,9 @@ pub use self::detail::ProblemDetail;
 /// One problem that prettier reported about a file
 ///
 /// The path stands as prettier wrote it. Prettier starts in the project root
-/// and names a file relative to it, and a caller that reports the problem
-/// asks for the [relative][relative] path, which strips a root that arrived
-/// in front of it anyway.
+/// and names a file relative to it. A caller that reports the problem asks for
+/// the [relative][relative] path, which strips a root that arrived in front of
+/// it anyway.
 ///
 /// # Examples
 ///
@@ -72,10 +72,10 @@ impl PrettierProblem {
 
     /// Returns the path of the file, relative to the project root
     ///
-    /// Returns `None` when the root does not contain the file. Prettier
-    /// starts in the root and reports what it found below it, so a path that
-    /// does not fit points at a report that the caller misread, and the
-    /// caller decides what to do about that.
+    /// Returns `None` when the root does not contain the file. Prettier starts
+    /// in the root and reports what it found below it. So a path that does not
+    /// fit points at a report that the caller misread. The caller decides what
+    /// to do about that.
     ///
     /// # Examples
     ///

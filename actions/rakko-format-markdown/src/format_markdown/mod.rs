@@ -1,10 +1,10 @@
 //! The action that formats the Markdown files of a project
 //!
 //! This module holds the action, the arguments that a run reads, and the error
-//! that stops a run. The action wraps prettier as a subprocess: it names the
-//! Markdown files, prettier reads its own configuration and does the
-//! formatting, and the action translates what prettier reported into an
-//! outcome.
+//! that stops a run.
+//! The action wraps prettier as a subprocess: it names the Markdown files.
+//! Prettier reads its own configuration and does the formatting.
+//! The action translates what prettier reported into an outcome.
 
 mod args;
 mod error;
@@ -40,26 +40,29 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 
 /// The action that formats the Markdown files of a project
 ///
-/// The action wraps [prettier]: the action names the Markdown files, prettier
-/// reads its own configuration and formats what its ignore files leave, so a
+/// The action wraps [prettier]. The action names the Markdown files. Prettier
+/// reads its own configuration and formats what its ignore files leave. So a
 /// run agrees with an editor and with a contributor that runs prettier bare.
 /// The prettier that runs is the one that [mise] installed for the project, at
 /// the version that the project pinned, and the action installs nothing.
 ///
-/// A run reports by default. A file that is not formatted becomes a finding
-/// that names the file, and a file that prettier cannot parse becomes a
-/// finding at the position that prettier reports. With the `fix` argument,
-/// prettier rewrites the files that it can format, and the outcome carries one
-/// repair for each file that it rewrote, next to the problems that remain.
+/// A run reports by default.
+/// A file that is not formatted becomes a finding that names the file.
+/// A file that prettier cannot parse becomes a finding at the position that
+/// prettier reports.
+/// With the `fix` argument, prettier rewrites the files that it can format.
+/// The outcome carries one repair for each file that it rewrote, next to the
+/// problems that remain.
 ///
 /// A run that reports declares a read of the project, and a run with `fix`
 /// declares a write. A caller that orders runs by their declarations can
 /// then run a rewrite before the actions that read.
 ///
 /// A run whose prettier found no Markdown file to examine skips visibly, and
-/// says so. A run stops with an error when mise reports no prettier,
-/// when a configuration of the project did not reach the run, and when
-/// prettier writes a report that the action does not recognize.
+/// says so.
+/// A run stops with an error when mise reports no prettier.
+/// It also stops when a configuration of the project did not reach the run.
+/// It stops when prettier writes a report that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -136,12 +139,11 @@ fn filter() -> Filter {
 
 /// Returns the finding that reports one problem of the project
 ///
-/// A file that is not formatted gets a finding at the level of the file, a
-/// file that prettier could not read gets the reason, and a file that prettier
-/// could not parse gets a finding at the position that prettier named. The
-/// message for an unformatted file comes from the caller, because a finding
-/// states a problem that the project has and a repair states one that the run
-/// took away.
+/// A file that is not formatted gets a finding at the level of the file. A file
+/// that prettier could not read gets the reason. A file that prettier could not
+/// parse gets a finding at the position that prettier named. The message for an
+/// unformatted file comes from the caller. This is because a finding states a
+/// problem that the project has. A repair states one that the run took away.
 ///
 /// # Errors
 ///
@@ -206,15 +208,16 @@ fn findings(
 /// Lets prettier rewrite the project and reports what the rewrite left
 ///
 /// Prettier names every file that it examined and marks the ones that it left
-/// alone, so one run both repairs the project and says what it repaired. A
-/// file that prettier cannot parse or cannot read remains, because a rewrite
-/// repairs formatting and a broken file needs a hand.
+/// alone. So one run both repairs the project and says what it repaired. A file
+/// that prettier cannot parse or cannot read remains, because a rewrite repairs
+/// formatting and a broken file needs a hand.
 ///
 /// # Errors
 ///
-/// Returns the error of a rewrite that could not finish: prettier did not run,
-/// a configuration of the project did not reach it, it wrote a report that the
-/// action does not recognize, or it reported a path outside the project.
+/// Returns the error of a rewrite that could not finish. Prettier did not run,
+/// or a configuration of the project did not reach it. Or it wrote a report
+/// that the action does not recognize, or it reported a path outside the
+/// project.
 async fn fix(
     prettier: &Prettier,
     filter: &Filter,
@@ -244,12 +247,12 @@ async fn fix(
 ///
 /// Three conditions end a run before its findings matter. A configuration that
 /// did not reach prettier stops it, because prettier ignores an option that it
-/// does not know and then runs without it, and a run without it quietly does
-/// what the project asked it not to do. A prettier that matched no file leaves
-/// the action with nothing to examine, which the ignore files of the project
-/// explain, so the run skips. A run that ended without success and named no
-/// problem wrote a report that the action could not read, and an answer built
-/// on it would hide every problem behind a green result.
+/// does not know and then runs without it. A run without it quietly does what
+/// the project asked it not to do. A prettier that matched no file leaves the
+/// action with nothing to examine. The ignore files of the project explain
+/// this, so the run skips. A run that ended without success and named no
+/// problem wrote a report that the action could not read. An answer built on it
+/// would hide every problem behind a green result.
 ///
 /// Returns `None` when the caller reports what the run found.
 ///
@@ -285,15 +288,15 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatMarkdownErr
 
 /// Asks prettier what it would change and reports the answer
 ///
-/// The run changes nothing: prettier names the files that a rewrite would
-/// change, and each of them becomes a finding next to the files that prettier
-/// could not parse or read.
+/// The run changes nothing. Prettier names the files that a rewrite would
+/// change. Each of them becomes a finding next to the files that prettier could
+/// not parse or read.
 ///
 /// # Errors
 ///
-/// Returns the error of a run that could not finish: prettier did not run, a
-/// configuration of the project did not reach it, it wrote a report that the
-/// action does not recognize, or it reported a path outside the project.
+/// Returns the error of a run that could not finish. Prettier did not run, or
+/// a configuration of the project did not reach it. Or it wrote a report that
+/// the action does not recognize, or it reported a path outside the project.
 async fn report(
     prettier: &Prettier,
     filter: &Filter,

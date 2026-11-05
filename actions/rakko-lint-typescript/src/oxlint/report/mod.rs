@@ -1,14 +1,13 @@
 //! The reading of the report that oxlint wrote
 //!
-//! Oxlint answers a run that asked for data with one JSON object, and this
-//! module turns that object into an observation. The reading is where the
-//! shape of a version of oxlint is known, so a report that does not fit stops
-//! the caller instead of reaching it as an answer about the project.
+//! Oxlint answers a run that asked for data with one JSON object. This module
+//! turns that object into an observation. The reading is where the shape of a
+//! version of oxlint is known. So a report that does not fit stops the caller
+//! instead of reaching it as an answer about the project.
 //!
-//! The object is not always the whole of what oxlint wrote. A run that found
-//! no file to lint writes a sentence for a reader first and the object after
-//! it, so the reading looks for the object rather than taking the output for
-//! one.
+//! The object is not always the whole of what oxlint wrote. A run that found no
+//! file to lint writes a sentence for a reader first and the object after it.
+//! So the reading looks for the object rather than taking the output for one.
 
 mod error;
 
@@ -40,9 +39,9 @@ struct Report {
 /// One diagnostic of the run
 ///
 /// Most diagnostics report a rule that a file broke. A syntax error names a
-/// file and no rule. Some diagnostics name no rule and no file: one about the
-/// project, such as a suppressions file that no longer agrees with the code,
-/// and one about a file that oxlint could not open.
+/// file and no rule. Some diagnostics name no rule and no file. One is about
+/// the project, such as a suppressions file that no longer agrees with the
+/// code. Another is about a file that oxlint could not open.
 #[derive(Deserialize)]
 struct Diagnostic {
     /// What oxlint said about the diagnostic
@@ -61,7 +60,7 @@ struct Diagnostic {
     /// What oxlint suggests about the diagnostic
     ///
     /// Oxlint writes a suggestion for most of its rules and leaves the field
-    /// out for the rest, so a reading that required one would stop on a rule
+    /// out for the rest. So a reading that required one would stop on a rule
     /// that has nothing to suggest.
     #[serde(default)]
     help: Option<String>,
@@ -69,9 +68,9 @@ struct Diagnostic {
     /// The file that broke the rule, as oxlint wrote it
     ///
     /// A diagnostic that names no file has an empty name. Oxlint writes an
-    /// empty name for a diagnostic about the project, and it leaves the field
-    /// out for a file that it could not open, whose path it writes in the
-    /// message instead.
+    /// empty name for a diagnostic about the project. It leaves the field out
+    /// for a file that it could not open, whose path it writes in the message
+    /// instead.
     #[serde(default)]
     filename: PathBuf,
 
@@ -83,13 +82,13 @@ impl Diagnostic {
     /// Returns the problem that this diagnostic reports
     ///
     /// Oxlint writes one diagnostic for a rule however many places of the file
-    /// it marks, and the problem sits at the first of them, which is the place
-    /// that oxlint itself points a reader at.
+    /// it marks. The problem sits at the first of them, which is the place that
+    /// oxlint itself points a reader at.
     ///
-    /// A diagnostic that names no file belongs to the project, and one that
-    /// names a file and marks no place in it belongs to the whole file. Oxlint
-    /// writes the first kind about the suppressions file of a project, which
-    /// lists the problems that the project accepts, when that file no longer
+    /// A diagnostic that names no file belongs to the project. One that names a
+    /// file and marks no place in it belongs to the whole file. Oxlint writes
+    /// the first kind about the suppressions file of a project, which lists the
+    /// problems that the project accepts. It does so when that file no longer
     /// agrees with the code.
     fn into_problem(self) -> OxlintProblem {
         OxlintProblem::builder()
@@ -143,8 +142,8 @@ struct Span {
 
 /// Returns what one run of oxlint reported
 ///
-/// The output of a run carries the report, and a run that found no file to lint
-/// writes a sentence in front of it, so the reading starts at the report and
+/// The output of a run carries the report. A run that found no file to lint
+/// writes a sentence in front of it. So the reading starts at the report and
 /// not at the output.
 ///
 /// # Examples
@@ -162,8 +161,8 @@ struct Span {
 ///
 /// # Errors
 ///
-/// Returns [`Absent`][absent] when the output holds no report, which is what a
-/// run that ended before it linted anything leaves behind, and
+/// Returns [`Absent`][absent] when the output holds no report. This is what a
+/// run that ended before it linted anything leaves behind. Returns
 /// [`Unreadable`][unreadable] when the report does not have the shape that this
 /// crate reads.
 ///
@@ -242,7 +241,7 @@ mod tests {
     /// code no longer has
     ///
     /// The text is what oxlint 1.90.0 writes. The diagnostic belongs to the
-    /// project, so it names no rule and no file, and it marks no place.
+    /// project, so it names no rule and no file. It marks no place.
     const STALE: &str = r#"{ "diagnostics": [{"message": "There are suppressions that do not occur anymore.","severity": "error","help": "Run `oxlint --prune-suppressions` to remove unused suppressions.","filename": "","labels": []}],
               "number_of_files": 1,
               "number_of_rules": 96,
@@ -257,7 +256,7 @@ mod tests {
     /// The report of a run that found a file which TypeScript cannot parse
     ///
     /// The text is what oxlint 1.90.0 writes for a syntax error. The diagnostic
-    /// names a file and marks a place in it, and it names no rule.
+    /// names a file and marks a place in it. It names no rule.
     const SYNTAX: &str = r#"{ "diagnostics": [{"message": "Expected `}` but found `EOF`","severity": "error","filename": "index.ts","labels": [{"label": "`}` expected","span": {"offset": 26,"length": 0,"line": 2,"column": 1}}]}],
               "number_of_files": 1,
               "number_of_rules": 96,
@@ -271,8 +270,8 @@ mod tests {
     ///
     /// The text is what oxlint 1.90.0 writes for a file that breaks a rule
     /// twice where the suppressions file allows it once. Oxlint reports every
-    /// time that the file breaks the rule, and then one diagnostic about the
-    /// project, which names no rule and no file, and marks no place.
+    /// time that the file breaks the rule. Then it reports one diagnostic about
+    /// the project, which names no rule and no file, and marks no place.
     const UNCOVERED: &str = r#"{ "diagnostics": [{"message": "`debugger` statement is not allowed","code": "eslint(no-debugger)","severity": "error","url": "https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-debugger.html","help": "Remove the debugger statement","filename": "index.ts","labels": [{"span": {"offset": 32,"length": 9,"line": 2,"column": 3}}]},
 {"message": "`debugger` statement is not allowed","code": "eslint(no-debugger)","severity": "error","url": "https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-debugger.html","help": "Remove the debugger statement","filename": "index.ts","labels": [{"span": {"offset": 44,"length": 9,"line": 3,"column": 3}}]},
 {"message": "There are new violations not covered by the suppressions file.","severity": "error","help": "Run `oxlint --suppress-all` to update the suppressions file.","filename": "","labels": []}],
@@ -286,7 +285,7 @@ mod tests {
     /// The report of a run that found no file to lint
     ///
     /// Oxlint writes a sentence for a reader in front of the object in this
-    /// case, and the object follows it on the same stream.
+    /// case. The object follows it on the same stream.
     const UNEXAMINED: &str = r#"No files found to lint. Please check your paths and ignore patterns.
 { "diagnostics": [],
               "number_of_files": 0,
@@ -299,9 +298,9 @@ mod tests {
     /// The report of a run that found a file which oxlint could not open
     ///
     /// The text is what oxlint 1.90.0 writes for a JavaScript file that is not
-    /// valid UTF-8, with the path of the project replaced. The diagnostic
-    /// about that file names no file in its fields and marks no place, and
-    /// the diagnostic about the other file of the run follows it.
+    /// valid UTF-8, with the path of the project replaced. The diagnostic about
+    /// that file names no file in its fields and marks no place. The diagnostic
+    /// about the other file of the run follows it.
     const UNOPENED: &str = r#"{ "diagnostics": [{"message": "Failed to open file /home/otter/project/legacy.js with error \"stream did not contain valid UTF-8\"","severity": "error","labels": []},
 {"message": "`debugger` statement is not allowed","code": "eslint(no-debugger)","severity": "warning","url": "https://oxc.rs/docs/guide/usage/linter/rules/eslint/no-debugger.html","help": "Remove the debugger statement","filename": "index.ts","labels": [{"span": {"offset": 32,"length": 9,"line": 2,"column": 3}}]}],
               "number_of_files": 2,

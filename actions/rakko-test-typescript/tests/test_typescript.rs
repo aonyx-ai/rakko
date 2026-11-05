@@ -1,17 +1,17 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately failing test sits in this
+//! against it. No fixture with a deliberately failing test sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the node that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. The version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project states no configuration of the runner, because there is none to
-//! state: Node carries the patterns that select the test files, and a test
-//! file needs nothing but an import of `node:test`.
+//! state. Node carries the patterns that select the test files. A test file
+//! needs nothing but an import of `node:test`.
 
 #![allow(
     clippy::expect_used,
@@ -44,7 +44,7 @@ const SOURCE: &str = "export function add(a: number, b: number): number {\n  ret
 
 /// A test that the project marked as still to do, and that fails
 ///
-/// Node reports such a test as failed and counts it as not failed, so a
+/// Node reports such a test as failed and counts it as not failed. So a
 /// reading that went by the report alone would fail a run that Node passes.
 const TO_DO: &str = "import { test } from \"node:test\";\nimport assert from \"node:assert\";\
                      \n\ntest(\"counts\", { todo: true }, () => {\n  assert.strictEqual(1 + \
@@ -93,8 +93,8 @@ impl Project {
     /// Creates a project that pins a node that nothing installed
     ///
     /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about node.
+    /// location for it. This holds whatever the global configuration of the
+    /// machine says about node.
     fn without_node() -> Self {
         let project = Self::bare();
 
@@ -198,10 +198,10 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has
+    /// nothing to withdraw. Mise resolves a path that is not there to the
     /// directory above it, so the file has to exist first. A failure stays
     /// quiet, because the test already reported what it was about.
     fn drop(&mut self) {
@@ -254,9 +254,9 @@ async fn run_leaves_a_file_with_a_failing_test_unchanged() {
 
 /// Shows that a run of a project adds no file of its own
 ///
-/// A test that writes a file writes it, because the project asked for that, and
-/// the file shows that the run reached the test at all. Everything else that
-/// the project holds afterwards is what it held before, so the action left no
+/// A test that writes a file writes it, because the project asked for that.
+/// The file shows that the run reached the test at all. Everything else that
+/// the project holds afterwards is what it held before. So the action left no
 /// report, no cache, and no installed package behind.
 #[tokio::test]
 async fn run_of_a_project_adds_no_file_of_its_own() {
@@ -491,7 +491,7 @@ async fn run_reaches_a_test_below_a_directory_of_the_project() {
 /// Shows that a run reads the report of node rather than its drawing
 ///
 /// The report reads as TAP only because the run asks for it. The drawing that
-/// Node makes for a reader carries a summary that no parse answers, so this
+/// Node makes for a reader carries a summary that no parse answers. So this
 /// test also fails wherever the environment would make Node draw.
 #[tokio::test]
 async fn run_reads_the_report_of_node_rather_than_its_drawing() {

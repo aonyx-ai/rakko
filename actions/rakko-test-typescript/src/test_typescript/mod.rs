@@ -1,8 +1,8 @@
 //! The action that runs the tests of a Node project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps the test runner of Node as a subprocess: Node finds the test files,
-//! runs them, and reports what every test did, and the action translates that
+//! wraps the test runner of Node as a subprocess. Node finds the test files,
+//! runs them, and reports what every test did. The action translates that
 //! into an outcome.
 
 mod error;
@@ -20,20 +20,21 @@ const NO_TEST: &str = "node found no test in the project";
 
 /// The action that runs the tests of a Node project
 ///
-/// The action wraps the [test runner] that Node carries: Node walks the
-/// project for its test files, runs each of them, and reports what every test
-/// did. The node that runs is the one that [mise] installed for the project,
-/// at the version that the project pinned, and the action installs nothing.
+/// The action wraps the [test runner] that Node carries. Node walks the
+/// project for its test files and runs each of them. Node reports what every
+/// test did. The node that runs is the one that [mise] installed for the
+/// project, at the version that the project pinned, and the action installs
+/// nothing.
 ///
 /// A run only reports, and it takes no argument. A test that failed becomes a
 /// finding that names the test and carries what Node said, at the place where
 /// the project declares the test. A test that holds tests reports no finding
 /// of its own when one of those failed, because that one reports it already.
 ///
-/// The action applies to a project that holds a test, and a run whose Node
-/// found none skips visibly. A run stops with an error when mise reports no
-/// node, when node reports no failure and ends without success, and when node
-/// writes a report that the action cannot read.
+/// The action applies to a project that holds a test. A run whose Node found
+/// none skips visibly. A run stops with an error when mise reports no node or
+/// when node writes a report that the action cannot read. It also stops when
+/// node reports no failure and ends without success.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write. The declaration covers the
@@ -100,7 +101,7 @@ async fn drive(context: &Context) -> Result<Outcome, TestTypeScriptError> {
 /// Returns what a run reports about the given report of node
 ///
 /// A run that examined no test at all is an action that does not apply, and
-/// not a project whose tests all passed, so it comes before everything else.
+/// not a project whose tests all passed. So it comes before everything else.
 fn outcome(report: &Report, root: &ProjectRoot) -> Outcome {
     if report.tests() == 0 {
         return Outcome::Skipped {

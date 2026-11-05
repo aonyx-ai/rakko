@@ -5,8 +5,8 @@ use thiserror::Error;
 
 /// An error that leaves a question to tracey without an answer
 ///
-/// A broken link between a specification and the code is no failure of a run:
-/// it travels in the answer, and the caller decides what it means. The
+/// A broken link between a specification and the code is no failure of a run.
+/// It travels in the answer, and the caller decides what it means. The
 /// variants here describe a question that produced no answer at all.
 ///
 /// # Examples
@@ -37,7 +37,7 @@ pub enum ObserveTraceyError {
     ///
     /// The shape of the report belongs to a version of tracey. A report that
     /// this crate cannot read therefore points at a version that it does not
-    /// know, and the problems of such a run would be the ones that the reading
+    /// know. The problems of such a run would be the ones that the reading
     /// happened to understand.
     #[error("failed to read tracey's report: {report}")]
     UnreadableReport {
@@ -60,10 +60,10 @@ mod tests {
 
     /// Shows that the error is send and sync
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run. That outcome holds an
+    /// error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_tracey_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

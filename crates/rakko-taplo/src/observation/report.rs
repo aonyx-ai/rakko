@@ -49,18 +49,18 @@ const LOCATION_ARROW: &str = "┌─ ";
 
 /// The prefix of the line of a difference that names the file it rewrites
 ///
-/// A formatting run prints one difference for each file that it would
-/// rewrite, and the header of a difference names the file twice: once as the
-/// text on disk and once as the text that taplo would write. The reading
-/// takes the second name. No line inside a difference can be mistaken for
-/// it, because taplo marks an added line with a single `+`.
+/// A formatting run prints one difference for each file that it would rewrite.
+/// The header of a difference names the file twice: once as the text on disk
+/// and once as the text that taplo would write. The reading takes the second
+/// name. No line inside a difference can be mistaken for it, because taplo
+/// marks an added line with a single `+`.
 const DIFF_TARGET: &str = "+++ b/";
 
 /// Reads what a run of taplo produced
 ///
 /// The reading walks each stream line by line. A diagnostic spans several
-/// lines, and the reading looks ahead from its header without consuming the
-/// block, because the lines of a block match no other rule.
+/// lines. The reading looks ahead from its header without consuming the block,
+/// because the lines of a block match no other rule.
 ///
 /// The standard error stream is read first, so the files that taplo could
 /// not parse stand before the files that it would rewrite. The two streams
@@ -122,9 +122,9 @@ pub(super) fn read(stdout: &str, stderr: &str, exit: Exit) -> Observation {
 /// Returns the label that a caret line of a diagnostic carries
 ///
 /// The excerpt of a diagnostic draws the offending text and then a line of
-/// carets with a label, such as `^ unexpected EOF`. The caret line starts
-/// with the gutter of the excerpt and no line number, which is how it
-/// differs from a line of the offending text itself.
+/// carets with a label, such as `^ unexpected EOF`. The caret line starts with
+/// the gutter of the excerpt and no line number. That is how it differs from a
+/// line of the offending text itself.
 fn caret_label(line: &str) -> Option<String> {
     let content = line.trim_start().strip_prefix('│')?;
     let start = content.find('^')?;
@@ -166,11 +166,11 @@ fn coordinates(location: &str) -> Option<(PathBuf, u32, u32)> {
 
 /// Returns the problem that a diagnostic block describes
 ///
-/// The header carries the message, the arrow line that follows carries the
-/// position, and the caret line of the excerpt can carry a label that makes
-/// the message precise. A block without a position describes no file, and
-/// the reading drops it, because the caller reports what it cannot read
-/// through the exit status of the run.
+/// The header carries the message. The arrow line that follows carries the
+/// position. The caret line of the excerpt can carry a label that makes the
+/// message precise. A block without a position describes no file. The reading
+/// drops it, because the caller reports what it cannot read through the exit
+/// status of the run.
 fn diagnostic(header: &str, following: &[&str]) -> Option<TaploProblem> {
     let arrow = following
         .iter()
@@ -246,9 +246,9 @@ fn quoted_path(line: &str) -> Option<PathBuf> {
 
 /// Returns what a line about a refused file says about the file
 ///
-/// The reason stands between the field that carries it and the path that
-/// closes the line, and the whole line stands in when the reading finds no
-/// such text, so the caller always has something to show.
+/// The reason stands between the field that carries it and the path that closes
+/// the line. The whole line stands in when the reading finds no such text. So
+/// the caller always has something to show.
 fn reason(line: &str) -> String {
     let detail = line
         .split_once(INVALID_FILE)
@@ -264,9 +264,9 @@ fn reason(line: &str) -> String {
 
 /// Returns what a rejection line says about the configuration file
 ///
-/// The line carries the diagnosis of taplo behind its `error=` field, and
-/// the whole line stands in when the field is missing, so the caller always
-/// has something to show.
+/// The line carries the diagnosis of taplo behind its `error=` field. The whole
+/// line stands in when the field is missing. So the caller always has something
+/// to show.
 fn rejection(line: &str) -> String {
     line.split_once(ERROR_FIELD).map_or_else(
         || line.trim().to_owned(),
@@ -276,10 +276,10 @@ fn rejection(line: &str) -> String {
 
 /// Drops the summary of a file that a diagnostic already describes
 ///
-/// Taplo closes the diagnostics of a file with a line that names the file
-/// and sums up why it refused it. The summary repeats what the diagnostics
-/// said, at a level that says less, so it survives only for a file that got
-/// no diagnostic at all: a file that taplo could not open, where the
+/// Taplo closes the diagnostics of a file with a line that names the file and
+/// sums up why it refused it. The summary repeats what the diagnostics said, at
+/// a level that says less. So it survives only for a file that got no
+/// diagnostic at all. That is a file that taplo could not open, where the
 /// summary is the whole answer.
 fn summarized(problems: &mut Vec<TaploProblem>) {
     let positioned: HashSet<PathBuf> = problems
@@ -326,11 +326,11 @@ fn unescaped(characters: &mut Chars<'_>) -> Option<char> {
 
 /// Returns the text of a quoted path, up to the quote that closes it
 ///
-/// The reading starts after the opening quote. Taplo quotes a path the way
-/// that Rust prints a path for debugging: a quote, a backslash, and a
-/// character that does not print stand escaped, and the reading turns each
-/// escape back into its character. A path with an escape that the reading
-/// cannot decode, and a path without a closing quote, have no text.
+/// The reading starts after the opening quote. Taplo quotes a path the way that
+/// Rust prints a path for debugging. A quote, a backslash, and a character that
+/// does not print stand escaped. The reading turns each escape back into its
+/// character. A path with an escape that the reading cannot decode, and a path
+/// without a closing quote, have no text.
 fn unquoted(characters: &mut Chars<'_>) -> Option<String> {
     let mut text = String::new();
 

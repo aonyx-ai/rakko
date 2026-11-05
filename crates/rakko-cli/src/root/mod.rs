@@ -1,18 +1,18 @@
 //! The root of the project that a run maintains
 //!
 //! Every action reads the root of its project from the context of a run. The
-//! layout derives the directories of a project from that root, and a finding
-//! reports its location relative to it, so the root decides what an action
-//! may touch, where it writes, and what its output says.
+//! layout derives the directories of a project from that root. A finding
+//! reports its location relative to that root. So the root decides what an
+//! action may touch, where it writes, and what its output says.
 //!
 //! A project marks its root with one file. The search tests whether the entry
 //! exists and never reads it, so a project that keeps nothing in the file
 //! still names its root.
 //!
-//! A root is absolute, holds no `.` or `..` component, and has its symbolic
-//! links resolved, whether the search found it or the user named it. An
-//! action joins its own paths onto the root, so a root that moves with the
-//! working directory would move every path that an action reports.
+//! A root is absolute and holds no `.` or `..` component. It has its symbolic
+//! links resolved, whether the search found it or the user named it. An action
+//! joins its own paths onto the root. So a root that moves with the working
+//! directory would move every path that an action reports.
 
 mod error;
 
@@ -52,10 +52,11 @@ const MARKER: &str = ".config/rakko.toml";
 /// # Errors
 ///
 /// Returns an error when the user names a directory that the file system does
-/// not answer for, when no directory at or above `start` holds the marker, and
-/// when the file system refuses to report on a directory of the walk. A run
-/// stops in every case, because an action that receives a guessed root reads
-/// the wrong files and reports paths that mean nothing.
+/// not answer for. Returns an error when no directory at or above `start` holds
+/// the marker. Returns an error when the file system refuses to report on a
+/// directory of the walk. A run stops in every case, because an action that
+/// receives a guessed root reads the wrong files and reports paths that mean
+/// nothing.
 pub(crate) fn resolve(
     named: Option<PathBuf>,
     start: &Path,
@@ -68,10 +69,10 @@ pub(crate) fn resolve(
 
 /// Returns the root that the user named, in the form that an action reads
 ///
-/// The file system resolves the path, so a relative argument and a path
-/// through a symbolic link both reach an action as the directory that they
-/// name. A path that no directory answers for is a mistake in an argument,
-/// and the run reports it instead of a project.
+/// The file system resolves the path. So a relative argument and a path through
+/// a symbolic link both reach an action as the directory that they name. A path
+/// that no directory answers for is a mistake in an argument, and the run
+/// reports it instead of a project.
 ///
 /// # Errors
 ///
@@ -91,10 +92,10 @@ fn canonical(root: PathBuf) -> Result<ProjectRoot, ResolveProjectRootError> {
 ///
 /// # Errors
 ///
-/// Returns an error when no directory at or above `start` holds the marker,
-/// and when the file system refuses to report on a directory of the walk.
-/// Returns an error as well when the name of Rakko is not a valid application
-/// name, which only a change to the source can cause.
+/// Returns an error when no directory at or above `start` holds the marker.
+/// Returns an error when the file system refuses to report on a directory of
+/// the walk. Returns an error as well when the name of Rakko is not a valid
+/// application name, which only a change to the source can cause.
 fn discover(start: &Path) -> Result<ProjectRoot, ResolveProjectRootError> {
     let application: ApplicationName = APPLICATION
         .parse()
@@ -113,9 +114,9 @@ fn discover(start: &Path) -> Result<ProjectRoot, ResolveProjectRootError> {
 /// Returns the error that a run reports for a search that found no project
 ///
 /// A walk that tested every directory and matched nothing is the ordinary
-/// failure, and its message names the file that a project creates to correct
-/// it. Every other failure leaves open whether a project exists, so it keeps
-/// the cause that the search reported.
+/// failure. Its message names the file that a project creates to correct it.
+/// Every other failure leaves open whether a project exists, so it keeps the
+/// cause that the search reported.
 fn classify(source: LoadProjectError, start: &Path) -> ResolveProjectRootError {
     match source {
         LoadProjectError::UndiscoverableProject {

@@ -46,11 +46,11 @@ pub enum LintRustError {
 
     /// The lockfile of a workspace needs an update
     ///
-    /// The manifests of the workspace ask for something that the lockfile does
-    /// not hold, such as a new dependency or a new version of a member, or the
-    /// workspace has no lockfile. The action lints the versions that the
-    /// lockfile holds and never writes it, so cargo refused the run. A build of
-    /// the workspace writes the lockfile.
+    /// The manifests of the workspace ask for something the lockfile does not
+    /// hold, such as a new dependency or a new version of a member. The
+    /// workspace may also have no lockfile. The action lints the versions that
+    /// the lockfile holds and never writes it, so cargo refused the run. A
+    /// build of the workspace writes the lockfile.
     #[error("the lockfile of the workspace in {} needs an update", root.display())]
     StaleLockfile {
         /// The workspace root whose lockfile needs an update
@@ -59,9 +59,9 @@ pub enum LintRustError {
 
     /// The workspaces of the project could not be discovered
     ///
-    /// A run lints every workspace of the project, and a run that does not
-    /// know them all would hide every problem of the missing one behind a
-    /// green result.
+    /// A run lints every workspace of the project.
+    /// A run that does not know them all would hide every problem of the
+    /// missing one behind a green result.
     #[error("failed to discover the workspaces of the project")]
     UndiscoveredRoots {
         /// The cause of the failure
@@ -71,9 +71,9 @@ pub enum LintRustError {
     /// Cargo wrote a record that the action cannot read
     ///
     /// The shape of a record belongs to a version of cargo. A line that
-    /// names a compiler message or the end of the build in a shape that the
-    /// action does not know leaves the report untrusted, and an answer built
-    /// on it would hide problems behind a green result.
+    /// names a compiler message or the end of the build in an unrecognized
+    /// shape leaves the report untrusted.
+    /// An answer built on it would hide problems behind a green result.
     #[error("failed to read what cargo reported in {}", root.display())]
     UnreadableReport {
         /// The workspace root that cargo worked on
@@ -85,11 +85,11 @@ pub enum LintRustError {
 
     /// Cargo wrote a report that the action does not recognize
     ///
-    /// The shape of the report belongs to a version of cargo. A run that
-    /// ended without success and named no diagnostic, and a run that ended
-    /// with success without saying that the build finished, both wrote
-    /// something the action could not read, and an answer built on such a
-    /// report would hide problems behind a green result.
+    /// The shape of the report belongs to a version of cargo. Two kinds of run
+    /// both wrote something the action could not read. One ended without
+    /// success and named no diagnostic. The other ended with success without
+    /// saying that the build finished. An answer built on such a report would
+    /// hide problems behind a green result.
     #[error("cargo wrote a report in {} that the action does not recognize: {stderr}", root.display())]
     UnrecognizedReport {
         /// The workspace root that cargo worked on

@@ -5,16 +5,16 @@ use std::fmt;
 
 /// An error together with every cause behind it
 ///
-/// The `Display` of an error writes its own layer only. An error usually
-/// states what failed and carries the reason as its source, so the layer that
-/// a reader needs is usually the innermost one. A chain writes the error and
-/// then each source in turn, joined by a colon, so that a reader learns why a
-/// run stopped without a flag that asks for more.
+/// The `Display` of an error writes its own layer only. An error usually states
+/// what failed and carries the reason as its source, so the layer that a reader
+/// needs is usually the innermost one. A chain writes the error and then each
+/// source in turn, joined by a colon. So a reader learns why a run stopped
+/// without a flag that asks for more.
 ///
-/// Every place that shows an error to a reader writes it through this type,
-/// so a failed command, a stopped action in text, and a stopped action in
-/// JSON all show the same chain. A message that holds a line break, such as
-/// the output of a tool, keeps it.
+/// Every place that shows an error to a reader writes it through this type. So
+/// a failed command, a stopped action in text, and a stopped action in JSON all
+/// show the same chain. A message that holds a line break, such as the output
+/// of a tool, keeps it.
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Chain<'a> {
     /// The outermost error of the chain

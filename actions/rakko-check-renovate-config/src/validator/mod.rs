@@ -19,18 +19,18 @@ const VALIDATOR: &str = "renovate-config-validator";
 
 /// The option that asks the validator for strict validation
 ///
-/// The validator reports a needed migration either way, and without the
-/// option it still ends with success. With it, the status of the validator
-/// agrees with the outcome of the action, and a contributor who runs the
-/// validator with the same option gets the same verdict. The option changes
-/// no option of the configuration.
+/// The validator reports a needed migration either way. Without the option it
+/// still ends with success. With it, the status of the validator agrees with
+/// the outcome of the action. A contributor who runs the validator with the
+/// same option gets the same verdict. The option changes no option of the
+/// configuration.
 const STRICT: &str = "--strict";
 
 /// The variable that selects the format of the log
 ///
 /// The validator writes text for a reader by default. As JSON records, each
-/// problem carries the file, the topic, and the message in fields instead of
-/// in a sentence that a reader has to take apart.
+/// problem carries the file, the topic, and the message in fields. This
+/// replaces a sentence that a reader has to take apart.
 const LOG_FORMAT: &str = "LOG_FORMAT";
 
 /// The format that writes one JSON record per line
@@ -50,19 +50,21 @@ const INFO: &str = "info";
 /// The variable that asks the validator for the regular expressions of
 /// JavaScript
 ///
-/// The validator prefers RE2, an engine that a native module of its package
-/// provides, and it falls back to the regular expressions of JavaScript when
-/// the module is not built, with a warning about the machine in every run. A
-/// run that asks for the fallback gets the same engine on every machine, and
-/// no warning about it. RE2 refuses some patterns that JavaScript accepts,
-/// such as a lookahead, so where the module is built, a run that asks for the
-/// fallback accepts a pattern that Renovate with RE2 can refuse.
+/// The validator prefers RE2. This is an engine that a native module of its
+/// package provides. It falls back to the regular expressions of JavaScript
+/// when the module is not built. A warning about the machine appears in every
+/// run. A run that asks for the fallback gets the same engine on every
+/// machine. No warning appears about it.
+///
+/// RE2 refuses some patterns that JavaScript accepts, such as a lookahead.
+/// So where the module is built, a run that asks for the fallback accepts a
+/// pattern that Renovate with RE2 can refuse.
 const IGNORE_RE2: &str = "RENOVATE_X_IGNORE_RE2";
 
 /// The variable that names a file for a second copy of the log
 ///
 /// The validator writes its log to the file as well when the environment of
-/// the run names one, and a relative name puts the file in the project. A run
+/// the run names one. A relative name puts the file in the project. A run
 /// removes the variable, so that it changes no file of the project.
 const LOG_FILE: &str = "LOG_FILE";
 
@@ -78,10 +80,10 @@ const INVALID: i32 = 1;
 /// The validator that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// terminal of a contributor. Nothing here installs a tool: provisioning is
-/// the job of mise, and a validator that mise does not report stops the
-/// caller.
+/// version that the project pinned. So a run reaches the same program as the
+/// terminal of a contributor. Nothing here installs a tool: provisioning is the
+/// job of mise.
+/// A validator that mise does not report stops the caller.
 ///
 /// # Examples
 ///
@@ -139,10 +141,11 @@ impl Validator {
     /// # Errors
     ///
     /// Returns [`ValidatorUnavailable`][unavailable] when the validator does
-    /// not run, [`AbortedValidation`][aborted] when it stopped before it had
-    /// validated the project, [`UnreadableReport`][unreadable] when it wrote a
-    /// log that this crate cannot read, and [`MissingReport`][missing] when it
-    /// reported no problem and ended without success.
+    /// not run. Returns [`AbortedValidation`][aborted] when it stopped before
+    /// it had validated the project. Returns [`UnreadableReport`][unreadable]
+    /// when it wrote a log that this crate cannot read. Returns
+    /// [`MissingReport`][missing] when it reported no problem and ended without
+    /// success.
     ///
     /// [aborted]: ObserveValidatorError::AbortedValidation
     /// [missing]: ObserveValidatorError::MissingReport
@@ -164,7 +167,7 @@ impl Validator {
 
     /// Returns the validator that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
+    /// The lookup asks mise about the project whose root the caller names. So
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
     ///
@@ -218,8 +221,9 @@ impl Validator {
 /// # Errors
 ///
 /// Returns [`AbortedValidation`][aborted] for a run that the validator did not
-/// finish, [`UnreadableReport`][unreadable] for a log that this crate cannot
-/// read, and [`MissingReport`][missing] for a failed run without a problem.
+/// finish. Returns [`UnreadableReport`][unreadable] for a log that this crate
+/// cannot read. Returns [`MissingReport`][missing] for a failed run without a
+/// problem.
 ///
 /// [aborted]: ObserveValidatorError::AbortedValidation
 /// [missing]: ObserveValidatorError::MissingReport

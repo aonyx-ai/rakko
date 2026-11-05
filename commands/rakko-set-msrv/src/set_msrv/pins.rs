@@ -6,13 +6,13 @@ use super::args::Msrv;
 
 /// Sets the Rust pin of mise at the current version to the new version
 ///
-/// A pin is a version as text, or a table whose `version` holds it, and
-/// `rust` holds one pin or an array of them. The pin keeps its position in
-/// the array and its other keys.
+/// A pin is a version as text, or a table whose `version` holds it. `rust`
+/// holds one pin or an array of them. The pin keeps its position in the
+/// array and its other keys.
 ///
 /// The first pin of the array is the default toolchain of the project. A
 /// project that pins its minimum supported version beside the default pins
-/// the same version twice when the two agree, so the run moves the last pin
+/// the same version twice when the two agree. So the run moves the last pin
 /// that matches, and the default stays where it is. A default that is the
 /// only pin at that version moves with the minimum supported version.
 ///

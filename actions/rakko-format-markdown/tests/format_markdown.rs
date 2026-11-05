@@ -1,12 +1,12 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately unformatted file sits in this
+//! against it. So no fixture with a deliberately unformatted file sits in this
 //! repository, where the formatting of the repository itself would fight it.
 //!
 //! The tests run the prettier that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! Prettier runs on Node, and the program that mise reports starts Node from
@@ -86,7 +86,7 @@ impl Project {
 
     /// Creates a project that pins a prettier that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about prettier.
     fn without_prettier() -> Self {
@@ -171,10 +171,10 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
-    /// reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
+    /// pile up there forever.
+    /// A failure stays quiet, because the test already reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")

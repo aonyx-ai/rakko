@@ -26,8 +26,8 @@ pub use self::version::Version;
 /// that records no platform, such as the entry of a tool that mise builds from
 /// source, has one part without a platform.
 ///
-/// Parts order by tool, then by version, then by platform, so the findings of
-/// a run come in an order that does not change from one run to the next.
+/// Parts order by tool, then by version, then by platform. So the findings of a
+/// run come in an order that does not change from one run to the next.
 ///
 /// # Examples
 ///

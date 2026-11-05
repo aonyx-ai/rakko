@@ -1,10 +1,10 @@
 //! What one run of markdownlint produced
 //!
 //! Markdownlint answers over both of its streams. The report travels on the
-//! standard error stream, and a run that has no file to examine answers on
-//! one stream or the other, as its version selects. This module turns one run
-//! into data and judges nothing: the action that asked for the run decides
-//! what the answer means for its outcome.
+//! standard error stream. A run that has no file to examine answers on one
+//! stream or the other, as its version selects. This module turns one run into
+//! data and judges nothing: the action that asked for the run decides what the
+//! answer means for its outcome.
 
 use bon::bon;
 use getset::{CopyGetters, Getters};
@@ -64,15 +64,15 @@ pub enum Exit {
 
 /// What one run of markdownlint produced
 ///
-/// The value holds the answer of one run: the rules that markdownlint
-/// reported, whether it examined a file at all, the text that it wrote about
-/// the run, and whether it ended with success.
+/// The value holds the answer of one run. It includes the rules markdownlint
+/// reported, whether a file was examined, the text written, and whether it
+/// ended with success.
 ///
 /// A run that found nothing to examine is not a run that found nothing wrong.
 /// Markdownlint answers an empty selection without a report and ends with
 /// success. An older version writes its usage text on the standard output
-/// stream, and a newer version writes a sentence that says so on the standard
-/// error stream. Without this distinction, both runs would look alike.
+/// stream. A newer version writes a sentence on the standard error stream
+/// instead. Without this distinction, both runs would look alike.
 ///
 /// # Examples
 ///
@@ -118,7 +118,7 @@ impl Observation {
     /// A run of markdownlint builds one through [`Markdownlint::observe`], and
     /// a caller builds one where a test stands in for a markdownlint that
     /// nobody started. Every part is optional, so a test names what its case
-    /// is about and leaves the rest at the answer of a run that examined the
+    /// is about. The rest defaults to the answer of a run that examined the
     /// project and found nothing.
     ///
     /// # Examples

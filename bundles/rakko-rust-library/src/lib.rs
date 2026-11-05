@@ -8,10 +8,10 @@ use rakko_test_rust_docs::TestRustDocs;
 /// Returns the actions that a Rust project which publishes a library runs
 ///
 /// The list starts with the actions of the core, in the order in which
-/// `rakko-rust` lists them, and the three checks of this bundle follow in
+/// `rakko-rust` lists them. The three checks of this bundle follow in
 /// alphabetical order. The order is for whoever reads the list, because the
 /// command line that a harness builds decides for itself how it lists the
-/// commands, and a run of one command starts no other.
+/// commands. A run of one command starts no other.
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.

@@ -1,13 +1,12 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken Rust file sits in
-//! this repository, where the formatting of the repository itself would
-//! fight it.
+//! against it. So no fixture with a deliberately broken Rust file sits in this
+//! repository, where the formatting of the repository itself would fight it.
 //!
 //! The tests run the cargo and the nightly toolchain that this repository
 //! pins. A project copies the `mise.toml` and the `mise.lock` of the
-//! repository and trusts them, so the versions that answer are the versions
+//! repository and trusts them. So the versions that answer are the versions
 //! that the repository installs, and a new pin reaches the tests without a
 //! change to them.
 
@@ -34,9 +33,8 @@ const PACKAGE: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition
 
 /// The manifest of a package that belongs to no workspace
 ///
-/// The empty workspace table tells cargo that the package is a root of its
-/// own, which cargo demands from a package below a workspace that does not
-/// list it.
+/// The empty workspace table tells cargo that the package is a root of its own.
+/// Cargo demands this from a package below a workspace that does not list it.
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
@@ -85,8 +83,8 @@ impl Project {
     /// Creates a project with the toolchains of this repository
     ///
     /// The project copies the `mise.toml` and the `mise.lock` of this
-    /// repository, so the cargo and the nightly that mise resolves for it
-    /// are the ones that the repository pins and installs. Mise ignores a
+    /// repository. So the cargo and the nightly that mise resolves for it are
+    /// the ones that the repository pins and installs. Mise ignores a
     /// configuration that nobody trusts, so the copy is trusted right away.
     fn new() -> Self {
         let project = Self::bare();
@@ -187,10 +185,10 @@ fn locations(findings: &[Finding]) -> Vec<String> {
 
 /// Returns the Rust toolchain that this repository builds with
 ///
-/// The crate itself makes the choice, so a test that needs a toolchain which
-/// every machine running the tests has installed names the same one that a
-/// job of the repository would. Asking the crate keeps the version out of
-/// the tests, and the rule that picks it in one place with its own tests.
+/// The crate itself makes the choice. A test needs a toolchain which every
+/// machine running the tests has installed. So it names the same one that a job
+/// of the repository would. Asking the crate keeps the version out of the
+/// tests, and the rule that picks it in one place with its own tests.
 async fn pinned_rust() -> String {
     Toolchain::newest(&ProjectRoot::new(repository().to_path_buf()))
         .await
@@ -227,8 +225,8 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record
     /// would pile up there forever. A failure stays quiet, because the test
     /// already reported what it was about.
     fn drop(&mut self) {

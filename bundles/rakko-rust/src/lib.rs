@@ -11,9 +11,9 @@ use rakko_test_rust::TestRust;
 
 /// Returns the actions that any Rust project runs
 ///
-/// The list is in alphabetical order. The order is for whoever reads the
-/// list, because the command line that a harness builds decides for itself
-/// how it lists the commands, and a run of one command starts no other.
+/// The list is in alphabetical order. The order is for whoever reads the list,
+/// because the command line that a harness builds decides for itself how it
+/// lists the commands. A run of one command starts no other.
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.

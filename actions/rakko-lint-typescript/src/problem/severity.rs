@@ -11,15 +11,15 @@ use serde::Deserialize;
 
 /// The severity that oxlint gave a diagnostic
 ///
-/// The severity of a broken rule belongs to the rule and not to the file: a
+/// The severity of a broken rule belongs to the rule and not to the file. A
 /// project that wants a rule to speak without stopping anyone weighs that rule
-/// as a warning, and the rules that oxlint enables by itself carry the warning
+/// as a warning. The rules that oxlint enables by itself carry the warning
 /// severity. A diagnostic that no rule reports, such as a syntax error or a
 /// diagnostic about the project, carries the severity that oxlint gives it.
 ///
 /// The severity decides the status that oxlint ends with, and it decides
 /// nothing about the outcome of an action. A rule that a project weighs as a
-/// warning is still a rule that the project asked oxlint to look for, so a
+/// warning is still a rule that the project asked oxlint to look for. So a
 /// reader of a finding sees the severity, and every severity fails a run.
 ///
 /// # Examples
@@ -93,8 +93,8 @@ mod tests {
     /// Shows that unknown severity words are not read
     ///
     /// The severity arrives from the report of oxlint, which writes it in lower
-    /// case. A severity that this crate does not know stops the reading, so
-    /// that a new weight of a later version cannot land in the wrong one.
+    /// case. A severity that this crate does not know stops the reading. So a
+    /// new weight of a later version cannot land in the wrong one.
     #[test]
     fn severity_of_an_unknown_word_is_not_read() {
         let severity = serde_json::from_str::<Severity>("\"advice\"");

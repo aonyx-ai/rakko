@@ -1,9 +1,9 @@
 //! The entries of one lockfile of mise
 //!
-//! The action reads a lockfile before and after `mise lock`, and compares the
-//! two readings part by part. This module holds the reading and the
-//! comparison. It reads text and starts nothing, so the comparison does not
-//! depend on the order of the keys, on the comments, or on the spaces of the
+//! The action reads a lockfile before and after `mise lock`. It compares the
+//! two readings part by part. This module holds the reading and comparison
+//! logic. It reads text and starts nothing. So the comparison does not depend
+//! on the order of the keys, on the comments, or on the spaces of the
 //! file.
 
 mod error;
@@ -36,11 +36,11 @@ const PLATFORM_PREFIX: &str = "platforms.";
 
 /// The entries of one lockfile of mise, part by part
 ///
-/// Each part holds the table of its platform together with the fields that
-/// its entry shares, so a change of a shared field, such as the backend,
-/// changes every part of the entry. A tool can hold more than one entry for
-/// the same version, and the parts of such entries keep the order of the
-/// lockfile.
+/// Each part holds the table of its platform together with the fields that its
+/// entry shares. So a change of a shared field, such as the backend, changes
+/// every part. A tool can hold more than one entry for the same version, and
+/// the
+/// parts of such entries keep the order of the lockfile.
 ///
 /// A lockfile that does not exist reads as a lockfile without parts, which is
 /// the [`Default`] value.
@@ -63,13 +63,13 @@ impl Lockfile {
     /// Returns the differences between this lockfile and the same lockfile
     /// after a run of `mise lock`
     ///
-    /// The comparison takes every part that either side holds. A part that
-    /// only the other side holds was added, a part that only this side holds
-    /// was removed, and a part that both sides hold with other content was
-    /// changed. A part that a tool records in more than one entry for the
-    /// same version was added when the other side holds more of those
-    /// entries, and removed when it holds fewer. The differences come in the
-    /// order of their parts.
+    /// The comparison takes every part that either side holds. A part is
+    /// added when only the other side holds it. It is removed when only
+    /// this side holds it. It is changed when both sides hold it with different
+    /// content. A part from a tool with more than one entry for the same
+    /// version is added when the other side holds more of them. It is
+    /// removed when the other side holds fewer entries. The differences come
+    /// in the order of their parts.
     ///
     /// An entry that gains or loses its platforms also loses or gains its
     /// part without a platform. The parts of the platforms name that change,
@@ -204,9 +204,9 @@ impl Lockfile {
     ///
     /// # Errors
     ///
-    /// Returns [`UnparsableToml`][unparsable] when the text is not TOML, and
-    /// the other variants of [`ReadLockfileError`] when the tools, an entry,
-    /// or a platform of an entry have a shape that the action does not know.
+    /// Returns [`UnparsableToml`][unparsable] when the text is not TOML.
+    /// Returns the other variants of [`ReadLockfileError`] when the tools, an
+    /// entry, or a platform of an entry have a shape the action does not know.
     ///
     /// # Examples
     ///

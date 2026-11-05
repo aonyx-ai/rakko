@@ -1,10 +1,10 @@
 //! What cargo-udeps reported about a workspace
 //!
-//! Cargo-udeps ends a run with one JSON document that names every dependency
-//! no target loaded. Cargo writes its own records to the same stream, so the
-//! report is one line among many, and this module picks it out and reads it.
-//! The shape belongs to a version of cargo-udeps, and keeping the reading in
-//! one place keeps the version surface in one place as well.
+//! Cargo-udeps ends a run with one JSON document that names every dependency no
+//! target loaded. Cargo writes its own records to the same stream, so the
+//! report is one line among many. This module picks it out and reads it. The
+//! shape belongs to a version of cargo-udeps. Keeping the reading in one place
+//! keeps the version surface in one place as well.
 
 mod dependency;
 mod error;
@@ -58,10 +58,10 @@ impl UdepsReport {
     /// Reads the report of a run from what cargo-udeps wrote to its standard
     /// output
     ///
-    /// The reading looks for the one line that names the unused
-    /// dependencies. It ignores every other line, because cargo writes the
-    /// records of the build to the same stream, and it answers `None` when
-    /// no line carries the report.
+    /// The reading looks for the one line that names the unused dependencies.
+    /// It ignores every other line, because cargo writes the records of the
+    /// build to the same stream. It answers `None` when no line carries the
+    /// report.
     ///
     /// # Examples
     ///
@@ -78,8 +78,8 @@ impl UdepsReport {
     ///
     /// Returns [`UnrecognizedReport`][unrecognized] when a line carries the
     /// report and the crate cannot read its body. The shape belongs to a
-    /// version of cargo-udeps, and a reading that skipped such a line would
-    /// let a workspace pass with its unused dependencies unread.
+    /// version of cargo-udeps. A reading that skipped such a line would let
+    /// a workspace pass with its unused dependencies unread.
     ///
     /// [unrecognized]: ReadUdepsReportError::UnrecognizedReport
     pub fn read(stdout: &str) -> Result<Option<Self>, ReadUdepsReportError> {
@@ -102,10 +102,10 @@ impl UdepsReport {
 
 /// Returns whether a line carries the report of cargo-udeps
 ///
-/// Cargo writes its records to the same stream, and none of them names the
-/// unused dependencies of a run, so the field that does tells the report
-/// apart. The reading looks at the names of the fields and steps over the
-/// values, which is what keeps the look cheap on a line of a build.
+/// Cargo writes its records to the same stream. None of them names the unused
+/// dependencies of a run, so the field that does tells the report apart. The
+/// reading looks at the names of the fields. It steps over the values. This is
+/// what keeps the look cheap on a line of a build.
 fn carries_report(line: &str) -> bool {
     serde_json::from_str::<BTreeMap<String, IgnoredAny>>(line)
         .is_ok_and(|fields| fields.contains_key(UNUSED_DEPS))
@@ -143,10 +143,9 @@ struct Package {
 impl Record {
     /// Returns the unused dependencies of every package of the report
     ///
-    /// The packages arrive in the order of their identifiers, and the
-    /// dependencies of a package in the order that cargo-udeps named them,
-    /// so two runs over the same workspace report the same findings in the
-    /// same order.
+    /// The packages arrive in the order of their identifiers. The dependencies
+    /// of a package arrive in the order that cargo-udeps named them. So two
+    /// runs over the same workspace report the same findings in the same order.
     fn into_dependencies(self) -> Vec<UnusedDependency> {
         self.unused_deps
             .into_values()

@@ -5,19 +5,19 @@
 //! it, so that every action reaches its tool in the same way.
 //!
 //! [mise] answers where a tool is. It installed the tool at the version that
-//! the project pinned, so its answer is the program that the editor of a
-//! contributor and the job of a build server run as well. The crate searches
-//! no path of its own, and it installs nothing: a tool that mise did not
-//! install stops the action with an error that names it.
+//! the project pinned. So its answer is the program that the editor of a
+//! contributor and the job of a build server run as well. The crate searches no
+//! path of its own, and it installs nothing. A tool that mise did not install
+//! stops the action with an error that names it.
 //!
 //! The crate describes a command and starts nothing until the caller asks for
 //! a run. An action can therefore write the command to a log, or name it in
 //! an error, before anything runs.
 //!
 //! An action runs the command with [`launch`][launch]. On Windows, a tool that
-//! a package manager for Node installed starts through a launcher, and the
-//! launch starts that launcher again when the operating system refused it a
-//! file for a moment.
+//! a package manager for Node installed starts through a launcher. The launch
+//! starts that launcher again when the operating system refused it a file for a
+//! moment.
 //!
 //! # Asynchronous Runtime
 //!

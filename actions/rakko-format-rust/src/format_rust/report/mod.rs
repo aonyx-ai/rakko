@@ -8,8 +8,8 @@
 //! with `\\?\`. A root of the project holds the plain spelling, so this
 //! module turns every path that it reads into the plain spelling. A path
 //! that the plain spelling cannot describe, such as one that is longer than
-//! Windows allows in it, keeps the verbatim spelling, as the root of a
-//! project does.
+//! Windows allows, keeps the verbatim spelling. The root of a project does
+//! the same.
 
 mod problem;
 
@@ -60,17 +60,18 @@ const LOCATION_ARROW: &str = "-->";
 
 /// The start of a line that warns about the configuration of rustfmt
 ///
-/// Rustfmt warns about an option that it does not know, and about an option
-/// that its channel does not support, and then formats without the option.
+/// Rustfmt warns about an option that it does not know. It also warns about
+/// an option that its channel does not support. It then formats without the
+/// option.
 const WARNING: &str = "Warning:";
 
 /// What rustfmt reported about one run
 ///
-/// A run lists files on its standard output: in a check, the files that
-/// rustfmt would rewrite, and in a rewrite, the files that it rewrote. It
+/// A run lists files on its standard output. In a check, it lists files that
+/// rustfmt would rewrite. In a rewrite, it lists files that it rewrote. It
 /// writes its diagnostics and its warnings to its standard error stream. The
-/// report keeps the lines that carry an answer and ignores everything else,
-/// so a line that a new version adds does not break the reading.
+/// report keeps the lines that carry an answer and ignores everything else. So
+/// a line that a new version adds does not break the reading.
 ///
 /// # Examples
 ///

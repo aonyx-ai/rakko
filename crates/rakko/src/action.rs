@@ -53,10 +53,10 @@ use crate::outcome::Outcome;
 pub trait Action: Send + Sync {
     /// The arguments that a run of the action reads
     ///
-    /// Each action defines its own type, and that type implements [`Args`].
-    /// It describes itself as data, so that a projection can build a command
-    /// before a run exists, and it builds itself from what the machinery
-    /// parsed. An action that reads no arguments uses the unit type.
+    /// Each action defines its own type that implements [`Args`]. That type
+    /// describes itself as data, so a projection can build a command before a
+    /// run exists. It builds itself from what the machinery parsed. An action
+    /// that reads no arguments uses the unit type.
     ///
     /// [`run`]: Action::run
     type Args: Args;
@@ -87,12 +87,11 @@ pub trait Action: Send + Sync {
 
     /// Runs the action against the project that the context names
     ///
-    /// The method returns a future, and the caller drives that future to get
-    /// the [`Outcome`]. The run reports every result in the outcome: problems
-    /// travel as findings in [`Outcome::Failed`], problems that the action
-    /// repaired travel as repairs in [`Outcome::Changed`], and an error that
-    /// stops the run travels in [`Outcome::Errored`]. The method itself has no
-    /// error type.
+    /// The method returns a future. The caller drives that future to get the
+    /// [`Outcome`]. The run reports every result in the outcome. Problems travel
+    /// as findings in [`Outcome::Failed`]. Problems that the action repaired
+    /// travel as repairs in [`Outcome::Changed`]. An error that stops the run
+    /// travels in [`Outcome::Errored`]. The method itself has no error type.
     fn run(&self, context: &Context, args: &Self::Args) -> impl Future<Output = Outcome> + Send;
 }
 

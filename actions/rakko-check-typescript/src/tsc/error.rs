@@ -8,7 +8,7 @@ use crate::tsc::report::ReadReportError;
 
 /// An error that leaves a run of tsc without an answer
 ///
-/// A rule of the language that the code breaks is no failure of a run: it
+/// A rule of the language that the code breaks is no failure of a run. It
 /// travels as a diagnostic, and the caller decides what it means. The variants
 /// here describe a run that produced no answer about the project at all.
 ///
@@ -29,11 +29,11 @@ use crate::tsc::report::ReadReportError;
 pub enum ObserveTscError {
     /// Tsc reported nothing and ended without success
     ///
-    /// Tsc reports a diagnostic for everything that it finds, including for a
-    /// configuration that it refuses and for a project that it finds no
+    /// Tsc reports a diagnostic for everything that it finds. That includes a
+    /// configuration that it refuses and a project that it finds no
     /// configuration of. A run that ended without success and said nothing
-    /// therefore stopped for a reason that this crate cannot name, and the
-    /// project was never checked.
+    /// therefore stopped for a reason that this crate cannot name. The project
+    /// was never checked.
     #[error("tsc reported nothing and ended without success: {details}")]
     MissingReport {
         /// What tsc wrote in place of a diagnostic
@@ -53,9 +53,9 @@ pub enum ObserveTscError {
     /// Tsc wrote a report that the crate cannot read
     ///
     /// The shape of the report belongs to a version of tsc. A report that does
-    /// not fit therefore points at a version that this crate does not know,
-    /// and the diagnostics of such a run would be the ones that the reading
-    /// happened to understand.
+    /// not fit therefore points at a version that this crate does not know. The
+    /// diagnostics of such a run would be the ones that the reading happened to
+    /// understand.
     #[error("failed to read tsc's report: {report}")]
     UnreadableReport {
         /// What tsc wrote in place of a report that the crate reads
@@ -84,9 +84,8 @@ impl ObserveTscError {
 /// Returns what tsc wrote about a run that reported no diagnostic
 ///
 /// The standard output stream answers, because that is where tsc writes. A run
-/// that wrote nothing there says what happened on the standard error stream,
-/// or says nothing at all, and the caller reports whichever of the two carries
-/// text.
+/// that wrote nothing there says what happened on the standard error stream, or
+/// says nothing at all. The caller reports whichever of the two carries text.
 #[bon::builder]
 fn diagnosis(stdout: &str, stderr: &str) -> String {
     let written = stdout.trim();
@@ -134,8 +133,8 @@ mod tests {
     ///
     /// An action puts the error in the outcome of a run, and that outcome holds
     /// an error that another thread can read. This test holds the error to the
-    /// auto traits that make this possible, because a field of a later version
-    /// could take them away without a word from the compiler.
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_tsc_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

@@ -1,29 +1,29 @@
 //! The comparison that a pull request needs
 //!
 //! Tracey asks whether a staged change to the text of a requirement carries a
-//! new version of that requirement, and it answers by comparing the index of a
+//! new version of that requirement. It answers by comparing the index of a
 //! repository with its HEAD. In the checkout of a contributor that comparison
 //! is the right one. On a pull request it is not: a code host checks out a
-//! merge commit of the branch and its base and stages nothing, so the index
-//! and HEAD hold the same tree and the comparison finds no change at all.
+//! merge commit of the branch and its base and stages nothing. So the index and
+//! HEAD hold the same tree and the comparison finds no change.
 //!
-//! This module builds the comparison that such a run needs, in a copy of the
-//! repository instead of in the checkout. The copy is a worktree at the first
-//! parent of the merge commit, which is the base branch, and its index holds
-//! the tree of the merge commit, which is the content of the pull request.
-//! Tracey then compares the pull request with its base.
+//! This module builds the comparison that such a run needs in a copy of the
+//! repository instead of in the checkout. The copy is a worktree at the base
+//! branch (the first parent of the merge commit). Its index holds the tree of
+//! the merge commit, the content of the pull request. Tracey then compares
+//! the pull request with its base.
 //!
 //! Nothing in the checkout of the run changes. Moving the HEAD of the checkout
-//! would build the same comparison in one command, and an action runs in
-//! projects that this one never sees, where an environment that looks like a
-//! pull request and a checkout that is not one would cost a contributor a
-//! commit.
+//! would build the same comparison in one command. An action runs in projects
+//! that this one never sees. There an environment that looks like a pull
+//! request
+//! and a checkout that is not one would cost a contributor a commit.
 //!
-//! Git is infrastructure of a machine and not a tool that an action wraps, so
-//! the operating system finds it with the rules of the platform. A run inside
-//! a git hook inherits variables that name the repository of the run above it,
-//! and those variables beat the working directory of a command, so every
-//! command here runs without them.
+//! Git is infrastructure of a machine and not a tool that an action wraps.
+//! So the operating system finds it with the rules of the platform. A run inside
+//! a git hook inherits variables that name the repository of the run above it.
+//! Those variables beat the working directory of a command, so every command
+//! here runs without them.
 
 mod error;
 
@@ -75,10 +75,11 @@ const SECOND_PARENT: &str = "HEAD^2";
 
 /// A copy of the repository that compares a pull request with its base
 ///
-/// The value owns the copy. A drop removes the worktree and its directory, so
-/// an error and a panic leave nothing behind, and an interrupt that no
-/// destructor survives leaves a directory that the operating system removes
-/// and an entry that `git worktree prune` forgets.
+/// The value owns the copy. A drop removes the worktree and its directory.
+/// So an error and a panic leave nothing behind. An interrupt that no
+/// destructor survives leaves a directory that the operating system removes and
+/// an entry that
+/// `git worktree prune` forgets.
 ///
 /// # Examples
 ///
@@ -130,23 +131,22 @@ impl Comparison {
 
     /// Returns the comparison of a pull request with its base branch
     ///
-    /// The caller states whether the environment of the run names the base
-    /// branch of a pull request, and this method asks whether the checkout is
-    /// a merge commit. Both have to hold: an environment variable alone
-    /// describes a job and not a checkout, and a project that this action
-    /// never saw could carry either one on its own.
+    /// The caller states whether the environment names the pull request base
+    /// branch. This method asks whether the checkout is a merge commit. Both
+    /// must hold: an environment variable alone describes a job, not a
+    /// checkout. A project that this action never saw could carry either one on
+    /// its own.
     ///
-    /// A run that is not a pull request answers `None`, and its caller
-    /// compares the index of the checkout with its HEAD, which is what a
-    /// contributor staged against what they last committed.
+    /// A run that is not a pull request answers `None`. Its caller compares
+    /// the index of the checkout with its HEAD. This is what a contributor
+    /// staged against what they last committed.
     ///
-    /// The method reads the revisions before it creates the copy, because HEAD
-    /// names the merge commit in the checkout and the base branch in the copy.
-    /// The copy holds the base branch, and its index takes the tree of the
-    /// merge commit, which is what the pull request proposes.
-    /// The temporary directory exists already and `worktree add` refuses a
-    /// directory that exists, so git creates the last segment of the path
-    /// itself.
+    /// The method reads revisions before it creates the copy. The reason is that HEAD names the
+    /// merge commit in the checkout and the base branch in the copy. The copy
+    /// holds the base branch. Its index takes the tree of the merge commit,
+    /// what the pull request proposes. The temporary directory exists already,
+    /// and `worktree add` refuses a directory that exists. So git creates the
+    /// last segment of the path itself.
     ///
     /// # Examples
     ///

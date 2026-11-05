@@ -10,11 +10,12 @@ use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
 ///
-/// Nothing here is a problem of the project. An update that cargo could not
-/// finish, a test that failed, and a diagnostic of a build that did not finish
-/// all travel as findings in the outcome of the run. The variants of this
-/// error describe a run whose answer cannot be trusted, and such a run stops
-/// instead of reporting one.
+/// Nothing here is a problem of the project.
+/// An update that cargo could not finish, a test that failed,
+/// and a diagnostic of a build that did not finish all travel as findings. They
+/// appear in the outcome of the run. The variants of this error describe a run
+/// whose answer cannot
+/// be trusted, and such a run stops instead of reporting one.
 ///
 /// # Examples
 ///
@@ -44,10 +45,10 @@ pub enum CheckMinimalDepsError {
 
     /// The copy of the project could not be created
     ///
-    /// A run resolves the dependencies and builds the project, and it does
-    /// both in a copy, so that the checkout of a contributor keeps what they
-    /// left in it. A run without that copy would have to write where the
-    /// contributor works, so it stops here instead.
+    /// A run resolves the dependencies and builds the project. Both happen in a
+    /// copy, so the checkout of a contributor keeps what they left in it. A run
+    /// without that copy would have to write where the contributor works, so it
+    /// stops here instead.
     #[error("failed to create a copy of the project to work in")]
     CopyUnavailable {
         /// The cause of the failure
@@ -67,9 +68,9 @@ pub enum CheckMinimalDepsError {
 
     /// The workspaces of the project could not be discovered
     ///
-    /// A run covers every workspace of the project, and a run that does not
-    /// know them all would hide every failure of the missing one behind a
-    /// green result.
+    /// A run covers every workspace of the project.
+    /// A run that does not know them all would hide every failure
+    /// of the missing one behind a green result.
     #[error("failed to discover the workspaces of the project")]
     UndiscoveredRoots {
         /// The cause of the failure
@@ -78,11 +79,11 @@ pub enum CheckMinimalDepsError {
 
     /// Cargo wrote a record that the action cannot read
     ///
-    /// Nextest forwards the JSON of cargo on the same stream, and the shape of
-    /// a record belongs to a version of cargo. A line that names a compiler
-    /// message or the end of the build in a shape that the action does not
-    /// know leaves the diagnostics of the build untrusted, and an answer built
-    /// on them would hide problems behind a green result.
+    /// Nextest forwards the JSON of cargo on the same stream.
+    /// The shape of a record belongs to a version of cargo.
+    /// A line that names a compiler message or the end of the build
+    /// in a shape the action does not know leaves the diagnostics untrusted.
+    /// An answer built on them would hide problems behind a green result.
     #[error("failed to read what cargo reported in {}", root.display())]
     UnreadableDiagnostics {
         /// The workspace root that the run worked on
@@ -94,10 +95,10 @@ pub enum CheckMinimalDepsError {
 
     /// Nextest wrote a record that the action cannot read
     ///
-    /// The shape of a record belongs to a version of nextest. A line about a
-    /// test or a binary of tests in a shape that the action does not know
-    /// leaves the report untrusted, and an answer built on it would hide
-    /// failures behind a green result.
+    /// The shape of a record belongs to a version of nextest.
+    /// A line about a test or a binary of tests in a shape
+    /// that the action does not know leaves the report untrusted.
+    /// An answer built on it would hide failures behind a green result.
     #[error("failed to read what nextest reported in {}", root.display())]
     UnreadableReport {
         /// The workspace root that nextest worked on
@@ -109,12 +110,14 @@ pub enum CheckMinimalDepsError {
 
     /// Nextest wrote a report that the action does not recognize
     ///
-    /// The shape of the report belongs to a version of nextest. A run that
-    /// ended without success and reported no failure, no diagnostic, and no
-    /// absence of tests wrote something the action could not read. A build
-    /// that cargo refused because it would have needed a version that the
-    /// update did not resolve arrives here as well, and an answer built on
-    /// such a report would hide failures behind a green result.
+    /// The shape of the report belongs to a version of nextest.
+    /// A run that ended without success and reported no failure,
+    /// no diagnostic, and no absence of tests wrote something
+    /// the action could not read.
+    /// A build that cargo refused because it would have needed a version that
+    /// the update did not resolve arrives here as well.
+    /// An answer built on such a report would hide failures
+    /// behind a green result.
     #[error("nextest wrote a report in {} that the action does not recognize: {stderr}", root.display())]
     UnrecognizedReport {
         /// The workspace root that nextest worked on

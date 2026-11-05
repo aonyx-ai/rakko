@@ -1,9 +1,9 @@
 //! One test that failed
 //!
-//! A run of the test runner reports one result per test, and this module holds
+//! A run of the test runner reports one result per test. This module holds
 //! the ones that failed: which test it was, where the project declares it, and
 //! what Node said about the failure. A result that passed carries nothing that
-//! a reader needs, so the reading keeps none of them.
+//! a reader needs. So the reading keeps none of them.
 
 mod origin;
 
@@ -16,9 +16,9 @@ pub use self::origin::Origin;
 /// One test that failed
 ///
 /// Node names every test that it ran and says whether it passed. A test that
-/// failed carries the place where the project declares it and what went wrong,
-/// and Node leaves either of them out for a failure that it has nothing to say
-/// about, such as a test file that it could not load.
+/// failed carries the place where the project declares it and what went wrong.
+/// Node leaves either of them out for a failure that it has nothing to say
+/// about. An example is a test file that it could not load.
 ///
 /// The name is the name of the test alone, without the tests that hold it, and
 /// that is what Node reports. A reader searches the project for it.
@@ -55,13 +55,13 @@ pub struct Failure {
 impl Failure {
     /// Returns the finding that reports the failure
     ///
-    /// The finding names the test and carries what Node said, at the place
-    /// where the project declares the test, with the path relative to the
-    /// project root.
+    /// The finding names the test and carries what Node said. It sits at the
+    /// place where the project declares the test, with the path relative to
+    /// the project root.
     ///
     /// A failure that Node reported no place for, and one whose place lies
-    /// outside the project, get a finding at the level of the project, because
-    /// there is no path in the project to report them at.
+    /// outside the project, get a finding at the level of the project. This is
+    /// because there is no path in the project to report them at.
     ///
     /// # Examples
     ///
@@ -183,7 +183,7 @@ mod tests {
     /// alone
     ///
     /// Node writes an empty reason for a failure that it has nothing to say
-    /// about, and a message that ends in a colon tells a reader nothing.
+    /// about. A message that ends in a colon tells a reader nothing.
     #[test]
     fn finding_of_a_failure_with_an_empty_reason_names_the_test_alone() {
         let failure = Failure::builder()

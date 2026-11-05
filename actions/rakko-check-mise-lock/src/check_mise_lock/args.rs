@@ -11,8 +11,8 @@ const FIX_DOCUMENTATION: &str = "Write the lockfiles that mise lock would change
 /// One operation on lockfiles that an action runs
 ///
 /// The action runs `mise lock` in one of two ways. A report names the
-/// lockfiles that a rewrite would change and leaves the project alone, so a
-/// run that a user started in order to look changes nothing. A rewrite runs
+/// lockfiles that a rewrite would change and leaves the project alone. So a run
+/// that a user started in order to look changes nothing. A rewrite runs
 /// `mise lock` and says which files it changed.
 ///
 /// # Examples

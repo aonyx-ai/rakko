@@ -8,13 +8,13 @@ use std::fmt;
 
 /// The level that yamllint gave a problem
 ///
-/// The level belongs to the rule and not to the file: a project that wants a
-/// rule to speak without stopping anyone sets that rule to a warning, and the
-/// rules that yamllint enables by default carry both levels.
+/// The level belongs to the rule and not to the file. A project that wants
+/// a rule to speak without stopping anyone sets it to a warning. The rules
+/// that yamllint enables by default carry both levels.
 ///
-/// A reader of a finding sees the level, because a rule that a project called
-/// a warning still points at a problem, and the level says how the project
-/// weighed it.
+/// A reader of a finding sees the level, because a rule that a project called a
+/// warning still points at a problem. The level says how the project weighed
+/// it.
 ///
 /// # Examples
 ///

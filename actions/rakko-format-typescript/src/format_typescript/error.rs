@@ -54,8 +54,8 @@ pub enum FormatTypeScriptError {
 
     /// Oxfmt refused a configuration file of the project
     ///
-    /// Oxfmt reads its configuration before it collects a single file, and it
-    /// formats nothing at all when it cannot accept that configuration, so the
+    /// Oxfmt reads its configuration before it collects a single file. When it
+    /// cannot accept that configuration, it formats nothing at all, so the
     /// project asked for rules that never applied.
     #[error("oxfmt did not run with the configuration of the project: {details}")]
     RejectedConfiguration {
@@ -65,9 +65,9 @@ pub enum FormatTypeScriptError {
 
     /// Oxfmt wrote a report that the action does not recognize
     ///
-    /// The shape of the report belongs to a version of oxfmt. A run that ended
-    /// without success and named no problem wrote something the action could
-    /// not read, and an answer built on such a report would hide problems
+    /// The shape of the report belongs to a version of oxfmt. A run that
+    /// ended without success and named no problem wrote something the action
+    /// could not read. An answer built on such a report would hide problems
     /// behind a green result.
     #[error("oxfmt wrote a report that the action does not recognize: {stderr}")]
     UnrecognizedReport {

@@ -1,13 +1,13 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken Markdown file sits in
+//! against it. So no fixture with a deliberately broken Markdown file sits in
 //! this repository, where the checks of the repository itself would fight it.
 //!
-//! The tests run the markdownlint that this repository pins. A project copies
-//! the `mise.toml` of the repository and trusts it, so the version that
-//! answers is the version that the repository installs, and a new pin reaches
-//! the tests without a change to them.
+//! The tests run the markdownlint that this repository pins.
+//! A project copies the `mise.toml` of the repository and trusts it.
+//! So the version that answers is the version that the repository installs.
+//! A new pin reaches the tests without a change to them.
 
 #![allow(
     clippy::expect_used,
@@ -68,9 +68,9 @@ impl Project {
 
     /// Creates a project with the markdownlint of this repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the
-    /// markdownlint that mise resolves for it is the markdownlint that the
-    /// repository pins and installs, on the node that it pins next to it.
+    /// The project copies the `mise.toml` of this repository.
+    /// The markdownlint that mise resolves for it is the markdownlint that the
+    /// repository pins and installs, on the node it pins next to it.
     /// Mise ignores a configuration that nobody trusts, so the copy is
     /// trusted right away.
     fn new() -> Self {
@@ -86,9 +86,9 @@ impl Project {
 
     /// Creates a project that pins a markdownlint that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about markdownlint.
+    /// The pin names a version that no machine installs.
+    /// So mise reports no location for it, whatever the global configuration of
+    /// the machine says about markdownlint.
     fn without_markdownlint() -> Self {
         let project = Self::bare();
 
@@ -175,12 +175,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 

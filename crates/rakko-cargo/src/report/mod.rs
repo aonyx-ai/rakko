@@ -1,9 +1,9 @@
 //! What cargo reported about a build
 //!
 //! Cargo writes the diagnostics of a build as one JSON document per line on
-//! its standard output when a run asks for that format, and this module
-//! reads those lines. The shape of the lines belongs to a version of cargo,
-//! and this module is the one place that knows it.
+//! its standard output when a run asks for that format. This module reads
+//! those lines. The shape of the lines belongs to a version of cargo, and
+//! this module is the one place that knows it.
 
 mod diagnostic;
 mod error;
@@ -71,12 +71,12 @@ impl CargoReport {
     /// Reads the report of a build from what cargo wrote to its standard
     /// output
     ///
-    /// The reading keeps every compiler message at the level of a warning
-    /// or an error, once each, and the line that says whether the build
-    /// finished. It ignores every other line: the artifacts that cargo
-    /// lists, the notes and the help lines of the compiler, and a line that
-    /// is not a record of cargo at all, so the output of a tool that cargo
-    /// runs can share the stream.
+    /// The reading keeps every compiler message at the level of a warning or
+    /// an error, once each. It keeps the line that says whether the build
+    /// finished. It ignores every other line. It ignores the artifacts that
+    /// cargo lists and the notes and the help lines of the compiler. It also
+    /// ignores a line that is not a record of cargo at all. So the output of a
+    /// tool that cargo runs can share the stream.
     ///
     /// # Examples
     ///
@@ -224,8 +224,8 @@ struct SourceSpan {
 ///
 /// A note, a help line, and the line that ends a failed build explain other
 /// diagnostics, and they answer `None`. The primary span is the source that
-/// the diagnostic is about; a message without one gets the first span it
-/// has, and a message without any span gets none.
+/// the diagnostic is about. A message without one gets the first span it has.
+/// A message without any span gets none.
 fn diagnostic(message: Message) -> Option<CargoDiagnostic> {
     let level = match message.level.as_str() {
         ERROR => DiagnosticLevel::Error,

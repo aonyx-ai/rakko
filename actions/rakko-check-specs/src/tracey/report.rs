@@ -1,13 +1,13 @@
 //! The reports that tracey writes as data
 //!
-//! Tracey answers a validation and a coverage query as JSON, and this module
-//! holds the shape of each answer. The shapes belong to a version of tracey,
-//! so one place reads them, and a version that writes something else breaks
-//! that one place instead of every caller of it.
+//! Tracey answers a validation and a coverage query as JSON. This module holds
+//! the shape of each answer. The shapes belong to a version of tracey, so one
+//! place reads them. A version that writes something else breaks that one place
+//! instead of every caller.
 //!
 //! Each shape names only the fields that a run reads. Tracey writes more about
 //! a problem than a finding carries, such as the rule that a stale reference
-//! points at, and a field that nothing reads is a field that a new version may
+//! points at. A field that nothing reads is a field that a new version may
 //! rename without breaking a run.
 
 use bon::bon;
@@ -19,8 +19,8 @@ use crate::problem::TraceyProblem;
 /// What tracey reported about one specification and one implementation of it
 ///
 /// Tracey validates each pair of a specification and an implementation on its
-/// own, and reports the problems of that pair together with the counts that
-/// sort them into warnings and errors.
+/// own. It reports the problems of that pair together with the counts that sort
+/// them into warnings and errors.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Validation {
@@ -38,9 +38,9 @@ impl Validation {
 
 /// One problem that a validation of tracey reported
 ///
-/// Tracey places a problem in a file, at a line and a column, whether the
-/// problem is a reference that names nothing, a reference to a version that
-/// moved, an identifier that two requirements share, or a file that tracey
+/// Tracey places a problem in a file at a line and a column. The problem may be
+/// a reference that names nothing or a reference to a version that moved. It
+/// may also be an identifier that two requirements share, or a file that tracey
 /// could not read.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -116,8 +116,8 @@ struct ImplCoverage {
 
 /// How much of the specifications of a project the code answers for
 ///
-/// The counts add every specification of the project together, because a
-/// summary of a run says what the run examined and not how each specification
+/// The counts add every specification of the project together. This is because
+/// a summary of a run says what the run examined and not how each specification
 /// fared. The report of tracey holds the detail per specification.
 ///
 /// # Examples

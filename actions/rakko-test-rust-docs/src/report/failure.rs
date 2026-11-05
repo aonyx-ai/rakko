@@ -26,11 +26,11 @@ const ITEM_OPENS: &str = " - ";
 /// One example of the documentation that failed
 ///
 /// The harness names an example by the file that documents it and the line
-/// that the example starts on, and it keeps what the example wrote: the
-/// diagnostics of the compiler for an example that does not compile, and the
-/// panic for an example that ran and failed. The failure keeps the output as
-/// it is and reads it on demand, so an example that wrote nothing the crate
-/// knows still names the example.
+/// that the example starts on. The failure keeps what the example wrote: the
+/// diagnostics of the compiler for an example that does not compile. It also
+/// keeps the panic for an example that ran and failed. The failure keeps the
+/// output as it is and reads it on demand. So an example that wrote nothing
+/// the crate knows still names the example.
 ///
 /// # Examples
 ///
@@ -135,11 +135,10 @@ impl DoctestFailure {
 
     /// Returns where the example that failed is documented
     ///
-    /// The place where an example panicked is not that place: the compiler
-    /// builds the examples of a workspace into one program, and the panic
-    /// then names a file of that program. The name of the example names the
-    /// file of the project instead, relative to the workspace that cargo
-    /// tested.
+    /// The place where an example panicked is not that place. The compiler
+    /// builds the examples of a workspace into one program, and the panic then
+    /// names a file of that program. The name of the example names the file of
+    /// the project instead, relative to the workspace that cargo tested.
     fn location(&self, root: &CargoRoot, project: &ProjectRoot) -> Location {
         let Some((path, line)) = documented(&self.name) else {
             return Location::Project;

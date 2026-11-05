@@ -10,15 +10,15 @@ use thiserror::Error;
 /// An error that occurs when the crate stands up a copy of a project
 ///
 /// The variants separate what a caller can do about the failure. A project
-/// without a repository and a project below the top level are answers about
-/// the project, and the message names the directory that has to change. Git
-/// that does not run is a broken environment, and every copy of every project
-/// fails with it. The rest are failures of one step, and the message carries
-/// what git or the operating system said about it.
+/// without a repository and a project below the top level are answers about the
+/// project. The message names the directory that has to change. Git that does
+/// not run is a broken environment, and every copy of every project fails with
+/// it. The rest are failures of one step, and the message carries what git or
+/// the operating system said about it.
 ///
 /// No variant leaves a copy behind. A failure that happens after git created
-/// the worktree removes the worktree first, so a caller that reads one of
-/// these errors has nothing to clean up.
+/// the worktree removes the worktree first. So a caller that reads one of these
+/// errors has nothing to clean up.
 ///
 /// # Examples
 ///
@@ -54,9 +54,9 @@ pub enum CreateWorktreeError {
 
     /// The project is not in a git repository
     ///
-    /// A project marks its root with a file of its own and needs no
-    /// repository otherwise, so a project can be well formed and still have
-    /// no revision that a copy could check out.
+    /// A project marks its root with a file of its own and needs no repository
+    /// otherwise. So a project can be well formed and still have no revision
+    /// that a copy could check out.
     #[error("`{project}` is not in a git repository: {details}")]
     MissingRepository {
         /// The root of the project that the crate asked about
@@ -96,9 +96,9 @@ pub enum CreateWorktreeError {
 
     /// Git created no worktree
     ///
-    /// Git ran and ended without success. A repository without a commit has
-    /// no HEAD to check out, and a repository that the run cannot write to
-    /// takes no new worktree, so the details carry what git wrote about it.
+    /// Git ran and ended without success. A repository without a commit has no
+    /// HEAD to check out. A repository that the run cannot write to takes no
+    /// new worktree. So the details carry what git wrote about it.
     #[error("git created no worktree of `{project}`: {details}")]
     WorktreeUnavailable {
         /// The root of the project that the crate copies
@@ -110,10 +110,10 @@ pub enum CreateWorktreeError {
 
     /// The crate cannot read what changed in the project
     ///
-    /// Git reported no status of the project, or it reported one that the
-    /// crate cannot read. The sync names its paths from that report, so a
-    /// report that the crate skipped would leave the copy at the commit while
-    /// the caller believes it holds the tree of the contributor.
+    /// Git reported no status of the project, or it reported one that the crate
+    /// cannot read. The sync names its paths from that report. So a report that
+    /// the crate skipped would leave the copy at the commit while the caller
+    /// believes it holds the tree of the contributor.
     #[error("what changed in `{project}` could not be read: {details}")]
     UnreadableStatus {
         /// The root of the project that the crate copies
@@ -150,10 +150,10 @@ mod tests {
 
     /// Shows that a `CreateWorktreeError` holds auto traits
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn create_worktree_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

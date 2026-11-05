@@ -20,11 +20,11 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The action that runs the tests of a project
 ///
-/// The action wraps [nextest]: cargo builds every target of every package
+/// The action wraps [nextest]. Cargo builds every target of every package
 /// with every feature, and nextest reads its own configuration and runs the
-/// tests, so a run agrees with a contributor that runs nextest bare. The
-/// cargo that runs is the one that [mise] installed for the project, at the
-/// version that the project pinned, and the action installs nothing.
+/// tests. As a result, a run agrees with a contributor that runs nextest bare.
+/// The cargo that runs is the one that [mise] installed for the project, at
+/// the version that the project pinned, and the action installs nothing.
 ///
 /// A run only reports, and it takes no argument. It tests every workspace of
 /// the project, because the harness of a project is a package of its own. It
@@ -37,17 +37,18 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// instead of failing.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// cargo, when the workspaces of the project cannot be discovered, when the
-/// lockfile of a workspace needs an update, and when nextest writes a report
+/// A run stops with an error when mise reports no cargo. It also stops when
+/// the workspaces of the project cannot be discovered or when the lockfile of
+/// a workspace needs an update. It stops as well when nextest writes a report
 /// that the run cannot answer from.
 ///
-/// A run declares a read of the project. It holds cargo to the lockfile of each
-/// workspace, and cargo writes what it builds into the `target` directory,
+/// A run declares a read of the project. It holds cargo to the lockfile of
+/// each workspace. Cargo writes what it builds into the `target` directory,
 /// which cargo locks against parallel use itself. The declaration covers the
-/// action and cargo, and not the tests, build scripts, and procedural macros of
-/// the project, which can write files of their own. A caller that orders runs
-/// by their declarations runs it after the actions that write.
+/// action and cargo. It does not cover the tests, build scripts, and
+/// procedural macros of the project, which can write files of their own. A
+/// caller that orders runs by their declarations runs it after the actions
+/// that write.
 ///
 /// # Examples
 ///
@@ -94,9 +95,9 @@ impl Action for TestRust {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of
-/// the tool, the discovery of the workspaces, or a run of nextest that left
-/// no answer.
+/// Returns the error of the step that could not finish. The step is the
+/// resolution of the tool, the discovery of the workspaces, or a run of
+/// nextest that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
     let cargo = Cargo::resolve(context.root().clone())
         .await

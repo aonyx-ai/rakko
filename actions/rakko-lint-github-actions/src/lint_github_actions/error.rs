@@ -46,10 +46,10 @@ pub enum LintGitHubActionsError {
     /// Zizmor reads the configuration of the project before it collects a
     /// single file, and it audits nothing when it cannot accept that
     /// configuration. It also stops at a file that it collected and cannot
-    /// read, because the run asks it to instead of letting the file leave the
-    /// audit through a warning. Either way the report describes less than the
-    /// project, and an outcome built on it would hide the rest behind that
-    /// part.
+    /// read. It does so because the run asks it to, instead of letting the file
+    /// leave the audit through a warning. Either way the report describes less
+    /// than the project, and an outcome built on it would hide the rest behind
+    /// that part.
     #[error("zizmor stopped before it had audited the project: {details}")]
     IncompleteAudit {
         /// What zizmor wrote about the run that it stopped
@@ -60,8 +60,8 @@ pub enum LintGitHubActionsError {
     ///
     /// The shape of the report belongs to a version of zizmor. A report that
     /// the action cannot read therefore points at a version that this crate
-    /// does not know, and the findings of such a run would be the ones that
-    /// the reading happened to understand.
+    /// does not know. The findings of such a run would be the ones that the
+    /// reading happened to understand.
     #[error("failed to read zizmor's report: {report}")]
     UnreadableReport {
         /// What zizmor wrote in place of a report that the action reads
@@ -160,10 +160,10 @@ mod tests {
 
     /// Shows that error is Send and Sync
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. The test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn lint_github_actions_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

@@ -1,9 +1,9 @@
 //! The disposable copy of a project that a job runs in
 //!
 //! A copy is a detached checkout of the commit that the HEAD of the project
-//! names, with the changed files of the checkout synced over it. It therefore
-//! holds what the contributor holds, and a job that writes into it changes
-//! nothing that the contributor can see.
+//! names. The changed files of the checkout are synced over it. The copy
+//! therefore holds what the contributor holds , and a job that writes into it
+//! changes nothing that the contributor can see.
 //!
 //! The value owns the copy. It lives for as long as the jobs that run in it,
 //! and the drop takes the copy with it.
@@ -76,14 +76,14 @@ const UNTRACKED: &str = "--untracked-files=all";
 /// The option of `status` that reports a rename as a removal and an addition
 ///
 /// The sync copies a path that the project holds and removes a path that it
-/// does not, so the two entries of a rename need no rule of their own.
+/// does not. So the two entries of a rename need no rule of their own.
 const NO_RENAMES: &str = "--no-renames";
 
 /// The name of the checkout inside the directory that the crate creates
 ///
-/// Git names the entry of a worktree after this directory, and it makes the
-/// name unique when a repository already holds one, so two copies of one
-/// project can live at the same time.
+/// Git names the entry of a worktree after this directory. It makes the name
+/// unique when a repository already holds one. So two copies of one project can
+/// live at the same time.
 const CHECKOUT: &str = "worktree";
 
 /// The details of a failure that git did not explain
@@ -94,10 +94,10 @@ const NO_TOP_LEVEL: &str = "git named no top level";
 
 /// A disposable copy of a project that a job runs in
 ///
-/// The copy is a git worktree in a directory of the temporary directory of
-/// the system. It holds the commit that the HEAD of the project names, and
-/// the files that the contributor changed on top of it, so a job that runs
-/// there reads the tree that the contributor is working on.
+/// The copy is a git worktree in a directory of the temporary directory of the
+/// system. It holds the commit that the HEAD of the project names, and the
+/// files that the contributor changed on top of it. So a job that runs there
+/// reads the tree that the contributor is working on.
 ///
 /// The value owns the copy, and the drop removes it. A caller therefore holds
 /// the value for as long as the jobs run, and lets it go when the answers are
@@ -127,7 +127,7 @@ pub struct Worktree {
 
     /// The root of the copy
     ///
-    /// The copy holds the tree of the project at this directory, so it is a
+    /// The copy holds the tree of the project at this directory. So it is a
     /// project root of its own: the file that marks the root of the project
     /// arrived with the checkout.
     #[getset(get = "pub")]
@@ -143,9 +143,9 @@ pub struct Worktree {
 impl Worktree {
     /// Creates a copy of the project and syncs the changed files into it
     ///
-    /// The copy checks out the commit that the HEAD of the project names, and
-    /// every path that git reports as changed or as untracked travels from the
-    /// project into it: a path that the project holds is copied, and a path
+    /// The copy checks out the commit that the HEAD of the project names. Every
+    /// path that git reports as changed or as untracked travels from the
+    /// project into it. A path that the project holds is copied, and a path
     /// that the project holds nothing at is removed. Ignored files are never
     /// reported and never copied, so the build directory of the project stays
     /// where it is and the copy builds from nothing.
@@ -227,10 +227,10 @@ impl Worktree {
 
     /// Returns the path that a path of the project has inside the copy
     ///
-    /// The copy holds the tree of the project at its own root, so the answer
-    /// is the same path relative to the root. A caller that runs a job at a
-    /// directory of the project asks for the directory inside the copy, and
-    /// keeps reporting its findings at the path of the project.
+    /// The copy holds the tree of the project at its own root, so the answer is
+    /// the same path relative to the root. A caller that runs a job at a
+    /// directory of the project asks for the directory inside the copy. The
+    /// caller keeps reporting its findings at the path of the project.
     ///
     /// A relative path is read against the root of the project, and a path
     /// that climbs through `..` is resolved before the answer.
@@ -324,13 +324,13 @@ impl Worktree {
     /// Carries one changed path of the project into the copy
     ///
     /// A path that the project holds a file at is copied over the path in the
-    /// copy, and a path that the project holds nothing at is removed from the
-    /// copy. A path that names a directory in the project is a submodule that
-    /// moved, and the copy keeps the revision that the commit names.
+    /// copy. A path that the project holds nothing at is removed from the copy.
+    /// A path that names a directory in the project is a submodule that moved.
+    /// The copy keeps the revision that the commit names.
     ///
-    /// The copy can hold a file where the project holds a link, and a write
-    /// through a link would reach the file that the link names. The method
-    /// removes the path first, so the write creates what the project has.
+    /// The copy can hold a file where the project holds a link. A write through
+    /// a link would reach the file that the link names. The method removes the
+    /// path first, so the write creates what the project has.
     ///
     /// # Errors
     ///
@@ -422,7 +422,7 @@ async fn add(project: &ProjectRoot, root: &ProjectRoot) -> Result<(), CreateWork
 ///
 /// Git writes its diagnosis to the standard error stream, and that diagnosis
 /// names the condition in the words of git. The text travels into the message
-/// of the error, so whoever reads the failure reads the answer of git instead
+/// of the error. So whoever reads the failure reads the answer of git instead
 /// of a sentence that Rakko wrote about it.
 fn diagnosis(execution: &Execution) -> String {
     let stderr = execution.stderr().to_string_lossy();
@@ -437,9 +437,9 @@ fn diagnosis(execution: &Execution) -> String {
 
 /// Returns whether the two paths name one directory
 ///
-/// A project root can reach a directory through a symbolic link, and git
-/// answers with the directory that it resolved, so the resolved forms decide
-/// when the paths differ as text.
+/// A project root can reach a directory through a symbolic link. Git answers
+/// with the directory that it resolved. So the resolved forms decide when the
+/// paths differ as text.
 fn names_the_same_directory(top_level: &Path, project: &ProjectRoot) -> bool {
     if top_level == project.get() {
         return true;
@@ -455,9 +455,9 @@ fn names_the_same_directory(top_level: &Path, project: &ProjectRoot) -> bool {
 /// component before it
 ///
 /// A check that asks whether a directory contains a path that climbs through
-/// its parents answers for the wrong directory, so the climb is resolved
-/// first. The resolution is lexical: a component that is a symbolic link
-/// resolves as a directory, which is how the caller wrote the path.
+/// its parents answers for the wrong directory. So the climb is resolved first.
+/// The resolution is lexical: a component that is a symbolic link resolves as a
+/// directory, which is how the caller wrote the path.
 fn normalize(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
 
@@ -495,9 +495,9 @@ fn remove(target: &Path) -> IoResult<()> {
 
 /// Returns the path without the project root that prefixes it
 ///
-/// The root of a project can name the same directory through a symbolic link,
-/// and a caller can hold the directory that the link resolves to, which is why
-/// the canonical root is tried as well.
+/// The root of a project can name the same directory through a symbolic link. A
+/// caller can hold the directory that the link resolves to. So the canonical
+/// root is tried as well.
 fn strip(path: &Path, project: &ProjectRoot) -> Option<PathBuf> {
     if let Ok(stripped) = path.strip_prefix(project.get()) {
         return Some(stripped.to_path_buf());
@@ -510,7 +510,7 @@ fn strip(path: &Path, project: &ProjectRoot) -> Option<PathBuf> {
 
 /// Writes what the project holds at the source to the target
 ///
-/// A symbolic link becomes a link to the same target, so the copy holds what
+/// A symbolic link becomes a link to the same target. So the copy holds what
 /// the project holds and not the file that the link names.
 ///
 /// # Errors
@@ -595,8 +595,8 @@ mod tests {
     ///
     /// The tests need a project of their own, because they read and write the
     /// tree of the project and remove it afterwards. A repository of the
-    /// machine would carry the configuration of the contributor into the test,
-    /// so each repository is a fresh one in a directory that goes with the
+    /// machine would carry the configuration of the contributor into the test.
+    /// So each repository is a fresh one in a directory that goes with the
     /// value.
     struct Repository {
         /// The directory that holds the repository
@@ -641,9 +641,9 @@ mod tests {
 
         /// Runs git in the repository and returns what it produced
         ///
-        /// The command forgets the variables that name a repository, so a
-        /// test that runs inside a hook of another repository still works on
-        /// the one that it created.
+        /// The command forgets the variables that name a repository. So a test
+        /// that runs inside a hook of another repository still works on the one
+        /// that it created.
         fn git(&self, arguments: &[&str]) -> Output {
             self::git::blocking_command(self.directory.path())
                 .args(arguments)
@@ -1035,11 +1035,11 @@ mod tests {
 
     /// Returns the same path when resolved on different platforms
     ///
-    /// A caller can hold the directory that the file system resolved, and on
-    /// some platforms the temporary directory differs from it as text: a
-    /// symbolic link on macOS, and a short name on Windows. The resolved root
-    /// must then carry the spelling that the caller holds, or no path gets a
-    /// name inside the copy.
+    /// A caller can hold the directory that the file system resolved. On some
+    /// platforms the temporary directory differs from it as text. On macOS the
+    /// difference is a symbolic link. On Windows the difference is a short
+    /// name. The resolved root must then carry the spelling that the caller
+    /// holds, or no path gets a name inside the copy.
     #[tokio::test]
     async fn path_of_an_absolute_path_under_the_resolved_root_names_the_same_path() {
         let repository = Repository::new();
@@ -1055,11 +1055,11 @@ mod tests {
 
     /// Shows that a `Worktree` holds auto traits
     ///
-    /// A scheduler runs actions in parallel and can move a run to a different
+    /// A scheduler runs actions in parallel. It can move a run to a different
     /// thread, so a copy that an action holds across a wait travels with it.
-    /// This test holds the copy to the auto traits that make this possible,
-    /// because a field of a later version could take them away without a word
-    /// from the compiler.
+    /// This test holds the copy to the auto traits that make this possible. It
+    /// does so because a field of a later version could take them away without
+    /// a word from the compiler.
     #[test]
     fn worktree_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

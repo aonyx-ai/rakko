@@ -9,8 +9,8 @@ use crate::oxlint::report::ReadReportError;
 /// An error that leaves a run of oxlint without an answer
 ///
 /// A diagnostic of oxlint is no failure of a run, even one about the project
-/// itself: it travels in the observation, and the caller decides what it
-/// means. The variants here describe a run that produced no answer at all.
+/// itself. It travels in the observation. The caller decides what it means.
+/// The variants here describe a run that produced no answer at all.
 ///
 /// # Examples
 ///
@@ -50,8 +50,8 @@ pub enum ObserveOxlintError {
     ///
     /// The shape of the report belongs to a version of oxlint. A report that
     /// does not fit therefore points at a version that this crate does not
-    /// know, and the diagnostics of such a run would be the ones that the
-    /// reading happened to understand.
+    /// know. The diagnostics of such a run would be the ones that the reading
+    /// happened to understand.
     #[error("failed to read the report from oxlint: {report}")]
     UnreadableReport {
         /// What oxlint wrote in place of a report that the crate reads
@@ -67,9 +67,9 @@ impl ObserveOxlintError {
     /// Returns the error of a run whose report the crate did not get
     ///
     /// A reading that found no report names a run that ended before it linted
-    /// anything, and what oxlint wrote about that is its diagnosis rather than
+    /// anything. What oxlint wrote about that is its diagnosis rather than
     /// a report, so the error carries the text instead of the shape. Oxlint
-    /// writes the diagnosis on its standard output stream, and a run that wrote
+    /// writes the diagnosis on its standard output stream. A run that wrote
     /// nothing there leaves its reason on the standard error stream.
     #[builder]
     pub(super) fn of(
@@ -93,8 +93,7 @@ impl ObserveOxlintError {
 ///
 /// The standard output stream answers, because that is where oxlint writes its
 /// diagnosis. A run that wrote nothing there says what happened on the standard
-/// error stream, or says nothing at all, and the caller reports whichever of
-/// the two carries text.
+/// error stream. The caller reports whichever of the two carries text.
 #[bon::builder]
 fn diagnosis(stdout: &str, stderr: &str) -> String {
     let written = stdout.trim();
@@ -150,8 +149,8 @@ mod tests {
     ///
     /// An action puts the error in the outcome of a run, and that outcome holds
     /// an error that another thread can read. This test holds the error to the
-    /// auto traits that make this possible, because a field of a later version
-    /// could take them away without a word from the compiler.
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_oxlint_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
