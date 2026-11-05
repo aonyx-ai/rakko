@@ -270,7 +270,7 @@ fn rejection(line: &str) -> String {
 /// Taplo closes the diagnostics of a file with a line that names the file
 /// and sums up why it refused it. The summary repeats what the diagnostics
 /// said, at a level that says less, so it survives only for a file that got
-/// no diagnostic at all — a file that taplo could not open, where the
+/// no diagnostic at all: a file that taplo could not open, where the
 /// summary is the whole answer.
 fn summarized(problems: &mut Vec<TaploProblem>) {
     let positioned: HashSet<PathBuf> = problems

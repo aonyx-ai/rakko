@@ -3,8 +3,8 @@
 //! Some work writes files that nobody asked for. A resolution of dependencies
 //! rewrites a lockfile, and a build writes what it generates. A check that
 //! does such work in the checkout of a contributor leaves the tree dirty,
-//! and every other program that reads the tree at the same time — an editor,
-//! a language server, a second build — reads what the check wrote.
+//! and every other program that reads the tree at the same time: an editor,
+//! a language server, a second build, reads what the check wrote.
 //!
 //! This crate hands out a copy to write in instead. A [`Worktree`] is a
 //! detached checkout of the commit that the HEAD of the project names, in a
