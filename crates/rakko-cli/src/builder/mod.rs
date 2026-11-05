@@ -307,7 +307,7 @@ impl Builder {
     pub fn mount_groups(mut self, groups: impl IntoIterator<Item = Box<dyn Group>>) -> Self {
         self.add(groups.into_iter().map(|group| {
             self::members::refuse_repeated(&group.name(), group.members());
-            let arguments = members::merge(&group.name(), group.members());
+            let arguments = self::members::merge(&group.name(), group.members());
 
             Mounted::Group { group, arguments }
         }));
@@ -322,7 +322,7 @@ impl Builder {
     fn add(&mut self, entries: impl IntoIterator<Item = Mounted>) {
         let entries: Vec<Mounted> = entries.into_iter().collect();
 
-        arguments::refuse_reserved(&entries);
+        self::arguments::refuse_reserved(&entries);
 
         self.registry.add(entries);
     }
@@ -416,7 +416,8 @@ impl Builder {
 
         for mounted in self.registry.entries() {
             command = command.subcommand(
-                Command::new(mounted.name().get().to_owned()).args(arguments::render(mounted)),
+                Command::new(mounted.name().get().to_owned())
+                    .args(self::arguments::render(mounted)),
             );
         }
 
@@ -541,7 +542,7 @@ fn values(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
     matches
         .subcommand()
         .map_or_else(ArgsValues::empty, |(_, command)| {
-            arguments::collect(schema, command)
+            self::arguments::collect(schema, command)
         })
 }
 
@@ -656,8 +657,8 @@ fn drive_group(
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
 
-        let members = members::bind(group.members(), &values)?;
-        let code = scheduler::run(&group.name(), members, &project, &context).await?;
+        let members = self::members::bind(group.members(), &values)?;
+        let code = self::scheduler::run(&group.name(), members, &project, &context).await?;
 
         Ok(code)
     })
