@@ -378,7 +378,7 @@ impl Cargo {
         }
 
         serde_json::from_slice(execution.stdout().get())
-            .map_err(|source| MetadataFailure::Unrecognized { source })
+            .map_err(|source| MetadataFailure::InvalidMetadata { source })
     }
 
     /// Asks cargo which workspace a manifest belongs to
@@ -404,7 +404,7 @@ impl Cargo {
                     manifest: manifest.to_path_buf(),
                     details,
                 },
-                MetadataFailure::Unrecognized { source } => {
+                MetadataFailure::InvalidMetadata { source } => {
                     DiscoverRootsError::UnrecognizedMetadata {
                         manifest: manifest.to_path_buf(),
                         source,
@@ -434,7 +434,7 @@ enum MetadataFailure {
     },
 
     /// Cargo answered in a shape that the crate does not recognize
-    Unrecognized {
+    InvalidMetadata {
         /// The cause of the failure
         source: serde_json::Error,
     },
