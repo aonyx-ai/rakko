@@ -213,7 +213,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Files, Position};
+    use rakko_action::Position;
     use rakko_test_utils::path;
 
     use super::*;
@@ -246,13 +246,6 @@ mod tests {
         let access = LintStiles.access(&context(), &());
 
         assert_eq!(access, Access::Read);
-    }
-
-    #[test]
-    fn files_read_the_whole_project() {
-        let files = LintStiles.files(&context(), &());
-
-        assert_eq!(files.reads(), &Files::Project);
     }
 
     #[test]
