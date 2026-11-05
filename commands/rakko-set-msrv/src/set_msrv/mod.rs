@@ -186,9 +186,9 @@ async fn lock(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError>
     // A project that keeps no lock has chosen not to, and mise would create
     // one. A lock whose presence is unknown is locked, because a stale lock
     // makes `mise install --locked` fail.
-    if matches!(tokio::fs::try_exists(root.join(LOCK)).await, Ok(false)) {
+    let (Ok(true) | Err(_)) = tokio::fs::try_exists(root.join(LOCK)).await else {
         return Ok(());
-    }
+    };
 
     let execution = start(root, MiseStep::Lock).await?;
     if execution.status().success() {

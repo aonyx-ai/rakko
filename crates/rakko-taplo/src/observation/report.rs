@@ -275,13 +275,16 @@ fn rejection(line: &str) -> String {
 fn summarized(problems: &mut Vec<TaploProblem>) {
     let positioned: HashSet<PathBuf> = problems
         .iter()
-        .filter(|problem| matches!(problem.detail(), ProblemDetail::Diagnostic { .. }))
+        .filter(|problem| match problem.detail() {
+            ProblemDetail::Diagnostic { .. } => true,
+            ProblemDetail::Invalid { .. } | ProblemDetail::Unformatted => false,
+        })
         .map(|problem| problem.path().clone())
         .collect();
 
-    problems.retain(|problem| {
-        !matches!(problem.detail(), ProblemDetail::Invalid { .. })
-            || !positioned.contains(problem.path())
+    problems.retain(|problem| match problem.detail() {
+        ProblemDetail::Invalid { .. } => !positioned.contains(problem.path()),
+        ProblemDetail::Diagnostic { .. } | ProblemDetail::Unformatted => true,
     });
 }
 

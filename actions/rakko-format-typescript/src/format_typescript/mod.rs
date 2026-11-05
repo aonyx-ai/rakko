@@ -202,7 +202,10 @@ fn repairs(
     before
         .problems()
         .iter()
-        .filter(|problem| matches!(problem, OxfmtProblem::Unformatted { .. }))
+        .filter(|problem| match problem {
+            OxfmtProblem::Unformatted { .. } => true,
+            OxfmtProblem::Invalid { .. } | OxfmtProblem::Unplaced { .. } => false,
+        })
         .filter(|problem| !problem.path().is_some_and(|path| remaining.contains(&path)))
         .map(|problem| finding(problem, root, UNFORMATTED_REPAIR))
         .collect()
