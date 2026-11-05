@@ -4,6 +4,13 @@
 
 Accepted
 
+Corrected on 2026-11-05: `rakko-test-utils` goes to crates.io. The first
+version of this ADR kept the crate off crates.io. That version did not weigh
+that Cargo then removes the crate from the manifest of each published crate
+that tests with it. The tests in those packages then cannot build. That
+version also did not weigh that the crate helps the authors of actions
+outside Aonyx.
+
 ## Context
 
 No crate of Rakko is on crates.io today. A harness is the small binary crate
@@ -16,10 +23,15 @@ to crates.io.
 [ADR-012] grouped the crates into directories, and it left this question open.
 It noted one fact that limits the answer. Cargo publishes no crate whose
 dependencies are absent from crates.io. So when Rakko publishes an action,
-every helper crate that the action uses goes to crates.io too. This fact
-covers the crates that a user of the action builds. A crate that only the
-tests of this repository use does not have to go to crates.io, when the
-manifest of each crate that uses it gives it no version.
+every helper crate that the action uses goes to crates.io too.
+
+A development dependency, which only the tests of a crate use, can stay off
+crates.io when the manifest gives it no version. But Cargo then removes it
+from the manifest of the package that it publishes, and the tests in that
+package cannot build. Some users of a published package build those tests.
+Examples are crater, which tests the Rust compiler against the crates on
+crates.io, the packagers of distributions, and builds that keep a copy of
+each dependency in their own source tree.
 
 The workspace of this repository holds 42 crates. A harness can depend on
 four kinds of them:
@@ -38,10 +50,22 @@ four kinds of them:
   `rakko-set-msrv`. A project picks the crates of the catalog for what they
   do.
 
-Two crates are of no use to a harness. In the workspace, `rakko-test-utils`
-holds helpers that only the tests of this repository use. Outside the
-workspace, `tools/rakko` holds the harness of this repository. A harness is a
-binary, and no crate depends on it.
+A harness does not depend on two more crates. The first is
+`rakko-test-utils` in the workspace, which holds helpers for the tests of an
+action. The actions and some helper crates of this repository use it as a
+development dependency. The helper `run_checking_access` of
+`rakko-test-utils` runs an action and fails the test when a run that declares
+a read changes the project. It is the only check that an action keeps its
+declaration of access, so the author of an action outside Aonyx can use it
+too.
+
+The contract crate does not use `rakko-test-utils`, because
+`rakko-test-utils` depends on the contract crate. A development dependency in
+the other direction makes a cycle, and Cargo then cannot publish either crate
+first.
+
+The second crate is the harness of this repository, outside the workspace in
+`tools/rakko`. A harness is a binary, and no crate depends on it.
 
 The contract crate is `rakko-action` today. The `rakko` crate is a placeholder
 that holds only an example function. [ADR-004] calls the contract crate
@@ -55,18 +79,22 @@ small number of cases, so a crate that Rakko publishes stays there. On
 
 ## Decision
 
-Rakko publishes to crates.io every crate that a harness can depend on. The
-contract crate is `rakko`.
+Rakko publishes to crates.io every crate that a harness can depend on, and
+`rakko-test-utils`, the helpers for the tests of an action. The contract crate
+is `rakko`.
 
 1. **Every crate that a harness can depend on goes to crates.io.** These are
    the contract crate, the projection, the helper crates, the actions, the
    bundles, and the commands.
 
-2. **The harnesses and `rakko-test-utils` stay off crates.io.** A harness is
-   a binary of one project, and no other crate depends on it.
-   `rakko-test-utils` serves only the tests of this repository. If a user
-   needs it later, Rakko can publish it then. If Rakko publishes it now, it
-   becomes one of the crates whose API the launch freezes.
+2. **Only the harnesses stay off crates.io.** A harness is a binary of one
+   project, and no other crate depends on it. `rakko-action` does not go to
+   crates.io either, but point 4 removes that crate before the first
+   release. `rakko-test-utils` goes to crates.io with the other crates, and
+   it becomes one of the crates whose API the launch freezes. Each published
+   crate that tests with it then keeps it in its manifest, so the tests in
+   the published package build. The author of an action outside Aonyx can
+   also use it to check that the action keeps its declaration of access.
 
 3. **Publication is not a promise of support.** A crate on crates.io can look
    like a product that Aonyx supports. Aonyx commits to Rakko as a tool, but
@@ -148,13 +176,12 @@ the contract crate. A crate with this name brings the retired term back.
 ## Consequences
 
 - The first release on crates.io claims the name of every crate that a
-  harness can depend on. Nobody else can publish a crate under the name of
-  an action that Rakko published. A crate that Rakko adds later claims its
-  name with its own first release.
-- The names `rakko-action` and `rakko-test-utils` stay free on crates.io.
-  This repository uses both today, and the harnesses of Aonyx use
-  `rakko-action`. So the first reason of the decision does not protect these
-  two names.
+  harness can depend on, and the name `rakko-test-utils`. Nobody else can
+  publish a crate under the name of an action that Rakko published. A crate
+  that Rakko adds later claims its name with its own first release.
+- The name `rakko-action` stays free on crates.io. This repository and the
+  harnesses of Aonyx use it today. So the first reason of the decision does
+  not protect this name.
 - A project adopts all of Rakko from crates.io. Renovate updates each crate
   that the manifest of the harness lists, as it updates any other
   dependency. A crate that a bundle brings in is a separate question. For
@@ -174,8 +201,9 @@ the contract crate. A crate with this name brings the retired term back.
 - The crate that a search for Rakko finds first is the contract crate, and
   not the crate that the author of a harness needs. Its documentation must
   link that author to `rakko-cli`.
-- Every helper crate becomes a public crate. Each change to a helper crate is
-  then a change to a crate that others can depend on.
+- Every helper crate and `rakko-test-utils` become public crates. Each
+  change to one of them is then a change to a crate that others can depend
+  on.
 
 [adr-004]: 004-actions-as-libraries.md
 [adr-012]: 012-repository-layout.md

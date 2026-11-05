@@ -168,9 +168,25 @@ mod tests {
 
     use std::fs;
 
-    use rakko_test_utils::path;
-
     use super::*;
+
+    /// Returns the path that a literal with forward slashes describes on
+    /// this platform
+    ///
+    /// The helper of `rakko-test-utils` does the same, but that crate depends
+    /// on this one, so the tests here cannot use it. A literal that starts
+    /// with a separator gives a path that starts at the root of the file
+    /// system, which on Windows is a volume.
+    fn path(literal: &str) -> PathBuf {
+        let Some(rest) = literal.strip_prefix('/') else {
+            return literal.split('/').collect();
+        };
+
+        let mut path = PathBuf::from(if cfg!(windows) { r"C:\" } else { "/" });
+        path.extend(rest.split('/'));
+
+        path
+    }
 
     /// The root that the paths of a test are reported for
     fn root() -> ProjectRoot {

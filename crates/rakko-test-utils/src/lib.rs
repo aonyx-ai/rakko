@@ -1,33 +1,44 @@
-//! What the tests of Rakko share
+//! Helpers for the tests of an action
 //!
-//! The crate holds two kinds of help. The first lets a test name a path that
-//! reads the same on every platform. The second lets a test run an action and
-//! check that the action keeps its declaration of how it uses the project.
+//! The crate gives the author of an action two kinds of help. The first lets
+//! a test write a path that reads the same on every platform. The second lets
+//! a test run an action and check that the action keeps its declaration of
+//! how it uses the project.
+//!
+//! Add this crate as a development dependency of the crate of the action.
+//! Then `rakko-test-utils` builds only for the tests of the action. It does
+//! not build for a harness, the binary that mounts the actions of a project
+//! and runs them. Use a release of `rakko-test-utils` whose dependency on
+//! `rakko` is compatible with the release of `rakko` that the action uses,
+//! such as 0.1 with 0.1, but not 0.1 with 0.2. Otherwise the action does not
+//! implement the `Action` trait that the helpers expect, and the tests do not
+//! compile.
 //!
 //! # Paths
 //!
-//! A test that names a file compares a path, and a path reads differently on
-//! each platform: Windows separates the parts of one with a different
-//! character, and it calls a path absolute only when the path names a volume
-//! as well. A literal in a test therefore describes one path on one platform
-//! and another, or no absolute path at all, on the next.
+//! A test that refers to a file compares a path, and a path reads differently
+//! on each platform: Windows separates the parts of one with a different
+//! character, and it calls a path absolute only when the path starts with a
+//! volume as well. A literal in a test therefore describes one path on one
+//! platform and another, or no absolute path at all, on the next.
 //!
 //! This crate takes a literal in the one form that a reader knows, with a
 //! forward slash between the parts, and builds the path that the platform
-//! names. One literal then describes the same file everywhere, and no test
+//! uses. One literal then describes the same file everywhere, and no test
 //! states a path twice. [`path`][path] answers with the path, and
 //! [`path_text`][path_text] with the text of that path, which is what a
 //! program writes and what a test that reads a report compares.
 //!
 //! # Access
 //!
-//! An action declares whether a run reads or writes the project, and nothing
-//! enforces the declaration yet. [`run_checking_access`][run_checking_access]
-//! runs an action and fails the test when a run that declares a read changed
-//! a file of the project, so a test of an action keeps its declaration honest.
-//!
-//! A crate depends on this one as a development dependency, so nothing that a
-//! project runs carries it.
+//! An action declares whether a run reads or writes the project. A harness
+//! can run two actions that read the project at the same time. So an action
+//! that declares a read and changes a file anyway can change what another
+//! action reads. Nothing enforces the declaration when a harness runs the
+//! action. [`run_checking_access`][run_checking_access] runs an action and
+//! fails the test when a run that declares a read changed a file of the
+//! project. So a test that runs the action through this helper also checks
+//! the declaration.
 //!
 //! # Examples
 //!
