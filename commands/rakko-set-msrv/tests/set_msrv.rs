@@ -508,7 +508,11 @@ async fn run_whose_check_fails_names_the_check_and_the_version() {
         .await;
 
     assert_eq!(
-        run.result.expect_err("the check fails").to_string(),
+        run.result
+            .expect_err("the check fails")
+            .downcast::<SetMsrvError>()
+            .expect("the run fails with an error of the command")
+            .to_string(),
         format!(
             "the check-msrv action did not pass on Rust {INSTALLED}, so fix what it reported and run it again"
         )
@@ -547,7 +551,11 @@ async fn run_whose_check_skips_fails() {
         .await;
 
     assert_eq!(
-        run.result.expect_err("the check skips").to_string(),
+        run.result
+            .expect_err("the check skips")
+            .downcast::<SetMsrvError>()
+            .expect("the run fails with an error of the command")
+            .to_string(),
         format!(
             "the check-msrv action did not pass on Rust {INSTALLED}, so fix what it reported and run it again"
         )
@@ -563,7 +571,11 @@ async fn run_whose_check_stops_fails() {
         .await;
 
     assert_eq!(
-        run.result.expect_err("the check stops").to_string(),
+        run.result
+            .expect_err("the check stops")
+            .downcast::<SetMsrvError>()
+            .expect("the run fails with an error of the command")
+            .to_string(),
         format!(
             "the check-msrv action did not pass on Rust {INSTALLED}, so fix what it reported and run it again"
         )
@@ -808,7 +820,10 @@ async fn run_without_a_reader_names_the_check() {
         .expect_err("nothing reads the report");
 
     assert_eq!(
-        error.to_string(),
+        error
+            .downcast::<SetMsrvError>()
+            .expect("the run fails with an error of the command")
+            .to_string(),
         "failed to report the outcome of the check-msrv action"
     );
 }
