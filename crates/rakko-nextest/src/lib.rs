@@ -38,7 +38,7 @@
 //! them:
 //!
 //! ```no_run
-//! use rakko_action::ProjectRoot;
+//! use rakko::ProjectRoot;
 //! use rakko_cargo::Cargo;
 //! use rakko_nextest::{Lockfile, Nextest};
 //!

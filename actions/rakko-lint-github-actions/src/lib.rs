@@ -44,7 +44,7 @@
 //! A harness erases the action and mounts it next to the others of the project:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_lint_github_actions::LintGitHubActions;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintGitHubActions)];

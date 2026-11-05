@@ -1,6 +1,6 @@
 use std::fmt;
 
-use rakko_action::{ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError};
+use rakko::{ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError};
 
 /// One member of a group, bound to the values of one run
 ///
@@ -72,7 +72,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{
+    use rakko::{
         Access, Action, Args, ArgsSchema, Argument, ArgumentShape, ArgumentValue, Context, Outcome,
         action_name, argument_name,
     };

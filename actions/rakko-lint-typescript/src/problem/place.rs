@@ -6,7 +6,7 @@
 
 use std::path::PathBuf;
 
-use rakko_action::Position;
+use rakko::Position;
 
 /// Where a diagnostic of oxlint belongs
 ///

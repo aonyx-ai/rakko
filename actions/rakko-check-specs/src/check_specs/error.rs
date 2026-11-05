@@ -1,4 +1,4 @@
-use rakko_action::ParseFilePathError;
+use rakko::ParseFilePathError;
 use rakko_tool::ResolveToolError;
 use thiserror::Error;
 

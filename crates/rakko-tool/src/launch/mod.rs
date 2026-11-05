@@ -168,7 +168,7 @@ mod tests {
 
     #[cfg(windows)]
     use kawauso_process::invocation::Program;
-    use rakko_action::ProjectRoot;
+    use rakko::ProjectRoot;
     #[cfg(windows)]
     use tempfile::TempDir;
 

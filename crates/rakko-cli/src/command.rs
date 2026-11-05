@@ -2,7 +2,7 @@ use std::future::Future;
 
 use clawless::CommandResult;
 use clawless::context::Context as ClawlessContext;
-use rakko_action::{Args, Context, Name};
+use rakko::{Args, Context, Name};
 
 /// A command that a harness writes for an activity that does not fit an action
 ///
@@ -39,7 +39,7 @@ use rakko_action::{Args, Context, Name};
 /// implementation writes a plain `async fn`:
 ///
 /// ```
-/// use rakko_action::{Context, Name, action_name};
+/// use rakko::{Context, Name, action_name};
 /// use rakko_cli::Command;
 /// use rakko_cli::clawless::CommandResult;
 /// use rakko_cli::clawless::context::Context as ClawlessContext;
@@ -67,8 +67,8 @@ use rakko_action::{Args, Context, Name};
 /// }
 /// ```
 ///
-/// [`Action`]: rakko_action::Action
-/// [`Group`]: rakko_action::Group
+/// [`Action`]: rakko::Action
+/// [`Group`]: rakko::Group
 /// [`run`]: Command::run
 pub trait Command: Send + Sync {
     /// The arguments that a run of the command reads
@@ -114,7 +114,7 @@ mod tests {
 
     use clawless::event::{EventReceiver, event_channel};
     use clawless::output::Output;
-    use rakko_action::ArgsSchema;
+    use rakko::ArgsSchema;
 
     use super::*;
 

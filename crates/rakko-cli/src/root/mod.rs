@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 use kawauso_project::error::{DiscoverProjectError, LoadProjectError};
 use kawauso_project::project::ApplicationName;
 use kawauso_project::{Project, Search};
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 
 pub(crate) use self::error::ResolveProjectRootError;
 

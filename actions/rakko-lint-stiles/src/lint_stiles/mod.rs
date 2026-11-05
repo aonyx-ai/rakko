@@ -8,7 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
     action_name,
 };
@@ -68,7 +68,7 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_lint_stiles::LintStiles;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintStiles)];
@@ -213,7 +213,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::Position;
+    use rakko::Position;
     use rakko_test_utils::path;
 
     use super::*;

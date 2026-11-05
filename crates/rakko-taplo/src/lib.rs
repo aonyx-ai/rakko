@@ -22,7 +22,7 @@
 //! An action resolves taplo and reads what one operation reported:
 //!
 //! ```no_run
-//! use rakko_action::ProjectRoot;
+//! use rakko::ProjectRoot;
 //! use rakko_taplo::{Operation, Taplo};
 //!
 //! # #[tokio::main(flavor = "current_thread")]

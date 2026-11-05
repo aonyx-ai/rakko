@@ -13,7 +13,7 @@ mod error;
 
 use std::path::PathBuf;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
     action_name,
 };
@@ -71,7 +71,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_format_yaml::FormatYaml;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(FormatYaml)];
@@ -348,7 +348,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+    use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
     use rakko_test_utils::path;
 
     use super::*;

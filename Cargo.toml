@@ -26,7 +26,6 @@ getset = ">=0.1,<1"
 kawauso-process = "0.2.1"
 kawauso-project = "0.3.0"
 rakko = { path = "crates/rakko", version = "0.1.0" }
-rakko-action = { path = "crates/rakko-action", version = "0.1.0" }
 rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-cli = { path = "crates/rakko-cli", version = "0.1.0" }
 rakko-nextest = { path = "crates/rakko-nextest", version = "0.1.0" }

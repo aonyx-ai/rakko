@@ -7,7 +7,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-rakko-action = { workspace = true }
+rakko = { workspace = true }
 rakko-cargo = { workspace = true }
 rakko-tool = { workspace = true }
 thiserror = { workspace = true }

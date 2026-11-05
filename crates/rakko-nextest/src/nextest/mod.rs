@@ -10,7 +10,7 @@ mod error;
 /// What a run does with the lockfile of the workspace
 mod lockfile;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_cargo::{Cargo, CargoRoot};
 
 pub use self::error::ObserveNextestError;
@@ -68,7 +68,7 @@ const CONSENT_VALUE: &str = "1";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_cargo::Cargo;
 /// use rakko_nextest::{Lockfile, Nextest};
 ///

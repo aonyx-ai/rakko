@@ -32,7 +32,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::Invocation;
 use tempfile::TempDir;
 

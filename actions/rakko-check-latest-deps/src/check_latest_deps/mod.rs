@@ -11,7 +11,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
     action_name,
 };
@@ -78,7 +78,7 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_check_latest_deps::CheckLatestDeps;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckLatestDeps)];

@@ -18,7 +18,7 @@
 //! project:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_format_toml::FormatToml;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(FormatToml)];

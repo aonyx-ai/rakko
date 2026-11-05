@@ -1,6 +1,6 @@
 use std::fmt;
 
-use rakko_action::Outcome;
+use rakko::Outcome;
 
 use super::GroupSummary;
 use crate::report::text::render_count;
@@ -78,7 +78,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Name, SkipReason, action_name};
+    use rakko::{Name, SkipReason, action_name};
 
     use super::*;
     use crate::report::Report;

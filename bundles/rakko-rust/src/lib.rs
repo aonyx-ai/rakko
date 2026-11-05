@@ -1,6 +1,6 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
-use rakko_action::Bundle;
+use rakko::Bundle;
 use rakko_build_internal_docs::BuildInternalDocs;
 use rakko_check_dependencies::CheckDependencies;
 use rakko_check_latest_deps::CheckLatestDeps;

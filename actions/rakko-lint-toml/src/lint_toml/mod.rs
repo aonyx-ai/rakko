@@ -8,7 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary,
     action_name,
 };
@@ -51,7 +51,7 @@ const UNFORMATTED: &str = "the file is not properly formatted";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_lint_toml::LintToml;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintToml)];

@@ -9,7 +9,7 @@ mod error;
 /// The reading of the report that the test runner wrote
 pub mod report;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveNodeError;
@@ -46,7 +46,7 @@ const REPORTER: &str = "--test-reporter=tap";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_test_typescript::Node;
 ///
 /// # #[tokio::main(flavor = "current_thread")]

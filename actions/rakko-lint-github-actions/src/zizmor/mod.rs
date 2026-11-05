@@ -9,7 +9,7 @@ mod error;
 /// The reading of the report that zizmor wrote
 mod report;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveZizmorError;
@@ -89,7 +89,7 @@ const HIGHEST_FINDING: i32 = 14;
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_lint_github_actions::Zizmor;
 ///
 /// # #[tokio::main(flavor = "current_thread")]

@@ -1,7 +1,5 @@
 use getset::CopyGetters;
-use rakko_action::{
-    Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name,
-};
+use rakko::{Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name};
 
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Rewrite the files that oxfmt can format";
@@ -52,7 +50,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::ArgumentValue;
+    use rakko::ArgumentValue;
 
     use super::*;
 

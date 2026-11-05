@@ -18,7 +18,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_cargo::{
     Cargo, CargoPackage, CargoReport, CargoRoot, Channel, DiscoverRootsError, Documentation,
     DocumentedNames, PackageName, ResolveNewestToolchainError, ResolveToolchainError, RustVersion,

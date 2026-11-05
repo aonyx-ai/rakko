@@ -21,7 +21,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_prettier::{FileExtension, Filter, Observation, Operation, Prettier, ProblemDetail};
 use tempfile::TempDir;
 

@@ -14,7 +14,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Outcome, ProjectRoot};
+use rakko::{Action, Args, Context, Outcome, ProjectRoot};
 use rakko_lint_stiles::LintStiles;
 use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;

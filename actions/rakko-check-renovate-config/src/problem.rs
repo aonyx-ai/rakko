@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};
-use rakko_action::{FilePath, Location, Position, ProjectRoot};
+use rakko::{FilePath, Location, Position, ProjectRoot};
 
 /// The text between the topic of a problem and its detail
 const TOPIC_CLOSE: &str = ": ";

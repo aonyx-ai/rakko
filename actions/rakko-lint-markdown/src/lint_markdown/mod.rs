@@ -8,7 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
     action_name,
 };
@@ -58,7 +58,7 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_lint_markdown::LintMarkdown;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintMarkdown)];

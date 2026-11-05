@@ -3,7 +3,7 @@ use std::pin::Pin;
 
 use clawless::CommandResult;
 use clawless::context::Context as ClawlessContext;
-use rakko_action::{Args, ArgsSchema, ArgsValues, Context, Name};
+use rakko::{Args, ArgsSchema, ArgsValues, Context, Name};
 
 use crate::command::Command;
 
@@ -28,7 +28,7 @@ use crate::command::Command;
 /// # Examples
 ///
 /// ```
-/// use rakko_action::{Context, Name, action_name};
+/// use rakko::{Context, Name, action_name};
 /// use rakko_cli::clawless::CommandResult;
 /// use rakko_cli::clawless::context::Context as ClawlessContext;
 /// use rakko_cli::{Command, ErasedCommand};
@@ -115,7 +115,7 @@ mod tests {
 
     use clawless::event::{EventReceiver, event_channel};
     use clawless::output::Output;
-    use rakko_action::{Argument, ArgumentShape, ReadArgsError, argument_name};
+    use rakko::{Argument, ArgumentShape, ReadArgsError, argument_name};
 
     use super::*;
 

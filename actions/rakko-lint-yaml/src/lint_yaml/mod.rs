@@ -8,7 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
     Summary, action_name,
 };
@@ -54,7 +54,7 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_lint_yaml::LintYaml;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintYaml)];

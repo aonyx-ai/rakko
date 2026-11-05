@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rakko_action::{Position, Span};
+use rakko::{Position, Span};
 use serde::Deserialize;
 
 use crate::problem::{Severity, ZizmorProblem};

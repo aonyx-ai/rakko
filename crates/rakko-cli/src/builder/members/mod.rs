@@ -7,7 +7,7 @@ mod merged_argument;
 
 use std::collections::BTreeSet;
 
-use rakko_action::{ArgsValues, ErasedAction, Name};
+use rakko::{ArgsValues, ErasedAction, Name};
 
 pub(crate) use self::bound_member::BoundMember;
 pub(crate) use self::error::BindMembersError;

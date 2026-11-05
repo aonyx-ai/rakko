@@ -10,7 +10,7 @@ mod origin;
 
 use bon::Builder;
 use getset::Getters;
-use rakko_action::{Finding, Location, Position, ProjectRoot};
+use rakko::{Finding, Location, Position, ProjectRoot};
 
 pub use self::origin::Origin;
 

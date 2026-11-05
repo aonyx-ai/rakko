@@ -9,7 +9,7 @@ mod error;
 /// The reading of the report that cargo-deny wrote
 mod report;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_cargo::{CargoRoot, lockfile};
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
@@ -84,7 +84,7 @@ const NO_DIAGNOSIS: &str = "cargo-deny wrote nothing about it";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_cargo::{CargoRoot, Documentation};
 /// use rakko_check_dependencies::Deny;
 ///

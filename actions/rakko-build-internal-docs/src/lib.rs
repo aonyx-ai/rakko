@@ -25,7 +25,7 @@
 //! project:
 //!
 //! ```
-//! use rakko_action::ErasedAction;
+//! use rakko::ErasedAction;
 //! use rakko_build_internal_docs::BuildInternalDocs;
 //!
 //! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(BuildInternalDocs)];

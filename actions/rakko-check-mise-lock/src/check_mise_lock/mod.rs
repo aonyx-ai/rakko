@@ -13,7 +13,7 @@ mod error;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, FilePath, Finding, Location, Name, Outcome, Summary, action_name,
 };
 use rakko_worktree::Worktree;
@@ -80,7 +80,7 @@ use crate::part::Platform;
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_check_mise_lock::CheckMiseLock;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckMiseLock)];
@@ -311,7 +311,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+    use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
 
     use super::*;
 

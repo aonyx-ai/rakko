@@ -8,7 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary, action_name,
 };
 
@@ -45,7 +45,7 @@ use crate::validator::Validator;
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_check_renovate_config::CheckRenovateConfig;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckRenovateConfig)];
@@ -176,7 +176,7 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rakko_action::{Location, Position};
+    use rakko::{Location, Position};
     use rakko_test_utils::path;
 
     use super::*;

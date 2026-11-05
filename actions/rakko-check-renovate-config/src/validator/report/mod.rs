@@ -13,7 +13,7 @@ mod error;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use rakko_action::Position;
+use rakko::Position;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 

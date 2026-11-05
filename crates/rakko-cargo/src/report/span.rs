@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use getset::Getters;
-use rakko_action::Span;
+use rakko::Span;
 
 /// The source that a diagnostic points at
 ///

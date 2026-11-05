@@ -9,7 +9,7 @@ mod error;
 
 use std::time::Duration;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Execution, Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveTaploError;
@@ -81,7 +81,7 @@ const PLAIN: &str = "never";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_taplo::{Operation, Taplo};
 ///
 /// # #[tokio::main(flavor = "current_thread")]

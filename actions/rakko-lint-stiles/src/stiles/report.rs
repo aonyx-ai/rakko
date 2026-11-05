@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rakko_action::Position;
+use rakko::Position;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 

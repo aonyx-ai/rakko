@@ -8,9 +8,7 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko_action::{
-    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name,
-};
+use rakko::{Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Documentation};
 use rakko_tool::Execution;
@@ -89,7 +87,7 @@ const TEST: [&str; 7] = [
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_test_rust_docs::TestRustDocs;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(TestRustDocs)];

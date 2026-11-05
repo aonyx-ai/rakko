@@ -20,7 +20,7 @@
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
 
-use rakko_action::{ErasedAction, Group};
+use rakko::{ErasedAction, Group};
 use rakko_check_msrv::CheckMsrv;
 use rakko_cli::ErasedCommand;
 use rakko_format_json::FormatJson;

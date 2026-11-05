@@ -8,7 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 getset = { workspace = true }
-rakko-action = { workspace = true }
+rakko = { workspace = true }
 rakko-cargo = { workspace = true }
 rakko-tool = { workspace = true }
 serde = { workspace = true }

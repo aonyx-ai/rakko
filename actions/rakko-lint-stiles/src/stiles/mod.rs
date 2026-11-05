@@ -10,7 +10,7 @@ mod error;
 /// The reading of the reports that stiles wrote
 mod report;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Execution, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveStilesError;
@@ -79,7 +79,7 @@ const FAILED: i32 = 1;
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_lint_stiles::Stiles;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
@@ -311,7 +311,7 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rakko_action::Position;
+    use rakko::Position;
 
     use super::*;
 

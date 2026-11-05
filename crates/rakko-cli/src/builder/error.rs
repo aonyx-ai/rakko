@@ -1,4 +1,4 @@
-use rakko_action::Name;
+use rakko::Name;
 use thiserror::Error;
 
 /// An error that occurs when the command line runs an action or a command
@@ -45,7 +45,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::action_name;
+    use rakko::action_name;
 
     use super::*;
 

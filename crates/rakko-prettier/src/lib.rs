@@ -29,7 +29,7 @@
 //! An action resolves prettier and reads what one operation reported:
 //!
 //! ```no_run
-//! use rakko_action::ProjectRoot;
+//! use rakko::ProjectRoot;
 //! use rakko_prettier::{FileExtension, Filter, Operation, Prettier};
 //!
 //! # #[tokio::main(flavor = "current_thread")]

@@ -17,7 +17,7 @@ mod name;
 use getset::Getters;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 
 pub use self::error::ResolveToolError;
 pub use self::name::ToolName;

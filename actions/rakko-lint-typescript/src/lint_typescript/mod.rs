@@ -10,7 +10,7 @@ mod error;
 
 use std::path::Path;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, FilePath, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
     Summary, action_name,
 };
@@ -57,7 +57,7 @@ const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_lint_typescript::LintTypeScript;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintTypeScript)];
@@ -229,7 +229,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::Position;
+    use rakko::Position;
     use rakko_test_utils::path;
 
     use super::*;

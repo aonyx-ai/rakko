@@ -16,7 +16,7 @@ mod report;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use rakko_action::{
+use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary,
     action_name,
 };
@@ -85,7 +85,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// A harness mounts the action:
 ///
 /// ```
-/// use rakko_action::ErasedAction;
+/// use rakko::ErasedAction;
 /// use rakko_format_rust::FormatRust;
 ///
 /// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(FormatRust)];
@@ -350,7 +350,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Args, ArgsValues, ArgumentValue, argument_name};
+    use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
 
     use super::*;
 

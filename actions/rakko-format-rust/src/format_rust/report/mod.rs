@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use getset::{CopyGetters, Getters};
-use rakko_action::path::plain;
+use rakko::path::plain;
 use rakko_tool::Execution;
 
 pub use self::problem::{RustfmtProblem, RustfmtProblemDetail};

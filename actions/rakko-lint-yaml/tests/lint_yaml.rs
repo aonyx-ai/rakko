@@ -24,7 +24,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
+use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
 use rakko_lint_yaml::LintYaml;
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use rakko_action::{ErasedAction, Group, Name, action_name};
+use rakko::{ErasedAction, Group, Name, action_name};
 
 /// The group of the actions that guard a commit
 ///
@@ -83,7 +83,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{Action, Context, Outcome};
+    use rakko::{Action, Context, Outcome};
 
     use super::*;
 

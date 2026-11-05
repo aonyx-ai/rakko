@@ -1,6 +1,6 @@
 use bon::bon;
 use getset::{CopyGetters, Getters};
-use rakko_action::{Finding, Location, ProjectRoot};
+use rakko::{Finding, Location, ProjectRoot};
 
 use super::{DiagnosticLevel, DiagnosticSpan};
 use crate::root::CargoRoot;
@@ -112,7 +112,7 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rakko_action::{Position, Span};
+    use rakko::{Position, Span};
 
     use super::*;
     use crate::root::Documentation;

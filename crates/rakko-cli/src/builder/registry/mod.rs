@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::fmt;
 
-use rakko_action::Name;
+use rakko::Name;
 
 pub(crate) use self::mounted::Mounted;
 

@@ -7,7 +7,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-rakko-action = { workspace = true }
+rakko = { workspace = true }
 rakko-check-mise-lock = { path = "../../actions/rakko-check-mise-lock", version = "0.1.0" }
 rakko-check-renovate-config = { path = "../../actions/rakko-check-renovate-config", version = "0.1.0" }
 rakko-format-json = { path = "../../actions/rakko-format-json", version = "0.1.0" }

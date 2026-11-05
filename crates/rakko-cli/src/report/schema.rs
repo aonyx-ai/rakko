@@ -1,4 +1,4 @@
-use rakko_action::{Finding, Location, Outcome, Position, Summary};
+use rakko::{Finding, Location, Outcome, Position, Summary};
 use serde::Serialize;
 
 use super::Report;
@@ -194,7 +194,7 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use rakko_action::{DirectoryPath, FilePath, SkipReason, Span};
+    use rakko::{DirectoryPath, FilePath, SkipReason, Span};
 
     use super::*;
 

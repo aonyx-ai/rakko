@@ -19,8 +19,8 @@ use std::path::Path;
 use std::process::Command;
 
 #[cfg(unix)]
-use rakko_action::Finding;
-use rakko_action::{Action, Args, Context, Location, Outcome, Position, ProjectRoot, Summary};
+use rakko::Finding;
+use rakko::{Action, Args, Context, Location, Outcome, Position, ProjectRoot, Summary};
 use rakko_lint_toml::LintToml;
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;

@@ -18,9 +18,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{
-    Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Summary,
-};
+use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Summary};
 use rakko_check_renovate_config::{CheckRenovateConfig, CheckRenovateConfigError};
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;

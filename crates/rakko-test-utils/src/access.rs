@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rakko_action::{Access, Action, Context, Outcome};
+use rakko::{Access, Action, Context, Outcome};
 
 /// The directories whose changes do not count as a write of the project
 ///
@@ -72,7 +72,7 @@ enum Entry {
 /// ```
 /// # use std::pin::pin;
 /// # use std::task::{Context as TaskContext, Poll, Waker};
-/// use rakko_action::{Access, Action, Context, Name, Outcome, action_name};
+/// use rakko::{Access, Action, Context, Name, Outcome, action_name};
 /// use rakko_test_utils::run_checking_access;
 ///
 /// struct LineCount;
@@ -230,7 +230,7 @@ mod tests {
     use std::pin::pin;
     use std::task::{Context as TaskContext, Poll, Waker};
 
-    use rakko_action::{Name, action_name};
+    use rakko::{Name, action_name};
     use tempfile::TempDir;
 
     use super::*;

@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 /// oxfmt reports a path relative to it, and a caller that reports the problem
 /// asks [`FilePath::within`][within] for the path that a finding names.
 ///
-/// [within]: rakko_action::FilePath::within
+/// [within]: rakko::FilePath::within
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum OxfmtProblem {
     /// Oxfmt could not format the file, and it named the place that stopped it

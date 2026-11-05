@@ -9,7 +9,7 @@ mod error;
 /// The reading of the report that markdownlint wrote
 mod report;
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveMarkdownlintError;
@@ -78,7 +78,7 @@ const NO_MATCHING_FILES: &str = "No matching files found";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_lint_markdown::Markdownlint;
 ///
 /// # #[tokio::main(flavor = "current_thread")]

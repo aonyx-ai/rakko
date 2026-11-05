@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use bon::Builder;
 use getset::{CopyGetters, Getters};
-use rakko_action::{FilePath, ProjectRoot};
+use rakko::{FilePath, ProjectRoot};
 
 /// The place in the project where a test that failed was declared
 ///

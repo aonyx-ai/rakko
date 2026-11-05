@@ -5,7 +5,7 @@ mod text;
 
 use std::fmt;
 
-use rakko_action::Name;
+use rakko::Name;
 use serde::{Serialize, Serializer};
 
 use super::Report;

@@ -392,7 +392,7 @@ dependencies = [
 name = "harness"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-baseline",
  "rakko-check-msrv",
  "rakko-cli",
@@ -610,17 +610,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-action"
-version = "0.1.0"
-dependencies = [
- "rakko",
-]
-
-[[package]]
 name = "rakko-baseline"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-check-mise-lock",
  "rakko-check-renovate-config",
  "rakko-format-json",
@@ -637,7 +630,7 @@ dependencies = [
 name = "rakko-build-internal-docs"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-tool",
  "thiserror",
@@ -649,7 +642,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -664,7 +657,7 @@ name = "rakko-check-dependencies"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-tool",
  "serde",
@@ -677,7 +670,7 @@ dependencies = [
 name = "rakko-check-latest-deps"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-nextest",
  "rakko-tool",
@@ -689,7 +682,7 @@ dependencies = [
 name = "rakko-check-minimal-deps"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-nextest",
  "rakko-tool",
@@ -703,7 +696,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-tool",
  "rakko-worktree",
  "serde",
@@ -718,7 +711,7 @@ dependencies = [
 name = "rakko-check-msrv"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-tool",
  "thiserror",
@@ -730,7 +723,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -743,7 +736,7 @@ name = "rakko-check-unused-deps"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-tool",
  "serde",
@@ -759,7 +752,7 @@ dependencies = [
  "clawless",
  "futures-util",
  "kawauso-project",
- "rakko-action",
+ "rakko",
  "serde",
  "thiserror",
 ]
@@ -769,7 +762,7 @@ name = "rakko-format-json"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-prettier",
  "rakko-tool",
  "thiserror",
@@ -780,7 +773,7 @@ name = "rakko-format-markdown"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-prettier",
  "rakko-tool",
  "thiserror",
@@ -791,7 +784,7 @@ name = "rakko-format-rust"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-tool",
  "thiserror",
@@ -802,7 +795,7 @@ name = "rakko-format-toml"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-taplo",
  "rakko-tool",
  "thiserror",
@@ -813,7 +806,7 @@ name = "rakko-format-yaml"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-prettier",
  "rakko-tool",
  "thiserror",
@@ -825,7 +818,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -839,7 +832,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-tool",
  "serde",
  "serde_json",
@@ -851,7 +844,7 @@ dependencies = [
 name = "rakko-lint-rust"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-tool",
  "thiserror",
@@ -861,7 +854,7 @@ dependencies = [
 name = "rakko-lint-toml"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-taplo",
  "rakko-tool",
  "thiserror",
@@ -873,7 +866,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-tool",
  "thiserror",
  "tokio",
@@ -884,7 +877,7 @@ name = "rakko-nextest"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-tool",
  "serde",
@@ -896,7 +889,7 @@ dependencies = [
 name = "rakko-pre-commit"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
 ]
 
 [[package]]
@@ -905,7 +898,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-tool",
  "thiserror",
  "tokio",
@@ -916,7 +909,7 @@ dependencies = [
 name = "rakko-rust"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-build-internal-docs",
  "rakko-check-dependencies",
  "rakko-check-latest-deps",
@@ -930,7 +923,7 @@ dependencies = [
 name = "rakko-rust-library"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-check-minimal-deps",
  "rakko-check-msrv",
  "rakko-rust",
@@ -942,7 +935,7 @@ name = "rakko-set-msrv"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-cli",
  "rakko-tool",
  "thiserror",
@@ -957,7 +950,7 @@ version = "0.1.0"
 dependencies = [
  "bon",
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-tool",
  "thiserror",
  "tokio",
@@ -967,7 +960,7 @@ dependencies = [
 name = "rakko-test-rust"
 version = "0.1.0"
 dependencies = [
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-nextest",
  "rakko-tool",
@@ -979,7 +972,7 @@ name = "rakko-test-rust-docs"
 version = "0.1.0"
 dependencies = [
  "getset",
- "rakko-action",
+ "rakko",
  "rakko-cargo",
  "rakko-tool",
  "thiserror",
@@ -991,7 +984,7 @@ version = "0.1.0"
 dependencies = [
  "getset",
  "kawauso-process",
- "rakko-action",
+ "rakko",
  "thiserror",
  "tokio",
  "typed-fields",
@@ -1003,7 +996,7 @@ version = "0.1.0"
 dependencies = [
  "getset",
  "kawauso-process",
- "rakko-action",
+ "rakko",
  "tempfile",
  "thiserror",
 ]

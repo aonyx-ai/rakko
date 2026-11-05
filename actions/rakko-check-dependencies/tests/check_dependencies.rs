@@ -22,7 +22,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko_action::{Action, Args, Context, DirectoryPath, Finding, Location, Outcome, ProjectRoot};
+use rakko::{Action, Args, Context, DirectoryPath, Finding, Location, Outcome, ProjectRoot};
 use rakko_cargo::Cargo;
 use rakko_check_dependencies::{CheckDependencies, CheckDependenciesError};
 use rakko_test_utils::run_checking_access;

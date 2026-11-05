@@ -1,5 +1,5 @@
 use clawless::event::SendError;
-use rakko_action::Name;
+use rakko::Name;
 use thiserror::Error;
 
 /// An error that stops a run of a group
@@ -67,7 +67,7 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use clawless::event::Event;
-    use rakko_action::action_name;
+    use rakko::action_name;
 
     use super::*;
 

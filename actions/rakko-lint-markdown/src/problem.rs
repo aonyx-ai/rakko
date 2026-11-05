@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};
-use rakko_action::{FilePath, ProjectRoot};
+use rakko::{FilePath, ProjectRoot};
 
 /// One rule that markdownlint reported about a file
 ///

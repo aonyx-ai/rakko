@@ -12,7 +12,7 @@ mod error;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use rakko_action::ProjectRoot;
+use rakko::ProjectRoot;
 use rakko_tool::{
     Execution, Invocation, Launch, ResolveToolError, RunCommandError, Tool, ToolName,
 };
@@ -85,7 +85,7 @@ const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_action::ProjectRoot;
+/// use rakko::ProjectRoot;
 /// use rakko_cargo::Cargo;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
@@ -502,7 +502,7 @@ impl Target {
 async fn canonical(path: &Path) -> PathBuf {
     tokio::fs::canonicalize(path)
         .await
-        .map(|resolved| rakko_action::path::plain(&resolved))
+        .map(|resolved| rakko::path::plain(&resolved))
         .unwrap_or_else(|_| path.to_path_buf())
 }
 
