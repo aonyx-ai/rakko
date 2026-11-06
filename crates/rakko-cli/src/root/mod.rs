@@ -1,9 +1,8 @@
 //! The root of the project that a run maintains
 //!
-//! Every action reads the root of its project from the context of a run. The
-//! layout derives the directories of a project from that root, and a finding
-//! reports its location relative to it, so the root decides what an action
-//! may touch, where it writes, and what its output says.
+//! Every action reads the root of its project from the context of a run, and
+//! a finding reports its location relative to that root. So the root decides
+//! what an action can touch, where it writes, and what its output says.
 //!
 //! A project marks its root with one file. The search tests whether the entry
 //! exists and never reads it, so a project that keeps nothing in the file

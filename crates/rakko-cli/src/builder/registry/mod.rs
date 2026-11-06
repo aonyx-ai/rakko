@@ -9,6 +9,15 @@ use rakko::Name;
 
 pub(crate) use self::mounted::Mounted;
 
+/// The names of the commands that the command line holds or will hold itself
+///
+/// The parser adds `help` to every command line with commands. The
+/// projection will add `doctor` to every harness, to report and repair the
+/// conditions that a correct run needs. If the command line reserves a name
+/// after a project mounted an action, a command, or a group with that name,
+/// that project breaks. So the command line reserves both names now.
+const RESERVED: [&str; 2] = ["doctor", "help"];
+
 /// The actions, the commands, and the groups that a harness mounted
 ///
 /// A registry holds one entry for each name. A harness mounts lists that come
@@ -30,8 +39,16 @@ impl Registry {
     /// already holds, and reports that name. A harness that mounts one name
     /// twice has a defect that only a change of its own code corrects, so the
     /// failure happens where the harness mounts and not where a user runs.
+    ///
+    /// Panics when an entry carries a name that the command line reserves for
+    /// itself, and reports the entry.
     pub(super) fn add(&mut self, entries: impl IntoIterator<Item = Mounted>) {
         for mounted in entries {
+            assert!(
+                !RESERVED.contains(&mounted.name().get()),
+                "the harness mounts the {mounted}, whose name the command line reserves for itself"
+            );
+
             match self.entries.entry(mounted.name()) {
                 Entry::Vacant(entry) => {
                     entry.insert(mounted);

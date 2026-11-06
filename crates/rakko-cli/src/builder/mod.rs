@@ -181,6 +181,10 @@ impl Builder {
     /// between them, and only a change of the harness corrects it, so the
     /// failure happens here instead of at a run.
     ///
+    /// Panics when the value carries the name `doctor` or `help`, and reports
+    /// the action, the command, or the group. The command line keeps these
+    /// names for commands of its own.
+    ///
     /// Panics when an action, a command, or a member of a group declares an
     /// argument whose name the command line defines itself. The message gives
     /// the action, the command, or the group and its member, and the argument.
@@ -2003,6 +2007,15 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(
+        expected = "the harness mounts the command 'help', whose name the command line \
+                    reserves for itself"
+    )]
+    fn mount_refuses_a_command_named_help() {
+        let _builder = builder().mount(written("help"));
+    }
+
+    #[test]
     #[should_panic(expected = "json")]
     fn mount_refuses_a_command_whose_argument_the_command_line_carries() {
         let _builder = builder().mount(Reserving);
@@ -2014,6 +2027,20 @@ mod tests {
         let _builder = builder()
             .mount([probe("format-toml")])
             .mount(written("format-toml"));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "the harness mounts the group 'doctor', whose name the command line \
+                    reserves for itself"
+    )]
+    fn mount_refuses_a_group_named_doctor() {
+        let group = Sequence {
+            name: action_name("doctor"),
+            actions: Vec::new(),
+        };
+
+        let _builder = builder().mount(group);
     }
 
     #[test]
@@ -2060,6 +2087,15 @@ mod tests {
         let group = sequence(vec![Box::new(Colliding)]);
 
         let _builder = builder().mount(group);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "the harness mounts the action 'doctor', whose name the command line \
+                    reserves for itself"
+    )]
+    fn mount_refuses_an_action_named_doctor() {
+        let _builder = builder().mount([probe("doctor")]);
     }
 
     #[test]

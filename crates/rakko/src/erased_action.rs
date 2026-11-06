@@ -8,6 +8,7 @@ use crate::bound_action::BoundAction;
 use crate::context::Context;
 use crate::name::Name;
 use crate::outcome::Outcome;
+use crate::seal::{Sealed, SealedBound};
 
 /// One action behind an interface that hides its type
 ///
@@ -30,6 +31,10 @@ use crate::outcome::Outcome;
 /// each action as it is to the builder of the command line, or to the list of
 /// a [`Bundle`], and these erase the action themselves. Only an author of a
 /// group writes the trait, in the members of the group.
+///
+/// No crate outside this one can implement the trait. So a later release can
+/// add a method to it, such as one that reads a new declaration of the
+/// action, and no implementation breaks.
 ///
 /// [`Bundle`]: crate::Bundle
 ///
@@ -56,7 +61,34 @@ use crate::outcome::Outcome;
 ///
 /// assert_eq!(actions[0].name().get(), "line-count");
 /// ```
-pub trait ErasedAction: Send + Sync {
+///
+/// An implementation outside this crate does not compile:
+///
+/// ```compile_fail
+/// use rakko::{ArgsSchema, ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError, action_name};
+///
+/// struct LineCount;
+///
+/// impl ErasedAction for LineCount {
+///     fn name(&self) -> Name {
+///         action_name!("line-count")
+///     }
+///
+///     fn arguments(&self) -> ArgsSchema {
+///         ArgsSchema::empty()
+///     }
+///
+///     fn bind<'a>(
+///         &'a self,
+///         _values: &ArgsValues,
+///     ) -> Result<Box<dyn BoundAction + 'a>, ReadArgsError> {
+///         Err(ReadArgsError::MissingValue {
+///             name: rakko::argument_name!("fix"),
+///         })
+///     }
+/// }
+/// ```
+pub trait ErasedAction: Send + Sync + Sealed {
     /// Returns the name that identifies the action
     fn name(&self) -> Name;
 
@@ -105,6 +137,8 @@ pub trait ErasedAction: Send + Sync {
     }
 }
 
+impl<A: Action> Sealed for A {}
+
 impl<A: Action> ErasedAction for A {
     fn name(&self) -> Name {
         Action::name(self)
@@ -129,6 +163,8 @@ struct Bound<'a, A: Action> {
     /// The arguments that the declaration and the run both see
     args: A::Args,
 }
+
+impl<A: Action> SealedBound for Bound<'_, A> {}
 
 impl<A: Action> BoundAction for Bound<'_, A> {
     fn access(&self, context: &Context) -> Access {

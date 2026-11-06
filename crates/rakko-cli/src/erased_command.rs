@@ -6,6 +6,7 @@ use clawless::context::Context as ClawlessContext;
 use rakko::{Args, ArgsSchema, ArgsValues, Context, Name};
 
 use crate::command::Command;
+use crate::seal::Sealed;
 
 /// One command behind an interface that hides its type
 ///
@@ -25,6 +26,10 @@ use crate::command::Command;
 /// all of them. A harness never writes this implementation, and it never
 /// writes this trait. It gives each command as it is to the builder, and the
 /// builder erases the command itself.
+///
+/// No crate outside this one can implement the trait. So a later release can
+/// add a method to it, such as one that reads a new declaration of the
+/// command, and no implementation breaks.
 ///
 /// # Examples
 ///
@@ -57,7 +62,40 @@ use crate::command::Command;
 ///
 /// assert_eq!(commands[0].name().get(), "serve");
 /// ```
-pub trait ErasedCommand: Send + Sync {
+///
+/// An implementation outside this crate does not compile:
+///
+/// ```compile_fail
+/// use std::future::Future;
+/// use std::pin::Pin;
+///
+/// use rakko::{ArgsSchema, ArgsValues, Context, Name, action_name};
+/// use rakko_cli::ErasedCommand;
+/// use rakko_cli::clawless::CommandResult;
+/// use rakko_cli::clawless::context::Context as ClawlessContext;
+///
+/// struct Serve;
+///
+/// impl ErasedCommand for Serve {
+///     fn name(&self) -> Name {
+///         action_name!("serve")
+///     }
+///
+///     fn arguments(&self) -> ArgsSchema {
+///         ArgsSchema::empty()
+///     }
+///
+///     fn run<'a>(
+///         &'a self,
+///         _project: &'a Context,
+///         _clawless: &'a ClawlessContext,
+///         _values: &'a ArgsValues,
+///     ) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>> {
+///         Box::pin(async { Ok(()) })
+///     }
+/// }
+/// ```
+pub trait ErasedCommand: Send + Sync + Sealed {
     /// Returns the name that identifies the command
     fn name(&self) -> Name;
 
@@ -80,6 +118,8 @@ pub trait ErasedCommand: Send + Sync {
         values: &'a ArgsValues,
     ) -> Pin<Box<dyn Future<Output = CommandResult> + Send + 'a>>;
 }
+
+impl<C: Command> Sealed for C {}
 
 impl<C: Command> ErasedCommand for C {
     fn name(&self) -> Name {

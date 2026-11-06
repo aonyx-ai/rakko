@@ -64,6 +64,8 @@ mod erased_command;
 mod report;
 /// The root of the project that a run maintains
 mod root;
+/// The seal on the view of a command that hides its type
+mod seal;
 
 /// The framework that a command receives its context from and writes through
 ///

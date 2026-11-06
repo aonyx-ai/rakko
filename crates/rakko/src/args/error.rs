@@ -8,7 +8,13 @@ use crate::args::values::ArgumentValue;
 /// The machinery collects values without knowing the type of the arguments,
 /// so a value can be absent or can fail to convert. An argument set reports
 /// which argument it could not read and why.
+///
+/// A later release can add a variant for another reason why a value cannot
+/// be read. So a match on this error outside this crate needs an arm for a
+/// variant that it does not know. An argument set can still construct every
+/// variant.
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
+#[non_exhaustive]
 pub enum ReadArgsError {
     /// The run holds no value for an argument that the action requires
     #[error("no value for the required argument '{name}'")]

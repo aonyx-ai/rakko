@@ -5,7 +5,12 @@ use thiserror::Error;
 /// The name of an action and the name of an argument satisfy one set of
 /// rules, and both report this error. The variant identifies the rule that
 /// the input does not satisfy.
+///
+/// A later release can add a variant, such as for a rule that it adds. So a
+/// match on this error outside this crate needs an arm for a variant that it
+/// does not know.
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
+#[non_exhaustive]
 pub enum ParseNameError {
     /// The input was empty
     #[error("name is empty")]
