@@ -66,6 +66,15 @@ from the design discussions to the terms that replaced them.
   commands of the project that do not fit an action, and `mise run rakko`
   runs it. The harness is a package of its own, outside the workspace of the
   project, and it is the full adoption surface of a project.
+- **Harness API** — Everything that the code of a harness and the workflows
+  of a project depend on. It has four parts. The first part is the builder of
+  the projection. The second part is the items of the catalog that a harness
+  uses, with the types that they expose. The third part is the contract
+  crate, the helper crates, and `rakko-test-utils`, for a harness that writes
+  its own actions or groups. The fourth part is the command line that the
+  workflows of a project call. The document that a command writes with
+  `--json` is not part of the harness API. [ADR-026] records what Rakko
+  promises about the harness API from one version to the next.
 - **Helper crate** — A crate that carries machinery that many actions need.
   `rakko-tool` is the first one: it finds an external tool through mise and
   runs it. An action depends on the helper crates that it uses next to the
@@ -166,6 +175,7 @@ from the design discussions to the terms that replaced them.
 | set                                    | bundle           | Both terms were in use for the same concept.                              |
 | xtask                                  | harness          | The name of the community pattern, not the name of our crate.             |
 
+[adr-026]: adrs/026-harness-api-stability.md
 [clawless]: https://github.com/aonyx-ai/clawless
 [mise]: https://mise.jdx.dev
 [renovate]: https://docs.renovatebot.com
