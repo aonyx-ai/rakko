@@ -29,10 +29,11 @@ pub use self::error::ParseFilePathError;
 ///
 /// ```
 /// use rakko::FilePath;
+/// use rakko_test_utils::path;
 /// use std::str::FromStr;
 ///
 /// assert!(FilePath::from_str("src/main.rs").is_ok());
-/// assert!(FilePath::from_str("/tmp/project/src/main.rs").is_err());
+/// assert!(FilePath::try_from(path("/tmp/project/src/main.rs")).is_err());
 /// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct FilePath(PathBuf);

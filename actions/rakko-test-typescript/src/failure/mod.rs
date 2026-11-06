@@ -68,20 +68,20 @@ impl Failure {
     /// ```
     /// use rakko_action::ProjectRoot;
     /// use rakko_test_typescript::failure::{Failure, Origin};
-    /// use std::path::PathBuf;
+    /// use rakko_test_utils::path;
     ///
     /// let failure = Failure::builder()
     ///     .name("add")
     ///     .origin(
     ///         Origin::builder()
-    ///             .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
+    ///             .path(path("/home/otter/project/src/add.test.ts"))
     ///             .line(5)
     ///             .column(1)
     ///             .build(),
     ///     )
     ///     .reason("Expected values to be strictly equal: 2 !== 3")
     ///     .build();
-    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     ///
     /// let finding = failure.finding(&root);
     ///

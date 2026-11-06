@@ -20,13 +20,14 @@ use crate::oxfmt::ObserveOxfmtError;
 /// use rakko_format_typescript::FormatTypeScriptError;
 /// use rakko_test_utils::path;
 ///
+/// let outside = path("../outside/project");
 /// let error = FormatTypeScriptError::ForeignPath {
-///     path: path("../outside/project"),
+///     path: outside.clone(),
 /// };
 ///
 /// assert_eq!(
 ///     error.to_string(),
-///     "oxfmt reported a path outside the project: ../outside/project"
+///     format!("oxfmt reported a path outside the project: {}", outside.display())
 /// );
 /// ```
 #[derive(Debug, Error)]

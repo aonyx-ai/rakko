@@ -80,20 +80,20 @@ impl PrettierProblem {
     /// # Examples
     ///
     /// ```
-    /// use std::path::PathBuf;
     /// use rakko_action::ProjectRoot;
     /// use rakko_prettier::problem::ProblemDetail;
     /// use rakko_prettier::PrettierProblem;
+    /// use rakko_test_utils::path;
     ///
     /// let problem = PrettierProblem::builder()
-    ///     .path(PathBuf::from("src/main.rs"))
+    ///     .path(path("src/main.rs"))
     ///     .detail(ProblemDetail::Unformatted)
     ///     .build();
     ///
-    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     /// let relative = problem.relative_path(&root).unwrap();
     ///
-    /// assert_eq!(relative.get().to_str(), Some("src/main.rs"));
+    /// assert_eq!(relative.get(), path("src/main.rs"));
     /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()

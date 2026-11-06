@@ -69,20 +69,20 @@ impl UnusedDependency {
     /// # Examples
     ///
     /// ```
-    /// use std::path::PathBuf;
     /// use rakko_cargo::{CargoRoot, Documentation};
     /// use rakko_action::ProjectRoot;
     /// use rakko_check_unused_deps::{UnusedDependency, DependencyKind};
+    /// use rakko_test_utils::path;
     ///
     /// let root = CargoRoot::builder()
-    ///     .directory(PathBuf::from("/project"))
+    ///     .directory(path("/project"))
     ///     .documentation(Documentation::Testable)
     ///     .build();
-    /// let project = ProjectRoot::new(PathBuf::from("/project"));
+    /// let project = ProjectRoot::new(path("/project"));
     /// let dep = UnusedDependency::builder()
     ///     .kind(DependencyKind::Normal)
     ///     .name("serde")
-    ///     .manifest(PathBuf::from("/project/Cargo.toml"))
+    ///     .manifest(path("/project/Cargo.toml"))
     ///     .build();
     ///
     /// let finding = dep.finding(&root, &project);

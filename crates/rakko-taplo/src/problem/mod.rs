@@ -76,15 +76,15 @@ impl TaploProblem {
     /// # Examples
     ///
     /// ```
-    /// use std::path::PathBuf;
     /// use rakko_action::ProjectRoot;
     /// use rakko_taplo::{TaploProblem, ProblemDetail};
+    /// use rakko_test_utils::path;
     ///
     /// let problem = TaploProblem::builder()
-    ///     .path(PathBuf::from("/home/otter/project/a.toml"))
+    ///     .path(path("/home/otter/project/a.toml"))
     ///     .detail(ProblemDetail::Unformatted)
     ///     .build();
-    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     ///
     /// let relative = problem.relative_path(&root).unwrap();
     /// assert_eq!(relative.get().to_str(), Some("a.toml"));

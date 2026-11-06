@@ -28,10 +28,11 @@ pub use self::error::ParseDirectoryPathError;
 ///
 /// ```
 /// use rakko::finding::DirectoryPath;
+/// use rakko_test_utils::path;
 /// use std::str::FromStr;
 ///
 /// assert!(DirectoryPath::from_str("src/module").is_ok());
-/// assert!(DirectoryPath::from_str("/tmp/project").is_err());
+/// assert!(DirectoryPath::try_from(path("/tmp/project")).is_err());
 /// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct DirectoryPath(PathBuf);

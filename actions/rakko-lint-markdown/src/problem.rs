@@ -83,21 +83,20 @@ impl MarkdownlintProblem {
     /// A path below the root loses the root:
     ///
     /// ```
-    /// use std::path::PathBuf;
-    ///
     /// use rakko_action::{FilePath, ProjectRoot};
     /// use rakko_lint_markdown::MarkdownlintProblem;
+    /// use rakko_test_utils::path;
     ///
     /// let problem = MarkdownlintProblem::builder()
-    ///     .path(PathBuf::from("/project/docs/README.md"))
+    ///     .path(path("/project/docs/README.md"))
     ///     .line(1)
     ///     .message("MD041/first-line-heading")
     ///     .build();
-    /// let root = ProjectRoot::new(PathBuf::from("/project"));
+    /// let root = ProjectRoot::new(path("/project"));
     ///
     /// let relative = problem.relative_path(&root);
     ///
-    /// assert_eq!(relative, FilePath::try_from(PathBuf::from("docs/README.md")).ok());
+    /// assert_eq!(relative, FilePath::try_from(path("docs/README.md")).ok());
     /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()

@@ -60,16 +60,16 @@ impl Origin {
     /// # Examples
     ///
     /// ```
-    /// use std::path::PathBuf;
     /// use rakko_action::ProjectRoot;
     /// use rakko_test_typescript::failure::Origin;
+    /// use rakko_test_utils::path;
     ///
     /// let origin = Origin::builder()
-    ///     .path(PathBuf::from("/home/otter/project/src/add.test.ts"))
+    ///     .path(path("/home/otter/project/src/add.test.ts"))
     ///     .line(5)
     ///     .column(1)
     ///     .build();
-    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     ///
     /// let relative = origin.relative_path(&root);
     ///

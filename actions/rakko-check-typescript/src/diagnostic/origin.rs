@@ -57,11 +57,11 @@ impl Origin {
     /// ```
     /// use rakko_action::ProjectRoot;
     /// use rakko_check_typescript::diagnostic::Origin;
-    /// use std::path::PathBuf;
+    /// use rakko_test_utils::path;
     ///
-    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     /// let origin = Origin::builder()
-    ///     .path(PathBuf::from("/home/otter/project/src/index.ts"))
+    ///     .path(path("/home/otter/project/src/index.ts"))
     ///     .line(2)
     ///     .column(14)
     ///     .build();

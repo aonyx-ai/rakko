@@ -21,9 +21,11 @@ pub use self::project_root::ProjectRoot;
 ///
 /// ```
 /// use rakko::Context;
+/// use rakko_test_utils::path;
 ///
-/// let context = Context::builder().root("/tmp/project").build();
-/// assert_eq!(context.root().get(), "/tmp/project");
+/// let root = path("/tmp/project");
+/// let context = Context::builder().root(root.as_path()).build();
+/// assert_eq!(context.root().get(), root);
 /// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Context {
@@ -51,9 +53,11 @@ impl Context {
     ///
     /// ```
     /// use rakko::Context;
+    /// use rakko_test_utils::path;
     ///
-    /// let context = Context::builder().root("/tmp/project").build();
-    /// assert!(context.layout().config().get().starts_with("/tmp/project"));
+    /// let root = path("/tmp/project");
+    /// let context = Context::builder().root(root.as_path()).build();
+    /// assert!(context.layout().config().get().starts_with(&root));
     /// ```
     #[builder]
     pub fn new(#[builder(into)] root: ProjectRoot, layout: Option<Layout>) -> Self {

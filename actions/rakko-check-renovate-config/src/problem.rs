@@ -86,11 +86,11 @@ impl RenovateProblem {
     /// ```
     /// use rakko_action::{Location, ProjectRoot};
     /// use rakko_check_renovate_config::problem::RenovateProblem;
-    /// use std::path::PathBuf;
+    /// use rakko_test_utils::path;
     ///
-    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     /// let problem = RenovateProblem::builder()
-    ///     .path(PathBuf::from("/home/otter/project/renovate.json"))
+    ///     .path(path("/home/otter/project/renovate.json"))
     ///     .topic("Config Error".to_owned())
     ///     .detail("Invalid option".to_owned())
     ///     .build();
@@ -144,16 +144,16 @@ impl RenovateProblem {
     /// ```
     /// use rakko_action::ProjectRoot;
     /// use rakko_check_renovate_config::problem::RenovateProblem;
-    /// use std::path::PathBuf;
+    /// use rakko_test_utils::path;
     ///
-    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     /// let inside = RenovateProblem::builder()
-    ///     .path(PathBuf::from("/home/otter/project/renovate.json"))
+    ///     .path(path("/home/otter/project/renovate.json"))
     ///     .topic("Config Error".to_owned())
     ///     .detail("Invalid option".to_owned())
     ///     .build();
     /// let outside = RenovateProblem::builder()
-    ///     .path(PathBuf::from("/elsewhere/renovate.json"))
+    ///     .path(path("/elsewhere/renovate.json"))
     ///     .topic("Config Error".to_owned())
     ///     .detail("Invalid option".to_owned())
     ///     .build();

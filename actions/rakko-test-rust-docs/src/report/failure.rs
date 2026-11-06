@@ -71,8 +71,8 @@ impl DoctestFailure {
     /// # Examples
     ///
     /// ```
-    /// use std::path::PathBuf;
     /// use rakko_test_rust_docs::DoctestFailure;
+    /// use rakko_test_utils::path;
     /// use rakko_cargo::{CargoRoot, Documentation};
     /// use rakko_action::ProjectRoot;
     ///
@@ -82,11 +82,11 @@ impl DoctestFailure {
     ///     .build();
     ///
     /// let root = CargoRoot::builder()
-    ///     .directory(PathBuf::from("/home/otter/project/crates"))
+    ///     .directory(path("/home/otter/project/crates"))
     ///     .documentation(Documentation::Testable)
     ///     .build();
     ///
-    /// let project = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    /// let project = ProjectRoot::new(path("/home/otter/project"));
     ///
     /// let finding = failure.finding(&root, &project);
     ///
