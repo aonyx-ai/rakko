@@ -11,19 +11,19 @@ use rakko::Span;
 /// reports the diagnostic asks the root for the path relative to the
 /// project.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
-pub struct DiagnosticSpan {
+pub(crate) struct DiagnosticSpan {
     /// The file that the diagnostic is about, as cargo wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// The range of the file that the diagnostic covers
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     range: Span,
 }
 
 impl DiagnosticSpan {
     /// Creates a span from the path and the range that the compiler named
-    pub fn new(path: PathBuf, range: Span) -> Self {
+    pub(crate) fn new(path: PathBuf, range: Span) -> Self {
         Self { path, range }
     }
 }

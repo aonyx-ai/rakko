@@ -46,9 +46,11 @@
 //! [tokio]: https://tokio.rs
 
 /// The run of a tool that survives a launcher that Windows stopped
-pub mod launch;
+mod launch;
+/// The seal on the run of a tool
+mod seal;
 /// Types for an external program that an action runs
-pub mod tool;
+mod tool;
 
 pub use kawauso_process::error::RunCommandError;
 pub use kawauso_process::invocation::Program;

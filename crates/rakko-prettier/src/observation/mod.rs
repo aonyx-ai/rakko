@@ -74,12 +74,10 @@ pub struct Observation {
 impl Observation {
     /// Creates the observation of a run
     ///
-    /// A run of prettier builds one through [`read`][read], and a caller
+    /// A run of prettier builds one from what prettier wrote, and a caller
     /// builds one where a test stands in for a prettier that nobody started.
     /// Every part is optional, so a test names what its case is about and
     /// leaves the rest at the answer of a run that reported nothing.
-    ///
-    /// [read]: Observation::read
     #[builder]
     pub fn new(
         #[builder(default)] problems: Vec<PrettierProblem>,
@@ -105,7 +103,7 @@ impl Observation {
     /// takes the operation, because a rewrite states how long each file took
     /// and marks the files that it left alone, while a report names paths and
     /// nothing else.
-    pub fn read(execution: &Execution, operation: Operation) -> Self {
+    pub(crate) fn read(execution: &Execution, operation: Operation) -> Self {
         self::report::read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),

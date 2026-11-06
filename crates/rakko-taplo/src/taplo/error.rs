@@ -7,7 +7,12 @@ use thiserror::Error;
 /// file that it would reformat travel as problems of the observation. These
 /// variants describe a run whose report cannot be trusted, and the action
 /// that asked for the run reports it instead of answering from it.
+///
+/// A later release can add a variant for another reason why a run of taplo has
+/// no answer. So a match on this error outside this crate needs an arm for a
+/// variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ObserveTaploError {
     /// Every attempt lost part of the report
     ///

@@ -7,7 +7,12 @@ use thiserror::Error;
 /// a file that it would rewrite travel as problems of the observation. This
 /// variant describes a run whose report cannot be trusted, and the action that
 /// asked for the run reports it instead of answering from it.
+///
+/// A later release can add a variant for another reason why a run of prettier
+/// has no answer. So a match on this error outside this crate needs an arm for
+/// a variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ObservePrettierError {
     /// Prettier did not run
     ///

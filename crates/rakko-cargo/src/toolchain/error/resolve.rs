@@ -13,7 +13,12 @@ use crate::toolchain::{Channel, Toolchain};
 /// output.
 ///
 /// No variant means that cargo ran. Nothing of the project was examined.
+///
+/// A later release can add a variant for another reason why a toolchain cannot
+/// be found. So a match on this error outside this crate needs an arm for a
+/// variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ResolveToolchainError {
     /// Mise did not run
     ///

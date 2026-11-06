@@ -24,8 +24,8 @@ use serde::de::DeserializeOwned;
 
 pub use self::diagnostic::CargoDiagnostic;
 pub use self::error::ReadReportError;
-pub use self::level::DiagnosticLevel;
-pub use self::span::DiagnosticSpan;
+pub(crate) use self::level::DiagnosticLevel;
+pub(crate) use self::span::DiagnosticSpan;
 
 /// The reason of a line that carries a diagnostic of the compiler
 const COMPILER_MESSAGE: &str = "compiler-message";

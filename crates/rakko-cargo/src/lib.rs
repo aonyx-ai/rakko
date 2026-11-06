@@ -57,22 +57,20 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for the cargo that a project runs
-pub mod cargo;
+mod cargo;
 /// The flag that holds cargo to the lockfile of a workspace
 pub mod lockfile;
 /// Types for what cargo reported about a build
-pub mod report;
+mod report;
 /// Types for one workspace root of a project
-pub mod root;
+mod root;
 /// Types for the Rust toolchain that a job runs on
-pub mod toolchain;
+mod toolchain;
 /// Types for a version of the Rust compiler
-pub mod version;
+mod version;
 
 pub use self::cargo::{Cargo, DiscoverRootsError};
-pub use self::report::{
-    CargoDiagnostic, CargoReport, DiagnosticLevel, DiagnosticSpan, ReadReportError,
-};
+pub use self::report::{CargoDiagnostic, CargoReport, ReadReportError};
 pub use self::root::{CargoPackage, CargoRoot, Documentation, DocumentedNames, PackageName};
 pub use self::toolchain::{Channel, ResolveNewestToolchainError, ResolveToolchainError, Toolchain};
 pub use self::version::RustVersion;

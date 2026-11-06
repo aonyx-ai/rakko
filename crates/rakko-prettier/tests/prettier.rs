@@ -247,7 +247,7 @@ async fn observe_with_a_filter_for_every_extension_skips_an_unknown_language() {
     let project = Project::new();
     project.write("main.rs", FOREIGN);
 
-    let observation = project.observe(Operation::Report, &Filter::any()).await;
+    let observation = project.observe(Operation::Report, &Filter::default()).await;
 
     assert!(
         observation.succeeded(),

@@ -8,7 +8,12 @@ use thiserror::Error;
 /// and a reading that skipped a test it did not understand would let a run
 /// pass with its failures unread. The reading therefore stops, and the action
 /// reports the error.
+///
+/// A later release can add a variant for another reason why a report of nextest
+/// cannot be read. So a match on this error outside this crate needs an arm for
+/// a variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ReadNextestReportError {
     /// Nextest wrote a record whose kind the crate knows and whose body it
     /// cannot read

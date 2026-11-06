@@ -13,7 +13,12 @@ use crate::report::ReadNextestReportError;
 /// observation. The variants of this error describe a run whose reports
 /// cannot be trusted, and the action that asked for the run reports the
 /// error instead of answering from them.
+///
+/// A later release can add a variant for another reason why a run of nextest
+/// has no answer. So a match on this error outside this crate needs an arm for
+/// a variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ObserveNextestError {
     /// Cargo did not run
     ///

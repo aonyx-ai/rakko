@@ -626,7 +626,7 @@ impl Exclusions {
                 .parse()
                 .map_err(|source| DiscoverRootsError::UnrecognizedExclusions {
                     manifest: manifest.clone(),
-                    source,
+                    source: Box::new(source),
                 })?;
 
         let paths = |key: &str| -> Vec<PathBuf> {
@@ -662,5 +662,36 @@ fn unreadable(directory: &Path, source: std::io::Error) -> DiscoverRootsError {
     DiscoverRootsError::UnreadableDirectory {
         directory: directory.to_path_buf(),
         source,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // An assertion in a test panics by design. A `# Panics` section on every
+    // test would repeat that and give the reader no information.
+    #![allow(clippy::missing_panics_doc)]
+
+    use std::error::Error;
+
+    use super::*;
+
+    /// The content of a manifest that is no TOML document
+    const NO_TOML: &str = "[workspace\n";
+
+    #[tokio::test]
+    async fn read_of_a_manifest_that_is_no_toml_document_carries_what_the_parser_said() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        std::fs::write(directory.path().join(MANIFEST), NO_TOML)
+            .expect("the test writes the manifest");
+        let said = NO_TOML
+            .parse::<DocumentMut>()
+            .expect_err("the content is no TOML document")
+            .to_string();
+
+        let Err(error) = Exclusions::read(directory.path()).await else {
+            panic!("expected the reading to report an error");
+        };
+
+        assert_eq!(error.source().map(ToString::to_string), Some(said));
     }
 }

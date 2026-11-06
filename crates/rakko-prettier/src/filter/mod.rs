@@ -7,10 +7,6 @@
 /// The extension of a file that a run examines
 mod extension;
 
-use std::path::Path;
-
-use getset::Getters;
-
 pub use self::extension::FileExtension;
 
 /// The part of a pattern that matches every directory below the root
@@ -38,8 +34,6 @@ const EVERY_EXTENSION: &str = "*";
 /// use rakko_prettier::{FileExtension, Filter};
 ///
 /// let filter = Filter::new([FileExtension::new("json"), FileExtension::new("json5")]);
-///
-/// assert_eq!(filter.pattern(), "**/*.{json,json5}");
 /// ```
 ///
 /// An action that wraps everything names nothing:
@@ -47,49 +41,21 @@ const EVERY_EXTENSION: &str = "*";
 /// ```
 /// use rakko_prettier::Filter;
 ///
-/// assert_eq!(Filter::any().pattern(), "**/*.*");
+/// assert_eq!(Filter::default(), Filter::new(Vec::new()));
 /// ```
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub struct Filter {
     /// The extensions that a run examines, empty for every extension
-    #[getset(get = "pub")]
     extensions: Vec<FileExtension>,
 }
 
 impl Filter {
-    /// Returns the filter that examines every file with an extension
-    ///
-    /// Prettier skips what it cannot assign to a language, so a run with this
-    /// filter covers every language that prettier understands.
-    pub fn any() -> Self {
-        Self::default()
-    }
-
-    /// Returns whether a file carries one of the extensions of the filter
-    ///
-    /// The comparison respects the case of the extension, because the pattern
-    /// that prettier reads does the same. A filter that names no extension
-    /// accepts every file that has one.
-    pub fn matches(&self, path: &Path) -> bool {
-        let Some(extension) = path.extension().and_then(std::ffi::OsStr::to_str) else {
-            return false;
-        };
-
-        if self.extensions.is_empty() {
-            return true;
-        }
-
-        self.extensions
-            .iter()
-            .any(|candidate| candidate.get() == extension)
-    }
-
     /// Returns the filter that examines the files with the given extensions
     ///
     /// An extension stands without its dot. A call without an extension
-    /// returns the filter that [`any`][any] returns.
-    ///
-    /// [any]: Filter::any
+    /// returns the default filter, which examines every file with an
+    /// extension. Prettier skips what it cannot assign to a language, so a
+    /// run with that filter covers every language that prettier understands.
     pub fn new(extensions: impl IntoIterator<Item = FileExtension>) -> Self {
         Self {
             extensions: extensions.into_iter().collect(),
@@ -100,7 +66,7 @@ impl Filter {
     ///
     /// Prettier reads a brace list only when it holds more than one entry, so
     /// a single extension stands alone and several stand in braces.
-    pub fn pattern(&self) -> String {
+    pub(crate) fn pattern(&self) -> String {
         let mut pattern = String::from(EVERY_DIRECTORY);
 
         match self.extensions.as_slice() {
@@ -131,8 +97,6 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
-    use std::path::PathBuf;
-
     use super::*;
 
     /// Returns the filter that names the given extensions
@@ -141,43 +105,8 @@ mod tests {
     }
 
     #[test]
-    fn matches_a_file_of_another_extension_without_an_extension_of_its_own() {
-        let matched = Filter::any().matches(&PathBuf::from("sub/a.rs"));
-
-        assert!(matched);
-    }
-
-    #[test]
-    fn matches_a_file_of_another_extension_reports_no_match() {
-        let matched = filter(&["md"]).matches(&PathBuf::from("sub/a.rs"));
-
-        assert!(!matched);
-    }
-
-    #[test]
-    fn matches_a_file_of_the_extension_reports_a_match() {
-        let matched = filter(&["json", "json5"]).matches(&PathBuf::from("sub/a.json5"));
-
-        assert!(matched);
-    }
-
-    #[test]
-    fn matches_a_file_of_the_extension_in_another_case_reports_no_match() {
-        let matched = filter(&["md"]).matches(&PathBuf::from("README.MD"));
-
-        assert!(!matched);
-    }
-
-    #[test]
-    fn matches_a_file_without_an_extension_reports_no_match() {
-        let matched = Filter::any().matches(&PathBuf::from("LICENSE-MIT"));
-
-        assert!(!matched);
-    }
-
-    #[test]
     fn pattern_without_an_extension_matches_every_extension() {
-        let pattern = Filter::any().pattern();
+        let pattern = Filter::default().pattern();
 
         assert_eq!(pattern, "**/*.*");
     }

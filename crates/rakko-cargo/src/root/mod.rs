@@ -21,7 +21,7 @@ pub use self::package::{CargoPackage, DocumentedNames, PackageName};
 use crate::version::RustVersion;
 
 /// The name of the file that describes a package or a workspace to cargo
-pub const MANIFEST: &str = "Cargo.toml";
+pub(crate) const MANIFEST: &str = "Cargo.toml";
 
 /// One workspace root of a project
 ///

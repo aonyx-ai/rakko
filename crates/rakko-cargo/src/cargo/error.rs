@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use rakko_tool::RunCommandError;
 use thiserror::Error;
-use toml_edit::TomlError;
 
 /// An error that stops the discovery of the workspace roots of a project
 ///
@@ -11,7 +10,12 @@ use toml_edit::TomlError;
 /// holds, and an answer with a root missing would hide every problem of that
 /// root behind a green run. The discovery therefore stops, and the action
 /// that asked for it reports the error.
+///
+/// A later release can add a variant for another reason why the discovery of
+/// the roots can stop. So a match on this error outside this crate needs an arm
+/// for a variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum DiscoverRootsError {
     /// Cargo did not run
     ///
@@ -102,8 +106,14 @@ pub enum DiscoverRootsError {
         /// The manifest of the workspace root
         manifest: PathBuf,
 
-        /// The cause of the failure
-        source: TomlError,
+        /// The cause of the failure, as the TOML parser of the crate gave it
+        ///
+        /// The type of the cause is not part of the interface, so a later
+        /// release can change the parser without a break. Read the cause
+        /// through the [`Error`][error] trait.
+        ///
+        /// [error]: std::error::Error
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
 
     /// Cargo described a manifest in a shape that the crate does not

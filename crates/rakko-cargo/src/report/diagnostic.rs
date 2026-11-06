@@ -13,25 +13,31 @@ use crate::root::CargoRoot;
 /// as the notes and the suggestions below a diagnostic, and those stay
 /// behind, because a finding carries one message and one location.
 ///
+/// A caller reads a diagnostic as the finding that [`finding`][finding]
+/// gives. The parts of the diagnostic stay inside this crate, so a later
+/// compatible release can add more of what the compiler writes.
+///
 /// The value compares by everything it holds, so a report can tell two
 /// reports of one diagnostic apart from two diagnostics.
+///
+/// [finding]: CargoDiagnostic::finding
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
 pub struct CargoDiagnostic {
     /// How serious the compiler considers the diagnostic
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     level: DiagnosticLevel,
 
     /// The code that names the lint or the error, when the compiler assigned
     /// one
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     code: Option<String>,
 
     /// The message of the compiler
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     message: String,
 
     /// The source that the diagnostic points at, when it points at one
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     span: Option<DiagnosticSpan>,
 }
 
@@ -39,7 +45,7 @@ pub struct CargoDiagnostic {
 impl CargoDiagnostic {
     /// Creates a diagnostic from what the compiler reported
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         level: DiagnosticLevel,
         #[builder(into)] code: Option<String>,
         #[builder(into)] message: String,

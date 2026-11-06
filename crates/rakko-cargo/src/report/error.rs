@@ -8,7 +8,12 @@ use thiserror::Error;
 /// version of cargo, and a reading that skipped a diagnostic it did not
 /// understand would let a build pass with its problems unread. The reading
 /// therefore stops, and the action that asked for it reports the error.
+///
+/// A later release can add a variant for another reason why a report of cargo
+/// cannot be read. So a match on this error outside this crate needs an arm for
+/// a variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ReadReportError {
     /// Cargo wrote a record whose reason the crate knows and whose body it
     /// cannot read

@@ -11,9 +11,14 @@ use crate::tool::ToolName;
 /// project, and the message carries what mise said, because mise names the
 /// step that closes the gap.
 ///
-/// Neither variant means that the tool ran. Nothing started, so there is no
-/// exit status and no output to read.
+/// No variant means that the tool ran. Nothing started, so there is no exit
+/// status and no output to read.
+///
+/// A later release can add a variant for another reason why a tool cannot be
+/// found. So a match on this error outside this crate needs an arm for a
+/// variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ResolveToolError {
     /// Mise did not run
     ///

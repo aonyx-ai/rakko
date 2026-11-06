@@ -51,7 +51,7 @@ impl Toolchain {
     /// The proxy of rustup reads a toolchain from its first argument when
     /// that argument starts with a plus sign, and it takes that argument
     /// over the environment that mise set for the default toolchain.
-    pub fn argument(&self) -> String {
+    pub(crate) fn argument(&self) -> String {
         format!("+{}", self.get())
     }
 
@@ -92,7 +92,7 @@ impl Toolchain {
     ///
     /// let toolchain = Toolchain::resolve(Channel::new("nightly"), &root).await?;
     ///
-    /// println!("{}", toolchain.argument());
+    /// println!("{toolchain}");
     /// # Ok(())
     /// # }
     /// ```
@@ -162,7 +162,7 @@ impl Toolchain {
     ///
     /// let toolchain = Toolchain::newest(&root).await?;
     ///
-    /// println!("{}", toolchain.argument());
+    /// println!("{toolchain}");
     /// # Ok(())
     /// # }
     /// ```
