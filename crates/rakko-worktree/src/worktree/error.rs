@@ -107,9 +107,12 @@ pub enum CreateWorktreeError {
     /// A changed path did not reach the copy
     ///
     /// The operating system refused to copy the file into the worktree, or to
-    /// remove it from there. The copy then differs from the project at that
-    /// path, and a job that ran in it would answer for a tree that nobody
-    /// has.
+    /// remove it from there. The operating system can also refuse to read a
+    /// parent directory of the path, in the project or in the copy, or to
+    /// remove an empty parent directory from the copy. The error then carries
+    /// the path of the removed file, and not the path of that directory. The
+    /// copy then differs from the project at that path, and a job that ran in
+    /// it would answer for a tree that nobody has.
     #[error("failed to sync `{path}` into the copy of the project")]
     UnsyncedPath {
         /// The path that the crate synced, relative to the project root
