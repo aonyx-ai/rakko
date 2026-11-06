@@ -1,7 +1,5 @@
 use std::fmt;
 
-use getset::Getters;
-
 use crate::action::Action;
 use crate::erased_action::ErasedAction;
 
@@ -154,14 +152,22 @@ use crate::erased_action::ErasedAction;
 /// ```
 ///
 /// [`with`]: Bundle::with
-#[derive(Default, Getters)]
+#[derive(Default)]
 pub struct Bundle {
     /// The actions, in the order in which the bundle lists them
-    #[getset(get = "pub")]
     actions: Vec<Box<dyn ErasedAction>>,
 }
 
 impl Bundle {
+    /// Returns the actions, in the order in which the bundle lists them
+    ///
+    /// The answer is a slice and not a vector. So a caller does not depend on
+    /// the methods of a vector, such as its capacity.
+    #[must_use]
+    pub fn actions(&self) -> &[Box<dyn ErasedAction>] {
+        &self.actions
+    }
+
     /// Creates a bundle from the given actions
     ///
     /// The bundle keeps the order of the actions, and a mount receives them

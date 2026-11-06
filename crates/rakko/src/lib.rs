@@ -34,29 +34,31 @@
 //! [rakko-cli]: https://docs.rs/rakko-cli
 
 /// How a run of an action uses the project
-pub mod access;
+mod access;
 /// The trait that every action implements
-pub mod action;
+mod action;
 /// Types for the arguments that a run of an action reads
-pub mod args;
+mod args;
 /// The view of an action whose arguments are bound for one run
-pub mod bound_action;
+mod bound_action;
 /// The list of actions that a bundle exports
-pub mod bundle;
+mod bundle;
 /// Types for the data that an action reads when it runs
-pub mod context;
+mod context;
 /// The view of an action that hides its type
-pub mod erased_action;
+mod erased_action;
 /// Types for a problem that an action found in a project
-pub mod finding;
+mod finding;
 /// The named list of actions that the command line runs as one command
-pub mod group;
+mod group;
 /// Types for the identifier of an action
-pub mod name;
+mod name;
 /// Types for the result of an action run
-pub mod outcome;
+mod outcome;
 /// The spelling of a path that an action reports
 pub mod path;
+/// The seal on the views of an action that hide its type
+mod seal;
 
 pub use self::access::Access;
 pub use self::action::Action;
@@ -66,7 +68,7 @@ pub use self::args::{
 };
 pub use self::bound_action::BoundAction;
 pub use self::bundle::Bundle;
-pub use self::context::{ConfigDirectory, Context, Layout, ProjectRoot};
+pub use self::context::{Context, ProjectRoot};
 pub use self::erased_action::ErasedAction;
 pub use self::finding::{
     Column, DirectoryPath, FilePath, Finding, FindingMessage, Line, Location,

@@ -38,8 +38,8 @@ from the design discussions to the terms that replaced them.
   action or the group itself. A written command is an ordinary Clawless
   command, and it knows nothing about actions.
 - **Context** — The data that is relevant when an action runs. Today this is
-  the project root and the directory layout. Later it can include user
-  variables and loaded configuration. Clawless uses the same name for a
+  the project root. Later it can include user variables and loaded
+  configuration. Clawless uses the same name for a
   similar concept. This parallel is intentional. An action never sees the
   Clawless type, and a command receives both.
 - **Contract crate** — The `rakko` crate. It contains the `Action` trait,

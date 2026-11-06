@@ -6,11 +6,10 @@ use crate::path;
 typed_fields::path! {
     /// The directory where the run of an action happens
     ///
-    /// A [`Context`] carries the root, and the [`Layout`] derives its defaults
-    /// from it. Every path of the project that an action reads, writes, or
-    /// reports is relative to this directory. The working directory of the
-    /// process can be another directory. A tool that an action starts with no
-    /// directory runs there, and not in the root.
+    /// A [`Context`] carries the root. Every path of the project that an
+    /// action reads, writes, or reports is relative to this directory. The
+    /// working directory of the process can be another directory. A tool that
+    /// an action starts with no directory runs there, and not in the root.
     ///
     /// The root can be the directory that the user edits, or it can be a copy
     /// of the project. So an action must not assume that the root is the
@@ -24,7 +23,6 @@ typed_fields::path! {
     ///
     /// [`Context`]: crate::Context
     /// [`FilePath`]: crate::FilePath
-    /// [`Layout`]: crate::Layout
     ProjectRoot
 }
 

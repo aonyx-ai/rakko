@@ -1,9 +1,9 @@
 /// The error type for reading the arguments of a run
 mod error;
 /// Types for the description of an argument set
-pub mod schema;
+mod schema;
 /// Types for the values that a run reads
-pub mod values;
+mod values;
 
 pub use self::error::ReadArgsError;
 pub use self::schema::{ArgsSchema, Argument, ArgumentName, ArgumentShape, Documentation};
