@@ -402,8 +402,10 @@ mod tests {
         }
     }
 
-    /// An action that declares `fix` and writes only when a run gives it, as a
-    /// formatter does. Otherwise it runs as the recorder that it wraps
+    /// An action that declares `fix`, as a formatter does
+    ///
+    /// It writes only when a run gives it `fix`. Otherwise it runs as the
+    /// recorder that it wraps.
     struct Formatter {
         /// The recorder that gives the action its name and runs it
         recorder: Recorder,
@@ -739,9 +741,11 @@ mod tests {
         );
     }
 
+    /// Shows that a run drives each member with the values bound to it
+    ///
     /// The test binds `fix` only to the formatter, which declares it, as the
     /// command line does. The run adds no value, so the writer, which declares
-    /// nothing, runs without it
+    /// nothing, runs without it.
     #[test]
     fn run_drives_each_member_with_the_values_that_it_was_bound_to() {
         let log = Arc::new(Mutex::new(Vec::new()));
