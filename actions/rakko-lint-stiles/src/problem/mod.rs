@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use getset::{CopyGetters, Getters};
 use rakko::{FilePath, Position, ProjectRoot};
 
-pub use self::severity::Severity;
+pub(crate) use self::severity::Severity;
 
 /// The character that opens the severity of a problem in a message
 const SEVERITY_OPEN: char = '[';
@@ -42,31 +42,31 @@ const RULE_CLOSE: &str = ": ";
 ///
 /// [relative]: StilesProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct StilesProblem {
+pub(crate) struct StilesProblem {
     /// The path of the file, as stiles wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// The position where the diagnostic starts
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     position: Position,
 
     /// How the rule weighed the diagnostic
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     severity: Severity,
 
     /// The identifier of the rule that fired, such as `lint.todo-comment`
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     rule: String,
 
     /// What the rule said about the code, in the words of stiles
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     text: String,
 }
 
 impl StilesProblem {
     /// Creates a problem from one diagnostic that stiles reported
-    pub fn new(
+    pub(crate) fn new(
         path: PathBuf,
         position: Position,
         severity: Severity,
@@ -86,7 +86,7 @@ impl StilesProblem {
     ///
     /// The sentence holds the severity, the rule, and what the rule said, so a
     /// reader sees which rule to turn off or to fix the code for.
-    pub fn message(&self) -> String {
+    pub(crate) fn message(&self) -> String {
         format!(
             "{SEVERITY_OPEN}{}{SEVERITY_CLOSE}{}{RULE_CLOSE}{}",
             self.severity, self.rule, self.text
@@ -99,7 +99,7 @@ impl StilesProblem {
     /// root as the place to check, so a path that does not fit points at a
     /// report that the caller misread, and the caller decides what to do about
     /// that.
-    pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
+    pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
 }

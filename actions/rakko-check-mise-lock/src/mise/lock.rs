@@ -10,7 +10,7 @@ use crate::part::Platform;
 /// when the project configures nothing to lock. The two mean opposite things
 /// for the outcome of the action, so the value tells them apart.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Lock {
+pub(crate) enum Lock {
     /// Mise locked the tools of the project and wrote its lockfiles
     Written {
         /// The platforms that mise targeted for each lockfile, by the path of

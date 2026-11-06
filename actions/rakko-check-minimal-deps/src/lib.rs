@@ -38,6 +38,6 @@
 
 /// Types for the action that checks a project against the lowest versions of
 /// its dependencies
-pub mod check_minimal_deps;
+mod check_minimal_deps;
 
 pub use self::check_minimal_deps::{CheckMinimalDeps, CheckMinimalDepsError};

@@ -10,7 +10,7 @@ use thiserror::Error;
 /// it means. The variants here describe a run that produced no answer about
 /// the workspace at all.
 #[derive(Debug, Error)]
-pub enum CheckWorkspaceError {
+pub(crate) enum CheckWorkspaceError {
     /// Cargo-deny did not run
     ///
     /// The program was resolved and did not start, or it started and its

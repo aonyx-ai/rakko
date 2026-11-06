@@ -7,7 +7,7 @@ use thiserror::Error;
 /// empty then, and the caller decides what that means. The variants here
 /// describe a listing that produced no answer at all.
 #[derive(Debug, Error)]
-pub enum ListFilesError {
+pub(crate) enum ListFilesError {
     /// Yamllint refused the configuration of the project
     ///
     /// Yamllint reads its configuration before it collects a single file, and

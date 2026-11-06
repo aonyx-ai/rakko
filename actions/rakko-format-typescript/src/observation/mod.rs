@@ -10,7 +10,6 @@
 /// The reading of the text that oxfmt wrote
 mod report;
 
-use bon::bon;
 use getset::{CopyGetters, Getters};
 use rakko_tool::Execution;
 
@@ -28,24 +27,24 @@ use crate::problem::OxfmtProblem;
 /// and the action that asked for the run decides what they mean for its
 /// outcome.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct Observation {
+pub(crate) struct Observation {
     /// The problems that oxfmt reported, in the order of the report
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     problems: Vec<OxfmtProblem>,
 
     /// What oxfmt said about a configuration file that it refused
     ///
     /// Oxfmt formats nothing at all when it cannot accept a configuration, so
     /// this is a run that never looked at a file of the project.
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     rejected_configuration: Option<String>,
 
     /// What oxfmt wrote to its standard error stream
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     stderr: String,
 
     /// Whether oxfmt ended with success
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     succeeded: bool,
 
     /// Whether oxfmt refused the pattern of the run because nothing matched it
@@ -53,11 +52,25 @@ pub struct Observation {
     /// Oxfmt treats a pattern that matches nothing as an error, so this is how
     /// a run reports that the project holds no file of the language. A caller
     /// answers it as a run that had nothing to examine, not as a failure.
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     unmatched_pattern: bool,
 }
 
-#[bon]
+impl Observation {
+    /// Reads what a run of oxfmt produced
+    ///
+    /// The reading takes both streams of the run and its exit status.
+    pub(crate) fn read(execution: &Execution) -> Self {
+        self::report::read(
+            &execution.stdout().to_string_lossy(),
+            &execution.stderr().to_string_lossy(),
+            execution.status().success(),
+        )
+    }
+}
+
+#[cfg(test)]
+#[bon::bon]
 impl Observation {
     /// Creates the observation of a run
     ///
@@ -68,7 +81,7 @@ impl Observation {
     ///
     /// [read]: Observation::read
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         #[builder(default)] problems: Vec<OxfmtProblem>,
         rejected_configuration: Option<String>,
         #[builder(into, default)] stderr: String,
@@ -82,16 +95,5 @@ impl Observation {
             succeeded,
             unmatched_pattern,
         }
-    }
-
-    /// Reads what a run of oxfmt produced
-    ///
-    /// The reading takes both streams of the run and its exit status.
-    pub fn read(execution: &Execution) -> Self {
-        self::report::read(
-            &execution.stdout().to_string_lossy(),
-            &execution.stderr().to_string_lossy(),
-            execution.status().success(),
-        )
     }
 }

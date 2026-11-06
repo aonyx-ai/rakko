@@ -18,7 +18,7 @@ use rakko::ProjectRoot;
 use rakko_tool::{Execution, Invocation, Launch, ResolveToolError, Tool, ToolName};
 
 pub use self::error::ObserveTraceyError;
-pub use self::report::Coverage;
+pub(crate) use self::report::Coverage;
 use self::report::{Status, Validation};
 use crate::environment::inherited;
 use crate::problem::TraceyProblem;
@@ -57,26 +57,8 @@ const WARNINGS: &str = "warnings";
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and a tracey that mise does not report
 /// stops the caller.
-///
-/// # Examples
-///
-/// ```no_run
-/// use rakko::ProjectRoot;
-/// use rakko_check_specs::Tracey;
-///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let tracey = Tracey::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
-///
-/// tracey.stop().await?;
-/// let problems = tracey.validate().await?;
-///
-/// println!("{} problems", problems.len());
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Tracey {
+pub(crate) struct Tracey {
     /// The program that mise installed for the project
     tool: Tool,
 }
@@ -92,7 +74,7 @@ impl Tracey {
     ///
     /// [unavailable]: ObserveTraceyError::TraceyUnavailable
     /// [unreadable]: ObserveTraceyError::UnreadableReport
-    pub async fn coverage(&self) -> Result<Coverage, ObserveTraceyError> {
+    pub(crate) async fn coverage(&self) -> Result<Coverage, ObserveTraceyError> {
         let execution = self.start(Question::Coverage).await?;
         let status: Status = parse(&execution.stdout().to_string_lossy(), || {
             diagnosis(&execution)
@@ -111,7 +93,7 @@ impl Tracey {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no tracey for the
     /// project.
-    pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
+    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(TRACEY), root).await?;
 
         Ok(Self { tool })
@@ -132,7 +114,7 @@ impl Tracey {
     /// Returns [`TraceyUnavailable`][unavailable] when tracey does not run.
     ///
     /// [unavailable]: ObserveTraceyError::TraceyUnavailable
-    pub async fn stop(&self) -> Result<(), ObserveTraceyError> {
+    pub(crate) async fn stop(&self) -> Result<(), ObserveTraceyError> {
         self.start(Question::Daemon).await?;
 
         Ok(())
@@ -151,7 +133,7 @@ impl Tracey {
     ///
     /// [unavailable]: ObserveTraceyError::TraceyUnavailable
     /// [unreadable]: ObserveTraceyError::UnreadableReport
-    pub async fn validate(&self) -> Result<Vec<TraceyProblem>, ObserveTraceyError> {
+    pub(crate) async fn validate(&self) -> Result<Vec<TraceyProblem>, ObserveTraceyError> {
         let execution = self.start(Question::References).await?;
         let validations: Vec<Validation> = parse(&execution.stdout().to_string_lossy(), || {
             diagnosis(&execution)
@@ -175,7 +157,10 @@ impl Tracey {
     /// Returns [`TraceyUnavailable`][unavailable] when tracey does not run.
     ///
     /// [unavailable]: ObserveTraceyError::TraceyUnavailable
-    pub async fn versions(&self, directory: &Path) -> Result<Option<String>, ObserveTraceyError> {
+    pub(crate) async fn versions(
+        &self,
+        directory: &Path,
+    ) -> Result<Option<String>, ObserveTraceyError> {
         let execution = self
             .invocation()
             .arg(PRE_COMMIT)

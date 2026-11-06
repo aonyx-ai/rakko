@@ -13,6 +13,7 @@ use crate::validator::report::ReadReportError;
 /// error describe a run whose answer cannot be trusted, and such a run stops
 /// instead of reporting one.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum CheckRenovateConfigError {
     /// The validator stopped before it had validated the project
     ///

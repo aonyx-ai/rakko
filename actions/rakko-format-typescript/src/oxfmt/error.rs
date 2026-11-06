@@ -7,7 +7,7 @@ use thiserror::Error;
 /// and a file that oxfmt could not format both travel in the observation of
 /// the run.
 #[derive(Debug, Error)]
-pub enum ObserveOxfmtError {
+pub(crate) enum ObserveOxfmtError {
     /// Oxfmt did not run
     ///
     /// The program was resolved and did not start, or it started and its

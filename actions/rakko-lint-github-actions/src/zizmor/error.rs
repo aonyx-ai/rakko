@@ -7,7 +7,7 @@ use thiserror::Error;
 /// travels in the observation, and the caller decides what it means. The
 /// variants here describe a run that produced no answer at all.
 #[derive(Debug, Error)]
-pub enum ObserveZizmorError {
+pub(crate) enum ObserveZizmorError {
     /// Zizmor stopped before it had audited every file
     ///
     /// Zizmor ends a run when it cannot read the configuration of the project,

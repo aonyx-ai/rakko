@@ -14,8 +14,8 @@ mod severity;
 use bon::Builder;
 use getset::{CopyGetters, Getters};
 
-pub use self::place::Place;
-pub use self::severity::Severity;
+pub(crate) use self::place::Place;
+pub(crate) use self::severity::Severity;
 
 /// The character that opens the severity of a diagnostic in a message
 const SEVERITY_OPEN: char = '[';
@@ -50,29 +50,29 @@ const HELP_OPEN: &str = " help: ";
 ///
 /// [place]: OxlintProblem::place
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
-pub struct OxlintProblem {
+pub(crate) struct OxlintProblem {
     /// Where the diagnostic belongs
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     place: Place,
 
     /// The severity that oxlint gave the diagnostic
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     severity: Severity,
 
     /// The rule that the diagnostic reports, as oxlint names it, where it
     /// names one
     #[builder(into)]
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     code: Option<String>,
 
     /// What oxlint said about the diagnostic
     #[builder(into)]
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     description: String,
 
     /// What oxlint suggests about the diagnostic, where it suggests anything
     #[builder(into)]
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     help: Option<String>,
 }
 
@@ -84,7 +84,7 @@ impl OxlintProblem {
     /// reads like the line that a contributor sees when they run oxlint
     /// themselves. A diagnostic without a rule leaves the rule and its
     /// separator out, so that the sentence holds only the words of oxlint.
-    pub fn message(&self) -> String {
+    pub(crate) fn message(&self) -> String {
         let rule = match &self.code {
             Some(code) => format!("{code}{RULE_CLOSE}"),
             None => String::new(),

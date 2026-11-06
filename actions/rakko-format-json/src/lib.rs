@@ -25,6 +25,6 @@
 //! [prettier]: https://prettier.io
 
 /// The action, its arguments, and the error that stops a run
-pub mod format_json;
+mod format_json;
 
 pub use self::format_json::{FormatJson, FormatJsonArgs, FormatJsonError};

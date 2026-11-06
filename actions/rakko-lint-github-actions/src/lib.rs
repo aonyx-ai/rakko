@@ -56,15 +56,12 @@
 //! [zizmor]: https://docs.zizmor.sh
 
 /// Types for the action that audits the GitHub Actions workflows of a project
-pub mod lint_github_actions;
+mod lint_github_actions;
 /// Types for what one run of zizmor produced
-pub mod observation;
+mod observation;
 /// Types for one place that zizmor reported about a workflow
-pub mod problem;
+mod problem;
 /// Types for the zizmor that a project runs
-pub mod zizmor;
+mod zizmor;
 
 pub use self::lint_github_actions::{LintGitHubActions, LintGitHubActionsError};
-pub use self::observation::Observation;
-pub use self::problem::{Severity, ZizmorProblem};
-pub use self::zizmor::{ObserveZizmorError, Zizmor};

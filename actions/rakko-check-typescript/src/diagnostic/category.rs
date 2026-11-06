@@ -25,7 +25,7 @@ const SUGGESTION: &str = "suggestion";
 /// check asked the compiler to speak, and a diagnostic that the compiler holds
 /// back until it is asked is not one that Rakko decides to hide.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum Category {
+pub(crate) enum Category {
     /// The code breaks a rule of the language
     Error,
 
@@ -44,7 +44,7 @@ impl Category {
     ///
     /// Returns `None` for a word that is none of the four, which belongs to a
     /// line that is not the start of a diagnostic.
-    pub fn parse(word: &str) -> Option<Self> {
+    pub(crate) fn parse(word: &str) -> Option<Self> {
         match word {
             ERROR => Some(Self::Error),
             WARNING => Some(Self::Warning),

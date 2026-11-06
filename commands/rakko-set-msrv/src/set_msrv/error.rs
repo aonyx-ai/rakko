@@ -17,6 +17,7 @@ use super::step::MiseStep;
 /// project as it was. An error that names a write, the lock, the install, or
 /// the check comes after a write, and the files that the run wrote stay.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum SetMsrvError {
     /// A file of the project could not be read
     #[error("failed to read {}", path.display())]

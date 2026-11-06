@@ -38,15 +38,12 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for the action that lints the Markdown files of a project
-pub mod lint_markdown;
+mod lint_markdown;
 /// Types for the markdownlint that a project runs
-pub mod markdownlint;
+mod markdownlint;
 /// Types for what one run of markdownlint produced
-pub mod observation;
+mod observation;
 /// Types for one rule that markdownlint reported about a file
-pub mod problem;
+mod problem;
 
 pub use self::lint_markdown::{LintMarkdown, LintMarkdownError};
-pub use self::markdownlint::{Markdownlint, ObserveMarkdownlintError};
-pub use self::observation::Observation;
-pub use self::problem::MarkdownlintProblem;

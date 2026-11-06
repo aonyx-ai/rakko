@@ -62,15 +62,12 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for the action that applies the stiles rules of a project
-pub mod lint_stiles;
+mod lint_stiles;
 /// Types for what one check of stiles produced
-pub mod observation;
+mod observation;
 /// Types for one diagnostic that stiles reported about a file
-pub mod problem;
+mod problem;
 /// Types for the stiles that a project runs
-pub mod stiles;
+mod stiles;
 
 pub use self::lint_stiles::{LintStiles, LintStilesError};
-pub use self::observation::Observation;
-pub use self::problem::{Severity, StilesProblem};
-pub use self::stiles::{ObserveStilesError, Stiles};

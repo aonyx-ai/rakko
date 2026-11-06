@@ -13,7 +13,7 @@ use rakko::ProjectRoot;
 use rakko_cargo::{CargoRoot, lockfile};
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
-pub use self::error::CheckWorkspaceError;
+pub(crate) use self::error::CheckWorkspaceError;
 use self::report::Entry;
 use crate::problem::DenyProblem;
 
@@ -80,29 +80,8 @@ const NO_DIAGNOSIS: &str = "cargo-deny wrote nothing about it";
 ///
 /// Cargo-deny is its own program, and not a subcommand that cargo carries, so
 /// a run starts it directly and no cargo stands between the two.
-///
-/// # Examples
-///
-/// ```no_run
-/// use rakko::ProjectRoot;
-/// use rakko_cargo::{CargoRoot, Documentation};
-/// use rakko_check_dependencies::Deny;
-///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = ProjectRoot::new("/home/otter/project".into());
-/// let deny = Deny::resolve(root).await?;
-///
-/// let problems = deny
-///     .check(&CargoRoot::builder().directory("/home/otter/project".into()).documentation(Documentation::Testable).build())
-///     .await?;
-///
-/// println!("{} problems", problems.len());
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Deny {
+pub(crate) struct Deny {
     /// The program that mise installed for the project
     tool: Tool,
 }
@@ -139,7 +118,10 @@ impl Deny {
     /// [stale]: CheckWorkspaceError::StaleLockfile
     /// [unavailable]: CheckWorkspaceError::DenyUnavailable
     /// [unreadable]: CheckWorkspaceError::UnreadableReport
-    pub async fn check(&self, root: &CargoRoot) -> Result<Vec<DenyProblem>, CheckWorkspaceError> {
+    pub(crate) async fn check(
+        &self,
+        root: &CargoRoot,
+    ) -> Result<Vec<DenyProblem>, CheckWorkspaceError> {
         let execution = self
             .tool
             .invocation()
@@ -204,7 +186,7 @@ impl Deny {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no cargo-deny for the
     /// project.
-    pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
+    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(CARGO_DENY), root).await?;
 
         Ok(Self { tool })

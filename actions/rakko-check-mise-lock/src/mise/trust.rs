@@ -5,7 +5,7 @@
 /// contributor is trusted already, and a copy of it is a directory that
 /// nobody has seen before.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub enum Trust {
+pub(crate) enum Trust {
     /// The run of mise trusts what the environment of the action trusts
     Inherited,
 

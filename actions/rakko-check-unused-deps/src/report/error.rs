@@ -9,6 +9,7 @@ use thiserror::Error;
 /// its unused dependencies unread. The reading therefore stops, and the
 /// action that asked for it reports the error.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ReadUdepsReportError {
     /// Cargo-udeps wrote its report in a shape that the crate cannot read
     ///

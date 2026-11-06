@@ -7,17 +7,17 @@
 /// The error that leaves a run without an answer
 mod error;
 /// The files that yamllint examines in a project
-pub mod listing;
+pub(crate) mod listing;
 /// The reading of the report that yamllint wrote
-pub mod report;
+pub(crate) mod report;
 
 use std::path::PathBuf;
 
 use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
-pub use self::error::ObserveYamllintError;
-pub use self::listing::ListFilesError;
+pub(crate) use self::error::ObserveYamllintError;
+pub(crate) use self::listing::ListFilesError;
 use crate::observation::Observation;
 
 /// The name that mise knows the tool by
@@ -59,29 +59,8 @@ const PROBLEMS_FOUND: i32 = 1;
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and a yamllint that mise does not report
 /// stops the caller.
-///
-/// # Examples
-///
-/// ```no_run
-/// use rakko::ProjectRoot;
-/// use rakko_lint_yaml::Yamllint;
-///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = ProjectRoot::new("/home/otter/project".into());
-///
-/// let yamllint = Yamllint::resolve(root).await?;
-///
-/// if !yamllint.list().await?.is_empty() {
-///     let observation = yamllint.observe().await?;
-///
-///     println!("{} problems", observation.problems().len());
-/// }
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Yamllint {
+pub(crate) struct Yamllint {
     /// The program that mise installed for the project
     tool: Tool,
 }
@@ -100,7 +79,7 @@ impl Yamllint {
     ///
     /// [unavailable]: ListFilesError::YamllintUnavailable
     /// [rejected]: ListFilesError::RejectedConfiguration
-    pub async fn list(&self) -> Result<Vec<PathBuf>, ListFilesError> {
+    pub(crate) async fn list(&self) -> Result<Vec<PathBuf>, ListFilesError> {
         self::listing::files(&self.tool).await
     }
 
@@ -119,7 +98,7 @@ impl Yamllint {
     ///
     /// [unavailable]: ObserveYamllintError::YamllintUnavailable
     /// [unreadable]: ObserveYamllintError::UnreadableReport
-    pub async fn observe(&self) -> Result<Observation, ObserveYamllintError> {
+    pub(crate) async fn observe(&self) -> Result<Observation, ObserveYamllintError> {
         let execution = self
             .tool
             .invocation()
@@ -159,7 +138,7 @@ impl Yamllint {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no yamllint for the
     /// project.
-    pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
+    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(YAMLLINT), root).await?;
 
         Ok(Self { tool })

@@ -49,16 +49,13 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for the action that lints the TypeScript of a project
-pub mod lint_typescript;
+mod lint_typescript;
 /// Types for what one run of oxlint produced
-pub mod observation;
+mod observation;
 /// Types for the oxlint that a project runs
-pub mod oxlint;
+mod oxlint;
 /// Types for one diagnostic that oxlint reported about a project
-pub mod problem;
+mod problem;
 
 pub use self::lint_typescript::{LintTypeScript, LintTypeScriptError};
-pub use self::observation::Observation;
 pub use self::oxlint::report::ReadReportError;
-pub use self::oxlint::{ObserveOxlintError, Oxlint};
-pub use self::problem::{OxlintProblem, Place, Severity};

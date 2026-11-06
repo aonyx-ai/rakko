@@ -7,12 +7,12 @@
 /// The error that leaves a run without an answer
 mod error;
 /// The reading of the report that tsc wrote
-pub mod report;
+pub(crate) mod report;
 
 use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
-pub use self::error::ObserveTscError;
+pub(crate) use self::error::ObserveTscError;
 use crate::diagnostic::Diagnostic;
 
 /// The name that mise knows the tool by
@@ -57,26 +57,8 @@ const HERE: &str = ".";
 /// version accepts is a program that the next one can refuse. Nothing here
 /// installs a tool: provisioning is the job of mise, and a tsc that mise does
 /// not report stops the caller.
-///
-/// # Examples
-///
-/// ```no_run
-/// use rakko::ProjectRoot;
-/// use rakko_check_typescript::Tsc;
-///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = ProjectRoot::new("/home/otter/project".into());
-///
-/// let tsc = Tsc::resolve(root).await?;
-/// let diagnostics = tsc.observe().await?;
-///
-/// println!("{} diagnostics", diagnostics.len());
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Tsc {
+pub(crate) struct Tsc {
     /// The program that mise installed for the project
     tool: Tool,
 }
@@ -104,7 +86,7 @@ impl Tsc {
     /// [missing]: ObserveTscError::MissingReport
     /// [unavailable]: ObserveTscError::TscUnavailable
     /// [unreadable]: ObserveTscError::UnreadableReport
-    pub async fn observe(&self) -> Result<Vec<Diagnostic>, ObserveTscError> {
+    pub(crate) async fn observe(&self) -> Result<Vec<Diagnostic>, ObserveTscError> {
         let execution = self
             .tool
             .invocation()
@@ -144,7 +126,7 @@ impl Tsc {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no tsc for the
     /// project.
-    pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
+    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(TSC), root).await?;
 
         Ok(Self { tool })

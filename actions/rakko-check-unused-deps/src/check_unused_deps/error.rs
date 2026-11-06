@@ -14,6 +14,7 @@ use crate::report::ReadUdepsReportError;
 /// run whose answer cannot be trusted, and such a run stops instead of
 /// reporting one.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum CheckUnusedDepsError {
     /// Cargo did not run
     ///

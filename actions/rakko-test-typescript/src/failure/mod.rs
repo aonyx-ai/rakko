@@ -12,7 +12,7 @@ use bon::Builder;
 use getset::Getters;
 use rakko::{Finding, Location, Position, ProjectRoot};
 
-pub use self::origin::Origin;
+pub(crate) use self::origin::Origin;
 
 /// One test that failed
 ///
@@ -24,19 +24,19 @@ pub use self::origin::Origin;
 /// The name is the name of the test alone, without the tests that hold it, and
 /// that is what Node reports. A reader searches the project for it.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
-pub struct Failure {
+pub(crate) struct Failure {
     /// The name of the test, as Node wrote it
     #[builder(into)]
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     name: String,
 
     /// The place where the project declares the test, or `None` for no place
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     origin: Option<Origin>,
 
     /// What Node said about the failure, or `None` when it said nothing
     #[builder(into)]
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     reason: Option<String>,
 }
 
@@ -50,7 +50,7 @@ impl Failure {
     /// A failure that Node reported no place for, and one whose place lies
     /// outside the project, get a finding at the level of the project, because
     /// there is no path in the project to report them at.
-    pub fn finding(&self, root: &ProjectRoot) -> Finding {
+    pub(crate) fn finding(&self, root: &ProjectRoot) -> Finding {
         let stated = self
             .reason
             .as_deref()

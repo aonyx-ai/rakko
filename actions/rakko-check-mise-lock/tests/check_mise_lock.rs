@@ -34,9 +34,7 @@ use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, ProjectRoot,
     argument_name,
 };
-use rakko_check_mise_lock::{
-    CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError, Lock, Mise, Platform, Trust,
-};
+use rakko_check_mise_lock::{CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError};
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
@@ -411,27 +409,6 @@ fn action_identifies_itself_as_check_mise_lock() {
     let name = CheckMiseLock.name();
 
     assert_eq!(name.get(), "check-mise-lock");
-}
-
-// The platforms come from the report that mise writes, so this test reads the
-// report of the mise that the tests run.
-#[tokio::test]
-async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
-    let project = Project::locked(PINNED);
-    let mise = Mise::new(project.context().root().clone(), Trust::Inherited);
-
-    let Lock::Written { targets } = mise.lock().await.expect("mise locks the project") else {
-        panic!("expected mise to lock the project");
-    };
-
-    let lockfile = "mise.lock".parse().expect("the test names a relative path");
-    let wanted = [Platform::new("linux-x64"), Platform::new("macos-arm64")];
-    assert!(
-        targets
-            .get(&lockfile)
-            .is_some_and(|targeted| wanted.iter().all(|platform| targeted.contains(platform))),
-        "expected the targets of mise.lock to hold {wanted:?}, got {targets:?}"
-    );
 }
 
 // A lockfile with a stale entry is one that `mise lock` rewrites, also in a

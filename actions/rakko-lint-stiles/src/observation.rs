@@ -21,13 +21,13 @@ use crate::problem::StilesProblem;
 /// the outcome of an action: one project is clean, and the other was never
 /// looked at.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct Observation {
+pub(crate) struct Observation {
     /// The diagnostics that stiles reported, in the order of the report
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     problems: Vec<StilesProblem>,
 
     /// Whether stiles found a file to check
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     examined: bool,
 }
 
@@ -43,7 +43,7 @@ impl Observation {
     ///
     /// [`Stiles::observe`]: crate::stiles::Stiles::observe
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         #[builder(default)] problems: Vec<StilesProblem>,
         #[builder(default = true)] examined: bool,
     ) -> Self {

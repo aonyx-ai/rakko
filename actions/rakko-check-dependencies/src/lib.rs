@@ -52,12 +52,10 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for the action that examines the dependencies of a project
-pub mod check_dependencies;
+mod check_dependencies;
 /// Types for the cargo-deny that a project runs
-pub mod deny;
+mod deny;
 /// Types for one thing that cargo-deny reported about a workspace
-pub mod problem;
+mod problem;
 
 pub use self::check_dependencies::{CheckDependencies, CheckDependenciesError};
-pub use self::deny::{CheckWorkspaceError, Deny};
-pub use self::problem::{DenyProblem, Package, Severity};

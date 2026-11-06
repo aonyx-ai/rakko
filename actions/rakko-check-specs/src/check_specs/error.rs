@@ -11,6 +11,7 @@ use crate::tracey::ObserveTraceyError;
 /// as a finding, and the outcome of the run reports it. The variants here
 /// describe a run that reached no answer about the project at all.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum CheckSpecsError {
     /// Tracey reported a problem in a file outside the project
     ///

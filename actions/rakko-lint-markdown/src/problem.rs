@@ -27,29 +27,29 @@ use rakko::{FilePath, ProjectRoot};
 ///
 /// [relative]: MarkdownlintProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct MarkdownlintProblem {
+pub(crate) struct MarkdownlintProblem {
     /// The path of the file, as markdownlint wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// The line that the rule was broken on, starting at 1
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     line: u32,
 
     /// The column that the rule points at, starting at 1
     ///
     /// A rule that speaks about the whole line names no column.
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     column: Option<u32>,
 
     /// What markdownlint said about the rule and the file
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     message: String,
 }
 
 impl MarkdownlintProblem {
     /// Creates a problem from what markdownlint reported about a file
-    pub fn new(path: PathBuf, line: u32, column: Option<u32>, message: String) -> Self {
+    pub(crate) fn new(path: PathBuf, line: u32, column: Option<u32>, message: String) -> Self {
         Self {
             path,
             line,
@@ -64,7 +64,7 @@ impl MarkdownlintProblem {
     /// starts in the root and names what it found below it, so a path that
     /// does not fit points at a report that the caller misread, and the
     /// caller decides what to do about that.
-    pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
+    pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
 }

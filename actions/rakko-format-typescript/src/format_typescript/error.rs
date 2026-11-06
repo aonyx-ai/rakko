@@ -12,6 +12,7 @@ use crate::oxfmt::ObserveOxfmtError;
 /// run. The variants of this error describe a run whose answer cannot be
 /// trusted, and such a run stops instead of reporting one.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum FormatTypeScriptError {
     /// Oxfmt reported a path that the project root does not contain
     ///

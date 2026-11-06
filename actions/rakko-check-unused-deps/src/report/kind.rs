@@ -17,7 +17,7 @@ const BUILD_DEPENDENCY: &str = "build-dependency";
 /// to find the entry, because one name can appear in more than one table of
 /// the same manifest.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum DependencyKind {
+pub(crate) enum DependencyKind {
     /// The package declares the dependency in `[dependencies]`
     Normal,
 
@@ -33,7 +33,7 @@ impl DependencyKind {
     ///
     /// The word is the singular of the table that declares the dependency,
     /// so that a reader of a finding can search the manifest for it.
-    pub fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Self::Normal => DEPENDENCY,
             Self::Development => DEV_DEPENDENCY,

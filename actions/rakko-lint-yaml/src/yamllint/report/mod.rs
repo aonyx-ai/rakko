@@ -35,7 +35,7 @@ const POSITION: char = ':';
 /// held more than the findings that arrived.
 ///
 /// [unreadable]: ReadReportError::UnreadableLine
-pub fn problems(report: &str) -> Result<Vec<YamllintProblem>, ReadReportError> {
+pub(crate) fn problems(report: &str) -> Result<Vec<YamllintProblem>, ReadReportError> {
     report
         .lines()
         .filter(|line| !line.trim().is_empty())

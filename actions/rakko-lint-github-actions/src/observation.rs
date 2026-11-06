@@ -21,13 +21,13 @@ use crate::problem::ZizmorProblem;
 /// the outcome of an action: one project is clean, and the other was never
 /// looked at.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct Observation {
+pub(crate) struct Observation {
     /// The places that zizmor reported, in the order of the report
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     problems: Vec<ZizmorProblem>,
 
     /// Whether zizmor collected a file to audit
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     collected: bool,
 }
 
@@ -43,7 +43,7 @@ impl Observation {
     ///
     /// [`Zizmor::observe`]: crate::zizmor::Zizmor::observe
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         #[builder(default)] problems: Vec<ZizmorProblem>,
         #[builder(default = true)] collected: bool,
     ) -> Self {

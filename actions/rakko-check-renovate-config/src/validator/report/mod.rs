@@ -73,7 +73,7 @@ const OPTION_SEPARATOR: &str = ", ";
 
 /// The answer that the log of a run holds
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Report {
+pub(crate) enum Report {
     /// The validator read every configuration that it found
     Finished(Observation),
 
@@ -239,7 +239,7 @@ enum Meaning {
 /// [malformed]: ReadReportError::MalformedRecord
 /// [unattributed]: ReadReportError::UnattributedMigration
 /// [unrecognized]: ReadReportError::UnrecognizedRecord
-pub fn read(log: &str) -> Result<Report, ReadReportError> {
+pub(crate) fn read(log: &str) -> Result<Report, ReadReportError> {
     let mut problems = Vec::new();
     let mut validated = 0;
     let mut announced: Option<PathBuf> = None;

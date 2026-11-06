@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use getset::{CopyGetters, Getters};
 use rakko::{FilePath, ProjectRoot, Span};
 
-pub use self::severity::Severity;
+pub(crate) use self::severity::Severity;
 
 /// The character that opens the severity of a problem in a message
 const SEVERITY_OPEN: char = '[';
@@ -56,35 +56,35 @@ const ANNOTATION_CLOSE: char = ')';
 ///
 /// [relative]: ZizmorProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct ZizmorProblem {
+pub(crate) struct ZizmorProblem {
     /// The path of the file, as zizmor wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// The range of the file that the place covers
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     span: Span,
 
     /// How zizmor weighed the pattern that it recognized
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     severity: Severity,
 
     /// The name of the audit that recognized the pattern
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     audit: String,
 
     /// What the audit is about, in the words of zizmor
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     description: String,
 
     /// What zizmor wrote about this place of the finding
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     annotation: String,
 }
 
 impl ZizmorProblem {
     /// Creates a problem from one place that zizmor reported
-    pub fn new(
+    pub(crate) fn new(
         path: PathBuf,
         span: Span,
         severity: Severity,
@@ -109,7 +109,7 @@ impl ZizmorProblem {
     /// what zizmor wrote about this place. A reader therefore sees the two
     /// halves that zizmor draws above and below its block of source, and the
     /// places of one finding read as the same finding.
-    pub fn message(&self) -> String {
+    pub(crate) fn message(&self) -> String {
         format!(
             "{SEVERITY_OPEN}{}{SEVERITY_CLOSE}{}{AUDIT_CLOSE}{}{ANNOTATION_OPEN}{}{ANNOTATION_CLOSE}",
             self.severity, self.audit, self.description, self.annotation
@@ -122,7 +122,7 @@ impl ZizmorProblem {
     /// root as the place to look, so a path that does not fit points at a
     /// report that the caller misread, and the caller decides what to do about
     /// that.
-    pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
+    pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
 }

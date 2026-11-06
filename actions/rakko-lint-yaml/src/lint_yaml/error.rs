@@ -13,6 +13,7 @@ use crate::yamllint::{ListFilesError, ObserveYamllintError};
 /// describe a run whose answer cannot be trusted, and such a run stops
 /// instead of reporting one.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum LintYamlError {
     /// Yamllint reported a path that the project root does not contain
     ///

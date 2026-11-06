@@ -9,7 +9,7 @@ use crate::tsc::report::ReadReportError;
 /// travels as a diagnostic, and the caller decides what it means. The variants
 /// here describe a run that produced no answer about the project at all.
 #[derive(Debug, Error)]
-pub enum ObserveTscError {
+pub(crate) enum ObserveTscError {
     /// Tsc reported nothing and ended without success
     ///
     /// Tsc reports a diagnostic for everything that it finds, including for a

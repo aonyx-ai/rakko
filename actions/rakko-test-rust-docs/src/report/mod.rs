@@ -15,7 +15,7 @@ mod failure;
 use getset::{CopyGetters, Getters};
 
 pub use self::error::ReadDoctestReportError;
-pub use self::failure::DoctestFailure;
+pub(crate) use self::failure::DoctestFailure;
 
 /// The line that the harness writes above the blocks of the failed examples,
 /// and again above the list of their names
@@ -50,33 +50,20 @@ const FAILED: &str = "failed";
 /// so the count of the summaries says whether the harness reported at all,
 /// which is what tells a run that examined nothing from a run that examined
 /// something and found it good.
-///
-/// # Examples
-///
-/// ```
-/// use rakko_test_rust_docs::DoctestReport;
-///
-/// let stdout = "running 1 test\ntest src/lib.rs - add (line 7) ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n";
-///
-/// let report = DoctestReport::read(stdout)?;
-///
-/// assert_eq!(report.ran(), 1);
-/// # Ok::<(), rakko_test_rust_docs::ReadDoctestReportError>(())
-/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct DoctestReport {
+pub(crate) struct DoctestReport {
     /// The examples that failed, in the order that the harness named them
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     failures: Vec<DoctestFailure>,
 
     /// How many examples ran, which is those that passed and those that
     /// failed
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     ran: u64,
 
     /// How many summaries the harness wrote, which is one per package that
     /// cargo tested
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     summaries: usize,
 }
 
@@ -102,7 +89,7 @@ impl DoctestReport {
     /// skipped such a line would answer with a count that is too low.
     ///
     /// [unreadable]: ReadDoctestReportError::UnreadableSummary
-    pub fn read(stdout: &str) -> Result<Self, ReadDoctestReportError> {
+    pub(crate) fn read(stdout: &str) -> Result<Self, ReadDoctestReportError> {
         let mut names: Vec<&str> = Vec::new();
         let mut blocks: Vec<(&str, String)> = Vec::new();
         let mut open: Option<usize> = None;

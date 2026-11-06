@@ -29,19 +29,19 @@ const ITEM_OPENS: &str = " - ";
 /// it is and reads it on demand, so an example that wrote nothing the crate
 /// knows still names the example.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
-pub struct DoctestFailure {
+pub(crate) struct DoctestFailure {
     /// The name of the example, as the harness wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     name: String,
 
     /// What the example wrote while it compiled and ran
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     output: String,
 }
 
 impl DoctestFailure {
     /// Creates a failure from the name of the example and its output
-    pub fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
+    pub(crate) fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             output: output.into(),
@@ -56,7 +56,7 @@ impl DoctestFailure {
     ///
     /// An example whose name carries no line, and an example in a file
     /// outside the project, get a finding at the level of the project.
-    pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
+    pub(crate) fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = match self.diagnosis() {
             Some(diagnosis) => format!("example `{}` failed: {diagnosis}", self.name),
             None => format!("example `{}` failed", self.name),

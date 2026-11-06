@@ -11,6 +11,7 @@ use crate::tsc::report::ReadReportError;
 /// this error describe a run whose answer cannot be trusted, and such a run
 /// stops instead of reporting one.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum CheckTypeScriptError {
     /// Tsc reported nothing and ended without success
     ///

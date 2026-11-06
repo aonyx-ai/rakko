@@ -23,7 +23,7 @@ use serde::Deserialize;
 /// reader of a finding sees the severity, and every severity fails a run.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Severity {
+pub(crate) enum Severity {
     /// The diagnostic is a warning, such as a rule that the project weighs as
     /// a warning
     Warning,

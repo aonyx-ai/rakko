@@ -12,6 +12,7 @@ use crate::stiles::ObserveStilesError;
 /// this error describe a run whose answer cannot be trusted, and such a run
 /// stops instead of reporting one.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum LintStilesError {
     /// Stiles reported a path that the project root does not contain
     ///

@@ -44,13 +44,11 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for one test that failed
-pub mod failure;
+mod failure;
 /// Types for the node that a project runs
-pub mod node;
+mod node;
 /// Types for the action that runs the tests of a Node project
-pub mod test_typescript;
+mod test_typescript;
 
-pub use self::failure::{Failure, Origin};
-pub use self::node::report::{ReadReportError, Report};
-pub use self::node::{Node, ObserveNodeError};
+pub use self::node::report::ReadReportError;
 pub use self::test_typescript::{TestTypeScript, TestTypeScriptError};

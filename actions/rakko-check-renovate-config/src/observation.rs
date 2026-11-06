@@ -20,18 +20,18 @@ use crate::problem::RenovateProblem;
 /// Both report no problem, and the two mean opposite things for the outcome of
 /// an action: one project is valid, and the other was never looked at.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct Observation {
+pub(crate) struct Observation {
     /// The problems that the validator reported, in the order of its log
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     problems: Vec<RenovateProblem>,
 
     /// How many configurations the validator counted in a run without a
     /// problem
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     validated: u32,
 
     /// What the validator wrote when it found no configuration to validate
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     unconfigured: Option<String>,
 }
 
@@ -47,7 +47,7 @@ impl Observation {
     ///
     /// [`Validator::observe`]: crate::validator::Validator::observe
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         #[builder(default)] problems: Vec<RenovateProblem>,
         #[builder(default)] validated: u32,
         unconfigured: Option<String>,

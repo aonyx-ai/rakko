@@ -9,7 +9,7 @@ use crate::yamllint::report::ReadReportError;
 /// observation, and the caller decides what it means. The variants here
 /// describe a run that produced no answer at all.
 #[derive(Debug, Error)]
-pub enum ObserveYamllintError {
+pub(crate) enum ObserveYamllintError {
     /// Yamllint wrote a report that the crate cannot read
     ///
     /// The shape of a line belongs to a version of yamllint. A report that

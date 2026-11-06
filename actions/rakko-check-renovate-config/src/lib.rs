@@ -54,16 +54,13 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for the action that checks the Renovate configuration of a project
-pub mod check_renovate_config;
+mod check_renovate_config;
 /// Types for what one run of the validator produced
-pub mod observation;
+mod observation;
 /// Types for one problem that the validator reported about a configuration
-pub mod problem;
+mod problem;
 /// Types for the validator that a project runs
-pub mod validator;
+mod validator;
 
 pub use self::check_renovate_config::{CheckRenovateConfig, CheckRenovateConfigError};
-pub use self::observation::Observation;
-pub use self::problem::RenovateProblem;
-pub use self::validator::report::{ReadReportError, Report};
-pub use self::validator::{ObserveValidatorError, Validator};
+pub use self::validator::report::ReadReportError;

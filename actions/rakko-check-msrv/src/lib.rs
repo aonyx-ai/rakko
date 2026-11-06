@@ -34,6 +34,6 @@
 //! [mise]: https://mise.jdx.dev
 
 /// Types for the action that checks the Rust version of a project
-pub mod check_msrv;
+mod check_msrv;
 
 pub use self::check_msrv::{CheckMsrv, CheckMsrvError};

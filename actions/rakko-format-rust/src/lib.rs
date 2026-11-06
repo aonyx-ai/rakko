@@ -26,9 +26,6 @@
 //! [rustfmt]: https://github.com/rust-lang/rustfmt
 
 /// Types for the action that formats the Rust code of a project
-pub mod format_rust;
+mod format_rust;
 
-pub use self::format_rust::{
-    FormatRust, FormatRustArgs, FormatRustError, RustfmtProblem, RustfmtProblemDetail,
-    RustfmtReport,
-};
+pub use self::format_rust::{FormatRust, FormatRustArgs, FormatRustError};

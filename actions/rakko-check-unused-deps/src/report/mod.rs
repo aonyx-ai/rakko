@@ -23,9 +23,9 @@ use serde::de::IgnoredAny;
 /// The field that only the report of cargo-udeps carries
 const UNUSED_DEPS: &str = "unused_deps";
 
-pub use self::dependency::UnusedDependency;
+pub(crate) use self::dependency::UnusedDependency;
 pub use self::error::ReadUdepsReportError;
-pub use self::kind::DependencyKind;
+pub(crate) use self::kind::DependencyKind;
 
 /// What cargo-udeps reported about one workspace
 ///
@@ -37,23 +37,10 @@ pub use self::kind::DependencyKind;
 /// A build that does not finish leaves cargo-udeps without an answer, and it
 /// writes no report at all. The reading answers `None` for such a run, so a
 /// caller can tell "nothing is unused" from "nobody looked".
-///
-/// # Examples
-///
-/// ```
-/// use rakko_check_unused_deps::UdepsReport;
-///
-/// let stdout = r#"{"success":true,"unused_deps":{},"note":null}"#;
-///
-/// let report = UdepsReport::read(stdout)?;
-///
-/// assert_eq!(report.map(|report| report.dependencies().len()), Some(0));
-/// # Ok::<(), rakko_check_unused_deps::ReadUdepsReportError>(())
-/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
-pub struct UdepsReport {
+pub(crate) struct UdepsReport {
     /// The dependencies that no target of the workspace loaded
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     dependencies: Vec<UnusedDependency>,
 }
 
@@ -74,7 +61,7 @@ impl UdepsReport {
     /// let a workspace pass with its unused dependencies unread.
     ///
     /// [unrecognized]: ReadUdepsReportError::UnrecognizedReport
-    pub fn read(stdout: &str) -> Result<Option<Self>, ReadUdepsReportError> {
+    pub(crate) fn read(stdout: &str) -> Result<Option<Self>, ReadUdepsReportError> {
         let Some(line) = stdout.lines().find(|line| carries_report(line)) else {
             return Ok(None);
         };

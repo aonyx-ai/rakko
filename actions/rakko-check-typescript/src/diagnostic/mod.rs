@@ -13,8 +13,8 @@ mod origin;
 use bon::Builder;
 use getset::Getters;
 
-pub use self::category::Category;
-pub use self::origin::Origin;
+pub(crate) use self::category::Category;
+pub(crate) use self::origin::Origin;
 
 /// The text that separates the number of a diagnostic from what tsc said
 const NUMBER_CLOSE: &str = ": ";
@@ -40,23 +40,23 @@ const KIND_CLOSE: char = ' ';
 /// type disagreed with which, so a message without them tells a reader that
 /// two types do not fit and never says why.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
-pub struct Diagnostic {
+pub(crate) struct Diagnostic {
     /// The place that the diagnostic points at, or `None` for no place
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     origin: Option<Origin>,
 
     /// The kind that tsc gave the diagnostic
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     category: Category,
 
     /// The rule of TypeScript, as tsc numbers it
     #[builder(into)]
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     number: String,
 
     /// What tsc said about the diagnostic
     #[builder(into)]
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     text: String,
 }
 
@@ -66,7 +66,7 @@ impl Diagnostic {
     /// The sentence holds the kind, the number, and the text, in the order
     /// that tsc writes them, so that a finding reads like the line that a
     /// contributor sees when they run tsc themselves.
-    pub fn message(&self) -> String {
+    pub(crate) fn message(&self) -> String {
         format!(
             "{}{KIND_CLOSE}{}{NUMBER_CLOSE}{}",
             self.category, self.number, self.text

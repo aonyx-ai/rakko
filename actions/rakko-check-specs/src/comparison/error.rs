@@ -7,6 +7,7 @@ use thiserror::Error;
 /// there is none, and the caller compares the checkout itself. The variants
 /// here describe a comparison that could not be built at all.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum PrepareComparisonError {
     /// Git did not run
     ///

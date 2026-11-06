@@ -23,24 +23,24 @@ use crate::problem::MarkdownlintProblem;
 /// stream, and a newer version writes a sentence that says so on the standard
 /// error stream. Without this distinction, both runs would look alike.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct Observation {
+pub(crate) struct Observation {
     /// The rules that markdownlint reported, in the order of the report
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     problems: Vec<MarkdownlintProblem>,
 
     /// Whether markdownlint examined a file of the project
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     examined: bool,
 
     /// What markdownlint wrote to its standard error stream
     ///
     /// The report of a run travels here, and so does the diagnosis of a run
     /// that ended without one.
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     stderr: String,
 
     /// Whether markdownlint ended with success
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     succeeded: bool,
 }
 
@@ -56,7 +56,7 @@ impl Observation {
     ///
     /// [`Markdownlint::observe`]: crate::markdownlint::Markdownlint::observe
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         #[builder(default)] problems: Vec<MarkdownlintProblem>,
         #[builder(default = true)] examined: bool,
         #[builder(into, default)] stderr: String,

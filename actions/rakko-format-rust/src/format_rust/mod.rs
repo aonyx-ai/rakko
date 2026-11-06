@@ -24,7 +24,7 @@ use rakko_cargo::{Cargo, CargoRoot, Channel, Toolchain};
 
 pub use self::args::FormatRustArgs;
 pub use self::error::FormatRustError;
-pub use self::report::{RustfmtProblem, RustfmtProblemDetail, RustfmtReport};
+pub(crate) use self::report::{RustfmtProblem, RustfmtProblemDetail, RustfmtReport};
 
 /// The reason of a run whose cargo discovered no workspace
 const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";

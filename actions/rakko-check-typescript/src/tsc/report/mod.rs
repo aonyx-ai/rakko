@@ -58,7 +58,7 @@ const JOIN: char = ' ';
 /// of a diagnostic nor an explanation of the one above it.
 ///
 /// [unreadable]: ReadReportError::UnreadableLine
-pub fn read(report: &str) -> Result<Vec<Diagnostic>, ReadReportError> {
+pub(crate) fn read(report: &str) -> Result<Vec<Diagnostic>, ReadReportError> {
     let mut diagnostics = Vec::new();
     let mut open: Option<Pending> = None;
 
