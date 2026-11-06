@@ -73,13 +73,13 @@ const CHECK: [&str; 5] = [
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_check_msrv::CheckMsrv;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckMsrv)];
+/// let actions = Bundle::default().with(CheckMsrv);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

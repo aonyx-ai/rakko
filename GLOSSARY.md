@@ -48,7 +48,9 @@ from the design discussions to the terms that replaced them.
   crate also contains the trait of a group, which uses only its types.
 - **Erased action** — The internal, object-safe view of an action. Bundles
   export erased actions, and the registry in the harness holds them. Action
-  authors do not see this type.
+  authors do not see this type. A harness that only mounts does not write it
+  either, because the builder of the command line, or the bundle that holds a
+  list, erases each action.
 - **Finding** — One problem that an action found in the project, with its
   location. Findings travel in the outcome of an action run.
 - **Fleet** — All Aonyx projects that Rakko maintains.

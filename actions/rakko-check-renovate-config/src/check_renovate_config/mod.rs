@@ -42,13 +42,13 @@ use crate::validator::Validator;
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_check_renovate_config::CheckRenovateConfig;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckRenovateConfig)];
+/// let actions = Bundle::default().with(CheckRenovateConfig);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

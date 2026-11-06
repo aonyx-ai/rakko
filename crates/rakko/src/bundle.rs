@@ -2,6 +2,7 @@ use std::fmt;
 
 use getset::Getters;
 
+use crate::action::Action;
 use crate::erased_action::ErasedAction;
 
 /// The list of actions that a bundle exports
@@ -17,6 +18,10 @@ use crate::erased_action::ErasedAction;
 /// lists the same way, and it leaves an action out when it filters the list
 /// and collects the rest into a new one. Nothing in this crate reads the list,
 /// so the harness alone names what runs.
+///
+/// A harness that needs a list of its own, such as the members of a group,
+/// starts from an empty bundle. It adds each action as it is with [`with`].
+/// The bundle erases each action, so the harness writes no erased type.
 ///
 /// A bundle exports the list through a function, because the mount takes
 /// ownership of every action in the list. Each call builds a fresh list. The
@@ -104,7 +109,52 @@ use crate::erased_action::ErasedAction;
 /// #     assert_eq!(rakko_rust_library::bundle().actions().len(), 2);
 /// # }
 /// ```
-#[derive(Getters)]
+///
+/// A harness builds the list of a group from the actions as they are, and
+/// it joins the list of a bundle to it:
+///
+/// ```
+/// use rakko::Bundle;
+/// # use rakko::{Action, Context, Name, Outcome, action_name};
+/// # struct FormatJson;
+/// # impl Action for FormatJson {
+/// #     type Args = ();
+/// #     fn name(&self) -> Name { action_name!("format-json") }
+/// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+/// #         Outcome::Passed { summary: None }
+/// #     }
+/// # }
+/// # struct LintYaml;
+/// # impl Action for LintYaml {
+/// #     type Args = ();
+/// #     fn name(&self) -> Name { action_name!("lint-yaml") }
+/// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+/// #         Outcome::Passed { summary: None }
+/// #     }
+/// # }
+/// # mod rakko_rust {
+/// #     use rakko::{Action, Bundle, Context, Name, Outcome, action_name};
+/// #     struct LintRust;
+/// #     impl Action for LintRust {
+/// #         type Args = ();
+/// #         fn name(&self) -> Name { action_name!("lint-rust") }
+/// #         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+/// #             Outcome::Passed { summary: None }
+/// #         }
+/// #     }
+/// #     pub fn bundle() -> Bundle {
+/// #         Bundle::new(vec![Box::new(LintRust)])
+/// #     }
+/// # }
+///
+/// let mut actions = Bundle::default().with(FormatJson).with(LintYaml);
+/// actions.extend(rakko_rust::bundle());
+/// #
+/// # assert_eq!(actions.actions().len(), 3);
+/// ```
+///
+/// [`with`]: Bundle::with
+#[derive(Default, Getters)]
 pub struct Bundle {
     /// The actions, in the order in which the bundle lists them
     #[getset(get = "pub")]
@@ -118,6 +168,18 @@ impl Bundle {
     /// in that order.
     pub fn new(actions: Vec<Box<dyn ErasedAction>>) -> Self {
         Self { actions }
+    }
+
+    /// Returns the bundle with the given action after the actions that it
+    /// holds
+    ///
+    /// The method takes the action as it is. A harness that builds a list of
+    /// its own, such as the list of a group, starts from an empty bundle. It
+    /// adds each action with this method and writes no erased type.
+    #[must_use]
+    pub fn with(mut self, action: impl Action + 'static) -> Self {
+        self.actions.push(Box::new(action));
+        self
     }
 
     /// Adds an action after the actions that the bundle holds
@@ -178,7 +240,6 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
-    use crate::action::Action;
     use crate::action_name;
     use crate::context::Context;
     use crate::name::Name;
@@ -281,6 +342,15 @@ mod tests {
         let mut bundle = Bundle::new(vec![Box::new(FormatJson)]);
 
         bundle.push(Box::new(LintYaml));
+
+        assert_eq!(names(&bundle), ["format-json", "lint-yaml"]);
+    }
+
+    #[test]
+    fn with_adds_the_action_after_the_others() {
+        let bundle = Bundle::default().with(FormatJson);
+
+        let bundle = bundle.with(LintYaml);
 
         assert_eq!(names(&bundle), ["format-json", "lint-yaml"]);
     }

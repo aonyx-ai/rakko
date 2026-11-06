@@ -15,29 +15,33 @@ it runs the members. So the command defines no flag of its own.
 ## Usage
 
 Add `rakko-pre-commit` to the harness of the project. Then let the `main` of
-the harness give the command its list. Mount the command as a group beside the
-actions:
+the harness give the command its list. A `Bundle` of the `rakko` crate holds
+the list, and the harness adds each action to it as it is. So the harness
+depends on `rakko` as well. Mount the command
+beside the actions, as it is:
 
 ```rust
-use rakko::{ErasedAction, Group};
+use rakko::Bundle;
 use rakko_format_toml::FormatToml;
 use rakko_lint_toml::LintToml;
 use rakko_pre_commit::PreCommit;
 
-let pre_commit = PreCommit::new([
-    Box::new(LintToml) as Box<dyn ErasedAction>,
-    Box::new(FormatToml),
-]);
+let pre_commit = PreCommit::new(
+    Bundle::default()
+        .with(LintToml)
+        .with(FormatToml),
+);
 
 rakko_cli::builder()
     .mount(rakko_baseline::bundle())
-    .mount_groups([Box::new(pre_commit) as Box<dyn Group>])
+    .mount(pre_commit)
     .run();
 ```
 
-A list is any iterator of erased actions. The list holds each action only
-once. A list with two actions of the same name stops the harness when it
-mounts the command. The list is independent of the mount, so a harness that
+The list is an ordinary value, so the harness can also give the list of a
+bundle, join two lists, or remove an action from a list. The list holds each
+action only once. A list with two actions of the same name stops the harness
+when it mounts the command. The list is independent of the mount, so a harness that
 wants a command for one of these actions mounts that action as well.
 
 Each action declares whether a run reads or writes the project, and the

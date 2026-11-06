@@ -54,13 +54,13 @@ const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_lint_typescript::LintTypeScript;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintTypeScript)];
+/// let actions = Bundle::default().with(LintTypeScript);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

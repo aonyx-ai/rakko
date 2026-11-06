@@ -94,13 +94,13 @@ const PACKAGE: &str = "--package";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_build_internal_docs::BuildInternalDocs;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(BuildInternalDocs)];
+/// let actions = Bundle::default().with(BuildInternalDocs);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

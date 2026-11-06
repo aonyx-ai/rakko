@@ -68,13 +68,13 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_format_yaml::FormatYaml;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(FormatYaml)];
+/// let actions = Bundle::default().with(FormatYaml);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

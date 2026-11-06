@@ -12,7 +12,7 @@ mod step;
 use std::fmt;
 use std::path::Path;
 
-use rakko::{ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
+use rakko::{Action, ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
 use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
 use rakko_cli::{Command, Report};
@@ -70,8 +70,30 @@ impl SetMsrv {
     /// `rakko-check-msrv` crate. The command runs it with no arguments, after
     /// it installed the toolchain. The check is independent of the mount, so a
     /// harness that wants a command for the check mounts it as well.
-    pub fn new(check: Box<dyn ErasedAction>) -> Self {
-        Self { check }
+    ///
+    /// The method takes the check as it is, so a harness writes no erased
+    /// type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_set_msrv::SetMsrv;
+    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # struct CheckMsrv;
+    /// # impl Action for CheckMsrv {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("check-msrv") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    ///
+    /// let command_line = rakko_cli::builder().mount(SetMsrv::new(CheckMsrv));
+    /// ```
+    pub fn new(check: impl Action + 'static) -> Self {
+        Self {
+            check: Box::new(check),
+        }
     }
 }
 
@@ -386,7 +408,7 @@ mod tests {
 
     #[test]
     fn name_is_set_msrv() {
-        let command = SetMsrv::new(Box::new(Stub));
+        let command = SetMsrv::new(Stub);
 
         assert_eq!(command.name().get(), "set-msrv");
     }

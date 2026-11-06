@@ -43,6 +43,39 @@ impl PreCommit {
     /// same name stops the harness when it mounts the group. The list is
     /// independent of the mount, so a harness that wants a command for one of
     /// these actions mounts that action as well.
+    ///
+    /// A harness builds the list as a [`Bundle`], and adds each action to it
+    /// as it is, so it writes no erased type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    /// use rakko_pre_commit::PreCommit;
+    /// # use rakko::{Action, Context, Group, Name, Outcome, action_name};
+    /// # struct FormatToml;
+    /// # impl Action for FormatToml {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("format-toml") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    /// # struct LintToml;
+    /// # impl Action for LintToml {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("lint-toml") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    ///
+    /// let pre_commit = PreCommit::new(Bundle::default().with(LintToml).with(FormatToml));
+    /// #
+    /// # assert_eq!(pre_commit.members().len(), 2);
+    /// ```
+    ///
+    /// [`Bundle`]: rakko::Bundle
     pub fn new(actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
         Self {
             actions: actions.into_iter().collect(),

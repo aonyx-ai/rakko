@@ -9,11 +9,11 @@ use crate::name::Name;
 /// its own, and it has no arguments of its own.
 ///
 /// The `rakko-cli` crate builds the command line of a harness. A harness
-/// mounts a group there with the `mount_groups` method of the builder. The
-/// command line gives the group a command with the name of the group. It
-/// derives the flags of that command from the arguments that the members
-/// declare, and it runs the members itself. The documentation of
-/// `mount_groups` describes the flags and the run.
+/// gives a group as it is to the `mount` method of the builder. The command
+/// line gives the group a command with the name of the group. It derives the
+/// flags of that command from the arguments that the members declare, and it
+/// runs the members itself. The documentation of `mount` describes the flags
+/// and the run.
 ///
 /// A command with arguments of its own, or a command that runs its actions in
 /// a way of its own, is not a group. A harness writes such a command with the
@@ -27,13 +27,23 @@ use crate::name::Name;
 /// # Examples
 ///
 /// A harness, or a crate that provides a group for a harness, forms the group
-/// from a name and a list of actions:
+/// from a name and a list of actions. A [`Bundle`] holds the list, so the
+/// harness that gives the list adds each action to it as it is:
 ///
 /// ```
-/// use rakko::{ErasedAction, Group, Name, action_name};
+/// use rakko::{Bundle, ErasedAction, Group, Name, action_name};
+/// # use rakko::{Action, Context, Outcome};
+/// # struct LintYaml;
+/// # impl Action for LintYaml {
+/// #     type Args = ();
+/// #     fn name(&self) -> Name { action_name!("lint-yaml") }
+/// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+/// #         Outcome::Passed { summary: None }
+/// #     }
+/// # }
 ///
 /// struct CheckAll {
-///     actions: Vec<Box<dyn ErasedAction>>,
+///     actions: Bundle,
 /// }
 ///
 /// impl Group for CheckAll {
@@ -42,19 +52,20 @@ use crate::name::Name;
 ///     }
 ///
 ///     fn members(&self) -> &[Box<dyn ErasedAction>] {
-///         &self.actions
+///         self.actions.actions()
 ///     }
 /// }
 ///
+/// // The harness gives the group as it is to the `mount` method of
+/// // `rakko-cli`.
 /// let check_all = CheckAll {
-///     actions: Vec::new(),
+///     actions: Bundle::default().with(LintYaml),
 /// };
-///
-/// // The `mount_groups` method of `rakko-cli` takes the group in a box.
-/// let group: Box<dyn Group> = Box::new(check_all);
 /// #
-/// # assert_eq!(group.name().get(), "check-all");
+/// # assert_eq!(check_all.members().len(), 1);
 /// ```
+///
+/// [`Bundle`]: crate::Bundle
 pub trait Group: Send + Sync {
     /// Returns the name that identifies the group
     fn name(&self) -> Name;
@@ -67,9 +78,9 @@ pub trait Group: Send + Sync {
     /// command line carries only the flags of the list at the mount, so a list
     /// that changes later can panic the run or leave members out of it. The
     /// order decides the order of the flags and of the lines in their help.
-    /// It also orders the run, as the documentation of `mount_groups`
-    /// describes. Two members of the list must not have the same name. The
-    /// harness stops at the mount of a group whose list breaks this rule.
+    /// It also orders the run, as the documentation of `mount` describes. Two
+    /// members of the list must not have the same name. The harness stops at
+    /// the mount of a group whose list breaks this rule.
     fn members(&self) -> &[Box<dyn ErasedAction>];
 }
 

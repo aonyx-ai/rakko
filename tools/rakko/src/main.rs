@@ -20,9 +20,8 @@
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
 
-use rakko::{ErasedAction, Group};
+use rakko::Bundle;
 use rakko_check_msrv::CheckMsrv;
-use rakko_cli::ErasedCommand;
 use rakko_format_json::FormatJson;
 use rakko_format_markdown::FormatMarkdown;
 use rakko_format_rust::FormatRust;
@@ -47,8 +46,8 @@ fn main() {
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
-        .mount_commands([Box::new(SetMsrv::new(Box::new(CheckMsrv))) as Box<dyn ErasedCommand>])
-        .mount_groups([Box::new(pre_commit) as Box<dyn Group>])
+        .mount(SetMsrv::new(CheckMsrv))
+        .mount(pre_commit)
         .run();
 }
 
@@ -66,18 +65,17 @@ fn main() {
 ///
 /// The command takes its flags from these actions. The formatters declare
 /// `fix`, so `pre-commit --fix` reaches them and no other action.
-fn actions_that_guard_a_commit() -> Vec<Box<dyn ErasedAction>> {
-    vec![
-        Box::new(FormatJson),
-        Box::new(FormatMarkdown),
-        Box::new(FormatYaml),
-        Box::new(FormatToml),
-        Box::new(FormatRust),
-        Box::new(LintGitHubActions),
-        Box::new(LintMarkdown),
-        Box::new(LintRust),
-        Box::new(LintYaml),
-        Box::new(TestRust),
-        Box::new(TestRustDocs),
-    ]
+fn actions_that_guard_a_commit() -> Bundle {
+    Bundle::default()
+        .with(FormatJson)
+        .with(FormatMarkdown)
+        .with(FormatYaml)
+        .with(FormatToml)
+        .with(FormatRust)
+        .with(LintGitHubActions)
+        .with(LintMarkdown)
+        .with(LintRust)
+        .with(LintYaml)
+        .with(TestRust)
+        .with(TestRustDocs)
 }

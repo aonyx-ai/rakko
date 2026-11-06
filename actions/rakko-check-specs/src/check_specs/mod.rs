@@ -57,13 +57,13 @@ const BASE_REF: &str = "GITHUB_BASE_REF";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_check_specs::CheckSpecs;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckSpecs)];
+/// let actions = Bundle::default().with(CheckSpecs);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

@@ -74,13 +74,13 @@ const WARNINGS: &str = "warnings";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_check_dependencies::CheckDependencies;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckDependencies)];
+/// let actions = Bundle::default().with(CheckDependencies);
 /// ```
 ///
 /// [cargo-deny]: https://embarkstudios.github.io/cargo-deny/

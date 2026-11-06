@@ -78,13 +78,13 @@ const UDEPS: [&str; 7] = [
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_check_unused_deps::CheckUnusedDeps;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckUnusedDeps)];
+/// let actions = Bundle::default().with(CheckUnusedDeps);
 /// ```
 ///
 /// [cargo-udeps]: https://github.com/est31/cargo-udeps

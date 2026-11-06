@@ -77,13 +77,13 @@ use crate::part::Platform;
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_check_mise_lock::CheckMiseLock;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckMiseLock)];
+/// let actions = Bundle::default().with(CheckMiseLock);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

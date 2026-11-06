@@ -25,8 +25,13 @@ use crate::outcome::Outcome;
 /// uses the project and then runs with the same arguments.
 ///
 /// Every action has an erased view, because this trait is implemented for all
-/// of them. An action author never writes this implementation and never names
-/// this trait.
+/// of them. An action author never writes this implementation and never
+/// writes this trait. A harness does not write it either. The harness gives
+/// each action as it is to the builder of the command line, or to the list of
+/// a [`Bundle`], and these erase the action themselves. Only an author of a
+/// group writes the trait, in the members of the group.
+///
+/// [`Bundle`]: crate::Bundle
 ///
 /// # Examples
 ///

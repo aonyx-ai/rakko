@@ -84,13 +84,13 @@ const TEST: [&str; 7] = [
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_test_rust_docs::TestRustDocs;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(TestRustDocs)];
+/// let actions = Bundle::default().with(TestRustDocs);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev
