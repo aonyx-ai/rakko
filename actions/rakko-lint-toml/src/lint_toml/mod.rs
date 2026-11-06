@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn passed_of_a_run_that_counted_one_file_says_so() {
-        let observation = Observation::builder().checked(1).succeeded(true).build();
+        let observation = Observation::builder().checked(1).build();
 
         let outcome = passed(&observation);
 
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn passed_of_a_run_without_a_count_says_nothing() {
-        let observation = Observation::builder().succeeded(true).build();
+        let observation = Observation::builder().build();
 
         let outcome = passed(&observation);
 

@@ -28,25 +28,34 @@ const SEPARATOR: char = '.';
 ///
 /// The type has no order, because the order of the text is not the order of
 /// the versions: `1.9` comes before `1.88` as text and after it as a
-/// version. [`highest`][highest] reads the numbers instead.
+/// version.
 ///
 /// # Examples
 ///
+/// A caller reads the version that a workspace declares:
+///
+/// ```no_run
+/// use rakko::ProjectRoot;
+/// use rakko_cargo::Cargo;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+///
+/// for root in cargo.roots().await? {
+///     if let Some(version) = root.rust_version() {
+///         println!("{}", version.get());
+///     }
+/// }
+/// # Ok(())
+/// # }
 /// ```
-/// use rakko_cargo::RustVersion;
-///
-/// let versions = [RustVersion::new("1.9.0"), RustVersion::new("1.88.0")];
-///
-/// assert_eq!(RustVersion::highest(versions), Some(RustVersion::new("1.88.0")));
-/// ```
-///
-/// [highest]: RustVersion::highest
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct RustVersion(String);
 
 impl RustVersion {
     /// Creates a version from the text that names it
-    pub fn new(version: impl Into<String>) -> Self {
+    pub(crate) fn new(version: impl Into<String>) -> Self {
         Self(version.into())
     }
 
@@ -61,16 +70,7 @@ impl RustVersion {
     /// A version is a sequence of numbers that dots separate. A name such as
     /// `nightly-2026-08-11` is a toolchain and not a version, and it answers
     /// `None`, so a caller can tell the two apart.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko_cargo::RustVersion;
-    ///
-    /// assert_eq!(RustVersion::parse("1.88.0"), Some(RustVersion::new("1.88.0")));
-    /// assert_eq!(RustVersion::parse("nightly-2026-08-11"), None);
-    /// ```
-    pub fn parse(name: &str) -> Option<Self> {
+    pub(crate) fn parse(name: &str) -> Option<Self> {
         let numeric = !name.is_empty()
             && name
                 .split(SEPARATOR)
@@ -85,15 +85,7 @@ impl RustVersion {
     /// newest of them: the newest pin of a project is the toolchain that it
     /// builds with, and the newest declaration of a workspace is the only
     /// toolchain that can compile every package in it.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko_cargo::RustVersion;
-    ///
-    /// assert_eq!(RustVersion::highest([]), None);
-    /// ```
-    pub fn highest(versions: impl IntoIterator<Item = Self>) -> Option<Self> {
+    pub(crate) fn highest(versions: impl IntoIterator<Item = Self>) -> Option<Self> {
         versions.into_iter().max_by(compare)
     }
 }

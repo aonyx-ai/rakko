@@ -560,8 +560,10 @@ async fn roots_of_a_workspace_that_declares_a_version_answer_the_highest() {
     let roots = project.roots().await.expect("the test discovers the roots");
 
     assert_eq!(
-        roots.first().and_then(|root| root.rust_version().clone()),
-        Some(RustVersion::new("1.88.0"))
+        roots
+            .first()
+            .and_then(|root| root.rust_version().as_ref().map(RustVersion::get)),
+        Some("1.88.0")
     );
 }
 
@@ -704,12 +706,13 @@ async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
     assert_eq!(
         (
             report.finished(),
-            report
-                .diagnostics()
-                .first()
-                .and_then(|diagnostic| diagnostic.code().as_deref())
+            report.diagnostics().first().map(|diagnostic| diagnostic
+                .finding(&project.cargo_root(""), &project.root())
+                .message()
+                .get()
+                .ends_with("[unused_variables]"))
         ),
-        (Some(true), Some("unused_variables"))
+        (Some(true), Some(true))
     );
 }
 

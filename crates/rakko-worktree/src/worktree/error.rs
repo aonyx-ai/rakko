@@ -17,7 +17,12 @@ use thiserror::Error;
 /// No variant leaves a copy behind. A failure that happens after git created
 /// the worktree removes the worktree first, so a caller that reads one of
 /// these errors has nothing to clean up.
+///
+/// A later release can add a variant for another reason why a copy of a project
+/// cannot be made. So a match on this error outside this crate needs an arm for
+/// a variant that it does not know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum CreateWorktreeError {
     /// Git did not run
     ///

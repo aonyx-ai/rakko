@@ -22,19 +22,19 @@ const BACKTRACE_NOTE: &str = "note: run with `RUST_BACKTRACE=1`";
 /// demand, so a test that failed without a panic, or with an output that
 /// the crate cannot read, still names the test.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
-pub struct TestFailure {
+pub(crate) struct TestFailure {
     /// The name of the test, as nextest wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     name: String,
 
     /// What the test wrote while it ran
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     output: String,
 }
 
 impl TestFailure {
     /// Creates a failure from the name of the test and its output
-    pub fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
+    pub(crate) fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             output: output.into(),
@@ -49,7 +49,7 @@ impl TestFailure {
     ///
     /// A test whose output names no panic, and a test that panicked in a
     /// file outside the project, get a finding at the level of the project.
-    pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
+    pub(crate) fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let Some(panic) = self.panic() else {
             return Finding::builder()
                 .message(format!("test `{}` failed", self.name))
@@ -86,7 +86,7 @@ impl TestFailure {
     /// the note about the backtrace. A test that ended another way, such as
     /// one that the process killed, wrote no such line, and the method
     /// answers `None`.
-    pub fn panic(&self) -> Option<Panic> {
+    pub(crate) fn panic(&self) -> Option<Panic> {
         let mut lines = self.output.lines();
         let header = lines.find(|line| line.contains(PANICKED_AT))?;
         let location = header

@@ -27,10 +27,10 @@ use crate::problem::{ProblemDetail, TaploProblem};
 
 /// What one run of taplo produced
 ///
-/// The value holds the answer of one run: whether taplo ended with success,
-/// what it said about a configuration file that it rejected, how many files
-/// it examined, the problems that it named, and the text that it wrote. A
-/// field that is `None` means that taplo wrote no such line.
+/// The value holds the answer of one run: what taplo said about a
+/// configuration file that it rejected, how many files it examined, and the
+/// problems that it reported. A field that is `None` means that taplo wrote no
+/// such line.
 ///
 /// An observation describes the run and judges nothing. A file that is not
 /// formatted and a file that taplo refused are both problems of the project,
@@ -73,11 +73,10 @@ pub struct Observation {
     rejected_configuration: Option<String>,
 
     /// What taplo wrote to its standard error stream
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     stderr: String,
 
     /// Whether taplo ended with success
-    #[getset(get_copy = "pub")]
     succeeded: bool,
 }
 
@@ -85,27 +84,23 @@ pub struct Observation {
 impl Observation {
     /// Creates the observation of a run
     ///
-    /// A run of taplo builds one through [`read`][read], and a caller builds
+    /// A run of taplo builds one from what taplo wrote, and a caller builds
     /// one where a test stands in for a taplo that nobody started. Every
     /// part is optional, so a test names what its case is about and leaves
     /// the rest at the answer of a run that reported nothing.
-    ///
-    /// [read]: Observation::read
     #[builder]
     pub fn new(
         checked: Option<u64>,
         #[builder(default)] problems: Vec<TaploProblem>,
         rejected_configuration: Option<String>,
-        #[builder(into, default)] stderr: String,
-        #[builder(default)] succeeded: bool,
     ) -> Self {
         Self {
             checked,
             examined: Vec::new(),
             problems,
             rejected_configuration,
-            stderr,
-            succeeded,
+            stderr: String::new(),
+            succeeded: false,
         }
     }
 
@@ -119,22 +114,21 @@ impl Observation {
     /// names at least one problem. A report of such a run that names none
     /// lost the lines that held them, and the caller must not read a silent
     /// failure as an empty one.
-    pub fn complete(&self) -> bool {
+    pub(crate) fn complete(&self) -> bool {
         self.succeeded || !self.problems.is_empty()
     }
 
     /// Reads what a run of taplo produced
     ///
     /// The reading takes both streams of the run, its exit status, and the
-    /// operation that the run did. A caller that holds a run of its own
-    /// therefore reads it the same way as the machinery of this crate does.
+    /// operation that the run did.
     ///
     /// A validating run names a file that it could not read only on a line
     /// that taplo can lose when it exits. The reading of a validating run
     /// that ended without success therefore also reads each file that taplo
     /// examined, and a file that it cannot read becomes a problem even when
     /// taplo lost that line. The reading changes no file.
-    pub async fn read(execution: &Execution, operation: Operation) -> Self {
+    pub(crate) async fn read(execution: &Execution, operation: Operation) -> Self {
         let observation = self::report::read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),
@@ -221,10 +215,14 @@ mod tests {
 
     /// Returns the observation of a run that ended the given way
     fn observation(succeeded: bool, problems: Vec<TaploProblem>) -> Observation {
-        Observation::builder()
-            .problems(problems)
-            .succeeded(succeeded)
-            .build()
+        Observation {
+            checked: None,
+            examined: Vec::new(),
+            problems,
+            rejected_configuration: None,
+            stderr: String::new(),
+            succeeded,
+        }
     }
 
     /// Returns the problem of a file that cannot be read

@@ -47,6 +47,17 @@ pub enum FormatMarkdownError {
         details: String,
     },
 
+    /// A run of prettier failed for a reason that the action does not know
+    ///
+    /// A later release of the machinery that runs prettier can report a new
+    /// kind of failure. The action carries that failure as the source, so the
+    /// message still says what went wrong.
+    #[error("failed to get an answer from prettier")]
+    UnknownPrettierFailure {
+        /// The cause of the failure
+        source: ObservePrettierError,
+    },
+
     /// Prettier wrote a report that the action does not recognize
     ///
     /// The shape of the report belongs to a version of prettier. A run that
@@ -75,11 +86,15 @@ impl From<ObservePrettierError> for FormatMarkdownError {
     ///
     /// The machinery that runs prettier names the one condition that the
     /// action reports, so the conversion renames it and adds nothing.
+    ///
+    /// A failure that a later release of the machinery adds becomes the source
+    /// of a variant of its own.
     fn from(error: ObservePrettierError) -> Self {
         match error {
             ObservePrettierError::PrettierUnavailable { source } => {
                 Self::PrettierUnavailable { source }
             }
+            source => Self::UnknownPrettierFailure { source },
         }
     }
 }

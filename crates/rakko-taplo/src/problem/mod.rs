@@ -29,7 +29,7 @@ pub struct TaploProblem {
 
 impl TaploProblem {
     /// Creates a problem from the path and the detail that taplo reported
-    pub fn new(path: PathBuf, detail: ProblemDetail) -> Self {
+    pub(crate) fn new(path: PathBuf, detail: ProblemDetail) -> Self {
         Self { path, detail }
     }
 

@@ -21,6 +21,8 @@ use std::time::Duration;
 use kawauso_process::error::RunCommandError;
 use kawauso_process::{Execution, Invocation};
 
+use crate::seal::Sealed;
+
 /// The number of times that a run starts a launcher that Windows refused
 const ATTEMPTS: u32 = 3;
 
@@ -46,6 +48,11 @@ const SHARING_VIOLATION: i32 = 32;
 /// Every operating system but Windows starts a tool directly, so there a
 /// launch is one run.
 ///
+/// An action calls [`launch`][launch], and it never implements `Launch`.
+/// `Launch` has its one implementation in this crate, for [`Invocation`], and
+/// no crate outside this one can implement it. So a later compatible
+/// release can add a method to `Launch`.
+///
 /// [launch]: Launch::launch
 ///
 /// # Examples
@@ -63,7 +70,21 @@ const SHARING_VIOLATION: i32 = 32;
 /// # Ok(())
 /// # }
 /// ```
-pub trait Launch {
+///
+/// An implementation outside this crate does not compile:
+///
+/// ```compile_fail
+/// use rakko_tool::{Execution, Launch, RunCommandError};
+///
+/// struct Script;
+///
+/// impl Launch for Script {
+///     async fn launch(&self) -> Result<Execution, RunCommandError> {
+///         unimplemented!()
+///     }
+/// }
+/// ```
+pub trait Launch: Sealed {
     /// Runs the invocation, and starts it again when Windows refused its
     /// launcher
     ///
@@ -89,6 +110,8 @@ pub trait Launch {
     /// waits for the program, and for the pause before another attempt.
     fn launch(&self) -> impl Future<Output = Result<Execution, RunCommandError>> + Send;
 }
+
+impl Sealed for Invocation {}
 
 impl Launch for Invocation {
     async fn launch(&self) -> Result<Execution, RunCommandError> {

@@ -61,7 +61,7 @@ impl Observation {
     /// [diagnostics]: ObserveNextestError::UnreadableDiagnostics
     /// [report]: ObserveNextestError::UnreadableReport
     /// [unrecognized]: ObserveNextestError::UnrecognizedReport
-    pub fn read(
+    pub(crate) fn read(
         execution: &Execution,
         root: &CargoRoot,
         project: &ProjectRoot,

@@ -46,6 +46,17 @@ pub enum FormatTomlError {
         source: RunCommandError,
     },
 
+    /// A run of taplo failed for a reason that the action does not know
+    ///
+    /// A later release of the machinery that runs taplo can report a new kind
+    /// of failure. The action carries that failure as the source, so the
+    /// message still says what went wrong.
+    #[error("failed to get an answer from taplo")]
+    UnknownTaploFailure {
+        /// The cause of the failure
+        source: ObserveTaploError,
+    },
+
     /// Taplo wrote a report that the action does not recognize
     ///
     /// The shape of the report belongs to a version of taplo. A run that
@@ -76,10 +87,14 @@ impl From<ObserveTaploError> for FormatTomlError {
     /// action reports, so the conversion renames them and adds nothing. A
     /// report that never arrived complete is one that the action cannot
     /// read, whatever kept it from arriving.
+    ///
+    /// A failure that a later release of the machinery adds becomes the source
+    /// of a variant of its own.
     fn from(error: ObserveTaploError) -> Self {
         match error {
             ObserveTaploError::IncompleteReport { stderr } => Self::UnrecognizedReport { stderr },
             ObserveTaploError::TaploUnavailable { source } => Self::TaploUnavailable { source },
+            source => Self::UnknownTaploFailure { source },
         }
     }
 }

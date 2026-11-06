@@ -62,12 +62,12 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for the nextest that a project runs
-pub mod nextest;
+mod nextest;
 /// Types for what one run of nextest produced
-pub mod observation;
+mod observation;
 /// Types for what nextest reported about a run
-pub mod report;
+mod report;
 
 pub use self::nextest::{Lockfile, Nextest, ObserveNextestError};
 pub use self::observation::Observation;
-pub use self::report::{NextestReport, Panic, ReadNextestReportError, TestFailure};
+pub use self::report::ReadNextestReportError;

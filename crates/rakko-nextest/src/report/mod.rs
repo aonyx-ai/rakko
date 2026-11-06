@@ -17,8 +17,8 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
 pub use self::error::ReadNextestReportError;
-pub use self::failure::TestFailure;
-pub use self::panic::Panic;
+pub(crate) use self::failure::TestFailure;
+pub(crate) use self::panic::Panic;
 
 /// The kind of a line that reports one test
 const TEST: &str = "test";
@@ -38,27 +38,14 @@ const OK: &str = "ok";
 /// the count of the tests that ran. A caller that ran nextest with the
 /// structured report reads its standard output into a report and decides
 /// what the failures mean for its outcome.
-///
-/// # Examples
-///
-/// ```
-/// use rakko_nextest::NextestReport;
-///
-/// let stdout = r#"{"type":"suite","event":"ok","passed":3,"failed":0,"ignored":1}"#;
-///
-/// let report = NextestReport::read(stdout)?;
-///
-/// assert_eq!(report.ran(), 3);
-/// # Ok::<(), rakko_nextest::ReadNextestReportError>(())
-/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct NextestReport {
+pub(crate) struct NextestReport {
     /// The tests that failed, in the order of the output
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     failures: Vec<TestFailure>,
 
     /// How many tests ran, which is every test that passed or failed
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     ran: u64,
 }
 
@@ -79,7 +66,7 @@ impl NextestReport {
     /// such a line would let a run pass with its failures unread.
     ///
     /// [unrecognized]: ReadNextestReportError::UnrecognizedRecord
-    pub fn read(stdout: &str) -> Result<Self, ReadNextestReportError> {
+    pub(crate) fn read(stdout: &str) -> Result<Self, ReadNextestReportError> {
         let mut failures = Vec::new();
         let mut ran = 0;
 

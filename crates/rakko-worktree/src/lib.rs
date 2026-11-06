@@ -75,6 +75,6 @@
 //! [tokio]: https://tokio.rs
 
 /// Types for a disposable copy of a project
-pub mod worktree;
+mod worktree;
 
 pub use self::worktree::{CreateWorktreeError, Worktree};

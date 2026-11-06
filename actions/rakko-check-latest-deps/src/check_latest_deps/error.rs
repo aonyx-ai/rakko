@@ -60,6 +60,17 @@ pub enum CheckLatestDepsError {
         source: DiscoverRootsError,
     },
 
+    /// A run of nextest failed for a reason that the action does not know
+    ///
+    /// A later release of the machinery that runs nextest can report a new kind
+    /// of failure. The action carries that failure as the source, so the
+    /// message still says what went wrong.
+    #[error("failed to get an answer from nextest")]
+    UnknownNextestFailure {
+        /// The cause of the failure
+        source: ObserveNextestError,
+    },
+
     /// Cargo wrote a record that the action cannot read
     ///
     /// Nextest forwards the JSON of cargo on the same stream, and the shape of
@@ -124,6 +135,9 @@ impl From<ObserveNextestError> for CheckLatestDepsError {
     ///
     /// The machinery that runs nextest names the conditions that the action
     /// reports, so the conversion renames them and adds nothing.
+    ///
+    /// A failure that a later release of the machinery adds becomes the source
+    /// of a variant of its own.
     fn from(error: ObserveNextestError) -> Self {
         match error {
             ObserveNextestError::CargoUnavailable { source } => Self::CargoUnavailable { source },
@@ -136,6 +150,7 @@ impl From<ObserveNextestError> for CheckLatestDepsError {
             ObserveNextestError::UnrecognizedReport { root, stderr } => {
                 Self::UnrecognizedReport { root, stderr }
             }
+            source => Self::UnknownNextestFailure { source },
         }
     }
 }

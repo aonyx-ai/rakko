@@ -222,12 +222,22 @@ async fn observe_reads_a_report_without_color_codes() {
     let project = Project::new();
     project.write("broken.toml", INVALID);
 
-    let observation = project.observe(Operation::Lint).await;
+    let taplo = Taplo::resolve(project.root())
+        .await
+        .expect("the test resolves the taplo that the repository pins");
+
+    let observation = taplo.observe(Operation::Lint).await;
 
     assert!(
-        !observation.stderr().contains('\u{1b}'),
-        "expected a report without an escape code, got {:?}",
-        observation.stderr()
+        observation.as_ref().is_ok_and(|observation| {
+            observation.problems().iter().any(|problem| {
+                matches!(
+                    problem.detail(),
+                    ProblemDetail::Diagnostic { message, .. } if !message.contains('\u{1b}')
+                )
+            })
+        }),
+        "expected a diagnostic without an escape code, got {observation:?}"
     );
 }
 

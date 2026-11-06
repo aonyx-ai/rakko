@@ -8,7 +8,12 @@
 /// names the files that a rewrite would change and leaves the project alone,
 /// so a run that a user started in order to look changes nothing. A rewrite
 /// formats what it can and says which files it changed.
+///
+/// A later release can add an operation for another job of prettier. So a
+/// match on an operation outside this crate needs an arm for an operation
+/// that it does not know.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[non_exhaustive]
 pub enum Operation {
     /// Report the files that prettier would change, and rewrite nothing
     Report,

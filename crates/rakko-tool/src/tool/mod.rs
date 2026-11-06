@@ -63,7 +63,6 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Tool {
     /// The name that mise knows the tool by
-    #[getset(get = "pub")]
     name: ToolName,
 
     /// The location of the program that mise installed
