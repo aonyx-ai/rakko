@@ -134,10 +134,12 @@ impl Worktree {
     ///
     /// The copy checks out the commit that the HEAD of the project names, and
     /// every path that git reports as changed or as untracked travels from the
-    /// project into it: a path that the project holds is copied, and a path
-    /// that the project holds nothing at is removed. Ignored files are never
-    /// reported and never copied, so the build directory of the project stays
-    /// where it is and the copy builds from nothing.
+    /// project into it. The crate copies a path that the project holds. It
+    /// removes a path that the project holds nothing at. It also removes each
+    /// directory that such a removal leaves empty and that the project no
+    /// longer holds. Ignored files are never reported and never copied, so
+    /// the build directory of the project stays where it is and the copy
+    /// builds from nothing.
     ///
     /// Nothing in the project changes. The copy is a working tree of the
     /// repository, so it shows up in `git worktree list` until the value goes.
@@ -316,17 +318,31 @@ impl Worktree {
     /// copy. A path that names a directory in the project is a submodule that
     /// moved, and the copy keeps the revision that the commit names.
     ///
+    /// Git reports the files under a removed directory, and never the
+    /// directory itself. A removal can therefore leave a directory in the copy
+    /// that the project no longer holds. So the removal also removes each
+    /// parent directory that it left empty. It stops at the first directory
+    /// that the project still holds, that still holds an entry in the copy, or
+    /// that the copy does not hold.
+    ///
     /// # Errors
     ///
     /// Returns an error when the operating system refuses to read the path of
-    /// the project, or to write the path of the copy.
+    /// the project, or to write the path of the copy. A removal also fails
+    /// when the operating system refuses to read a parent directory of the
+    /// path, in the project or in the copy. It fails as well when the
+    /// operating system refuses to remove a parent directory from the copy.
     fn sync_path(&self, path: &Path) -> IoResult<()> {
         let source = self.project.get().join(path);
         let target = self.root.get().join(path);
 
         let metadata = match fs::symlink_metadata(&source) {
             Ok(metadata) => metadata,
-            Err(error) if error.kind() == ErrorKind::NotFound => return remove(&target),
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                remove(&target)?;
+
+                return self.prune(path);
+            }
             Err(error) => return Err(error),
         };
 
@@ -344,6 +360,49 @@ impl Worktree {
         remove(&target)?;
 
         write(&source, &target, &metadata)
+    }
+
+    /// Removes the parent directories of a removed path that the project no
+    /// longer holds
+    ///
+    /// The walk climbs from the parent of the path, one directory at a time.
+    /// It stops at the first directory that the project still holds, that
+    /// still holds an entry in the copy, or that the copy does not hold. The
+    /// project always holds its root, so the copy keeps its own.
+    ///
+    /// A directory that the project still holds stays even when it is empty,
+    /// because the copy holds what the project holds. A directory that still
+    /// holds an entry in the copy stays as well. If the project no longer
+    /// holds that entry, the sync removes it later, and the walk starts again.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operating system refuses to read a directory
+    /// of the project or of the copy, or to remove a directory of the copy.
+    fn prune(&self, path: &Path) -> IoResult<()> {
+        for parent in path.ancestors().skip(1) {
+            match fs::symlink_metadata(self.project.get().join(parent)) {
+                Ok(_) => return Ok(()),
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => return Err(error),
+            }
+
+            let directory = self.root.get().join(parent);
+
+            let mut entries = match fs::read_dir(&directory) {
+                Ok(entries) => entries,
+                Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+                Err(error) => return Err(error),
+            };
+
+            if entries.next().is_some() {
+                return Ok(());
+            }
+
+            fs::remove_dir(&directory)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -616,6 +675,11 @@ mod tests {
             fs::remove_file(self.root().get().join(path)).expect("the test removes a file");
         }
 
+        /// Removes a directory and everything in it from the working tree
+        fn delete_directory(&self, path: &str) {
+            fs::remove_dir_all(self.root().get().join(path)).expect("the test removes a directory");
+        }
+
         /// Runs git in the repository and returns what it produced
         ///
         /// The command forgets the variables that name a repository, so a
@@ -824,6 +888,21 @@ mod tests {
         assert!(Repository::is_modified(worktree.root().get()));
     }
 
+    // The checkout still holds the directory, empty, and the copy holds what
+    // the checkout holds. A workspace glob that matches the directory then
+    // fails in the copy as it fails in the checkout.
+    #[tokio::test]
+    async fn create_keeps_a_directory_that_the_project_still_holds() {
+        let repository = Repository::new();
+        repository.delete("crates/example/lib.rs");
+
+        let worktree = Worktree::create(repository.root())
+            .await
+            .expect("expected git to create the copy");
+
+        assert!(worktree.root().get().join("crates/example").is_dir());
+    }
+
     #[tokio::test]
     async fn create_leaves_the_project_as_it_was() {
         let repository = Repository::new();
@@ -862,6 +941,26 @@ mod tests {
         assert!(worktree.root().get().starts_with(env::temp_dir()));
     }
 
+    // A workspace glob such as `crates/*` matches every directory, so a
+    // member that the contributor removed must not stay in the copy as an
+    // empty directory without its manifest. The directory holds two files,
+    // so the walk after the first removal meets a directory that is not empty
+    // yet, and the removal must not fail on it.
+    #[tokio::test]
+    async fn create_removes_a_directory_that_the_project_deleted() {
+        let repository = Repository::new();
+        repository.write("crates/example/Cargo.toml", "[package]");
+        repository.git(&["add", "--all"]);
+        repository.git(&["commit", "--message", "Add a manifest"]);
+        repository.delete_directory("crates/example");
+
+        let exists = Worktree::create(repository.root())
+            .await
+            .map(|worktree| worktree.root().get().join("crates/example").exists());
+
+        assert_eq!(exists.ok(), Some(false));
+    }
+
     #[tokio::test]
     async fn create_removes_a_file_that_the_project_deleted() {
         let repository = Repository::new();
@@ -872,6 +971,35 @@ mod tests {
             .expect("expected git to create the copy");
 
         assert_eq!(content(&worktree, "tracked.txt"), None);
+    }
+
+    // A staged file in a new directory that the contributor then deleted is
+    // reported as removed, and the copy never held its directory. The walk
+    // must stop there without an error.
+    #[tokio::test]
+    async fn create_removes_a_staged_file_whose_directory_the_project_deleted() {
+        let repository = Repository::new();
+        repository.write("fresh/deep/new.txt", "new");
+        repository.git(&["add", "fresh/deep/new.txt"]);
+        repository.delete_directory("fresh");
+
+        let exists = Worktree::create(repository.root())
+            .await
+            .map(|worktree| worktree.root().get().join("fresh").exists());
+
+        assert_eq!(exists.ok(), Some(false));
+    }
+
+    #[tokio::test]
+    async fn create_removes_the_parents_that_the_project_deleted() {
+        let repository = Repository::new();
+        repository.delete_directory("crates");
+
+        let worktree = Worktree::create(repository.root())
+            .await
+            .expect("expected git to create the copy");
+
+        assert!(!worktree.root().get().join("crates").exists());
     }
 
     #[tokio::test]
