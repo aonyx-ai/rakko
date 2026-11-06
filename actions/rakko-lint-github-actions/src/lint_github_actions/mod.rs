@@ -55,13 +55,13 @@ const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_lint_github_actions::LintGitHubActions;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintGitHubActions)];
+/// let actions = Bundle::default().with(LintGitHubActions);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

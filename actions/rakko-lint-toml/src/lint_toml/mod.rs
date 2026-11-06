@@ -48,13 +48,13 @@ const UNFORMATTED: &str = "the file is not properly formatted";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_lint_toml::LintToml;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintToml)];
+/// let actions = Bundle::default().with(LintToml);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

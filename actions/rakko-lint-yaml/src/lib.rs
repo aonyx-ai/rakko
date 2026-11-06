@@ -29,14 +29,14 @@
 //!
 //! # Examples
 //!
-//! A harness erases the action and mounts it next to the others of the
-//! project:
+//! A harness adds the action as it is to a list, beside the other actions of
+//! the project:
 //!
 //! ```
-//! use rakko::ErasedAction;
+//! use rakko::Bundle;
 //! use rakko_lint_yaml::LintYaml;
 //!
-//! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintYaml)];
+//! let actions = Bundle::default().with(LintYaml);
 //! ```
 //!
 //! [mise]: https://mise.jdx.dev

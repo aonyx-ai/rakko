@@ -82,13 +82,13 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_format_rust::FormatRust;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(FormatRust)];
+/// let actions = Bundle::default().with(FormatRust);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

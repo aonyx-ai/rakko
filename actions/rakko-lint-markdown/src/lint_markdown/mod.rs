@@ -55,13 +55,13 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_lint_markdown::LintMarkdown;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintMarkdown)];
+/// let actions = Bundle::default().with(LintMarkdown);
 /// ```
 ///
 /// [markdownlint]: https://github.com/DavidAnson/markdownlint

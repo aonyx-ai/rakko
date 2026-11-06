@@ -255,10 +255,10 @@ impl Project {
         ]))
         .expect("the test gives both arguments a value that they read");
         let runs = Arc::new(AtomicUsize::new(0));
-        let command = SetMsrv::new(Box::new(Check {
+        let command = SetMsrv::new(Check {
             answer,
             runs: Arc::clone(&runs),
-        }));
+        });
         let project = Context::builder().root(self.root().as_path()).build();
         let (sender, mut receiver) = event_channel();
         let clawless = ClawlessContext::builder()
@@ -786,10 +786,10 @@ async fn run_without_a_reader_names_the_check() {
         ),
     ]))
     .expect("the test gives both arguments a value that they read");
-    let command = SetMsrv::new(Box::new(Check {
+    let command = SetMsrv::new(Check {
         answer: Answer::Pass,
         runs: Arc::new(AtomicUsize::new(0)),
-    }));
+    });
     let (sender, receiver) = event_channel();
     drop(receiver);
     let clawless = ClawlessContext::builder()

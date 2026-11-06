@@ -90,13 +90,13 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_check_minimal_deps::CheckMinimalDeps;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckMinimalDeps)];
+/// let actions = Bundle::default().with(CheckMinimalDeps);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

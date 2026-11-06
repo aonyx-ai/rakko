@@ -67,13 +67,13 @@ const CLIPPY: [&str; 5] = [
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_lint_rust::LintRust;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintRust)];
+/// let actions = Bundle::default().with(LintRust);
 /// ```
 ///
 /// [clippy]: https://doc.rust-lang.org/clippy/

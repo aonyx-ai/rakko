@@ -4,6 +4,8 @@ mod arguments;
 mod error;
 /// The check, the flags, and the bind of the members of a group
 mod members;
+/// The values that a harness gives to the builder as they are
+mod mount;
 /// The actions that a harness mounted
 mod registry;
 /// The part of the command line that runs the members of a group
@@ -23,6 +25,7 @@ use clawless::runner::CommandRunner;
 use rakko::{Access, ArgsSchema, ArgsValues, Context, ErasedAction, Group, Outcome};
 
 use self::error::RunEntryError;
+pub use self::mount::Mount;
 use self::registry::{Mounted, Registry};
 use crate::chain::Chain;
 use crate::erased_command::ErasedCommand;
@@ -93,130 +96,26 @@ pub struct Builder {
 }
 
 impl Builder {
-    /// Mounts actions in the command line
+    /// Mounts an action, a list of actions, a command, or a group in the
+    /// command line
     ///
-    /// Each action becomes one command, and the command tree stays flat. A
-    /// harness passes a list, and a list is an ordinary value: the harness can
-    /// mount the list that a bundle exports, join two lists, or leave one
-    /// action out. Reading the harness therefore reports what the project
-    /// runs.
+    /// A harness gives each value as it is, and the builder hides its type
+    /// itself, so a harness writes no erased type. [`Mount`] lists the kinds of
+    /// value that the method takes. Each action, command, and group becomes
+    /// one command, and the command tree stays flat. The commands of the
+    /// actions, the commands that the harness wrote, and the commands of the
+    /// groups share one list, in the help as well. Each call adds to the calls
+    /// before it, so a reader of the harness finds every activity of the
+    /// project in one place.
     ///
-    /// # Panics
+    /// An action becomes one command. A list of actions gives each action of
+    /// the list a command. A list is an ordinary value: the harness can mount
+    /// the list that a bundle exports, join two lists, or leave one action out.
+    /// Reading the harness therefore reports what the project runs.
     ///
-    /// Panics when a mounted action carries the name of another mounted action
-    /// or of a mounted command or group, and reports that name. A run cannot
-    /// choose between them, and only a change of the harness corrects it, so
-    /// the failure happens here instead of at a run.
-    ///
-    /// Panics when an action declares an argument whose name the command line
-    /// defines itself, and reports the action and the argument.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rakko::{Action, Context, ErasedAction, Name, Outcome, action_name};
-    /// # struct LineCount;
-    /// # impl Action for LineCount {
-    /// #     type Args = ();
-    /// #     fn name(&self) -> Name { action_name!("line-count") }
-    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-    /// #         Outcome::Passed { summary: None }
-    /// #     }
-    /// # }
-    /// let command_line = rakko_cli::builder().mount([Box::new(LineCount) as Box<dyn ErasedAction>]);
-    /// ```
-    ///
-    /// A bundle exports its actions as a [`Bundle`], and a harness mounts that
-    /// list as it is. A second mount adds to the first, so a harness mounts a
-    /// bundle beside the actions that it names itself:
-    ///
-    /// ```
-    /// # use rakko::{Action, Context, ErasedAction, Name, Outcome, action_name};
-    /// # mod rakko_baseline {
-    /// #     use rakko::{Action, Bundle, Context, Name, Outcome, action_name};
-    /// #     struct FormatJson;
-    /// #     impl Action for FormatJson {
-    /// #         type Args = ();
-    /// #         fn name(&self) -> Name { action_name!("format-json") }
-    /// #         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-    /// #             Outcome::Passed { summary: None }
-    /// #         }
-    /// #     }
-    /// #     pub fn bundle() -> Bundle {
-    /// #         Bundle::new(vec![Box::new(FormatJson)])
-    /// #     }
-    /// # }
-    /// # struct CheckMsrv;
-    /// # impl Action for CheckMsrv {
-    /// #     type Args = ();
-    /// #     fn name(&self) -> Name { action_name!("check-msrv") }
-    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-    /// #         Outcome::Passed { summary: None }
-    /// #     }
-    /// # }
-    /// let command_line = rakko_cli::builder()
-    ///     .mount(rakko_baseline::bundle())
-    ///     .mount([Box::new(CheckMsrv) as Box<dyn ErasedAction>]);
-    /// ```
-    ///
-    /// [`Bundle`]: rakko::Bundle
-    #[must_use]
-    pub fn mount(mut self, actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
-        self.add(actions.into_iter().map(Mounted::Action));
-
-        self
-    }
-
-    /// Mounts commands in the command line
-    ///
-    /// A command is one that the harness wrote, for a maintenance activity of
-    /// the project that does not fit an action. It takes its place in the
-    /// same flat tree as the commands of the actions, and the help lists both
-    /// as one list. A harness passes a list here as well, so a reader of the
-    /// harness finds every activity of the project in one place.
-    ///
-    /// # Panics
-    ///
-    /// Panics when a mounted command carries the name of another mounted
-    /// command or of a mounted action or group, and reports that name.
-    ///
-    /// Panics when a command declares an argument whose name the command line
-    /// defines itself, and reports the command and the argument.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use rakko::{Context, Name, action_name};
-    /// # use rakko_cli::clawless::CommandResult;
-    /// # use rakko_cli::clawless::context::Context as ClawlessContext;
-    /// # use rakko_cli::{Command, ErasedCommand};
-    /// # struct Serve;
-    /// # impl Command for Serve {
-    /// #     type Args = ();
-    /// #     fn name(&self) -> Name { action_name!("serve") }
-    /// #     async fn run(
-    /// #         &self,
-    /// #         _project: &Context,
-    /// #         _clawless: &ClawlessContext,
-    /// #         _args: &Self::Args,
-    /// #     ) -> CommandResult {
-    /// #         Ok(())
-    /// #     }
-    /// # }
-    /// let command_line =
-    ///     rakko_cli::builder().mount_commands([Box::new(Serve) as Box<dyn ErasedCommand>]);
-    /// ```
-    #[must_use]
-    pub fn mount_commands(
-        mut self,
-        commands: impl IntoIterator<Item = Box<dyn ErasedCommand>>,
-    ) -> Self {
-        self.add(commands.into_iter().map(Mounted::Command));
-
-        self
-    }
-
-    /// Mounts groups in the command line
+    /// A command is one that the harness wrote, with the [`Command`] trait, for
+    /// a maintenance activity of the project that does not fit an action. It
+    /// takes its place beside the commands of the actions.
     ///
     /// A [`Group`] is a named list of actions, its members, that the command
     /// line runs as one command. The command line derives the flags of the
@@ -271,11 +170,20 @@ impl Builder {
     /// does a member that declares a kind of access that the command line does
     /// not know.
     ///
-    /// A group takes its place in the same flat tree as the actions and the
-    /// commands. Its members need no mount of their own, so a harness that
+    /// The members of a group need no mount of their own, so a harness that
     /// wants a command for one of them mounts that action as well.
     ///
     /// # Panics
+    ///
+    /// Panics when the value carries the name of an action, a command, or a
+    /// group that the harness mounted before, and reports that name. A list
+    /// that carries one name twice panics in the same way. A run cannot choose
+    /// between them, and only a change of the harness corrects it, so the
+    /// failure happens here instead of at a run.
+    ///
+    /// Panics when an action, a command, or a member of a group declares an
+    /// argument whose name the command line defines itself. The message gives
+    /// the action, the command, or the group and its member, and the argument.
     ///
     /// Panics when a group lists two members with the same name, and reports
     /// the group and the name.
@@ -284,36 +192,102 @@ impl Builder {
     /// different shapes, and reports the group, both members, the argument,
     /// and both shapes.
     ///
-    /// Panics when a member of a group declares an argument whose name the
-    /// command line defines itself, and reports the group, the member, and
-    /// the argument.
-    ///
-    /// Panics when a mounted group carries the name of another mounted group,
-    /// command, or action, and reports that name.
-    ///
     /// # Examples
     ///
-    /// ```
-    /// # use rakko::{ErasedAction, Group, Name, action_name};
-    /// # struct CheckAll {
-    /// #     actions: Vec<Box<dyn ErasedAction>>,
-    /// # }
-    /// # impl Group for CheckAll {
-    /// #     fn name(&self) -> Name { action_name!("check-all") }
-    /// #     fn members(&self) -> &[Box<dyn ErasedAction>] { &self.actions }
-    /// # }
-    /// let check_all = CheckAll { actions: Vec::new() };
+    /// A harness mounts an action as it is:
     ///
-    /// let command_line = rakko_cli::builder().mount_groups([Box::new(check_all) as Box<dyn Group>]);
     /// ```
+    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # struct LineCount;
+    /// # impl Action for LineCount {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("line-count") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    /// let command_line = rakko_cli::builder().mount(LineCount);
+    /// ```
+    ///
+    /// A bundle exports its actions as a [`Bundle`], and a harness mounts that
+    /// list as it is. A second call adds to the first, so the harness mounts a
+    /// bundle beside its own actions, commands, and groups. A group such as
+    /// pre-commit takes its members as a list, which the harness builds from
+    /// the actions as they are:
+    ///
+    /// ```
+    /// # use rakko::{Action, Bundle, Context, ErasedAction, Group, Name, Outcome, action_name};
+    /// # use rakko_cli::Command;
+    /// # use rakko_cli::clawless::CommandResult;
+    /// # use rakko_cli::clawless::context::Context as ClawlessContext;
+    /// # mod rakko_baseline {
+    /// #     use rakko::{Action, Bundle, Context, Name, Outcome, action_name};
+    /// #     struct FormatJson;
+    /// #     impl Action for FormatJson {
+    /// #         type Args = ();
+    /// #         fn name(&self) -> Name { action_name!("format-json") }
+    /// #         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #             Outcome::Passed { summary: None }
+    /// #         }
+    /// #     }
+    /// #     pub fn bundle() -> Bundle {
+    /// #         Bundle::new(vec![Box::new(FormatJson)])
+    /// #     }
+    /// # }
+    /// # struct CheckMsrv;
+    /// # impl Action for CheckMsrv {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("check-msrv") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    /// # struct LintRust;
+    /// # impl Action for LintRust {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("lint-rust") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    /// # struct Serve;
+    /// # impl Command for Serve {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("serve") }
+    /// #     async fn run(
+    /// #         &self,
+    /// #         _project: &Context,
+    /// #         _clawless: &ClawlessContext,
+    /// #         _args: &Self::Args,
+    /// #     ) -> CommandResult {
+    /// #         Ok(())
+    /// #     }
+    /// # }
+    /// # struct PreCommit(Bundle);
+    /// # impl PreCommit {
+    /// #     fn new(actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
+    /// #         Self(actions.into_iter().collect())
+    /// #     }
+    /// # }
+    /// # impl Group for PreCommit {
+    /// #     fn name(&self) -> Name { action_name!("pre-commit") }
+    /// #     fn members(&self) -> &[Box<dyn ErasedAction>] { self.0.actions() }
+    /// # }
+    /// let pre_commit = PreCommit::new(Bundle::default().with(LintRust));
+    ///
+    /// let command_line = rakko_cli::builder()
+    ///     .mount(rakko_baseline::bundle())
+    ///     .mount(CheckMsrv)
+    ///     .mount(Serve)
+    ///     .mount(pre_commit);
+    /// ```
+    ///
+    /// [`Bundle`]: rakko::Bundle
+    /// [`Command`]: crate::Command
+    /// [`Group`]: rakko::Group
     #[must_use]
-    pub fn mount_groups(mut self, groups: impl IntoIterator<Item = Box<dyn Group>>) -> Self {
-        self.add(groups.into_iter().map(|group| {
-            self::members::refuse_repeated(&group.name(), group.members());
-            let arguments = members::merge(&group.name(), group.members());
-
-            Mounted::Group { group, arguments }
-        }));
+    pub fn mount<K: ?Sized>(mut self, value: impl Mount<K>) -> Self {
+        self.add(value.entries().into_vec());
 
         self
     }
@@ -781,8 +755,8 @@ mod tests {
     use clap::builder::{Str, ValueRange};
     use clawless::CommandResult;
     use rakko::{
-        Action, Args, Argument, ArgumentShape, ArgumentValue, Name, ReadArgsError, SkipReason,
-        argument_name,
+        Action, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name, ReadArgsError,
+        SkipReason, argument_name,
     };
 
     use super::*;
@@ -1303,7 +1277,7 @@ mod tests {
     /// Returns the flags of the group that a command line mounts
     fn flags_of_group(group: Sequence) -> Vec<Arg> {
         builder()
-            .mount_groups([Box::new(group) as Box<dyn Group>])
+            .mount(group)
             .command()
             .get_subcommands()
             .find(|leaf| leaf.get_name() == GROUP)
@@ -1376,9 +1350,7 @@ mod tests {
         ];
         invocation.extend(arguments.iter().map(OsString::from));
 
-        let Ok(Resolution::Entry(matches, mounted)) = builder()
-            .mount_groups([Box::new(group) as Box<dyn Group>])
-            .resolve(invocation)
+        let Ok(Resolution::Entry(matches, mounted)) = builder().mount(group).resolve(invocation)
         else {
             panic!("expected the command line to read the run that the test describes");
         };
@@ -1412,9 +1384,7 @@ mod tests {
         ];
         invocation.extend(arguments.iter().map(OsString::from));
 
-        let Ok(Resolution::Entry(matches, action)) = builder()
-            .mount([Box::new(reader) as Box<dyn ErasedAction>])
-            .resolve(invocation)
+        let Ok(Resolution::Entry(matches, action)) = builder().mount(reader).resolve(invocation)
         else {
             panic!("expected the command line to read the run that the test names");
         };
@@ -1442,9 +1412,7 @@ mod tests {
         ];
         invocation.extend(arguments.iter().map(OsString::from));
 
-        let Ok(Resolution::Entry(matches, mounted)) = builder()
-            .mount_commands([Box::new(written) as Box<dyn ErasedCommand>])
-            .resolve(invocation)
+        let Ok(Resolution::Entry(matches, mounted)) = builder().mount(written).resolve(invocation)
         else {
             panic!("expected the command line to read the run that the test names");
         };
@@ -1477,11 +1445,11 @@ mod tests {
         )
     }
 
-    /// Returns one erased command with the given name
-    fn written(name: &str) -> Box<dyn ErasedCommand> {
+    /// Returns one command with the given name
+    fn written(name: &str) -> Written {
         let (written, _witness) = Written::new(name);
 
-        Box::new(written)
+        written
     }
 
     #[test]
@@ -1513,7 +1481,7 @@ mod tests {
 
     #[test]
     fn command_gives_an_argument_of_a_command_a_long_flag() {
-        let mut command = builder().mount_commands([written("serve")]).command();
+        let mut command = builder().mount(written("serve")).command();
         command.build();
 
         let long = command
@@ -1539,7 +1507,7 @@ mod tests {
 
     #[test]
     fn command_gives_each_argument_of_a_command_a_flag() {
-        let command = builder().mount_commands([written("serve")]).command();
+        let command = builder().mount(written("serve")).command();
 
         let longs: Vec<&str> = command
             .get_subcommands()
@@ -1892,59 +1860,33 @@ mod tests {
     }
 
     #[test]
-    fn mount_commands_builds_a_flat_command_tree() {
+    fn mount_accepts_a_member_of_a_group_that_the_harness_also_mounts() {
+        let log = Log::default();
+        let group = sequence(vec![member::<Fix>("first", &log)]);
         let command = builder()
-            .mount_commands([written("serve"), written("watch")])
-            .command();
-
-        let nested = command
-            .get_subcommands()
-            .any(|leaf| leaf.get_subcommands().next().is_some());
-
-        assert!(!nested);
-    }
-
-    #[test]
-    fn mount_commands_gives_each_command_a_place_beside_the_actions() {
-        let command = builder()
-            .mount([probe("lint-rust")])
-            .mount_commands([written("format-all"), written("serve")])
+            .mount([member::<Fix>("first", &log)])
+            .mount(group)
             .command();
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
-        assert_eq!(names, ["format-all", "lint-rust", "serve"]);
+        assert_eq!(names, [GROUP, "first"]);
     }
 
     #[test]
-    #[should_panic(expected = "json")]
-    fn mount_commands_refuses_a_command_whose_argument_the_command_line_carries() {
-        let _builder = builder().mount_commands([Box::new(Reserving) as Box<dyn ErasedCommand>]);
-    }
-
-    #[test]
-    #[should_panic(expected = "format-toml")]
-    fn mount_commands_refuses_a_command_with_the_name_of_an_action() {
-        let _builder = builder()
-            .mount([probe("format-toml")])
-            .mount_commands([written("format-toml")]);
-    }
-
-    #[test]
-    #[should_panic(expected = "serve")]
-    fn mount_commands_refuses_two_commands_with_one_name() {
-        let _builder = builder().mount_commands([written("serve"), written("serve")]);
-    }
-
-    #[test]
-    fn mount_gives_each_action_a_command() {
-        let command = builder()
-            .mount([probe("format-toml"), probe("lint-rust")])
-            .command();
+    fn mount_accepts_two_groups_that_share_a_member() {
+        let log = Log::default();
+        let check = sequence(vec![member::<Fix>("first", &log)]);
+        let lint = sequence(vec![member::<Fix>("first", &log)]);
+        let lint = Sequence {
+            name: action_name("lint"),
+            ..lint
+        };
+        let command = builder().mount(check).mount(lint).command();
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
-        assert_eq!(names, ["format-toml", "lint-rust"]);
+        assert_eq!(names, [GROUP, "lint"]);
     }
 
     #[test]
@@ -1961,42 +1903,21 @@ mod tests {
     }
 
     #[test]
-    fn mount_groups_accepts_a_member_that_the_harness_also_mounts() {
-        let log = Log::default();
-        let group = sequence(vec![member::<Fix>("first", &log)]);
+    fn mount_builds_a_flat_command_tree_of_commands() {
         let command = builder()
-            .mount([member::<Fix>("first", &log)])
-            .mount_groups([Box::new(group) as Box<dyn Group>])
+            .mount(written("serve"))
+            .mount(written("watch"))
             .command();
 
-        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
+        let nested = command
+            .get_subcommands()
+            .any(|leaf| leaf.get_subcommands().next().is_some());
 
-        assert_eq!(names, [GROUP, "first"]);
+        assert!(!nested);
     }
 
     #[test]
-    fn mount_groups_accepts_two_groups_that_share_a_member() {
-        let log = Log::default();
-        let check = sequence(vec![member::<Fix>("first", &log)]);
-        let lint = sequence(vec![member::<Fix>("first", &log)]);
-        let lint = Sequence {
-            name: action_name("lint"),
-            ..lint
-        };
-        let command = builder()
-            .mount_groups([
-                Box::new(check) as Box<dyn Group>,
-                Box::new(lint) as Box<dyn Group>,
-            ])
-            .command();
-
-        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
-
-        assert_eq!(names, [GROUP, "lint"]);
-    }
-
-    #[test]
-    fn mount_groups_gives_a_group_one_flag_for_an_argument_that_members_share() {
+    fn mount_gives_a_group_one_flag_for_an_argument_that_members_share() {
         let log = Log::default();
         let group = sequence(vec![
             member::<Fix>("first", &log),
@@ -2011,12 +1932,58 @@ mod tests {
     }
 
     #[test]
-    fn mount_groups_gives_each_group_a_place_beside_the_actions_and_the_commands() {
+    fn mount_gives_an_action_that_it_takes_as_it_is_a_command() {
+        let (probe, _ran) = Probe::new("lint-rust");
+
+        let command = builder().mount(probe).command();
+
+        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
+        assert_eq!(names, ["lint-rust"]);
+    }
+
+    #[test]
+    fn mount_gives_each_action_a_command() {
+        let command = builder()
+            .mount([probe("format-toml"), probe("lint-rust")])
+            .command();
+
+        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
+
+        assert_eq!(names, ["format-toml", "lint-rust"]);
+    }
+
+    #[test]
+    fn mount_gives_each_action_of_a_bundle_a_command() {
+        let (format, _ran) = Probe::new("format-toml");
+        let (lint, _ran) = Probe::new("lint-rust");
+        let bundle = Bundle::default().with(format).with(lint);
+
+        let command = builder().mount(bundle).command();
+
+        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
+        assert_eq!(names, ["format-toml", "lint-rust"]);
+    }
+
+    #[test]
+    fn mount_gives_each_command_a_place_beside_the_actions() {
+        let command = builder()
+            .mount([probe("lint-rust")])
+            .mount(written("format-all"))
+            .mount(written("serve"))
+            .command();
+
+        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
+
+        assert_eq!(names, ["format-all", "lint-rust", "serve"]);
+    }
+
+    #[test]
+    fn mount_gives_each_group_a_place_beside_the_actions_and_the_commands() {
         let group = sequence(Vec::new());
         let command = builder()
             .mount([probe("lint-rust")])
-            .mount_commands([written("serve")])
-            .mount_groups([Box::new(group) as Box<dyn Group>])
+            .mount(written("serve"))
+            .mount(group)
             .command();
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
@@ -2025,7 +1992,7 @@ mod tests {
     }
 
     #[test]
-    fn mount_groups_orders_the_flags_as_the_members_first_declare_them() {
+    fn mount_orders_the_flags_of_a_group_as_the_members_first_declare_them() {
         let log = Log::default();
         let group = sequence(vec![member::<ReportPath>("first", &log), reader()]);
 
@@ -2036,8 +2003,22 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "json")]
+    fn mount_refuses_a_command_whose_argument_the_command_line_carries() {
+        let _builder = builder().mount(Reserving);
+    }
+
+    #[test]
+    #[should_panic(expected = "format-toml")]
+    fn mount_refuses_a_command_with_the_name_of_an_action() {
+        let _builder = builder()
+            .mount([probe("format-toml")])
+            .mount(written("format-toml"));
+    }
+
+    #[test]
     #[should_panic(expected = "the group 'check' lists the action 'first' twice")]
-    fn mount_groups_refuses_a_group_that_lists_an_action_twice() {
+    fn mount_refuses_a_group_that_lists_an_action_twice() {
         let log = Log::default();
         let group = sequence(vec![
             member::<Fix>("first", &log),
@@ -2045,31 +2026,29 @@ mod tests {
             member::<Fix>("first", &log),
         ]);
 
-        let _builder = builder().mount_groups([Box::new(group) as Box<dyn Group>]);
+        let _builder = builder().mount(group);
     }
 
     #[test]
     #[should_panic(expected = "the group 'check' lists the action 'first' twice")]
-    fn mount_groups_refuses_a_group_that_lists_two_actions_with_one_name() {
+    fn mount_refuses_a_group_that_lists_two_actions_with_one_name() {
         let log = Log::default();
         let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<FixAsText>("first", &log),
         ]);
 
-        let _builder = builder().mount_groups([Box::new(group) as Box<dyn Group>]);
+        let _builder = builder().mount(group);
     }
 
     #[test]
     #[should_panic(
         expected = "the harness mounts two actions, commands, or groups with the name 'check'"
     )]
-    fn mount_groups_refuses_a_group_with_the_name_of_an_action() {
+    fn mount_refuses_a_group_with_the_name_of_an_action() {
         let group = sequence(Vec::new());
 
-        let _builder = builder()
-            .mount([probe(GROUP)])
-            .mount_groups([Box::new(group) as Box<dyn Group>]);
+        let _builder = builder().mount([probe(GROUP)]).mount(group);
     }
 
     #[test]
@@ -2077,10 +2056,16 @@ mod tests {
         expected = "the action 'colliding' in the group 'check' declares the argument 'json', \
                     which the command line defines itself"
     )]
-    fn mount_groups_refuses_a_member_whose_argument_the_command_line_carries() {
+    fn mount_refuses_a_member_whose_argument_the_command_line_carries() {
         let group = sequence(vec![Box::new(Colliding)]);
 
-        let _builder = builder().mount_groups([Box::new(group) as Box<dyn Group>]);
+        let _builder = builder().mount(group);
+    }
+
+    #[test]
+    #[should_panic(expected = "json")]
+    fn mount_refuses_an_action_whose_argument_the_command_line_carries() {
+        let _builder = builder().mount(Colliding);
     }
 
     #[test]
@@ -2088,26 +2073,36 @@ mod tests {
         expected = "the group 'check' cannot merge the argument 'fix', because the action 'first' \
                     declares it as a boolean and the action 'second' declares it as a text"
     )]
-    fn mount_groups_refuses_members_that_declare_one_argument_with_two_shapes() {
+    fn mount_refuses_members_that_declare_one_argument_with_two_shapes() {
         let log = Log::default();
         let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<FixAsText>("second", &log),
         ]);
 
-        let _builder = builder().mount_groups([Box::new(group) as Box<dyn Group>]);
+        let _builder = builder().mount(group);
     }
 
     #[test]
-    fn mount_groups_shows_each_line_of_a_flag_under_the_help_column() {
+    #[should_panic(expected = "format-toml")]
+    fn mount_refuses_two_actions_with_one_name() {
+        let _builder = builder().mount([probe("format-toml"), probe("format-toml")]);
+    }
+
+    #[test]
+    #[should_panic(expected = "serve")]
+    fn mount_refuses_two_commands_with_one_name() {
+        let _builder = builder().mount(written("serve")).mount(written("serve"));
+    }
+
+    #[test]
+    fn mount_shows_each_line_of_a_flag_of_a_group_under_the_help_column() {
         let log = Log::default();
         let group = sequence(vec![
             member::<Fix>("first", &log),
             member::<Fix>("second", &log),
         ]);
-        let mut command = builder()
-            .mount_groups([Box::new(group) as Box<dyn Group>])
-            .command();
+        let mut command = builder().mount(group).command();
         command.build();
 
         let help = command
@@ -2125,7 +2120,7 @@ mod tests {
     }
 
     #[test]
-    fn mount_groups_shows_one_line_for_each_member_that_declares_an_argument() {
+    fn mount_shows_one_line_for_each_member_that_declares_an_argument() {
         let log = Log::default();
         let group = sequence(vec![
             member::<Fix>("first", &log),
@@ -2140,18 +2135,6 @@ mod tests {
             .filter_map(|flag| flag.get_help().map(ToString::to_string))
             .collect();
         assert_eq!(help, [format!("first: {FIX}\nthird: {FIX}")]);
-    }
-
-    #[test]
-    #[should_panic(expected = "format-toml")]
-    fn mount_refuses_two_actions_with_one_name() {
-        let _builder = builder().mount([probe("format-toml"), probe("format-toml")]);
-    }
-
-    #[test]
-    #[should_panic(expected = "json")]
-    fn mount_refuses_an_action_whose_argument_the_command_line_carries() {
-        let _builder = builder().mount([Box::new(Colliding) as Box<dyn ErasedAction>]);
     }
 
     #[test]
@@ -2171,7 +2154,7 @@ mod tests {
     fn resolve_returns_the_command_that_the_run_names() {
         let builder = builder()
             .mount([probe("lint-rust")])
-            .mount_commands([written("serve")]);
+            .mount(written("serve"));
 
         let Ok(Resolution::Entry(_matches, Mounted::Command(command))) =
             builder.resolve(["rakko", "serve"])
@@ -2185,9 +2168,7 @@ mod tests {
     #[test]
     fn resolve_returns_the_group_that_the_run_names() {
         let group = sequence(Vec::new());
-        let builder = builder()
-            .mount([probe("lint-rust")])
-            .mount_groups([Box::new(group) as Box<dyn Group>]);
+        let builder = builder().mount([probe("lint-rust")]).mount(group);
 
         let Ok(Resolution::Entry(_matches, Mounted::Group { group, .. })) =
             builder.resolve(["rakko", GROUP])

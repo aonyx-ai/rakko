@@ -4,7 +4,12 @@
 //! mounts the actions that the project uses, alone or through a bundle, and
 //! this crate turns them into a command-line interface: one command for each
 //! action, the help text of each command, and the flags that every command
-//! shares.
+//! shares. The harness gives each value to the [`mount`] method of the
+//! builder as it is, and the builder hides the type of the value itself. So a
+//! harness that only mounts depends on this crate and on the crates of the
+//! actions, the bundles, and the commands that it mounts. A harness can also
+//! build a list of its own, such as the list of a group. Such a harness also
+//! depends on the contract crate, [`rakko`], for the type of the list.
 //!
 //! A harness also writes commands of its own, for a maintenance activity of
 //! the project that does not fit an action, and mounts them beside its
@@ -44,6 +49,7 @@
 //! ```
 //!
 //! [`Group`]: rakko::Group
+//! [`mount`]: Builder::mount
 
 /// The command line that a harness builds and runs
 mod builder;
@@ -67,7 +73,7 @@ mod root;
 /// one that this crate resolved.
 pub use clawless;
 
-pub use self::builder::{Builder, builder};
+pub use self::builder::{Builder, Mount, builder};
 pub use self::command::Command;
 pub use self::erased_command::ErasedCommand;
 pub use self::report::Report;

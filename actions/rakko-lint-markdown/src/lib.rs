@@ -23,14 +23,14 @@
 //!
 //! # Examples
 //!
-//! A harness erases the action and mounts it next to the others of the
-//! project:
+//! A harness adds the action as it is to a list, beside the other actions of
+//! the project:
 //!
 //! ```
-//! use rakko::ErasedAction;
+//! use rakko::Bundle;
 //! use rakko_lint_markdown::LintMarkdown;
 //!
-//! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintMarkdown)];
+//! let actions = Bundle::default().with(LintMarkdown);
 //! ```
 //!
 //! [markdownlint]: https://github.com/DavidAnson/markdownlint

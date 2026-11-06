@@ -51,13 +51,13 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_lint_yaml::LintYaml;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintYaml)];
+/// let actions = Bundle::default().with(LintYaml);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

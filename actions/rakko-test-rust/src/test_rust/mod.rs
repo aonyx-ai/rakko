@@ -50,13 +50,13 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_test_rust::TestRust;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(TestRust)];
+/// let actions = Bundle::default().with(TestRust);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

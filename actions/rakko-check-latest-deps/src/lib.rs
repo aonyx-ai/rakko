@@ -19,14 +19,14 @@
 //!
 //! # Examples
 //!
-//! A harness erases the action and mounts it next to the others of the
-//! project:
+//! A harness adds the action as it is to a list, beside the other actions of
+//! the project:
 //!
 //! ```
-//! use rakko::ErasedAction;
+//! use rakko::Bundle;
 //! use rakko_check_latest_deps::CheckLatestDeps;
 //!
-//! let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(CheckLatestDeps)];
+//! let actions = Bundle::default().with(CheckLatestDeps);
 //! ```
 //!
 //! [cargo]: https://doc.rust-lang.org/cargo/

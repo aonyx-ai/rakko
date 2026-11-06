@@ -16,14 +16,11 @@ on `rakko-check-msrv` as well:
 
 ```rust
 use rakko_check_msrv::CheckMsrv;
-use rakko_cli::ErasedCommand;
 use rakko_set_msrv::SetMsrv;
-
-let set_msrv = SetMsrv::new(Box::new(CheckMsrv));
 
 rakko_cli::builder()
     .mount(rakko_rust_library::bundle())
-    .mount_commands([Box::new(set_msrv) as Box<dyn ErasedCommand>])
+    .mount(SetMsrv::new(CheckMsrv))
     .run();
 ```
 

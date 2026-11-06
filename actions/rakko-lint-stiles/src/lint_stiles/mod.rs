@@ -65,13 +65,13 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_lint_stiles::LintStiles;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(LintStiles)];
+/// let actions = Bundle::default().with(LintStiles);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

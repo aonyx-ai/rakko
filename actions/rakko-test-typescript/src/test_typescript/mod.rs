@@ -43,13 +43,13 @@ const NO_TEST: &str = "node found no test in the project";
 ///
 /// # Examples
 ///
-/// A harness mounts the action:
+/// A harness adds the action as it is to a list:
 ///
 /// ```
-/// use rakko::ErasedAction;
+/// use rakko::Bundle;
 /// use rakko_test_typescript::TestTypeScript;
 ///
-/// let actions: Vec<Box<dyn ErasedAction>> = vec![Box::new(TestTypeScript)];
+/// let actions = Bundle::default().with(TestTypeScript);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev

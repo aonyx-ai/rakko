@@ -22,8 +22,9 @@ use crate::command::Command;
 /// of the command happens inside, where the type is still known.
 ///
 /// Every command has an erased view, because this trait is implemented for
-/// all of them. A harness never writes this implementation. It names the
-/// trait once, where it boxes the commands that it mounts.
+/// all of them. A harness never writes this implementation, and it never
+/// writes this trait. It gives each command as it is to the builder, and the
+/// builder erases the command itself.
 ///
 /// # Examples
 ///
