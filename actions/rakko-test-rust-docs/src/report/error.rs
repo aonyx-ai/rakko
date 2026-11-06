@@ -7,6 +7,7 @@ use thiserror::Error;
 /// that the crate cannot read, and a run that answered from such a report
 /// would count fewer examples than ran.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Error)]
+#[non_exhaustive]
 pub enum ReadDoctestReportError {
     /// A summary of the harness does not count the examples
     ///

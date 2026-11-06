@@ -32,27 +32,32 @@ const TOPIC_CLOSE: &str = ": ";
 ///
 /// [relative]: RenovateProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct RenovateProblem {
+pub(crate) struct RenovateProblem {
     /// The path of the file, as the validator wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// The place in the file, where the validator names one
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     position: Option<Position>,
 
     /// The kind of the problem, in the words of the validator
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     topic: String,
 
     /// What the validator found, in its own words
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     detail: String,
 }
 
 impl RenovateProblem {
     /// Creates a problem from what the validator reported
-    pub fn new(path: PathBuf, position: Option<Position>, topic: String, detail: String) -> Self {
+    pub(crate) fn new(
+        path: PathBuf,
+        position: Option<Position>,
+        topic: String,
+        detail: String,
+    ) -> Self {
         Self {
             path,
             position,
@@ -71,7 +76,7 @@ impl RenovateProblem {
     /// the caller misread, or at a global configuration that the environment
     /// of the run named outside the project, and the caller decides what to
     /// do about that.
-    pub fn location(&self, root: &ProjectRoot) -> Option<Location> {
+    pub(crate) fn location(&self, root: &ProjectRoot) -> Option<Location> {
         let path = self.relative_path(root)?;
 
         Some(match self.position {
@@ -84,7 +89,7 @@ impl RenovateProblem {
     ///
     /// The sentence starts with the topic and ends with the detail. A problem
     /// without a detail is its topic alone.
-    pub fn message(&self) -> String {
+    pub(crate) fn message(&self) -> String {
         if self.detail.is_empty() {
             return self.topic.clone();
         }
@@ -95,7 +100,7 @@ impl RenovateProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file.
-    pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
+    pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
 }

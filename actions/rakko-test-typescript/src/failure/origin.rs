@@ -16,17 +16,17 @@ use rakko::{FilePath, ProjectRoot};
 ///
 /// [relative]: Origin::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
-pub struct Origin {
+pub(crate) struct Origin {
     /// The path of the file, as Node wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// The line that the place points at, starting at 1
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     line: u32,
 
     /// The column that the place points at, starting at 1
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     column: u32,
 }
 
@@ -37,7 +37,7 @@ impl Origin {
     /// node in the root and lets node walk down from there, so a path that
     /// does not fit points at a report that the caller misread, and the caller
     /// decides what to do about that.
-    pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
+    pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
 }

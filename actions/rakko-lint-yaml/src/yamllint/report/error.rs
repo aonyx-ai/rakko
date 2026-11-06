@@ -7,6 +7,7 @@ use thiserror::Error;
 /// a version of yamllint that the project pinned after this crate was
 /// written.
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
+#[non_exhaustive]
 pub enum ReadReportError {
     /// A line of the report is not a problem that the crate can read
     ///

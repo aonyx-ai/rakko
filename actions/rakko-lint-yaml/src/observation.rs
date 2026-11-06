@@ -22,20 +22,20 @@ use crate::problem::YamllintProblem;
 /// already reported still arrive, so a caller that ignored this would report
 /// a part of the project as though it were the whole.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct Observation {
+pub(crate) struct Observation {
     /// The rules that yamllint reported, in the order of the report
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     problems: Vec<YamllintProblem>,
 
     /// Whether yamllint examined every file that it had collected
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     finished: bool,
 
     /// What yamllint wrote to its standard error stream
     ///
     /// A run that examined every file writes nothing here. A run that stopped
     /// early writes why.
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     stderr: String,
 }
 
@@ -51,7 +51,7 @@ impl Observation {
     ///
     /// [`Yamllint::observe`]: crate::yamllint::Yamllint::observe
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         #[builder(default)] problems: Vec<YamllintProblem>,
         #[builder(default = true)] finished: bool,
         #[builder(into, default)] stderr: String,

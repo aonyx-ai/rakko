@@ -110,7 +110,7 @@ struct ImplCoverage {
 /// summary of a run says what the run examined and not how each specification
 /// fared. The report of tracey holds the detail per specification.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
-pub struct Coverage {
+pub(crate) struct Coverage {
     /// How many requirements the project holds
     pub total: u64,
 

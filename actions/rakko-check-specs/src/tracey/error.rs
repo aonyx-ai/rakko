@@ -7,6 +7,7 @@ use thiserror::Error;
 /// it travels in the answer, and the caller decides what it means. The
 /// variants here describe a question that produced no answer at all.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ObserveTraceyError {
     /// Tracey did not run
     ///

@@ -25,6 +25,6 @@
 //! [prettier]: https://prettier.io
 
 /// The action, its arguments, and the error that stops a run
-pub mod format_markdown;
+mod format_markdown;
 
 pub use self::format_markdown::{FormatMarkdown, FormatMarkdownArgs, FormatMarkdownError};

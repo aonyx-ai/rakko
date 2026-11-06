@@ -7,7 +7,7 @@ use thiserror::Error;
 /// observation, and the caller decides what it means. The variants here
 /// describe a run that produced no answer at all.
 #[derive(Debug, Error)]
-pub enum ObserveMarkdownlintError {
+pub(crate) enum ObserveMarkdownlintError {
     /// Markdownlint did not run
     ///
     /// The program was resolved and did not start, or it started and its

@@ -46,7 +46,7 @@ const PLATFORM_PREFIX: &str = "platforms.";
 /// A lockfile that does not exist reads as a lockfile without parts, which is
 /// the [`Default`] value.
 #[derive(Clone, PartialEq, Debug, Default)]
-pub struct Lockfile {
+pub(crate) struct Lockfile {
     /// The content of each part, in the order of the lockfile
     parts: BTreeMap<Part, Vec<Value>>,
 }
@@ -66,7 +66,7 @@ impl Lockfile {
     /// An entry that gains or loses its platforms also loses or gains its
     /// part without a platform. The parts of the platforms name that change,
     /// so the part without a platform gives no difference of its own then.
-    pub fn differences(&self, after: &Self) -> Vec<Difference> {
+    pub(crate) fn differences(&self, after: &Self) -> Vec<Difference> {
         let parts: BTreeSet<&Part> = self.parts.keys().chain(after.parts.keys()).collect();
 
         let differences: Vec<Difference> = parts
@@ -112,7 +112,7 @@ impl Lockfile {
     /// An install in locked mode refuses a platform whose entry names no
     /// download. `mise lock` writes such an entry when it could not resolve
     /// the tool, such as one that holds only the provenance of the download.
-    pub fn unaddressed(&self) -> Vec<&Part> {
+    pub(crate) fn unaddressed(&self) -> Vec<&Part> {
         self.parts
             .iter()
             .filter(|(part, contents)| {
@@ -128,7 +128,7 @@ impl Lockfile {
     }
 
     /// Returns whether the lockfile records any platform
-    pub fn records_platforms(&self) -> bool {
+    pub(crate) fn records_platforms(&self) -> bool {
         self.parts.keys().any(|part| part.platform().is_some())
     }
 
@@ -141,7 +141,7 @@ impl Lockfile {
     /// or a platform of an entry have a shape that the action does not know.
     ///
     /// [unparsable]: ReadLockfileError::UnparsableToml
-    pub fn parse(text: &str) -> Result<Self, ReadLockfileError> {
+    pub(crate) fn parse(text: &str) -> Result<Self, ReadLockfileError> {
         let document: Map<String, Value> = toml_edit::de::from_str(text)
             .map_err(|source| ReadLockfileError::UnparsableToml { source })?;
 

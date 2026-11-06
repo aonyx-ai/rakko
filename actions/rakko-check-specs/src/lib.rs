@@ -53,17 +53,16 @@
 //! [tracey]: https://tracey.bearcove.eu/
 
 /// Types for the action that checks the specifications of a project
-pub mod check_specs;
+mod check_specs;
 /// Types for the comparison of a pull request with its base branch
-pub mod comparison;
+mod comparison;
 /// The variables that a run keeps away from git
 mod environment;
 /// Types for one problem that tracey reported about a project
-pub mod problem;
+mod problem;
 /// Types for the tracey that a project runs
-pub mod tracey;
+mod tracey;
 
 pub use self::check_specs::{CheckSpecs, CheckSpecsError};
-pub use self::comparison::{Comparison, PrepareComparisonError};
-pub use self::problem::TraceyProblem;
-pub use self::tracey::{Coverage, ObserveTraceyError, Tracey};
+pub use self::comparison::PrepareComparisonError;
+pub use self::tracey::ObserveTraceyError;

@@ -20,7 +20,7 @@ use serde::Deserialize;
 /// to read first.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Severity {
+pub(crate) enum Severity {
     /// The diagnostic suggests a change to the code
     Help,
 
@@ -41,7 +41,7 @@ impl Severity {
     /// project asked stiles to run, and a project that wants a rule to stay
     /// quiet turns that rule off. A note and a help never fail a run, which is
     /// how stiles treats them in its strictest mode as well.
-    pub fn fails(self) -> bool {
+    pub(crate) fn fails(self) -> bool {
         matches!(self, Self::Error | Self::Warning)
     }
 }

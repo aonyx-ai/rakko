@@ -21,7 +21,7 @@ use getset::{CopyGetters, Getters};
 use rakko::path::plain;
 use rakko_tool::Execution;
 
-pub use self::problem::{RustfmtProblem, RustfmtProblemDetail};
+pub(crate) use self::problem::{RustfmtProblem, RustfmtProblemDetail};
 
 /// The start of a line that names a diagnostic of rustfmt
 ///
@@ -49,26 +49,26 @@ const WARNING: &str = "Warning:";
 /// report keeps the lines that carry an answer and ignores everything else,
 /// so a line that a new version adds does not break the reading.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct RustfmtReport {
+pub(crate) struct RustfmtReport {
     /// The files that rustfmt listed, once each, in the order of the output
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     listed: Vec<PathBuf>,
 
     /// The files that rustfmt cannot parse, once each
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     invalid: Vec<RustfmtProblem>,
 
     /// The first warning of rustfmt about its configuration, when it wrote
     /// one
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     warning: Option<String>,
 
     /// What rustfmt wrote to its standard error stream
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     stderr: String,
 
     /// Whether the run ended with success
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     succeeded: bool,
 }
 
@@ -77,7 +77,7 @@ impl RustfmtReport {
     ///
     /// Every file that the check listed is a file that rustfmt would
     /// rewrite, and every diagnostic is a file that rustfmt cannot parse.
-    pub fn problems(&self) -> Vec<RustfmtProblem> {
+    pub(crate) fn problems(&self) -> Vec<RustfmtProblem> {
         let mut problems: Vec<RustfmtProblem> = self
             .listed
             .iter()
@@ -89,7 +89,7 @@ impl RustfmtReport {
     }
 
     /// Reads the report of a run from what rustfmt wrote
-    pub fn read(execution: &Execution) -> Self {
+    pub(crate) fn read(execution: &Execution) -> Self {
         read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),

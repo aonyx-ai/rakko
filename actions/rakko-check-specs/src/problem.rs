@@ -19,21 +19,21 @@ use getset::Getters;
 /// project and names a file below it, so the path is already the one that a
 /// finding needs.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
-pub struct TraceyProblem {
+pub(crate) struct TraceyProblem {
     /// The path of the file that the problem is in
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: String,
 
     /// The line of the file that the problem is on
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     line: u32,
 
     /// The column of the line that the problem is at
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     column: u32,
 
     /// What tracey wrote about the problem
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     message: String,
 }
 
@@ -41,7 +41,7 @@ pub struct TraceyProblem {
 impl TraceyProblem {
     /// Creates a problem that tracey placed in a file
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         #[builder(into)] path: String,
         line: u32,
         column: u32,

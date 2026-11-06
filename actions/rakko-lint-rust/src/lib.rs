@@ -28,6 +28,6 @@
 //! [mise]: https://mise.jdx.dev
 
 /// Types for the action that lints the Rust code of a project
-pub mod lint_rust;
+mod lint_rust;
 
 pub use self::lint_rust::{LintRust, LintRustError};

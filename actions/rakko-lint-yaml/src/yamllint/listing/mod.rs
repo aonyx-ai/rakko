@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use rakko_tool::{Launch, Tool};
 
-pub use self::error::ListFilesError;
+pub(crate) use self::error::ListFilesError;
 
 /// The flag that asks yamllint which files it examines
 const LIST_FILES: &str = "--list-files";
@@ -42,7 +42,7 @@ const HERE: &str = ".";
 ///
 /// [unavailable]: ListFilesError::YamllintUnavailable
 /// [rejected]: ListFilesError::RejectedConfiguration
-pub async fn files(tool: &Tool) -> Result<Vec<PathBuf>, ListFilesError> {
+pub(crate) async fn files(tool: &Tool) -> Result<Vec<PathBuf>, ListFilesError> {
     let execution = tool
         .invocation()
         .arg(LIST_FILES)

@@ -20,13 +20,13 @@ use crate::problem::OxlintProblem;
 /// that it linted and found clean, and the two mean opposite things for the
 /// outcome of an action, so the count travels with the diagnostics.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
-pub struct Observation {
+pub(crate) struct Observation {
     /// The diagnostics that oxlint reported, in the order of the report
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     problems: Vec<OxlintProblem>,
 
     /// How many files oxlint examined
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     examined: usize,
 }
 
@@ -41,7 +41,7 @@ impl Observation {
     ///
     /// [`Oxlint::observe`]: crate::oxlint::Oxlint::observe
     #[builder]
-    pub fn new(
+    pub(crate) fn new(
         #[builder(default)] problems: Vec<OxlintProblem>,
         #[builder(default)] examined: usize,
     ) -> Self {

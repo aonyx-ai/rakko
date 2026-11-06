@@ -22,7 +22,7 @@ use serde::Deserialize;
 /// project.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Severity {
+pub(crate) enum Severity {
     /// The report tells a reader something about the crate
     Help,
 

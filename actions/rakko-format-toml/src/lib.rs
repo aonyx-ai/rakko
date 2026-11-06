@@ -28,6 +28,6 @@
 //! [taplo]: https://taplo.tamasfe.dev
 
 /// Types for the action that formats the TOML files of a project
-pub mod format_toml;
+mod format_toml;
 
 pub use self::format_toml::{FormatToml, FormatTomlArgs, FormatTomlError};

@@ -6,6 +6,7 @@ use thiserror::Error;
 /// the report, and the caller decides what it means. The variants here
 /// describe text that is not the report of a run at all.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Error)]
+#[non_exhaustive]
 pub enum ReadReportError {
     /// The text does not start with the line that opens a TAP report
     ///

@@ -58,7 +58,7 @@ const SECOND_PARENT: &str = "HEAD^2";
 /// destructor survives leaves a directory that the operating system removes
 /// and an entry that `git worktree prune` forgets.
 #[derive(Debug)]
-pub struct Comparison {
+pub(crate) struct Comparison {
     /// The directory that holds the worktree
     directory: TempDir,
 
@@ -68,7 +68,7 @@ pub struct Comparison {
 
 impl Comparison {
     /// Returns the directory that holds the comparison
-    pub fn directory(&self) -> &Path {
+    pub(crate) fn directory(&self) -> &Path {
         self.directory.path()
     }
 
@@ -88,7 +88,7 @@ impl Comparison {
     ///
     /// Returns a [`PrepareComparisonError`] when git does not run, or when it
     /// refuses to build the copy.
-    pub async fn prepare(
+    pub(crate) async fn prepare(
         root: &ProjectRoot,
         requested: bool,
     ) -> Result<Option<Self>, PrepareComparisonError> {
@@ -248,6 +248,105 @@ mod tests {
 
     use super::*;
 
+    /// A specification with one requirement
+    const SPECIFICATION: &str = "# Probe\n\nprobe[alpha]\nThe thing MUST do alpha.\n";
+
+    /// A specification whose requirement says something else, at the same
+    /// version
+    const CHANGED: &str = "# Probe\n\nprobe[alpha]\nThe thing MUST do alpha and gamma.\n";
+
+    /// A project that a test builds in a temporary directory
+    struct Project {
+        /// The directory that holds the project
+        directory: TempDir,
+    }
+
+    impl Project {
+        /// Returns a project whose checkout is a merge commit of a pull
+        /// request
+        ///
+        /// The branch changes the text of a requirement and bumps no version,
+        /// which is what the comparison of a pull request has to find. The
+        /// comparison only runs git, so the project holds the specification
+        /// and nothing else.
+        fn merged() -> Self {
+            let project = Self {
+                directory: tempfile::tempdir().unwrap(),
+            };
+            project.write(SPECIFICATION);
+
+            project.git(&["init", "--quiet", "--initial-branch", "main", "."]);
+            project.git(&["add", "-A"]);
+            project.git(&["commit", "--quiet", "-m", "base"]);
+            project.git(&["checkout", "--quiet", "-b", "feature"]);
+            project.write(CHANGED);
+            project.git(&["add", "-A"]);
+            project.git(&["commit", "--quiet", "-m", "change the requirement"]);
+            project.git(&["checkout", "--quiet", "main"]);
+            project.git(&["merge", "--quiet", "--no-ff", "feature", "-m", "Merge"]);
+            let merge = project.git(&["rev-parse", "HEAD"]);
+            project.git(&["checkout", "--quiet", "--detach", &merge]);
+
+            project
+        }
+
+        /// Returns the canonical root of the project
+        ///
+        /// The root is canonical, so the paths that git reports do not depend
+        /// on the symbolic links of the temporary directory.
+        fn root(&self) -> ProjectRoot {
+            ProjectRoot::canonical(self.directory.path()).unwrap()
+        }
+
+        /// Writes the specification of the project
+        fn write(&self, content: &str) {
+            std::fs::write(self.directory.path().join("SPECIFICATION.md"), content).unwrap();
+        }
+
+        /// Runs one command of git in the project
+        fn git(&self, arguments: &[&str]) -> String {
+            git(self.directory.path(), arguments)
+        }
+    }
+
+    /// Runs one command of git in the directory
+    fn git(directory: &Path, arguments: &[&str]) -> String {
+        // The commits of a fixture are thrown away with its directory, and
+        // the signing key of a contributor is not the test's to ask for.
+        let mut command = Command::new(GIT);
+        command
+            .arg("-c")
+            .arg("commit.gpgsign=false")
+            .args(arguments)
+            .current_dir(directory);
+
+        // A test that runs inside a git hook inherits the variables that name
+        // the repository of the hook, and those beat the working directory, so
+        // the fixture would act on the checkout of the contributor. The
+        // identity below is set afterwards, because it carries the prefix too.
+        for (name, _) in std::env::vars_os() {
+            if name.as_encoded_bytes().starts_with(b"GIT_") {
+                command.env_remove(name);
+            }
+        }
+
+        let output = command
+            .env("GIT_AUTHOR_NAME", "Test")
+            .env("GIT_AUTHOR_EMAIL", "test@example.com")
+            .env("GIT_COMMITTER_NAME", "Test")
+            .env("GIT_COMMITTER_EMAIL", "test@example.com")
+            .output()
+            .unwrap();
+
+        assert!(
+            output.status.success(),
+            "expected git to run {arguments:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        String::from_utf8_lossy(&output.stdout).trim().to_owned()
+    }
+
     #[test]
     fn command_runs_in_the_directory() {
         let invocation = command(Path::new("/home/otter/project"));
@@ -258,5 +357,56 @@ mod tests {
                 .map(kawauso_process::invocation::WorkingDirectory::get),
             Some(Path::new("/home/otter/project"))
         );
+    }
+
+    #[tokio::test]
+    async fn comparison_leaves_the_commit_of_the_checkout_alone() {
+        let project = Project::merged();
+        let before = project.git(&["rev-parse", "HEAD"]);
+
+        let comparison = Comparison::prepare(&project.root(), true).await.unwrap();
+        drop(comparison);
+
+        assert_eq!(project.git(&["rev-parse", "HEAD"]), before);
+    }
+
+    #[tokio::test]
+    async fn comparison_leaves_the_index_of_the_checkout_alone() {
+        let project = Project::merged();
+
+        let comparison = Comparison::prepare(&project.root(), true).await.unwrap();
+        drop(comparison);
+
+        assert_eq!(project.git(&["diff", "--cached", "--name-only"]), "");
+    }
+
+    // A code host checks out a merge commit of the branch and its base, and
+    // stages nothing, so a comparison of that index with that HEAD finds no
+    // change at all.
+    #[tokio::test]
+    async fn comparison_of_a_merge_commit_stages_the_pull_request() {
+        let project = Project::merged();
+
+        let comparison = Comparison::prepare(&project.root(), true)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let staged = git(
+            &comparison.directory().join(WORKTREE),
+            &["diff", "--cached", "--name-only"],
+        );
+        assert_eq!(staged, "SPECIFICATION.md");
+    }
+
+    // A run that no environment calls a pull request compares the checkout
+    // itself.
+    #[tokio::test]
+    async fn comparison_that_nothing_asked_for_is_none() {
+        let project = Project::merged();
+
+        let comparison = Comparison::prepare(&project.root(), false).await.unwrap();
+
+        assert!(comparison.is_none(), "expected no comparison");
     }
 }

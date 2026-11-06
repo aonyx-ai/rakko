@@ -46,13 +46,11 @@
 //! [tsc]: https://www.typescriptlang.org/docs/handbook/compiler-options.html
 
 /// Types for the action that type checks the TypeScript of a project
-pub mod check_typescript;
+mod check_typescript;
 /// Types for one thing that tsc reported about a project
-pub mod diagnostic;
+mod diagnostic;
 /// Types for the tsc that a project runs
-pub mod tsc;
+mod tsc;
 
 pub use self::check_typescript::{CheckTypeScript, CheckTypeScriptError};
-pub use self::diagnostic::{Category, Diagnostic, Origin};
 pub use self::tsc::report::ReadReportError;
-pub use self::tsc::{ObserveTscError, Tsc};

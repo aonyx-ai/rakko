@@ -20,23 +20,23 @@ const UNUSED: &str = "unused";
 /// finding names it relative to the project root instead, which is the name
 /// that a reader, a machine, and a code host all recognize.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct UnusedDependency {
+pub(crate) struct UnusedDependency {
     /// The table of the manifest that declares the dependency
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     kind: DependencyKind,
 
     /// The name of the dependency, as the manifest declares it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     name: String,
 
     /// The manifest of the package that declares the dependency
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     manifest: PathBuf,
 }
 
 impl UnusedDependency {
     /// Creates an unused dependency from what cargo-udeps reported
-    pub fn new(kind: DependencyKind, name: String, manifest: PathBuf) -> Self {
+    pub(crate) fn new(kind: DependencyKind, name: String, manifest: PathBuf) -> Self {
         Self {
             kind,
             name,
@@ -54,7 +54,7 @@ impl UnusedDependency {
     /// A manifest that lies outside the project gets a finding at the level
     /// of the project. The message then names the manifest, so the place is
     /// not lost with the level.
-    pub fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
+    pub(crate) fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let message = format!("{UNUSED} {}: {}", self.kind.label(), self.name);
 
         match root.relative_path(&self.manifest, project) {

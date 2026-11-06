@@ -42,7 +42,7 @@ const PLACE_SEPARATOR: char = ':';
 /// no caller asks for, because a block that refused an entry it does not know
 /// would break on the next release of Node that adds one.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
-pub struct Block {
+pub(crate) struct Block {
     /// The indentation of the lines that state the entries of the block
     indent: usize,
 
@@ -58,7 +58,7 @@ pub struct Block {
 
 impl Block {
     /// Creates a block whose entries stand at the given indentation
-    pub fn new(indent: usize) -> Self {
+    pub(crate) fn new(indent: usize) -> Self {
         Self {
             indent,
             closed: false,
@@ -71,7 +71,7 @@ impl Block {
     ///
     /// A block takes every line until the report closes it, so that a caller
     /// hands it the lines of a value that reads like anything else.
-    pub fn open(&self) -> bool {
+    pub(crate) fn open(&self) -> bool {
         !self.closed
     }
 
@@ -83,7 +83,7 @@ impl Block {
     /// of the block and is no part of a value.
     ///
     /// [unreadable]: ReadReportError::UnreadableLine
-    pub fn read(&mut self, line: &str) -> Result<(), ReadReportError> {
+    pub(crate) fn read(&mut self, line: &str) -> Result<(), ReadReportError> {
         if self.collecting.is_some() {
             if line.trim().is_empty() || indent(line) > self.indent {
                 self.extend(line);
@@ -125,7 +125,7 @@ impl Block {
     }
 
     /// Returns the value of the named entry, when the block holds it
-    pub fn value(&self, key: &str) -> Option<&Scalar> {
+    pub(crate) fn value(&self, key: &str) -> Option<&Scalar> {
         self.entries
             .iter()
             .find(|(stated, _)| stated == key)
@@ -148,7 +148,7 @@ impl Block {
 /// lines where the value holds a line break. A caller reads either of them the
 /// same way, because a finding carries no formatting.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum Scalar {
+pub(crate) enum Scalar {
     /// A value that the report wrote over several lines
     Lines(Vec<String>),
 
@@ -162,7 +162,7 @@ impl Scalar {
     /// The parts of the value join with a single space, and a run of spaces
     /// inside it becomes one, because the report indents a value that it wrote
     /// over several lines and a finding carries no formatting.
-    pub fn flattened(&self) -> String {
+    pub(crate) fn flattened(&self) -> String {
         let joined = match self {
             Self::Lines(lines) => lines.join(" "),
             Self::Text(text) => text.clone(),
@@ -178,7 +178,7 @@ impl Scalar {
     /// reading starts from the end.
     ///
     /// Returns `None` when the value names no place.
-    pub fn place(&self) -> Option<Origin> {
+    pub(crate) fn place(&self) -> Option<Origin> {
         let stated = self.flattened();
         let mut parts = stated.rsplitn(3, PLACE_SEPARATOR);
 

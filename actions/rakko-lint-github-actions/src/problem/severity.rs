@@ -20,7 +20,7 @@ use serde::Deserialize;
 /// severity fails a run, and the severity is what tells the reader which one
 /// to read first.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
-pub enum Severity {
+pub(crate) enum Severity {
     /// The finding tells the reader something about the workflow
     Informational,
 

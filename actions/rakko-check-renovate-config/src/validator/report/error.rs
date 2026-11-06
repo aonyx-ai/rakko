@@ -12,6 +12,7 @@ use thiserror::Error;
 /// the findings of such a run would be the problems that the reading happened
 /// to understand.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ReadReportError {
     /// The validator wrote a line that is no JSON record
     #[error("failed to read a line of the log of the validator: {line}")]

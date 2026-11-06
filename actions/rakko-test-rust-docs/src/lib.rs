@@ -38,9 +38,9 @@
 
 /// Types for what the test harness reported about the examples of a
 /// workspace
-pub mod report;
+mod report;
 /// Types for the action that runs the examples of a project
-pub mod test_rust_docs;
+mod test_rust_docs;
 
-pub use self::report::{DoctestFailure, DoctestReport, ReadDoctestReportError};
+pub use self::report::ReadDoctestReportError;
 pub use self::test_rust_docs::{TestRustDocs, TestRustDocsError};

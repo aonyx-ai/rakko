@@ -9,7 +9,7 @@ mod change;
 
 use getset::{CopyGetters, Getters};
 
-pub use self::change::Change;
+pub(crate) use self::change::Change;
 use crate::part::Part;
 
 /// One part of a lockfile that `mise lock` added, changed, or removed
@@ -17,19 +17,19 @@ use crate::part::Part;
 /// The value names the part and what happened to it, and it gives the text
 /// that a finding and a repair carry.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct Difference {
+pub(crate) struct Difference {
     /// The part that `mise lock` touched
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     part: Part,
 
     /// What `mise lock` did to the part
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     change: Change,
 }
 
 impl Difference {
     /// Creates the difference of a part
-    pub fn new(part: Part, change: Change) -> Self {
+    pub(crate) fn new(part: Part, change: Change) -> Self {
         Self { part, change }
     }
 
@@ -38,7 +38,7 @@ impl Difference {
     /// The message says what `mise lock` would do to the lockfile, and names
     /// the tool, the version, and the platform of the part, such as
     /// `mise lock adds the entry of jq 1.8.1 for linux-x64`.
-    pub fn finding(&self) -> String {
+    pub(crate) fn finding(&self) -> String {
         let verb = match self.change {
             Change::Added => "adds",
             Change::Changed => "changes",
@@ -52,7 +52,7 @@ impl Difference {
     ///
     /// The message says what `mise lock` did to the lockfile, such as
     /// `mise lock added the entry of jq 1.8.1 for linux-x64`.
-    pub fn repair(&self) -> String {
+    pub(crate) fn repair(&self) -> String {
         let verb = match self.change {
             Change::Added => "added",
             Change::Changed => "changed",

@@ -9,7 +9,7 @@ use crate::node::report::ReadReportError;
 /// the caller decides what it means. The variants here describe a run that
 /// produced no answer about the project at all.
 #[derive(Debug, Error)]
-pub enum ObserveNodeError {
+pub(crate) enum ObserveNodeError {
     /// The runner reported no failure and ended without success
     ///
     /// The runner reports every test that it ran and every one that failed, so

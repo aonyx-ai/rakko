@@ -18,8 +18,8 @@ use rakko::{FilePath, ProjectRoot, SkipReason};
 use rakko_tool::{Execution, Invocation};
 use serde::Deserialize;
 
-pub use self::lock::Lock;
-pub use self::trust::Trust;
+pub(crate) use self::lock::Lock;
+pub(crate) use self::trust::Trust;
 use crate::check_mise_lock::CheckMiseLockError;
 use crate::lockfile::Lockfile;
 use crate::part::Platform;
@@ -163,7 +163,7 @@ struct Listed {
 /// trusts its configuration. An action creates one for the project, and one
 /// for the copy of the project when it locks there.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Mise {
+pub(crate) struct Mise {
     /// The directory that every run of mise starts in
     root: ProjectRoot,
 
@@ -178,7 +178,7 @@ impl Mise {
     /// mise then reads a configuration there that nobody trusted. A caller
     /// grants it only for a directory whose configuration somebody trusted in
     /// another place, such as a copy of a project that mise already read.
-    pub fn new(root: ProjectRoot, trust: Trust) -> Self {
+    pub(crate) fn new(root: ProjectRoot, trust: Trust) -> Self {
         Self { root, trust }
     }
 
@@ -209,7 +209,7 @@ impl Mise {
     /// [unavailable]: CheckMiseLockError::MiseUnavailable
     /// [unlocked]: CheckMiseLockError::UnlockedProject
     /// [unresolved]: CheckMiseLockError::UnexpectedWarnings
-    pub async fn lock(&self) -> Result<Lock, CheckMiseLockError> {
+    pub(crate) async fn lock(&self) -> Result<Lock, CheckMiseLockError> {
         let execution = self
             .lock_invocation()
             .run()
@@ -257,7 +257,9 @@ impl Mise {
     /// [inaccessible]: CheckMiseLockError::InaccessibleLockfile
     /// [list]: Mise::list
     /// [unreadable]: CheckMiseLockError::UnreadableLockfile
-    pub async fn lockfiles(&self) -> Result<BTreeMap<FilePath, Lockfile>, CheckMiseLockError> {
+    pub(crate) async fn lockfiles(
+        &self,
+    ) -> Result<BTreeMap<FilePath, Lockfile>, CheckMiseLockError> {
         let mut lockfiles = BTreeMap::new();
 
         for path in self.list().await? {
@@ -289,7 +291,7 @@ impl Mise {
     /// [listing]: CheckMiseLockError::UnreadableListing
     /// [unavailable]: CheckMiseLockError::MiseUnavailable
     /// [unlisted]: CheckMiseLockError::UnlistedLockfiles
-    pub async fn list(&self) -> Result<Vec<FilePath>, CheckMiseLockError> {
+    pub(crate) async fn list(&self) -> Result<Vec<FilePath>, CheckMiseLockError> {
         let execution = self
             .invocation()
             .arg(LOCK)
@@ -632,6 +634,72 @@ mod tests {
             .map(|variable| variable.value().get().to_owned())
     }
 
+    /// The configuration of a project that pins one tool that mise downloads
+    ///
+    /// Mise checks the provenance of every download when it locks, and it asks
+    /// a service over the network for each platform. A busy service makes mise
+    /// skip a platform, so the configuration turns the checks off, and mise
+    /// then locks from what it knows of the tool.
+    const PINNED: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\naqua.github_attestations = false\naqua.slsa = false\naqua.cosign = false\naqua.minisign = false\n";
+
+    /// A project in a temporary directory whose lockfile `mise lock` wrote
+    ///
+    /// The project trusts its configuration until it drops, because mise
+    /// ignores a configuration that nobody trusts.
+    struct Locked {
+        /// The directory that holds the project
+        directory: tempfile::TempDir,
+    }
+
+    impl Locked {
+        /// Creates a project with the given configuration, and runs
+        /// `mise lock` in it, as a contributor does
+        fn new(configuration: &str) -> Self {
+            let directory = tempfile::tempdir().unwrap();
+            std::fs::write(directory.path().join("mise.toml"), configuration).unwrap();
+            let project = Self { directory };
+
+            project.mise(&["trust", "--quiet", "mise.toml"]);
+            project.mise(&["lock", "--quiet"]);
+
+            project
+        }
+
+        /// Returns the canonical root of the project
+        ///
+        /// The root is canonical, so the paths that mise reports do not depend
+        /// on the symbolic links of the temporary directory.
+        fn root(&self) -> ProjectRoot {
+            ProjectRoot::canonical(self.directory.path()).unwrap()
+        }
+
+        /// Runs mise in the project with the given arguments
+        fn mise(&self, arguments: &[&str]) {
+            let status = std::process::Command::new(MISE)
+                .args(arguments)
+                .current_dir(self.directory.path())
+                .status()
+                .unwrap();
+
+            assert!(status.success(), "expected mise to run {arguments:?}");
+        }
+    }
+
+    impl Drop for Locked {
+        /// Withdraws the trust that the project received
+        ///
+        /// Mise records the trust of a configuration in the state of the user,
+        /// and the temporary directory of a test never comes back, so the
+        /// record would pile up there forever. A failure stays quiet, because
+        /// the test already reported what it was about.
+        fn drop(&mut self) {
+            let _ = std::process::Command::new(MISE)
+                .args(["trust", "--quiet", "--untrust", "mise.toml"])
+                .current_dir(self.directory.path())
+                .status();
+        }
+    }
+
     #[test]
     fn invocation_of_a_granted_directory_trusts_the_directory() {
         let mise = Mise::new(root(), Trust::Granted);
@@ -749,6 +817,27 @@ mod tests {
             .collect();
 
         assert_eq!(arguments, [LOCK]);
+    }
+
+    // The platforms come from the report that mise writes, so this test reads
+    // the report of the mise that the tests run.
+    #[tokio::test]
+    async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
+        let project = Locked::new(PINNED);
+        let mise = Mise::new(project.root(), Trust::Inherited);
+
+        let Lock::Written { targets } = mise.lock().await.unwrap() else {
+            panic!("expected mise to lock the project");
+        };
+
+        let lockfile = "mise.lock".parse::<FilePath>().unwrap();
+        let wanted = [Platform::new("linux-x64"), Platform::new("macos-arm64")];
+        assert!(
+            targets
+                .get(&lockfile)
+                .is_some_and(|targeted| wanted.iter().all(|platform| targeted.contains(platform))),
+            "expected the targets of mise.lock to hold {wanted:?}, got {targets:?}"
+        );
     }
 
     #[test]

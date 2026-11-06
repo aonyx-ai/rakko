@@ -16,7 +16,7 @@ use std::fmt;
 /// a warning still points at a problem, and the level says how the project
 /// weighed it.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum ProblemLevel {
+pub(crate) enum ProblemLevel {
     /// The problem breaks a rule that the project treats as an error
     Error,
 
@@ -36,7 +36,7 @@ impl ProblemLevel {
     /// Yamllint writes one of two words, and a third word belongs to a
     /// version of yamllint that this crate does not know. The caller stops the
     /// run in that case, instead of guessing what the word means.
-    pub fn parse(word: &str) -> Option<Self> {
+    pub(crate) fn parse(word: &str) -> Option<Self> {
         match word {
             ERROR => Some(Self::Error),
             WARNING => Some(Self::Warning),

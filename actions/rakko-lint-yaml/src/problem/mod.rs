@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use getset::{CopyGetters, Getters};
 use rakko::{FilePath, ProjectRoot};
 
-pub use self::level::ProblemLevel;
+pub(crate) use self::level::ProblemLevel;
 
 /// The prefix that a message gives the level of a problem
 const LEVEL_OPEN: char = '[';
@@ -38,31 +38,31 @@ const LEVEL_CLOSE: &str = "] ";
 ///
 /// [relative]: YamllintProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct YamllintProblem {
+pub(crate) struct YamllintProblem {
     /// The path of the file, as yamllint wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// The line that the rule was broken on, starting at 1
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     line: u32,
 
     /// The column that the rule points at, starting at 1
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     column: u32,
 
     /// How the project weighed the rule that the file broke
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     level: ProblemLevel,
 
     /// What yamllint said about the rule and the file
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     description: String,
 }
 
 impl YamllintProblem {
     /// Creates a problem from what yamllint reported about a file
-    pub fn new(
+    pub(crate) fn new(
         path: PathBuf,
         line: u32,
         column: u32,
@@ -83,7 +83,7 @@ impl YamllintProblem {
     /// The sentence holds the level and the description, in the order that
     /// yamllint writes them, so that a finding reads like the line that a
     /// contributor sees when they run yamllint themselves.
-    pub fn message(&self) -> String {
+    pub(crate) fn message(&self) -> String {
         format!(
             "{LEVEL_OPEN}{}{LEVEL_CLOSE}{}",
             self.level, self.description
@@ -96,7 +96,7 @@ impl YamllintProblem {
     /// root as the place to look, so a path that does not fit points at a
     /// report that the caller misread, and the caller decides what to do about
     /// that.
-    pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
+    pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
 }

@@ -35,6 +35,6 @@
 
 /// Types for the action that checks a project against the newest versions of
 /// its dependencies
-pub mod check_latest_deps;
+mod check_latest_deps;
 
 pub use self::check_latest_deps::{CheckLatestDeps, CheckLatestDepsError};

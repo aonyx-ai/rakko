@@ -10,7 +10,7 @@ use crate::validator::report::ReadReportError;
 /// The variants here describe a run that produced no answer about the project
 /// that the caller can trust.
 #[derive(Debug, Error)]
-pub enum ObserveValidatorError {
+pub(crate) enum ObserveValidatorError {
     /// The validator stopped before it had validated the project
     ///
     /// The validator ends with a status of its own when it crashes, and it

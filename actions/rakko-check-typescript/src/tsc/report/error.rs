@@ -6,6 +6,7 @@ use thiserror::Error;
 /// travels as a diagnostic, and the caller decides what it means. The variant
 /// here describes output that holds no answer about the project.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Error)]
+#[non_exhaustive]
 pub enum ReadReportError {
     /// Tsc wrote a line that is no part of a diagnostic
     ///

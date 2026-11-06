@@ -12,8 +12,8 @@ mod severity;
 
 use getset::{CopyGetters, Getters};
 
-pub use self::package::Package;
-pub use self::severity::Severity;
+pub(crate) use self::package::Package;
+pub(crate) use self::severity::Severity;
 
 /// The character that opens the check of a problem in a message
 const CHECK_OPEN: char = '[';
@@ -49,27 +49,32 @@ const PACKAGES_CLOSE: char = ')';
 /// altogether. A caller therefore places a problem at the workspace that it
 /// came from, and never at a path.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
-pub struct DenyProblem {
+pub(crate) struct DenyProblem {
     /// How the configuration of the project weighed the shape
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     severity: Severity,
 
     /// The check that recognized the shape, in the words of cargo-deny
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     check: String,
 
     /// What cargo-deny wrote about the shape
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     message: String,
 
     /// The packages that the entry is about, in the order of the report
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     packages: Vec<Package>,
 }
 
 impl DenyProblem {
     /// Creates a problem from one entry that cargo-deny reported
-    pub fn new(severity: Severity, check: String, message: String, packages: Vec<Package>) -> Self {
+    pub(crate) fn new(
+        severity: Severity,
+        check: String,
+        message: String,
+        packages: Vec<Package>,
+    ) -> Self {
         Self {
             severity,
             check,
@@ -83,7 +88,7 @@ impl DenyProblem {
     /// A run fails over a problem that answers `true`, and passes over one
     /// that answers `false`. The weight comes from the configuration of the
     /// project, so this asks what the project already decided.
-    pub fn denied(&self) -> bool {
+    pub(crate) fn denied(&self) -> bool {
         self.severity >= Severity::Error
     }
 
@@ -94,7 +99,7 @@ impl DenyProblem {
     /// the entry is about. A problem that names no package ends with the
     /// sentence of cargo-deny, because empty parentheses tell a reader
     /// nothing.
-    pub fn description(&self) -> String {
+    pub(crate) fn description(&self) -> String {
         let head = format!("{CHECK_OPEN}{}{CHECK_CLOSE}{}", self.check, self.message);
 
         if self.packages.is_empty() {

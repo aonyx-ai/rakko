@@ -7,6 +7,7 @@ use thiserror::Error;
 /// it means. The variants here describe output that holds no answer about the
 /// project.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ReadReportError {
     /// Oxlint wrote no report
     ///

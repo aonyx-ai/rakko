@@ -15,14 +15,14 @@
 //! understand.
 
 /// The reading of one indented block of a report
-pub mod block;
+pub(crate) mod block;
 /// The error that leaves a caller without the report of a run
 mod error;
 
 use bon::Builder;
 use getset::{CopyGetters, Getters};
 
-pub use self::block::{Block, Scalar};
+pub(crate) use self::block::{Block, Scalar};
 pub use self::error::ReadReportError;
 use crate::failure::{Failure, Origin};
 
@@ -88,13 +88,13 @@ const JOIN: char = ' ';
 /// A test that passed carries nothing that a caller needs, so the report keeps
 /// no record of it beyond the count.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
-pub struct Report {
+pub(crate) struct Report {
     /// The tests that failed, in the order that the runner reported them
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     failures: Vec<Failure>,
 
     /// How many tests the run ran
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     tests: u64,
 }
 
@@ -115,7 +115,7 @@ pub struct Report {
 /// [counts]: ReadReportError::MissingCounts
 /// [header]: ReadReportError::MissingHeader
 /// [unreadable]: ReadReportError::UnreadableLine
-pub fn read(report: &str) -> Result<Report, ReadReportError> {
+pub(crate) fn read(report: &str) -> Result<Report, ReadReportError> {
     let lines: Vec<&str> = report.lines().collect();
 
     let start = opening(&lines)?;

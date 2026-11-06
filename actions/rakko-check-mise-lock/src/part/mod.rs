@@ -19,9 +19,9 @@ use std::fmt;
 use bon::Builder;
 use getset::Getters;
 
-pub use self::platform::Platform;
-pub use self::tool_name::ToolName;
-pub use self::version::Version;
+pub(crate) use self::platform::Platform;
+pub(crate) use self::tool_name::ToolName;
+pub(crate) use self::version::Version;
 
 /// The identity of one part of a lockfile of mise
 ///
@@ -32,18 +32,18 @@ pub use self::version::Version;
 /// Parts order by tool, then by version, then by platform, so the findings of
 /// a run come in an order that does not change from one run to the next.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
-pub struct Part {
+pub(crate) struct Part {
     /// The tool that the part records
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     tool: ToolName,
 
     /// The version of the tool that the part records
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     version: Version,
 
     /// The platform that the part records, or `None` for an entry that
     /// records no platform
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     platform: Option<Platform>,
 }
 

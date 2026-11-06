@@ -3,7 +3,7 @@
 /// The variant says whether the part was missing before the run, is missing
 /// after it, or is there on both sides with other content.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum Change {
+pub(crate) enum Change {
     /// `mise lock` wrote a part that the lockfile did not hold
     Added,
 

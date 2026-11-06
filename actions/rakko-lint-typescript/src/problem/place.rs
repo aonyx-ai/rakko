@@ -20,7 +20,7 @@ use rakko::Position;
 /// and names the root as the place to look, so oxlint reports every path
 /// relative to it.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum Place {
+pub(crate) enum Place {
     /// The diagnostic belongs to the project, and to no file in it
     Project,
 

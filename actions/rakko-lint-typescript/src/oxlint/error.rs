@@ -9,7 +9,7 @@ use crate::oxlint::report::ReadReportError;
 /// itself: it travels in the observation, and the caller decides what it
 /// means. The variants here describe a run that produced no answer at all.
 #[derive(Debug, Error)]
-pub enum ObserveOxlintError {
+pub(crate) enum ObserveOxlintError {
     /// Oxlint wrote no report
     ///
     /// Oxlint reads its configuration before it collects a single file, and it

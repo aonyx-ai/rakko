@@ -13,7 +13,7 @@ mod report;
 use rakko::ProjectRoot;
 use rakko_tool::{Execution, ResolveToolError, Tool, ToolName};
 
-pub use self::error::ObserveStilesError;
+pub(crate) use self::error::ObserveStilesError;
 use crate::observation::Observation;
 use crate::problem::{Severity, StilesProblem};
 
@@ -75,29 +75,8 @@ const FAILED: i32 = 1;
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and a stiles that mise does not report
 /// stops the caller.
-///
-/// # Examples
-///
-/// ```no_run
-/// use rakko::ProjectRoot;
-/// use rakko_lint_stiles::Stiles;
-///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = ProjectRoot::new("/home/otter/project".into());
-///
-/// let stiles = Stiles::resolve(root).await?;
-///
-/// if !stiles.enabled_rules().await?.is_empty() {
-///     let observation = stiles.observe().await?;
-///
-///     println!("{} problems", observation.problems().len());
-/// }
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Stiles {
+pub(crate) struct Stiles {
     /// The program that mise installed for the project
     tool: Tool,
 }
@@ -124,7 +103,7 @@ impl Stiles {
     /// [incomplete]: ObserveStilesError::IncompleteCheck
     /// [unavailable]: ObserveStilesError::StilesUnavailable
     /// [unreadable]: ObserveStilesError::UnreadableReport
-    pub async fn enabled_rules(&self) -> Result<Vec<String>, ObserveStilesError> {
+    pub(crate) async fn enabled_rules(&self) -> Result<Vec<String>, ObserveStilesError> {
         let execution = self.run(RULES).await?;
 
         if !execution.status().success() {
@@ -162,7 +141,7 @@ impl Stiles {
     /// [incomplete]: ObserveStilesError::IncompleteCheck
     /// [unavailable]: ObserveStilesError::StilesUnavailable
     /// [unreadable]: ObserveStilesError::UnreadableReport
-    pub async fn observe(&self) -> Result<Observation, ObserveStilesError> {
+    pub(crate) async fn observe(&self) -> Result<Observation, ObserveStilesError> {
         let execution = self.run(CHECK).await?;
         let stderr = execution.stderr().to_string_lossy();
 
@@ -200,7 +179,7 @@ impl Stiles {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no stiles for the
     /// project.
-    pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
+    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(STILES), root).await?;
 
         Ok(Self { tool })

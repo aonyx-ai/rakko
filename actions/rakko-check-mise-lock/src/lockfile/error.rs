@@ -9,6 +9,7 @@ use crate::part::{Platform, ToolName, Version};
 /// variant names what in the lockfile has a shape that the action does not
 /// know.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum ReadLockfileError {
     /// An entry of a tool records a platform that is not a table
     #[error(

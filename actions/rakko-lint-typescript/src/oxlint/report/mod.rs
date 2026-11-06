@@ -157,7 +157,7 @@ struct Span {
 ///
 /// [absent]: ReadReportError::Absent
 /// [unreadable]: ReadReportError::Unreadable
-pub fn read(output: &str) -> Result<Observation, ReadReportError> {
+pub(crate) fn read(output: &str) -> Result<Observation, ReadReportError> {
     let start = output.find(REPORT_OPEN).ok_or(ReadReportError::Absent)?;
 
     let report: Report = serde_json::from_str(output[start..].trim())

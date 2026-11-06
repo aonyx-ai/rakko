@@ -10,19 +10,19 @@ use getset::Getters;
 /// problem asks the root for the path relative to the project, which is the
 /// name that a reader, a machine, and a code host all recognize.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
-pub struct RustfmtProblem {
+pub(crate) struct RustfmtProblem {
     /// The absolute path of the file
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// What rustfmt reported about the file
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     detail: RustfmtProblemDetail,
 }
 
 impl RustfmtProblem {
     /// Creates a problem from the path and the detail that rustfmt reported
-    pub fn new(path: PathBuf, detail: RustfmtProblemDetail) -> Self {
+    pub(crate) fn new(path: PathBuf, detail: RustfmtProblemDetail) -> Self {
         Self { path, detail }
     }
 }
@@ -34,7 +34,7 @@ impl RustfmtProblem {
 /// file. A file that it cannot parse gets the position where the parse
 /// stopped and the message of the parser.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum RustfmtProblemDetail {
+pub(crate) enum RustfmtProblemDetail {
     /// Rustfmt cannot parse the file
     Invalid {
         /// The line where the parse stopped

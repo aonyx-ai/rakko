@@ -12,7 +12,7 @@ mod report;
 use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
-pub use self::error::ObserveMarkdownlintError;
+pub(crate) use self::error::ObserveMarkdownlintError;
 use crate::observation::Observation;
 
 /// The name that mise knows the tool by
@@ -74,28 +74,8 @@ const NO_MATCHING_FILES: &str = "No matching files found";
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and a markdownlint that mise does not
 /// report stops the caller.
-///
-/// # Examples
-///
-/// ```no_run
-/// use rakko::ProjectRoot;
-/// use rakko_lint_markdown::Markdownlint;
-///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = ProjectRoot::new("/home/otter/project".into());
-///
-/// let markdownlint = Markdownlint::resolve(root).await?;
-/// let observation = markdownlint.observe().await?;
-///
-/// if observation.examined() {
-///     println!("{} problems", observation.problems().len());
-/// }
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Markdownlint {
+pub(crate) struct Markdownlint {
     /// The program that mise installed for the project
     tool: Tool,
 }
@@ -122,7 +102,7 @@ impl Markdownlint {
     ///
     /// [unavailable]: ObserveMarkdownlintError::MarkdownlintUnavailable
     /// [unreadable]: ObserveMarkdownlintError::UnreadableReport
-    pub async fn observe(&self) -> Result<Observation, ObserveMarkdownlintError> {
+    pub(crate) async fn observe(&self) -> Result<Observation, ObserveMarkdownlintError> {
         let execution = self
             .tool
             .invocation()
@@ -169,7 +149,7 @@ impl Markdownlint {
     ///
     /// Returns a [`ResolveToolError`] when mise reports no markdownlint for
     /// the project.
-    pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
+    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let tool = Tool::resolve(ToolName::new(MARKDOWNLINT), root).await?;
 
         Ok(Self { tool })

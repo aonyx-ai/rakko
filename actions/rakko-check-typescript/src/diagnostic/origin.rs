@@ -14,17 +14,17 @@ use rakko::{FilePath, ProjectRoot};
 ///
 /// [relative]: Origin::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
-pub struct Origin {
+pub(crate) struct Origin {
     /// The path of the file, as tsc wrote it
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     path: PathBuf,
 
     /// The line that the diagnostic points at, starting at 1
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     line: u32,
 
     /// The column that the diagnostic points at, starting at 1
-    #[getset(get_copy = "pub")]
+    #[getset(get_copy = "pub(crate)")]
     column: u32,
 }
 
@@ -35,7 +35,7 @@ impl Origin {
     /// configuration of a project can include a file from a parent directory,
     /// and tsc then writes a path that starts with `..`. The caller decides
     /// what to do about such a file.
-    pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
+    pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within(&self.path, root)
     }
 }

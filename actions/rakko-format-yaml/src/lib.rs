@@ -25,6 +25,6 @@
 //! [prettier]: https://prettier.io
 
 /// The action, its arguments, and the error that stops a run
-pub mod format_yaml;
+mod format_yaml;
 
 pub use self::format_yaml::{FormatYaml, FormatYamlArgs, FormatYamlError};

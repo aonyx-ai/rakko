@@ -7,7 +7,7 @@ use thiserror::Error;
 /// the observation, and the caller decides what it means. The variants here
 /// describe a run that produced no answer that the caller can trust.
 #[derive(Debug, Error)]
-pub enum ObserveStilesError {
+pub(crate) enum ObserveStilesError {
     /// Stiles stopped before it had checked the project
     ///
     /// Stiles ends a run when it cannot read its configuration, when it cannot

@@ -22,19 +22,19 @@ const VERSION_SEPARATOR: char = ' ';
 /// the other name that cargo gives the same thing, because `crate` is a
 /// keyword of Rust and no module can be named for it.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
-pub struct Package {
+pub(crate) struct Package {
     /// The name of the package
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     name: String,
 
     /// The version of the package
-    #[getset(get = "pub")]
+    #[getset(get = "pub(crate)")]
     version: String,
 }
 
 impl Package {
     /// Creates a package from the name and the version that cargo-deny wrote
-    pub fn new(name: String, version: String) -> Self {
+    pub(crate) fn new(name: String, version: String) -> Self {
         Self { name, version }
     }
 }

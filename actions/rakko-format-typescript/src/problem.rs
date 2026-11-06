@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 ///
 /// [within]: rakko::FilePath::within
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum OxfmtProblem {
+pub(crate) enum OxfmtProblem {
     /// Oxfmt could not format the file, and it named the place that stopped it
     Invalid {
         /// The path of the file, as oxfmt wrote it
@@ -61,7 +61,7 @@ impl OxfmtProblem {
     /// Returns the path of the file that the problem is about
     ///
     /// Returns `None` for a problem that oxfmt placed in no file.
-    pub fn path(&self) -> Option<&Path> {
+    pub(crate) fn path(&self) -> Option<&Path> {
         match self {
             Self::Invalid { path, .. } | Self::Unformatted { path } => Some(path),
             Self::Unplaced { .. } => None,
