@@ -4,6 +4,8 @@ mod args;
 mod error;
 /// The version in the root manifest
 mod manifest;
+/// The cause of a failure to parse a file of the project as TOML
+mod parse_toml_error;
 /// The Rust pins in the configuration of mise
 mod pins;
 /// The steps of a run that mise does
@@ -21,6 +23,7 @@ use toml_edit::{DocumentMut, Value};
 
 pub use self::args::{Msrv, Reason, SetMsrvArgs};
 pub use self::error::SetMsrvError;
+pub use self::parse_toml_error::ParseTomlError;
 pub use self::step::MiseStep;
 
 /// The root manifest of a project
@@ -311,7 +314,7 @@ async fn read(path: &Path) -> Result<(DocumentMut, LineEnding), SetMsrvError> {
     };
     let document = text.parse().map_err(|source| SetMsrvError::MalformedFile {
         path: path.to_path_buf(),
-        source,
+        source: ParseTomlError::new(&source),
     })?;
 
     Ok((document, ending))
@@ -387,9 +390,14 @@ mod tests {
     // test would repeat that and give the reader no information.
     #![allow(clippy::missing_panics_doc)]
 
+    use std::error::Error as _;
+
     use rakko::Action;
 
     use super::*;
+
+    /// The content of a file that is no TOML document
+    const NO_TOML: &str = "[workspace\n";
 
     /// An action that the command holds as its check
     struct Stub;
@@ -411,6 +419,23 @@ mod tests {
         let command = SetMsrv::new(Stub);
 
         assert_eq!(command.name().get(), "set-msrv");
+    }
+
+    #[tokio::test]
+    async fn read_of_a_file_that_is_no_toml_document_carries_what_the_parser_said() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let path = directory.path().join(MANIFEST);
+        std::fs::write(&path, NO_TOML).expect("the test writes the manifest");
+        let said = NO_TOML
+            .parse::<DocumentMut>()
+            .expect_err("the content is no TOML document")
+            .to_string();
+
+        let Err(error) = read(&path).await else {
+            panic!("expected the reading to report an error");
+        };
+
+        assert_eq!(error.source().map(ToString::to_string), Some(said));
     }
 
     // A directory that does not exist keeps any program from starting in it.
