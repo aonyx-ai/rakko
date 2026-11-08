@@ -346,6 +346,33 @@ async fn run_with_a_needed_migration_names_the_option_that_it_changes() {
 }
 
 #[tokio::test]
+async fn run_with_a_preset_and_a_configuration_counts_both() {
+    let project = Project::new();
+    project.write(".github/renovate.json", VALID);
+    project.write("default.json", VALID);
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("validated 2 configurations")
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_preset_that_needs_a_migration_reports_the_preset() {
+    let project = Project::new();
+    project.write("default.json", MIGRATION);
+
+    let outcome = project.run().await;
+
+    assert_eq!(paths(findings(&outcome)), [path_text("default.json")]);
+}
+
+#[tokio::test]
 async fn run_with_a_problem_in_package_json_reports_package_json() {
     let project = Project::new();
     project.write("package.json", PACKAGE_WITH_UNKNOWN_OPTION);
@@ -353,6 +380,16 @@ async fn run_with_a_problem_in_package_json_reports_package_json() {
     let outcome = project.run().await;
 
     assert_eq!(paths(findings(&outcome)), [path_text("package.json")]);
+}
+
+#[tokio::test]
+async fn run_with_a_problem_in_the_preset_reports_the_preset() {
+    let project = Project::new();
+    project.write("default.json", UNKNOWN_OPTION);
+
+    let outcome = project.run().await;
+
+    assert_eq!(paths(findings(&outcome)), [path_text("default.json")]);
 }
 
 #[tokio::test]
@@ -409,6 +446,19 @@ async fn run_with_an_unknown_option_reports_the_error_at_the_file() {
                     .expect("the test names a relative path"),
             }
         )]
+    );
+}
+
+#[tokio::test]
+async fn run_with_only_a_valid_preset_passes() {
+    let project = Project::new();
+    project.write("default.json", VALID);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
     );
 }
 

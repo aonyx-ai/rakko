@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "description": "Rakko generates `.config/mise/conf.d/rakko.toml` from the actions that the harness mounts. After an update of Rakko, `doctor --fix` generates the file again. A tool that Renovate moves in the file no longer agrees with its action, so this rule turns off Renovate for the file. The rule does not match the lockfile. Mise keeps one lockfile for all configurations in `.config/mise/`, so a match also stops the updates of the other configurations of the project.",
+      "matchFileNames": ["**/.config/mise/conf.d/rakko.toml"],
+      "enabled": false
+    },
+    {
+      "description": "A harness that takes Rakko from Git gives the address of the repository for each crate. Move all of them in one pull request, so that a bundle and its actions arrive together and the generated files change once.",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["https://github.com/aonyx-ai/rakko"],
+      "groupName": "rakko",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "Each crate of Rakko on crates.io gives this repository as its source. Move these crates in the same pull request as the crates from Git.",
+      "matchManagers": ["cargo"],
+      "matchSourceUrls": ["https://github.com/aonyx-ai/rakko"],
+      "groupName": "rakko",
+      "separateMajorMinor": false
+    }
+  ]
+}

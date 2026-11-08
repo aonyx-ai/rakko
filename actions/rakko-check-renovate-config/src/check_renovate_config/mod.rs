@@ -20,10 +20,21 @@ use crate::validator::Validator;
 ///
 /// The action wraps `renovate-config-validator`, the validator that [Renovate]
 /// ships: the validator finds the configurations of the project, reads each
-/// of them, and reports every option that Renovate would refuse, so a run
-/// agrees with a contributor that runs the validator bare. The validator that
-/// runs is the one that [mise] installed for the project, at the version that
-/// the project pinned, and the action installs nothing.
+/// of them, and reports every option that Renovate would refuse. A run agrees
+/// with a contributor that runs `renovate-config-validator --strict`, and then
+/// `renovate-config-validator --strict --no-global default.json`. The
+/// validator that runs is the one that [mise] installed for the project, at
+/// the version that the project pinned, and the action installs nothing.
+///
+/// A preset is a configuration that other configurations extend. Renovate
+/// reads a preset such as `github>owner/repository` from the `default.json` in
+/// the root of that repository. The validator does not find this file by
+/// itself, so the action also validates a `default.json` in the root of the
+/// project. It does this for every such file, also for one that belongs to
+/// another tool. The validator checks the preset as the configuration of a
+/// repository, which is stricter than the check of a preset in Renovate. So a
+/// preset that only fits inside a package rule fails the run, such as one
+/// that sets `matchPackageNames` at the top.
 ///
 /// A run only reports, and it takes no argument. A run asks for strict
 /// validation, so a configuration that needs a migration fails the run like an
@@ -32,10 +43,10 @@ use crate::validator::Validator;
 /// validator, and a configuration that needs a migration becomes one finding
 /// that names the options that the migration changes.
 ///
-/// The action applies to a project that holds a Renovate configuration, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
-/// validator, when the validator stops before it has validated the project,
-/// and when the validator writes a log that the action cannot read.
+/// The action applies to a project that holds a Renovate configuration or a
+/// preset, and it skips visibly otherwise. A run stops with an error when mise
+/// reports no validator, when the validator stops before it has validated the
+/// project, and when the validator writes a log that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -79,20 +90,26 @@ impl Action for CheckRenovateConfig {
 
 /// Runs the action against the project of the context
 ///
-/// The run resolves the validator and validates the project with it. An error
-/// that this function returns stops the run, and the caller reports it in the
-/// outcome.
+/// The run resolves the validator and validates the project with it. A second
+/// run of the validator validates the preset of the project, and the outcome
+/// holds the answers of both runs. A project without a preset gets the answer
+/// of the first run alone, because the validator reports that the preset is
+/// not there. An error that this function returns stops the run, and the
+/// caller reports it in the outcome.
 ///
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of the
-/// tool, the run of the validator, or the reading of its log.
+/// tool, a run of the validator, or the reading of its log.
 async fn drive(context: &Context) -> Result<Outcome, CheckRenovateConfigError> {
     let validator = Validator::resolve(context.root().clone())
         .await
         .map_err(|source| CheckRenovateConfigError::UnresolvedTool { source })?;
 
-    let observation = validator.observe().await?;
+    let observation = validator
+        .observe()
+        .await?
+        .join(validator.observe_preset().await?);
 
     if let Some(words) = observation.unconfigured() {
         return Ok(Outcome::Skipped {

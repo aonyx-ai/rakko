@@ -38,6 +38,13 @@ const FATAL: u32 = 60;
 /// the text names the configuration in the same words as the problems of it.
 const ANNOUNCEMENT: &str = "Validating ";
 
+/// The text that ends the announcement of a file that a run passes
+///
+/// When a run passes a file with `--no-global`, the validator reads the file as
+/// the configuration of a repository. It then writes this text after the name
+/// of the file. A configuration that it finds by itself gets no such text.
+const PASSED_REPOSITORY_CONFIGURATION: &str = " as repo config";
+
 /// The text that starts the record that counts what a passing run validated
 ///
 /// The validator writes it at the end of a run that found no problem, with the
@@ -64,6 +71,12 @@ const MIGRATION_DRAWING: &str = "Config migration diff:";
 
 /// What the validator writes when it found no configuration to validate
 const UNCONFIGURED: &str = "No files to perform configuration validation against";
+
+/// What the validator writes when a file that a run passes to it is not there
+///
+/// The validator writes it as an error, and then writes [`UNCONFIGURED`],
+/// which carries the answer of such a run.
+const ABSENT_FILE: &str = "File does not exist";
 
 /// The text between the two parts of the details of a fatal record
 const CAUSE_OPEN: &str = ": ";
@@ -313,6 +326,10 @@ fn meaning(record: Record) -> Option<Meaning> {
 
     if record.level < WARNING {
         if let Some(configuration) = record.msg.strip_prefix(ANNOUNCEMENT) {
+            let configuration = configuration
+                .strip_suffix(PASSED_REPOSITORY_CONFIGURATION)
+                .unwrap_or(configuration);
+
             return Some(Meaning::Announcement(file(configuration)));
         }
 
@@ -360,6 +377,10 @@ fn meaning(record: Record) -> Option<Meaning> {
 
     if record.msg == UNCONFIGURED {
         return Some(Meaning::Unconfigured(record.msg));
+    }
+
+    if record.msg == ABSENT_FILE {
+        return Some(Meaning::Log);
     }
 
     None
@@ -444,6 +465,14 @@ mod tests {
     const MIGRATION: &str = r#"{"level":30,"msg":"Validating renovate.json"}
 {"level":40,"oldConfig":{"extends":["config:base"],"customManagers":[{"fileMatch":["x"]}],"automerge":true},"newConfig":{"extends":["config:recommended"],"customManagers":[{"managerFilePatterns":["/x/"]}],"automerge":true},"msg":"Config migration necessary"}
 {"level":40,"msg":"Config migration diff:\n  {\n-   \"extends\": [\"config:base\"]\n+   \"extends\": [\"config:recommended\"]\n  }"}"#;
+
+    /// A log that reports a migration of a file that the run passed
+    const PASSED_MIGRATION: &str = r#"{"level":30,"msg":"Validating default.json as repo config"}
+{"level":40,"oldConfig":{"extends":["config:base"]},"newConfig":{"extends":["config:recommended"]},"msg":"Config migration necessary"}"#;
+
+    /// A log that reports that a file that the run passed is not there
+    const ABSENT: &str = r#"{"level":50,"file":"default.json","msg":"File does not exist"}
+{"level":40,"msg":"No files to perform configuration validation against"}"#;
 
     /// A log that reports a migration before it names a configuration
     const UNATTRIBUTED: &str = r#"{"level":40,"oldConfig":{"extends":["config:base"]},"newConfig":{"extends":["config:recommended"]},"msg":"Config migration necessary"}"#;
@@ -577,6 +606,13 @@ mod tests {
     }
 
     #[test]
+    fn read_of_a_migration_of_a_passed_file_reports_the_file() {
+        let paths = paths(PASSED_MIGRATION);
+
+        assert_eq!(paths, [PathBuf::from("default.json")]);
+    }
+
+    #[test]
     fn read_of_a_migration_without_an_announcement_stops() {
         let report = read(UNATTRIBUTED);
 
@@ -638,6 +674,16 @@ mod tests {
                 "Configuration Warning: Setting `registryUrls` at the top level of your config \
                  will apply it to all managers and datasources."
             ]
+        );
+    }
+
+    #[test]
+    fn read_of_an_absent_file_holds_the_words_of_the_validator() {
+        let unconfigured = observation(ABSENT).unconfigured().clone();
+
+        assert_eq!(
+            unconfigured.as_deref(),
+            Some("No files to perform configuration validation against")
         );
     }
 

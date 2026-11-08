@@ -43,6 +43,15 @@ The bundle exports ten actions:
 - `lint-toml` examines the TOML files with [taplo].
 - `lint-yaml` examines the YAML files with [yamllint].
 
+A preset of Renovate is a configuration that other configurations extend.
+Renovate reads a preset such as `github>owner/repository` from the
+`default.json` in the root of that repository. The validator does not find
+this file by itself, so `check-renovate-config` also validates a
+`default.json` in the root of the project. It does this for every such file,
+also for one that belongs to another tool. The action checks the file as the
+configuration of a repository, which is stricter than the check of a preset
+in Renovate.
+
 The validator of Renovate also reads the global configuration that a
 self-hosted Renovate starts with: `config.js` in the root of the project, or
 the file that `RENOVATE_CONFIG_FILE` names. A project whose `config.js` is not
