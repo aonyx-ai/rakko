@@ -163,7 +163,7 @@ impl Project {
     /// cannot find its workspaces stays as it is, so that the run reports
     /// what stops it.
     async fn lock(&self) {
-        let Ok(cargo) = Cargo::resolve(self.context().root().clone()).await else {
+        let Ok(cargo) = Cargo::resolve(&self.context()).await else {
             return;
         };
         let Ok(roots) = cargo.roots().await else {
@@ -681,4 +681,15 @@ async fn run_without_a_manifest_skips() {
         matches!(outcome, Outcome::Skipped { .. }),
         "expected the run to skip, got {outcome:?}"
     );
+}
+
+#[test]
+fn tools_declare_the_stable_toolchain() {
+    let tools: Vec<String> = CheckMsrv
+        .tools()
+        .iter()
+        .map(|requirement| requirement.tool().get().to_owned())
+        .collect();
+
+    assert_eq!(tools, ["rust"]);
 }

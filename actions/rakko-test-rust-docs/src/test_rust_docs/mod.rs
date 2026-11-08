@@ -8,7 +8,10 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko::{Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko::{
+    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
+    action_name,
+};
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Documentation};
 use rakko_tool::Execution;
@@ -51,8 +54,9 @@ const TEST: [&str; 7] = [
 /// workspace with every feature, against the library that documents them,
 /// and runs them, so a run agrees with a contributor that runs
 /// `cargo test --doc` bare. The cargo that runs is the one that [mise]
-/// installed for the project, at the version that the project pinned, and
-/// the action installs nothing.
+/// installed for the project, on the stable toolchain that the project pins,
+/// and the action installs nothing. The action accepts a range of stable
+/// toolchains, and the first pin in that range answers.
 ///
 /// The action runs beside the action that runs the tests, because [nextest]
 /// leaves the examples out. A run only reports, and it takes no argument. It
@@ -70,10 +74,11 @@ const TEST: [&str; 7] = [
 /// failing.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and so does a
-/// project whose workspaces hold no library. A run stops with an error when
-/// mise reports no cargo, when the workspaces of the project cannot be
-/// discovered, when the lockfile of a workspace needs an update, and when a
-/// run of cargo leaves the action without an answer.
+/// project whose workspaces hold no library. A run stops with an error when the
+/// project pins no stable Rust toolchain that the action accepts, when the
+/// workspaces of the project cannot be discovered, when the lockfile of a
+/// workspace needs an update, and when a run of cargo leaves the action without
+/// an answer.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of each
 /// workspace, and cargo writes what it builds into the `target` directory,
@@ -109,6 +114,10 @@ impl Action for TestRustDocs {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -141,7 +150,7 @@ struct Examined {
 /// the tool, the discovery of the workspaces, a run of cargo, or the reading
 /// of a report.
 async fn drive(context: &Context) -> Result<Outcome, TestRustDocsError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
         .map_err(|source| TestRustDocsError::UnresolvedTool { source })?;
 

@@ -22,7 +22,7 @@ mod toolchain;
 use getset::Getters;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement};
+use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
 
 pub use self::error::ResolveToolError;
 pub use self::name::ToolName;
@@ -90,6 +90,15 @@ pub struct Tool {
 
     /// The root of the project that the tool works on
     root: ProjectRoot,
+
+    /// The version of the tool that a requirement resolved to
+    ///
+    /// A tool that [`resolve`][resolve] found carries no version, because
+    /// the pin of the project chose it and the lookup did not read the pin.
+    ///
+    /// [resolve]: Tool::resolve
+    #[getset(get = "pub")]
+    version: Option<ToolVersion>,
 }
 
 impl Tool {
@@ -194,6 +203,7 @@ impl Tool {
             name,
             program,
             root,
+            version: None,
         })
     }
 
@@ -205,15 +215,18 @@ impl Tool {
     /// project pins does not change the answer, so a run starts the version
     /// that the tests of the action cover.
     ///
-    /// For a range, the tool is a toolchain, and the project pins its
-    /// version. The lookup asks mise which versions the configuration of the
-    /// project pins. It takes the first of them, in the order of the pins,
-    /// that the range accepts. Then it asks mise for the program at that
-    /// version. A pin in the global configuration of the user does not count,
-    /// and neither does a pin in a directory above the project. These files
-    /// are different on each machine. A local mise file inside the project,
-    /// such as `mise.local.toml`, counts. So a developer can override the pin
-    /// of the project on their own machine.
+    /// For a range, the tool is a toolchain, and the project pins its version.
+    /// The lookup asks mise which versions the configuration of the project
+    /// pins. It takes the first of them, in the order of the pins, that the
+    /// range accepts. Then it asks mise for the program at that version. A
+    /// range compares the versions of releases, such as `>=1.85`, or the dates
+    /// of one channel, such as `>=nightly-2025-02-20`, which reads only the
+    /// pins of that channel that the configuration writes with a date, such
+    /// as `nightly-2026-11-02`. A pin in the global configuration of the
+    /// user does not count, and neither does a pin in a directory above the
+    /// project. These files are different on each machine. A local mise file
+    /// inside the project, such as `mise.local.toml`, counts. So a developer
+    /// can override the pin of the project on their own machine.
     ///
     /// The answer is an absolute path, and a command of the tool starts in
     /// the root of the context. The lookup starts up to three processes, so an
@@ -230,11 +243,13 @@ impl Tool {
     ///
     /// For a toolchain, returns [`InvalidRange`][invalid] when the range is
     /// not a range, [`UnresolvedToolchain`][toolchain] when no configuration
-    /// inside the project pins the toolchain, and
-    /// [`UnrecognizedReport`][unrecognized] when mise lists the pins in a form
-    /// that the crate does not read. When the range accepts no pin, returns
-    /// [`VersionOutOfRange`][outside] for the first pin with three numbers to
-    /// compare, or [`UnreadableVersion`][unreadable] when no pin has them.
+    /// inside the project pins the toolchain, or no dated version of the
+    /// channel of a range of dates, and [`UnrecognizedReport`][unrecognized]
+    /// when mise lists the pins in a form that the crate does not read. When
+    /// the range accepts no pin, returns [`VersionOutOfRange`][outside] for
+    /// the first pin with three numbers or a date to compare, or
+    /// [`UnreadableVersion`][unreadable] when a range of releases finds no
+    /// pin with three numbers.
     ///
     /// Returns [`UnknownRequirement`][unknown] for a kind of version that this
     /// release does not know.
@@ -308,7 +323,7 @@ impl Tool {
             program(&execution).ok_or_else(|| ResolveRequirementError::UnresolvedVersion {
                 tool: tool.clone(),
                 executable: bin.clone(),
-                version,
+                version: version.clone(),
                 details: details(&execution),
             })?;
 
@@ -316,6 +331,7 @@ impl Tool {
             name: ToolName::new(bin.get()),
             program: executable(named),
             root: root.clone(),
+            version: Some(version),
         })
     }
 }
@@ -421,7 +437,7 @@ mod tests {
     use std::process::Command;
 
     use kawauso_process::invocation::WorkingDirectory;
-    use rakko::{ToolVersion, VersionRange};
+    use rakko::VersionRange;
     use tempfile::TempDir;
 
     use super::*;
@@ -602,6 +618,82 @@ mod tests {
         let invocation = tool.invocation();
 
         assert_eq!(invocation.program(), tool.program());
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_range_of_dates_of_an_unpinned_channel_reports_it_unresolved()
+     {
+        let beta = ToolRequirement::builder()
+            .tool("rust")
+            .executable("cargo")
+            .version(RequiredVersion::Range(VersionRange::new(
+                ">=beta-2025-02-20",
+            )))
+            .build();
+
+        let result = Tool::resolve_requirement(&beta, &context()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::UnresolvedToolchain { .. })
+            ),
+            "expected no dated pin of the channel, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_range_of_dates_reports_the_dated_pin_of_its_channel() {
+        let nightly = ToolRequirement::builder()
+            .tool("rust")
+            .executable("cargo")
+            .version(RequiredVersion::Range(VersionRange::new(
+                ">=nightly-2025-02-20",
+            )))
+            .build();
+
+        let result = Tool::resolve_requirement(&nightly, &context()).await;
+
+        assert!(
+            result.as_ref().is_ok_and(|tool| tool
+                .version()
+                .as_ref()
+                .is_some_and(|version| version.get().starts_with("nightly-"))),
+            "expected the dated nightly that this repository pins, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_range_of_dates_that_no_pin_reaches_stops() {
+        let nightly = ToolRequirement::builder()
+            .tool("rust")
+            .executable("cargo")
+            .version(RequiredVersion::Range(VersionRange::new(
+                ">=nightly-2999-01-01",
+            )))
+            .build();
+
+        let result = Tool::resolve_requirement(&nightly, &context()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::VersionOutOfRange { .. })
+            ),
+            "expected a nightly outside the range, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_an_installed_version_reports_the_version() {
+        let tool = Tool::resolve_requirement(&exact(), &context())
+            .await
+            .expect("expected mise to report the version that this project pins");
+
+        assert_eq!(
+            tool.version().as_ref().map(ToolVersion::get),
+            Some(pinned_by_the_repository().as_str())
+        );
     }
 
     #[tokio::test]

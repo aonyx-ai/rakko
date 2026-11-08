@@ -6,10 +6,11 @@
 //! the newest versions that the manifests allow and runs the tests against
 //! them, so the promise is confirmed instead of assumed.
 //!
-//! [Cargo] resolves, [nextest] tests, and both run at the version that [mise]
-//! installed for the project. The whole run happens in a disposable copy of
-//! the project, because a resolution rewrites a lockfile, and the checkout of
-//! a contributor is no place for that.
+//! [Cargo] resolves and [nextest] tests. Cargo runs on the stable toolchain
+//! that the project pins, and nextest at the version that the action declares,
+//! which [mise] installed. The whole run happens in a disposable copy of the
+//! project, because a resolution rewrites a lockfile, and the checkout of a
+//! contributor is no place for that.
 //!
 //! A run only reports, and it takes no argument. An update that cargo could
 //! not finish becomes a finding at the manifest of its workspace, a test that

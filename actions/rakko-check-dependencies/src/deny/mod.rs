@@ -1,7 +1,8 @@
 //! The cargo-deny that a project runs
 //!
-//! This module holds the program that mise installed for a project and the
-//! run that checks one workspace with it. An action asks for a run, and
+//! This module holds the version of cargo-deny that the crate declares, the
+//! program that mise installed at that version, and the run that checks one
+//! workspace with it. An action asks for a run, and
 //! everything between the action and the process lives here.
 
 /// The error that leaves a workspace unchecked
@@ -9,16 +10,25 @@ mod error;
 /// The reading of the report that cargo-deny wrote
 mod report;
 
-use rakko::ProjectRoot;
+use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
 use rakko_cargo::{CargoRoot, lockfile};
-use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
+use rakko_tool::{Launch, ResolveRequirementError, Tool, pinned_version};
 
 pub(crate) use self::error::CheckWorkspaceError;
 use self::report::Entry;
 use crate::problem::DenyProblem;
 
 /// The name that mise knows the tool by
-const CARGO_DENY: &str = "cargo-deny";
+const CARGO_DENY: &str = "cargo:cargo-deny";
+
+/// The program of the tool
+const PROGRAM: &str = "cargo-deny";
+
+/// The version of cargo-deny that the crate runs
+///
+/// The version comes from the mise file of the crate, which the build
+/// embeds, so a file without the pin fails the build.
+const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), CARGO_DENY);
 
 /// The option that asks cargo-deny for its report as data
 ///
@@ -72,17 +82,17 @@ const NO_DIAGNOSIS: &str = "cargo-deny wrote nothing about it";
 
 /// The cargo-deny that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// terminal of a contributor. Nothing here installs a tool: provisioning is
-/// the job of mise, and a cargo-deny that mise does not report stops the
-/// caller.
+/// The value holds the program that mise installed at the version that the
+/// crate declares. The pin of the project does not change it, so a run
+/// reaches the version that the tests of the crate cover. Nothing here
+/// installs a tool: provisioning is the job of mise, and a cargo-deny that
+/// mise does not report stops the caller.
 ///
 /// Cargo-deny is its own program, and not a subcommand that cargo carries, so
 /// a run starts it directly and no cargo stands between the two.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Deny {
-    /// The program that mise installed for the project
+    /// The program that mise installed at the declared version
     tool: Tool,
 }
 
@@ -176,18 +186,32 @@ impl Deny {
         Ok(problems)
     }
 
-    /// Returns the cargo-deny that mise installed for the project
+    /// Returns the requirement of the cargo-deny that the crate runs
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path.
+    /// The requirement holds the exact version that the crate pins.
+    pub(crate) fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(CARGO_DENY)
+            .executable(PROGRAM)
+            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
+            .build()
+    }
+
+    /// Returns the cargo-deny that mise installed at the version of the crate
+    ///
+    /// The lookup asks mise for the version that [`requirement`][requirement]
+    /// holds, so a pin of cargo-deny in the project does not change the
+    /// answer.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no cargo-deny for the
-    /// project.
-    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(CARGO_DENY), root).await?;
+    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
+    /// it reports no cargo-deny at that version, for example because nothing
+    /// installed it.
+    ///
+    /// [requirement]: Deny::requirement
+    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
 
         Ok(Self { tool })
     }

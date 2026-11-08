@@ -15,12 +15,13 @@
 //! # Examples
 //!
 //! ```no_run
-//! use rakko::ProjectRoot;
+//! use rakko::Context;
 //! use rakko_cargo::{Cargo, lockfile};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+//! let context = Context::builder().root("/home/otter/project").build();
+//! let cargo = Cargo::resolve(&context).await?;
 //!
 //! for root in cargo.roots().await? {
 //!     let execution = cargo

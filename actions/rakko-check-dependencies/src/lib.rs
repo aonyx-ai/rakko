@@ -5,9 +5,9 @@
 //! that the project accepts, whether the packages come from a registry that
 //! the project trusts, and whether the graph holds a shape that the project
 //! banned, such as two versions of one package or a version requirement that
-//! accepts any future release. The action starts the cargo-deny that [mise]
-//! installed for the project, at the version that the project pinned, and
-//! translates what cargo-deny reported into the outcome of the run.
+//! accepts any future release. The action declares the version of
+//! cargo-deny that it runs. It starts that version, which [mise] installed,
+//! and translates what cargo-deny reported into the outcome of the run.
 //!
 //! Cargo-deny is its own program, and not a subcommand that cargo carries, so
 //! the action starts it directly. Cargo answers a different question for the

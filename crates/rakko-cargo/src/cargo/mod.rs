@@ -12,10 +12,9 @@ mod error;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use rakko::ProjectRoot;
-use rakko_tool::{
-    Execution, Invocation, Launch, ResolveToolError, RunCommandError, Tool, ToolName,
-};
+use getset::Getters;
+use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, VersionRange};
+use rakko_tool::{Execution, Invocation, Launch, ResolveRequirementError, RunCommandError, Tool};
 use serde::Deserialize;
 use toml_edit::DocumentMut;
 
@@ -24,8 +23,26 @@ use crate::root::{CargoPackage, CargoRoot, Documentation, DocumentedNames, MANIF
 use crate::toolchain::Toolchain;
 use crate::version::RustVersion;
 
-/// The name that mise knows the tool by
-const CARGO: &str = "cargo";
+/// The name that mise knows the Rust toolchains by
+pub(crate) const RUST: &str = "rust";
+
+/// The program of a Rust toolchain that a job starts
+pub(crate) const CARGO: &str = "cargo";
+
+/// The range of the stable toolchains that the crate accepts
+///
+/// Rust 1.85 is the first release that builds a package of edition 2024, and
+/// the tests of the actions build such packages.
+const STABLE: &str = ">=1.85";
+
+/// The variable that tells a plugin of cargo which cargo started it
+///
+/// Cargo sets it when it starts a plugin, and a plugin starts that cargo for
+/// every build of its own.
+const CARGO_VARIABLE: &str = "CARGO";
+
+/// The variable that tells the proxy of rustup which toolchain answers
+const TOOLCHAIN_VARIABLE: &str = "RUSTUP_TOOLCHAIN";
 
 /// The directory entry that the discovery does not read
 const GIT_DIRECTORY: &str = ".git";
@@ -76,21 +93,27 @@ const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 
 /// The cargo that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// editor and the terminal of a contributor. Nothing here installs a tool:
-/// provisioning is the job of mise, and a cargo that mise does not report
-/// stops the caller.
+/// The value holds the cargo of the stable toolchain that the project pins,
+/// which mise installed. The project owns its Rust toolchains, so the crate
+/// accepts a range of them, and [`requirement`][requirement] gives that
+/// range. Every command selects that toolchain by name, so a run reaches the
+/// same compiler as the editor and the terminal of a contributor. Nothing
+/// here installs a tool: provisioning is the job of mise, and a toolchain
+/// that mise does not report stops the caller.
+///
+/// An action that runs cargo declares [`requirement`][requirement] among its
+/// tools, so that the machinery can read the range.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::ProjectRoot;
+/// use rakko::Context;
 /// use rakko_cargo::Cargo;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let cargo = Cargo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+/// let context = Context::builder().root("/home/otter/project").build();
+/// let cargo = Cargo::resolve(&context).await?;
 ///
 /// for root in cargo.roots().await? {
 ///     let execution = cargo.invocation(&root).arg("check").run().await?;
@@ -100,62 +123,136 @@ const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+///
+/// [requirement]: Cargo::requirement
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Cargo {
     /// The root of the project that the tool works on
     root: ProjectRoot,
 
     /// The program that mise installed for the project
     tool: Tool,
+
+    /// The stable toolchain that the project pins, which every command
+    /// selects unless the caller selects another one
+    #[getset(get = "pub")]
+    toolchain: Toolchain,
 }
 
 impl Cargo {
     /// Returns the command that runs cargo at a root
     ///
     /// The command starts the program that [`resolve`][resolve] found, in
-    /// the directory of the root, and it carries no argument yet. The caller
-    /// adds the arguments of the job that it wants, and then runs the
-    /// command. Cargo works on the workspace whose directory it runs in, so
-    /// the command line reads the same for every root.
+    /// the directory of the root, and it selects the stable toolchain that
+    /// [`toolchain`][toolchain] gives. The caller adds the arguments of the
+    /// job that it wants, and then runs the command. Cargo works on the
+    /// workspace whose directory it runs in, so the command line reads the
+    /// same for every root.
     ///
-    /// The command selects the default toolchain of the project, which mise
-    /// names in the environment. [`invocation_with_toolchain`][with] selects
-    /// another one.
+    /// [`invocation_with_toolchain`][with] selects another toolchain.
     ///
     /// [resolve]: Cargo::resolve
+    /// [toolchain]: Cargo::toolchain
     /// [with]: Cargo::invocation_with_toolchain
     pub fn invocation(&self, root: &CargoRoot) -> Invocation {
-        self.tool
-            .invocation()
-            .in_directory(root.directory().as_path())
+        self.invocation_with_toolchain(root, &self.toolchain)
     }
 
     /// Returns the command that runs cargo at a root, on a toolchain
     ///
     /// The command is the one that [`invocation`][invocation] returns, with
-    /// the toolchain in front of every other argument, in the form that the
-    /// proxy of rustup reads. The argument selects which cargo answers, and
-    /// it changes nothing about what that cargo does.
+    /// the given toolchain in front of every other argument, in the form
+    /// that the proxy of rustup reads. The argument selects which cargo
+    /// answers, and it changes nothing about what that cargo does.
     ///
     /// [invocation]: Cargo::invocation
     pub fn invocation_with_toolchain(&self, root: &CargoRoot, toolchain: &Toolchain) -> Invocation {
-        self.invocation(root).arg(toolchain.argument())
+        self.tool
+            .invocation()
+            .in_directory(root.directory().as_path())
+            .arg(toolchain.argument())
     }
 
-    /// Returns the cargo that mise installed for the project
+    /// Returns the command that runs a plugin of cargo at a root
     ///
-    /// The lookup asks mise about the project whose root the caller names,
-    /// so the version that the project pinned answers, whatever the shell
-    /// that started the process carries on its path.
+    /// A plugin of cargo is a program of its own, such as `cargo-nextest`,
+    /// that cargo starts for a subcommand. An action resolves the plugin at
+    /// the version that it declares, so the command starts that program and
+    /// not the one that cargo would find on the path. The caller gives the
+    /// subcommand as the first argument, as cargo does, such as `nextest`.
+    ///
+    /// The command runs in the directory of the root. It tells the plugin to
+    /// start this cargo for its builds, on the stable toolchain that
+    /// [`toolchain`][toolchain] gives, so a build of the plugin uses the same
+    /// compiler as a job of [`invocation`][invocation].
+    /// [`plugin_invocation_with_toolchain`][with] selects another toolchain.
+    ///
+    /// [invocation]: Cargo::invocation
+    /// [toolchain]: Cargo::toolchain
+    /// [with]: Cargo::plugin_invocation_with_toolchain
+    pub fn plugin_invocation(&self, root: &CargoRoot, plugin: &Tool) -> Invocation {
+        self.plugin_invocation_with_toolchain(root, plugin, &self.toolchain)
+    }
+
+    /// Returns the command that runs a plugin of cargo at a root, on a
+    /// toolchain
+    ///
+    /// The command is the one that [`plugin_invocation`][plugin] returns, and
+    /// the builds of the plugin use the given toolchain.
+    ///
+    /// [plugin]: Cargo::plugin_invocation
+    pub fn plugin_invocation_with_toolchain(
+        &self,
+        root: &CargoRoot,
+        plugin: &Tool,
+        toolchain: &Toolchain,
+    ) -> Invocation {
+        plugin
+            .invocation()
+            .in_directory(root.directory().as_path())
+            .env(CARGO_VARIABLE, self.tool.program().get())
+            .env(TOOLCHAIN_VARIABLE, toolchain.get())
+    }
+
+    /// Returns the requirement of the stable toolchain that the crate runs
+    ///
+    /// A Rust toolchain is a decision of the project, so the requirement
+    /// holds the range of the stable toolchains that the crate accepts, and
+    /// not one version. An action that runs cargo returns it from its
+    /// declaration of tools.
+    pub fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(RUST)
+            .executable(CARGO)
+            .version(RequiredVersion::Range(VersionRange::new(STABLE)))
+            .build()
+    }
+
+    /// Returns the cargo of the stable toolchain that the project pins
+    ///
+    /// The lookup takes the first toolchain that the project pins and that
+    /// the range of [`requirement`][requirement] accepts, as
+    /// [`Toolchain::resolve_requirement`] does. A command of cargo then
+    /// selects that toolchain, whatever toolchain the environment or the
+    /// files of the project select.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no cargo for the
-    /// project.
-    pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(CARGO), root.clone()).await?;
+    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
+    /// project pins no toolchain in the range, or when nothing installed the
+    /// toolchain that it pins.
+    ///
+    /// [requirement]: Cargo::requirement
+    pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let requirement = Self::requirement();
+        let tool = Tool::resolve_requirement(&requirement, context).await?;
+        let toolchain = Toolchain::of(&requirement, &tool)?;
 
-        Ok(Self { root, tool })
+        Ok(Self {
+            root: context.root().clone(),
+            tool,
+            toolchain,
+        })
     }
 
     /// Returns every workspace root of the project, in the order of their
@@ -267,6 +364,7 @@ impl Cargo {
             .tool
             .invocation()
             .in_directory(directory)
+            .arg(self.toolchain.argument())
             .args(METADATA)
             .arg(MANIFEST_PATH)
             .arg(manifest)

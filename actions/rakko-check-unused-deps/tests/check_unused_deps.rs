@@ -10,11 +10,12 @@
 //! the action reports, the build reaches no network, and it compiles two
 //! small libraries and nothing else.
 //!
-//! The tests run the cargo that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers
-//! is the version that the repository installs, and a new pin reaches the
-//! tests without a change to them. The nightly channel that cargo-udeps
-//! needs is one of those pins.
+//! The tests run the cargo-udeps that the action declares, with the cargo
+//! that this repository pins. A project copies the `mise.toml` of the
+//! repository and trusts it, so the Rust toolchains that answer are ones that
+//! the repository installs, the nightly that cargo-udeps needs among them.
+//! The copy pins another cargo-udeps that nothing installs, so a test passes
+//! only when the run ignores the pin of the project.
 
 // An assertion in a test panics by design, and the helpers of this file
 // exist only for tests. The lints that guard production code do not apply.
@@ -75,6 +76,9 @@ const USES_HELPER: &str = "pub fn uses() {\n    helper::help();\n}\n";
 /// A source file that the compiler warns about
 const WARNED: &str = "pub fn warned() {\n    let unused = 1;\n}\n";
 
+/// The key that pins cargo-udeps in the mise configuration of a project
+const UNINSTALLED_PIN_KEY: &str = "\"cargo:cargo-udeps\"";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -99,14 +103,15 @@ impl Project {
     /// The project copies the `mise.toml` of this repository, so the cargo
     /// that mise resolves for it is the cargo that the repository pins and
     /// installs, and the nightly channel that cargo-udeps needs is the one
-    /// that the repository pins. Mise ignores a configuration that nobody
-    /// trusts, so the copy is trusted right away.
+    /// that the repository pins. The copy pins a cargo-udeps that nothing
+    /// installs. Mise ignores a configuration that nobody trusts, so the copy
+    /// is trusted right away.
     fn new() -> Self {
         let project = Self::bare();
 
-        let pins = repository().join("mise.toml");
         let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
+        std::fs::write(&copy, pins_with_an_uninstalled_tool())
+            .expect("the test writes the mise.toml of the project");
         trust(&copy);
 
         project
@@ -184,7 +189,7 @@ impl Project {
     /// cannot find its workspaces stays as it is, so that the run reports
     /// what stops it.
     async fn lock(&self) {
-        let Ok(cargo) = Cargo::resolve(self.context().root().clone()).await else {
+        let Ok(cargo) = Cargo::resolve(&self.context()).await else {
             return;
         };
         let Ok(roots) = cargo.roots().await else {
@@ -285,6 +290,23 @@ fn paths(outcome: &Outcome) -> Vec<String> {
     };
 
     findings.iter().map(path).collect()
+}
+
+/// Returns the mise configuration of this repository, with a pin of
+/// cargo-udeps that nothing installed
+///
+/// The run resolves the cargo-udeps that the action declares, so the pin of the
+/// project must not change what runs.
+fn pins_with_an_uninstalled_tool() -> String {
+    let pins = std::fs::read_to_string(repository().join("mise.toml"))
+        .expect("the test reads the mise.toml of the repository");
+
+    let pin = pins
+        .lines()
+        .find(|line| line.starts_with(UNINSTALLED_PIN_KEY))
+        .expect("the mise.toml of the repository pins cargo-udeps");
+
+    pins.replace(pin, &format!("{UNINSTALLED_PIN_KEY} = \"0.0.1\""))
 }
 
 /// Returns the root of the repository that the tests run in
@@ -592,8 +614,12 @@ async fn run_without_a_cargo_stops() {
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(CheckUnusedDepsError::UnresolvedCargo { .. }))
+        ),
+        "expected the run to stop without a cargo, got {outcome:?}"
     );
 }
 
@@ -645,4 +671,15 @@ async fn run_without_a_pinned_nightly_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
+}
+
+#[test]
+fn tools_declare_both_toolchains_and_cargo_udeps() {
+    let tools: Vec<String> = CheckUnusedDeps
+        .tools()
+        .iter()
+        .map(|requirement| requirement.tool().get().to_owned())
+        .collect();
+
+    assert_eq!(tools, ["rust", "rust", "cargo:cargo-udeps"]);
 }

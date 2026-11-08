@@ -1,21 +1,23 @@
 //! The Rust toolchain that a job runs on
 //!
 //! Mise pins the Rust toolchains of a project, and it can pin more than one.
-//! This module asks mise which toolchain a channel resolved to, so that a
-//! run names the toolchain that the project pinned instead of whatever
-//! rustup calls by the name of the channel on the machine.
+//! A toolchain is a decision of the project, so an action states the range
+//! of toolchains that it accepts, and this module asks mise which of the
+//! pins of the project the range accepts. A run then names that toolchain
+//! instead of whatever rustup calls by the name of a channel on the machine.
 
 /// The channel that a project pins
 mod channel;
 /// What the crate reports when it cannot name a toolchain
 mod error;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Execution, Invocation, RunCommandError};
+use rakko::{Context, MiseTool, ProjectRoot, RequiredVersion, ToolRequirement, VersionRange};
+use rakko_tool::{Execution, Invocation, ResolveRequirementError, RunCommandError, Tool};
 use serde::Deserialize;
 
 pub use self::channel::Channel;
 pub use self::error::{ResolveNewestToolchainError, ResolveToolchainError};
+use crate::cargo::{CARGO, RUST};
 use crate::version::RustVersion;
 
 /// The program that reports which toolchains a project pins
@@ -35,6 +37,15 @@ const LIST: [&str; 4] = ["ls", "--current", "--json", "rust"];
 /// The details of a run of mise that ended without success and wrote nothing
 const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 
+/// The range of the nightly toolchains that the crate accepts
+///
+/// The range starts at the release of Rust 1.85, the oldest stable
+/// toolchain that the crate accepts, so a nightly is never older than it.
+const NIGHTLY: &str = ">=nightly-2025-02-20";
+
+/// The details of a toolchain that mise resolved without its version
+const NO_VERSION: &str = "mise resolved the toolchain without a version";
+
 typed_fields::name! {
     /// A Rust toolchain, by the name that rustup knows it by
     ///
@@ -53,6 +64,107 @@ impl Toolchain {
     /// over the environment that mise set for the default toolchain.
     pub(crate) fn argument(&self) -> String {
         format!("+{}", self.get())
+    }
+
+    /// Returns the requirement of the nightly toolchain that a job runs on
+    ///
+    /// The project pins the nightly by its date, such as
+    /// `nightly-2026-11-02`, and the requirement holds the range of the dates
+    /// that the crate accepts. An action that runs a job on the nightly
+    /// returns it from its declaration of tools.
+    pub fn nightly() -> ToolRequirement {
+        Self::requirement(VersionRange::new(NIGHTLY))
+    }
+
+    /// Returns the requirement of the toolchain of one release of Rust
+    ///
+    /// The range accepts every patch of the release, so a version such as
+    /// `1.88` accepts the pins `1.88.0` and `1.88.1`, and the version
+    /// `1.88.0` accepts the pin `1.88.0` alone. The version comes from the
+    /// project, such as the `rust-version` of a manifest, so an action
+    /// builds this requirement during a run and cannot declare it.
+    pub fn release(version: &RustVersion) -> ToolRequirement {
+        Self::requirement(VersionRange::new(format!("={}", version.get())))
+    }
+
+    /// Returns the toolchain that the project pins and that a requirement
+    /// accepts
+    ///
+    /// The lookup takes the first toolchain that the project pins and that
+    /// the range of the requirement accepts, as
+    /// [`Tool::resolve_requirement`][resolve] does. A pin in the global
+    /// configuration of the user does not count, and neither does a pin in a
+    /// directory above the project.
+    ///
+    /// The lookup starts processes, so a caller that needs the toolchain
+    /// more than once keeps the answer for the length of the run.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
+    /// project pins no toolchain that the range accepts, or when nothing
+    /// installed the toolchain that it pins.
+    ///
+    /// # Panics
+    ///
+    /// Panics when no Tokio runtime drives the future. The runtime waits for
+    /// mise, and the method has no way to ask without one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::Context;
+    /// use rakko_cargo::Toolchain;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root("/home/otter/project").build();
+    ///
+    /// let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), &context).await?;
+    ///
+    /// println!("{toolchain}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [resolve]: rakko_tool::Tool::resolve_requirement
+    pub async fn resolve_requirement(
+        requirement: &ToolRequirement,
+        context: &Context,
+    ) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement(requirement, context).await?;
+
+        Self::of(requirement, &tool)
+    }
+
+    /// Returns the toolchain that a tool of a requirement resolved to
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnresolvedToolchain`][unresolved] when the tool carries no
+    /// version.
+    ///
+    /// [unresolved]: ResolveRequirementError::UnresolvedToolchain
+    pub(crate) fn of(
+        requirement: &ToolRequirement,
+        tool: &Tool,
+    ) -> Result<Self, ResolveRequirementError> {
+        tool.version()
+            .as_ref()
+            .map(|version| Self::new(version.get()))
+            .ok_or_else(|| ResolveRequirementError::UnresolvedToolchain {
+                tool: requirement.tool().clone(),
+                details: NO_VERSION.to_owned(),
+            })
+    }
+
+    /// Returns the requirement of a Rust toolchain in a range
+    fn requirement(range: VersionRange) -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(MiseTool::new(RUST))
+            .executable(CARGO)
+            .version(RequiredVersion::Range(range))
+            .build()
     }
 
     /// Returns the toolchain that mise installed for a channel of a project
@@ -384,6 +496,16 @@ mod tests {
         let argument = toolchain.argument();
 
         assert_eq!(argument, "+nightly-2026-08-11");
+    }
+
+    #[test]
+    fn release_accepts_the_patches_of_the_version() {
+        let requirement = Toolchain::release(&RustVersion::new("1.88"));
+
+        assert_eq!(
+            requirement.version(),
+            &RequiredVersion::Range(VersionRange::new("=1.88"))
+        );
     }
 
     #[test]

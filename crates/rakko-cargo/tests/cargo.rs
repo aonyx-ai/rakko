@@ -5,9 +5,9 @@
 //! stumble over it.
 //!
 //! The tests run the cargo that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers
-//! is the version that the repository installs, and a new pin reaches the
-//! tests without a change to them.
+//! `mise.toml` of the repository and trusts it, so the toolchain that
+//! answers is a toolchain that the repository installs, and a new pin
+//! reaches the tests without a change to them.
 
 // An assertion in a test panics by design, and the helpers of this file
 // exist only for tests. The lints that guard production code do not apply.
@@ -18,12 +18,13 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use rakko::ProjectRoot;
+use rakko::{Context, ProjectRoot};
 use rakko_cargo::{
     Cargo, CargoPackage, CargoReport, CargoRoot, Channel, DiscoverRootsError, Documentation,
     DocumentedNames, PackageName, ResolveNewestToolchainError, ResolveToolchainError, RustVersion,
     Toolchain, lockfile,
 };
+use rakko_tool::{Invocation, ResolveRequirementError, Tool};
 use tempfile::TempDir;
 
 /// The manifest of a workspace with two members
@@ -275,9 +276,14 @@ impl Project {
         trust(&copy);
     }
 
+    /// Returns the context of a run in this project
+    fn context(&self) -> Context {
+        Context::builder().root(self.root()).build()
+    }
+
     /// Resolves the cargo of this project
     async fn resolve(&self) -> Cargo {
-        Cargo::resolve(self.root())
+        Cargo::resolve(&self.context())
             .await
             .expect("the test resolves the cargo that the repository pins")
     }
@@ -358,6 +364,15 @@ fn repository() -> &'static Path {
         .expect("the crate lives two directories below the root of the repository")
 }
 
+/// Returns the value of a variable that a command sets
+fn variable(invocation: &Invocation, name: &str) -> Option<String> {
+    invocation
+        .environment()
+        .iter()
+        .find(|variable| variable.name().get() == name)
+        .map(|variable| variable.value().get().to_string_lossy().into_owned())
+}
+
 /// Trusts a mise configuration, so that mise reads it
 fn trust(configuration: &Path) {
     let trusted = Command::new("mise")
@@ -390,6 +405,24 @@ impl Drop for Project {
     }
 }
 
+#[tokio::test]
+async fn invocation_names_the_stable_toolchain_first() {
+    let project = Project::workspace();
+    let cargo = project.resolve().await;
+
+    let invocation = cargo.invocation(&project.cargo_root("")).arg("check");
+
+    let arguments: Vec<String> = invocation
+        .arguments()
+        .iter()
+        .map(|argument| argument.get().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        arguments,
+        [format!("+{}", cargo.toolchain().get()), "check".to_owned()]
+    );
+}
+
 // The pins of the project name two toolchains that no machine installs, so
 // the choice among them surfaces as the toolchain that the failure names.
 // That keeps the test free of whichever versions this repository installs.
@@ -416,6 +449,124 @@ async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
     let toolchain = Toolchain::newest(&ProjectRoot::new(repository().to_path_buf())).await;
 
     assert_eq!(toolchain.ok(), Some(Toolchain::new(selected)));
+}
+
+#[tokio::test]
+async fn plugin_invocation_selects_the_stable_toolchain_for_the_builds_of_the_plugin() {
+    let project = Project::workspace();
+    let cargo = project.resolve().await;
+    let plugin = Tool::resolve_requirement(&Cargo::requirement(), &project.context())
+        .await
+        .expect("the test resolves a program to stand in for a plugin");
+
+    let invocation = cargo.plugin_invocation(&project.cargo_root(""), &plugin);
+
+    assert_eq!(
+        variable(&invocation, "RUSTUP_TOOLCHAIN"),
+        Some(cargo.toolchain().get().to_owned())
+    );
+}
+
+#[tokio::test]
+async fn plugin_invocation_tells_the_plugin_to_start_the_cargo_of_the_project() {
+    let project = Project::workspace();
+    let cargo = project.resolve().await;
+    let plugin = Tool::resolve_requirement(&Cargo::requirement(), &project.context())
+        .await
+        .expect("the test resolves a program to stand in for a plugin");
+
+    let invocation = cargo.plugin_invocation(&project.cargo_root(""), &plugin);
+
+    assert_eq!(
+        variable(&invocation, "CARGO"),
+        Some(
+            cargo
+                .invocation(&project.cargo_root(""))
+                .program()
+                .get()
+                .to_string_lossy()
+                .into_owned()
+        )
+    );
+}
+
+#[tokio::test]
+async fn plugin_invocation_with_toolchain_selects_the_toolchain_for_the_builds_of_the_plugin() {
+    let project = Project::workspace();
+    let cargo = project.resolve().await;
+    let plugin = Tool::resolve_requirement(&Cargo::requirement(), &project.context())
+        .await
+        .expect("the test resolves a program to stand in for a plugin");
+    let toolchain = Toolchain::new("nightly-2026-08-11");
+
+    let invocation =
+        cargo.plugin_invocation_with_toolchain(&project.cargo_root(""), &plugin, &toolchain);
+
+    assert_eq!(
+        variable(&invocation, "RUSTUP_TOOLCHAIN"),
+        Some("nightly-2026-08-11".to_owned())
+    );
+}
+
+#[tokio::test]
+async fn resolve_in_this_repository_selects_the_toolchain_that_mise_selects() {
+    let selected = selected_rust();
+    let context = Context::builder().root(repository()).build();
+
+    let cargo = Cargo::resolve(&context).await;
+
+    assert_eq!(
+        cargo.ok().map(|cargo| cargo.toolchain().clone()),
+        Some(Toolchain::new(selected))
+    );
+}
+
+#[tokio::test]
+async fn resolve_with_a_pin_of_the_stable_channel_says_how_to_repair_it() {
+    let project = Project::with_rust("\"stable\"");
+
+    let Err(error) = Cargo::resolve(&project.context()).await else {
+        panic!("expected the resolution to fail");
+    };
+
+    assert!(
+        error
+            .to_string()
+            .contains("add a pin with a version number"),
+        "expected a hint for the repair, got {error}"
+    );
+}
+
+#[tokio::test]
+async fn resolve_with_a_stable_pin_outside_the_range_reports_the_pin() {
+    let project = Project::with_rust("\"1.70.0\"");
+
+    let cargo = Cargo::resolve(&project.context()).await;
+
+    assert!(
+        matches!(
+            &cargo,
+            Err(ResolveRequirementError::VersionOutOfRange { version, .. })
+                if version.get() == "1.70.0"
+        ),
+        "expected a pin outside the range, got {cargo:?}"
+    );
+}
+
+#[tokio::test]
+async fn resolve_with_a_stable_pin_that_nothing_installed_reports_the_toolchain() {
+    let project = Project::with_rust("\"99.0.0\"");
+
+    let cargo = Cargo::resolve(&project.context()).await;
+
+    assert!(
+        matches!(
+            &cargo,
+            Err(ResolveRequirementError::UnresolvedVersion { version, .. })
+                if version.get() == "99.0.0"
+        ),
+        "expected a toolchain that nothing installed, got {cargo:?}"
+    );
 }
 
 #[tokio::test]
@@ -720,24 +871,9 @@ async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
 async fn resolve_in_a_project_that_pins_rust_finds_the_program() {
     let project = Project::new();
 
-    let cargo = Cargo::resolve(project.root()).await;
+    let cargo = Cargo::resolve(&project.context()).await;
 
     assert!(cargo.is_ok(), "expected a cargo, got {cargo:?}");
-}
-
-#[tokio::test]
-async fn resolve_without_a_cargo_reports_the_tool() {
-    let project = Project::with_rust("\"0.0.1\"");
-
-    let cargo = Cargo::resolve(project.root()).await;
-
-    let Err(error) = cargo else {
-        panic!("expected the resolution to fail, got {cargo:?}");
-    };
-    assert!(
-        error.to_string().contains("cargo"),
-        "expected the error to name the tool, got {error}"
-    );
 }
 
 #[cfg(unix)]
@@ -1138,5 +1274,70 @@ async fn toolchain_resolve_outside_a_project_reports_what_mise_wrote() {
                 if details.contains("mise.toml")
         ),
         "expected what mise wrote about mise.toml, got {toolchain:?}"
+    );
+}
+
+#[tokio::test]
+async fn toolchain_resolve_requirement_of_a_release_answers_the_pin_of_that_release() {
+    let pin = pinned_rust().await;
+    let project = Project::with_rust(&format!("\"{pin}\""));
+    project.declaring("declared", &pin);
+    let roots = project.roots().await.expect("the test discovers the roots");
+    let version = roots
+        .first()
+        .and_then(|root| root.rust_version().clone())
+        .expect("the package declares a version");
+
+    let toolchain =
+        Toolchain::resolve_requirement(&Toolchain::release(&version), &project.context()).await;
+
+    assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
+}
+
+#[tokio::test]
+async fn toolchain_resolve_requirement_of_the_nightly_answers_the_dated_pin() {
+    let context = Context::builder().root(repository()).build();
+
+    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), &context).await;
+
+    assert!(
+        toolchain
+            .as_ref()
+            .is_ok_and(|toolchain| toolchain.get().starts_with("nightly-")),
+        "expected the dated nightly of the repository, got {toolchain:?}"
+    );
+}
+
+// A machine that holds a dated nightly resolves a bare `nightly` to it, so
+// the pin would count on that machine and on no other.
+#[tokio::test]
+async fn toolchain_resolve_requirement_of_the_nightly_with_a_bare_channel_reports_it() {
+    let pin = pinned_rust().await;
+    let project = Project::with_rust(&format!("[\"{pin}\", \"nightly\"]"));
+
+    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), &project.context()).await;
+
+    assert!(
+        matches!(
+            &toolchain,
+            Err(ResolveRequirementError::UnresolvedToolchain { .. })
+        ),
+        "expected the bare channel to count for nothing, got {toolchain:?}"
+    );
+}
+
+#[tokio::test]
+async fn toolchain_resolve_requirement_of_the_nightly_without_a_dated_pin_reports_it() {
+    let pin = pinned_rust().await;
+    let project = Project::with_rust(&format!("\"{pin}\""));
+
+    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), &project.context()).await;
+
+    assert!(
+        matches!(
+            &toolchain,
+            Err(ResolveRequirementError::UnresolvedToolchain { .. })
+        ),
+        "expected no nightly, got {toolchain:?}"
     );
 }

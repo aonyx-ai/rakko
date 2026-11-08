@@ -6,11 +6,11 @@
 //! newest version that the floor allows and never touches the floor itself,
 //! so the action resolves the floors and runs the tests against them.
 //!
-//! [Cargo] resolves, [nextest] tests, and both run at the version that [mise]
-//! installed for the project. The resolution runs on the nightly toolchain
-//! that the project pins, because the option that asks for the floors is
-//! unstable, and the tests run on the toolchain that the project builds with.
-//! The whole run happens in a disposable copy of the project, because a
+//! [Cargo] resolves and [nextest] tests. Nextest runs at the version that the
+//! action declares, which [mise] installed. The resolution runs on the nightly
+//! toolchain that the project pins, because the option that asks for the floors
+//! is unstable, and the tests run on the toolchain that the project builds
+//! with. The whole run happens in a disposable copy of the project, because a
 //! resolution rewrites a lockfile, and the checkout of a contributor is no
 //! place for that.
 //!

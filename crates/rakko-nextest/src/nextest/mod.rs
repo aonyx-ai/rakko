@@ -1,23 +1,41 @@
 //! The nextest that a project runs
 //!
-//! This module holds the cargo that carries nextest, the command line of a
-//! run, and the consent that the experimental report of nextest needs. A
-//! caller names the workspace that it wants tested, and everything between
-//! the caller and the process lives here.
+//! This module holds the version of nextest that the crate declares, the
+//! program that mise installed at that version, the cargo that its builds
+//! start, the command line of a run, and the consent that the experimental
+//! report of nextest needs. A caller names the workspace that it wants
+//! tested, and everything between the caller and the process lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 /// What a run does with the lockfile of the workspace
 mod lockfile;
 
-use rakko::ProjectRoot;
+use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
 use rakko_cargo::{Cargo, CargoRoot};
+use rakko_tool::{ResolveRequirementError, Tool, pinned_version};
 
 pub use self::error::ObserveNextestError;
 pub use self::lockfile::Lockfile;
 use crate::observation::Observation;
 
+/// The name that mise knows the tool by
+const CARGO_NEXTEST: &str = "cargo:cargo-nextest";
+
+/// The program of the tool
+const PROGRAM: &str = "cargo-nextest";
+
+/// The version of nextest that the crate runs
+///
+/// The version comes from the mise file of the crate, which the build
+/// embeds, so a file without the pin fails the build.
+const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), CARGO_NEXTEST);
+
 /// The arguments that ask nextest to run every test with every feature
+///
+/// The first argument is the subcommand of cargo that nextest provides.
+/// Cargo hands it to the program of a plugin, and the program expects it
+/// when it starts without cargo as well.
 ///
 /// The reports of nextest and of cargo arrive as JSON, because the crate
 /// reads them as data. The formats select the presentation of the reports
@@ -49,12 +67,17 @@ const CONSENT_VALUE: &str = "1";
 
 /// The nextest that a project runs
 ///
-/// The value holds the cargo that mise installed for the project, because
-/// nextest is a plugin of cargo: cargo finds it on the path of the
-/// environment that mise sets, at the version that the project pinned.
-/// Nothing here installs a tool, and nothing here resolves one. The caller
-/// resolves cargo for the project and hands it over, so that an action which
-/// also runs cargo for a job of its own asks mise once.
+/// The value holds the program of nextest that mise installed at the version
+/// that the crate declares. The pin of the project does not change it, so a
+/// run reaches the version that the tests of the crate cover. Nextest is a
+/// plugin of cargo, so the value also holds the cargo that the builds of a
+/// run start, on the stable toolchain that the project pins. Nothing here
+/// installs a tool. The caller resolves cargo for the project and hands it
+/// over, so that an action which also runs cargo for a job of its own asks
+/// mise once.
+///
+/// An action that runs nextest declares [`requirement`][requirement] among
+/// its tools, so that the machinery can read the version.
 ///
 /// A run tests one workspace root and reports what nextest and cargo said
 /// about it. The caller discovers the roots of the project and decides what
@@ -68,42 +91,80 @@ const CONSENT_VALUE: &str = "1";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::ProjectRoot;
+/// use rakko::Context;
 /// use rakko_cargo::Cargo;
 /// use rakko_nextest::{Lockfile, Nextest};
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = ProjectRoot::new("/home/otter/project".into());
-/// let cargo = Cargo::resolve(root.clone()).await?;
+/// let context = Context::builder().root("/home/otter/project").build();
+/// let cargo = Cargo::resolve(&context).await?;
 /// let roots = cargo.roots().await?;
-/// let nextest = Nextest::new(cargo, Lockfile::Locked);
+/// let nextest = Nextest::resolve(cargo, Lockfile::Locked, &context).await?;
 ///
 /// for workspace in &roots {
-///     let observation = nextest.observe(workspace, &root).await?;
+///     let observation = nextest.observe(workspace, context.root()).await?;
 ///
 ///     println!("{} tests ran", observation.ran());
 /// }
 /// # Ok(())
 /// # }
 /// ```
+///
+/// [requirement]: Nextest::requirement
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Nextest {
-    /// The cargo that mise installed for the project
+    /// The cargo that the builds of a run start
     cargo: Cargo,
+
+    /// The program of nextest that mise installed at the declared version
+    tool: Tool,
 
     /// What a run does with the lockfile of the workspace
     lockfile: Lockfile,
 }
 
 impl Nextest {
-    /// Creates the nextest that the given cargo runs
+    /// Returns the requirement of the nextest that the crate runs
     ///
-    /// The lockfile tells a run whether cargo may resolve the dependencies
-    /// of the build, or whether it builds the versions that the lockfile
-    /// holds and refuses every other one.
-    pub fn new(cargo: Cargo, lockfile: Lockfile) -> Self {
-        Self { cargo, lockfile }
+    /// The requirement holds the exact version that the crate pins. An action
+    /// that runs nextest returns it from its declaration of tools.
+    pub fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(CARGO_NEXTEST)
+            .executable(PROGRAM)
+            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
+            .build()
+    }
+
+    /// Returns the nextest that mise installed at the version of the crate,
+    /// with the cargo that its builds start
+    ///
+    /// The lookup asks mise for the version that
+    /// [`requirement`][requirement] holds, so a pin of nextest in the project
+    /// does not change the answer. The lockfile tells a run whether cargo may
+    /// resolve the dependencies of the build, or whether it builds the
+    /// versions that the lockfile holds and refuses every other one.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
+    /// it reports no nextest at that version, for example because nothing
+    /// installed it.
+    ///
+    /// [requirement]: Nextest::requirement
+    pub async fn resolve(
+        cargo: Cargo,
+        lockfile: Lockfile,
+        context: &Context,
+    ) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
+
+        Ok(Self {
+            cargo,
+            tool,
+            lockfile,
+        })
     }
 
     /// Tests one workspace of the project and reads what the run reported
@@ -120,11 +181,11 @@ impl Nextest {
     ///
     /// # Errors
     ///
-    /// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
+    /// Returns [`NextestUnavailable`][unavailable] when nextest does not run,
     /// and the error of the reading when the reports leave the run without
     /// an answer.
     ///
-    /// [unavailable]: ObserveNextestError::CargoUnavailable
+    /// [unavailable]: ObserveNextestError::NextestUnavailable
     pub async fn observe(
         &self,
         root: &CargoRoot,
@@ -132,7 +193,7 @@ impl Nextest {
     ) -> Result<Observation, ObserveNextestError> {
         let invocation = self
             .cargo
-            .invocation(root)
+            .plugin_invocation(root, &self.tool)
             .env(CONSENT_VARIABLE, CONSENT_VALUE)
             .args(NEXTEST);
 
@@ -144,7 +205,7 @@ impl Nextest {
         let execution = invocation
             .run()
             .await
-            .map_err(|source| ObserveNextestError::CargoUnavailable { source })?;
+            .map_err(|source| ObserveNextestError::NextestUnavailable { source })?;
 
         Observation::read(&execution, root, project)
     }

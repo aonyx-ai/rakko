@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use rakko_cargo::DiscoverRootsError;
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::deny::CheckWorkspaceError;
@@ -102,22 +102,22 @@ pub enum CheckDependenciesError {
     /// Mise reported no cargo for the project
     ///
     /// Cargo describes the workspaces that a run checks. The project pins no
-    /// cargo, or nothing installed the pin yet, and the action installs
-    /// nothing, so the run stops here.
+    /// stable Rust toolchain that the action accepts, or nothing installed
+    /// the pin yet, and the action installs nothing, so the run stops here.
     #[error("failed to resolve cargo")]
     UnresolvedCargo {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 
-    /// Mise reported no cargo-deny for the project
+    /// Mise reported no cargo-deny at the version that the action declares
     ///
-    /// The project pins no cargo-deny, or nothing installed the pin yet. The
-    /// action installs nothing, so the run stops here.
+    /// Nothing installed that version yet. The action installs nothing, so
+    /// the run stops here.
     #[error("failed to resolve cargo-deny")]
     UnresolvedDeny {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

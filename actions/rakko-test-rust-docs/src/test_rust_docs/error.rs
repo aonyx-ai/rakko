@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use rakko_cargo::{DiscoverRootsError, ReadReportError};
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::report::ReadDoctestReportError;
@@ -97,12 +97,13 @@ pub enum TestRustDocsError {
 
     /// Mise reported no cargo for the project
     ///
-    /// The project pins no Rust toolchain, or nothing installed the pin yet.
-    /// The action installs nothing, so the run stops here.
+    /// The project pins no stable Rust toolchain that the action accepts, or
+    /// nothing installed the pin yet. The action installs nothing, so the run
+    /// stops here.
     #[error("failed to resolve cargo")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

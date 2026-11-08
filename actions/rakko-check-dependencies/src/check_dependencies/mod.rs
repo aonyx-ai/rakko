@@ -11,7 +11,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, DirectoryPath, Finding, Location, Name, Outcome, ProjectRoot,
-    SkipReason, Summary, action_name,
+    SkipReason, Summary, ToolRequirement, action_name,
 };
 use rakko_cargo::{Cargo, CargoRoot};
 
@@ -40,9 +40,10 @@ const WARNINGS: &str = "warnings";
 /// file of a workspace, reads its own configuration, and answers whether every
 /// package carries a license that the project accepts, whether the packages
 /// come from a registry that the project trusts, and whether the graph holds a
-/// shape that the project banned. The cargo-deny that runs is the one that
-/// [mise] installed for the project, at the version that the project pinned,
-/// and the action installs nothing.
+/// shape that the project banned. The cargo-deny that runs is the version that
+/// the action declares, which [mise] installed, whatever version the project
+/// pins. The cargo that discovers the workspaces is the one of the stable
+/// toolchain that the project pins. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. It checks every workspace of
 /// the project, because the harness of a project is a package of its own, and
@@ -61,12 +62,13 @@ const WARNINGS: &str = "warnings";
 /// place that it underlines is a line of a lock file, or of a manifest in the
 /// registry cache of the machine.
 ///
-/// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// tool, when the workspaces of the project cannot be discovered, when the
-/// lockfile of a workspace needs an update, when cargo-deny stops before it
-/// has checked a workspace, and when it writes a record that the action
-/// cannot read.
+/// A project whose cargo discovers no workspace skips visibly, and says so. A
+/// run stops with an error when mise reports no cargo-deny at the declared
+/// version, when the project pins no stable Rust toolchain that the action
+/// accepts, when the workspaces of the project cannot be discovered, when the
+/// lockfile of a workspace needs an update, when cargo-deny stops before it has
+/// checked a workspace, and when it writes a record that the action cannot
+/// read.
 ///
 /// A run declares a read of the project. It holds cargo-deny to the lockfile of
 /// each workspace, so the run leaves every lockfile as it is. A caller that
@@ -99,6 +101,10 @@ impl Action for CheckDependencies {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement(), Deny::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -121,11 +127,11 @@ impl Action for CheckDependencies {
 /// tool, the discovery of the workspaces, a cargo-deny run, or the reading of
 /// a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
         .map_err(|source| CheckDependenciesError::UnresolvedCargo { source })?;
 
-    let deny = Deny::resolve(context.root().clone())
+    let deny = Deny::resolve(context)
         .await
         .map_err(|source| CheckDependenciesError::UnresolvedDeny { source })?;
 

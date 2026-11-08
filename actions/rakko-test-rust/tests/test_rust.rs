@@ -4,10 +4,11 @@
 //! against it, so no fixture with a deliberately failing test sits in this
 //! repository, where the tests of the repository itself would fight it.
 //!
-//! The tests run the cargo and the nextest that this repository pins. A
-//! project copies the `mise.toml` of the repository and trusts it, so the
-//! versions that answer are the versions that the repository installs, and a
-//! new pin reaches the tests without a change to them.
+//! The tests run the nextest that the action declares, with the cargo that
+//! this repository pins. A project copies the `mise.toml` of the repository
+//! and trusts it, so the Rust toolchains that answer are ones that the
+//! repository installs. The copy pins another nextest that nothing installs,
+//! so a test passes only when the run ignores the pin of the project.
 
 // An assertion in a test panics by design, and the helpers of this file
 // exist only for tests. The lints that guard production code do not apply.
@@ -72,6 +73,9 @@ const UNTESTED: &str = "pub fn value() -> i32 {\n    1\n}\n";
 /// A library that the compiler refuses
 const BROKEN: &str = "pub fn broken() -> i32 {\n    \"no\"\n}\n";
 
+/// The key that pins nextest in the mise configuration of a project
+const UNINSTALLED_PIN_KEY: &str = "\"cargo:cargo-nextest\"";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -93,15 +97,16 @@ impl Project {
     /// Creates a project with the cargo of this repository
     ///
     /// The project copies the `mise.toml` of this repository, so the cargo
-    /// and the nextest that mise resolves for it are the ones that the
-    /// repository pins and installs. Mise ignores a configuration that
-    /// nobody trusts, so the copy is trusted right away.
+    /// that mise resolves for it is the one that the repository pins and
+    /// installs. The copy pins a nextest that nothing installs. Mise ignores
+    /// a configuration that nobody trusts, so the copy is trusted right
+    /// away.
     fn new() -> Self {
         let project = Self::bare();
 
-        let pins = repository().join("mise.toml");
         let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
+        std::fs::write(&copy, pins_with_an_uninstalled_tool())
+            .expect("the test writes the mise.toml of the project");
         trust(&copy);
 
         project
@@ -168,7 +173,7 @@ impl Project {
     /// cannot find its workspaces stays as it is, so that the run reports
     /// what stops it.
     async fn lock(&self) {
-        let Ok(cargo) = Cargo::resolve(self.context().root().clone()).await else {
+        let Ok(cargo) = Cargo::resolve(&self.context()).await else {
             return;
         };
         let Ok(roots) = cargo.roots().await else {
@@ -218,6 +223,23 @@ fn locations(findings: &[Finding]) -> Vec<String> {
             other => panic!("expected a finding with a path, got {other:?}"),
         })
         .collect()
+}
+
+/// Returns the mise configuration of this repository, with a pin of
+/// nextest that nothing installed
+///
+/// The run resolves the nextest that the action declares, so the pin of the
+/// project must not change what runs.
+fn pins_with_an_uninstalled_tool() -> String {
+    let pins = std::fs::read_to_string(repository().join("mise.toml"))
+        .expect("the test reads the mise.toml of the repository");
+
+    let pin = pins
+        .lines()
+        .find(|line| line.starts_with(UNINSTALLED_PIN_KEY))
+        .expect("the mise.toml of the repository pins nextest");
+
+    pins.replace(pin, &format!("{UNINSTALLED_PIN_KEY} = \"0.0.1\""))
 }
 
 /// Returns the root of the repository that the tests run in
@@ -497,8 +519,12 @@ async fn run_without_a_cargo_stops() {
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(TestRustError::UnresolvedCargo { .. }))
+        ),
+        "expected the run to stop without a cargo, got {outcome:?}"
     );
 }
 
@@ -513,4 +539,15 @@ async fn run_without_a_manifest_skips() {
         matches!(outcome, Outcome::Skipped { .. }),
         "expected the run to skip, got {outcome:?}"
     );
+}
+
+#[test]
+fn tools_declare_the_stable_toolchain_and_nextest() {
+    let tools: Vec<String> = TestRust
+        .tools()
+        .iter()
+        .map(|requirement| requirement.tool().get().to_owned())
+        .collect();
+
+    assert_eq!(tools, ["rust", "cargo:cargo-nextest"]);
 }

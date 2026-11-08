@@ -7,11 +7,11 @@
 //!
 //! [Cargo-udeps] does the work. It reads the record that the compiler writes
 //! about the crates each target actually loaded, and it holds that record
-//! against the dependencies of the manifest. The action starts the cargo
-//! that [mise] installed for the project, on the nightly toolchain that mise
-//! installed for the project, and it installs nothing. The nightly channel
-//! is not a preference: the record comes from an unstable option of the
-//! compiler, and a stable toolchain refuses it.
+//! against the dependencies of the manifest. The action declares the version of
+//! cargo-udeps that it runs. It starts that version, which [mise] installed, on
+//! the nightly toolchain that the project pins, and it installs nothing. The
+//! nightly channel is not a preference: the record comes from an unstable
+//! option of the compiler, and a stable toolchain refuses it.
 //!
 //! A run only reports, and it takes no argument. Every unused dependency
 //! becomes a finding at the manifest that declares it. The action applies to
@@ -36,6 +36,8 @@
 mod check_unused_deps;
 /// Types for what cargo-udeps reported about a workspace
 mod report;
+/// Types for the cargo-udeps that a project runs
+mod udeps;
 
 pub use self::check_unused_deps::{CheckUnusedDeps, CheckUnusedDepsError};
 pub use self::report::ReadUdepsReportError;

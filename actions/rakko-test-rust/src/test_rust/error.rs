@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use rakko_cargo::{DiscoverRootsError, ReadReportError, lockfile};
 use rakko_nextest::{ObserveNextestError, ReadNextestReportError};
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -14,12 +14,12 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum TestRustError {
-    /// Cargo did not run
+    /// Nextest did not run
     ///
     /// The program was resolved and did not start, or it started and its
     /// output could not be read. Nothing of the project was examined.
-    #[error("failed to run cargo")]
-    CargoUnavailable {
+    #[error("failed to run nextest")]
+    NextestUnavailable {
         /// The cause of the failure
         source: RunCommandError,
     },
@@ -108,12 +108,23 @@ pub enum TestRustError {
 
     /// Mise reported no cargo for the project
     ///
-    /// The project pins no Rust toolchain, or nothing installed the pin yet.
-    /// The action installs nothing, so the run stops here.
+    /// The project pins no stable Rust toolchain that the action accepts, or
+    /// nothing installed the pin yet. The action installs nothing, so the run
+    /// stops here.
     #[error("failed to resolve cargo")]
-    UnresolvedTool {
+    UnresolvedCargo {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
+    },
+
+    /// Mise reported no nextest at the version that the action declares
+    ///
+    /// Nothing installed that version yet. The action installs nothing, so
+    /// the run stops here.
+    #[error("failed to resolve nextest")]
+    UnresolvedNextest {
+        /// The cause of the failure
+        source: ResolveRequirementError,
     },
 }
 
@@ -130,7 +141,9 @@ impl From<ObserveNextestError> for TestRustError {
     /// of a variant of its own.
     fn from(error: ObserveNextestError) -> Self {
         match error {
-            ObserveNextestError::CargoUnavailable { source } => Self::CargoUnavailable { source },
+            ObserveNextestError::NextestUnavailable { source } => {
+                Self::NextestUnavailable { source }
+            }
             ObserveNextestError::UnreadableDiagnostics { root, source } => {
                 Self::UnreadableDiagnostics { root, source }
             }
