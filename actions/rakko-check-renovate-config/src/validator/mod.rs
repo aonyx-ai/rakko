@@ -28,6 +28,21 @@ const VALIDATOR: &str = "renovate-config-validator";
 /// no option of the configuration.
 const STRICT: &str = "--strict";
 
+/// The option that tells the validator to read a passed file as the
+/// configuration of a repository
+///
+/// Without the option, the validator reads a passed file as the global
+/// configuration of a self-hosted Renovate. That configuration accepts other
+/// options than the configuration of a repository.
+const NO_GLOBAL: &str = "--no-global";
+
+/// The file that holds the preset of a project
+///
+/// Renovate reads a preset such as `github>owner/repository` from this file in
+/// the root of the repository. The validator does not find the file by
+/// itself, so a run passes it.
+const PRESET: &str = "default.json";
+
 /// The variable that selects the format of the log
 ///
 /// The validator writes text for a reader by default. As JSON records, each
@@ -117,17 +132,25 @@ impl Validator {
     /// [unavailable]: ObserveValidatorError::ValidatorUnavailable
     /// [unreadable]: ObserveValidatorError::UnreadableReport
     pub(crate) async fn observe(&self) -> Result<Observation, ObserveValidatorError> {
-        let execution = self
-            .invocation()
-            .launch()
-            .await
-            .map_err(|source| ObserveValidatorError::ValidatorUnavailable { source })?;
+        observe(self.invocation()).await
+    }
 
-        answer(
-            execution.status().code(),
-            &execution.stdout().to_string_lossy(),
-            &execution.stderr().to_string_lossy(),
-        )
+    /// Runs the validator over the preset of the project and reads what it
+    /// reported
+    ///
+    /// The run validates only the [`PRESET`] in the root of the project, as
+    /// the configuration of a repository. It uses the options and the log of
+    /// [`observe`][observe], and adds `--no-global` and the file. A project without the file gets an
+    /// observation that found no configuration, with the words of the
+    /// validator.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`observe`][observe].
+    ///
+    /// [observe]: Validator::observe
+    pub(crate) async fn observe_preset(&self) -> Result<Observation, ObserveValidatorError> {
+        observe(self.preset_invocation()).await
     }
 
     /// Returns the validator that mise installed for the project
@@ -156,6 +179,33 @@ impl Validator {
             .env(IGNORE_RE2, ON)
             .env_remove(LOG_FILE)
     }
+
+    /// Returns the command that runs the validator over the preset of the
+    /// project
+    fn preset_invocation(&self) -> Invocation {
+        self.invocation().arg(NO_GLOBAL).arg(PRESET)
+    }
+}
+
+/// Runs a command of the validator and reads what it reported
+///
+/// # Errors
+///
+/// Returns [`ValidatorUnavailable`][unavailable] when the validator does not
+/// run, and the errors of [`answer`] for what it reported.
+///
+/// [unavailable]: ObserveValidatorError::ValidatorUnavailable
+async fn observe(invocation: Invocation) -> Result<Observation, ObserveValidatorError> {
+    let execution = invocation
+        .launch()
+        .await
+        .map_err(|source| ObserveValidatorError::ValidatorUnavailable { source })?;
+
+    answer(
+        execution.status().code(),
+        &execution.stdout().to_string_lossy(),
+        &execution.stderr().to_string_lossy(),
+    )
 }
 
 /// Returns the answer of a run from its status and its two streams
@@ -198,7 +248,11 @@ fn answer(
         }
     };
 
-    if status == Status::Invalid && observation.problems().is_empty() {
+    // A run that gets a file that is not there ends without success. It
+    // reports no problem, only that it found no configuration.
+    let unexplained = observation.problems().is_empty() && observation.unconfigured().is_none();
+
+    if status == Status::Invalid && unexplained {
         return Err(ObserveValidatorError::MissingReport {
             details: diagnosis(stderr, stdout),
         });
@@ -266,6 +320,12 @@ mod tests {
                              {\"level\":30,\"msg\":\"Config validated successfully against 1 \
                              file(s)\"}\n";
 
+    /// A log that reports that the file that a run passed is not there
+    const ABSENT_LOG: &str = "{\"level\":50,\"file\":\"default.json\",\"msg\":\"File does not \
+                              exist\"}\n\
+                              {\"level\":40,\"msg\":\"No files to perform configuration \
+                              validation against\"}\n";
+
     /// A log that ends with a fatal record
     const FATAL_LOG: &str = "{\"level\":60,\"msg\":\"Could not parse config file\"}\n";
 
@@ -314,6 +374,16 @@ mod tests {
         assert!(
             matches!(&answer, Err(ObserveValidatorError::AbortedValidation { details }) if details == "TypeError: boom"),
             "expected the run to stop, got {answer:?}"
+        );
+    }
+
+    #[test]
+    fn answer_of_a_failed_run_without_a_configuration_holds_the_observation() {
+        let answer = answer(Some(INVALID), ABSENT_LOG, "");
+
+        assert!(
+            matches!(&answer, Ok(observation) if observation.unconfigured().is_some()),
+            "expected a run without a configuration, got {answer:?}"
         );
     }
 
@@ -436,6 +506,13 @@ mod tests {
         let invocation = validator.invocation();
 
         assert_eq!(invocation.program(), validator.tool.program());
+    }
+
+    #[tokio::test]
+    async fn preset_invocation_passes_the_preset_as_the_configuration_of_a_repository() {
+        let invocation = validator().await.preset_invocation();
+
+        assert_eq!(arguments(&invocation), [STRICT, NO_GLOBAL, PRESET]);
     }
 
     #[test]
