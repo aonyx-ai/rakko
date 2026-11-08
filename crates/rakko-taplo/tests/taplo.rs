@@ -4,10 +4,9 @@
 //! deliberately broken TOML file sits in this repository, where the
 //! formatting of the repository itself would fight it.
 //!
-//! The tests run the taplo that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers
-//! is the version that the repository installs, and a new pin reaches the
-//! tests without a change to them.
+//! The tests run the taplo that the crate declares. Each project pins
+//! another taplo that nothing installs, so a test passes only when the run
+//! ignores the pin of the project.
 
 // An assertion in a test panics by design, and the helpers of this file
 // exist only for tests. The lints that guard production code do not apply.
@@ -17,7 +16,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko::ProjectRoot;
+use rakko::{Context, ProjectRoot};
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo};
 use tempfile::TempDir;
 
@@ -37,40 +36,15 @@ struct Project {
 }
 
 impl Project {
-    /// Creates a project without a taplo to resolve
-    ///
-    /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when it only looks at the project.
-    fn bare() -> Self {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        Self { directory }
-    }
-
-    /// Creates a project with the taplo of this repository
-    ///
-    /// The project copies the `mise.toml` of this repository, so the taplo
-    /// that mise resolves for it is the taplo that the repository pins and
-    /// installs. Mise ignores a configuration that nobody trusts, so the
-    /// copy is trusted right away.
-    fn new() -> Self {
-        let project = Self::bare();
-
-        let pins = repository().join("mise.toml");
-        let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
-        trust(&copy);
-
-        project
-    }
-
     /// Creates a project that pins a taplo that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine
-    /// says about taplo.
-    fn without_taplo() -> Self {
-        let project = Self::bare();
+    /// The pin holds a version that no machine installs. The run resolves the
+    /// taplo that the crate declares, so the pin of the project must not
+    /// change what runs. Mise ignores a configuration that nobody trusts, so
+    /// the file is trusted right away.
+    fn new() -> Self {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = Self { directory };
 
         let pins = project.directory.path().join("mise.toml");
         std::fs::write(&pins, "[tools]\ntaplo = \"0.0.1\"\n")
@@ -82,14 +56,19 @@ impl Project {
 
     /// Runs one operation of taplo against this project
     async fn observe(&self, operation: Operation) -> Observation {
-        let taplo = Taplo::resolve(self.root())
+        let taplo = Taplo::resolve(&self.context())
             .await
-            .expect("the test resolves the taplo that the repository pins");
+            .expect("the test resolves the taplo that the crate declares");
 
         taplo
             .observe(operation)
             .await
             .expect("the test reads a complete report of taplo")
+    }
+
+    /// Returns the context of a run against this project
+    fn context(&self) -> Context {
+        Context::builder().root(self.root()).build()
     }
 
     /// Returns the root of this project
@@ -111,16 +90,6 @@ impl Project {
 
         std::fs::write(&path, content).expect("the test writes a file of the project");
     }
-}
-
-/// Returns the root of the repository that the tests run in
-fn repository() -> &'static Path {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-
-    manifest
-        .parent()
-        .and_then(Path::parent)
-        .expect("the crate lives two directories below the root of the repository")
 }
 
 /// Trusts a mise configuration, so that mise reads it
@@ -222,9 +191,9 @@ async fn observe_reads_a_report_without_color_codes() {
     let project = Project::new();
     project.write("broken.toml", INVALID);
 
-    let taplo = Taplo::resolve(project.root())
+    let taplo = Taplo::resolve(&project.context())
         .await
-        .expect("the test resolves the taplo that the repository pins");
+        .expect("the test resolves the taplo that the crate declares");
 
     let observation = taplo.observe(Operation::Lint).await;
 
@@ -242,25 +211,24 @@ async fn observe_reads_a_report_without_color_codes() {
 }
 
 #[tokio::test]
-async fn resolve_in_a_project_that_pins_taplo_finds_the_program() {
-    let project = Project::new();
+async fn resolve_in_a_missing_directory_reports_an_error() {
+    let parent = tempfile::tempdir().expect("the test creates a temporary directory");
+    let missing = parent.path().join("missing");
+    let context = Context::builder().root(missing.as_path()).build();
 
-    let taplo = Taplo::resolve(project.root()).await;
+    let taplo = Taplo::resolve(&context).await;
 
-    assert!(taplo.is_ok(), "expected a taplo, got {taplo:?}");
+    assert!(
+        taplo.is_err(),
+        "expected the resolution to fail, got {taplo:?}"
+    );
 }
 
 #[tokio::test]
-async fn resolve_without_a_taplo_reports_the_tool() {
-    let project = Project::without_taplo();
+async fn resolve_in_a_project_that_pins_another_taplo_finds_the_declared_one() {
+    let project = Project::new();
 
-    let taplo = Taplo::resolve(project.root()).await;
+    let taplo = Taplo::resolve(&project.context()).await;
 
-    let Err(error) = taplo else {
-        panic!("expected the resolution to fail, got {taplo:?}");
-    };
-    assert!(
-        error.to_string().contains("taplo"),
-        "expected the error to name the tool, got {error}"
-    );
+    assert!(taplo.is_ok(), "expected the declared taplo, got {taplo:?}");
 }

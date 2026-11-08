@@ -5,10 +5,9 @@
 //! this repository, where the checks of the repository itself would fight
 //! it.
 //!
-//! The tests run the taplo that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers
-//! is the version that the repository installs, and a new pin reaches the
-//! tests without a change to them.
+//! The tests run the taplo that the action declares. Each project pins
+//! another taplo that nothing installs, so a test passes only when the run
+//! ignores the pin of the project.
 
 // An assertion in a test panics by design, and the helpers of this file
 // exist only for tests. The lints that guard production code do not apply.
@@ -21,7 +20,8 @@ use std::process::Command;
 #[cfg(unix)]
 use rakko::Finding;
 use rakko::{Action, Args, Context, Location, Outcome, Position, ProjectRoot, Summary};
-use rakko_lint_toml::LintToml;
+use rakko_lint_toml::{LintToml, LintTomlError};
+use rakko_taplo::Taplo;
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
@@ -47,41 +47,15 @@ struct Project {
 }
 
 impl Project {
-    /// Creates a project without a taplo to resolve
-    ///
-    /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when the run must end before the tool
-    /// runs.
-    fn bare() -> Self {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        Self { directory }
-    }
-
-    /// Creates a project with the taplo of this repository
-    ///
-    /// The project copies the `mise.toml` of this repository, so the taplo
-    /// that mise resolves for it is the taplo that the repository pins and
-    /// installs. Mise ignores a configuration that nobody trusts, so the
-    /// copy is trusted right away.
-    fn new() -> Self {
-        let project = Self::bare();
-
-        let pins = repository().join("mise.toml");
-        let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
-        trust(&copy);
-
-        project
-    }
-
     /// Creates a project that pins a taplo that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine
-    /// says about taplo.
-    fn without_taplo() -> Self {
-        let project = Self::bare();
+    /// The pin holds a version that no machine installs. The run resolves the
+    /// taplo that the action declares, so the pin of the project must not
+    /// change what runs. Mise ignores a configuration that nobody trusts, so
+    /// the file is trusted right away.
+    fn new() -> Self {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = Self { directory };
 
         let pins = project.directory.path().join("mise.toml");
         std::fs::write(&pins, "[tools]\ntaplo = \"0.0.1\"\n")
@@ -141,16 +115,6 @@ fn locations(findings: &[Finding]) -> Vec<String> {
         .collect()
 }
 
-/// Returns the root of the repository that the tests run in
-fn repository() -> &'static Path {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-
-    manifest
-        .parent()
-        .and_then(Path::parent)
-        .expect("the crate lives two directories below the root of the repository")
-}
-
 /// Trusts a mise configuration, so that mise reads it
 fn trust(configuration: &Path) {
     let trusted = Command::new("mise")
@@ -195,10 +159,35 @@ fn action_declares_no_argument() {
 }
 
 #[test]
+fn action_declares_the_taplo_of_rakko_taplo() {
+    let tools = LintToml.tools();
+
+    assert_eq!(tools, vec![Taplo::requirement()]);
+}
+
+#[test]
 fn action_identifies_itself_as_lint_toml() {
     let name = LintToml.name();
 
     assert_eq!(name.get(), "lint-toml");
+}
+
+#[tokio::test]
+async fn run_in_a_missing_directory_stops_without_a_taplo() {
+    let parent = tempfile::tempdir().expect("the test creates a temporary directory");
+    let missing = parent.path().join("missing");
+    let context = Context::builder().root(missing.as_path()).build();
+
+    let outcome = LintToml.run(&context, &()).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(LintTomlError::UnresolvedTool { .. }))
+        ),
+        "expected the run to stop without a taplo, got {outcome:?}"
+    );
 }
 
 #[tokio::test]
@@ -365,17 +354,4 @@ async fn run_with_an_unreadable_file_names_the_file() {
         panic!("expected the run to fail, got {outcome:?}");
     };
     assert_eq!(locations(findings), ["secret.toml"]);
-}
-
-#[tokio::test]
-async fn run_without_a_taplo_stops() {
-    let project = Project::without_taplo();
-    project.write("clean.toml", VALID);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
 }

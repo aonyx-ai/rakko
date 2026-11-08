@@ -12,6 +12,11 @@
 //! as well: a taplo that reports differently breaks one crate, and not one
 //! crate per operation.
 //!
+//! For the same reason, the crate pins the version of taplo that every such
+//! action runs, in the file `mise.rakko.toml` that the build embeds. An
+//! action declares that version with [`Taplo::requirement`], and the version
+//! that the project pins does not change what runs.
+//!
 //! # Asynchronous Runtime
 //!
 //! A run starts a program and waits for it. A [Tokio] runtime drives that,
@@ -22,14 +27,14 @@
 //! An action resolves taplo and reads what one operation reported:
 //!
 //! ```no_run
-//! use rakko::ProjectRoot;
+//! use rakko::Context;
 //! use rakko_taplo::{Operation, Taplo};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let root = ProjectRoot::new("/home/otter/project".into());
+//! let context = Context::builder().root("/home/otter/project").build();
 //!
-//! let taplo = Taplo::resolve(root).await?;
+//! let taplo = Taplo::resolve(&context).await?;
 //! let observation = taplo.observe(Operation::Lint).await?;
 //!
 //! println!("{} problems", observation.problems().len());

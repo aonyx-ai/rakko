@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary,
-    action_name,
+    ToolRequirement, action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
@@ -34,8 +34,8 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// The action wraps [taplo]: taplo discovers the TOML files of the project,
 /// reads its own configuration, and formats what its configuration selects,
 /// so a run agrees with an editor and with a contributor that runs taplo
-/// bare. The taplo that runs is the one that [mise] installed for the
-/// project, at the version that the project pinned, and the action installs
+/// bare. The taplo that runs is the version that the action declares, which
+/// [mise] installed, whatever version the project pins. The action installs
 /// nothing.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
@@ -49,7 +49,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// then run a rewrite before the actions that read.
 ///
 /// A project that holds no TOML file passes, having formatted nothing. A run stops
-/// with an error when mise reports no taplo,
+/// with an error when mise reports no taplo at the declared version,
 /// when taplo rejects a configuration file of the project, and when taplo
 /// writes a report that the action does not recognize.
 ///
@@ -84,6 +84,10 @@ impl Action for FormatToml {
         }
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Taplo::requirement()]
+    }
+
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
@@ -105,7 +109,7 @@ impl Action for FormatToml {
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, a taplo run, or the reading of the report.
 async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, FormatTomlError> {
-    let taplo = Taplo::resolve(context.root().clone())
+    let taplo = Taplo::resolve(context)
         .await
         .map_err(|source| FormatTomlError::UnresolvedTool { source })?;
 

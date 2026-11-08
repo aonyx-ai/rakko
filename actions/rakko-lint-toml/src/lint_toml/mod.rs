@@ -10,7 +10,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary,
-    action_name,
+    ToolRequirement, action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
@@ -28,9 +28,9 @@ const UNFORMATTED: &str = "the file is not properly formatted";
 /// The action wraps [taplo]: taplo discovers the TOML files of the project,
 /// reads its own configuration, and validates what its configuration
 /// selects, so a run agrees with an editor and with a contributor that runs
-/// taplo bare. The taplo that runs is the one that [mise] installed for the
-/// project, at the version that the project pinned, and the action installs
-/// nothing.
+/// taplo bare. The taplo that runs is the version that the action declares,
+/// which [mise] installed, whatever version the project pins. The action
+/// installs nothing.
 ///
 /// A run only reports, and it takes no argument. A file that taplo cannot
 /// parse, and a file whose content its schema refuses, become findings at
@@ -39,7 +39,7 @@ const UNFORMATTED: &str = "the file is not properly formatted";
 /// taplo never read a character of it.
 ///
 /// A project that holds no TOML file passes, having found nothing to report. A run stops
-/// with an error when mise reports no taplo,
+/// with an error when mise reports no taplo at the declared version,
 /// when taplo rejects a configuration file of the project, and when taplo
 /// writes a report that the action does not recognize.
 ///
@@ -73,6 +73,10 @@ impl Action for LintToml {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Taplo::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -94,7 +98,7 @@ impl Action for LintToml {
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, the taplo run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintTomlError> {
-    let taplo = Taplo::resolve(context.root().clone())
+    let taplo = Taplo::resolve(context)
         .await
         .map_err(|source| LintTomlError::UnresolvedTool { source })?;
 

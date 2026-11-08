@@ -90,7 +90,9 @@ from the design discussions to the terms that replaced them.
   action. Linking is an optimization for one action at a time, taken when
   the library carries the behavior of the tool, not only its engine.
 - **mise** — The provisioning layer. [Mise] installs the external tools at
-  pinned versions, and Renovate updates the pins in `mise.toml`.
+  pinned versions. Renovate updates the pins in the mise files of the
+  project. It also updates the mise file of each crate that pins its tool,
+  such as `rakko-taplo`.
 - **`mise run rakko`** — The mise task that builds and runs the harness of a
   project. The task lives in the `mise.toml` file of each project. It is the
   canonical form on every platform, and documentation always writes it out,
@@ -152,6 +154,12 @@ from the design discussions to the terms that replaced them.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.
+- **Tool requirement** — What an action declares for each tool that it
+  runs. A requirement holds the identifier of the tool in the configuration
+  of mise and the program that the action starts. It also holds the exact
+  version of a tool, or the range of versions of a toolchain. The
+  declaration takes no arguments and no context, because the machinery
+  reads it before any run starts.
 - **Toolchain** — A tool that the code of the project builds or runs with,
   such as Rust, Node.js, or TypeScript. The project pins its toolchains.
   (Planned.) An action pins every other tool that it runs, and it accepts a
