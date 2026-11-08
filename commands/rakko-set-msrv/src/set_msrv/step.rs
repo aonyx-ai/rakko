@@ -7,7 +7,12 @@ use super::args::Msrv;
 /// Both steps come after the run wrote its files. An error names the step as
 /// the command that the run started, so that the user can start it again
 /// after they fixed the cause.
+///
+/// A later release can add a step that the run hands to mise. So a match on
+/// this enum outside this crate needs an arm for a step that it does not
+/// know.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[non_exhaustive]
 pub enum MiseStep {
     /// Mise locks the Rust pins of the project again
     Lock,

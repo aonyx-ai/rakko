@@ -3,4 +3,6 @@
 /// The command, the arguments that a run reads, and the errors that stop a run
 mod set_msrv;
 
-pub use self::set_msrv::{MiseStep, Msrv, Reason, SetMsrv, SetMsrvArgs, SetMsrvError};
+pub use self::set_msrv::{
+    MiseStep, Msrv, ParseTomlError, Reason, SetMsrv, SetMsrvArgs, SetMsrvError,
+};

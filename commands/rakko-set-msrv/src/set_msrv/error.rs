@@ -5,9 +5,9 @@ use rakko::Name;
 use rakko_cli::clawless::event::SendError;
 use rakko_tool::RunCommandError;
 use thiserror::Error;
-use toml_edit::TomlError;
 
 use super::args::Msrv;
+use super::parse_toml_error::ParseTomlError;
 use super::step::MiseStep;
 
 /// An error that stops a run of the set-msrv command
@@ -35,8 +35,8 @@ pub enum SetMsrvError {
         /// The file that the run tried to parse
         path: PathBuf,
 
-        /// The cause of the failure
-        source: TomlError,
+        /// The cause of the failure, with the message of the TOML parser
+        source: ParseTomlError,
     },
 
     /// The root manifest declares no version to change
