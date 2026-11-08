@@ -1,7 +1,8 @@
 //! The taplo that a project runs
 //!
-//! This module holds the program that mise installed for a project and the
-//! run of one operation. An action states which operation it wants, and
+//! This module holds the version of taplo that the crate declares, the
+//! program that mise installed at that version, and the run of one
+//! operation. An action states which operation it wants, and
 //! everything between the action and the process lives here.
 
 /// The error that leaves a run without an answer
@@ -9,8 +10,8 @@ mod error;
 
 use std::time::Duration;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Execution, Launch, ResolveToolError, Tool, ToolName};
+use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+use rakko_tool::{Execution, Launch, ResolveRequirementError, Tool, pinned_version};
 
 pub use self::error::ObserveTaploError;
 use crate::observation::Observation;
@@ -39,8 +40,15 @@ const COUNTED_ATTEMPTS: u32 = 2;
 /// load.
 const BACKOFF: Duration = Duration::from_millis(25);
 
-/// The name that mise knows the tool by
+/// The name that mise knows the tool by, which is also the name of its
+/// program
 const TAPLO: &str = "taplo";
+
+/// The version of taplo that the crate runs
+///
+/// The version comes from the mise file of the crate, which the build
+/// embeds, so a file without the pin fails the build.
+const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), TAPLO);
 
 /// The subcommand of taplo that formats TOML files
 const FORMAT: &str = "fmt";
@@ -72,21 +80,25 @@ const PLAIN: &str = "never";
 
 /// The taplo that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// editor and the terminal of a contributor. Nothing here installs a tool:
-/// provisioning is the job of mise, and a taplo that mise does not report
-/// stops the caller.
+/// The value holds the program that mise installed at the version that the
+/// crate declares. The pin of the project does not change it, so a run
+/// reaches the version that the tests of the crate cover. Nothing here
+/// installs a tool: provisioning is the job of mise, and a taplo that mise
+/// does not report stops the caller.
+///
+/// An action that runs taplo declares [`requirement`][requirement] among its
+/// tools, so that the machinery can read the version.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::ProjectRoot;
+/// use rakko::Context;
 /// use rakko_taplo::{Operation, Taplo};
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let taplo = Taplo::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+/// let context = Context::builder().root("/home/otter/project").build();
+/// let taplo = Taplo::resolve(&context).await?;
 ///
 /// let observation = taplo.observe(Operation::CheckFormat).await?;
 ///
@@ -94,6 +106,8 @@ const PLAIN: &str = "never";
 /// # Ok(())
 /// # }
 /// ```
+///
+/// [requirement]: Taplo::requirement
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Taplo {
     /// The program that mise installed for the project
@@ -155,18 +169,33 @@ impl Taplo {
         answered.ok_or(ObserveTaploError::IncompleteReport { stderr })
     }
 
-    /// Returns the taplo that mise installed for the project
+    /// Returns the requirement of the taplo that the crate runs
     ///
-    /// The lookup asks mise about the project whose root the caller names,
-    /// so the version that the project pinned answers, whatever the shell
-    /// that started the process carries on its path.
+    /// The requirement holds the exact version that the crate pins. An action
+    /// that runs taplo returns it from its declaration of tools.
+    pub fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(TAPLO)
+            .executable(TAPLO)
+            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
+            .build()
+    }
+
+    /// Returns the taplo that mise installed at the version of the crate
+    ///
+    /// The lookup asks mise for the version that [`requirement`][requirement]
+    /// holds, so a pin of taplo in the project does not change the answer.
+    /// A run of taplo starts in the root of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no taplo for the
-    /// project.
-    pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(TAPLO), root).await?;
+    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
+    /// it reports no taplo at that version, for example because nothing
+    /// installed it.
+    ///
+    /// [requirement]: Taplo::requirement
+    pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
 
         Ok(Self { tool })
     }

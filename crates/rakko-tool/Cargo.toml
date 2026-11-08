@@ -7,9 +7,13 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+dunce = { workspace = true }
 getset = { workspace = true }
 kawauso-process = { workspace = true }
 rakko = { workspace = true }
+semver = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 typed-fields = { workspace = true }

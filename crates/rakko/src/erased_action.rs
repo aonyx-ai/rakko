@@ -9,6 +9,7 @@ use crate::context::Context;
 use crate::name::Name;
 use crate::outcome::Outcome;
 use crate::seal::{Sealed, SealedBound};
+use crate::tool::ToolRequirement;
 
 /// One action behind an interface that hides its type
 ///
@@ -19,8 +20,9 @@ use crate::seal::{Sealed, SealedBound};
 ///
 /// An erased action answers everything that the machinery needs without
 /// naming the type of the action: the name that identifies it, the
-/// description of the arguments that a projection turns into a command, and a
-/// bind that takes the values of that command. The conversion from those
+/// description of the arguments that a projection turns into a command, the
+/// external tools that it runs, and a bind that takes the values of that
+/// command. The conversion from those
 /// values into the arguments of the action happens inside, where the type is
 /// still known. The bind returns a [`BoundAction`], which declares how the run
 /// uses the project and then runs with the same arguments.
@@ -98,6 +100,13 @@ pub trait ErasedAction: Send + Sync + Sealed {
     /// exists.
     fn arguments(&self) -> ArgsSchema;
 
+    /// Returns the external tools that the action runs
+    ///
+    /// The answer is the one that [`Action::tools`] gives. A caller reads it
+    /// before any run, for example to list the tools that the mounted
+    /// actions need.
+    fn tools(&self) -> Vec<ToolRequirement>;
+
     /// Converts the values of a run into the arguments of the action
     ///
     /// The values hold what the machinery parsed for the arguments of the
@@ -148,6 +157,10 @@ impl<A: Action> ErasedAction for A {
         <A::Args as Args>::schema()
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        Action::tools(self)
+    }
+
     fn bind<'a>(&'a self, values: &ArgsValues) -> Result<Box<dyn BoundAction + 'a>, ReadArgsError> {
         let args = <A::Args as Args>::from_values(values)?;
 
@@ -190,6 +203,7 @@ mod tests {
 
     use super::*;
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
+    use crate::tool::{RequiredVersion, ToolVersion};
     use crate::{action_name, argument_name};
 
     /// The arguments of the formatter: whether the run repairs what it finds
@@ -235,6 +249,34 @@ mod tests {
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
             Outcome::Passed { summary: None }
         }
+    }
+
+    /// An action that declares the one tool that it runs
+    struct Wrapper;
+
+    impl Action for Wrapper {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("wrapper")
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            vec![taplo()]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// Returns the requirement that the wrapper declares
+    fn taplo() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool("taplo")
+            .executable("taplo")
+            .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
+            .build()
     }
 
     /// An action that reads no arguments and passes
@@ -444,6 +486,24 @@ mod tests {
         let outcome = drive(&action, &values);
 
         assert!(matches!(outcome, Outcome::Errored { .. }));
+    }
+
+    #[test]
+    fn tools_of_an_action_that_declares_nothing_is_empty() {
+        let action = Probe;
+
+        let tools = ErasedAction::tools(&action);
+
+        assert!(tools.is_empty());
+    }
+
+    #[test]
+    fn tools_returns_what_the_action_declares() {
+        let action = Wrapper;
+
+        let tools = ErasedAction::tools(&action);
+
+        assert_eq!(tools, vec![taplo()]);
     }
 
     #[test]

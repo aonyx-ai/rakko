@@ -76,7 +76,10 @@ mounts this bundle pins these tools in its `mise.toml`:
 - `npm:markdownlint-cli`, for `lint-markdown`.
 - `npm:prettier`, for the three actions that format with prettier.
 - `npm:renovate`, for `check-renovate-config`.
-- `taplo`, for `format-toml` and `lint-toml`.
+- `taplo`, for `format-toml` and `lint-toml`. These two actions run the
+  version that the crate `rakko-taplo` pins in its `mise.rakko.toml`, and not
+  the version that the project pins. So the pin of the project must be that
+  same version, until Rakko writes the pin into the project itself.
 - `yamllint`, for `lint-yaml`.
 - `zizmor`, for `lint-github-actions`.
 

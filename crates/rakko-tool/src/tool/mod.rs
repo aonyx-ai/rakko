@@ -1,7 +1,8 @@
 //! The external program that an action runs
 //!
-//! An action names the tool that it wraps, and this module turns that name
-//! into a program that a run can start. The tool holds what a run needs: the
+//! An action gives the name of the tool that it wraps, or declares a
+//! requirement of it, and this module turns that into a program that a run
+//! can start. The tool holds what a run needs: the
 //! name that the action asked for, the location that mise reported, and the
 //! root of the project that the tool works on.
 //!
@@ -9,18 +10,24 @@
 //! the command, the action adds its arguments, and the run reports what the
 //! tool produced.
 
-/// What the crate reports when it cannot find a tool
+/// What the crate reports when it cannot find a tool by its name
 mod error;
 /// The identifier of an external tool
 mod name;
+/// What the crate reports when it cannot resolve the requirement of a tool
+mod requirement_error;
+/// The version of a toolchain that a project pins
+mod toolchain;
 
 use getset::Getters;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
-use rakko::ProjectRoot;
+use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement};
 
 pub use self::error::ResolveToolError;
 pub use self::name::ToolName;
+pub use self::requirement_error::ResolveRequirementError;
+use self::toolchain::pinned_toolchain;
 
 /// The program that reports where a tool is
 ///
@@ -31,6 +38,13 @@ const MISE: &str = "mise";
 
 /// The subcommand of mise that reports where a tool is
 const WHICH: &str = "which";
+
+/// The subcommand of mise that reports the versions that a project pins
+const CURRENT: &str = "current";
+
+/// The flag that asks mise about one version of a tool, whatever the
+/// project pins
+const TOOL: &str = "--tool";
 
 /// The details of a failure that mise did not explain
 const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
@@ -49,15 +63,17 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 
 /// An external program that an action runs
 ///
-/// A tool is a program that mise installed for a project, at the version that
-/// the project pinned. [`resolve`][resolve] asks mise for one, and
-/// [`invocation`][invocation] describes the command that runs it.
+/// A tool is a program that mise installed. [`resolve_requirement`][declared]
+/// asks mise for the version that an action declares, and
+/// [`resolve`][resolve] asks mise for the version that the project pins.
+/// [`invocation`][invocation] describes the command that runs the tool.
 ///
 /// The value carries the root of the project, because a tool behaves the same
 /// from every directory of a project only if every run of it starts in the
 /// same one. An action therefore resolves a tool once and runs it as often as
 /// it needs.
 ///
+/// [declared]: Tool::resolve_requirement
 /// [invocation]: Tool::invocation
 /// [resolve]: Tool::resolve
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
@@ -180,6 +196,141 @@ impl Tool {
             root,
         })
     }
+
+    /// Returns the tool that a requirement accepts, at the location that mise
+    /// reports
+    ///
+    /// For an exact version, the lookup asks mise for the program of the tool
+    /// at that version, wherever mise installed it. The version that the
+    /// project pins does not change the answer, so a run starts the version
+    /// that the tests of the action cover.
+    ///
+    /// For a range, the tool is a toolchain, and the project pins its
+    /// version. The lookup asks mise which versions the configuration of the
+    /// project pins. It takes the first of them, in the order of the pins,
+    /// that the range accepts. Then it asks mise for the program at that
+    /// version. A pin in the global configuration of the user does not count,
+    /// and neither does a pin in a directory above the project. These files
+    /// are different on each machine. A local mise file inside the project,
+    /// such as `mise.local.toml`, counts. So a developer can override the pin
+    /// of the project on their own machine.
+    ///
+    /// The answer is an absolute path, and a command of the tool starts in
+    /// the root of the context. The lookup starts up to three processes, so an
+    /// action resolves each tool once and keeps the result for the length of
+    /// the run.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MiseUnavailable`][unavailable] when mise does not run, and
+    /// [`UnresolvedVersion`][unresolved] when mise reports no program of the
+    /// tool at the version, for example because nothing installed that
+    /// version. Rakko installs nothing, so a missing version is a failure and
+    /// not a step that this method takes.
+    ///
+    /// For a toolchain, returns [`InvalidRange`][invalid] when the range is
+    /// not a range, [`UnresolvedToolchain`][toolchain] when no configuration
+    /// inside the project pins the toolchain, and
+    /// [`UnrecognizedReport`][unrecognized] when mise lists the pins in a form
+    /// that the crate does not read. When the range accepts no pin, returns
+    /// [`VersionOutOfRange`][outside] for the first pin with three numbers to
+    /// compare, or [`UnreadableVersion`][unreadable] when no pin has them.
+    ///
+    /// Returns [`UnknownRequirement`][unknown] for a kind of version that this
+    /// release does not know.
+    ///
+    /// # Panics
+    ///
+    /// Panics when no Tokio runtime drives the future. The runtime waits for
+    /// mise, and the method has no way to ask without one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko_tool::Tool;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("taplo")
+    ///     .executable("taplo")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
+    ///     .build();
+    /// let context = Context::builder().root("/home/otter/project").build();
+    ///
+    /// let tool = Tool::resolve_requirement(&requirement, &context).await?;
+    ///
+    /// println!("{}", tool.program());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [invalid]: ResolveRequirementError::InvalidRange
+    /// [outside]: ResolveRequirementError::VersionOutOfRange
+    /// [toolchain]: ResolveRequirementError::UnresolvedToolchain
+    /// [unavailable]: ResolveRequirementError::MiseUnavailable
+    /// [unknown]: ResolveRequirementError::UnknownRequirement
+    /// [unreadable]: ResolveRequirementError::UnreadableVersion
+    /// [unrecognized]: ResolveRequirementError::UnrecognizedReport
+    /// [unresolved]: ResolveRequirementError::UnresolvedVersion
+    pub async fn resolve_requirement(
+        requirement: &ToolRequirement,
+        context: &Context,
+    ) -> Result<Self, ResolveRequirementError> {
+        let tool = requirement.tool();
+        let root = context.root();
+
+        let version = match requirement.version() {
+            RequiredVersion::Exact(version) => version.clone(),
+            RequiredVersion::Range(range) => pinned_toolchain(tool, range, root).await?,
+            _ => {
+                return Err(ResolveRequirementError::UnknownRequirement { tool: tool.clone() });
+            }
+        };
+
+        let bin = requirement.executable();
+
+        let execution = Invocation::new(MISE)
+            .arg(WHICH)
+            .arg(bin.get())
+            .arg(TOOL)
+            .arg(format!("{tool}@{version}"))
+            .in_directory(root.get())
+            .run()
+            .await
+            .map_err(|source| ResolveRequirementError::MiseUnavailable {
+                tool: tool.clone(),
+                source,
+            })?;
+
+        let named =
+            program(&execution).ok_or_else(|| ResolveRequirementError::UnresolvedVersion {
+                tool: tool.clone(),
+                executable: bin.clone(),
+                version,
+                details: details(&execution),
+            })?;
+
+        Ok(Self {
+            name: ToolName::new(bin.get()),
+            program: executable(named),
+            root: root.clone(),
+        })
+    }
+}
+
+/// Returns what mise wrote to its standard error stream, or a sentence that
+/// says that it wrote nothing
+fn diagnosis(execution: &Execution) -> String {
+    let diagnosis = execution.stderr().to_string_lossy();
+    let text = diagnosis.trim();
+
+    if text.is_empty() {
+        NO_DIAGNOSIS.to_owned()
+    } else {
+        text.to_owned()
+    }
 }
 
 /// Returns what mise said about a tool that it reported no location for
@@ -196,14 +347,7 @@ fn details(execution: &Execution) -> String {
         return NO_LOCATION.to_owned();
     }
 
-    let diagnosis = execution.stderr().to_string_lossy();
-    let text = diagnosis.trim();
-
-    if text.is_empty() {
-        NO_DIAGNOSIS.to_owned()
-    } else {
-        text.to_owned()
-    }
+    diagnosis(execution)
 }
 
 /// Returns the program that mise reported, if it reported one
@@ -274,10 +418,14 @@ mod tests {
     #![allow(clippy::missing_panics_doc)]
 
     use std::path::Path;
+    use std::process::Command;
 
     use kawauso_process::invocation::WorkingDirectory;
+    use rakko::{ToolVersion, VersionRange};
+    use tempfile::TempDir;
 
     use super::*;
+    use crate::pin::pinned_version;
 
     /// The tool that this repository pins and that the tests resolve
     ///
@@ -307,6 +455,125 @@ mod tests {
             .expect("the crate lives two directories below the root of the repository");
 
         ProjectRoot::from(root)
+    }
+
+    /// Returns the context of a run in the root of this repository
+    fn context() -> Context {
+        Context::builder().root(root()).build()
+    }
+
+    /// Returns the context of a run in a directory
+    fn context_of(directory: &Path) -> Context {
+        Context::builder().root(directory).build()
+    }
+
+    /// Returns a requirement of the tool that this repository pins
+    fn requirement(version: RequiredVersion) -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(PINNED)
+            .executable(PINNED)
+            .version(version)
+            .build()
+    }
+
+    /// Returns the requirement of the exact version that this repository
+    /// pins
+    fn exact() -> ToolRequirement {
+        let version = ToolVersion::new(pinned_by_the_repository());
+
+        requirement(RequiredVersion::Exact(version))
+    }
+
+    /// Returns the version of the tool that this repository pins
+    ///
+    /// The version comes from the `mise.toml` of the repository, so that an
+    /// update of the pin reaches the tests without a change to them.
+    fn pinned_by_the_repository() -> String {
+        let pins = std::fs::read_to_string(root().get().join("mise.toml"))
+            .expect("the test reads the mise.toml of the repository");
+
+        pinned_version(&pins, PINNED).to_owned()
+    }
+
+    /// Returns whether a tool starts the program of a version
+    ///
+    /// Mise installs each version in a directory that carries the version in
+    /// its name, so the path of the program shows the version.
+    fn runs_version(tool: &Tool, version: &str) -> bool {
+        tool.program().get().to_string_lossy().contains(version)
+    }
+
+    /// Returns the requirement of a toolchain with the given range
+    fn toolchain(range: &str) -> ToolRequirement {
+        requirement(RequiredVersion::Range(VersionRange::new(range)))
+    }
+
+    /// A project in a temporary directory whose mise file pins the tool
+    struct Project {
+        /// The directory that holds the project
+        directory: TempDir,
+    }
+
+    impl Project {
+        /// Creates a project that pins the tool at each version, in order
+        ///
+        /// Mise ignores a configuration that nobody trusts, so the file is
+        /// trusted right away.
+        fn pinning(versions: &[&str]) -> Self {
+            let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+            let pins = directory.path().join("mise.toml");
+            let quoted: Vec<String> = versions
+                .iter()
+                .map(|version| format!("\"{version}\""))
+                .collect();
+
+            std::fs::write(
+                &pins,
+                format!("[tools]\n{PINNED} = [{}]\n", quoted.join(", ")),
+            )
+            .expect("the test writes the mise.toml of the project");
+
+            let trusted = Command::new("mise")
+                .arg("trust")
+                .arg("--quiet")
+                .arg(&pins)
+                .status()
+                .expect("the test runs mise");
+            assert!(trusted.success(), "expected mise to trust the project");
+
+            Self { directory }
+        }
+
+        /// Returns the context of a run in the project
+        fn context(&self) -> Context {
+            context_of(self.directory.path())
+        }
+
+        /// Returns the context of a run in a project in a directory of this
+        /// one, which pins nothing itself
+        fn context_below(&self) -> Context {
+            let below = self.directory.path().join("below");
+            std::fs::create_dir(&below).expect("the test creates a directory in the project");
+
+            context_of(&below)
+        }
+    }
+
+    impl Drop for Project {
+        /// Withdraws the trust that the project received
+        ///
+        /// Mise records the trust of a configuration in the state of the
+        /// user, and the temporary directory never comes back, so the record
+        /// would pile up there. A failure stays quiet, because the test
+        /// already reported what it was about.
+        fn drop(&mut self) {
+            let _ = Command::new("mise")
+                .arg("trust")
+                .arg("--quiet")
+                .arg("--untrust")
+                .arg(self.directory.path().join("mise.toml"))
+                .status();
+        }
     }
 
     /// Returns the tool that this repository pins, resolved
@@ -380,6 +647,204 @@ mod tests {
         let result = Tool::resolve(ToolName::new(PINNED), ProjectRoot::from(outside.path())).await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_ignores_the_pin_of_the_project() {
+        let project = Project::pinning(&["0.0.1"]);
+
+        let tool = Tool::resolve_requirement(&exact(), &project.context()).await;
+
+        assert!(tool.is_ok(), "expected the declared version, got {tool:?}");
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_runs_the_tool_in_the_root_of_the_context() {
+        let tool = Tool::resolve_requirement(&exact(), &context())
+            .await
+            .expect("expected mise to report the version that this project pins");
+
+        let invocation = tool.invocation();
+
+        assert_eq!(
+            invocation.working_directory().map(WorkingDirectory::get),
+            Some(root().get())
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_pin_that_is_no_version_reports_it() {
+        let project = Project::pinning(&["ref:main"]);
+
+        let result = Tool::resolve_requirement(&toolchain(">=1"), &project.context()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::UnreadableVersion { .. })
+            ),
+            "expected an unreadable version, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_toolchain_in_its_range_reports_the_pinned_version() {
+        let pinned = pinned_by_the_repository();
+
+        let result = Tool::resolve_requirement(&toolchain(">=1"), &context()).await;
+
+        assert!(
+            result
+                .as_ref()
+                .is_ok_and(|tool| runs_version(tool, &pinned)),
+            "expected the program of the pinned version, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_toolchain_outside_its_range_stops() {
+        let result = Tool::resolve_requirement(&toolchain("<1"), &context()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::VersionOutOfRange { .. })
+            ),
+            "expected a version outside the range, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_toolchain_pinned_above_the_project_reports_it_unresolved() {
+        let above = Project::pinning(&[&pinned_by_the_repository()]);
+
+        let result = Tool::resolve_requirement(&toolchain(">=1"), &above.context_below()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::UnresolvedToolchain { .. })
+            ),
+            "expected a pin outside the project to count for nothing, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_toolchain_pinned_three_times_reports_the_first_pin() {
+        let pinned = pinned_by_the_repository();
+        let project = Project::pinning(&[&pinned, "99.0.0", "0.0.1"]);
+
+        let result = Tool::resolve_requirement(&toolchain(">=0"), &project.context()).await;
+
+        assert!(
+            result
+                .as_ref()
+                .is_ok_and(|tool| runs_version(tool, &pinned)),
+            "expected the program of the first pin, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_toolchain_pinned_twice_reports_the_first_pin_in_its_range()
+    {
+        let pinned = pinned_by_the_repository();
+        let project = Project::pinning(&["99.0.0", &pinned]);
+
+        let result = Tool::resolve_requirement(&toolchain("<99"), &project.context()).await;
+
+        assert!(
+            result
+                .as_ref()
+                .is_ok_and(|tool| runs_version(tool, &pinned)),
+            "expected the program of the pin in the range, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_toolchain_that_mise_does_not_know_reports_it_unresolved() {
+        let unknown = ToolRequirement::builder()
+            .tool("rakko-pins-no-such-tool")
+            .executable("rakko-pins-no-such-tool")
+            .version(RequiredVersion::Range(VersionRange::new(">=1")))
+            .build();
+
+        let result = Tool::resolve_requirement(&unknown, &context()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::UnresolvedToolchain { .. })
+            ),
+            "expected an unresolved toolchain, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_version_that_is_not_installed_carries_what_mise_said() {
+        let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
+
+        let Err(error) = Tool::resolve_requirement(&missing, &context()).await else {
+            panic!("expected the lookup to report an error");
+        };
+
+        assert!(
+            error.to_string().contains("is not installed"),
+            "expected the diagnosis of mise, got {error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_version_that_is_not_installed_gives_the_tool_and_the_version()
+     {
+        let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
+
+        let Err(error) = Tool::resolve_requirement(&missing, &context()).await else {
+            panic!("expected the lookup to report an error");
+        };
+
+        assert!(
+            error.to_string().contains("`jq` 0.0.1"),
+            "expected the tool and the version, got {error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_an_installed_version_reports_its_program() {
+        let tool = Tool::resolve_requirement(&exact(), &context())
+            .await
+            .expect("expected mise to report the version that this project pins");
+
+        assert!(tool.program().get().is_file());
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_an_invalid_range_reports_it() {
+        let result = Tool::resolve_requirement(&toolchain("not a range"), &context()).await;
+
+        assert!(
+            matches!(result, Err(ResolveRequirementError::InvalidRange { .. })),
+            "expected an invalid range, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_an_unpinned_toolchain_reports_it() {
+        let outside = tempfile::tempdir().expect("the test creates a temporary directory");
+        let unpinned = ToolRequirement::builder()
+            .tool("npm:rakko-pins-no-such-package")
+            .executable("rakko-pins-no-such-package")
+            .version(RequiredVersion::Range(VersionRange::new(">=1")))
+            .build();
+
+        let result = Tool::resolve_requirement(&unpinned, &context_of(outside.path())).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::UnresolvedToolchain { .. })
+            ),
+            "expected an unpinned toolchain, got {result:?}"
+        );
     }
 
     #[tokio::test]

@@ -5,6 +5,7 @@ use crate::args::Args;
 use crate::context::Context;
 use crate::name::Name;
 use crate::outcome::Outcome;
+use crate::tool::ToolRequirement;
 
 /// The unit of maintenance work
 ///
@@ -12,6 +13,10 @@ use crate::outcome::Outcome;
 /// The trait describes the action as data: the name that identifies it and
 /// the type of the arguments that a run reads. The machinery reads this data
 /// without running the action, for example to show the action in a list.
+///
+/// The machinery can also ask the action which external tools it runs. The
+/// answer depends on no run, because a project installs the tools before
+/// any run starts.
 ///
 /// Before a run, the machinery can ask the action how that run uses the
 /// project, with the arguments of the run. An action that does not answer
@@ -83,6 +88,22 @@ pub trait Action: Send + Sync {
         Access::Write
     }
 
+    /// Returns the external tools that the action runs
+    ///
+    /// The answer holds one requirement for each tool that a run of the
+    /// action can start, whatever the arguments of the run. The method takes
+    /// no arguments and no context, because the machinery reads the answer
+    /// before any run starts.
+    ///
+    /// The method must not read a file or start a tool. An action that wraps
+    /// a tool embeds the version that it pins when it compiles, and it
+    /// answers from that.
+    ///
+    /// An action that does not implement the method runs no external tool.
+    fn tools(&self) -> Vec<ToolRequirement> {
+        Vec::new()
+    }
+
     /// Runs the action against the project that the context names
     ///
     /// The method returns a future, and the caller drives that future to get
@@ -104,6 +125,7 @@ mod tests {
     use std::task::{Context as TaskContext, Poll, Waker};
 
     use super::*;
+    use crate::tool::{RequiredVersion, ToolVersion};
 
     /// A minimal action that yields once and then passes
     struct Probe;
@@ -119,6 +141,34 @@ mod tests {
             YieldOnce::default().await;
             Outcome::Passed { summary: None }
         }
+    }
+
+    /// An action that declares the one tool that it runs
+    struct Wrapper;
+
+    impl Action for Wrapper {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            "wrapper".parse().unwrap()
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            vec![taplo()]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// Returns the requirement that the wrapper declares
+    fn taplo() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool("taplo")
+            .executable("taplo")
+            .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
+            .build()
     }
 
     /// A future that returns control once before it resolves
@@ -243,5 +293,23 @@ mod tests {
         let state = future.as_mut().poll(&mut task_context);
 
         assert!(matches!(state, Poll::Pending));
+    }
+
+    #[test]
+    fn tools_of_an_action_that_declares_nothing_is_empty() {
+        let action = Probe;
+
+        let tools = action.tools();
+
+        assert!(tools.is_empty());
+    }
+
+    #[test]
+    fn tools_returns_what_the_action_declares() {
+        let action = Wrapper;
+
+        let tools = action.tools();
+
+        assert_eq!(tools, vec![taplo()]);
     }
 }

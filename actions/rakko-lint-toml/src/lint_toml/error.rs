@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use rakko_taplo::ObserveTaploError;
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -69,14 +69,14 @@ pub enum LintTomlError {
         stderr: String,
     },
 
-    /// Mise reported no taplo for the project
+    /// Mise reported no taplo at the version that the action declares
     ///
-    /// The project pins no taplo, or nothing installed the pin yet. The
+    /// Mise did not run, or nothing installed that version of taplo yet. The
     /// action installs nothing, so the run stops here.
     #[error("failed to resolve taplo")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

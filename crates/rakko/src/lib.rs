@@ -4,7 +4,8 @@
 //! This crate holds what every action and every harness shares: the trait
 //! that an action implements, the name that identifies an action, the
 //! arguments that a run reads, the context that an action reads when it runs,
-//! the finding that an action produces, and the outcome that the run returns.
+//! the finding that an action produces, the outcome that the run returns, and
+//! the requirement of each external tool that an action runs.
 //! It also holds the view of an action that hides its type, which is how a
 //! registry holds many actions at once, and the list of such views that a
 //! bundle exports.
@@ -59,6 +60,8 @@ mod outcome;
 pub mod path;
 /// The seal on the views of an action that hide its type
 mod seal;
+/// Types for the external tools that an action runs
+mod tool;
 
 pub use self::access::Access;
 pub use self::action::Action;
@@ -77,3 +80,6 @@ pub use self::finding::{
 pub use self::group::Group;
 pub use self::name::{Name, ParseNameError};
 pub use self::outcome::{Outcome, SkipReason, Summary};
+pub use self::tool::{
+    Executable, MiseTool, RequiredVersion, ToolRequirement, ToolVersion, VersionRange,
+};
