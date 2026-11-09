@@ -83,7 +83,12 @@ impl Lockfile {
                     _ => return None,
                 };
 
-                Some(Difference::new(part.clone(), change))
+                Some(
+                    Difference::builder()
+                        .part(part.clone())
+                        .change(change)
+                        .build(),
+                )
             })
             .collect();
 

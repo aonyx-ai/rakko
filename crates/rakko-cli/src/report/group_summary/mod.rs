@@ -28,24 +28,15 @@ use super::Report;
 /// The JSON holds the name of the group, the number of members in each state,
 /// and the report of each member. Each report has the shape that a run of that
 /// action alone emits.
-#[derive(Debug)]
+#[derive(Debug, bon::Builder)]
 pub(crate) struct GroupSummary {
     /// The name of the group that the run drove
     group: Name,
     /// The report of each member, in the order of the list of the group
-    members: Vec<Report>,
-}
-
-impl GroupSummary {
-    /// Creates the summary of a run of a group from the name of the group and
-    /// the report of each member
     ///
     /// The reports keep the order in which the caller gives them, so the caller
     /// gives them in the order of the list of the group.
-    #[must_use]
-    pub(crate) fn new(group: Name, members: Vec<Report>) -> Self {
-        Self { group, members }
-    }
+    members: Vec<Report>,
 }
 
 impl fmt::Display for GroupSummary {

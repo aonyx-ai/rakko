@@ -141,7 +141,7 @@ fn failures(names: Vec<&str>, mut blocks: Vec<(&str, String)>) -> Vec<DoctestFai
                 .map(|index| blocks.remove(index).1)
                 .unwrap_or_default();
 
-            DoctestFailure::new(name, output)
+            DoctestFailure::builder().name(name).output(output).build()
         })
         .collect()
 }
@@ -231,10 +231,10 @@ mod tests {
                 .map(|report| report.failures().to_vec())
                 .as_deref(),
             Some(
-                [DoctestFailure::new(
-                    "src/lib.rs - add (line 5)",
-                    "Test executable failed (exit status: 101).\n\nstderr:\n\nthread 'main' panicked at src/lib.rs:5:1:\nassertion failed: false\n\n\n",
-                )]
+                [DoctestFailure::builder()
+                    .name("src/lib.rs - add (line 5)")
+                    .output("Test executable failed (exit status: 101).\n\nstderr:\n\nthread 'main' panicked at src/lib.rs:5:1:\nassertion failed: false\n\n\n")
+                    .build()]
                 .as_slice()
             )
         );
@@ -272,7 +272,13 @@ mod tests {
                 .ok()
                 .map(|report| report.failures().to_vec())
                 .as_deref(),
-            Some([DoctestFailure::new("src/lib.rs - add (line 5)", "")].as_slice())
+            Some(
+                [DoctestFailure::builder()
+                    .name("src/lib.rs - add (line 5)")
+                    .output("")
+                    .build()]
+                .as_slice()
+            )
         );
     }
 

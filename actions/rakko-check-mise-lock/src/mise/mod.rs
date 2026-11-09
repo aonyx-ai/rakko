@@ -160,26 +160,21 @@ struct Listed {
 /// The value holds the directory that every run of mise starts in, and who
 /// trusts its configuration. An action creates one for the project, and one
 /// for the copy of the project when it locks there.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug, bon::Builder)]
 pub(crate) struct Mise {
     /// The directory that every run of mise starts in
     root: ProjectRoot,
 
     /// Who trusts the configuration of the directory
-    trust: Trust,
-}
-
-impl Mise {
-    /// Creates the mise of a directory
     ///
     /// With [`Trust::Granted`], every run of mise trusts the directory, and
     /// mise then reads a configuration there that nobody trusted. A caller
     /// grants it only for a directory whose configuration somebody trusted in
     /// another place, such as a copy of a project that mise already read.
-    pub(crate) fn new(root: ProjectRoot, trust: Trust) -> Self {
-        Self { root, trust }
-    }
+    trust: Trust,
+}
 
+impl Mise {
     /// Runs `mise lock` in the directory
     ///
     /// The run passes no option, so the configuration of the project decides
@@ -450,7 +445,7 @@ fn targets(
         };
 
         let path = named(lockfile, home)
-            .and_then(|named| FilePath::within(&named, root))
+            .and_then(|named| FilePath::within().path(&named).root(root).call())
             .ok_or_else(|| CheckMiseLockError::ForeignLockfile {
                 path: PathBuf::from(lockfile),
             })?;
@@ -509,9 +504,13 @@ fn listed(listing: &str, root: &ProjectRoot) -> Result<Vec<FilePath>, CheckMiseL
     entries
         .into_iter()
         .map(|entry| {
-            FilePath::within(&entry.lockfile, root).ok_or(CheckMiseLockError::ForeignLockfile {
-                path: entry.lockfile,
-            })
+            FilePath::within()
+                .path(&entry.lockfile)
+                .root(root)
+                .call()
+                .ok_or(CheckMiseLockError::ForeignLockfile {
+                    path: entry.lockfile,
+                })
         })
         .collect()
 }
@@ -700,21 +699,21 @@ mod tests {
 
     #[test]
     fn invocation_of_a_granted_directory_trusts_the_directory() {
-        let mise = Mise::new(root(), Trust::Granted);
+        let mise = Mise::builder().root(root()).trust(Trust::Granted).build();
 
         assert_eq!(trusted(&mise), Some(root().get().as_os_str().to_owned()));
     }
 
     #[test]
     fn invocation_of_an_inherited_directory_trusts_nothing_of_its_own() {
-        let mise = Mise::new(root(), Trust::Inherited);
+        let mise = Mise::builder().root(root()).trust(Trust::Inherited).build();
 
         assert_eq!(trusted(&mise), None);
     }
 
     #[test]
     fn invocation_takes_the_answer_of_the_environment_out() {
-        let mise = Mise::new(root(), Trust::Granted);
+        let mise = Mise::builder().root(root()).trust(Trust::Granted).build();
 
         let removed: Vec<String> = mise
             .invocation()
@@ -728,7 +727,7 @@ mod tests {
 
     #[test]
     fn invocation_takes_the_signs_of_ci_out() {
-        let mise = Mise::new(root(), Trust::Granted);
+        let mise = Mise::builder().root(root()).trust(Trust::Granted).build();
 
         let removed: Vec<String> = mise
             .invocation()
@@ -790,7 +789,7 @@ mod tests {
 
     #[test]
     fn lock_invocation_makes_mise_show_its_warnings() {
-        let mise = Mise::new(root(), Trust::Inherited);
+        let mise = Mise::builder().root(root()).trust(Trust::Inherited).build();
 
         let set: Vec<(String, String)> = mise
             .lock_invocation()
@@ -812,7 +811,7 @@ mod tests {
 
     #[test]
     fn lock_invocation_passes_no_option() {
-        let mise = Mise::new(root(), Trust::Inherited);
+        let mise = Mise::builder().root(root()).trust(Trust::Inherited).build();
 
         let arguments: Vec<String> = mise
             .lock_invocation()
@@ -829,7 +828,10 @@ mod tests {
     #[tokio::test]
     async fn lock_of_a_pinned_project_names_the_platforms_that_it_targets() {
         let project = Locked::new(PINNED);
-        let mise = Mise::new(project.root(), Trust::Inherited);
+        let mise = Mise::builder()
+            .root(project.root())
+            .trust(Trust::Inherited)
+            .build();
 
         let Lock::Written { targets } = mise.lock().await.unwrap() else {
             panic!("expected mise to lock the project");

@@ -347,7 +347,10 @@ mod tests {
                 packages
                     .iter()
                     .map(|&(name, documented_names)| {
-                        CargoPackage::new(PackageName::new(name), documented_names)
+                        CargoPackage::builder()
+                            .name(PackageName::new(name))
+                            .documented_names(documented_names)
+                            .build()
                     })
                     .collect(),
             )

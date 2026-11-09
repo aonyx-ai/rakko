@@ -637,6 +637,7 @@ dependencies = [
 name = "rakko-check-dependencies"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-cargo",
@@ -762,6 +763,7 @@ dependencies = [
 name = "rakko-check-unused-deps"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-cargo",
@@ -778,6 +780,7 @@ dependencies = [
 name = "rakko-cli"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "clap",
  "clawless",
  "futures-util",
@@ -821,6 +824,7 @@ dependencies = [
 name = "rakko-format-rust"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-cargo",
@@ -981,6 +985,7 @@ dependencies = [
 name = "rakko-nextest"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-cargo",
@@ -1095,6 +1100,7 @@ dependencies = [
 name = "rakko-test-rust-docs"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-cargo",
@@ -1131,6 +1137,7 @@ dependencies = [
 name = "rakko-tool"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "dunce",
  "getset",
  "kawauso-process",

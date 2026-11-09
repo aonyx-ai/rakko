@@ -226,13 +226,13 @@ mod tests {
 
     /// Returns a problem of the given severity in a file of the project
     fn problem(severity: Severity) -> StilesProblem {
-        StilesProblem::new(
-            path("./src/lib.rs"),
-            Position::builder().line(7).column(5).build(),
-            severity,
-            "lint.todo-comment".to_owned(),
-            "a TODO comment marks unfinished work".to_owned(),
-        )
+        StilesProblem::builder()
+            .path(path("./src/lib.rs"))
+            .position(Position::builder().line(7).column(5).build())
+            .severity(severity)
+            .rule("lint.todo-comment".to_owned())
+            .text("a TODO comment marks unfinished work".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -249,13 +249,13 @@ mod tests {
 
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = StilesProblem::new(
-            path("/elsewhere/lib.rs"),
-            Position::builder().line(1).column(1).build(),
-            Severity::Error,
-            "lint.todo-comment".to_owned(),
-            "a TODO comment marks unfinished work".to_owned(),
-        );
+        let problem = StilesProblem::builder()
+            .path(path("/elsewhere/lib.rs"))
+            .position(Position::builder().line(1).column(1).build())
+            .severity(Severity::Error)
+            .rule("lint.todo-comment".to_owned())
+            .text("a TODO comment marks unfinished work".to_owned())
+            .build();
 
         let error = finding(&problem, &root()).unwrap_err();
 

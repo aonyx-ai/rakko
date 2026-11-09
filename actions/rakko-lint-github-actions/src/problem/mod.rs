@@ -9,6 +9,7 @@ mod severity;
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko::{FilePath, ProjectRoot, Span};
 
@@ -54,7 +55,7 @@ const ANNOTATION_CLOSE: char = ')';
 /// tool, and not one that this crate wrote about it.
 ///
 /// [relative]: ZizmorProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub(crate) struct ZizmorProblem {
     /// The path of the file, as zizmor wrote it
     #[getset(get = "pub(crate)")]
@@ -82,25 +83,6 @@ pub(crate) struct ZizmorProblem {
 }
 
 impl ZizmorProblem {
-    /// Creates a problem from one place that zizmor reported
-    pub(crate) fn new(
-        path: PathBuf,
-        span: Span,
-        severity: Severity,
-        audit: String,
-        description: String,
-        annotation: String,
-    ) -> Self {
-        Self {
-            path,
-            span,
-            severity,
-            audit,
-            description,
-            annotation,
-        }
-    }
-
     /// Returns the sentence that zizmor wrote about the problem
     ///
     /// The sentence holds the severity, the audit, and what the audit is
@@ -122,7 +104,7 @@ impl ZizmorProblem {
     /// report that the caller misread, and the caller decides what to do about
     /// that.
     pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
@@ -144,14 +126,14 @@ mod tests {
 
     /// Returns a problem of the given severity about the given path
     fn weighed(path: PathBuf, severity: Severity) -> ZizmorProblem {
-        ZizmorProblem::new(
-            path,
-            span(),
-            severity,
-            "template-injection".to_owned(),
-            "code injection via template expansion".to_owned(),
-            "may expand into attacker-controllable code".to_owned(),
-        )
+        ZizmorProblem::builder()
+            .path(path)
+            .span(span())
+            .severity(severity)
+            .audit("template-injection".to_owned())
+            .description("code injection via template expansion".to_owned())
+            .annotation("may expand into attacker-controllable code".to_owned())
+            .build()
     }
 
     /// Returns the range that the problems of a test cover

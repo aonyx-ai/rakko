@@ -139,7 +139,11 @@ impl Project {
             .next()
             .expect("the project holds one workspace");
 
-        Nextest::resolve(cargo, lockfile, &context)
+        Nextest::resolve()
+            .cargo(cargo)
+            .lockfile(lockfile)
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the nextest that the crate declares")
             .observe(&workspace, &root)

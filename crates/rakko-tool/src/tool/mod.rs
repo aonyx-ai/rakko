@@ -15,6 +15,7 @@ mod name;
 mod requirement_error;
 mod toolchain;
 
+use bon::bon;
 use getset::Getters;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
@@ -97,6 +98,7 @@ pub struct Tool {
     version: Option<ToolVersion>,
 }
 
+#[bon]
 impl Tool {
     /// Returns the command that runs the tool
     ///
@@ -122,7 +124,7 @@ impl Tool {
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let tool = Tool::resolve(ToolName::new("taplo"), "/home/otter/project".into()).await?;
+    /// let tool = Tool::resolve().name(ToolName::new("taplo")).root("/home/otter/project".into()).call().await?;
     ///
     /// let execution = tool.invocation().arg("check").launch().await?;
     ///
@@ -167,7 +169,7 @@ impl Tool {
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let tool = Tool::resolve(ToolName::new("zizmor"), "/home/otter/project".into()).await?;
+    /// let tool = Tool::resolve().name(ToolName::new("zizmor")).root("/home/otter/project".into()).call().await?;
     ///
     /// println!("{}", tool.program());
     /// # Ok(())
@@ -176,6 +178,7 @@ impl Tool {
     ///
     /// [unavailable]: ResolveToolError::MiseUnavailable
     /// [unresolved]: ResolveToolError::UnresolvedTool
+    #[builder]
     pub async fn resolve(name: ToolName, root: ProjectRoot) -> Result<Self, ResolveToolError> {
         let execution = Invocation::new(MISE)
             .arg(WHICH)
@@ -270,7 +273,7 @@ impl Tool {
     ///     .build();
     /// let context = Context::builder().root("/home/otter/project").build();
     ///
-    /// let tool = Tool::resolve_requirement(&requirement, &context).await?;
+    /// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
     ///
     /// println!("{}", tool.program());
     /// # Ok(())
@@ -285,6 +288,7 @@ impl Tool {
     /// [unreadable]: ResolveRequirementError::UnreadableVersion
     /// [unrecognized]: ResolveRequirementError::UnrecognizedReport
     /// [unresolved]: ResolveRequirementError::UnresolvedVersion
+    #[builder]
     pub async fn resolve_requirement(
         requirement: &ToolRequirement,
         context: &Context,
@@ -590,7 +594,10 @@ mod tests {
 
     /// Returns the tool that this repository pins, resolved
     async fn pinned() -> Tool {
-        Tool::resolve(ToolName::new(PINNED), root())
+        Tool::resolve()
+            .name(ToolName::new(PINNED))
+            .root(root())
+            .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins")
     }
@@ -620,7 +627,11 @@ mod tests {
     async fn resolve_outside_the_project_reports_no_location() {
         let outside = tempfile::tempdir().expect("the test creates a temporary directory");
 
-        let result = Tool::resolve(ToolName::new(PINNED), ProjectRoot::from(outside.path())).await;
+        let result = Tool::resolve()
+            .name(ToolName::new(PINNED))
+            .root(ProjectRoot::from(outside.path()))
+            .call()
+            .await;
 
         assert!(result.is_err());
     }
@@ -629,14 +640,21 @@ mod tests {
     async fn resolve_requirement_ignores_the_pin_of_the_project() {
         let project = Project::pinning(&["0.0.1"]);
 
-        let tool = Tool::resolve_requirement(&exact(), &project.context()).await;
+        let tool = Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&project.context())
+            .call()
+            .await;
 
         assert!(tool.is_ok(), "expected the declared version, got {tool:?}");
     }
 
     #[tokio::test]
     async fn resolve_requirement_runs_the_tool_in_the_root_of_the_context() {
-        let tool = Tool::resolve_requirement(&exact(), &context())
+        let tool = Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&context())
+            .call()
             .await
             .expect("expected mise to report the version that this project pins");
 
@@ -652,7 +670,11 @@ mod tests {
     async fn resolve_requirement_with_a_pin_that_is_no_version_reports_it() {
         let project = Project::pinning(&["ref:main"]);
 
-        let result = Tool::resolve_requirement(&toolchain(">=1"), &project.context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain(">=1"))
+            .context(&project.context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -674,7 +696,11 @@ mod tests {
             )))
             .build();
 
-        let result = Tool::resolve_requirement(&beta, &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&beta)
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -695,7 +721,11 @@ mod tests {
             )))
             .build();
 
-        let result = Tool::resolve_requirement(&nightly, &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&nightly)
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             result.as_ref().is_ok_and(|tool| tool
@@ -716,7 +746,11 @@ mod tests {
             )))
             .build();
 
-        let result = Tool::resolve_requirement(&nightly, &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&nightly)
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -731,7 +765,11 @@ mod tests {
     async fn resolve_requirement_with_a_toolchain_in_its_range_reports_the_pinned_version() {
         let pinned = pinned_by_the_repository();
 
-        let result = Tool::resolve_requirement(&toolchain(">=1"), &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain(">=1"))
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             result
@@ -743,7 +781,11 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_requirement_with_a_toolchain_outside_its_range_stops() {
-        let result = Tool::resolve_requirement(&toolchain("<1"), &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain("<1"))
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -758,7 +800,11 @@ mod tests {
     async fn resolve_requirement_with_a_toolchain_pinned_above_the_project_reports_it_unresolved() {
         let above = Project::pinning(&[&pinned_by_the_repository()]);
 
-        let result = Tool::resolve_requirement(&toolchain(">=1"), &above.context_below()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain(">=1"))
+            .context(&above.context_below())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -774,7 +820,11 @@ mod tests {
         let pinned = pinned_by_the_repository();
         let project = Project::pinning(&[&pinned, "99.0.0", "0.0.1"]);
 
-        let result = Tool::resolve_requirement(&toolchain(">=0"), &project.context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain(">=0"))
+            .context(&project.context())
+            .call()
+            .await;
 
         assert!(
             result
@@ -790,7 +840,11 @@ mod tests {
         let pinned = pinned_by_the_repository();
         let project = Project::pinning(&["99.0.0", &pinned]);
 
-        let result = Tool::resolve_requirement(&toolchain("<99"), &project.context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain("<99"))
+            .context(&project.context())
+            .call()
+            .await;
 
         assert!(
             result
@@ -808,7 +862,11 @@ mod tests {
             .version(RequiredVersion::Range(VersionRange::new(">=1")))
             .build();
 
-        let result = Tool::resolve_requirement(&unknown, &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&unknown)
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -823,7 +881,12 @@ mod tests {
     async fn resolve_requirement_with_a_version_that_is_not_installed_carries_what_mise_said() {
         let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
 
-        let Err(error) = Tool::resolve_requirement(&missing, &context()).await else {
+        let Err(error) = Tool::resolve_requirement()
+            .requirement(&missing)
+            .context(&context())
+            .call()
+            .await
+        else {
             panic!("expected the lookup to report an error");
         };
 
@@ -838,7 +901,12 @@ mod tests {
      {
         let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
 
-        let Err(error) = Tool::resolve_requirement(&missing, &context()).await else {
+        let Err(error) = Tool::resolve_requirement()
+            .requirement(&missing)
+            .context(&context())
+            .call()
+            .await
+        else {
             panic!("expected the lookup to report an error");
         };
 
@@ -850,7 +918,10 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_requirement_with_an_installed_version_reports_its_program() {
-        let tool = Tool::resolve_requirement(&exact(), &context())
+        let tool = Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&context())
+            .call()
             .await
             .expect("expected mise to report the version that this project pins");
 
@@ -859,7 +930,10 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_requirement_with_an_installed_version_reports_the_version() {
-        let tool = Tool::resolve_requirement(&exact(), &context())
+        let tool = Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&context())
+            .call()
             .await
             .expect("expected mise to report the version that this project pins");
 
@@ -871,7 +945,11 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_requirement_with_an_invalid_range_reports_it() {
-        let result = Tool::resolve_requirement(&toolchain("not a range"), &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain("not a range"))
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(result, Err(ResolveRequirementError::InvalidRange { .. })),
@@ -888,7 +966,11 @@ mod tests {
             .version(RequiredVersion::Range(VersionRange::new(">=1")))
             .build();
 
-        let result = Tool::resolve_requirement(&unpinned, &context_of(outside.path())).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&unpinned)
+            .context(&context_of(outside.path()))
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -912,7 +994,10 @@ mod tests {
     // launcher beside the script.
     #[tokio::test]
     async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
-        let tool = Tool::resolve(ToolName::new(SCRIPTED), root())
+        let tool = Tool::resolve()
+            .name(ToolName::new(SCRIPTED))
+            .root(root())
+            .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins");
 
@@ -928,7 +1013,7 @@ mod tests {
     async fn resolve_with_an_unknown_tool_names_it() {
         let name = ToolName::new("rakko-pins-no-such-tool");
 
-        let Err(error) = Tool::resolve(name, root()).await else {
+        let Err(error) = Tool::resolve().name(name).root(root()).call().await else {
             panic!("expected the lookup to report an error");
         };
 

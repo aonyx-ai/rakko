@@ -43,7 +43,7 @@
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let tool = Tool::resolve(ToolName::new("prettier"), "/home/otter/project".into()).await?;
+//! let tool = Tool::resolve().name(ToolName::new("prettier")).root("/home/otter/project".into()).call().await?;
 //!
 //! let execution = tool.invocation().arg("--check").arg(".").launch().await?;
 //!

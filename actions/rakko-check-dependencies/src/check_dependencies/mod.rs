@@ -276,12 +276,17 @@ mod tests {
 
     /// Returns a problem of the given weight about one package
     fn problem(severity: Severity) -> DenyProblem {
-        DenyProblem::new(
-            severity,
-            "rejected".to_owned(),
-            "failed to satisfy license requirements".to_owned(),
-            vec![Package::new("option-ext".to_owned(), "0.2.0".to_owned())],
-        )
+        DenyProblem::builder()
+            .severity(severity)
+            .check("rejected".to_owned())
+            .message("failed to satisfy license requirements".to_owned())
+            .packages(vec![
+                Package::builder()
+                    .name("option-ext".to_owned())
+                    .version("0.2.0".to_owned())
+                    .build(),
+            ])
+            .build()
     }
 
     /// Returns the root of the project that the tests are about

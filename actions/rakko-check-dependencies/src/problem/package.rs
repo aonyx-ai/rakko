@@ -21,7 +21,7 @@ const VERSION_SEPARATOR: char = ' ';
 /// Cargo-deny calls this a crate, and so does its message. The type carries
 /// the other name that cargo gives the same thing, because `crate` is a
 /// keyword of Rust and no module can be named for it.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, bon::Builder, Getters)]
 pub(crate) struct Package {
     /// The name of the package
     #[getset(get = "pub(crate)")]
@@ -30,13 +30,6 @@ pub(crate) struct Package {
     /// The version of the package
     #[getset(get = "pub(crate)")]
     version: String,
-}
-
-impl Package {
-    /// Creates a package from the name and the version that cargo-deny wrote
-    pub(crate) fn new(name: String, version: String) -> Self {
-        Self { name, version }
-    }
 }
 
 impl fmt::Display for Package {
@@ -56,7 +49,11 @@ mod tests {
 
     #[test]
     fn display_names_the_package_and_its_version() {
-        let name = Package::new("option-ext".to_owned(), "0.2.0".to_owned()).to_string();
+        let name = Package::builder()
+            .name("option-ext".to_owned())
+            .version("0.2.0".to_owned())
+            .build()
+            .to_string();
 
         assert_eq!(name, "option-ext 0.2.0");
     }

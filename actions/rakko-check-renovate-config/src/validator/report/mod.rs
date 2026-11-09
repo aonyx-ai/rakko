@@ -285,7 +285,13 @@ pub(crate) fn read(log: &str) -> Result<Report, ReadReportError> {
                     });
                 };
 
-                problems.push(RenovateProblem::new(path, None, topic, options));
+                problems.push(
+                    RenovateProblem::builder()
+                        .path(path)
+                        .topic(topic)
+                        .detail(options)
+                        .build(),
+                );
             }
             Meaning::Unconfigured(words) => unconfigured = Some(words),
             Meaning::Fatal(details) => return Ok(Report::Halted { details }),
@@ -360,7 +366,11 @@ fn meaning(record: Record) -> Option<Meaning> {
                 .iter()
                 .chain(warnings.iter())
                 .map(|Entry { topic, message }| {
-                    RenovateProblem::new(path.clone(), None, topic.clone(), message.clone())
+                    RenovateProblem::builder()
+                        .path(path.clone())
+                        .topic(topic.clone())
+                        .detail(message.clone())
+                        .build()
                 })
                 .collect(),
         ));
@@ -390,12 +400,14 @@ fn meaning(record: Record) -> Option<Meaning> {
         ..
     } = &record;
     if let (Some(configuration), Some(cause)) = (file_field.as_deref(), err) {
-        return Some(Meaning::Problems(vec![RenovateProblem::new(
-            file(configuration),
-            cause.position(),
-            msg.clone(),
-            cause.message.clone().unwrap_or_default(),
-        )]));
+        return Some(Meaning::Problems(vec![
+            RenovateProblem::builder()
+                .path(file(configuration))
+                .maybe_position(cause.position())
+                .topic(msg.clone())
+                .detail(cause.message.clone().unwrap_or_default())
+                .build(),
+        ]));
     }
 
     if record.msg == UNCONFIGURED {
@@ -682,12 +694,12 @@ mod tests {
 
         assert_eq!(
             problems,
-            [RenovateProblem::new(
-                PathBuf::from("renovate.json"),
-                Some(Position::builder().line(2).column(1).build()),
-                "File could not be parsed".to_owned(),
-                "JSON5: invalid end of input at 2:1".to_owned(),
-            )]
+            [RenovateProblem::builder()
+                .path(PathBuf::from("renovate.json"))
+                .position(Position::builder().line(2).column(1).build())
+                .topic("File could not be parsed".to_owned())
+                .detail("JSON5: invalid end of input at 2:1".to_owned())
+                .build()]
         );
     }
 

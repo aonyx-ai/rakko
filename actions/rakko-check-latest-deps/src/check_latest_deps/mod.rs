@@ -166,7 +166,11 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
         });
     }
 
-    let nextest = Nextest::resolve(cargo, Lockfile::Locked, context)
+    let nextest = Nextest::resolve()
+        .cargo(cargo)
+        .lockfile(Lockfile::Locked)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckLatestDepsError::UnresolvedNextest { source })?;
     let mut ran = 0;

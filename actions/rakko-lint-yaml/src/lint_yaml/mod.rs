@@ -236,13 +236,13 @@ mod tests {
 
     /// Returns a problem of the given level in a file of the project
     fn problem(level: ProblemLevel) -> YamllintProblem {
-        YamllintProblem::new(
-            PathBuf::from("./notes.yaml"),
-            4,
-            9,
-            level,
-            "truthy value should be one of [false, true] (truthy)".to_owned(),
-        )
+        YamllintProblem::builder()
+            .path(PathBuf::from("./notes.yaml"))
+            .line(4)
+            .column(9)
+            .level(level)
+            .description("truthy value should be one of [false, true] (truthy)".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -259,13 +259,13 @@ mod tests {
 
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = YamllintProblem::new(
-            path("/elsewhere/notes.yaml"),
-            1,
-            1,
-            ProblemLevel::Error,
-            "trailing spaces (trailing-spaces)".to_owned(),
-        );
+        let problem = YamllintProblem::builder()
+            .path(path("/elsewhere/notes.yaml"))
+            .line(1)
+            .column(1)
+            .level(ProblemLevel::Error)
+            .description("trailing spaces (trailing-spaces)".to_owned())
+            .build();
 
         let error = finding(&problem, &root()).unwrap_err();
 

@@ -62,10 +62,12 @@ pub(super) fn read(
 
     for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
         match operation {
-            Operation::Report => observation.problems.push(PrettierProblem::new(
-                PathBuf::from(line),
-                ProblemDetail::Unformatted,
-            )),
+            Operation::Report => observation.problems.push(
+                PrettierProblem::builder()
+                    .path(PathBuf::from(line))
+                    .detail(ProblemDetail::Unformatted)
+                    .build(),
+            ),
             Operation::Rewrite => {
                 if let Some(path) = rewritten(line) {
                     observation.rewritten.push(PathBuf::from(path));
@@ -102,7 +104,7 @@ pub(super) fn read(
 
             observation
                 .problems
-                .push(PrettierProblem::new(path, detail));
+                .push(PrettierProblem::builder().path(path).detail(detail).build());
         } else if let Some(problem) = diagnostic(report) {
             observation.problems.push(problem);
         }
@@ -128,7 +130,12 @@ fn diagnostic(report: &str) -> Option<PrettierProblem> {
         message: message.to_owned(),
     };
 
-    Some(PrettierProblem::new(PathBuf::from(path), detail))
+    Some(
+        PrettierProblem::builder()
+            .path(PathBuf::from(path))
+            .detail(detail)
+            .build(),
+    )
 }
 
 /// Returns whether a word of a line states how long prettier took

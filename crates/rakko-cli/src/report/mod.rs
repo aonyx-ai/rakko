@@ -40,27 +40,18 @@ pub(crate) use self::group_summary::GroupSummary;
 ///     summary: Some(Summary::new("checked 3 files")),
 /// };
 ///
-/// let report = Report::new(action_name!("format-toml"), outcome);
+/// let report = Report::builder().action(action_name!("format-toml")).outcome(outcome).build();
 ///
 /// assert_eq!(report.to_string(), "format-toml: passed, checked 3 files");
 /// ```
 ///
 /// [`Display`]: fmt::Display
-#[derive(Debug)]
+#[derive(Debug, bon::Builder)]
 pub struct Report {
     /// The name of the action that the run drove
     action: Name,
     /// What that action returned
     outcome: Outcome,
-}
-
-impl Report {
-    /// Creates a report from the name of an action and what that action
-    /// returned
-    #[must_use]
-    pub fn new(action: Name, outcome: Outcome) -> Self {
-        Self { action, outcome }
-    }
 }
 
 impl fmt::Display for Report {

@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 
 /// Where and why a test panicked
@@ -11,7 +12,7 @@ use getset::{CopyGetters, Getters};
 /// failed. The path stands as the compiler embedded it, which is relative to
 /// the root that cargo built, so a caller asks the root for the path
 /// relative to the project.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub(crate) struct Panic {
     /// The file that the test panicked in, as the compiler embedded it
     #[getset(get = "pub(crate)")]
@@ -28,19 +29,6 @@ pub(crate) struct Panic {
     /// The message of the panic, or nothing when the test gave none
     #[getset(get = "pub(crate)")]
     message: Option<String>,
-}
-
-impl Panic {
-    /// Creates a panic from the location and the message that the test
-    /// harness wrote
-    pub(crate) fn new(path: PathBuf, line: u32, column: u32, message: Option<String>) -> Self {
-        Self {
-            path,
-            line,
-            column,
-            message,
-        }
-    }
 }
 
 #[cfg(test)]

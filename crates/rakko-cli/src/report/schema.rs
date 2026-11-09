@@ -49,6 +49,7 @@ pub(super) struct Payload<'a> {
     repairs: Vec<FindingPayload<'a>>,
 }
 
+#[bon::bon]
 impl<'a> Payload<'a> {
     /// Returns the payload that describes the given report
     pub(super) fn of(report: &'a Report) -> Self {
@@ -57,24 +58,24 @@ impl<'a> Payload<'a> {
         match &report.outcome {
             Outcome::Passed { summary } => Self {
                 summary: summary.as_ref().map(Summary::get),
-                ..Self::new(action, "passed")
+                ..Self::builder().action(action).outcome("passed").build()
             },
             Outcome::Skipped { reason } => Self {
                 reason: Some(reason.get()),
-                ..Self::new(action, "skipped")
+                ..Self::builder().action(action).outcome("skipped").build()
             },
             Outcome::Errored { source } => Self {
                 error: Some(Chain::new(source.as_ref()).to_string()),
-                ..Self::new(action, "errored")
+                ..Self::builder().action(action).outcome("errored").build()
             },
             Outcome::Changed { repairs } => Self {
                 repairs: repairs.iter().map(FindingPayload::of).collect(),
-                ..Self::new(action, "changed")
+                ..Self::builder().action(action).outcome("changed").build()
             },
             Outcome::Failed { findings, repairs } => Self {
                 findings: findings.iter().map(FindingPayload::of).collect(),
                 repairs: repairs.iter().map(FindingPayload::of).collect(),
-                ..Self::new(action, "failed")
+                ..Self::builder().action(action).outcome("failed").build()
             },
         }
     }
@@ -83,6 +84,7 @@ impl<'a> Payload<'a> {
     ///
     /// The state decides which of the remaining fields carry a value, so this
     /// constructor leaves all of them empty and each state fills in its own.
+    #[builder]
     fn new(action: &'a str, outcome: &'static str) -> Self {
         Self {
             schema: UNSTABLE,
@@ -136,26 +138,27 @@ struct FindingPayload<'a> {
     message: &'a str,
 }
 
+#[bon::bon]
 impl<'a> FindingPayload<'a> {
     /// Returns the payload that describes the given finding
     fn of(finding: &'a Finding) -> Self {
         let message = finding.message().get();
 
         match finding.location() {
-            Location::Project => Self::new("project", message),
+            Location::Project => Self::builder().level("project").message(message).build(),
             Location::Directory { path } => Self {
                 path: Some(path.to_string()),
-                ..Self::new("directory", message)
+                ..Self::builder().level("directory").message(message).build()
             },
             Location::File { path } => Self {
                 path: Some(path.to_string()),
-                ..Self::new("file", message)
+                ..Self::builder().level("file").message(message).build()
             },
             Location::Position { path, position } => Self {
                 path: Some(path.to_string()),
                 line: Some(position.line().get()),
                 column: column_of(position),
-                ..Self::new("position", message)
+                ..Self::builder().level("position").message(message).build()
             },
             Location::Span { path, span } => Self {
                 path: Some(path.to_string()),
@@ -163,7 +166,7 @@ impl<'a> FindingPayload<'a> {
                 column: column_of(span.start()),
                 end_line: Some(span.end().line().get()),
                 end_column: column_of(span.end()),
-                ..Self::new("span", message)
+                ..Self::builder().level("span").message(message).build()
             },
         }
     }
@@ -172,6 +175,7 @@ impl<'a> FindingPayload<'a> {
     ///
     /// The level decides which of the remaining fields carry a value, so this
     /// constructor leaves all of them empty and each level fills in its own.
+    #[builder]
     fn new(level: &'static str, message: &'a str) -> Self {
         Self {
             level,
@@ -218,7 +222,10 @@ mod tests {
     /// The assertions compare the JSON as text, and not as a parsed value, so
     /// that they pin the bytes that a consumer reads.
     fn payload(outcome: Outcome) -> String {
-        let report = Report::new("probe".parse().expect("the test names an action"), outcome);
+        let report = Report::builder()
+            .action("probe".parse().expect("the test names an action"))
+            .outcome(outcome)
+            .build();
 
         serde_json::to_string(&report).expect("the report serializes")
     }

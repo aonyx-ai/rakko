@@ -50,6 +50,7 @@ pub(crate) enum ObserveOxlintError {
     },
 }
 
+#[bon::bon]
 impl ObserveOxlintError {
     /// Returns the error of a run whose report the crate did not get
     ///
@@ -58,6 +59,7 @@ impl ObserveOxlintError {
     /// a report, so the error carries the text instead of the shape. Oxlint
     /// writes the diagnosis on its standard output stream, and a run that wrote
     /// nothing there leaves its reason on the standard error stream.
+    #[builder]
     pub(super) fn of(source: ReadReportError, stdout: &str, stderr: &str) -> Self {
         match source {
             ReadReportError::Absent => Self::MissingReport {
@@ -100,7 +102,11 @@ mod tests {
 
     #[test]
     fn error_of_an_absent_report_holds_what_oxlint_wrote() {
-        let error = ObserveOxlintError::of(ReadReportError::Absent, REJECTION, "");
+        let error = ObserveOxlintError::of()
+            .source(ReadReportError::Absent)
+            .stdout(REJECTION)
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&error, ObserveOxlintError::MissingReport { details } if details == REJECTION),
@@ -110,7 +116,11 @@ mod tests {
 
     #[test]
     fn error_of_an_absent_report_of_a_silent_run_holds_the_other_stream() {
-        let error = ObserveOxlintError::of(ReadReportError::Absent, "", "killed");
+        let error = ObserveOxlintError::of()
+            .source(ReadReportError::Absent)
+            .stdout("")
+            .stderr("killed")
+            .call();
 
         assert!(
             matches!(&error, ObserveOxlintError::MissingReport { details } if details == "killed"),

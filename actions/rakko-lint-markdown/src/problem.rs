@@ -6,6 +6,7 @@
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko::{FilePath, ProjectRoot};
 
@@ -26,7 +27,7 @@ use rakko::{FilePath, ProjectRoot};
 /// tool, and not one that this crate wrote about it.
 ///
 /// [relative]: MarkdownlintProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub(crate) struct MarkdownlintProblem {
     /// The path of the file, as markdownlint wrote it
     #[getset(get = "pub(crate)")]
@@ -48,16 +49,6 @@ pub(crate) struct MarkdownlintProblem {
 }
 
 impl MarkdownlintProblem {
-    /// Creates a problem from what markdownlint reported about a file
-    pub(crate) fn new(path: PathBuf, line: u32, column: Option<u32>, message: String) -> Self {
-        Self {
-            path,
-            line,
-            column,
-            message,
-        }
-    }
-
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. Markdownlint
@@ -65,7 +56,7 @@ impl MarkdownlintProblem {
     /// does not fit points at a report that the caller misread, and the
     /// caller decides what to do about that.
     pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
@@ -81,7 +72,11 @@ mod tests {
 
     /// Returns a problem about the given path
     fn problem(path: PathBuf) -> MarkdownlintProblem {
-        MarkdownlintProblem::new(path, 1, None, "MD041/first-line-heading".to_owned())
+        MarkdownlintProblem::builder()
+            .path(path)
+            .line(1)
+            .message("MD041/first-line-heading".to_owned())
+            .build()
     }
 
     #[test]

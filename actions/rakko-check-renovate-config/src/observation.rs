@@ -94,12 +94,11 @@ mod tests {
 
     /// Returns an error of the validator about the given file
     fn problem(file: &str) -> RenovateProblem {
-        RenovateProblem::new(
-            PathBuf::from(file),
-            None,
-            "Configuration Error".to_owned(),
-            "Invalid configuration option: foo".to_owned(),
-        )
+        RenovateProblem::builder()
+            .path(PathBuf::from(file))
+            .topic("Configuration Error".to_owned())
+            .detail("Invalid configuration option: foo".to_owned())
+            .build()
     }
 
     /// Returns the observation of a run that found no configuration

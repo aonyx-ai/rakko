@@ -98,7 +98,7 @@ const CONSENT_VALUE: &str = "1";
 /// let context = Context::builder().root("/home/otter/project").build();
 /// let cargo = Cargo::resolve(&context).await?;
 /// let roots = cargo.roots().await?;
-/// let nextest = Nextest::resolve(cargo, Lockfile::Locked, &context).await?;
+/// let nextest = Nextest::resolve().cargo(cargo).lockfile(Lockfile::Locked).context(&context).call().await?;
 ///
 /// for workspace in &roots {
 ///     let observation = nextest.observe(workspace, context.root()).await?;
@@ -122,6 +122,7 @@ pub struct Nextest {
     lockfile: Lockfile,
 }
 
+#[bon::bon]
 impl Nextest {
     /// Returns the requirement of the nextest that the crate runs
     ///
@@ -151,12 +152,17 @@ impl Nextest {
     /// installed it.
     ///
     /// [requirement]: Nextest::requirement
+    #[builder]
     pub async fn resolve(
         cargo: Cargo,
         lockfile: Lockfile,
         context: &Context,
     ) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
+            .await?;
 
         Ok(Self {
             cargo,
@@ -205,7 +211,11 @@ impl Nextest {
             .await
             .map_err(|source| ObserveNextestError::NextestUnavailable { source })?;
 
-        Observation::read(&execution, root, project)
+        Observation::read()
+            .execution(&execution)
+            .root(root)
+            .project(project)
+            .call()
     }
 }
 

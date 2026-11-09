@@ -20,7 +20,7 @@ pub use self::detail::ProblemDetail;
 /// in front of it anyway.
 ///
 /// [relative]: PrettierProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Debug, bon::Builder, Getters)]
 pub struct PrettierProblem {
     /// The path of the file, as prettier wrote it
     #[getset(get = "pub")]
@@ -32,11 +32,6 @@ pub struct PrettierProblem {
 }
 
 impl PrettierProblem {
-    /// Creates a problem from the path and the detail that prettier reported
-    pub fn new(path: PathBuf, detail: ProblemDetail) -> Self {
-        Self { path, detail }
-    }
-
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. Prettier
@@ -44,7 +39,7 @@ impl PrettierProblem {
     /// does not fit points at a report that the caller misread, and the
     /// caller decides what to do about that.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
@@ -60,7 +55,10 @@ mod tests {
 
     /// Returns a problem about the given path
     fn problem(path: PathBuf) -> PrettierProblem {
-        PrettierProblem::new(path, ProblemDetail::Unformatted)
+        PrettierProblem::builder()
+            .path(path)
+            .detail(ProblemDetail::Unformatted)
+            .build()
     }
 
     #[test]

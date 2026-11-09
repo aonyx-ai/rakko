@@ -136,7 +136,10 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
 
     // Rustfmt honors the unstable options of a configuration only on the
     // nightly channel, and a stable rustfmt formats without them.
-    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), context)
+    let toolchain = Toolchain::resolve_requirement()
+        .requirement(&Toolchain::nightly())
+        .context(context)
+        .call()
         .await
         .map_err(|source| FormatRustError::UnresolvedToolchain { source })?;
 

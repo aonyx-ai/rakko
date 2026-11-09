@@ -91,7 +91,9 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
                     reason: reason(line),
                 };
 
-                observation.problems.push(TaploProblem::new(path, detail));
+                observation
+                    .problems
+                    .push(TaploProblem::builder().path(path).detail(detail).build());
             }
         } else if let Some(header) = line.strip_prefix(DIAGNOSTIC)
             && let Some(problem) = diagnostic(header, &lines[index + 1..])
@@ -102,9 +104,12 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
 
     for line in stdout.lines() {
         if let Some(path) = diff_target(line) {
-            observation
-                .problems
-                .push(TaploProblem::new(path, ProblemDetail::Unformatted));
+            observation.problems.push(
+                TaploProblem::builder()
+                    .path(path)
+                    .detail(ProblemDetail::Unformatted)
+                    .build(),
+            );
         }
     }
 
@@ -182,14 +187,16 @@ fn diagnostic(header: &str, following: &[&str]) -> Option<TaploProblem> {
         None => header.trim().to_owned(),
     };
 
-    Some(TaploProblem::new(
-        path,
-        ProblemDetail::Diagnostic {
-            line,
-            column,
-            message,
-        },
-    ))
+    Some(
+        TaploProblem::builder()
+            .path(path)
+            .detail(ProblemDetail::Diagnostic {
+                line,
+                column,
+                message,
+            })
+            .build(),
+    )
 }
 
 /// Returns the files that the count line lists
@@ -465,10 +472,12 @@ mod tests {
 
         assert_eq!(
             observation.problems(),
-            &vec![TaploProblem::new(
-                PathBuf::from("/home/otter/project/sub/messy.toml"),
-                ProblemDetail::Unformatted,
-            )]
+            &vec![
+                TaploProblem::builder()
+                    .path(PathBuf::from("/home/otter/project/sub/messy.toml"))
+                    .detail(ProblemDetail::Unformatted)
+                    .build()
+            ]
         );
     }
 

@@ -179,7 +179,11 @@ mod tests {
 
     /// Returns the text that a run of the action `probe` reports
     fn rendered(outcome: Outcome) -> String {
-        Report::new("probe".parse().expect("the test names an action"), outcome).to_string()
+        Report::builder()
+            .action("probe".parse().expect("the test names an action"))
+            .outcome(outcome)
+            .build()
+            .to_string()
     }
 
     #[test]

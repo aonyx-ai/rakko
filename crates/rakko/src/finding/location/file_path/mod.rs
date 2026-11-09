@@ -25,6 +25,7 @@ pub use self::error::ParseFilePathError;
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct FilePath(PathBuf);
 
+#[bon::bon]
 impl FilePath {
     /// Returns the path of the file
     pub fn get(&self) -> &Path {
@@ -65,10 +66,11 @@ impl FilePath {
     ///
     /// let root = ProjectRoot::new(PathBuf::from("project"));
     ///
-    /// let path = FilePath::within(Path::new("./src/main.rs"), &root);
+    /// let path = FilePath::within().path(Path::new("./src/main.rs")).root(&root).call();
     ///
     /// assert_eq!(path, "src/main.rs".parse().ok());
     /// ```
+    #[builder]
     pub fn within(path: &Path, root: &ProjectRoot) -> Option<Self> {
         let relative = if path.is_relative() {
             path.to_path_buf()
@@ -324,14 +326,20 @@ mod tests {
 
     #[test]
     fn within_of_a_path_that_climbs_above_the_root_is_none() {
-        let within = FilePath::within(&path("../elsewhere/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("../elsewhere/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_a_path_that_climbs_inside_the_root_is_none() {
-        let within = FilePath::within(&path("src/../main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("src/../main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
@@ -342,7 +350,10 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn within_of_a_path_that_names_a_drive_is_none() {
-        let within = FilePath::within(Path::new("C:main.rs"), &root());
+        let within = FilePath::within()
+            .path(Path::new("C:main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
@@ -350,21 +361,30 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn within_of_a_path_that_names_a_root_directory_is_none() {
-        let within = FilePath::within(Path::new(r"\elsewhere\main.rs"), &root());
+        let within = FilePath::within()
+            .path(Path::new(r"\elsewhere\main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_a_path_that_names_the_current_directory_drops_it() {
-        let within = FilePath::within(&path("./src/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("./src/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
 
     #[test]
     fn within_of_a_relative_path_keeps_it() {
-        let within = FilePath::within(&path("src/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("src/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
@@ -380,42 +400,57 @@ mod tests {
         let resolved = canonical(directory.path()).expect("the directory exists");
         let root = ProjectRoot::new(directory.path().join("sub").join(".."));
 
-        let within = FilePath::within(&resolved.join("notes.md"), &root);
+        let within = FilePath::within()
+            .path(&resolved.join("notes.md"))
+            .root(&root)
+            .call();
 
         assert_eq!(within, Some(FilePath(path("notes.md"))));
     }
 
     #[test]
     fn within_of_an_absolute_path_below_the_root_drops_the_root() {
-        let within = FilePath::within(&path("/home/otter/project/src/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("/home/otter/project/src/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
 
     #[test]
     fn within_of_an_absolute_path_outside_the_root_is_none() {
-        let within = FilePath::within(&path("/home/otter/elsewhere/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("/home/otter/elsewhere/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_an_absolute_path_that_climbs_out_of_the_root_is_none() {
-        let within = FilePath::within(&path("/home/otter/project/../elsewhere/main.rs"), &root());
+        let within = FilePath::within()
+            .path(&path("/home/otter/project/../elsewhere/main.rs"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_the_current_directory_is_none() {
-        let within = FilePath::within(&path("."), &root());
+        let within = FilePath::within().path(&path(".")).root(&root()).call();
 
         assert_eq!(within, None);
     }
 
     #[test]
     fn within_of_the_root_is_none() {
-        let within = FilePath::within(&path("/home/otter/project"), &root());
+        let within = FilePath::within()
+            .path(&path("/home/otter/project"))
+            .root(&root())
+            .call();
 
         assert_eq!(within, None);
     }

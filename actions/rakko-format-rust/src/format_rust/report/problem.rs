@@ -11,7 +11,7 @@ use getset::Getters;
 /// unless the plain spelling cannot describe it. A caller that reports the
 /// problem asks the root for the path relative to the project, which is the
 /// name that a reader, a machine, and a code host all recognize.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, bon::Builder, Getters)]
 pub(crate) struct RustfmtProblem {
     /// The absolute path of the file
     #[getset(get = "pub(crate)")]
@@ -20,13 +20,6 @@ pub(crate) struct RustfmtProblem {
     /// What rustfmt reported about the file
     #[getset(get = "pub(crate)")]
     detail: RustfmtProblemDetail,
-}
-
-impl RustfmtProblem {
-    /// Creates a problem from the path and the detail that rustfmt reported
-    pub(crate) fn new(path: PathBuf, detail: RustfmtProblemDetail) -> Self {
-        Self { path, detail }
-    }
 }
 
 /// What rustfmt reported about a file

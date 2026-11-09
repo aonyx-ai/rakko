@@ -279,7 +279,12 @@ async fn check(
 
     clawless
         .output()
-        .artifact(Report::new(name.clone(), outcome))
+        .artifact(
+            Report::builder()
+                .action(name.clone())
+                .outcome(outcome)
+                .build(),
+        )
         .await
         .map_err(|source| SetMsrvError::UnreportedOutcome {
             action: name.clone(),

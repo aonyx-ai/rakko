@@ -143,7 +143,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
 
     // The record that names the crates a target loaded comes from an unstable
     // option of the compiler, and a stable toolchain refuses it.
-    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), context)
+    let toolchain = Toolchain::resolve_requirement()
+        .requirement(&Toolchain::nightly())
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckUnusedDepsError::UnresolvedToolchain { source })?;
 

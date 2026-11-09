@@ -52,7 +52,7 @@
 //! let context = Context::builder().root("/home/otter/project").build();
 //! let cargo = Cargo::resolve(&context).await?;
 //! let roots = cargo.roots().await?;
-//! let nextest = Nextest::resolve(cargo, Lockfile::Locked, &context).await?;
+//! let nextest = Nextest::resolve().cargo(cargo).lockfile(Lockfile::Locked).context(&context).call().await?;
 //!
 //! for workspace in &roots {
 //!     let observation = nextest.observe(workspace, context.root()).await?;

@@ -151,7 +151,11 @@ impl Taplo {
                 tokio::time::sleep(BACKOFF * attempt).await;
             }
 
-            let observation = Observation::read(&self.start(operation).await?, operation).await;
+            let observation = Observation::read()
+                .execution(&self.start(operation).await?)
+                .operation(operation)
+                .call()
+                .await;
 
             if !observation.complete() {
                 stderr = observation.stderr().clone();
@@ -194,7 +198,11 @@ impl Taplo {
     ///
     /// [requirement]: Taplo::requirement
     pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

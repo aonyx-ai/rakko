@@ -136,7 +136,11 @@ impl Yamllint {
     /// Returns a [`ResolveToolError`] when mise reports no yamllint for the
     /// project.
     pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(YAMLLINT), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(YAMLLINT))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }

@@ -147,9 +147,13 @@ impl Package {
             .flat_map(|(kind, names)| {
                 let manifest = manifest.clone();
 
-                names
-                    .into_iter()
-                    .map(move |name| UnusedDependency::new(kind, name, manifest.clone()))
+                names.into_iter().map(move |name| {
+                    UnusedDependency::builder()
+                        .kind(kind)
+                        .name(name)
+                        .manifest(manifest.clone())
+                        .build()
+                })
             })
             .collect()
     }
@@ -190,21 +194,21 @@ mod tests {
                 .flatten()
                 .map(|report| report.dependencies().to_vec()),
             Some(vec![
-                UnusedDependency::new(
-                    DependencyKind::Normal,
-                    "serde".to_owned(),
-                    PathBuf::from("/project/Cargo.toml"),
-                ),
-                UnusedDependency::new(
-                    DependencyKind::Development,
-                    "tempfile".to_owned(),
-                    PathBuf::from("/project/Cargo.toml"),
-                ),
-                UnusedDependency::new(
-                    DependencyKind::Build,
-                    "cc".to_owned(),
-                    PathBuf::from("/project/Cargo.toml"),
-                ),
+                UnusedDependency::builder()
+                    .kind(DependencyKind::Normal)
+                    .name("serde".to_owned())
+                    .manifest(PathBuf::from("/project/Cargo.toml"))
+                    .build(),
+                UnusedDependency::builder()
+                    .kind(DependencyKind::Development)
+                    .name("tempfile".to_owned())
+                    .manifest(PathBuf::from("/project/Cargo.toml"))
+                    .build(),
+                UnusedDependency::builder()
+                    .kind(DependencyKind::Build)
+                    .name("cc".to_owned())
+                    .manifest(PathBuf::from("/project/Cargo.toml"))
+                    .build(),
             ])
         );
     }

@@ -330,7 +330,10 @@ fn repairs(rewritten: &[PathBuf], root: &ProjectRoot) -> Result<Vec<Finding>, Fo
     rewritten
         .iter()
         .map(|path| {
-            let problem = PrettierProblem::new(path.clone(), ProblemDetail::Unformatted);
+            let problem = PrettierProblem::builder()
+                .path(path.clone())
+                .detail(ProblemDetail::Unformatted)
+                .build();
 
             finding(&problem, root, UNFORMATTED_REPAIR)
         })
@@ -386,14 +389,14 @@ mod tests {
 
     #[test]
     fn finding_of_a_diagnostic_carries_the_message_of_prettier() {
-        let problem = PrettierProblem::new(
-            PathBuf::from("notes.md"),
-            ProblemDetail::Diagnostic {
+        let problem = PrettierProblem::builder()
+            .path(PathBuf::from("notes.md"))
+            .detail(ProblemDetail::Diagnostic {
                 line: 2,
                 column: 5,
                 message: "SyntaxError: Unexpected token".to_owned(),
-            },
-        );
+            })
+            .build();
 
         let finding = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap();
 
@@ -402,14 +405,14 @@ mod tests {
 
     #[test]
     fn finding_of_a_diagnostic_sits_at_the_position_of_prettier() {
-        let problem = PrettierProblem::new(
-            PathBuf::from("notes.md"),
-            ProblemDetail::Diagnostic {
+        let problem = PrettierProblem::builder()
+            .path(PathBuf::from("notes.md"))
+            .detail(ProblemDetail::Diagnostic {
                 line: 2,
                 column: 5,
                 message: "SyntaxError: Unexpected token".to_owned(),
-            },
-        );
+            })
+            .build();
 
         let finding = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap();
 
@@ -424,7 +427,10 @@ mod tests {
 
     #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = PrettierProblem::new(path("/elsewhere/notes.md"), ProblemDetail::Unformatted);
+        let problem = PrettierProblem::builder()
+            .path(path("/elsewhere/notes.md"))
+            .detail(ProblemDetail::Unformatted)
+            .build();
 
         let error = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap_err();
 

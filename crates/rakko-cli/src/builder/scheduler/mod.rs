@@ -84,7 +84,12 @@ pub(super) async fn run(
 
     clawless
         .output()
-        .artifact(GroupSummary::new(group.clone(), reports))
+        .artifact(
+            GroupSummary::builder()
+                .group(group.clone())
+                .members(reports)
+                .build(),
+        )
         .await
         .map_err(|source| RunGroupError::UnreportedSummary {
             group: group.clone(),
@@ -189,7 +194,10 @@ async fn report(
     clawless: &ClawlessContext,
 ) -> Result<Finished, RunGroupError> {
     let code = exit_code(&outcome);
-    let report = Report::new(name.clone(), outcome);
+    let report = Report::builder()
+        .action(name.clone())
+        .outcome(outcome)
+        .build();
 
     clawless.output().message(&report).await.map_err(|source| {
         RunGroupError::UnreportedOutcome {
@@ -484,7 +492,10 @@ mod tests {
                         .map(|value| (argument.name().clone(), value.clone()))
                 }));
 
-                BoundMember::bind(action.as_ref(), &declared)
+                BoundMember::bind()
+                    .action(action.as_ref())
+                    .values(&declared)
+                    .call()
                     .expect("every action of the test reads the values that it declares")
             })
             .collect()

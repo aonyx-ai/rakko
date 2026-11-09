@@ -17,7 +17,7 @@ pub use self::detail::ProblemDetail;
 /// reader, a machine, and a code host all recognize.
 ///
 /// [relative]: TaploProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Debug, bon::Builder, Getters)]
 pub struct TaploProblem {
     /// The path of the file, as taplo wrote it
     #[getset(get = "pub")]
@@ -29,11 +29,6 @@ pub struct TaploProblem {
 }
 
 impl TaploProblem {
-    /// Creates a problem from the path and the detail that taplo reported
-    pub(crate) fn new(path: PathBuf, detail: ProblemDetail) -> Self {
-        Self { path, detail }
-    }
-
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. Taplo starts
@@ -41,7 +36,7 @@ impl TaploProblem {
     /// not fit points at a report that the caller misread, and the caller
     /// decides what to do about that.
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
@@ -57,7 +52,10 @@ mod tests {
 
     /// Returns a problem about the path that a literal names on this platform
     fn problem(literal: &str) -> TaploProblem {
-        TaploProblem::new(path(literal), ProblemDetail::Unformatted)
+        TaploProblem::builder()
+            .path(path(literal))
+            .detail(ProblemDetail::Unformatted)
+            .build()
     }
 
     /// Returns the root of the project that the tests place their problems in

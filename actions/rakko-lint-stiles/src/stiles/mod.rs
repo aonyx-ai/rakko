@@ -178,7 +178,11 @@ impl Stiles {
     /// Returns a [`ResolveToolError`] when mise reports no stiles for the
     /// project.
     pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(STILES), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(STILES))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }
@@ -311,13 +315,13 @@ mod tests {
 
     /// Returns a diagnostic of the given severity
     fn problem(severity: Severity) -> StilesProblem {
-        StilesProblem::new(
-            PathBuf::from("./src/lib.rs"),
-            Position::builder().line(7).column(5).build(),
-            severity,
-            "lint.todo-comment".to_owned(),
-            "a TODO comment marks unfinished work".to_owned(),
-        )
+        StilesProblem::builder()
+            .path(PathBuf::from("./src/lib.rs"))
+            .position(Position::builder().line(7).column(5).build())
+            .severity(severity)
+            .rule("lint.todo-comment".to_owned())
+            .text("a TODO comment marks unfinished work".to_owned())
+            .build()
     }
 
     #[test]

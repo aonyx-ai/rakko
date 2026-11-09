@@ -152,7 +152,10 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMinimalDepsError> {
 
     // The option that asks cargo for the floors is unstable, and a stable
     // cargo refuses it and resolves nothing at all.
-    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), context)
+    let toolchain = Toolchain::resolve_requirement()
+        .requirement(&Toolchain::nightly())
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckMinimalDepsError::UnresolvedToolchain { source })?;
 
@@ -185,7 +188,11 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMinimalDepsError> {
         });
     }
 
-    let nextest = Nextest::resolve(cargo, Lockfile::Locked, context)
+    let nextest = Nextest::resolve()
+        .cargo(cargo)
+        .lockfile(Lockfile::Locked)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckMinimalDepsError::UnresolvedNextest { source })?;
     let mut ran = 0;

@@ -7,6 +7,7 @@
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko::{FilePath, Location, Position, ProjectRoot};
 
@@ -31,7 +32,7 @@ const TOPIC_CLOSE: &str = ": ";
 /// file, and the problem then belongs to the file as a whole.
 ///
 /// [relative]: RenovateProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub(crate) struct RenovateProblem {
     /// The path of the file, as the validator wrote it
     #[getset(get = "pub(crate)")]
@@ -51,21 +52,6 @@ pub(crate) struct RenovateProblem {
 }
 
 impl RenovateProblem {
-    /// Creates a problem from what the validator reported
-    pub(crate) fn new(
-        path: PathBuf,
-        position: Option<Position>,
-        topic: String,
-        detail: String,
-    ) -> Self {
-        Self {
-            path,
-            position,
-            topic,
-            detail,
-        }
-    }
-
     /// Returns where the problem is, relative to the project root
     ///
     /// The location is the position that the validator named, or the whole
@@ -101,7 +87,7 @@ impl RenovateProblem {
     ///
     /// Returns `None` when the root does not contain the file.
     pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
@@ -117,12 +103,11 @@ mod tests {
 
     /// Returns an error of the validator about the given path
     fn problem(path: PathBuf) -> RenovateProblem {
-        RenovateProblem::new(
-            path,
-            None,
-            "Configuration Error".to_owned(),
-            "Invalid configuration option: foo".to_owned(),
-        )
+        RenovateProblem::builder()
+            .path(path)
+            .topic("Configuration Error".to_owned())
+            .detail("Invalid configuration option: foo".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -140,12 +125,12 @@ mod tests {
     #[test]
     fn location_of_a_problem_at_a_position_names_the_position() {
         let position = Position::builder().line(2).column(1).build();
-        let problem = RenovateProblem::new(
-            path("renovate.json"),
-            Some(position),
-            "File could not be parsed".to_owned(),
-            "JSON5: invalid end of input at 2:1".to_owned(),
-        );
+        let problem = RenovateProblem::builder()
+            .path(path("renovate.json"))
+            .position(position)
+            .topic("File could not be parsed".to_owned())
+            .detail("JSON5: invalid end of input at 2:1".to_owned())
+            .build();
 
         let location = problem.location(&root());
 
@@ -189,12 +174,11 @@ mod tests {
 
     #[test]
     fn message_without_a_detail_is_the_topic() {
-        let problem = RenovateProblem::new(
-            path("renovate.json"),
-            None,
-            "Config migration necessary".to_owned(),
-            String::new(),
-        );
+        let problem = RenovateProblem::builder()
+            .path(path("renovate.json"))
+            .topic("Config migration necessary".to_owned())
+            .detail(String::new())
+            .build();
 
         let message = problem.message();
 

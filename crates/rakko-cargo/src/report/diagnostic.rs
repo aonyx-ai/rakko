@@ -152,7 +152,12 @@ mod tests {
             .level(DiagnosticLevel::Warning)
             .code("clippy::unwrap_used")
             .message("used `unwrap()` on an `Option` value")
-            .span(DiagnosticSpan::new(PathBuf::from(path), range()))
+            .span(
+                DiagnosticSpan::builder()
+                    .path(PathBuf::from(path))
+                    .range(range())
+                    .build(),
+            )
             .build()
     }
 
@@ -230,7 +235,12 @@ mod tests {
         let diagnostic = CargoDiagnostic::builder()
             .level(DiagnosticLevel::Warning)
             .message("unused variable")
-            .span(DiagnosticSpan::new(PathBuf::from("src/main.rs"), range()))
+            .span(
+                DiagnosticSpan::builder()
+                    .path(PathBuf::from("src/main.rs"))
+                    .range(range())
+                    .build(),
+            )
             .build();
 
         let finding = diagnostic.finding(&harness(), &project());

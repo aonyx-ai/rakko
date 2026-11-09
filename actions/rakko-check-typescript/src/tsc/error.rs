@@ -51,12 +51,14 @@ pub(crate) enum ObserveTscError {
     },
 }
 
+#[bon::bon]
 impl ObserveTscError {
     /// Returns the error of a run that ended without success and said nothing
     ///
     /// Tsc writes what it has to say on its standard output stream, so that is
     /// what the details carry. A run that wrote nothing there leaves its
     /// reason on the standard error stream, or says nothing at all.
+    #[builder]
     pub(super) fn silent(stdout: &str, stderr: &str) -> Self {
         Self::MissingReport {
             details: diagnosis(stdout, stderr),
@@ -90,7 +92,10 @@ mod tests {
 
     #[test]
     fn error_of_a_silent_run_holds_what_tsc_wrote() {
-        let error = ObserveTscError::silent("out of memory", "");
+        let error = ObserveTscError::silent()
+            .stdout("out of memory")
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&error, ObserveTscError::MissingReport { details } if details == "out of memory"),
@@ -100,7 +105,7 @@ mod tests {
 
     #[test]
     fn error_of_a_silent_run_that_wrote_nothing_holds_the_other_stream() {
-        let error = ObserveTscError::silent("", "killed");
+        let error = ObserveTscError::silent().stdout("").stderr("killed").call();
 
         assert!(
             matches!(&error, ObserveTscError::MissingReport { details } if details == "killed"),

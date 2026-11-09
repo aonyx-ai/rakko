@@ -23,26 +23,20 @@ const BACKTRACE_NOTE: &str = "note: run with `RUST_BACKTRACE=1`";
 /// failure keeps the output as it is and reads the panic out of it on
 /// demand, so a test that failed without a panic, or with an output that
 /// the crate cannot read, still names the test.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, bon::Builder, Getters)]
 pub(crate) struct TestFailure {
     /// The name of the test, as nextest wrote it
     #[getset(get = "pub(crate)")]
+    #[builder(into)]
     name: String,
 
     /// What the test wrote while it ran
     #[getset(get = "pub(crate)")]
+    #[builder(into)]
     output: String,
 }
 
 impl TestFailure {
-    /// Creates a failure from the name of the test and its output
-    pub(crate) fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            output: output.into(),
-        }
-    }
-
     /// Returns the finding that reports the failure
     ///
     /// The finding names the test and carries the message of the panic, at
@@ -104,12 +98,14 @@ impl TestFailure {
             .filter(|line| !line.is_empty())
             .collect();
 
-        Some(Panic::new(
-            path,
-            line,
-            column,
-            (!message.is_empty()).then(|| message.join(" ")),
-        ))
+        Some(
+            Panic::builder()
+                .path(path)
+                .line(line)
+                .column(column)
+                .maybe_message((!message.is_empty()).then(|| message.join(" ")))
+                .build(),
+        )
     }
 }
 
@@ -142,7 +138,10 @@ mod tests {
 
     #[test]
     fn panic_joins_the_lines_of_the_message() {
-        let failure = TestFailure::new("probe::suite$fails", ASSERTION);
+        let failure = TestFailure::builder()
+            .name("probe::suite$fails")
+            .output(ASSERTION)
+            .build();
 
         let panic = failure.panic();
 
@@ -157,7 +156,10 @@ mod tests {
 
     #[test]
     fn panic_reads_the_location() {
-        let failure = TestFailure::new("probe::suite$fails", ASSERTION);
+        let failure = TestFailure::builder()
+            .name("probe::suite$fails")
+            .output(ASSERTION)
+            .build();
 
         let panic = failure.panic();
 
@@ -169,7 +171,10 @@ mod tests {
 
     #[test]
     fn panic_without_a_location_is_none() {
-        let failure = TestFailure::new("probe::suite$killed", "the process was killed\n");
+        let failure = TestFailure::builder()
+            .name("probe::suite$killed")
+            .output("the process was killed\n")
+            .build();
 
         let panic = failure.panic();
 
@@ -178,7 +183,10 @@ mod tests {
 
     #[test]
     fn panic_without_a_message_has_none() {
-        let failure = TestFailure::new("probe::probe$tests::fails", BARE);
+        let failure = TestFailure::builder()
+            .name("probe::probe$tests::fails")
+            .output(BARE)
+            .build();
 
         let panic = failure.panic();
 

@@ -244,8 +244,15 @@ impl Cargo {
     /// [requirement]: Cargo::requirement
     pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
         let requirement = Self::requirement();
-        let tool = Tool::resolve_requirement(&requirement, context).await?;
-        let toolchain = Toolchain::of(&requirement, &tool)?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&requirement)
+            .context(context)
+            .call()
+            .await?;
+        let toolchain = Toolchain::of()
+            .requirement(&requirement)
+            .tool(&tool)
+            .call()?;
 
         Ok(Self {
             root: context.root().clone(),
@@ -491,7 +498,10 @@ impl Metadata {
                     DocumentedNames::Unique
                 };
 
-                CargoPackage::new(PackageName::new(&package.name), documented_names)
+                CargoPackage::builder()
+                    .name(PackageName::new(&package.name))
+                    .documented_names(documented_names)
+                    .build()
             })
             .collect();
         packages.sort_by(|left, right| left.name().cmp(right.name()));

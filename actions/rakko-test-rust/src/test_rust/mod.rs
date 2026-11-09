@@ -121,7 +121,11 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
         });
     }
 
-    let nextest = Nextest::resolve(cargo, Lockfile::Locked, context)
+    let nextest = Nextest::resolve()
+        .cargo(cargo)
+        .lockfile(Lockfile::Locked)
+        .context(context)
+        .call()
         .await
         .map_err(|source| TestRustError::UnresolvedNextest { source })?;
     let mut findings: Vec<Finding> = Vec::new();

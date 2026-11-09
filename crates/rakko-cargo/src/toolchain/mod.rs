@@ -9,6 +9,7 @@
 mod channel;
 mod error;
 
+use bon::bon;
 use rakko::{Context, MiseTool, ProjectRoot, RequiredVersion, ToolRequirement, VersionRange};
 use rakko_tool::{Execution, Invocation, ResolveRequirementError, RunCommandError, Tool};
 use serde::Deserialize;
@@ -54,6 +55,7 @@ typed_fields::name! {
     Toolchain
 }
 
+#[bon]
 impl Toolchain {
     /// Returns the argument that selects this toolchain for cargo
     ///
@@ -118,7 +120,11 @@ impl Toolchain {
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root("/home/otter/project").build();
     ///
-    /// let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), &context).await?;
+    /// let toolchain = Toolchain::resolve_requirement()
+    ///     .requirement(&Toolchain::nightly())
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
     ///
     /// println!("{toolchain}");
     /// # Ok(())
@@ -126,13 +132,18 @@ impl Toolchain {
     /// ```
     ///
     /// [resolve]: rakko_tool::Tool::resolve_requirement
+    #[builder]
     pub async fn resolve_requirement(
         requirement: &ToolRequirement,
         context: &Context,
     ) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement(requirement, context).await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(requirement)
+            .context(context)
+            .call()
+            .await?;
 
-        Self::of(requirement, &tool)
+        Self::of().requirement(requirement).tool(&tool).call()
     }
 
     /// Returns the toolchain that a tool of a requirement resolved to
@@ -143,6 +154,7 @@ impl Toolchain {
     /// version.
     ///
     /// [unresolved]: ResolveRequirementError::UnresolvedToolchain
+    #[builder]
     pub(crate) fn of(
         requirement: &ToolRequirement,
         tool: &Tool,
@@ -200,7 +212,11 @@ impl Toolchain {
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let root = ProjectRoot::new("/home/otter/project".into());
     ///
-    /// let toolchain = Toolchain::resolve(Channel::new("nightly"), &root).await?;
+    /// let toolchain = Toolchain::resolve()
+    ///     .channel(Channel::new("nightly"))
+    ///     .root(&root)
+    ///     .call()
+    ///     .await?;
     ///
     /// println!("{toolchain}");
     /// # Ok(())
@@ -211,6 +227,7 @@ impl Toolchain {
     /// [uninstalled]: ResolveToolchainError::UninstalledToolchain
     /// [unpinned]: ResolveToolchainError::UnpinnedToolchain
     /// [unreadable]: ResolveToolchainError::UnreadableReport
+    #[builder]
     pub async fn resolve(
         channel: Channel,
         root: &ProjectRoot,

@@ -315,7 +315,10 @@ impl Project {
 
 /// Returns a package of a root with the given name
 fn package(name: &str, documented_names: DocumentedNames) -> CargoPackage {
-    CargoPackage::new(PackageName::new(name), documented_names)
+    CargoPackage::builder()
+        .name(PackageName::new(name))
+        .documented_names(documented_names)
+        .build()
 }
 
 /// Returns the Rust toolchain that this repository builds with
@@ -550,7 +553,10 @@ async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
 async fn plugin_invocation_selects_the_stable_toolchain_for_the_builds_of_the_plugin() {
     let project = Project::workspace();
     let cargo = project.resolve().await;
-    let plugin = Tool::resolve_requirement(&Cargo::requirement(), &project.context())
+    let plugin = Tool::resolve_requirement()
+        .requirement(&Cargo::requirement())
+        .context(&project.context())
+        .call()
         .await
         .expect("the test resolves a program to stand in for a plugin");
 
@@ -566,7 +572,10 @@ async fn plugin_invocation_selects_the_stable_toolchain_for_the_builds_of_the_pl
 async fn plugin_invocation_tells_the_plugin_to_start_the_cargo_of_the_project() {
     let project = Project::workspace();
     let cargo = project.resolve().await;
-    let plugin = Tool::resolve_requirement(&Cargo::requirement(), &project.context())
+    let plugin = Tool::resolve_requirement()
+        .requirement(&Cargo::requirement())
+        .context(&project.context())
+        .call()
         .await
         .expect("the test resolves a program to stand in for a plugin");
 
@@ -589,7 +598,10 @@ async fn plugin_invocation_tells_the_plugin_to_start_the_cargo_of_the_project() 
 async fn plugin_invocation_with_toolchain_selects_the_toolchain_for_the_builds_of_the_plugin() {
     let project = Project::workspace();
     let cargo = project.resolve().await;
-    let plugin = Tool::resolve_requirement(&Cargo::requirement(), &project.context())
+    let plugin = Tool::resolve_requirement()
+        .requirement(&Cargo::requirement())
+        .context(&project.context())
+        .call()
         .await
         .expect("the test resolves a program to stand in for a plugin");
     let toolchain = Toolchain::new("nightly-2026-08-11");
@@ -1221,7 +1233,11 @@ async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
     let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("[\"{pin}\", \"nightly-2020-01-01\"]"));
 
-    let toolchain = Toolchain::resolve(Channel::new("nightly"), &project.root()).await;
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new("nightly"))
+        .root(&project.root())
+        .call()
+        .await;
 
     assert!(
         matches!(
@@ -1238,7 +1254,11 @@ async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
     let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("\"{pin}\""));
 
-    let toolchain = Toolchain::resolve(Channel::new(pin.clone()), &project.root()).await;
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new(pin.clone()))
+        .root(&project.root())
+        .call()
+        .await;
 
     assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
 }
@@ -1247,8 +1267,11 @@ async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
 async fn toolchain_resolve_an_unpinned_channel_names_the_channel() {
     let project = Project::new();
 
-    let toolchain =
-        Toolchain::resolve(Channel::new("rakko-pins-no-such-channel"), &project.root()).await;
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new("rakko-pins-no-such-channel"))
+        .root(&project.root())
+        .call()
+        .await;
 
     assert!(
         matches!(
@@ -1265,7 +1288,11 @@ async fn toolchain_resolve_outside_a_project_reports_what_mise_wrote() {
     let project = Project::bare();
     project.write("mise.toml", "this is not a configuration\n");
 
-    let toolchain = Toolchain::resolve(Channel::new("nightly"), &project.root()).await;
+    let toolchain = Toolchain::resolve()
+        .channel(Channel::new("nightly"))
+        .root(&project.root())
+        .call()
+        .await;
 
     assert!(
         matches!(
@@ -1288,8 +1315,11 @@ async fn toolchain_resolve_requirement_of_a_release_answers_the_pin_of_that_rele
         .and_then(|root| root.rust_version().clone())
         .expect("the package declares a version");
 
-    let toolchain =
-        Toolchain::resolve_requirement(&Toolchain::release(&version), &project.context()).await;
+    let toolchain = Toolchain::resolve_requirement()
+        .requirement(&Toolchain::release(&version))
+        .context(&project.context())
+        .call()
+        .await;
 
     assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
 }
@@ -1298,7 +1328,11 @@ async fn toolchain_resolve_requirement_of_a_release_answers_the_pin_of_that_rele
 async fn toolchain_resolve_requirement_of_the_nightly_answers_the_dated_pin() {
     let context = Context::builder().root(repository()).build();
 
-    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), &context).await;
+    let toolchain = Toolchain::resolve_requirement()
+        .requirement(&Toolchain::nightly())
+        .context(&context)
+        .call()
+        .await;
 
     assert!(
         toolchain
@@ -1315,7 +1349,11 @@ async fn toolchain_resolve_requirement_of_the_nightly_with_a_bare_channel_report
     let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("[\"{pin}\", \"nightly\"]"));
 
-    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), &project.context()).await;
+    let toolchain = Toolchain::resolve_requirement()
+        .requirement(&Toolchain::nightly())
+        .context(&project.context())
+        .call()
+        .await;
 
     assert!(
         matches!(
@@ -1331,7 +1369,11 @@ async fn toolchain_resolve_requirement_of_the_nightly_without_a_dated_pin_report
     let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("\"{pin}\""));
 
-    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), &project.context()).await;
+    let toolchain = Toolchain::resolve_requirement()
+        .requirement(&Toolchain::nightly())
+        .context(&project.context())
+        .call()
+        .await;
 
     assert!(
         matches!(

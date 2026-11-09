@@ -203,9 +203,13 @@ fn guard(observation: &Observation) -> Option<Outcome> {
 ///
 /// [foreign]: LintTypeScriptError::ForeignPath
 fn relative_path(path: &Path, root: &ProjectRoot) -> Result<FilePath, LintTypeScriptError> {
-    FilePath::within(path, root).ok_or_else(|| LintTypeScriptError::ForeignPath {
-        path: path.to_path_buf(),
-    })
+    FilePath::within()
+        .path(path)
+        .root(root)
+        .call()
+        .ok_or_else(|| LintTypeScriptError::ForeignPath {
+            path: path.to_path_buf(),
+        })
 }
 
 /// Returns the summary of a run that found no problem

@@ -105,7 +105,10 @@ impl Prettier {
             .await
             .map_err(|source| ObservePrettierError::PrettierUnavailable { source })?;
 
-        Ok(Observation::read(&execution, operation))
+        Ok(Observation::read()
+            .execution(&execution)
+            .operation(operation)
+            .call())
     }
 
     /// Returns the prettier that mise installed for the project
@@ -119,7 +122,11 @@ impl Prettier {
     /// Returns a [`ResolveToolError`] when mise reports no prettier for the
     /// project.
     pub async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(PRETTIER), root).await?;
+        let tool = Tool::resolve()
+            .name(ToolName::new(PRETTIER))
+            .root(root)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }
