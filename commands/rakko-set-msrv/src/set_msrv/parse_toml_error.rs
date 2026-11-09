@@ -7,6 +7,18 @@ use thiserror::Error;
 /// The error keeps the message of the TOML parser, which usually gives the
 /// line and the column of the problem. It keeps no other part of the error of
 /// the parser, so a later release can change the parser without a break.
+///
+/// # Examples
+///
+/// A caller reads the message of the parser from the error:
+///
+/// ```
+/// use rakko_set_msrv::ParseTomlError;
+///
+/// fn message_of(error: &ParseTomlError) -> String {
+///     error.to_string()
+/// }
+/// ```
 #[derive(Debug, Error)]
 #[error("{message}")]
 pub struct ParseTomlError {

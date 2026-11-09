@@ -8,4 +8,9 @@ ignore = ["/tools/rakko/"]
 # builds against the stiles that `mise.toml` pins. Both pins move together.
 [[lints]]
 git = "https://github.com/aonyx-ai/stiles-aonyx-rules"
-rev = "afd774320ef26ca52df9fbff6347ef0199b59fc4"
+rev = "7823bf339c2d18d16a2e49047b5f6af9d9c47727"
+
+# Rakko re-exports these crates and keeps their types in its public traits on
+# purpose, so a consumer works with them directly.
+[rules.options."lint.external-type-in-port"]
+allowed-crates = ["clawless", "kawauso_process"]
