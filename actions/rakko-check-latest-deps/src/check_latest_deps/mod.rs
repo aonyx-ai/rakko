@@ -13,7 +13,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
-    action_name,
+    ToolRequirement, action_name,
 };
 use rakko_cargo::{Cargo, CargoRoot};
 use rakko_nextest::{Lockfile, Nextest};
@@ -47,8 +47,9 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// reads a promise: every later version of that dependency works as well. The
 /// action resolves the newest versions that the manifests allow and runs the
 /// tests of the project against them, so the promise is confirmed instead of
-/// assumed. The cargo that runs is the one that [mise] installed for the
-/// project, and [nextest] is the plugin that it carries.
+/// assumed. The cargo that runs is the one of the stable toolchain that the
+/// project pins, and [nextest] runs at the version that the action declares.
+/// [Mise] installed both.
 ///
 /// A run only reports, and it takes no argument. It covers every workspace of
 /// the project, because the harness of a project is a package of its own. An
@@ -62,11 +63,12 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// run finds. A tree with changes in it is copied as it is, so a contributor
 /// reads the answer for the manifest that they are editing.
 ///
-/// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// cargo, when the project is no git repository, when the copy cannot be
-/// created, when the workspaces of the project cannot be discovered, and when
-/// nextest writes a report that the run cannot answer from.
+/// A project whose cargo discovers no workspace skips visibly, and says so. A
+/// run stops with an error when the project pins no stable Rust toolchain that
+/// the action accepts, when mise reports no nextest at the declared version,
+/// when the project is no git repository, when the copy cannot be created, when
+/// the workspaces of the project cannot be discovered, and when nextest writes
+/// a report that the run cannot answer from.
 ///
 /// A run declares a read of the project, because it builds in a temporary
 /// worktree outside the project. Git records that worktree only under `.git`,
@@ -100,6 +102,10 @@ impl Action for CheckLatestDeps {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement(), Nextest::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -128,9 +134,9 @@ impl Action for CheckLatestDeps {
 /// tool, the discovery of the workspaces, the creation of the copy, a run of
 /// cargo, or a run of nextest that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
-        .map_err(|source| CheckLatestDepsError::UnresolvedTool { source })?;
+        .map_err(|source| CheckLatestDepsError::UnresolvedCargo { source })?;
 
     let roots = cargo
         .roots()
@@ -161,7 +167,9 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
         });
     }
 
-    let nextest = Nextest::new(cargo, Lockfile::Locked);
+    let nextest = Nextest::resolve(cargo, Lockfile::Locked, context)
+        .await
+        .map_err(|source| CheckLatestDepsError::UnresolvedNextest { source })?;
     let mut ran = 0;
 
     for root in &copies {

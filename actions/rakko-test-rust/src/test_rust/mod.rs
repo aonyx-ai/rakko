@@ -8,7 +8,10 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko::{Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko::{
+    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
+    action_name,
+};
 use rakko_cargo::Cargo;
 use rakko_nextest::{Lockfile, Nextest};
 
@@ -22,8 +25,10 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// The action wraps [nextest]: cargo builds every target of every package
 /// with every feature, and nextest reads its own configuration and runs the
 /// tests, so a run agrees with a contributor that runs nextest bare. The
-/// cargo that runs is the one that [mise] installed for the project, at the
-/// version that the project pinned, and the action installs nothing.
+/// nextest that runs is the version that the action declares, which [mise]
+/// installed, whatever version the project pins. The cargo that builds is
+/// the one of the stable toolchain that the project pins. The action
+/// installs nothing.
 ///
 /// A run only reports, and it takes no argument. It tests every workspace of
 /// the project, because the harness of a project is a package of its own. It
@@ -35,11 +40,12 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// compiler. A workspace without a test ran no test, and the run says so
 /// instead of failing.
 ///
-/// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// cargo, when the workspaces of the project cannot be discovered, when the
-/// lockfile of a workspace needs an update, and when nextest writes a report
-/// that the run cannot answer from.
+/// A project whose cargo discovers no workspace skips visibly, and says so. A
+/// run stops with an error when the project pins no stable Rust toolchain that
+/// the action accepts, when mise reports no nextest at the declared version,
+/// when the workspaces of the project cannot be discovered, when the lockfile
+/// of a workspace needs an update, and when nextest writes a report that the
+/// run cannot answer from.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of each
 /// workspace, and cargo writes what it builds into the `target` directory,
@@ -75,6 +81,10 @@ impl Action for TestRust {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement(), Nextest::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -94,12 +104,12 @@ impl Action for TestRust {
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of
-/// the tool, the discovery of the workspaces, or a run of nextest that left
+/// a tool, the discovery of the workspaces, or a run of nextest that left
 /// no answer.
 async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
-        .map_err(|source| TestRustError::UnresolvedTool { source })?;
+        .map_err(|source| TestRustError::UnresolvedCargo { source })?;
 
     let roots = cargo
         .roots()
@@ -112,7 +122,9 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
         });
     }
 
-    let nextest = Nextest::new(cargo, Lockfile::Locked);
+    let nextest = Nextest::resolve(cargo, Lockfile::Locked, context)
+        .await
+        .map_err(|source| TestRustError::UnresolvedNextest { source })?;
     let mut findings: Vec<Finding> = Vec::new();
     let mut ran = 0;
 

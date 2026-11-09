@@ -15,6 +15,13 @@
 //! every workspace root under the project, and an action runs its job at
 //! each of them.
 //!
+//! A Rust toolchain is a decision of the project, so the project pins it and
+//! an action states the range of toolchains that it accepts.
+//! [`Cargo::requirement`] gives the range of the stable toolchain, and
+//! [`Toolchain::nightly`] the range of the nightly. An action declares them
+//! among its tools, and the crate resolves the toolchain that the project
+//! pins in each range.
+//!
 //! Cargo reports the diagnostics of a build as JSON, and this crate reads
 //! that JSON. The shape belongs to a version of cargo, so keeping the reading
 //! in one place keeps the version surface in one place as well.
@@ -30,14 +37,14 @@
 //! root:
 //!
 //! ```no_run
-//! use rakko::ProjectRoot;
+//! use rakko::Context;
 //! use rakko_cargo::{Cargo, CargoReport};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let root = ProjectRoot::new("/home/otter/project".into());
+//! let context = Context::builder().root("/home/otter/project").build();
 //!
-//! let cargo = Cargo::resolve(root).await?;
+//! let cargo = Cargo::resolve(&context).await?;
 //!
 //! for workspace in cargo.roots().await? {
 //!     let execution = cargo

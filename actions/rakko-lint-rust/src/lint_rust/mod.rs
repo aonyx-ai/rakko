@@ -8,7 +8,10 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko::{Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko::{
+    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
+    action_name,
+};
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot};
 use rakko_tool::Execution;
@@ -41,8 +44,9 @@ const CLIPPY: [&str; 5] = [
 /// selects the lints that the project configured, and examines every target
 /// with every feature, so a run agrees with an editor and with a contributor
 /// that runs clippy bare. The cargo that runs is the one that [mise]
-/// installed for the project, at the version that the project pinned, and
-/// the action installs nothing.
+/// installed for the project, on the stable toolchain that the project pins,
+/// and the action installs nothing. The action accepts a range of stable
+/// toolchains, and the first pin in that range answers.
 ///
 /// A run only reports, and it takes no argument. It lints every workspace of
 /// the project, because the harness of a project is a package of its own.
@@ -52,11 +56,11 @@ const CLIPPY: [&str; 5] = [
 /// with the message of the compiler and the code of the lint, and a run with
 /// a finding fails, whether the project warns about the lint or denies it.
 ///
-/// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// cargo, when the workspaces of the project cannot be discovered, when the
-/// lockfile of a workspace needs an update, and when cargo writes a report
-/// that the action does not recognize.
+/// A project whose cargo discovers no workspace skips visibly, and says so. A
+/// run stops with an error when the project pins no stable Rust toolchain that
+/// the action accepts, when the workspaces of the project cannot be discovered,
+/// when the lockfile of a workspace needs an update, and when cargo writes a
+/// report that the action does not recognize.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of each
 /// workspace, and cargo writes what it builds into the `target` directory,
@@ -92,6 +96,10 @@ impl Action for LintRust {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -114,7 +122,7 @@ impl Action for LintRust {
 /// the tool, the discovery of the workspaces, a cargo run, or the reading
 /// of a report.
 async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
         .map_err(|source| LintRustError::UnresolvedTool { source })?;
 

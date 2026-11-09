@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use rakko_cargo::{DiscoverRootsError, ReadReportError, ResolveToolchainError};
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_cargo::{DiscoverRootsError, ReadReportError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::report::ReadUdepsReportError;
@@ -16,16 +16,6 @@ use crate::report::ReadUdepsReportError;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckUnusedDepsError {
-    /// Cargo did not run
-    ///
-    /// The program was resolved and did not start, or it started and its
-    /// output could not be read. Nothing of the project was examined.
-    #[error("failed to run cargo")]
-    CargoUnavailable {
-        /// The cause of the failure
-        source: RunCommandError,
-    },
-
     /// The lockfile of a workspace needs an update
     ///
     /// The manifests of the workspace ask for something that the lockfile does
@@ -37,6 +27,16 @@ pub enum CheckUnusedDepsError {
     StaleLockfile {
         /// The workspace root whose lockfile needs an update
         root: PathBuf,
+    },
+
+    /// Cargo-udeps did not run
+    ///
+    /// The program was resolved and did not start, or it started and its
+    /// output could not be read. Nothing of the project was examined.
+    #[error("failed to run cargo-udeps")]
+    UdepsUnavailable {
+        /// The cause of the failure
+        source: RunCommandError,
     },
 
     /// The workspaces of the project could not be discovered
@@ -97,12 +97,13 @@ pub enum CheckUnusedDepsError {
 
     /// Mise reported no cargo for the project
     ///
-    /// The project pins no Rust toolchain, or nothing installed the pin yet.
-    /// The action installs nothing, so the run stops here.
+    /// The project pins no stable Rust toolchain that the action accepts, or
+    /// nothing installed the pin yet. The action installs nothing, so the run
+    /// stops here.
     #[error("failed to resolve cargo")]
-    UnresolvedTool {
+    UnresolvedCargo {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 
     /// Mise reported no toolchain for the nightly channel of the project
@@ -110,10 +111,20 @@ pub enum CheckUnusedDepsError {
     /// Cargo-udeps reads the crates that a target loaded from a record that
     /// only an unstable option of the compiler writes, so the build needs
     /// the nightly channel. The action installs nothing, so a project that
-    /// pins no nightly stops the run.
+    /// pins no nightly that the action accepts stops the run.
     #[error("failed to resolve the nightly toolchain")]
     UnresolvedToolchain {
         /// The cause of the failure
-        source: ResolveToolchainError,
+        source: ResolveRequirementError,
+    },
+
+    /// Mise reported no cargo-udeps at the version that the action declares
+    ///
+    /// Nothing installed that version yet. The action installs nothing, so
+    /// the run stops here.
+    #[error("failed to resolve cargo-udeps")]
+    UnresolvedUdeps {
+        /// The cause of the failure
+        source: ResolveRequirementError,
     },
 }

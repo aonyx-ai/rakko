@@ -10,7 +10,10 @@ mod error;
 
 use std::collections::HashSet;
 
-use rakko::{Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko::{
+    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
+    action_name,
+};
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoPackage, CargoReport, CargoRoot, DocumentedNames};
 use rakko_tool::Execution;
@@ -56,8 +59,9 @@ const PACKAGE: &str = "--package";
 /// The action wraps [rustdoc]: cargo reads the manifests of the project and
 /// renders the documentation of every package, with the private items and
 /// with every feature. The cargo that runs is the one that [mise] installed for
-/// the project, at the version that the project pinned, and the action
-/// installs nothing.
+/// the project, on the stable toolchain that the project pins, and the action
+/// installs nothing. The action accepts a range of stable toolchains, and the
+/// first pin in that range answers.
 ///
 /// Building the documentation is also the only examination that it gets.
 /// Rustdoc resolves the links between items while it renders them, and a link
@@ -79,11 +83,11 @@ const PACKAGE: &str = "--package";
 /// documentation goes where cargo builds, and the sources and the lockfile
 /// stay as they are.
 ///
-/// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// cargo, when the workspaces of the project cannot be discovered, when the
-/// lockfile of a workspace needs an update, and when cargo writes a report
-/// that the action does not recognize.
+/// A project whose cargo discovers no workspace skips visibly, and says so. A
+/// run stops with an error when the project pins no stable Rust toolchain that
+/// the action accepts, when the workspaces of the project cannot be discovered,
+/// when the lockfile of a workspace needs an update, and when cargo writes a
+/// report that the action does not recognize.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of each
 /// workspace, and cargo writes what it builds into the `target` directory,
@@ -119,6 +123,10 @@ impl Action for BuildInternalDocs {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -141,7 +149,7 @@ impl Action for BuildInternalDocs {
 /// the tool, the discovery of the workspaces, a cargo run, or the reading
 /// of a report.
 async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
         .map_err(|source| BuildInternalDocsError::UnresolvedTool { source })?;
 

@@ -5,10 +5,11 @@
 //! in the repository, where the checks of the repository itself would fight
 //! it.
 //!
-//! The tests run the cargo-deny that this repository pins. A project copies
-//! the `mise.toml` of the repository and trusts it, so the version that
-//! answers is the version that the repository installs, and a new pin reaches
-//! the tests without a change to them.
+//! The tests run the cargo-deny that the action declares. A project copies
+//! the `mise.toml` of the repository and trusts it, so the Rust toolchain
+//! that answers is one that the repository installs. The copy pins another
+//! cargo-deny that nothing installs, so a test passes only when the run
+//! ignores the pin of the project.
 //!
 //! Every project depends on nothing outside itself. Cargo-deny then resolves
 //! the graph of the project without a registry, so the tests need no network
@@ -160,15 +161,22 @@ impl Project {
         Self { directory }
     }
 
-    /// Creates a project with the tools of this repository
+    /// Creates a project with the Rust toolchains of this repository and a
+    /// cargo-deny that nothing installed
     ///
     /// The project copies the `mise.toml` of this repository, so the cargo
-    /// and the cargo-deny that mise resolves for it are the ones that the
-    /// repository pins and installs. Mise ignores a configuration that nobody
-    /// trusts, so the copy is trusted right away.
+    /// that mise resolves for it is the one that the repository pins and
+    /// installs. The copy pins cargo-deny at a version that no machine
+    /// installs, and the run resolves the cargo-deny that the action
+    /// declares, so the pin of the project must not change what runs.
     fn new() -> Self {
         let project = Self::bare();
-        project.pin(&pins());
+        let pins = pins();
+        let pin = pins
+            .lines()
+            .find(|line| line.starts_with(DENY_PIN))
+            .expect("the mise.toml of the repository pins cargo-deny");
+        project.pin(&pins.replace(pin, &format!("{DENY_PIN} = \"0.0.1\"")));
 
         project
     }
@@ -193,29 +201,6 @@ impl Project {
         project.write("helper/Cargo.toml", HELPER);
         project.write("helper/src/lib.rs", LIBRARY);
         project.write("deny.toml", ALLOW_MIT);
-
-        project
-    }
-
-    /// Creates a project that pins a cargo-deny that nothing installed
-    ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for cargo-deny, whatever the global configuration of the
-    /// machine says about it. The other pins of the repository stay, so the
-    /// cargo of the run resolves and the run reaches the missing tool.
-    fn without_deny() -> Self {
-        let project = Self::bare();
-        let pins: Vec<String> = pins()
-            .lines()
-            .map(|line| {
-                if line.starts_with(DENY_PIN) {
-                    format!("{DENY_PIN} = \"0.0.1\"")
-                } else {
-                    line.to_owned()
-                }
-            })
-            .collect();
-        project.pin(&pins.join("\n"));
 
         project
     }
@@ -247,7 +232,7 @@ impl Project {
     /// cannot find its workspaces stays as it is, so that the run reports
     /// what stops it.
     async fn lock(&self) {
-        let Ok(cargo) = Cargo::resolve(self.context().root().clone()).await else {
+        let Ok(cargo) = Cargo::resolve(&self.context()).await else {
             return;
         };
         let Ok(roots) = cargo.roots().await else {
@@ -661,21 +646,6 @@ async fn run_with_a_warning_passes() {
     );
 }
 
-#[tokio::test]
-async fn run_without_a_cargo_deny_stops() {
-    let project = Project::without_deny();
-    project.write("Cargo.toml", PACKAGE);
-    project.write("src/lib.rs", LIBRARY);
-    project.write("deny.toml", ALLOW_MIT);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
 // A workspace that never ran a build has no lockfile, and the action holds
 // cargo to one, so the run stops. The test runs the action directly, because
 // the helper that runs it writes the lockfile first.
@@ -695,4 +665,15 @@ async fn run_without_a_lockfile_says_that_it_needs_an_update() {
         ),
         "expected a lockfile that needs an update, got {source:?}"
     );
+}
+
+#[test]
+fn tools_declare_the_stable_toolchain_and_cargo_deny() {
+    let tools: Vec<String> = CheckDependencies
+        .tools()
+        .iter()
+        .map(|requirement| requirement.tool().get().to_owned())
+        .collect();
+
+    assert_eq!(tools, ["rust", "cargo:cargo-deny"]);
 }

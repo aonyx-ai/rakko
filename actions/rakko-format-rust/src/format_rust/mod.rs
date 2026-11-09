@@ -18,9 +18,9 @@ use std::path::PathBuf;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary,
-    action_name,
+    ToolRequirement, action_name,
 };
-use rakko_cargo::{Cargo, CargoRoot, Channel, Toolchain};
+use rakko_cargo::{Cargo, CargoRoot, Toolchain};
 
 pub use self::args::FormatRustArgs;
 pub use self::error::FormatRustError;
@@ -28,12 +28,6 @@ pub(crate) use self::report::{RustfmtProblem, RustfmtProblemDetail, RustfmtRepor
 
 /// The reason of a run whose cargo discovered no workspace
 const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
-
-/// The channel of the toolchain that rustfmt runs on
-///
-/// Rustfmt honors the unstable options of a configuration only on this
-/// channel, and a stable rustfmt formats without them.
-const NIGHTLY: &str = "nightly";
 
 /// The arguments that ask rustfmt to report the files it would rewrite
 ///
@@ -59,8 +53,9 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// rustfmt reads its own configuration and formats every target, so a run
 /// agrees with an editor and with a contributor that runs rustfmt bare. The
 /// cargo that runs is the one that [mise] installed for the project, on the
-/// nightly toolchain that the project pinned, and the action installs
-/// nothing.
+/// nightly toolchain that the project pins, and the action installs
+/// nothing. The action accepts a range of nightly toolchains by their dates,
+/// and the first pin in that range answers.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
 /// that names the file, and a file that rustfmt cannot parse becomes a
@@ -74,11 +69,11 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// declares a write. A caller that orders runs by their declarations can
 /// then run a rewrite before the actions that read.
 ///
-/// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// cargo or no nightly toolchain, when the workspaces of the project cannot
-/// be discovered, when rustfmt warns about its configuration, and when
-/// rustfmt writes a report that the action does not recognize.
+/// A project whose cargo discovers no workspace skips visibly, and says so. A
+/// run stops with an error when the project pins no stable or no nightly Rust
+/// toolchain that the action accepts, when the workspaces of the project cannot
+/// be discovered, when rustfmt warns about its configuration, and when rustfmt
+/// writes a report that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -111,6 +106,10 @@ impl Action for FormatRust {
         }
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement(), Toolchain::nightly()]
+    }
+
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
@@ -134,11 +133,13 @@ impl Action for FormatRust {
 /// the tool or the toolchain, the discovery of the workspaces, a rustfmt
 /// run, or the reading of a report.
 async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, FormatRustError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
         .map_err(|source| FormatRustError::UnresolvedTool { source })?;
 
-    let toolchain = Toolchain::resolve(Channel::new(NIGHTLY), context.root())
+    // Rustfmt honors the unstable options of a configuration only on the
+    // nightly channel, and a stable rustfmt formats without them.
+    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), context)
         .await
         .map_err(|source| FormatRustError::UnresolvedToolchain { source })?;
 

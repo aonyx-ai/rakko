@@ -601,3 +601,14 @@ async fn run_without_a_manifest_skips() {
         "expected the run to skip, got {outcome:?}"
     );
 }
+
+#[test]
+fn tools_declare_both_toolchains() {
+    let tools: Vec<String> = FormatRust
+        .tools()
+        .iter()
+        .map(|requirement| requirement.tool().get().to_owned())
+        .collect();
+
+    assert_eq!(tools, ["rust", "rust"]);
+}

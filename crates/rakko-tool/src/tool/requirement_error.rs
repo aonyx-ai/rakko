@@ -91,8 +91,13 @@ pub enum ResolveRequirementError {
     ///
     /// A range compares versions with three numbers, such as `22.4.0`. Mise
     /// gives the version that a pin resolves to, and a pin that holds no such
-    /// version, such as a pin of a branch, has nothing to compare.
-    #[error("failed to read the version `{version}` of `{tool}` that the project pins")]
+    /// version, such as a pin of a branch or of the Rust channel `stable`, has
+    /// nothing to compare. An added pin with a version number repairs the
+    /// failure.
+    #[error(
+        "failed to read the version `{version}` of `{tool}` that the project pins, so add a \
+         pin with a version number, such as `1.99.1`"
+    )]
     UnreadableVersion {
         /// The toolchain that the requirement is for
         tool: MiseTool,

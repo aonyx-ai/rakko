@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use rakko_cargo::{DiscoverRootsError, ReadReportError, ResolveToolchainError, RustVersion};
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_cargo::{DiscoverRootsError, ReadReportError, RustVersion};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -80,12 +80,13 @@ pub enum CheckMsrvError {
 
     /// Mise reported no cargo for the project
     ///
-    /// The project pins no Rust toolchain, or nothing installed the pin yet.
-    /// The action installs nothing, so the run stops here.
+    /// The project pins no stable Rust toolchain that the action accepts, or
+    /// nothing installed the pin yet. The action installs nothing, so the run
+    /// stops here.
     #[error("failed to resolve cargo")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 
     /// Mise reported no toolchain for the declared Rust version
@@ -100,6 +101,6 @@ pub enum CheckMsrvError {
         version: RustVersion,
 
         /// The cause of the failure
-        source: ResolveToolchainError,
+        source: ResolveRequirementError,
     },
 }

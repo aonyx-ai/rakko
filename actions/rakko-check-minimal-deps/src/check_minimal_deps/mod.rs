@@ -13,9 +13,9 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
-    action_name,
+    ToolRequirement, action_name,
 };
-use rakko_cargo::{Cargo, CargoRoot, Channel, Toolchain};
+use rakko_cargo::{Cargo, CargoRoot, Toolchain};
 use rakko_nextest::{Lockfile, Nextest};
 use rakko_tool::Execution;
 use rakko_worktree::Worktree;
@@ -24,12 +24,6 @@ pub use self::error::CheckMinimalDepsError;
 
 /// The reason of a run whose cargo discovered no workspace
 const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
-
-/// The channel that the resolution of the floors needs
-///
-/// The option below is unstable, and a stable cargo refuses it and resolves
-/// nothing at all.
-const NIGHTLY: &str = "nightly";
 
 /// The arguments that ask cargo for the lowest versions that the manifests
 /// allow
@@ -56,8 +50,9 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// life of a project ever asks, because every ordinary build reaches for the
 /// newest version that the floor allows. The action resolves the floors and
 /// runs the tests of the project against them, so the promise is confirmed
-/// instead of assumed. The cargo that runs is the one that [mise] installed
-/// for the project, and [nextest] is the plugin that it carries.
+/// instead of assumed. The cargo that runs is the one of the toolchains that
+/// the project pins, and [nextest] runs at the version that the action
+/// declares. [Mise] installed both.
 ///
 /// The resolution runs on the nightly toolchain that the project pins,
 /// because the option that asks cargo for the floors is unstable. The tests
@@ -77,8 +72,9 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// reads the answer for the manifest that they are editing.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so.
-/// A run stops with an error when mise reports no
-/// cargo and when it reports no nightly toolchain, when the project is no git
+/// A run stops with an error when the project pins
+/// no stable or no nightly Rust toolchain that the action accepts, when mise
+/// reports no nextest at the declared version, when the project is no git
 /// repository, when the copy cannot be created, when the workspaces of the
 /// project cannot be discovered, and when nextest writes a report that the run
 /// cannot answer from.
@@ -115,6 +111,14 @@ impl Action for CheckMinimalDeps {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![
+            Cargo::requirement(),
+            Toolchain::nightly(),
+            Nextest::requirement(),
+        ]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -143,11 +147,13 @@ impl Action for CheckMinimalDeps {
 /// tool or of the toolchain, the discovery of the workspaces, the creation of
 /// the copy, a run of cargo, or a run of nextest that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, CheckMinimalDepsError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
-        .map_err(|source| CheckMinimalDepsError::UnresolvedTool { source })?;
+        .map_err(|source| CheckMinimalDepsError::UnresolvedCargo { source })?;
 
-    let toolchain = Toolchain::resolve(Channel::new(NIGHTLY), context.root())
+    // The option that asks cargo for the floors is unstable, and a stable
+    // cargo refuses it and resolves nothing at all.
+    let toolchain = Toolchain::resolve_requirement(&Toolchain::nightly(), context)
         .await
         .map_err(|source| CheckMinimalDepsError::UnresolvedToolchain { source })?;
 
@@ -180,7 +186,9 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMinimalDepsError> {
         });
     }
 
-    let nextest = Nextest::new(cargo, Lockfile::Locked);
+    let nextest = Nextest::resolve(cargo, Lockfile::Locked, context)
+        .await
+        .map_err(|source| CheckMinimalDepsError::UnresolvedNextest { source })?;
     let mut ran = 0;
 
     for root in &copies {

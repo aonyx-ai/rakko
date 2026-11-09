@@ -20,12 +20,12 @@ use crate::report::ReadNextestReportError;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ObserveNextestError {
-    /// Cargo did not run
+    /// Nextest did not run
     ///
     /// The program was resolved and did not start, or it started and its
     /// output could not be read. Nothing of the project was examined.
-    #[error("failed to run cargo")]
-    CargoUnavailable {
+    #[error("failed to run nextest")]
+    NextestUnavailable {
         /// The cause of the failure
         source: RunCommandError,
     },

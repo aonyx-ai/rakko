@@ -4,10 +4,11 @@
 //! against it, so no fixture with a deliberately failing test sits in this
 //! repository, where the tests of the repository itself would fight it.
 //!
-//! The tests run the cargo and the nextest that this repository pins. A
-//! project copies the `mise.toml` of the repository and trusts it, so the
-//! versions that answer are the versions that the repository installs, and a
-//! new pin reaches the tests without a change to them.
+//! The tests run the nextest that the crate declares, with the cargo that
+//! this repository pins. A project copies the `mise.toml` of the repository
+//! and trusts it, so the Rust toolchain that answers is one that the
+//! repository installs. The copy pins another nextest that nothing installs,
+//! so a test passes only when the run ignores the pin of the project.
 
 // An assertion in a test panics by design, and the helpers of this file
 // exist only for tests. The lints that guard production code do not apply.
@@ -17,7 +18,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko::{Location, Position, ProjectRoot};
+use rakko::{Context, Location, Position, ProjectRoot};
 use rakko_cargo::Cargo;
 use rakko_nextest::{Lockfile, Nextest, Observation, ObserveNextestError};
 use rakko_test_utils::path_text;
@@ -54,6 +55,12 @@ const BROKEN: &str = "pub fn broken() -> i32 {\n    \"no\"\n}\n";
 /// The variable that gives consent to the experimental report of nextest
 const CONSENT_VARIABLE: &str = "NEXTEST_EXPERIMENTAL_LIBTEST_JSON";
 
+/// The start of the line of a mise file that pins nextest
+const NEXTEST_PIN: &str = "\"cargo:cargo-nextest\" =";
+
+/// The pin of a nextest that no machine installs
+const UNINSTALLED_NEXTEST: &str = "\"cargo:cargo-nextest\" = \"0.0.1\"";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -61,19 +68,29 @@ struct Project {
 }
 
 impl Project {
-    /// Creates a project with the cargo of this repository
+    /// Creates a project with the cargo of this repository and a nextest
+    /// that nothing installed
     ///
     /// The project copies the `mise.toml` of this repository, so the cargo
-    /// and the nextest that mise resolves for it are the ones that the
-    /// repository pins and installs. Mise ignores a configuration that
-    /// nobody trusts, so the copy is trusted right away.
+    /// that mise resolves for it is the one that the repository pins and
+    /// installs. The copy pins nextest at a version that no machine installs,
+    /// and the run resolves the nextest that the crate declares, so the pin
+    /// of the project must not change what runs. Mise ignores a
+    /// configuration that nobody trusts, so the copy is trusted right away.
     fn new() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let project = Self { directory };
 
-        let pins = repository().join("mise.toml");
+        let pins = std::fs::read_to_string(repository().join("mise.toml"))
+            .expect("the test reads the mise.toml of the repository");
+        let pin = pins
+            .lines()
+            .find(|line| line.starts_with(NEXTEST_PIN))
+            .expect("the mise.toml of the repository pins nextest");
+        let pins = pins.replace(pin, UNINSTALLED_NEXTEST);
+
         let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
+        std::fs::write(&copy, pins).expect("the test writes the mise.toml of the project");
         trust(&copy);
 
         project
@@ -110,7 +127,8 @@ impl Project {
     /// leave it without an answer.
     async fn observe_with(&self, lockfile: Lockfile) -> Result<Observation, ObserveNextestError> {
         let root = self.root();
-        let cargo = Cargo::resolve(root.clone())
+        let context = Context::builder().root(root.clone()).build();
+        let cargo = Cargo::resolve(&context)
             .await
             .expect("the test resolves the cargo that the project pins");
         let workspace = cargo
@@ -121,7 +139,9 @@ impl Project {
             .next()
             .expect("the project holds one workspace");
 
-        Nextest::new(cargo, lockfile)
+        Nextest::resolve(cargo, lockfile, &context)
+            .await
+            .expect("the test resolves the nextest that the crate declares")
             .observe(&workspace, &root)
             .await
     }

@@ -1,0 +1,6 @@
+# This file pins the version of cargo-udeps that the action of this crate
+# runs. The crate embeds the file when it compiles, so the pin and the code
+# that reads the reports of cargo-udeps change together. Mise reads the file
+# only with `MISE_ENV=rakko`.
+[tools]
+"cargo:cargo-udeps" = "0.1.61"

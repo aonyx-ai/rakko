@@ -6,6 +6,11 @@
 //! all three, so that an action names the workspace that it wants tested and
 //! reads the answer as data.
 //!
+//! The crate pins the version of nextest that every such action runs, in
+//! the file `mise.rakko.toml` that the build embeds. An action declares that
+//! version with [`Nextest::requirement`], and the version that the project
+//! pins does not change what runs.
+//!
 //! A run tests one workspace root, because cargo works on one workspace at a
 //! time. The caller resolves cargo for the project and discovers the roots,
 //! and it runs the crate once per root. Cargo builds every target of every
@@ -38,19 +43,19 @@
 //! them:
 //!
 //! ```no_run
-//! use rakko::ProjectRoot;
+//! use rakko::Context;
 //! use rakko_cargo::Cargo;
 //! use rakko_nextest::{Lockfile, Nextest};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let root = ProjectRoot::new("/home/otter/project".into());
-//! let cargo = Cargo::resolve(root.clone()).await?;
+//! let context = Context::builder().root("/home/otter/project").build();
+//! let cargo = Cargo::resolve(&context).await?;
 //! let roots = cargo.roots().await?;
-//! let nextest = Nextest::new(cargo, Lockfile::Locked);
+//! let nextest = Nextest::resolve(cargo, Lockfile::Locked, &context).await?;
 //!
 //! for workspace in &roots {
-//!     let observation = nextest.observe(workspace, &root).await?;
+//!     let observation = nextest.observe(workspace, context.root()).await?;
 //!
 //!     println!("{} tests, {} findings", observation.ran(), observation.findings().len());
 //! }

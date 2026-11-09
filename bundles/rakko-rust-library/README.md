@@ -42,16 +42,15 @@ of it:
 
 ## Tools
 
-Each action runs the tool that [mise] installed for the project, at the
-version that the project pinned. Rakko installs nothing, and an action whose
-tool mise does not report stops instead of passing quietly. The core states
-what any Rust project pins, and the three checks here add one entry to that
-list:
+Rakko installs nothing, and an action whose tool [mise] does not report stops
+instead of passing quietly. The core states what any Rust project pins, and
+the three checks here add one entry to that list:
 
 - a `rust` whose version repeats the `rust-version` of the manifests, because
   `check-msrv` runs the compiler on the toolchain that the promise names. A
-  pin that stops agreeing with the manifests fails the check instead of moving
-  it.
+  `rust-version` of `1.88` accepts a pin of any patch of that release, such as
+  `1.88.1`, and one of `1.88.0` accepts only the pin `1.88.0`. A pin that
+  stops agreeing with the manifests fails the check instead of moving it.
 
 The other two need nothing beyond the core: `check-minimal-deps` resolves on
 the nightly `rust` and runs the tests with `cargo:cargo-nextest`, and

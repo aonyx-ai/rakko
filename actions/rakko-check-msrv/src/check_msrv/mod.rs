@@ -8,9 +8,12 @@
 /// The error that stops a run of the action
 mod error;
 
-use rakko::{Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, action_name};
+use rakko::{
+    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
+    action_name,
+};
 use rakko_cargo::lockfile::{self, LOCKED};
-use rakko_cargo::{Cargo, CargoReport, CargoRoot, Channel, RustVersion, Toolchain};
+use rakko_cargo::{Cargo, CargoReport, CargoRoot, RustVersion, Toolchain};
 use rakko_tool::Execution;
 
 pub use self::error::CheckMsrvError;
@@ -49,6 +52,12 @@ const CHECK: [&str; 5] = [
 /// the one that [mise] installed for the project, on the toolchain that mise
 /// installed for the declared version, and the action installs nothing.
 ///
+/// The action declares the range of stable toolchains whose cargo discovers
+/// the workspaces. The toolchain of a declared version comes from a
+/// manifest, so the action cannot declare it. A run takes the first pin of
+/// the project that is a patch of the declared release, so `1.88` accepts the
+/// pin `1.88.1`, and `1.88.0` accepts only the pin `1.88.0`.
+///
 /// A run only reports, and it takes no argument. It checks every workspace
 /// of the project that declares a version, each on the toolchain that it
 /// declares, because the harness of a project is a package of its own and
@@ -58,7 +67,8 @@ const CHECK: [&str; 5] = [
 ///
 /// A project whose cargo discovers no workspace, and one whose workspaces
 /// declare no Rust version, skip visibly and say so. A run
-/// stops with an error when mise reports no cargo or no declared toolchain,
+/// stops with an error when the project pins no stable Rust toolchain that
+/// the action accepts, when mise reports no toolchain of the declared version,
 /// when the workspaces of the project cannot be discovered, when a
 /// declaration cannot be read, when the lockfile of a workspace needs an
 /// update, and when cargo writes a report that the action does not
@@ -97,6 +107,10 @@ impl Action for CheckMsrv {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -120,7 +134,7 @@ impl Action for CheckMsrv {
 /// the tool or of a toolchain, the discovery of the workspaces, the reading
 /// of a declaration, a cargo run, or the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
-    let cargo = Cargo::resolve(context.root().clone())
+    let cargo = Cargo::resolve(context)
         .await
         .map_err(|source| CheckMsrvError::UnresolvedTool { source })?;
 
@@ -184,7 +198,7 @@ async fn check(
     version: &RustVersion,
     context: &Context,
 ) -> Result<Vec<Finding>, CheckMsrvError> {
-    let toolchain = Toolchain::resolve(Channel::new(version.get()), context.root())
+    let toolchain = Toolchain::resolve_requirement(&Toolchain::release(version), context)
         .await
         .map_err(|source| CheckMsrvError::UnresolvedToolchain {
             version: version.clone(),
