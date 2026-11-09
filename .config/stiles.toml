@@ -8,7 +8,7 @@ ignore = ["/tools/rakko/"]
 # builds against the stiles that `mise.toml` pins. Both pins move together.
 [[lints]]
 git = "https://github.com/aonyx-ai/stiles-aonyx-rules"
-rev = "7823bf339c2d18d16a2e49047b5f6af9d9c47727"
+rev = "764333ada2cdbfe1391dc9a9389718ade61181f2"
 
 # Rakko re-exports these crates and keeps their types in its public traits on
 # purpose, so a consumer works with them directly.

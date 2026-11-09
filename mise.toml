@@ -68,7 +68,7 @@ oxlint = "1.93.0"
 # Stiles tags a release with the name of the tool in front of the version, so
 # the pin names that prefix. Stiles publishes no build for Windows, so the pin
 # installs it only on the platforms that have one.
-"github:aonyx-ai/stiles" = { version = "0.5.0", version_prefix = "stiles@", os = [
+"github:aonyx-ai/stiles" = { version = "0.6.0", version_prefix = "stiles@", os = [
   "linux",
   "macos",
 ] }
