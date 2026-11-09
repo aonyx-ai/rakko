@@ -410,6 +410,7 @@ dependencies = [
  "rakko-set-msrv",
  "rakko-test-rust",
  "rakko-test-rust-docs",
+ "rakko-typescript",
 ]
 
 [[package]]
@@ -732,6 +733,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-check-typescript"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-check-unused-deps"
 version = "0.1.0"
 dependencies = [
@@ -806,6 +819,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-format-typescript"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-format-yaml"
 version = "0.1.0"
 dependencies = [
@@ -862,6 +886,20 @@ dependencies = [
  "rakko-taplo",
  "rakko-tool",
  "thiserror",
+]
+
+[[package]]
+name = "rakko-lint-typescript"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -983,6 +1021,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rakko-test-typescript"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "rakko-tool"
 version = "0.1.0"
 dependencies = [
@@ -995,6 +1045,17 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "rakko-typescript"
+version = "0.1.0"
+dependencies = [
+ "rakko",
+ "rakko-check-typescript",
+ "rakko-format-typescript",
+ "rakko-lint-typescript",
+ "rakko-test-typescript",
 ]
 
 [[package]]

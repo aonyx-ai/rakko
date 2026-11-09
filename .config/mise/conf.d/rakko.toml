@@ -1,0 +1,16 @@
+# Rakko generates this file from the tools that the actions of the harness
+# declare. Do not edit it, because `mise run rakko -- doctor --fix` writes it
+# again.
+
+[tools]
+"cargo:cargo-deny" = "0.20.2"
+"cargo:cargo-nextest" = "0.9.151"
+"cargo:cargo-udeps" = "0.1.61"
+"npm:markdownlint-cli" = "0.50.0"
+"npm:prettier" = "3.9.10"
+"npm:renovate" = "44.222.5"
+oxfmt = "0.75.0"
+oxlint = "1.93.0"
+taplo = "0.10.0"
+yamllint = "1.38.0"
+zizmor = "1.32.0"

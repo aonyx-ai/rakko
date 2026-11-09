@@ -48,8 +48,11 @@ const BROKEN_CONFIGURATION: &str = "{ \"printWidth\": ,, }\n";
 /// the run ends with success and without the configuration of the project.
 const IGNORED_CONFIGURATION: &str = "{ \"notAnOption\": 5 }\n";
 
-/// The start of the line of the repository's `mise.toml` that pins prettier
+/// The key that pins prettier in the mise configuration of a project
 const PRETTIER_PIN: &str = "\"npm:prettier\"";
+
+/// The header of the table of tools in a mise configuration
+const TOOLS_TABLE: &str = "[tools]\n";
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -73,14 +76,13 @@ impl Project {
 
         let pins = std::fs::read_to_string(repository().join("mise.toml"))
             .expect("the test reads the mise.toml of the repository");
-        let pin = pins
-            .lines()
-            .find(|line| line.starts_with(PRETTIER_PIN))
-            .expect("the mise.toml of the repository pins prettier");
+        let (head, tail) = pins
+            .split_once(TOOLS_TABLE)
+            .expect("the mise.toml of the repository holds a table of tools");
         let copy = project.directory.path().join("mise.toml");
         std::fs::write(
             &copy,
-            pins.replace(pin, &format!("{PRETTIER_PIN} = \"0.0.1\"")),
+            format!("{head}{TOOLS_TABLE}{PRETTIER_PIN} = \"0.0.1\"\n{tail}"),
         )
         .expect("the test writes the mise.toml of the project");
         trust(&copy);
