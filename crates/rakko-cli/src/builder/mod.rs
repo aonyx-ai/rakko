@@ -11,6 +11,7 @@ mod registry;
 /// The part of the command line that runs the members of a group
 mod scheduler;
 
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -28,6 +29,7 @@ use self::error::RunEntryError;
 pub use self::mount::Mount;
 use self::registry::{Mounted, Registry};
 use crate::chain::Chain;
+use crate::doctor::{self, Declaration};
 use crate::erased_command::ErasedCommand;
 use crate::report::Report;
 use crate::root::{self, ResolveProjectRootError};
@@ -86,7 +88,10 @@ pub fn builder() -> Builder {
 /// project uses, and then calls [`run`].
 ///
 /// The command line of every project has the same shape, because one type
-/// builds all of them. A harness cannot name a flag of its own.
+/// builds all of them. A harness cannot name a flag of its own. Every command
+/// line also carries `doctor`. It reports whether the tool pins of the
+/// project match the tools that the mounted actions declare. With `--fix`, it
+/// repairs them.
 ///
 /// [`run`]: Builder::run
 #[derive(Debug)]
@@ -327,6 +332,14 @@ impl Builder {
             Ok(Resolution::Commands(mut command)) => {
                 std::process::exit(i32::from(show_commands(&mut command)));
             }
+            Ok(Resolution::Doctor(matches, declarations)) => {
+                match drive_doctor(matches, declarations) {
+                    Ok(code) => std::process::exit(i32::from(code)),
+                    Err(error) => {
+                        run_error(&format!("command '{}'", doctor::DOCTOR), error.as_ref()).exit()
+                    }
+                }
+            }
             Err(error) => error.exit(),
         };
         let entry = mounted.to_string();
@@ -342,7 +355,8 @@ impl Builder {
     ///
     /// A run that gives no argument names nothing, and it gets the command
     /// line back instead of an error, so that the caller lists the commands
-    /// that the harness mounted.
+    /// that the harness mounted. A run of `doctor` gets the tools that every
+    /// mounted action declares, the members of each group included.
     ///
     /// The method takes the arguments as a parameter, so that a test drives
     /// the command line without the arguments of the test process.
@@ -370,6 +384,15 @@ impl Builder {
             }
             Err(error) => return Err(error),
         };
+
+        if matches
+            .subcommand_name()
+            .is_some_and(|name| name == doctor::DOCTOR)
+        {
+            let declarations = self.declarations();
+
+            return Ok(Resolution::Doctor(matches, declarations));
+        }
 
         let mounted = matches
             .subcommand()
@@ -401,7 +424,41 @@ impl Builder {
             );
         }
 
-        command
+        command.subcommand(doctor::command())
+    }
+
+    /// Returns the tools that the mounted actions declare
+    ///
+    /// A member of a group runs without a mount of its own, so the members of
+    /// each group count as well. An action that the harness mounts alone and
+    /// as a member declares its tools once. A command that the harness wrote
+    /// declares no tools, and the command line does not see the actions that
+    /// a command runs. So an action that the harness gives only to a command
+    /// declares nothing here, and the harness also mounts it for `doctor` to
+    /// see its tools.
+    fn declarations(&self) -> BTreeSet<Declaration> {
+        let mut declarations = BTreeSet::new();
+
+        for mounted in self.registry.entries() {
+            let actions: Vec<&dyn ErasedAction> = match mounted {
+                Mounted::Action(action) => vec![action.as_ref()],
+                Mounted::Group { group, .. } => group.members().iter().map(AsRef::as_ref).collect(),
+                Mounted::Command(_) => Vec::new(),
+            };
+
+            for action in actions {
+                let name = action.name();
+
+                declarations.extend(
+                    action
+                        .tools()
+                        .into_iter()
+                        .map(|requirement| Declaration::new(name.clone(), requirement)),
+                );
+            }
+        }
+
+        declarations
     }
 }
 
@@ -421,6 +478,9 @@ enum Resolution {
     Entry(ArgMatches, Mounted),
     /// The command line of a run that names nothing
     Commands(Box<Command>),
+    /// A run of `doctor`, with the arguments that the parser read and the
+    /// tools that the mounted actions declare
+    Doctor(ArgMatches, BTreeSet<Declaration>),
 }
 
 /// Shows the commands that a harness mounted and returns the code of the run
@@ -604,6 +664,42 @@ fn drive_command(
     })
 }
 
+/// Runs `doctor` and returns the code of the run
+///
+/// The run reports as a run of one action does, so its findings, its
+/// repairs, and its exit code follow the rules of an action. A run that found
+/// a problem that remains ends with the code of a run with findings, also
+/// after it repaired others.
+///
+/// # Errors
+///
+/// Returns the errors that [`dispatch`] describes for a run that names no
+/// root and stands in no project, and for a report that cannot reach the
+/// reader.
+fn drive_doctor(
+    matches: ArgMatches,
+    declarations: BTreeSet<Declaration>,
+) -> Result<u8, Box<dyn Error>> {
+    let named = matches.get_one::<PathBuf>(PROJECT_ROOT).cloned();
+    let mode = matches
+        .subcommand_matches(doctor::DOCTOR)
+        .map_or(doctor::Mode::Report, doctor::mode);
+
+    drive(matches, move |context| async move {
+        let project = locate(named, &context)?;
+
+        let outcome = doctor::run(&declarations, &project, mode).await;
+        let code = exit_code(&outcome);
+
+        context
+            .output()
+            .artifact(Report::new(doctor::name(), outcome))
+            .await?;
+
+        Ok(code)
+    })
+}
+
 /// Runs the members of one group and returns the code of the run
 ///
 /// The values hold one entry for each member of the group, in the order of
@@ -760,7 +856,7 @@ mod tests {
     use clawless::CommandResult;
     use rakko::{
         Action, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name, ReadArgsError,
-        SkipReason, argument_name,
+        RequiredVersion, SkipReason, ToolRequirement, ToolVersion, argument_name,
     };
 
     use super::*;
@@ -1126,6 +1222,30 @@ mod tests {
         }
     }
 
+    /// An action that declares one tool at an exact version
+    struct Tooled {
+        /// The name that identifies this action
+        name: Name,
+        /// The tool that the action declares
+        tool: ToolRequirement,
+    }
+
+    impl Action for Tooled {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            self.name.clone()
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            vec![self.tool.clone()]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
     /// An action whose arguments never convert from the values of a run
     struct Unbuildable;
 
@@ -1260,6 +1380,20 @@ mod tests {
             .expect("expected the command line to drive the action")
     }
 
+    /// Returns the declaration of a tool at a version by an action
+    fn declaration(action: &str, tool: &str, version: &str) -> doctor::Declaration {
+        doctor::Declaration::new(action_name(action), exact(tool, version))
+    }
+
+    /// Returns the requirement of a tool at an exact version
+    fn exact(tool: &str, version: &str) -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(tool)
+            .executable(tool)
+            .version(RequiredVersion::Exact(ToolVersion::new(version)))
+            .build()
+    }
+
     /// Returns the flag that the command of the reader carries for an argument
     ///
     /// The command is built first, because the parser fills in how many values
@@ -1368,6 +1502,35 @@ mod tests {
             name: action_name(GROUP),
             actions,
         }
+    }
+
+    /// Returns one erased action that declares a tool at a version
+    fn tooled(name: &str, tool: &str, version: &str) -> Box<dyn ErasedAction> {
+        Box::new(Tooled {
+            name: action_name(name),
+            tool: exact(tool, version),
+        })
+    }
+
+    /// Returns what a run of `doctor` in an empty project gives back, for
+    /// a harness that mounts an action that declares taplo
+    ///
+    /// The run names its project root, so that the test drives `doctor`
+    /// without a directory tree that marks a project. The project stays on
+    /// disk until the caller drops it.
+    fn run_doctor(arguments: &[&str]) -> (tempfile::TempDir, u8) {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let root = directory.path().as_os_str().to_owned();
+        let builder = builder().mount([tooled("format-toml", "taplo", "0.10.0")]);
+        let mut line: Vec<OsString> = vec!["rakko".into(), "--project-root".into(), root];
+        line.extend(arguments.iter().map(OsString::from));
+
+        let Ok(Resolution::Doctor(matches, declarations)) = builder.resolve(line) else {
+            panic!("expected the run to ask for doctor");
+        };
+        let code = drive_doctor(matches, declarations).expect("expected doctor to run");
+
+        (directory, code)
     }
 
     /// Returns the values that a run of the given arguments gives to the action
@@ -1563,6 +1726,15 @@ mod tests {
         let kind = error_kind(&["rakko", "--json"]);
 
         assert_eq!(kind, ErrorKind::MissingSubcommand);
+    }
+
+    #[test]
+    fn command_carries_the_doctor_in_every_harness() {
+        let command = builder().command();
+
+        let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
+
+        assert_eq!(names, [doctor::DOCTOR]);
     }
 
     #[test]
@@ -1864,6 +2036,25 @@ mod tests {
     }
 
     #[test]
+    fn drive_doctor_reports_a_problem_as_findings() {
+        let (_project, code) = run_doctor(&["doctor"]);
+
+        assert_eq!(code, EXIT_FINDINGS);
+    }
+
+    #[test]
+    fn drive_doctor_with_the_flag_repairs_the_project() {
+        let (project, _code) = run_doctor(&["doctor", "--fix"]);
+
+        assert!(
+            project
+                .path()
+                .join(".config/mise/conf.d/rakko.toml")
+                .is_file()
+        );
+    }
+
+    #[test]
     fn mount_accepts_a_member_of_a_group_that_the_harness_also_mounts() {
         let log = Log::default();
         let group = sequence(vec![member::<Fix>("first", &log)]);
@@ -1874,7 +2065,7 @@ mod tests {
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
-        assert_eq!(names, [GROUP, "first"]);
+        assert_eq!(names, [GROUP, "first", doctor::DOCTOR]);
     }
 
     #[test]
@@ -1890,7 +2081,7 @@ mod tests {
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
-        assert_eq!(names, [GROUP, "lint"]);
+        assert_eq!(names, [GROUP, "lint", doctor::DOCTOR]);
     }
 
     #[test]
@@ -1942,7 +2133,7 @@ mod tests {
         let command = builder().mount(probe).command();
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
-        assert_eq!(names, ["lint-rust"]);
+        assert_eq!(names, ["lint-rust", doctor::DOCTOR]);
     }
 
     #[test]
@@ -1953,7 +2144,7 @@ mod tests {
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
-        assert_eq!(names, ["format-toml", "lint-rust"]);
+        assert_eq!(names, ["format-toml", "lint-rust", doctor::DOCTOR]);
     }
 
     #[test]
@@ -1965,7 +2156,7 @@ mod tests {
         let command = builder().mount(bundle).command();
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
-        assert_eq!(names, ["format-toml", "lint-rust"]);
+        assert_eq!(names, ["format-toml", "lint-rust", doctor::DOCTOR]);
     }
 
     #[test]
@@ -1978,7 +2169,7 @@ mod tests {
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
-        assert_eq!(names, ["format-all", "lint-rust", "serve"]);
+        assert_eq!(names, ["format-all", "lint-rust", "serve", doctor::DOCTOR]);
     }
 
     #[test]
@@ -1992,7 +2183,7 @@ mod tests {
 
         let names: Vec<&str> = command.get_subcommands().map(Command::get_name).collect();
 
-        assert_eq!(names, [GROUP, "lint-rust", "serve"]);
+        assert_eq!(names, [GROUP, "lint-rust", "serve", doctor::DOCTOR]);
     }
 
     #[test]
@@ -2174,6 +2365,34 @@ mod tests {
     }
 
     #[test]
+    fn resolve_gives_the_doctor_each_tool_of_the_actions_and_the_members_once() {
+        let group = sequence(vec![
+            tooled("format-toml", "taplo", "0.10.0"),
+            tooled("lint-json", "jq", "1.8.2"),
+        ]);
+        let builder = builder()
+            .mount([
+                tooled("format-toml", "taplo", "0.10.0"),
+                tooled("lint-yaml", "yamllint", "1.38.0"),
+            ])
+            .mount(group);
+
+        let Ok(Resolution::Doctor(_, declarations)) = builder.resolve(["rakko", doctor::DOCTOR])
+        else {
+            panic!("expected the run to ask for doctor");
+        };
+
+        assert_eq!(
+            declarations,
+            BTreeSet::from([
+                declaration("format-toml", "taplo", "0.10.0"),
+                declaration("lint-json", "jq", "1.8.2"),
+                declaration("lint-yaml", "yamllint", "1.38.0"),
+            ])
+        );
+    }
+
+    #[test]
     fn resolve_returns_the_action_that_the_run_names() {
         let builder = builder().mount([probe("format-toml"), probe("lint-rust")]);
 
@@ -2199,6 +2418,13 @@ mod tests {
         };
 
         assert_eq!(command.name().get(), "serve");
+    }
+
+    #[test]
+    fn resolve_returns_the_doctor_for_a_run_that_names_it() {
+        let resolution = builder().resolve(["rakko", doctor::DOCTOR]);
+
+        assert!(matches!(resolution, Ok(Resolution::Doctor(..))));
     }
 
     #[test]
