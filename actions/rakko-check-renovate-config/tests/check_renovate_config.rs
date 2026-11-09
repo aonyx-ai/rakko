@@ -263,6 +263,38 @@ async fn run_in_a_missing_directory_stops_without_a_validator() {
 }
 
 #[tokio::test]
+async fn run_in_a_project_with_node_between_the_releases_of_renovate_stops_on_node() {
+    let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+    let pins = directory.path().join("mise.toml");
+    std::fs::write(&pins, "[tools]\nnode = \"25.0.0\"\n")
+        .expect("the test writes the mise.toml of the project");
+    trust(&pins);
+    let context = Context::builder().root(directory.path()).build();
+
+    let outcome = CheckRenovateConfig.run(&context, &()).await;
+
+    let _ = Command::new("mise")
+        .arg("trust")
+        .arg("--quiet")
+        .arg("--untrust")
+        .arg(&pins)
+        .status();
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(CheckRenovateConfigError::UnresolvedTool {
+                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
+                    }) if tool.get() == "node"
+                )
+        ),
+        "expected the run to stop on Node 25.0.0, which Renovate does not support, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_in_a_project_without_node_stops_on_node() {
     let directory = tempfile::tempdir().expect("the test creates a temporary directory");
     let context = Context::builder().root(directory.path()).build();

@@ -337,9 +337,10 @@ impl Tool {
     /// range compares the versions of releases, such as `>=1.85`, or the dates
     /// of one channel, such as `>=nightly-2025-02-20`, which reads only the
     /// pins of that channel that the configuration writes with a date, such
-    /// as `nightly-2026-11-02`. A pin in the global configuration of the
-    /// user does not count, and neither does a pin in a directory above the
-    /// project. These files are different on each machine. A local mise file
+    /// as `nightly-2026-11-02`. A range can hold alternatives, joined by
+    /// `||`, such as `^22.18 || >=23.6`, and it accepts a pin that one of them
+    /// accepts. A pin in the global configuration of the user does not count,
+    /// and neither does a pin in a directory above the project. These files are different on each machine. A local mise file
     /// inside the project, such as `mise.local.toml`, counts. So a developer
     /// can override the pin of the project on their own machine.
     ///

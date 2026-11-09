@@ -1,7 +1,8 @@
 //! The node that a project runs
 //!
-//! This module holds the runtime that mise installed for a project and the run
-//! of its test runner. An action asks for a run, and everything between the
+//! This module holds the versions of Node that the crate accepts, the runtime
+//! that mise installed at the version that the project pins, and the run of
+//! its test runner. An action asks for a run, and everything between the
 //! action and the process lives here.
 
 /// The error that leaves a run without an answer
@@ -9,14 +10,23 @@ mod error;
 /// The reading of the report that the test runner wrote
 pub(crate) mod report;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
+use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
+use rakko_tool::{Launch, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveNodeError;
 use self::report::Report;
 
-/// The name that mise knows the tool by
+/// The name that mise knows Node by, which is also the name of its program
 const NODE: &str = "node";
+
+/// The versions of Node that the action runs the tests on
+///
+/// Node is a toolchain of the project, so the project pins its version, and a
+/// run stops when that version is outside the range. Node finds and runs a
+/// test file in TypeScript only in the releases that strip types by default:
+/// 22.18 and later releases of 22, and 23.6 and later. An older release leaves
+/// out every such test, and it says nothing about it.
+const NODE_RANGE: &str = "^22.18 || >=23.6";
 
 /// The option that starts the test runner of Node
 ///
@@ -39,12 +49,13 @@ const REPORTER: &str = "--test-reporter=tap";
 /// version that the project pinned, so a run reaches the same program as the
 /// terminal of a contributor. The version decides what the test runner does:
 /// it gained the discovery of its files, the reading of TypeScript, and the
-/// shape of its report over several releases of Node. Nothing here installs a
-/// tool: provisioning is the job of mise, and a node that mise does not report
-/// stops the caller.
+/// shape of its report over several releases of Node. Node is therefore a
+/// toolchain of the project, and the crate states only the range of versions
+/// that it accepts. Nothing here installs a tool: provisioning is the job of
+/// mise, and a node that mise does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Node {
-    /// The program that mise installed for the project
+    /// The program that mise installed at the version that the project pins
     tool: Tool,
 }
 
@@ -97,18 +108,34 @@ impl Node {
         Ok(report)
     }
 
-    /// Returns the node that mise installed for the project
+    /// Returns the requirement of the Node that the action runs the tests on
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path.
+    /// Node is a toolchain, so the requirement holds the range of versions
+    /// that the action accepts, and the project pins the version.
+    pub(crate) fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(NODE)
+            .executable(NODE)
+            .version(RequiredVersion::Range(VersionRange::new(NODE_RANGE)))
+            .build()
+    }
+
+    /// Returns the node that mise installed at the version that the project
+    /// pins
+    ///
+    /// The lookup asks mise for the Node that the project pins and that
+    /// [`requirement`][requirement] accepts. A run starts in the root of the
+    /// context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no node for the
-    /// project.
-    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(NODE), root).await?;
+    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
+    /// project pins no Node in the range, or when mise reports no node at the
+    /// pinned version, for example because nothing installed it.
+    ///
+    /// [requirement]: Node::requirement
+    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
 
         Ok(Self { tool })
     }

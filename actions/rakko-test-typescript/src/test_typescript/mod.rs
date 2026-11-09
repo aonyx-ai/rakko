@@ -9,7 +9,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary, action_name,
+    Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
+    ToolRequirement, action_name,
 };
 
 pub use self::error::TestTypeScriptError;
@@ -24,7 +25,8 @@ const NO_TEST: &str = "node found no test in the project";
 /// The action wraps the [test runner] that Node carries: Node walks the
 /// project for its test files, runs each of them, and reports what every test
 /// did. The node that runs is the one that [mise] installed for the project,
-/// at the version that the project pinned, and the action installs nothing.
+/// at the version that the project pinned, when the action accepts that
+/// version. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. A test that failed becomes a
 /// finding that names the test and carries what Node said, at the place where
@@ -32,9 +34,11 @@ const NO_TEST: &str = "node found no test in the project";
 /// of its own when one of those failed, because that one reports it already.
 ///
 /// The action applies to a project that holds a test, and a run whose Node
-/// found none skips visibly. A run stops with an error when mise reports no
-/// node, when node reports no failure and ends without success, and when node
-/// writes a report that the action cannot read.
+/// found none skips visibly. A run stops with an error in these conditions:
+///
+/// - Mise reports no node in the accepted range.
+/// - Node reports no failure and ends without success.
+/// - Node writes a report that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write. The declaration covers the
@@ -68,6 +72,10 @@ impl Action for TestTypeScript {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Node::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -89,7 +97,7 @@ impl Action for TestTypeScript {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, or the run of node that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, TestTypeScriptError> {
-    let node = Node::resolve(context.root().clone())
+    let node = Node::resolve(context)
         .await
         .map_err(|source| TestTypeScriptError::UnresolvedTool { source })?;
 
@@ -233,5 +241,12 @@ mod tests {
             panic!("expected the run to skip, got {outcome:?}");
         };
         assert_eq!(reason.get(), "node found no test in the project");
+    }
+
+    #[test]
+    fn tools_declare_the_node_of_the_tests() {
+        let tools = TestTypeScript.tools();
+
+        assert_eq!(tools, vec![Node::requirement()]);
     }
 }

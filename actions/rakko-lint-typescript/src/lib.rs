@@ -3,8 +3,8 @@
 //! [Oxlint] does the work: it discovers the files, reads its own
 //! configuration, and applies the rules that the project turned on, so a run
 //! of the action agrees with an editor and with a contributor that runs oxlint
-//! bare. The action starts the oxlint that [mise] installed for the project,
-//! at the version that the project pinned, and translates what oxlint reported
+//! bare. The action declares the version of oxlint that it runs. It starts
+//! that version, which [mise] installed, and translates what oxlint reported
 //! into the outcome of the run.
 //!
 //! A run only reports, so the action takes no argument. The action applies to

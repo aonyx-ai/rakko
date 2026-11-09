@@ -1,22 +1,30 @@
 //! The oxlint that a project runs
 //!
-//! This module holds the program that mise installed for a project and the run
-//! that produces a report. An action asks for a run, and everything between the
-//! action and the process lives here.
+//! This module holds the version of oxlint that the crate declares, the program
+//! that mise installed at that version, and the run that produces a report. An
+//! action asks for a run, and everything between the action and the process
+//! lives here.
 
 /// The error that leaves a run without an answer
 mod error;
 /// The reading of the report that oxlint wrote
 pub(crate) mod report;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
+use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+use rakko_tool::{Launch, ResolveRequirementError, Tool, pinned_version};
 
 pub(crate) use self::error::ObserveOxlintError;
 use crate::observation::Observation;
 
-/// The name that mise knows the tool by
+/// The name that mise knows the tool by, which is also the name of its
+/// program
 const OXLINT: &str = "oxlint";
+
+/// The version of oxlint that the crate runs
+///
+/// The version comes from the mise file of the crate, which the build
+/// embeds, so a file without the pin fails the build.
+const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), OXLINT);
 
 /// The option that asks oxlint for its report as data
 ///
@@ -43,14 +51,14 @@ const HERE: &str = ".";
 
 /// The oxlint that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// editor and the terminal of a contributor. Nothing here installs a tool:
+/// The value holds the program that mise installed at the version that the
+/// crate declares. The pin of the project does not change it, so a run reaches
+/// the version that the tests of the crate cover. Nothing here installs a tool:
 /// provisioning is the job of mise, and an oxlint that mise does not report
 /// stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Oxlint {
-    /// The program that mise installed for the project
+    /// The program that mise installed at the declared version
     tool: Tool,
 }
 
@@ -99,18 +107,32 @@ impl Oxlint {
         })
     }
 
-    /// Returns the oxlint that mise installed for the project
+    /// Returns the requirement of the oxlint that the crate runs
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path.
+    /// The requirement holds the exact version that the crate pins.
+    pub(crate) fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(OXLINT)
+            .executable(OXLINT)
+            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
+            .build()
+    }
+
+    /// Returns the oxlint that mise installed at the version of the crate
+    ///
+    /// The lookup asks mise for the version that [`requirement`][requirement]
+    /// holds, so a pin of oxlint in the project does not change the answer.
+    /// A run of oxlint starts in the root of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no oxlint for the
-    /// project.
-    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(OXLINT), root).await?;
+    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
+    /// it reports no oxlint at that version, for example because nothing
+    /// installed it.
+    ///
+    /// [requirement]: Oxlint::requirement
+    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
 
         Ok(Self { tool })
     }

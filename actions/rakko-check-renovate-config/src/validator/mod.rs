@@ -34,8 +34,10 @@ const NODE: &str = "node";
 /// The versions of Node that the validator runs on
 ///
 /// Node is a toolchain of the project, so the project pins its version, and
-/// a run stops when that version is outside the range.
-const NODE_RANGE: &str = ">=24.11.0";
+/// a run stops when that version is outside the range. The range is the one
+/// of the package: 24.11 and later releases of 24, and 26.13 and later
+/// releases of 26.
+const NODE_RANGE: &str = "^24.11.0 || ^26.13.0";
 
 /// The option that asks the validator for strict validation
 ///
