@@ -3,6 +3,7 @@
 mod check_error;
 mod declaration;
 mod generated;
+mod precondition_error;
 mod repair_error;
 mod shadow;
 mod toolchain;
@@ -17,7 +18,9 @@ use rakko_tool::{Execution, Invocation};
 pub(crate) use self::check_error::CheckToolPinsError;
 pub(crate) use self::declaration::Declaration;
 use self::generated::Pins;
+pub(crate) use self::precondition_error::CheckPreconditionError;
 pub(crate) use self::repair_error::RepairToolPinsError;
+use crate::report::Report;
 
 /// The name of the command
 ///
@@ -129,6 +132,69 @@ pub(crate) async fn run(
         Ok((findings, repairs)) => outcome().findings(findings).repairs(repairs).call(),
         Err(source) => Outcome::Errored { source },
     }
+}
+
+/// Checks the precondition on the tools before the run of an action, a
+/// command that the harness wrote, or a group
+///
+/// The check is the check of a run of `doctor` without `--fix`. It reads the
+/// project and asks mise about it, so it needs no network, and it changes
+/// nothing. A project whose tool pins have no problem lets the run start.
+///
+/// # Errors
+///
+/// Returns [`CheckPreconditionError::UnmetPrecondition`] with the report of
+/// `doctor` when the tool pins have a problem, and
+/// [`CheckPreconditionError::UncheckedToolPins`] when the check gets no
+/// answer.
+#[bon::builder]
+pub(crate) async fn require(
+    declarations: &BTreeSet<Declaration>,
+    context: &Context,
+) -> Result<(), CheckPreconditionError> {
+    let findings = report()
+        .declarations(declarations)
+        .context(context)
+        .call()
+        .await
+        .map_err(|source| CheckPreconditionError::UncheckedToolPins { source })?;
+
+    if findings.is_empty() {
+        return Ok(());
+    }
+
+    Err(CheckPreconditionError::UnmetPrecondition {
+        report: Report::builder()
+            .action(name())
+            .outcome(Outcome::Failed {
+                findings,
+                repairs: Vec::new(),
+            })
+            .build(),
+    })
+}
+
+/// Writes the generated file of the tools that the declarations give, in the
+/// project at the root
+///
+/// A test of the command line uses it to prepare a project whose tool pins
+/// are current. The lock of `doctor --fix` needs the network, so the test
+/// does not use the repair.
+///
+/// # Errors
+///
+/// Returns [`RepairToolPinsError::UnwritableFile`] when the file system
+/// refuses the write.
+#[cfg(test)]
+#[bon::builder]
+pub(crate) fn write_pins(
+    declarations: &BTreeSet<Declaration>,
+    root: &std::path::Path,
+) -> Result<(), RepairToolPinsError> {
+    self::generated::write()
+        .pins(&pins(declarations))
+        .root(&rakko::ProjectRoot::from(root))
+        .call()
 }
 
 /// Returns every problem of the tool pins of the project
@@ -529,6 +595,91 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn require_with_a_configuration_that_mise_refuses_stops_the_run() {
+        let directory = TempDir::new().expect("the test creates a temporary directory");
+        std::fs::write(
+            directory.path().join("mise.toml"),
+            "min_version = \"9999.0.0\"\n",
+        )
+        .expect("the test writes the mise.toml of the project");
+        let context = Context::builder().root(directory.path()).build();
+
+        let result = require()
+            .declarations(&BTreeSet::from([tool()]))
+            .context(&context)
+            .call()
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(CheckPreconditionError::UncheckedToolPins { .. })
+            ),
+            "got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn require_with_a_current_file_lets_the_run_start() {
+        let project = Project::with("[tools]\n");
+        let declarations = BTreeSet::from([tool()]);
+        generated::write()
+            .pins(&pins(&declarations))
+            .root(project.context().root())
+            .call()
+            .expect("the test writes the generated file");
+
+        let result = require()
+            .declarations(&declarations)
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(result.is_ok(), "got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn require_with_a_stale_file_gives_the_problem_and_the_repair() {
+        let project = Project::with("[tools]\n");
+        std::fs::create_dir_all(project.directory.path().join(".config/mise/conf.d"))
+            .expect("the test creates the directory of the generated file");
+        std::fs::write(
+            project.directory.path().join(generated::PATH),
+            "[tools]\ntaplo = \"0.9.0\"\n",
+        )
+        .expect("the test writes a stale generated file");
+
+        let Err(error) = require()
+            .declarations(&BTreeSet::from([tool()]))
+            .context(&project.context())
+            .call()
+            .await
+        else {
+            panic!("expected the stale file to stop the run");
+        };
+
+        let message = error.to_string();
+        assert!(
+            message.contains("mise run rakko -- doctor --fix")
+                && message.contains(&format!("{}: ", generated::PATH)),
+            "got {message}"
+        );
+    }
+
+    #[tokio::test]
+    async fn require_without_a_declared_tool_lets_the_run_start() {
+        let project = Project::with("[tools]\n");
+
+        let result = require()
+            .declarations(&BTreeSet::new())
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(result.is_ok(), "got {result:?}");
+    }
+
+    #[tokio::test]
     async fn run_in_repair_mode_keeps_the_pin_of_the_toolchain() {
         let project = Project::shadowing();
         let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
@@ -807,6 +958,26 @@ mod tests {
             matches!(outcome, Outcome::Errored { .. }),
             "got {outcome:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn run_without_a_declared_tool_asks_mise_nothing() {
+        let directory = TempDir::new().expect("the test creates a temporary directory");
+        std::fs::write(
+            directory.path().join("mise.toml"),
+            "min_version = \"9999.0.0\"\n",
+        )
+        .expect("the test writes the mise.toml of the project");
+        let context = Context::builder().root(directory.path()).build();
+
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .context(&context)
+            .mode(Mode::Report)
+            .call()
+            .await;
+
+        assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
     }
 
     #[tokio::test]

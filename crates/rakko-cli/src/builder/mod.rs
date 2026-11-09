@@ -89,7 +89,9 @@ pub fn builder() -> Builder {
 /// builds all of them. A harness cannot name a flag of its own. Every command
 /// line also carries `doctor`. It reports whether the tool pins of the
 /// project match the tools that the mounted actions declare. With `--fix`, it
-/// repairs them.
+/// repairs them. A run of an action, a command, or a group checks the tool
+/// pins in the same way before it starts. A problem stops the run. The help
+/// and the list of the commands run without the check.
 ///
 /// # Examples
 ///
@@ -330,7 +332,11 @@ impl Builder {
     /// method returns the code of a clean run. A run that failed ends here too.
     /// The user gets the error and every cause of it. This method returns the
     /// code of a run that could not answer, whether the failure stopped an
-    /// action, a command, or a group.
+    /// action, a command, or a group. A problem of the tool pins of the
+    /// project is such a failure. The run of an action, a command, or a group
+    /// then stops before it starts. The error gives each problem and how to
+    /// repair it: `doctor --fix`, or a change to the pin of a toolchain. The
+    /// help, the list of the commands, and `doctor` run without this check.
     ///
     /// # Examples
     ///
@@ -341,8 +347,10 @@ impl Builder {
     /// assert_eq!(rakko_cli::builder().run(), ExitCode::SUCCESS);
     /// ```
     pub fn run(self) -> std::process::ExitCode {
-        let (matches, mounted) = match self.resolve(std::env::args_os()) {
-            Ok(Resolution::Entry(matches, mounted)) => (matches, mounted),
+        let (matches, mounted, declarations) = match self.resolve(std::env::args_os()) {
+            Ok(Resolution::Entry(matches, mounted, declarations)) => {
+                (matches, mounted, declarations)
+            }
             Ok(Resolution::Commands(mut command)) => {
                 return std::process::ExitCode::from(show_commands(&mut command));
             }
@@ -364,7 +372,7 @@ impl Builder {
         };
         let entry = mounted.to_string();
 
-        match dispatch(matches, mounted) {
+        match dispatch(matches, mounted, declarations) {
             Ok(code) => std::process::ExitCode::from(code),
             Err(error) => {
                 let printed_error = run_error(&entry, error.as_ref());
@@ -379,8 +387,10 @@ impl Builder {
     ///
     /// A run that gives no argument names nothing. It gets the command
     /// line back instead of an error, so that the caller lists the commands
-    /// that the harness mounted. A run of `doctor` gets the tools that every
-    /// mounted action declares, the members of each group included.
+    /// that the harness mounted. Every other run gets the tools that every
+    /// mounted action declares, the members of each group included. A run of
+    /// `doctor` checks them. A run of an action, a command, or a group checks
+    /// them before it starts.
     ///
     /// The method takes the arguments as a parameter, so that a test drives
     /// the command line without the arguments of the test process.
@@ -419,12 +429,13 @@ impl Builder {
             return Ok(Resolution::Doctor(matches, declarations));
         }
 
+        let declarations = self.declarations();
         let mounted = matches
             .subcommand()
             .and_then(|(name, _)| self.registry.take(name));
 
         match mounted {
-            Some(mounted) => Ok(Resolution::Entry(matches, mounted)),
+            Some(mounted) => Ok(Resolution::Entry(matches, mounted, declarations)),
             None => Err(clap::Error::raw(
                 ErrorKind::InvalidSubcommand,
                 "the run asks for no action, no command, and no group\n",
@@ -510,9 +521,11 @@ fn process_exit_code(code: i32) -> std::process::ExitCode {
 /// only description of the tree that the builder assembled, and the help of
 /// that tree is the list of the commands.
 enum Resolution {
-    /// The action, the written command, or the group that the run asks for,
-    /// with the arguments that the parser read
-    Entry(ArgMatches, Mounted),
+    /// The action, the written command, or the group that the run asks for
+    ///
+    /// It holds the arguments that the parser read and the tools that the
+    /// mounted actions declare.
+    Entry(ArgMatches, Mounted, BTreeSet<Declaration>),
     /// The command line of a run that names nothing
     Commands(Box<Command>),
     /// A run of `doctor`, with the arguments that the parser read and the
@@ -575,6 +588,11 @@ fn project_root() -> Arg {
 /// as the text that the user wrote. Each member of a group receives the values
 /// of the arguments that it declares, and no other value.
 ///
+/// Before the action, the command, or the group starts, the run checks the
+/// precondition on the tools against the declarations, as `doctor` checks
+/// it. A problem stops the run, also in CI, because a warning lets a broken
+/// environment pass a pull request without a sign.
+///
 /// # Errors
 ///
 /// Returns the error of the command line when it cannot build the context of
@@ -582,23 +600,31 @@ fn project_root() -> Arg {
 /// that drives the run. Returns an error for a run that names no root and
 /// stands in no project. This is because a run that receives a guessed root
 /// reports paths that mean nothing.
+/// Returns the errors that [`CheckPreconditionError`] describes when the tool
+/// pins of the project have a problem or the check gets no answer.
 /// Returns an error for a group whose member cannot bind its values or
 /// declares a kind of access that the command line does not know. Returns the
 /// error of a command that failed, and the error of a report that cannot reach
 /// the reader.
-fn dispatch(matches: ArgMatches, mounted: Mounted) -> Result<u8, Box<dyn Error>> {
+///
+/// [`CheckPreconditionError`]: doctor::CheckPreconditionError
+fn dispatch(
+    matches: ArgMatches,
+    mounted: Mounted,
+    declarations: BTreeSet<Declaration>,
+) -> Result<u8, Box<dyn Error>> {
     let named = matches.get_one::<PathBuf>(PROJECT_ROOT).cloned();
 
     match mounted {
         Mounted::Action(action) => {
             let values = values(&action.arguments(), &matches);
 
-            drive_action(matches, named, values, action)
+            drive_action(matches, named, declarations, values, action)
         }
         Mounted::Command(command) => {
             let values = values(&command.arguments(), &matches);
 
-            drive_command(matches, named, values, command)
+            drive_command(matches, named, declarations, values, command)
         }
         Mounted::Group { group, .. } => {
             let values = group
@@ -607,7 +633,7 @@ fn dispatch(matches: ArgMatches, mounted: Mounted) -> Result<u8, Box<dyn Error>>
                 .map(|member| values(&member.arguments(), &matches))
                 .collect();
 
-            drive_group(matches, named, values, group)
+            drive_group(matches, named, declarations, values, group)
         }
     }
 }
@@ -644,11 +670,17 @@ fn values(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
 fn drive_action(
     matches: ArgMatches,
     named: Option<PathBuf>,
+    declarations: BTreeSet<Declaration>,
     values: ArgsValues,
     action: Box<dyn ErasedAction>,
 ) -> Result<u8, Box<dyn Error>> {
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
+        doctor::require()
+            .declarations(&declarations)
+            .context(&project)
+            .call()
+            .await?;
 
         let name = action.name();
         let outcome = match action.bind(&values) {
@@ -690,11 +722,17 @@ fn drive_action(
 fn drive_command(
     matches: ArgMatches,
     named: Option<PathBuf>,
+    declarations: BTreeSet<Declaration>,
     values: ArgsValues,
     command: Box<dyn ErasedCommand>,
 ) -> Result<u8, Box<dyn Error>> {
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
+        doctor::require()
+            .declarations(&declarations)
+            .context(&project)
+            .call()
+            .await?;
 
         command.run(&project, &context, &values).await?;
 
@@ -775,11 +813,17 @@ fn drive_doctor(
 fn drive_group(
     matches: ArgMatches,
     named: Option<PathBuf>,
+    declarations: BTreeSet<Declaration>,
     values: Vec<ArgsValues>,
     group: Box<dyn Group>,
 ) -> Result<u8, Box<dyn Error>> {
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
+        doctor::require()
+            .declarations(&declarations)
+            .context(&project)
+            .call()
+            .await?;
 
         let members = self::members::bind(group.members(), &values)?;
         let code = self::scheduler::run(&group.name(), members, &project, &context).await?;
@@ -920,6 +964,10 @@ mod tests {
 
     /// The documentation of the boolean argument that the reader reads
     const FIX: &str = "Rewrite the files that the tool can format";
+
+    /// The command that repairs the tool pins, as the error of a stopped run
+    /// gives it
+    const REPAIR: &str = "mise run rakko -- doctor --fix";
 
     /// The name of the action that reads an argument of every shape
     const READER: &str = "reader";
@@ -1434,8 +1482,12 @@ mod tests {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let (probe, _ran) = Probe::reporting("probe", outcome);
 
-        dispatch(naming(directory.path()), Mounted::Action(Box::new(probe)))
-            .expect("expected the command line to drive the action")
+        dispatch(
+            naming(directory.path()),
+            Mounted::Action(Box::new(probe)),
+            BTreeSet::new(),
+        )
+        .expect("expected the command line to drive the action")
     }
 
     /// Returns the declaration of a tool at a version by an action
@@ -1551,12 +1603,13 @@ mod tests {
         ];
         invocation.extend(arguments.iter().map(OsString::from));
 
-        let Ok(Resolution::Entry(matches, mounted)) = builder().mount(group).resolve(invocation)
+        let Ok(Resolution::Entry(matches, mounted, declarations)) =
+            builder().mount(group).resolve(invocation)
         else {
             panic!("expected the command line to read the run that the test describes");
         };
 
-        dispatch(matches, mounted)
+        dispatch(matches, mounted, declarations)
     }
 
     /// Returns a group of the given members
@@ -1601,6 +1654,47 @@ mod tests {
         (directory, code)
     }
 
+    /// Returns the message of the error that stops a run of the entry, in a
+    /// project whose generated file of the tool pins is stale
+    ///
+    /// The harness also mounts an action that declares taplo, so that the
+    /// generated file must pin it. The file pins another version. The run
+    /// gives its project root, so that the test drives the entry without a
+    /// directory tree that marks a project.
+    fn stop_of(builder: Builder, entry: &str) -> String {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let generated = directory.path().join(".config/mise/conf.d/rakko.toml");
+        std::fs::create_dir_all(
+            generated
+                .parent()
+                .expect("the generated file sits in a directory"),
+        )
+        .expect("the test creates the directory of the generated file");
+        std::fs::write(&generated, "[tools]\ntaplo = \"0.9.0\"\n")
+            .expect("the test writes a stale generated file");
+
+        let builder = builder.mount([tooled()
+            .name("format-toml")
+            .tool("taplo")
+            .version("0.10.0")
+            .call()]);
+        let line: Vec<OsString> = vec![
+            "rakko".into(),
+            "--project-root".into(),
+            directory.path().into(),
+            entry.into(),
+        ];
+        let Ok(Resolution::Entry(matches, mounted, declarations)) = builder.resolve(line) else {
+            panic!("expected the command line to read the run that the test names");
+        };
+
+        let Err(error) = dispatch(matches, mounted, declarations) else {
+            panic!("expected the stale tool pins to stop the run");
+        };
+
+        run_error(entry, error.as_ref()).to_string()
+    }
+
     /// Returns the values that a run of the given arguments gives to the action
     ///
     /// The run names its project root, so that the test drives the action
@@ -1619,12 +1713,14 @@ mod tests {
         ];
         invocation.extend(arguments.iter().map(OsString::from));
 
-        let Ok(Resolution::Entry(matches, action)) = builder().mount(reader).resolve(invocation)
+        let Ok(Resolution::Entry(matches, action, declarations)) =
+            builder().mount(reader).resolve(invocation)
         else {
             panic!("expected the command line to read the run that the test names");
         };
 
-        dispatch(matches, action).expect("expected the command line to drive the action");
+        dispatch(matches, action, declarations)
+            .expect("expected the command line to drive the action");
 
         seen.lock()
             .expect("the test holds the lock alone")
@@ -1647,12 +1743,14 @@ mod tests {
         ];
         invocation.extend(arguments.iter().map(OsString::from));
 
-        let Ok(Resolution::Entry(matches, mounted)) = builder().mount(written).resolve(invocation)
+        let Ok(Resolution::Entry(matches, mounted, declarations)) =
+            builder().mount(written).resolve(invocation)
         else {
             panic!("expected the command line to read the run that the test names");
         };
 
-        dispatch(matches, mounted).expect("expected the command line to drive the command");
+        dispatch(matches, mounted, declarations)
+            .expect("expected the command line to drive the command");
 
         witness
             .values
@@ -1677,6 +1775,7 @@ mod tests {
         dispatch(
             naming(directory.path()),
             Mounted::Command(Box::new(written)),
+            BTreeSet::new(),
         )
     }
 
@@ -1833,8 +1932,12 @@ mod tests {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let (reading, _ran, asked) = Reading::new("probe");
 
-        dispatch(naming(directory.path()), Mounted::Action(Box::new(reading)))
-            .expect("expected the command line to drive the action");
+        dispatch(
+            naming(directory.path()),
+            Mounted::Action(Box::new(reading)),
+            BTreeSet::new(),
+        )
+        .expect("expected the command line to drive the action");
 
         assert!(asked.load(Ordering::SeqCst));
     }
@@ -1850,6 +1953,7 @@ mod tests {
         dispatch(
             naming(directory.path()),
             Mounted::Action(Box::new(recorder)),
+            BTreeSet::new(),
         )
         .expect("expected the command line to drive the action");
 
@@ -1867,6 +1971,7 @@ mod tests {
         dispatch(
             naming(directory.path()),
             Mounted::Command(Box::new(written)),
+            BTreeSet::new(),
         )
         .expect("expected the command line to drive the command");
 
@@ -1914,7 +2019,11 @@ mod tests {
             arguments: Vec::new(),
         };
 
-        let result = dispatch(naming(&directory.path().join("missing")), mounted);
+        let result = dispatch(
+            naming(&directory.path().join("missing")),
+            mounted,
+            BTreeSet::new(),
+        );
 
         assert!(result.is_err());
     }
@@ -1945,6 +2054,7 @@ mod tests {
         let code = dispatch(
             naming(directory.path()),
             Mounted::Action(Box::new(Unbuildable)),
+            BTreeSet::new(),
         )
         .expect("expected the command line to drive the action");
 
@@ -1987,7 +2097,11 @@ mod tests {
         let cause = rakko::path::canonical(&missing)
             .expect_err("the test names a directory that does not exist");
         let (probe, _ran) = Probe::new("probe");
-        let Err(error) = dispatch(naming(&missing), Mounted::Action(Box::new(probe))) else {
+        let Err(error) = dispatch(
+            naming(&missing),
+            Mounted::Action(Box::new(probe)),
+            BTreeSet::new(),
+        ) else {
             panic!("expected the run to report an error");
         };
 
@@ -2068,7 +2182,41 @@ mod tests {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let (reading, ran, _asked) = Reading::new("probe");
 
-        dispatch(naming(directory.path()), Mounted::Action(Box::new(reading)))
+        dispatch(
+            naming(directory.path()),
+            Mounted::Action(Box::new(reading)),
+            BTreeSet::new(),
+        )
+        .expect("expected the command line to drive the action");
+
+        assert!(ran.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn dispatch_runs_an_action_whose_tool_pins_are_current() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let (probe, ran) = Probe::new("probe");
+        let builder = builder().mount(probe).mount([tooled()
+            .name("format-toml")
+            .tool("taplo")
+            .version("0.10.0")
+            .call()]);
+        let line: Vec<OsString> = vec![
+            "rakko".into(),
+            "--project-root".into(),
+            directory.path().into(),
+            "probe".into(),
+        ];
+        let Ok(Resolution::Entry(matches, mounted, declarations)) = builder.resolve(line) else {
+            panic!("expected the command line to read the run that the test names");
+        };
+        doctor::write_pins()
+            .declarations(&declarations)
+            .root(directory.path())
+            .call()
+            .expect("the test writes the generated file");
+
+        dispatch(matches, mounted, declarations)
             .expect("expected the command line to drive the action");
 
         assert!(ran.load(Ordering::SeqCst));
@@ -2090,8 +2238,12 @@ mod tests {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let (probe, ran) = Probe::new("probe");
 
-        dispatch(naming(directory.path()), Mounted::Action(Box::new(probe)))
-            .expect("expected the command line to drive the action");
+        dispatch(
+            naming(directory.path()),
+            Mounted::Action(Box::new(probe)),
+            BTreeSet::new(),
+        )
+        .expect("expected the command line to drive the action");
 
         assert!(ran.load(Ordering::SeqCst));
     }
@@ -2104,10 +2256,50 @@ mod tests {
         dispatch(
             naming(directory.path()),
             Mounted::Command(Box::new(written)),
+            BTreeSet::new(),
         )
         .expect("expected the command line to drive the command");
 
         assert!(witness.ran.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn dispatch_stops_a_command_whose_tool_pins_are_stale() {
+        let (written, witness) = Written::new("serve");
+
+        let message = stop_of(builder().mount(written), "serve");
+
+        assert_eq!(
+            (witness.ran.load(Ordering::SeqCst), message.contains(REPAIR)),
+            (false, true),
+            "got {message}"
+        );
+    }
+
+    #[test]
+    fn dispatch_stops_a_group_whose_tool_pins_are_stale() {
+        let (probe, ran) = Probe::new("probe");
+
+        let message = stop_of(builder().mount(sequence(vec![Box::new(probe)])), GROUP);
+
+        assert_eq!(
+            (ran.load(Ordering::SeqCst), message.contains(REPAIR)),
+            (false, true),
+            "got {message}"
+        );
+    }
+
+    #[test]
+    fn dispatch_stops_an_action_whose_tool_pins_are_stale() {
+        let (probe, ran) = Probe::new("probe");
+
+        let message = stop_of(builder().mount(probe), "probe");
+
+        assert_eq!(
+            (ran.load(Ordering::SeqCst), message.contains(REPAIR)),
+            (false, true),
+            "got {message}"
+        );
     }
 
     #[test]
@@ -2503,6 +2695,43 @@ mod tests {
     }
 
     #[test]
+    fn resolve_gives_the_entry_the_tools_of_every_mounted_action() {
+        let builder = builder().mount([
+            tooled()
+                .name("format-toml")
+                .tool("taplo")
+                .version("0.10.0")
+                .call(),
+            tooled()
+                .name("lint-yaml")
+                .tool("yamllint")
+                .version("1.38.0")
+                .call(),
+        ]);
+
+        let Ok(Resolution::Entry(_, _, declarations)) = builder.resolve(["rakko", "lint-yaml"])
+        else {
+            panic!("expected the run to resolve an action");
+        };
+
+        assert_eq!(
+            declarations,
+            BTreeSet::from([
+                declaration()
+                    .action("format-toml")
+                    .tool("taplo")
+                    .version("0.10.0")
+                    .call(),
+                declaration()
+                    .action("lint-yaml")
+                    .tool("yamllint")
+                    .version("1.38.0")
+                    .call(),
+            ])
+        );
+    }
+
+    #[test]
     fn resolve_reports_a_run_that_it_cannot_read() {
         let kind = error_kind(&["rakko", "--unknown"]);
 
@@ -2513,7 +2742,7 @@ mod tests {
     fn resolve_returns_the_action_that_the_run_names() {
         let builder = builder().mount([probe("format-toml"), probe("lint-rust")]);
 
-        let Ok(Resolution::Entry(_matches, Mounted::Action(action))) =
+        let Ok(Resolution::Entry(_matches, Mounted::Action(action), _)) =
             builder.resolve(["rakko", "lint-rust"])
         else {
             panic!("expected the run to resolve an action");
@@ -2528,7 +2757,7 @@ mod tests {
             .mount([probe("lint-rust")])
             .mount(written("serve"));
 
-        let Ok(Resolution::Entry(_matches, Mounted::Command(command))) =
+        let Ok(Resolution::Entry(_matches, Mounted::Command(command), _)) =
             builder.resolve(["rakko", "serve"])
         else {
             panic!("expected the run to resolve a command");
@@ -2549,7 +2778,7 @@ mod tests {
         let group = sequence(Vec::new());
         let builder = builder().mount([probe("lint-rust")]).mount(group);
 
-        let Ok(Resolution::Entry(_matches, Mounted::Group { group, .. })) =
+        let Ok(Resolution::Entry(_matches, Mounted::Group { group, .. }, _)) =
             builder.resolve(["rakko", GROUP])
         else {
             panic!("expected the run to resolve a group");
@@ -2567,6 +2796,21 @@ mod tests {
         let help = command.render_help().to_string();
 
         assert!(help.contains(ABOUT));
+    }
+
+    #[test]
+    fn resolve_shows_the_help_of_an_action_that_declares_a_tool() {
+        let builder = builder().mount([tooled()
+            .name("format-toml")
+            .tool("taplo")
+            .version("0.10.0")
+            .call()]);
+
+        let Err(error) = builder.resolve(["rakko", "format-toml", "--help"]) else {
+            panic!("expected the run to ask for the help");
+        };
+
+        assert_eq!(error.kind(), ErrorKind::DisplayHelp);
     }
 
     #[test]

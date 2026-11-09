@@ -55,7 +55,10 @@ mise install
 ```
 
 After you change the mounted actions or the pin of an action, write
-`.config/mise/conf.d/rakko.toml` and `.config/mise/mise.lock` again:
+`.config/mise/conf.d/rakko.toml` and `.config/mise/mise.lock` again. Until
+`rakko.toml` matches the tools of the mounted actions, every command of the
+harness stops. Only the help, the list of the commands, and `doctor` still
+run. This command writes both files:
 
 ```console
 mise run rakko -- doctor --fix
