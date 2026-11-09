@@ -10,13 +10,9 @@
 //! the command, the action adds its arguments, and the run reports what the
 //! tool produced.
 
-/// What the crate reports when it cannot find a tool by its name
 mod error;
-/// The identifier of an external tool
 mod name;
-/// What the crate reports when it cannot resolve the requirement of a tool
 mod requirement_error;
-/// The version of a toolchain that a project pins
 mod toolchain;
 
 use getset::Getters;

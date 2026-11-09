@@ -1,3 +1,5 @@
+//! The seal on the view of a command that hides its type
+
 /// A trait that only this crate implements
 ///
 /// The view of a command that hides its type requires this trait, and no

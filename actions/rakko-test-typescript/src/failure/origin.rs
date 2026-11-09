@@ -1,3 +1,5 @@
+//! The place in the project where a test that failed was declared
+
 use std::path::PathBuf;
 
 use bon::Builder;

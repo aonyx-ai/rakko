@@ -52,15 +52,10 @@
 //! [prettier]: https://prettier.io
 //! [tokio]: https://tokio.rs
 
-/// Types for the files that a run of prettier examines
 mod filter;
-/// Types for what one run of prettier produced
 mod observation;
-/// Types for the operations of prettier that an action runs
 mod operation;
-/// Types for the prettier that a project runs
 mod prettier;
-/// Types for one problem that prettier reported about a file
 mod problem;
 
 pub use self::filter::{FileExtension, Filter};

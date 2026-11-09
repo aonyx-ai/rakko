@@ -1,3 +1,5 @@
+//! The reading of the report that cargo-deny wrote
+
 use serde::Deserialize;
 
 use crate::problem::{DenyProblem, Package, Severity};

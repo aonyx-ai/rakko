@@ -1,3 +1,5 @@
+//! The cause of a failure to parse a file of the project as TOML
+
 use thiserror::Error;
 
 /// The cause of a failure to parse a file of the project as TOML

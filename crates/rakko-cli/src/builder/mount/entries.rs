@@ -1,3 +1,5 @@
+//! The entries that one value adds to the command line
+
 use std::fmt;
 
 use crate::builder::registry::Mounted;

@@ -1,3 +1,5 @@
+//! One example that failed
+
 use std::path::PathBuf;
 
 use getset::Getters;

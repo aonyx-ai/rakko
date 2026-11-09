@@ -3,7 +3,6 @@
 //! A run of prettier names the files that it could not leave alone, and this
 //! module holds one of them together with what prettier knew about it.
 
-/// What prettier reported about a file
 mod detail;
 
 use std::path::PathBuf;

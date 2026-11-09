@@ -4,11 +4,8 @@
 //! runs that produce a listing and a report. An action asks for a run, and
 //! everything between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The files that yamllint examines in a project
 pub(crate) mod listing;
-/// The reading of the report that yamllint wrote
 pub(crate) mod report;
 
 use std::path::PathBuf;

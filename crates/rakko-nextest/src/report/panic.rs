@@ -1,3 +1,5 @@
+//! Where and why a test panicked
+
 use std::path::PathBuf;
 
 use getset::{CopyGetters, Getters};

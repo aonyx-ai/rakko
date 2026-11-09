@@ -5,7 +5,6 @@
 //! change, and the rewrite itself. An action asks for a run, and everything
 //! between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
 
 use rakko::ProjectRoot;

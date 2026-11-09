@@ -1,3 +1,5 @@
+//! The JSON that a run emits for a machine
+
 use rakko::{Finding, Location, Outcome, Position, Summary};
 use serde::Serialize;
 

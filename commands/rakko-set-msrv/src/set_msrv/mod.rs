@@ -1,14 +1,10 @@
-/// The arguments that a run of the command reads
+//! The command, the arguments that a run reads, and the errors that stop a run
+
 mod args;
-/// The errors that stop a run of the command
 mod error;
-/// The version in the root manifest
 mod manifest;
-/// The cause of a failure to parse a file of the project as TOML
 mod parse_toml_error;
-/// The Rust pins in the configuration of mise
 mod pins;
-/// The steps of a run that mise does
 mod step;
 
 use std::fmt;

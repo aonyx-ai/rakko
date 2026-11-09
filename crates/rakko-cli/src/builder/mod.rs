@@ -1,14 +1,10 @@
-/// The projection of the arguments of an action into flags
+//! The command line that a harness builds and runs
+
 mod arguments;
-/// The error of a run that the runner ended before it started
 mod error;
-/// The check, the flags, and the bind of the members of a group
 mod members;
-/// The values that a harness gives to the builder as they are
 mod mount;
-/// The actions that a harness mounted
 mod registry;
-/// The part of the command line that runs the members of a group
 mod scheduler;
 
 use std::error::Error;

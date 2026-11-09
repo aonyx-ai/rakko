@@ -1,3 +1,5 @@
+//! The errors that stop a run of the command
+
 use std::io;
 use std::path::PathBuf;
 

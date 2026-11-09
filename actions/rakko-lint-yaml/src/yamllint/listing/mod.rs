@@ -9,7 +9,6 @@
 //! examined the whole project and found nothing, and the two runs mean
 //! opposite things for the outcome of an action.
 
-/// The error that leaves a caller without the files of a project
 mod error;
 
 use std::path::PathBuf;

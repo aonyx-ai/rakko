@@ -1,8 +1,7 @@
-/// The documentation of one argument
+//! The description of one argument
+
 mod documentation;
-/// The name of one argument
 mod name;
-/// The kind of value that one argument holds
 mod shape;
 
 use bon::bon;

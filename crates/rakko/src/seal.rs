@@ -1,3 +1,5 @@
+//! The seal on the views of an action that hide its type
+
 /// A trait that only this crate implements, for every action
 ///
 /// The view of an action that hides its type requires this trait, and no

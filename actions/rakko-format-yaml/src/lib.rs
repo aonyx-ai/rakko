@@ -24,7 +24,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [prettier]: https://prettier.io
 
-/// The action, its arguments, and the error that stops a run
 mod format_yaml;
 
 pub use self::format_yaml::{FormatYaml, FormatYamlArgs, FormatYamlError};

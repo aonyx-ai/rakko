@@ -34,33 +34,19 @@
 //! [`ErasedAction::run`]: ErasedAction::run
 //! [rakko-cli]: https://docs.rs/rakko-cli
 
-/// How a run of an action uses the project
 mod access;
-/// The trait that every action implements
 mod action;
-/// Types for the arguments that a run of an action reads
 mod args;
-/// The view of an action whose arguments are bound for one run
 mod bound_action;
-/// The list of actions that a bundle exports
 mod bundle;
-/// Types for the data that an action reads when it runs
 mod context;
-/// The view of an action that hides its type
 mod erased_action;
-/// Types for a problem that an action found in a project
 mod finding;
-/// The named list of actions that the command line runs as one command
 mod group;
-/// Types for the identifier of an action
 mod name;
-/// Types for the result of an action run
 mod outcome;
-/// The spelling of a path that an action reports
 pub mod path;
-/// The seal on the views of an action that hide its type
 mod seal;
-/// Types for the external tools that an action runs
 mod tool;
 
 pub use self::access::Access;

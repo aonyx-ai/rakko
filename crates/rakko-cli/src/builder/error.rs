@@ -1,3 +1,5 @@
+//! The error of a run that the runner ended before it started
+
 use rakko::Name;
 use thiserror::Error;
 

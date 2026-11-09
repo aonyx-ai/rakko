@@ -11,7 +11,6 @@
 //! Windows allows in it, keeps the verbatim spelling, as the root of a
 //! project does.
 
-/// One problem that rustfmt reported about a file
 mod problem;
 
 use std::collections::HashSet;

@@ -1,3 +1,5 @@
+//! The Rust pins in the configuration of mise
+
 use toml_edit::{DocumentMut, Item, Value};
 
 use super::args::Msrv;

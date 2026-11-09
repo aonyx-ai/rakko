@@ -1,3 +1,5 @@
+//! The documentation of one argument
+
 typed_fields::name! {
     /// The documentation of one argument
     ///

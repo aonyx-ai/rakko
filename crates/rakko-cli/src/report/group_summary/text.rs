@@ -1,3 +1,5 @@
+//! The text that a run of a group emits for a reader at a terminal
+
 use std::fmt;
 
 use rakko::Outcome;

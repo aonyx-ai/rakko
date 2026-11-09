@@ -5,9 +5,7 @@
 //! entries: how the project weighed the shape, which check recognized it,
 //! what cargo-deny wrote about it, and the packages that it is about.
 
-/// One package that a report of cargo-deny is about
 mod package;
-/// The weight that cargo-deny gave a report
 mod severity;
 
 use getset::{CopyGetters, Getters};

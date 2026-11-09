@@ -1,3 +1,5 @@
+//! The reading of the text that prettier wrote
+
 use std::path::PathBuf;
 
 use super::Observation;

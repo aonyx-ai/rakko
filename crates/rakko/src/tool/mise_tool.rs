@@ -1,3 +1,5 @@
+//! The identifier of a tool in the configuration of mise
+
 typed_fields::name! {
     /// The identifier of a tool in the configuration of mise
     ///

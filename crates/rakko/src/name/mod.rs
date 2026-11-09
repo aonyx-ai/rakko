@@ -1,6 +1,6 @@
-/// The error type for name parsing
+//! Types for the identifier of an action
+
 mod error;
-/// What kebab case holds, and the names that hold only that
 pub(crate) mod kebab_case;
 
 pub use self::error::ParseNameError;

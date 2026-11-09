@@ -6,9 +6,7 @@
 //! lockfiles again. Each part that the run added, changed, or removed becomes
 //! a finding or a repair.
 
-/// The arguments that a run reads
 mod args;
-/// The error that stops a run of the action
 mod error;
 
 use std::collections::{BTreeMap, BTreeSet};

@@ -1,3 +1,6 @@
+//! The command that a harness writes for an activity that does not fit an
+//! action
+
 use std::future::Future;
 
 use clawless::CommandResult;

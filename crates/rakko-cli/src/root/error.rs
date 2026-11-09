@@ -1,3 +1,5 @@
+//! What a run reports when it cannot name the root of its project
+
 use std::io;
 use std::path::PathBuf;
 

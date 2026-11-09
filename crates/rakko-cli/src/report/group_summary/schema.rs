@@ -1,3 +1,5 @@
+//! The JSON that a run of a group emits for a machine
+
 use rakko::Outcome;
 use serde::Serialize;
 

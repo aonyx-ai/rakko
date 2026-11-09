@@ -55,7 +55,6 @@
 //! [path_text]: path_text()
 //! [run_checking_access]: run_checking_access()
 
-/// The check that a run keeps its declaration of access
 mod access;
 
 use std::path::PathBuf;

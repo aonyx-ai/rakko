@@ -1,8 +1,7 @@
-/// One member of a group, bound to the values of one run
+//! The check, the flags, and the bind of the members of a group
+
 mod bound_member;
-/// The error of a run whose member cannot bind its values
 mod error;
-/// One flag of a group, merged from the arguments of its members
 mod merged_argument;
 
 use std::collections::BTreeSet;

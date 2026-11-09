@@ -5,9 +5,7 @@
 //! at all. This module holds one of them: where it points, what kind tsc gave
 //! it, which rule of TypeScript it belongs to, and what tsc said about it.
 
-/// The kind that tsc gave a diagnostic
 mod category;
-/// The place in the project that a diagnostic points at
 mod origin;
 
 use bon::Builder;

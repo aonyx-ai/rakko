@@ -7,7 +7,6 @@
 //! that a new version adds does not break it. What the reading cannot find is
 //! absent from the observation, and the caller decides what the absence means.
 
-/// The reading of the text that oxfmt wrote
 mod report;
 
 use getset::{CopyGetters, Getters};

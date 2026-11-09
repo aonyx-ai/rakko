@@ -1,3 +1,5 @@
+//! What a run does with the lockfile of the workspace
+
 /// What a run does with the lockfile of the workspace
 ///
 /// Cargo resolves the dependencies of a build and records the versions that

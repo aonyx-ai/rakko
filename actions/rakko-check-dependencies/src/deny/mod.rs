@@ -5,9 +5,7 @@
 //! workspace with it. An action asks for a run, and
 //! everything between the action and the process lives here.
 
-/// The error that leaves a workspace unchecked
 mod error;
-/// The reading of the report that cargo-deny wrote
 mod report;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};

@@ -1,3 +1,5 @@
+//! The message that describes a problem
+
 typed_fields::name! {
     /// The message that describes a problem
     ///

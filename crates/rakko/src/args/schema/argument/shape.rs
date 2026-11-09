@@ -1,3 +1,5 @@
+//! The kind of value that one argument holds
+
 /// The kind of value that an argument holds
 ///
 /// A shape says what an argument reads. It never says how a user writes it,

@@ -27,7 +27,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [taplo]: https://taplo.tamasfe.dev
 
-/// Types for the action that validates the TOML files of a project
 mod lint_toml;
 
 pub use self::lint_toml::{LintToml, LintTomlError};

@@ -1,3 +1,5 @@
+//! The error that stops the reading of a report
+
 use thiserror::Error;
 
 /// An error that stops the reading of a report of yamllint

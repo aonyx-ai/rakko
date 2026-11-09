@@ -1,3 +1,5 @@
+//! The place in the project that a diagnostic points at
+
 use std::path::PathBuf;
 
 use bon::Builder;

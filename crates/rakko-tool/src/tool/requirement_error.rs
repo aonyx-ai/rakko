@@ -1,3 +1,5 @@
+//! What the crate reports when it cannot resolve the requirement of a tool
+
 use kawauso_process::error::RunCommandError;
 use rakko::{Executable, MiseTool, ToolVersion, VersionRange};
 use thiserror::Error;

@@ -1,4 +1,5 @@
-/// One thing that a harness mounted: an action, a command, or a group
+//! The actions that a harness mounted
+
 mod mounted;
 
 use std::collections::BTreeMap;

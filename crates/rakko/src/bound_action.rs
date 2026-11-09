@@ -1,3 +1,5 @@
+//! The view of an action whose arguments are bound for one run
+
 use std::future::Future;
 use std::pin::Pin;
 

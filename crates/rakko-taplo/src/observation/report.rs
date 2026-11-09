@@ -1,3 +1,5 @@
+//! The reading of the text that taplo wrote
+
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::Chars;

@@ -5,7 +5,6 @@
 //! configurations, reads them, and reports what Renovate would refuse, and the
 //! action translates what the validator reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{

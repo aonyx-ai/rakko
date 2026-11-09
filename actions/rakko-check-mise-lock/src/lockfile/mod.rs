@@ -6,7 +6,6 @@
 //! depend on the order of the keys, on the comments, or on the spaces of the
 //! file.
 
-/// The error that keeps the action from reading a lockfile
 mod error;
 
 use std::collections::{BTreeMap, BTreeSet};

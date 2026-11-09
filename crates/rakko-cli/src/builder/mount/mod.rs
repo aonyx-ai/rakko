@@ -1,4 +1,5 @@
-/// The entries that one value adds to the command line
+//! The values that a harness gives to the builder as they are
+
 mod entries;
 
 use rakko::{Action, ErasedAction, Group};

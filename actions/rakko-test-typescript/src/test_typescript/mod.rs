@@ -5,7 +5,6 @@
 //! runs them, and reports what every test did, and the action translates that
 //! into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{

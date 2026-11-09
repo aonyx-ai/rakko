@@ -34,7 +34,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [rustdoc]: https://doc.rust-lang.org/rustdoc/
 
-/// Types for the action that builds the internal documentation of a project
 mod build_internal_docs;
 
 pub use self::build_internal_docs::{BuildInternalDocs, BuildInternalDocsError};

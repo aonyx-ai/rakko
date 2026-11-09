@@ -5,9 +5,7 @@
 //! of the language, oxfmt reads its own configuration and does the formatting,
 //! and the action translates what oxfmt reported into an outcome.
 
-/// The arguments that a run of the action reads
 mod args;
-/// The error that stops a run of the action
 mod error;
 
 use std::path::Path;

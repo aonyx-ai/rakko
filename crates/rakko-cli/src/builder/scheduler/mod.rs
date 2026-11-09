@@ -1,4 +1,5 @@
-/// The error that stops a run of a group
+//! The part of the command line that runs the members of a group
+
 mod error;
 
 use clawless::context::Context as ClawlessContext;

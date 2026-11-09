@@ -1,3 +1,5 @@
+//! The name of the tool of a part
+
 typed_fields::name! {
     /// The name of a tool, as a lockfile of mise writes it
     ///

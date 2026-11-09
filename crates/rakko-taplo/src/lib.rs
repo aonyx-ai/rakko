@@ -45,13 +45,9 @@
 //! [taplo]: https://taplo.tamasfe.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for what one run of taplo produced
 mod observation;
-/// Types for the operations of taplo that an action runs
 mod operation;
-/// Types for one problem that taplo reported about a file
 mod problem;
-/// Types for the taplo that a project runs
 mod taplo;
 
 pub use self::observation::Observation;

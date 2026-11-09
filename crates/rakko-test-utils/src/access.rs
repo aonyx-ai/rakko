@@ -1,3 +1,5 @@
+//! The check that a run keeps its declaration of access
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};

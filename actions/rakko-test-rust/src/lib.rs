@@ -28,7 +28,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [nextest]: https://nexte.st
 
-/// Types for the action that runs the tests of a project
 mod test_rust;
 
 pub use self::test_rust::{TestRust, TestRustError};

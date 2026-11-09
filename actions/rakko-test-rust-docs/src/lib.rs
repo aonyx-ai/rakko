@@ -36,10 +36,7 @@
 //! [mise]: https://mise.jdx.dev
 //! [nextest]: https://nexte.st
 
-/// Types for what the test harness reported about the examples of a
-/// workspace
 mod report;
-/// Types for the action that runs the examples of a project
 mod test_rust_docs;
 
 pub use self::report::ReadDoctestReportError;

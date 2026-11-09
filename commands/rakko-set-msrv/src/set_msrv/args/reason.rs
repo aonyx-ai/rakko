@@ -1,3 +1,5 @@
+//! Why a project needs its minimum supported Rust version
+
 typed_fields::name! {
     /// Why a project needs its minimum supported Rust version
     ///

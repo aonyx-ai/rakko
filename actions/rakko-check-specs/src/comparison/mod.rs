@@ -25,7 +25,6 @@
 //! and those variables beat the working directory of a command, so every
 //! command here runs without them.
 
-/// The error that leaves a run without the comparison it asked for
 mod error;
 
 use std::ffi::OsString;

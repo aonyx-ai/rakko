@@ -1,6 +1,6 @@
-/// The reason why an action does not apply to a project
+//! Types for the result of an action run
+
 mod skip_reason;
-/// What a passing run examined
 mod summary;
 
 use std::error::Error;

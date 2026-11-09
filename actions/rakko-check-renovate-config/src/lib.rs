@@ -64,13 +64,9 @@
 //! [renovate]: https://docs.renovatebot.com
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that checks the Renovate configuration of a project
 mod check_renovate_config;
-/// Types for what one run of the validator produced
 mod observation;
-/// Types for one problem that the validator reported about a configuration
 mod problem;
-/// Types for the validator that a project runs
 mod validator;
 
 pub use self::check_renovate_config::{CheckRenovateConfig, CheckRenovateConfigError};

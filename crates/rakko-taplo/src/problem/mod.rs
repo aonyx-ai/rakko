@@ -1,4 +1,5 @@
-/// What taplo reported about a file
+//! Types for one problem that taplo reported about a file
+
 mod detail;
 
 use std::path::PathBuf;

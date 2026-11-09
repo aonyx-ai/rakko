@@ -1,3 +1,5 @@
+//! Who trusts the configuration that a run of mise reads
+
 /// Who trusts the configuration that a run of mise reads
 ///
 /// Mise reads a configuration that needs trust, such as one with settings,

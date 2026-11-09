@@ -1,3 +1,5 @@
+//! The error that stops the reading
+
 use thiserror::Error;
 
 /// An error that stops the reading of what the test harness reported

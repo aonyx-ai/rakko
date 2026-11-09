@@ -74,7 +74,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for a disposable copy of a project
 mod worktree;
 
 pub use self::worktree::{CreateWorktreeError, Worktree};

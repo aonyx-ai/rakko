@@ -48,13 +48,9 @@
 //! [oxlint]: https://oxc.rs/docs/guide/usage/linter.html
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that lints the TypeScript of a project
 mod lint_typescript;
-/// Types for what one run of oxlint produced
 mod observation;
-/// Types for the oxlint that a project runs
 mod oxlint;
-/// Types for one diagnostic that oxlint reported about a project
 mod problem;
 
 pub use self::lint_typescript::{LintTypeScript, LintTypeScriptError};

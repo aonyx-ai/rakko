@@ -6,7 +6,6 @@
 //! writes the arguments of its job, and everything between the action and
 //! the process lives here.
 
-/// The error that stops the discovery of the roots
 mod error;
 
 use std::collections::{HashMap, HashSet};

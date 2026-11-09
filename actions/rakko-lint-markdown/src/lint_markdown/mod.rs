@@ -5,7 +5,6 @@
 //! reads its own configuration, and applies its rules, and the action
 //! translates what markdownlint reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{

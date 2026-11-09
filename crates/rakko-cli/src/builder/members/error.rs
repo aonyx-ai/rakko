@@ -1,3 +1,5 @@
+//! The error of a run whose member cannot bind its values
+
 use rakko::{Name, ReadArgsError};
 use thiserror::Error;
 

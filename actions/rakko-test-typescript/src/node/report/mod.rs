@@ -14,9 +14,7 @@
 //! failures it collected from such a report are the ones that it happened to
 //! understand.
 
-/// The reading of one indented block of a report
 pub(crate) mod block;
-/// The error that leaves a caller without the report of a run
 mod error;
 
 use bon::Builder;

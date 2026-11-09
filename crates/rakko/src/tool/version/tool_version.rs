@@ -1,3 +1,5 @@
+//! One exact version of a tool
+
 typed_fields::name! {
     /// One exact version of a tool, as mise writes it
     ///

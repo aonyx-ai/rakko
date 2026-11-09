@@ -1,8 +1,7 @@
-/// The name of a program that a tool provides
+//! Types for the external tools that an action runs
+
 mod executable;
-/// The identifier of a tool in the configuration of mise
 mod mise_tool;
-/// Types for the versions of a tool that an action runs
 mod version;
 
 use bon::bon;

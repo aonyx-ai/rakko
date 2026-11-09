@@ -5,7 +5,6 @@
 //! the toolchain that the manifests declare, and the compiler examines the
 //! code. The action translates what cargo reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{

@@ -55,13 +55,9 @@
 //! [tokio]: https://tokio.rs
 //! [zizmor]: https://docs.zizmor.sh
 
-/// Types for the action that audits the GitHub Actions workflows of a project
 mod lint_github_actions;
-/// Types for what one run of zizmor produced
 mod observation;
-/// Types for one place that zizmor reported about a workflow
 mod problem;
-/// Types for the zizmor that a project runs
 mod zizmor;
 
 pub use self::lint_github_actions::{LintGitHubActions, LintGitHubActionsError};

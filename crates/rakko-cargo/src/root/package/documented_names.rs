@@ -1,3 +1,5 @@
+//! Whether the documented targets of a package share a crate name
+
 /// Whether the documented targets of a package share a crate name with the
 /// documented targets of another package
 ///

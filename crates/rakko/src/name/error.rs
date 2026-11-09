@@ -1,3 +1,5 @@
+//! The error type for name parsing
+
 use thiserror::Error;
 
 /// An error that occurs when parsing a name

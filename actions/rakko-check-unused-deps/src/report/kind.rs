@@ -1,3 +1,5 @@
+//! The table of a manifest that declares a dependency
+
 /// The word that names a dependency of the normal kind
 const DEPENDENCY: &str = "dependency";
 

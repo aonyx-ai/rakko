@@ -1,3 +1,5 @@
+//! The named list of actions that the command line runs as one command
+
 use crate::erased_action::ErasedAction;
 use crate::name::Name;
 

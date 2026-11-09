@@ -1,3 +1,5 @@
+//! The channel that a project pins
+
 typed_fields::name! {
     /// The channel of a Rust toolchain that a project pins
     ///

@@ -1,6 +1,6 @@
-/// One exact version of a tool
+//! Types for the versions of a tool that an action runs
+
 mod tool_version;
-/// The range of versions of a toolchain that an action accepts
 mod version_range;
 
 pub use self::tool_version::ToolVersion;

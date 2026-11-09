@@ -5,7 +5,6 @@
 //! configuration, and applies its audits, and the action translates what
 //! zizmor reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{

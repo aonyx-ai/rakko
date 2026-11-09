@@ -1,3 +1,5 @@
+//! The list of actions that a bundle exports
+
 use std::fmt;
 
 use crate::action::Action;

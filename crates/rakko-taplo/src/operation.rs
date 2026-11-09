@@ -1,3 +1,5 @@
+//! Types for the operations of taplo that an action runs
+
 /// One operation of taplo that an action runs
 ///
 /// Taplo does more than one job, and an action wraps one of them. This

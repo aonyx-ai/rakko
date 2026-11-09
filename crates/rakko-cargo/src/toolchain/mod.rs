@@ -6,9 +6,7 @@
 //! pins of the project the range accepts. A run then names that toolchain
 //! instead of whatever rustup calls by the name of a channel on the machine.
 
-/// The channel that a project pins
 mod channel;
-/// What the crate reports when it cannot name a toolchain
 mod error;
 
 use rakko::{Context, MiseTool, ProjectRoot, RequiredVersion, ToolRequirement, VersionRange};

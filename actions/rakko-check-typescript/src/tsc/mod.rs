@@ -4,9 +4,7 @@
 //! run that produces its diagnostics. An action asks for a run, and everything
 //! between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the report that tsc wrote
 pub(crate) mod report;
 
 use rakko::ProjectRoot;

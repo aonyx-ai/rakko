@@ -1,4 +1,5 @@
-/// The directory where the run of an action happens
+//! Types for the data that an action reads when it runs
+
 mod project_root;
 
 use bon::bon;

@@ -1,3 +1,5 @@
+//! The reading of the reports that stiles wrote
+
 use std::path::PathBuf;
 
 use rakko::Position;

@@ -5,7 +5,6 @@
 //! each of them to the machinery that runs nextest. What that machinery
 //! reports becomes the outcome of the run.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{

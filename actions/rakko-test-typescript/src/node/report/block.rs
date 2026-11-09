@@ -1,3 +1,5 @@
+//! The reading of one indented block of a report
+
 use std::path::PathBuf;
 
 use super::error::ReadReportError;

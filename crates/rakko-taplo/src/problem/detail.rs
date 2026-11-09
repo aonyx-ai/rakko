@@ -1,3 +1,5 @@
+//! What taplo reported about a file
+
 /// What taplo reported about a file, at the level that taplo could name
 ///
 /// Taplo names a problem as precisely as its operation allows. A formatting

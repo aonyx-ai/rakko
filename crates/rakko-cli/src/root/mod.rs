@@ -13,7 +13,6 @@
 //! action joins its own paths onto the root, so a root that moves with the
 //! working directory would move every path that an action reports.
 
-/// What a run reports when it cannot name the root of its project
 mod error;
 
 use std::path::{Path, PathBuf};

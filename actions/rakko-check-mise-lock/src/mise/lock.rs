@@ -1,3 +1,5 @@
+//! What a run of `mise lock` that ended with success did
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use rakko::{FilePath, SkipReason};

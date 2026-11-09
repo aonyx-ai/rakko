@@ -1,3 +1,5 @@
+//! What a passing run examined
+
 typed_fields::name! {
     /// A sentence that tells what a passing run examined
     ///

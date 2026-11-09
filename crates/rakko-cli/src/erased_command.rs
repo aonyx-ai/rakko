@@ -1,3 +1,5 @@
+//! The view of a command that hides its type
+
 use std::future::Future;
 use std::pin::Pin;
 

@@ -45,11 +45,8 @@
 //! [tokio]: https://tokio.rs
 //! [tsc]: https://www.typescriptlang.org/docs/handbook/compiler-options.html
 
-/// Types for the action that type checks the TypeScript of a project
 mod check_typescript;
-/// Types for one thing that tsc reported about a project
 mod diagnostic;
-/// Types for the tsc that a project runs
 mod tsc;
 
 pub use self::check_typescript::{CheckTypeScript, CheckTypeScriptError};

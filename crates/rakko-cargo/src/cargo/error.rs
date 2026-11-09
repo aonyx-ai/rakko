@@ -1,3 +1,5 @@
+//! The error that stops the discovery of the roots
+
 use std::path::PathBuf;
 
 use rakko_tool::RunCommandError;

@@ -1,3 +1,5 @@
+//! The column in a line that a problem is at
+
 typed_fields::number! {
     /// The column in a line that a problem is at
     ///

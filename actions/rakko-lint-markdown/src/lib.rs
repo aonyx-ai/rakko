@@ -37,13 +37,9 @@
 //! [mise]: https://mise.jdx.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that lints the Markdown files of a project
 mod lint_markdown;
-/// Types for the markdownlint that a project runs
 mod markdownlint;
-/// Types for what one run of markdownlint produced
 mod observation;
-/// Types for one rule that markdownlint reported about a file
 mod problem;
 
 pub use self::lint_markdown::{LintMarkdown, LintMarkdownError};

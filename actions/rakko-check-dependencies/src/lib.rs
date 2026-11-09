@@ -51,11 +51,8 @@
 //! [mise]: https://mise.jdx.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that examines the dependencies of a project
 mod check_dependencies;
-/// Types for the cargo-deny that a project runs
 mod deny;
-/// Types for one thing that cargo-deny reported about a workspace
 mod problem;
 
 pub use self::check_dependencies::{CheckDependencies, CheckDependenciesError};

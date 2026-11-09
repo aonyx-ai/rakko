@@ -1,10 +1,8 @@
-/// The path of a directory that a problem is in
+//! The location of a problem in a project
+
 mod directory_path;
-/// The path of a file that a problem is in
 mod file_path;
-/// The position of a problem in a file
 mod position;
-/// The range of a file that a problem covers
 mod span;
 
 pub use self::directory_path::{DirectoryPath, ParseDirectoryPathError};

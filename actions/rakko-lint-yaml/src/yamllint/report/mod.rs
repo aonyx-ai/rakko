@@ -5,7 +5,6 @@
 //! the reading takes a line apart at the marks that yamllint puts between the
 //! fields.
 
-/// The error that stops the reading of a report
 mod error;
 
 use std::path::PathBuf;

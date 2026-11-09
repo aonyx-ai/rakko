@@ -43,11 +43,8 @@
 //! [test runner]: https://nodejs.org/api/test.html
 //! [tokio]: https://tokio.rs
 
-/// Types for one test that failed
 mod failure;
-/// Types for the node that a project runs
 mod node;
-/// Types for the action that runs the tests of a Node project
 mod test_typescript;
 
 pub use self::node::report::ReadReportError;

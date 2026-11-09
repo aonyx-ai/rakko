@@ -1,3 +1,5 @@
+//! How serious the compiler considers a diagnostic
+
 /// How serious the compiler considers a diagnostic
 ///
 /// The compiler writes notes and help lines as well, but those explain a

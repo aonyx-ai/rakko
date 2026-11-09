@@ -61,13 +61,9 @@
 //! [stiles]: https://github.com/aonyx-ai/stiles
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that applies the stiles rules of a project
 mod lint_stiles;
-/// Types for what one check of stiles produced
 mod observation;
-/// Types for one diagnostic that stiles reported about a file
 mod problem;
-/// Types for the stiles that a project runs
 mod stiles;
 
 pub use self::lint_stiles::{LintStiles, LintStilesError};

@@ -1,3 +1,5 @@
+//! The range of a file that a problem covers
+
 use bon::bon;
 use getset::Getters;
 

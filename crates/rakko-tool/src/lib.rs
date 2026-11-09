@@ -57,13 +57,9 @@
 //! [requirement]: rakko::ToolRequirement
 //! [tokio]: https://tokio.rs
 
-/// The run of a tool that survives a launcher that Windows stopped
 mod launch;
-/// The version that a mise file of a crate pins for a tool
 mod pin;
-/// The seal on the run of a tool
 mod seal;
-/// Types for an external program that an action runs
 mod tool;
 
 pub use kawauso_process::error::RunCommandError;

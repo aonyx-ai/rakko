@@ -5,7 +5,6 @@
 //! operation. An action states which operation it wants, and
 //! everything between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
 
 use std::time::Duration;

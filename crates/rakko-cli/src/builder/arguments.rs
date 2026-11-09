@@ -1,3 +1,5 @@
+//! The projection of the arguments of an action into flags
+
 use std::collections::BTreeSet;
 use std::num::ParseIntError;
 

@@ -6,9 +6,7 @@
 //! report of nextest needs. A caller names the workspace that it wants
 //! tested, and everything between the caller and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// What a run does with the lockfile of the workspace
 mod lockfile;
 
 use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};

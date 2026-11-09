@@ -1,6 +1,6 @@
-/// The column in a line that a problem is at
+//! The position of a problem in a file
+
 mod column;
-/// The line in a file that a problem is on
 mod line;
 
 use bon::bon;
