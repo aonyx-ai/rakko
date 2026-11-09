@@ -63,6 +63,7 @@ const UNMATCHED_PATTERN: &str = "Expected at least one target file";
 /// The files that a run listed arrive on the standard output stream, and what
 /// oxfmt could not do arrives on the standard error stream. The reading walks
 /// both, recognizes what carries an answer, and ignores the rest.
+#[bon::builder]
 pub(super) fn read(stdout: &str, stderr: &str, exit: Exit) -> Observation {
     let stderr = plain(stderr);
 
@@ -298,17 +299,30 @@ mod tests {
 
     #[test]
     fn read_of_a_drawn_failure_reports_what_the_plain_one_reports() {
-        let observation = read("", DRAWN_BLOCK, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(DRAWN_BLOCK)
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems(),
-            read("", PLAIN_BLOCK, Exit::Failed).problems()
+            read()
+                .stdout("")
+                .stderr(PLAIN_BLOCK)
+                .exit(Exit::Failed)
+                .call()
+                .problems()
         );
     }
 
     #[test]
     fn read_of_a_failure_with_a_suggestion_carries_the_suggestion() {
-        let observation = read("", SUGGESTED_BLOCK, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(SUGGESTED_BLOCK)
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems().first().map(message),
@@ -321,7 +335,11 @@ mod tests {
 
     #[test]
     fn read_of_a_failure_without_a_place_reports_the_sentence_of_oxfmt() {
-        let observation = read("", UNPLACED_BLOCK, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(UNPLACED_BLOCK)
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems(),
@@ -335,7 +353,11 @@ mod tests {
 
     #[test]
     fn read_of_a_listed_file_reports_it_as_unformatted() {
-        let observation = read("src/index.ts\nsrc/other.ts", "", Exit::Failed);
+        let observation = read()
+            .stdout("src/index.ts\nsrc/other.ts")
+            .stderr("")
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems(),
@@ -352,7 +374,11 @@ mod tests {
 
     #[test]
     fn read_of_a_placed_failure_reports_the_place_that_oxfmt_named() {
-        let observation = read("", PLAIN_BLOCK, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(PLAIN_BLOCK)
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems(),
@@ -367,7 +393,11 @@ mod tests {
 
     #[test]
     fn read_of_a_refused_configuration_holds_what_oxfmt_wrote() {
-        let observation = read("", REFUSED_CONFIGURATION, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(REFUSED_CONFIGURATION)
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.rejected_configuration().as_deref(),
@@ -377,7 +407,11 @@ mod tests {
 
     #[test]
     fn read_of_a_run_that_matched_nothing_reports_the_unmatched_pattern() {
-        let observation = read("", UNMATCHED, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(UNMATCHED)
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.matching(),

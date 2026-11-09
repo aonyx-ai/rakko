@@ -66,6 +66,7 @@ const DIFF_TARGET: &str = "+++ b/";
 /// not parse stand before the files that it would rewrite. The two streams
 /// name different files: taplo offers no difference for a file that it never
 /// parsed.
+#[bon::builder]
 pub(super) fn read(stdout: &str, stderr: &str, succeeded: Exit) -> Observation {
     let mut observation = Observation {
         checked: None,
@@ -134,8 +135,8 @@ fn caret_label(line: &str) -> Option<String> {
 
 /// Returns how many files a run checked, from the line that counts them
 fn checked(line: &str) -> Option<u64> {
-    let total = field(line, TOTAL_FIELD)?;
-    let excluded = field(line, EXCLUDED_FIELD)?;
+    let total = field().line(line).name(TOTAL_FIELD).call()?;
+    let excluded = field().line(line).name(EXCLUDED_FIELD).call()?;
 
     total.checked_sub(excluded)
 }
@@ -221,6 +222,7 @@ fn examined(line: &str) -> Option<Vec<PathBuf>> {
 }
 
 /// Returns the number that a field of the count line carries
+#[bon::builder]
 fn field(line: &str, name: &str) -> Option<u64> {
     let start = line.find(name)? + name.len();
     let rest = &line[start..];
@@ -367,7 +369,11 @@ mod tests {
 
     /// Returns the detail of the only problem of a report
     fn detail(stderr: &str) -> ProblemDetail {
-        let observation = read("", stderr, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(stderr)
+            .succeeded(Exit::Failed)
+            .call();
 
         let [problem] = observation.problems().as_slice() else {
             panic!("expected one problem, got {:?}", observation.problems());
@@ -408,21 +414,33 @@ mod tests {
 
     #[test]
     fn read_clean_report_counts_the_examined_files() {
-        let observation = read("", CLEAN, Exit::Succeeded);
+        let observation = read()
+            .stdout("")
+            .stderr(CLEAN)
+            .succeeded(Exit::Succeeded)
+            .call();
 
         assert_eq!(observation.checked(), Some(2));
     }
 
     #[test]
     fn read_clean_report_finds_no_problem() {
-        let observation = read("", CLEAN, Exit::Succeeded);
+        let observation = read()
+            .stdout("")
+            .stderr(CLEAN)
+            .succeeded(Exit::Succeeded)
+            .call();
 
         assert!(observation.problems().is_empty());
     }
 
     #[test]
     fn read_clean_report_lists_the_examined_files() {
-        let observation = read("", CLEAN, Exit::Succeeded);
+        let observation = read()
+            .stdout("")
+            .stderr(CLEAN)
+            .succeeded(Exit::Succeeded)
+            .call();
 
         assert_eq!(
             observation.examined,
@@ -435,7 +453,11 @@ mod tests {
 
     #[test]
     fn read_diagnostic_reads_the_path() {
-        let observation = read("", INVALID, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(INVALID)
+            .succeeded(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::path),
@@ -445,7 +467,11 @@ mod tests {
 
     #[test]
     fn read_diagnostic_reads_the_position() {
-        let observation = read("", INVALID, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(INVALID)
+            .succeeded(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::detail),
@@ -469,7 +495,11 @@ mod tests {
 
     #[test]
     fn read_difference_names_the_file_that_it_would_rewrite() {
-        let observation = read(DIFFERENCE, "", Exit::Failed);
+        let observation = read()
+            .stdout(DIFFERENCE)
+            .stderr("")
+            .succeeded(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems(),
@@ -484,7 +514,11 @@ mod tests {
 
     #[test]
     fn read_empty_report_finds_nothing() {
-        let observation = read("", "", Exit::Succeeded);
+        let observation = read()
+            .stdout("")
+            .stderr("")
+            .succeeded(Exit::Succeeded)
+            .call();
 
         assert_eq!(
             observation,
@@ -513,7 +547,11 @@ mod tests {
 
     #[test]
     fn read_refused_file_reads_the_path() {
-        let observation = read("", REFUSED, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(REFUSED)
+            .succeeded(Exit::Failed)
+            .call();
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::path),
@@ -523,7 +561,11 @@ mod tests {
 
     #[test]
     fn read_rejected_configuration_keeps_the_diagnosis() {
-        let observation = read("", REJECTED, Exit::Succeeded);
+        let observation = read()
+            .stdout("")
+            .stderr(REJECTED)
+            .succeeded(Exit::Succeeded)
+            .call();
 
         assert_eq!(
             observation.rejected_configuration().as_deref(),
@@ -533,18 +575,22 @@ mod tests {
 
     #[test]
     fn read_summary_of_a_file_with_a_diagnostic_drops_out() {
-        let observation = read("", INVALID, Exit::Failed);
+        let observation = read()
+            .stdout("")
+            .stderr(INVALID)
+            .succeeded(Exit::Failed)
+            .call();
 
         assert_eq!(observation.problems().len(), 1);
     }
 
     #[test]
     fn read_unrecognized_failure_finds_nothing() {
-        let observation = read(
-            "",
-            " INFO taplo:format_files:collect_files: found files total=1 excluded=0 files=[] cwd=\"/p\"\nERROR operation failed error=Permission denied (os error 13)\n",
-            Exit::Failed,
-        );
+        let observation = read()
+            .stdout("")
+            .stderr(" INFO taplo:format_files:collect_files: found files total=1 excluded=0 files=[] cwd=\"/p\"\nERROR operation failed error=Permission denied (os error 13)\n")
+            .succeeded(Exit::Failed)
+            .call();
 
         assert!(observation.problems().is_empty());
     }

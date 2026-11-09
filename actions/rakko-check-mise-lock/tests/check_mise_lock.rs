@@ -138,6 +138,7 @@ struct Project {
     configuration: &'static str,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project with the given configuration, outside a repository
     ///
@@ -166,6 +167,7 @@ impl Project {
 
     /// Creates a project in a repository, with the configuration at the given
     /// path
+    #[builder]
     fn at(path: &'static str, configuration: &str) -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let project = Self {
@@ -173,7 +175,7 @@ impl Project {
             configuration: path,
         };
 
-        project.write(path, configuration);
+        project.write().path(path).content(configuration).call();
         project.trust();
         project.initialize();
 
@@ -189,7 +191,11 @@ impl Project {
             configuration: "mise.toml",
         };
 
-        project.write("mise.toml", configuration);
+        project
+            .write()
+            .path("mise.toml")
+            .content(configuration)
+            .call();
 
         project
     }
@@ -302,7 +308,10 @@ impl Project {
             }
         }
 
-        self.write("mise.lock", &(kept.join("\n") + "\n"));
+        self.write()
+            .path("mise.lock")
+            .content(&(kept.join("\n") + "\n"))
+            .call();
 
         platforms
     }
@@ -323,6 +332,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -380,11 +390,16 @@ fn messages(findings: &[Finding]) -> Vec<String> {
 
 /// Returns the messages that report the given platforms of jq with a verb
 fn reports(verb: &str, platforms: &[String]) -> Vec<String> {
-    reports_of("jq 1.8.1", verb, platforms)
+    reports_of()
+        .tool("jq 1.8.1")
+        .verb(verb)
+        .platforms(platforms)
+        .call()
 }
 
 /// Returns the messages that report the given platforms of a tool with a
 /// verb, in the order of the platforms
+#[bon::builder]
 fn reports_of(tool: &str, verb: &str, platforms: &[String]) -> Vec<String> {
     let mut expected: Vec<String> = platforms
         .iter()
@@ -423,7 +438,7 @@ async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
     let project = Project::new(PHANTOM);
     project.lock();
     let stale = project.read("mise.lock") + STALE_ENTRY;
-    project.write("mise.lock", &stale);
+    project.write().path("mise.lock").content(&stale).call();
 
     let outcome = project.run().await;
 
@@ -452,13 +467,14 @@ async fn run_with_a_changed_shared_field_next_to_an_untargeted_platform_fails() 
         .filter(|line| !line.starts_with("specifiers"))
         .map(str::to_owned)
         .collect();
-    project.write(
-        "mise.lock",
-        &format!(
+    project
+        .write()
+        .path("mise.lock")
+        .content(&format!(
             "{}\n\n{JQ_PLATFORM}linux-x64-musl\"]\nprovenance = \"github-attestations\"\n",
             lockfile.join("\n")
-        ),
-    );
+        ))
+        .call();
 
     let outcome = project.run().await;
 
@@ -482,7 +498,10 @@ async fn run_with_a_complete_lockfile_passes() {
 
 #[tokio::test]
 async fn run_with_a_configuration_in_a_directory_reports_its_lockfile() {
-    let project = Project::at(".config/mise.toml", PINNED);
+    let project = Project::at()
+        .path(".config/mise.toml")
+        .configuration(PINNED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -533,7 +552,7 @@ async fn run_with_a_missing_checksum_reports_the_change() {
         .find(|line| line.starts_with("checksum = "))
         .expect("the lockfile records a checksum of jq");
     let missing = lockfile.replacen(&format!("{checksum}\n"), "", 1);
-    project.write("mise.lock", &missing);
+    project.write().path("mise.lock").content(&missing).call();
 
     let outcome = project.run().await;
 
@@ -554,7 +573,7 @@ async fn run_with_a_missing_checksum_reports_the_change() {
 async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote() {
     let project = Project::locked(PINNED);
     project.strip();
-    project.write("mise.toml", IMPATIENT);
+    project.write().path("mise.toml").content(IMPATIENT).call();
 
     let outcome = project.run().await;
 
@@ -576,7 +595,11 @@ async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote
 async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
     let project = Project::locked(PINNED);
     project.strip();
-    project.write("mise.toml", IMPATIENT_AND_QUIET);
+    project
+        .write()
+        .path("mise.toml")
+        .content(IMPATIENT_AND_QUIET)
+        .call();
 
     let outcome = project.run().await;
 
@@ -596,7 +619,11 @@ async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
 async fn run_with_a_stale_entry_reports_its_removal() {
     let project = Project::locked(PINNED);
     let lockfile = project.read("mise.lock");
-    project.write("mise.lock", &(lockfile + STALE_ENTRY));
+    project
+        .write()
+        .path("mise.lock")
+        .content(&(lockfile + STALE_ENTRY))
+        .call();
 
     let outcome = project.run().await;
 
@@ -630,9 +657,21 @@ async fn run_with_a_tool_that_mise_cannot_lock_stops_with_what_it_wrote() {
 #[tokio::test]
 async fn run_with_an_ignored_local_configuration_passes() {
     let project = Project::locked(PINNED);
-    project.write(".gitignore", IGNORED_LOCAL);
-    project.write("mise.local.toml", LOCAL);
-    project.write("mise.local.lock", LOCAL_LOCK);
+    project
+        .write()
+        .path(".gitignore")
+        .content(IGNORED_LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.toml")
+        .content(LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.lock")
+        .content(LOCAL_LOCK)
+        .call();
 
     let outcome = project.run().await;
 
@@ -647,9 +686,21 @@ async fn run_with_an_ignored_local_configuration_passes() {
 #[tokio::test]
 async fn run_with_an_ignored_lockfile_that_mise_cannot_read_stops() {
     let project = Project::locked(PINNED);
-    project.write(".gitignore", IGNORED_LOCAL);
-    project.write("mise.local.toml", LOCAL);
-    project.write("mise.local.lock", "this is not toml [[[\n");
+    project
+        .write()
+        .path(".gitignore")
+        .content(IGNORED_LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.toml")
+        .content(LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.lock")
+        .content("this is not toml [[[\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -668,9 +719,21 @@ async fn run_with_an_ignored_lockfile_that_mise_cannot_read_stops() {
 #[tokio::test]
 async fn run_with_an_ignored_lockfile_that_the_action_cannot_read_passes() {
     let project = Project::locked(PINNED);
-    project.write(".gitignore", IGNORED_LOCAL);
-    project.write("mise.local.toml", LOCAL);
-    project.write("mise.local.lock", VERSIONLESS);
+    project
+        .write()
+        .path(".gitignore")
+        .content(IGNORED_LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.toml")
+        .content(LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.lock")
+        .content(VERSIONLESS)
+        .call();
 
     let outcome = project.run().await;
 
@@ -685,7 +748,11 @@ async fn run_with_an_uncommitted_tool_reports_its_entries() {
     let project = Project::locked(PINNED);
     project.git(&["add", "--all"]);
     project.git(&["commit", "--quiet", "--message", "Pin jq"]);
-    project.write("mise.toml", PINNED_TWICE);
+    project
+        .write()
+        .path("mise.toml")
+        .content(PINNED_TWICE)
+        .call();
     let targeted = platforms(&project.read("mise.lock"));
 
     let outcome = project.run().await;
@@ -695,14 +762,22 @@ async fn run_with_an_uncommitted_tool_reports_its_entries() {
     };
     assert_eq!(
         messages(&findings),
-        reports_of("taplo 0.10.0", "adds", &targeted)
+        reports_of()
+            .tool("taplo 0.10.0")
+            .verb("adds")
+            .platforms(&targeted)
+            .call()
     );
 }
 
 #[tokio::test]
 async fn run_with_an_unreadable_lockfile_stops() {
     let project = Project::new(PINNED);
-    project.write("mise.lock", VERSIONLESS);
+    project
+        .write()
+        .path("mise.lock")
+        .content(VERSIONLESS)
+        .call();
 
     let outcome = project.run().await;
 
@@ -725,7 +800,11 @@ async fn run_with_an_unreadable_lockfile_stops() {
 async fn run_with_an_untargeted_platform_reports_its_removal() {
     let project = Project::locked(PINNED);
     let lockfile = project.read("mise.lock");
-    project.write("mise.lock", &(lockfile + UNTARGETED_ENTRY));
+    project
+        .write()
+        .path("mise.lock")
+        .content(&(lockfile + UNTARGETED_ENTRY))
+        .call();
 
     let outcome = project.run().await;
 
@@ -832,7 +911,11 @@ async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
                 && !line.starts_with("provenance")
         })
         .collect();
-    project.write("mise.lock", &(bare.join("\n") + "\n"));
+    project
+        .write()
+        .path("mise.lock")
+        .content(&(bare.join("\n") + "\n"))
+        .call();
 
     let outcome = project.run().await;
 
@@ -994,7 +1077,11 @@ mod home {
                 configuration: "mise.toml",
             };
 
-            project.write("mise.toml", configuration);
+            project
+                .write()
+                .path("mise.toml")
+                .content(configuration)
+                .call();
             project.trust();
             project.lock();
 

@@ -10,7 +10,7 @@ mod error;
 use std::time::Duration;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Execution, Launch, ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{Execution, Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub use self::error::ObserveTaploError;
 use crate::observation::Observation;
@@ -47,7 +47,7 @@ const TAPLO: &str = "taplo";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), TAPLO);
+const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(TAPLO);
 
 /// The subcommand of taplo that formats TOML files
 const FORMAT: &str = "fmt";

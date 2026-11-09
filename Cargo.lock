@@ -607,6 +607,7 @@ dependencies = [
 name = "rakko-build-internal-docs"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "rakko",
  "rakko-cargo",
  "rakko-test-utils",
@@ -654,6 +655,7 @@ dependencies = [
 name = "rakko-check-latest-deps"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "rakko",
  "rakko-cargo",
  "rakko-nextest",
@@ -669,6 +671,7 @@ dependencies = [
 name = "rakko-check-minimal-deps"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "rakko",
  "rakko-cargo",
  "rakko-nextest",
@@ -703,6 +706,7 @@ dependencies = [
 name = "rakko-check-msrv"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "rakko",
  "rakko-cargo",
  "rakko-test-utils",
@@ -796,6 +800,7 @@ dependencies = [
 name = "rakko-format-json"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-prettier",
@@ -810,6 +815,7 @@ dependencies = [
 name = "rakko-format-markdown"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-prettier",
@@ -839,6 +845,7 @@ dependencies = [
 name = "rakko-format-toml"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-taplo",
@@ -867,6 +874,7 @@ dependencies = [
 name = "rakko-format-yaml"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-prettier",
@@ -913,6 +921,7 @@ dependencies = [
 name = "rakko-lint-rust"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "rakko",
  "rakko-cargo",
  "rakko-test-utils",
@@ -942,6 +951,7 @@ dependencies = [
 name = "rakko-lint-toml"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "rakko",
  "rakko-taplo",
  "rakko-test-utils",
@@ -1057,6 +1067,7 @@ dependencies = [
 name = "rakko-set-msrv"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-cli",
@@ -1086,6 +1097,7 @@ dependencies = [
 name = "rakko-test-rust"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "rakko",
  "rakko-cargo",
  "rakko-nextest",
@@ -1166,6 +1178,7 @@ dependencies = [
 name = "rakko-worktree"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "kawauso-process",
  "rakko",

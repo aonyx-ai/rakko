@@ -121,7 +121,7 @@ pub(super) async fn pinned_toolchain(
     let mut unreadable: Option<(&str, semver::Error)> = None;
 
     for (pin, requested) in ordered {
-        match accepted.read(pin, requested) {
+        match accepted.read().pin(pin).requested(requested).call() {
             Reading::Accepted => return Ok(ToolVersion::new(pin)),
             Reading::Outside => {
                 outside.get_or_insert(pin);
@@ -191,6 +191,7 @@ enum Reading {
     Foreign,
 }
 
+#[bon::bon]
 impl Accepted {
     /// Returns the range that a text gives
     ///
@@ -218,6 +219,7 @@ impl Accepted {
     /// as the configuration writes it. Mise can resolve a bare `nightly` to
     /// a dated version that one machine holds and another does not, so only
     /// a pin that writes the date counts on every machine.
+    #[builder]
     fn read(&self, pin: &str, requested: &str) -> Reading {
         match self {
             Self::Releases(accepted) => match Version::parse(pin) {
@@ -225,11 +227,13 @@ impl Accepted {
                 Ok(_) => Reading::Outside,
                 Err(source) => Reading::Unreadable(source),
             },
-            Self::Dated { channel, dates } => match date_of(requested, channel) {
-                Some(date) if dates.matches(&date) => Reading::Accepted,
-                Some(_) => Reading::Outside,
-                None => Reading::Foreign,
-            },
+            Self::Dated { channel, dates } => {
+                match date_of().pin(requested).channel(channel).call() {
+                    Some(date) if dates.matches(&date) => Reading::Accepted,
+                    Some(_) => Reading::Outside,
+                    None => Reading::Foreign,
+                }
+            }
         }
     }
 
@@ -283,6 +287,7 @@ fn dated(range: &str) -> Option<(String, String)> {
 /// Rustup gives a dated toolchain the name of its channel and its date, such
 /// as `nightly-2026-11-02`. A pin of another channel, and a pin without a
 /// date, answer `None`.
+#[bon::builder]
 fn date_of(pin: &str, channel: &str) -> Option<Version> {
     let (name, date) = channel_date(pin)?;
 
@@ -423,10 +428,14 @@ mod tests {
 
     /// Returns what a range says about a pin that the configuration writes
     /// as the version that it resolves to
+    #[bon::builder]
     fn read(range: &str, pin: &str) -> Reading {
         Accepted::parse(&VersionRange::new(range))
             .expect("the test gives a valid range")
-            .read(pin, pin)
+            .read()
+            .pin(pin)
+            .requested(pin)
+            .call()
     }
 
     #[test]
@@ -486,77 +495,99 @@ mod tests {
         let range = Accepted::parse(&VersionRange::new(">=nightly-2025-02-20"))
             .expect("the test gives a valid range");
 
-        let reading = range.read("nightly-2026-11-02", "nightly");
+        let reading = range
+            .read()
+            .pin("nightly-2026-11-02")
+            .requested("nightly")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_date_in_a_range_of_dates_accepts_the_pin() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2026-11-02");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-11-02")
+            .call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_date_outside_a_range_of_dates_reports_it_outside() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2024-12-31");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2024-12-31")
+            .call();
 
         assert!(matches!(reading, Reading::Outside), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_dated_pin_in_a_range_of_releases_reports_it_unreadable() {
-        let reading = read(">=1.85", "nightly-2026-11-02");
+        let reading = read().range(">=1.85").pin("nightly-2026-11-02").call();
 
         assert!(matches!(reading, Reading::Unreadable(_)), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_of_another_channel_in_a_range_of_dates_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "beta-2026-11-02");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("beta-2026-11-02")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_whose_date_has_four_parts_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2026-11-02-01");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-11-02-01")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_whose_date_has_no_leading_zeros_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2026-1-2");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-1-2")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_whose_date_holds_a_sign_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2026-+1-02");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-+1-02")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_without_a_date_in_a_range_of_dates_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "1.99.1");
+        let reading = read().range(">=nightly-2025-02-20").pin("1.99.1").call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_release_in_a_range_of_releases_accepts_the_pin() {
-        let reading = read(">=1.85", "1.99.1");
+        let reading = read().range(">=1.85").pin("1.99.1").call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_release_outside_a_range_of_releases_reports_it_outside() {
-        let reading = read(">=1.85", "1.84.1");
+        let reading = read().range(">=1.85").pin("1.84.1").call();
 
         assert!(matches!(reading, Reading::Outside), "got {reading:?}");
     }

@@ -49,6 +49,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates an empty project without a tracey to resolve
     ///
@@ -72,9 +73,21 @@ impl Project {
         .expect("the test writes the mise.toml of the project");
         trust(&pins);
 
-        project.write(".config/tracey/config.styx", CONFIGURATION);
-        project.write("SPECIFICATION.md", SPECIFICATION);
-        project.write("src/lib.rs", IMPLEMENTATION);
+        project
+            .write()
+            .path(".config/tracey/config.styx")
+            .content(CONFIGURATION)
+            .call();
+        project
+            .write()
+            .path("SPECIFICATION.md")
+            .content(SPECIFICATION)
+            .call();
+        project
+            .write()
+            .path("src/lib.rs")
+            .content(IMPLEMENTATION)
+            .call();
 
         project
     }
@@ -99,6 +112,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 

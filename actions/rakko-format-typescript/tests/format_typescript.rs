@@ -51,6 +51,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without an oxfmt to resolve
     ///
@@ -123,6 +124,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -227,8 +229,16 @@ fn action_identifies_itself_as_format_typescript() {
 #[tokio::test]
 async fn fixing_run_leaves_the_other_languages_of_a_project_alone() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
-    project.write("docs/guide.md", UNFORMATTED_MARKDOWN);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("docs/guide.md")
+        .content(UNFORMATTED_MARKDOWN)
+        .call();
 
     project.run(&fixing()).await;
 
@@ -238,7 +248,11 @@ async fn fixing_run_leaves_the_other_languages_of_a_project_alone() {
 #[tokio::test]
 async fn fixing_run_reports_the_file_that_it_rewrote() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(&fixing()).await;
 
@@ -251,7 +265,11 @@ async fn fixing_run_reports_the_file_that_it_rewrote() {
 #[tokio::test]
 async fn fixing_run_rewrites_an_unformatted_file() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     project.run(&fixing()).await;
 
@@ -261,8 +279,12 @@ async fn fixing_run_rewrites_an_unformatted_file() {
 #[tokio::test]
 async fn fixing_run_that_left_a_problem_fails() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
-    project.write("src/broken.ts", BROKEN);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("src/broken.ts").content(BROKEN).call();
 
     let outcome = project.run(&fixing()).await;
 
@@ -275,8 +297,12 @@ async fn fixing_run_that_left_a_problem_fails() {
 #[tokio::test]
 async fn fixing_run_that_left_a_problem_holds_the_repairs_beside_it() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
-    project.write("src/broken.ts", BROKEN);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("src/broken.ts").content(BROKEN).call();
 
     let outcome = project.run(&fixing()).await;
 
@@ -289,7 +315,7 @@ async fn fixing_run_that_left_a_problem_holds_the_repairs_beside_it() {
 #[tokio::test]
 async fn report_of_a_file_that_oxfmt_cannot_parse_sits_at_the_place_of_oxfmt() {
     let project = Project::new();
-    project.write("src/index.ts", BROKEN);
+    project.write().path("src/index.ts").content(BROKEN).call();
 
     let outcome = project.report().await;
 
@@ -308,7 +334,11 @@ async fn report_of_a_file_that_oxfmt_cannot_parse_sits_at_the_place_of_oxfmt() {
 #[tokio::test]
 async fn report_of_a_formatted_project_passes() {
     let project = Project::new();
-    project.write("src/index.ts", FORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(FORMATTED)
+        .call();
 
     let outcome = project.report().await;
 
@@ -321,7 +351,11 @@ async fn report_of_a_formatted_project_passes() {
 #[tokio::test]
 async fn report_of_a_project_whose_oxfmt_mise_does_not_report_holds_the_error() {
     let project = Project::without_oxfmt();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.report().await;
 
@@ -334,7 +368,11 @@ async fn report_of_a_project_whose_oxfmt_mise_does_not_report_holds_the_error() 
 #[tokio::test]
 async fn report_of_a_project_without_typescript_names_the_tool() {
     let project = Project::new();
-    project.write("docs/guide.md", "# Guide\n");
+    project
+        .write()
+        .path("docs/guide.md")
+        .content("# Guide\n")
+        .call();
 
     let outcome = project.report().await;
 
@@ -350,7 +388,11 @@ async fn report_of_a_project_without_typescript_names_the_tool() {
 #[tokio::test]
 async fn report_of_a_project_without_typescript_skips() {
     let project = Project::new();
-    project.write("docs/guide.md", "# Guide\n");
+    project
+        .write()
+        .path("docs/guide.md")
+        .content("# Guide\n")
+        .call();
 
     let outcome = project.report().await;
 
@@ -363,8 +405,16 @@ async fn report_of_a_project_without_typescript_skips() {
 #[tokio::test]
 async fn report_of_a_refused_configuration_holds_what_oxfmt_reported() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
-    project.write(".oxfmtrc.json", REFUSED_CONFIGURATION);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path(".oxfmtrc.json")
+        .content(REFUSED_CONFIGURATION)
+        .call();
 
     let outcome = project.report().await;
 
@@ -380,7 +430,11 @@ async fn report_of_a_refused_configuration_holds_what_oxfmt_reported() {
 #[tokio::test]
 async fn report_of_an_unformatted_file_leaves_it_alone() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     project.report().await;
 
@@ -390,7 +444,11 @@ async fn report_of_an_unformatted_file_leaves_it_alone() {
 #[tokio::test]
 async fn report_of_an_unformatted_file_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     // The helper asserts that the run left every file of the project as it
     // was.
@@ -405,7 +463,11 @@ async fn report_of_an_unformatted_file_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn report_of_an_unformatted_file_names_it() {
     let project = Project::new();
-    project.write("src/index.ts", UNFORMATTED);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.report().await;
 

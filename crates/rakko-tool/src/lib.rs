@@ -16,7 +16,7 @@
 //! starts the version that the tests of the action cover. A toolchain
 //! resolves at the version that the project pins, when the range of the
 //! action accepts it. A crate that wraps a tool keeps its pin in a mise file.
-//! It reads the pin with [`pinned_version`] when it compiles.
+//! It reads the pin with [`MiseFile::pinned_version`] when it compiles.
 //!
 //! [`Tool::resolve`] still finds a tool at the version that the project pins,
 //! for an action that declares no tools yet.
@@ -67,5 +67,5 @@ pub use kawauso_process::invocation::Program;
 pub use kawauso_process::{Execution, Invocation};
 
 pub use self::launch::Launch;
-pub use self::pin::pinned_version;
+pub use self::pin::MiseFile;
 pub use self::tool::{ResolveRequirementError, ResolveToolError, Tool, ToolName};

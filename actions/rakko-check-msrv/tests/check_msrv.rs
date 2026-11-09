@@ -74,6 +74,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a cargo to resolve
     ///
@@ -108,8 +109,12 @@ impl Project {
     /// this repository and holds the given source in its library
     fn with_library(source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", &package("probe", &declared_rust()));
-        project.write("src/lib.rs", source);
+        project
+            .write()
+            .path("Cargo.toml")
+            .content(&package().name("probe").version(&declared_rust()).call())
+            .call();
+        project.write().path("src/lib.rs").content(source).call();
 
         project
     }
@@ -118,11 +123,23 @@ impl Project {
     /// the manifest declares
     fn stale() -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", &stale_manifest(&declared_rust()));
-        project.write("Cargo.lock", LOCKFILE);
-        project.write("src/lib.rs", CLEAN);
-        project.write("helper/Cargo.toml", HELPER);
-        project.write("helper/src/lib.rs", CLEAN);
+        project
+            .write()
+            .path("Cargo.toml")
+            .content(&stale_manifest(&declared_rust()))
+            .call();
+        project.write().path("Cargo.lock").content(LOCKFILE).call();
+        project.write().path("src/lib.rs").content(CLEAN).call();
+        project
+            .write()
+            .path("helper/Cargo.toml")
+            .content(HELPER)
+            .call();
+        project
+            .write()
+            .path("helper/src/lib.rs")
+            .content(CLEAN)
+            .call();
 
         project
     }
@@ -192,6 +209,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -232,6 +250,7 @@ fn locations(findings: &[Finding]) -> Vec<String> {
 }
 
 /// Returns the manifest of a package that declares the given Rust version
+#[bon::builder]
 fn package(name: &str, version: &str) -> String {
     format!(
         "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"{version}\"\n"
@@ -253,8 +272,12 @@ fn repository() -> &'static Path {
 /// The empty workspace table tells cargo that the package is a root of its
 /// own, which cargo demands from a package below a workspace that does not
 /// list it.
+#[bon::builder]
 fn standalone(name: &str, version: &str) -> String {
-    format!("[workspace]\n\n{}", package(name, version))
+    format!(
+        "[workspace]\n\n{}",
+        package().name(name).version(version).call()
+    )
 }
 
 /// Returns the manifest of a package that declares the given Rust version
@@ -265,7 +288,7 @@ fn standalone(name: &str, version: &str) -> String {
 fn stale_manifest(version: &str) -> String {
     format!(
         "{}\n[dependencies]\nhelper = {{ path = \"helper\" }}\n",
-        standalone("probe", version)
+        standalone().name("probe").version(version).call()
     )
 }
 
@@ -318,7 +341,11 @@ fn action_identifies_itself_as_check_msrv() {
 #[tokio::test]
 async fn run_examines_the_tests_of_a_package() {
     let project = Project::with_library(CLEAN);
-    project.write("tests/probe.rs", WARNED);
+    project
+        .write()
+        .path("tests/probe.rs")
+        .content(WARNED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -385,15 +412,20 @@ async fn run_reports_what_the_declared_toolchain_refuses() {
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     let project = Project::new();
-    project.write(
-        "Cargo.toml",
-        &format!(
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&format!(
             "{}build = \"build.rs\"\n",
-            package("probe", &declared_rust())
-        ),
-    );
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", CLEAN);
+            package().name("probe").version(&declared_rust()).call()
+        ))
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -409,15 +441,20 @@ async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
-    project.write(
-        "Cargo.toml",
-        &format!(
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&format!(
             "{}build = \"build.rs\"\n",
-            package("probe", &declared_rust())
-        ),
-    );
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", CLEAN);
+            package().name("probe").version(&declared_rust()).call()
+        ))
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -447,7 +484,11 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -516,11 +557,21 @@ async fn run_with_a_warning_fails() {
 #[tokio::test]
 async fn run_with_a_warning_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(CLEAN);
-    project.write(
-        "tools/harness/Cargo.toml",
-        &standalone("harness", &declared_rust()),
-    );
-    project.write("tools/harness/src/lib.rs", WARNED);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(
+            &standalone()
+                .name("harness")
+                .version(&declared_rust())
+                .call(),
+        )
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(WARNED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -557,11 +608,16 @@ async fn run_with_a_warning_reports_the_range() {
 #[tokio::test]
 async fn run_with_a_workspace_that_declares_nothing_passes_over_it() {
     let project = Project::with_library(CLEAN);
-    project.write(
-        "tools/harness/Cargo.toml",
-        &format!("[workspace]\n\n{UNDECLARED}"),
-    );
-    project.write("tools/harness/src/lib.rs", BROKEN);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(&format!("[workspace]\n\n{UNDECLARED}"))
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(BROKEN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -577,11 +633,21 @@ async fn run_with_a_workspace_that_declares_nothing_passes_over_it() {
 #[tokio::test]
 async fn run_with_two_declaring_workspaces_counts_both() {
     let project = Project::with_library(CLEAN);
-    project.write(
-        "tools/harness/Cargo.toml",
-        &standalone("harness", &declared_rust()),
-    );
-    project.write("tools/harness/src/lib.rs", CLEAN);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(
+            &standalone()
+                .name("harness")
+                .version(&declared_rust())
+                .call(),
+        )
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(CLEAN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -597,8 +663,12 @@ async fn run_with_two_declaring_workspaces_counts_both() {
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
-    project.write("Cargo.toml", &package("probe", &declared_rust()));
-    project.write("src/lib.rs", CLEAN);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&package().name("probe").version(&declared_rust()).call())
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -611,8 +681,12 @@ async fn run_without_a_cargo_stops() {
 #[tokio::test]
 async fn run_without_a_declaration_names_what_it_looked_for() {
     let project = Project::new();
-    project.write("Cargo.toml", UNDECLARED);
-    project.write("src/lib.rs", CLEAN);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(UNDECLARED)
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -628,8 +702,12 @@ async fn run_without_a_declaration_names_what_it_looked_for() {
 #[tokio::test]
 async fn run_without_a_declaration_skips() {
     let project = Project::new();
-    project.write("Cargo.toml", UNDECLARED);
-    project.write("src/lib.rs", CLEAN);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(UNDECLARED)
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -642,7 +720,11 @@ async fn run_without_a_declaration_skips() {
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Project\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Project\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -655,8 +737,12 @@ async fn run_without_a_manifest_skips() {
 #[tokio::test]
 async fn run_without_a_pinned_toolchain_names_the_version() {
     let project = Project::new();
-    project.write("Cargo.toml", &package("probe", UNPINNED));
-    project.write("src/lib.rs", CLEAN);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&package().name("probe").version(UNPINNED).call())
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -672,8 +758,12 @@ async fn run_without_a_pinned_toolchain_names_the_version() {
 #[tokio::test]
 async fn run_without_a_pinned_toolchain_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", &package("probe", UNPINNED));
-    project.write("src/lib.rs", CLEAN);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&package().name("probe").version(UNPINNED).call())
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
 
     let outcome = project.run().await;
 

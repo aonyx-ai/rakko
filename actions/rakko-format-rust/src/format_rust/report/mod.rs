@@ -110,11 +110,11 @@ impl RustfmtReport {
             Exit::Failed
         };
 
-        read(
-            &execution.stdout().to_string_lossy(),
-            &execution.stderr().to_string_lossy(),
-            exit,
-        )
+        read()
+            .stdout(&execution.stdout().to_string_lossy())
+            .stderr(&execution.stderr().to_string_lossy())
+            .exit(exit)
+            .call()
     }
 }
 
@@ -166,6 +166,7 @@ fn header(line: &str) -> Option<&str> {
 }
 
 /// Reads a report from the two streams of a run
+#[bon::builder]
 fn read(stdout: &str, stderr: &str, exit: Exit) -> RustfmtReport {
     let mut listed = Vec::new();
     let mut seen = HashSet::new();
@@ -235,7 +236,11 @@ mod tests {
 
     #[test]
     fn problems_of_a_check_hold_the_invalid_files_after_the_listed_ones() {
-        let report = read(LISTED, INVALID, Exit::Failed);
+        let report = read()
+            .stdout(LISTED)
+            .stderr(INVALID)
+            .exit(Exit::Failed)
+            .call();
 
         let problems = report.problems();
 
@@ -244,7 +249,7 @@ mod tests {
 
     #[test]
     fn problems_of_a_check_name_the_listed_files() {
-        let report = read(LISTED, "", Exit::Failed);
+        let report = read().stdout(LISTED).stderr("").exit(Exit::Failed).call();
 
         let problems = report.problems();
 
@@ -261,7 +266,7 @@ mod tests {
 
     #[test]
     fn read_a_diagnostic_reads_the_message() {
-        let report = read("", INVALID, Exit::Failed);
+        let report = read().stdout("").stderr(INVALID).exit(Exit::Failed).call();
 
         assert_eq!(
             report.invalid().first().map(RustfmtProblem::detail),
@@ -275,7 +280,7 @@ mod tests {
 
     #[test]
     fn read_a_diagnostic_reads_the_path() {
-        let report = read("", INVALID, Exit::Failed);
+        let report = read().stdout("").stderr(INVALID).exit(Exit::Failed).call();
 
         assert_eq!(
             report.invalid().first().map(RustfmtProblem::path),
@@ -285,7 +290,7 @@ mod tests {
 
     #[test]
     fn read_a_file_listed_twice_keeps_one() {
-        let report = read(LISTED, "", Exit::Failed);
+        let report = read().stdout(LISTED).stderr("").exit(Exit::Failed).call();
 
         assert_eq!(
             report.listed(),
@@ -298,7 +303,11 @@ mod tests {
 
     #[test]
     fn read_a_warning_keeps_the_first_one() {
-        let report = read("", UNKNOWN_OPTION, Exit::Failed);
+        let report = read()
+            .stdout("")
+            .stderr(UNKNOWN_OPTION)
+            .exit(Exit::Failed)
+            .call();
 
         assert_eq!(
             report.warning().as_deref(),
@@ -308,7 +317,7 @@ mod tests {
 
     #[test]
     fn read_an_empty_report_finds_nothing() {
-        let report = read("", "", Exit::Succeeded);
+        let report = read().stdout("").stderr("").exit(Exit::Succeeded).call();
 
         assert_eq!(
             report,

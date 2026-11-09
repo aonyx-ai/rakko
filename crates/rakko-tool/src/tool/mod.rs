@@ -441,7 +441,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::pin::pinned_version;
+    use crate::pin::MiseFile;
 
     /// The tool that this repository pins and that the tests resolve
     ///
@@ -508,7 +508,7 @@ mod tests {
         let pins = std::fs::read_to_string(root().get().join("mise.toml"))
             .expect("the test reads the mise.toml of the repository");
 
-        pinned_version(&pins, PINNED).to_owned()
+        MiseFile::new(&pins).pinned_version(PINNED).to_owned()
     }
 
     /// Returns whether a tool starts the program of a version

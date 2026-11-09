@@ -11,7 +11,7 @@ mod lockfile;
 
 use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
 use rakko_cargo::{Cargo, CargoRoot};
-use rakko_tool::{ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{MiseFile, ResolveRequirementError, Tool};
 
 pub use self::error::ObserveNextestError;
 pub use self::lockfile::Lockfile;
@@ -27,7 +27,8 @@ const PROGRAM: &str = "cargo-nextest";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), CARGO_NEXTEST);
+const VERSION: &str =
+    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(CARGO_NEXTEST);
 
 /// The arguments that ask nextest to run every test with every feature
 ///

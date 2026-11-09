@@ -63,7 +63,7 @@ impl ObserveOxlintError {
     pub(super) fn of(source: ReadReportError, stdout: &str, stderr: &str) -> Self {
         match source {
             ReadReportError::Absent => Self::MissingReport {
-                details: diagnosis(stdout, stderr),
+                details: diagnosis().stdout(stdout).stderr(stderr).call(),
             },
             ReadReportError::Unreadable { .. } => Self::UnreadableReport {
                 report: stdout.to_owned(),
@@ -79,6 +79,7 @@ impl ObserveOxlintError {
 /// diagnosis. A run that wrote nothing there says what happened on the standard
 /// error stream, or says nothing at all, and the caller reports whichever of
 /// the two carries text.
+#[bon::builder]
 fn diagnosis(stdout: &str, stderr: &str) -> String {
     let written = stdout.trim();
 

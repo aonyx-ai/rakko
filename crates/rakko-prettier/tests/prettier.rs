@@ -48,6 +48,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a prettier to resolve
     ///
@@ -120,6 +121,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -181,7 +183,7 @@ impl Drop for Project {
 #[tokio::test]
 async fn observe_a_report_changes_nothing() {
     let project = Project::new();
-    project.write("messy.md", UNFORMATTED);
+    project.write().path("messy.md").content(UNFORMATTED).call();
 
     project.observe(Operation::Report, &markdown()).await;
 
@@ -191,7 +193,7 @@ async fn observe_a_report_changes_nothing() {
 #[tokio::test]
 async fn observe_a_report_names_a_file_that_is_not_formatted() {
     let project = Project::new();
-    project.write("messy.md", UNFORMATTED);
+    project.write().path("messy.md").content(UNFORMATTED).call();
 
     let observation = project.observe(Operation::Report, &markdown()).await;
 
@@ -207,7 +209,7 @@ async fn observe_a_report_names_a_file_that_is_not_formatted() {
 #[tokio::test]
 async fn observe_a_rewrite_formats_the_project() {
     let project = Project::new();
-    project.write("messy.md", UNFORMATTED);
+    project.write().path("messy.md").content(UNFORMATTED).call();
 
     project.observe(Operation::Rewrite, &markdown()).await;
 
@@ -217,8 +219,12 @@ async fn observe_a_rewrite_formats_the_project() {
 #[tokio::test]
 async fn observe_reads_a_report_without_color_codes() {
     let project = Project::new();
-    project.write(".prettierrc.json", IGNORED_CONFIGURATION);
-    project.write("clean.md", FORMATTED);
+    project
+        .write()
+        .path(".prettierrc.json")
+        .content(IGNORED_CONFIGURATION)
+        .call();
+    project.write().path("clean.md").content(FORMATTED).call();
 
     let observation = project.observe(Operation::Report, &markdown()).await;
 
@@ -232,8 +238,12 @@ async fn observe_reads_a_report_without_color_codes() {
 #[tokio::test]
 async fn observe_reads_the_marker_of_a_line_that_a_color_would_hide() {
     let project = Project::new();
-    project.write(".prettierrc.json", IGNORED_CONFIGURATION);
-    project.write("clean.md", FORMATTED);
+    project
+        .write()
+        .path(".prettierrc.json")
+        .content(IGNORED_CONFIGURATION)
+        .call();
+    project.write().path("clean.md").content(FORMATTED).call();
 
     let observation = project.observe(Operation::Report, &markdown()).await;
 
@@ -247,7 +257,7 @@ async fn observe_reads_the_marker_of_a_line_that_a_color_would_hide() {
 #[tokio::test]
 async fn observe_with_a_filter_for_every_extension_skips_an_unknown_language() {
     let project = Project::new();
-    project.write("main.rs", FOREIGN);
+    project.write().path("main.rs").content(FOREIGN).call();
 
     let observation = project.observe(Operation::Report, &Filter::default()).await;
 

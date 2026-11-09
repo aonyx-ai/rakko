@@ -61,7 +61,7 @@ impl ObserveTscError {
     #[builder]
     pub(super) fn silent(stdout: &str, stderr: &str) -> Self {
         Self::MissingReport {
-            details: diagnosis(stdout, stderr),
+            details: diagnosis().stdout(stdout).stderr(stderr).call(),
         }
     }
 }
@@ -72,6 +72,7 @@ impl ObserveTscError {
 /// that wrote nothing there says what happened on the standard error stream,
 /// or says nothing at all, and the caller reports whichever of the two carries
 /// text.
+#[bon::builder]
 fn diagnosis(stdout: &str, stderr: &str) -> String {
     let written = stdout.trim();
 

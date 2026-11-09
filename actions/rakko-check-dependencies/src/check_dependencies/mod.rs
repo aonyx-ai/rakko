@@ -160,7 +160,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
 
     if findings.is_empty() {
         Ok(Outcome::Passed {
-            summary: Some(summary(roots.len(), warnings)),
+            summary: Some(summary().roots(roots.len()).warnings(warnings).call()),
         })
     } else {
         Ok(Outcome::Failed {
@@ -234,6 +234,7 @@ fn location(root: &CargoRoot, project: &ProjectRoot) -> Result<Location, CheckDe
 /// because a warning is a shape that the project asked to read about, and a
 /// warning that no outcome carried would be one that nobody reads. A run
 /// without a warning says nothing about warnings.
+#[bon::builder]
 fn summary(roots: usize, warnings: usize) -> Summary {
     let workspaces = if roots == 1 { WORKSPACE } else { WORKSPACES };
     let checked = format!("checked {roots} {workspaces}");
@@ -362,28 +363,28 @@ mod tests {
 
     #[test]
     fn summary_of_one_workspace_counts_it_in_the_singular() {
-        let summary = summary(1, 0);
+        let summary = summary().roots(1).warnings(0).call();
 
         assert_eq!(summary.get(), "checked 1 workspace");
     }
 
     #[test]
     fn summary_of_several_workspaces_counts_them() {
-        let summary = summary(2, 0);
+        let summary = summary().roots(2).warnings(0).call();
 
         assert_eq!(summary.get(), "checked 2 workspaces");
     }
 
     #[test]
     fn summary_with_one_warning_counts_it_in_the_singular() {
-        let summary = summary(2, 1);
+        let summary = summary().roots(2).warnings(1).call();
 
         assert_eq!(summary.get(), "checked 2 workspaces, 1 warning");
     }
 
     #[test]
     fn summary_with_several_warnings_counts_them() {
-        let summary = summary(2, 3);
+        let summary = summary().roots(2).warnings(3).call();
 
         assert_eq!(summary.get(), "checked 2 workspaces, 3 warnings");
     }

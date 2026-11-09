@@ -201,11 +201,13 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project with a root manifest and a `mise.toml`, in which
     /// mise installs nothing
+    #[builder]
     fn new(manifest: &str, pins: &str) -> Self {
-        let project = Self::installable(manifest, pins);
+        let project = Self::installable().manifest(manifest).pins(pins).call();
         std::fs::write(project.directory.path().join("mise.toml"), REFUSAL)
             .expect("the test writes the configuration around the project");
 
@@ -214,13 +216,14 @@ impl Project {
 
     /// Creates a project with a root manifest and a `mise.toml`, in which
     /// mise installs what the project pins
+    #[builder]
     fn installable(manifest: &str, pins: &str) -> Self {
         let project = Self {
             directory: tempfile::tempdir().expect("the test creates a temporary directory"),
         };
         std::fs::create_dir(project.root()).expect("the test creates the project");
-        project.write("Cargo.toml", manifest);
-        project.write("mise.toml", pins);
+        project.write().file("Cargo.toml").text(manifest).call();
+        project.write().file("mise.toml").text(pins).call();
 
         project
     }
@@ -242,12 +245,20 @@ impl Project {
 
     /// Runs the command with the given arguments and a check that passes,
     /// and returns its result
+    #[builder]
     async fn run(&self, msrv: &str, reason: &str) -> CommandResult {
-        self.run_checked(Answer::Pass, msrv, reason).await.result
+        self.run_checked()
+            .answer(Answer::Pass)
+            .msrv(msrv)
+            .reason(reason)
+            .call()
+            .await
+            .result
     }
 
     /// Runs the command with the given arguments and a check that answers as
     /// the test asks, and returns what the run left behind
+    #[builder]
     async fn run_checked(&self, answer: Answer, msrv: &str, reason: &str) -> Run {
         let args = SetMsrvArgs::from_values(&ArgsValues::new([
             (argument_name!("msrv"), ArgumentValue::new(msrv)),
@@ -288,7 +299,10 @@ impl Project {
 
     /// Runs the command to a bump from 1.88.0 to 1.89.0 and returns its error
     async fn fail(&self) -> SetMsrvError {
-        self.run("1.89.0", "bon 3.11 requires Rust 1.89")
+        self.run()
+            .msrv("1.89.0")
+            .reason("bon 3.11 requires Rust 1.89")
+            .call()
             .await
             .expect_err("the test expects the run to fail")
             .downcast()
@@ -296,6 +310,7 @@ impl Project {
     }
 
     /// Writes a file of the project
+    #[builder]
     fn write(&self, file: &str, text: &str) {
         std::fs::write(self.path(file), text).expect("the test writes a file of the project");
     }
@@ -330,12 +345,14 @@ fn locked(lock: &str) -> Vec<(String, String)> {
 // the workspace, so the version of the workspace is the one to change.
 #[tokio::test]
 async fn run_in_a_package_of_a_workspace_sets_the_version_of_the_workspace() {
-    let project = Project::new(
-        "[package]\nname = \"otter\"\nrust-version.workspace = true\n\n[workspace.package]\nrust-version = \"1.88.0\"\n",
-        TEXTS,
-    );
+    let project = Project::builder().manifest("[package]\nname = \"otter\"\nrust-version.workspace = true\n\n[workspace.package]\nrust-version = \"1.88.0\"\n").pins(TEXTS).build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(
         project.read("Cargo.toml"),
@@ -345,10 +362,13 @@ async fn run_in_a_package_of_a_workspace_sets_the_version_of_the_workspace() {
 
 #[tokio::test]
 async fn run_in_a_package_sets_the_version_of_the_package() {
-    let project = Project::new(PACKAGE, TEXTS);
+    let project = Project::builder().manifest(PACKAGE).pins(TEXTS).build();
 
     let _result = project
-        .run("1.89.0", "Kept low for the users of Debian 13")
+        .run()
+        .msrv("1.89.0")
+        .reason("Kept low for the users of Debian 13")
+        .call()
         .await;
 
     assert_eq!(
@@ -364,9 +384,14 @@ rust-version = "1.89.0"
 
 #[tokio::test]
 async fn run_in_a_workspace_sets_the_version_and_its_comment() {
-    let project = Project::new(WORKSPACE, TEXTS);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(project.read("Cargo.toml"), BUMPED_WORKSPACE);
 }
@@ -375,12 +400,14 @@ async fn run_in_a_workspace_sets_the_version_and_its_comment() {
 // charge.
 #[tokio::test]
 async fn run_in_a_workspace_without_a_version_sets_the_version_of_the_package() {
-    let project = Project::new(
-        "[package]\nname = \"otter\"\nrust-version = \"1.88.0\"\n\n[workspace.package]\nedition = \"2024\"\n",
-        TEXTS,
-    );
+    let project = Project::builder().manifest("[package]\nname = \"otter\"\nrust-version = \"1.88.0\"\n\n[workspace.package]\nedition = \"2024\"\n").pins(TEXTS).build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(
         project.read("Cargo.toml"),
@@ -390,9 +417,17 @@ async fn run_in_a_workspace_without_a_version_sets_the_version_of_the_package() 
 
 #[tokio::test]
 async fn run_on_files_that_end_lines_with_carriage_returns_keeps_them() {
-    let project = Project::new(&WORKSPACE.replace('\n', "\r\n"), TEXTS);
+    let project = Project::builder()
+        .manifest(&WORKSPACE.replace('\n', "\r\n"))
+        .pins(TEXTS)
+        .build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(
         project.read("Cargo.toml"),
@@ -402,10 +437,17 @@ async fn run_on_files_that_end_lines_with_carriage_returns_keeps_them() {
 
 #[tokio::test]
 async fn run_reports_the_outcome_of_the_check() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
 
     let run = project
-        .run_checked(Answer::Pass, INSTALLED, "bon 3.11 requires Rust 1.89")
+        .run_checked()
+        .answer(Answer::Pass)
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
         .await;
 
     assert_eq!(run.reports, ["check-msrv: passed"]);
@@ -413,10 +455,17 @@ async fn run_reports_the_outcome_of_the_check() {
 
 #[tokio::test]
 async fn run_runs_the_check_once_after_the_install() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
 
     let run = project
-        .run_checked(Answer::Pass, INSTALLED, "bon 3.11 requires Rust 1.89")
+        .run_checked()
+        .answer(Answer::Pass)
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
         .await;
 
     assert_eq!(run.checks, 1);
@@ -424,9 +473,17 @@ async fn run_runs_the_check_once_after_the_install() {
 
 #[tokio::test]
 async fn run_sets_a_single_pin() {
-    let project = Project::new(WORKSPACE, "[tools]\nrust = \"1.88.0\"\n");
+    let project = Project::builder()
+        .manifest(WORKSPACE)
+        .pins("[tools]\nrust = \"1.88.0\"\n")
+        .build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(project.read("mise.toml"), "[tools]\nrust = \"1.89.0\"\n");
 }
@@ -435,9 +492,17 @@ async fn run_sets_a_single_pin() {
 // first pin is the default, and it stays.
 #[tokio::test]
 async fn run_sets_the_last_matching_pin() {
-    let project = Project::new(WORKSPACE, "[tools]\nrust = [\"1.88.0\", \"1.88.0\"]\n");
+    let project = Project::builder()
+        .manifest(WORKSPACE)
+        .pins("[tools]\nrust = [\"1.88.0\", \"1.88.0\"]\n")
+        .build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(
         project.read("mise.toml"),
@@ -447,12 +512,17 @@ async fn run_sets_the_last_matching_pin() {
 
 #[tokio::test]
 async fn run_sets_the_matching_pin_of_an_array_of_tables() {
-    let project = Project::new(
-        WORKSPACE,
-        "[[tools.rust]]\nversion = \"1.98.1\"\n\n[[tools.rust]]\nversion = \"1.88.0\"\n",
-    );
+    let project = Project::builder()
+        .manifest(WORKSPACE)
+        .pins("[[tools.rust]]\nversion = \"1.98.1\"\n\n[[tools.rust]]\nversion = \"1.88.0\"\n")
+        .build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(
         project.read("mise.toml"),
@@ -462,9 +532,14 @@ async fn run_sets_the_matching_pin_of_an_array_of_tables() {
 
 #[tokio::test]
 async fn run_sets_the_matching_pin_of_tables() {
-    let project = Project::new(WORKSPACE, TABLES);
+    let project = Project::builder().manifest(WORKSPACE).pins(TABLES).build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(
         project.read("mise.toml"),
@@ -477,9 +552,14 @@ async fn run_sets_the_matching_pin_of_tables() {
 
 #[tokio::test]
 async fn run_sets_the_matching_pin_of_texts() {
-    let project = Project::new(WORKSPACE, TEXTS);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(
         project.read("mise.toml"),
@@ -489,9 +569,17 @@ async fn run_sets_the_matching_pin_of_texts() {
 
 #[tokio::test]
 async fn run_sets_the_pin_of_a_table() {
-    let project = Project::new(WORKSPACE, "[tools.rust]\nversion = \"1.88.0\"\n");
+    let project = Project::builder()
+        .manifest(WORKSPACE)
+        .pins("[tools.rust]\nversion = \"1.88.0\"\n")
+        .build();
 
-    let _result = project.run("1.89.0", "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(
         project.read("mise.toml"),
@@ -501,10 +589,17 @@ async fn run_sets_the_pin_of_a_table() {
 
 #[tokio::test]
 async fn run_whose_check_fails_names_the_check_and_the_version() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
 
     let run = project
-        .run_checked(Answer::Fail, INSTALLED, "bon 3.11 requires Rust 1.89")
+        .run_checked()
+        .answer(Answer::Fail)
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
         .await;
 
     assert_eq!(
@@ -521,10 +616,17 @@ async fn run_whose_check_fails_names_the_check_and_the_version() {
 
 #[tokio::test]
 async fn run_whose_check_passes_succeeds() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
 
     let run = project
-        .run_checked(Answer::Pass, INSTALLED, "bon 3.11 requires Rust 1.89")
+        .run_checked()
+        .answer(Answer::Pass)
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
         .await;
 
     assert!(run.result.is_ok());
@@ -532,10 +634,17 @@ async fn run_whose_check_passes_succeeds() {
 
 #[tokio::test]
 async fn run_whose_check_repairs_succeeds() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
 
     let run = project
-        .run_checked(Answer::Repair, INSTALLED, "bon 3.11 requires Rust 1.89")
+        .run_checked()
+        .answer(Answer::Repair)
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
         .await;
 
     assert!(run.result.is_ok());
@@ -544,10 +653,17 @@ async fn run_whose_check_repairs_succeeds() {
 // A check that skipped did not compile the code on the new version.
 #[tokio::test]
 async fn run_whose_check_skips_fails() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
 
     let run = project
-        .run_checked(Answer::Skip, INSTALLED, "bon 3.11 requires Rust 1.89")
+        .run_checked()
+        .answer(Answer::Skip)
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
         .await;
 
     assert_eq!(
@@ -564,10 +680,17 @@ async fn run_whose_check_skips_fails() {
 
 #[tokio::test]
 async fn run_whose_check_stops_fails() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
 
     let run = project
-        .run_checked(Answer::Stop, INSTALLED, "bon 3.11 requires Rust 1.89")
+        .run_checked()
+        .answer(Answer::Stop)
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
         .await;
 
     assert_eq!(
@@ -584,7 +707,7 @@ async fn run_whose_check_stops_fails() {
 
 #[tokio::test]
 async fn run_whose_mise_does_not_install_keeps_the_files() {
-    let project = Project::new(WORKSPACE, TEXTS);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
 
     let _error = project.fail().await;
 
@@ -599,7 +722,7 @@ async fn run_whose_mise_does_not_install_keeps_the_files() {
 
 #[tokio::test]
 async fn run_whose_mise_does_not_install_reports_what_mise_said() {
-    let project = Project::new(WORKSPACE, TEXTS);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
 
     let error = project.fail().await;
 
@@ -611,10 +734,14 @@ async fn run_whose_mise_does_not_install_reports_what_mise_said() {
 
 #[tokio::test]
 async fn run_whose_mise_does_not_install_runs_no_check() {
-    let project = Project::new(WORKSPACE, TEXTS);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
 
     let run = project
-        .run_checked(Answer::Pass, "1.89.0", "bon 3.11 requires Rust 1.89")
+        .run_checked()
+        .answer(Answer::Pass)
+        .msrv("1.89.0")
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
         .await;
 
     assert_eq!(run.checks, 0);
@@ -622,7 +749,7 @@ async fn run_whose_mise_does_not_install_runs_no_check() {
 
 #[tokio::test]
 async fn run_whose_mise_does_not_install_says_what_to_run() {
-    let project = Project::new(WORKSPACE, TEXTS);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
 
     let error = project.fail().await;
 
@@ -633,8 +760,8 @@ async fn run_whose_mise_does_not_install_says_what_to_run() {
 
 #[tokio::test]
 async fn run_whose_mise_refuses_to_lock_reports_what_mise_said() {
-    let project = Project::new(WORKSPACE, TEXTS);
-    project.write("mise.lock", LOCK);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
+    project.write().file("mise.lock").text(LOCK).call();
 
     let error = project.fail().await;
 
@@ -646,8 +773,8 @@ async fn run_whose_mise_refuses_to_lock_reports_what_mise_said() {
 
 #[tokio::test]
 async fn run_whose_mise_refuses_to_lock_says_what_to_run() {
-    let project = Project::new(WORKSPACE, TEXTS);
-    project.write("mise.lock", LOCK);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
+    project.write().file("mise.lock").text(LOCK).call();
 
     let error = project.fail().await;
 
@@ -658,22 +785,37 @@ async fn run_whose_mise_refuses_to_lock_says_what_to_run() {
 
 #[tokio::test]
 async fn run_with_a_lock_locks_the_new_pin() {
-    let project = Project::installable(OLD_PACKAGE, &TEXTS.replace("1.88.0", "1.0.0"));
-    project.write("mise.lock", &LOCK.replace("1.88.0", "1.0.0"));
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(&TEXTS.replace("1.88.0", "1.0.0"))
+        .call();
+    project
+        .write()
+        .file("mise.lock")
+        .text(&LOCK.replace("1.88.0", "1.0.0"))
+        .call();
     let mut expected = vec![
         (format!("\"{INSTALLED}\""), format!("[\"{INSTALLED}\"]")),
         ("\"1.98.1\"".to_owned(), "[\"1.98.1\"]".to_owned()),
     ];
     expected.sort();
 
-    let _result = project.run(INSTALLED, "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert_eq!(locked(&project.read("mise.lock")), expected);
 }
 
 #[tokio::test]
 async fn run_with_a_malformed_manifest_names_it() {
-    let project = Project::new("[package\n", TEXTS);
+    let project = Project::builder()
+        .manifest("[package\n")
+        .pins(TEXTS)
+        .build();
 
     let error = project.fail().await;
 
@@ -685,7 +827,10 @@ async fn run_with_a_malformed_manifest_names_it() {
 
 #[tokio::test]
 async fn run_with_a_malformed_mise_toml_names_it() {
-    let project = Project::new(WORKSPACE, "[tools\n");
+    let project = Project::builder()
+        .manifest(WORKSPACE)
+        .pins("[tools\n")
+        .build();
 
     let error = project.fail().await;
 
@@ -697,10 +842,10 @@ async fn run_with_a_malformed_mise_toml_names_it() {
 
 #[tokio::test]
 async fn run_with_a_version_in_an_inline_table_names_the_manifest() {
-    let project = Project::new(
-        "[workspace]\npackage = { rust-version = \"1.88.0\" }\n",
-        TEXTS,
-    );
+    let project = Project::builder()
+        .manifest("[workspace]\npackage = { rust-version = \"1.88.0\" }\n")
+        .pins(TEXTS)
+        .build();
 
     let error = project.fail().await;
 
@@ -715,7 +860,10 @@ async fn run_with_a_version_in_an_inline_table_names_the_manifest() {
 
 #[tokio::test]
 async fn run_without_a_declared_version_names_the_manifest() {
-    let project = Project::new("[package]\nname = \"otter\"\n", TEXTS);
+    let project = Project::builder()
+        .manifest("[package]\nname = \"otter\"\n")
+        .pins(TEXTS)
+        .build();
 
     let error = project.fail().await;
 
@@ -730,16 +878,27 @@ async fn run_without_a_declared_version_names_the_manifest() {
 
 #[tokio::test]
 async fn run_without_a_lock_creates_none() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
 
-    let _result = project.run(INSTALLED, "bon 3.11 requires Rust 1.89").await;
+    let _result = project
+        .run()
+        .msrv(INSTALLED)
+        .reason("bon 3.11 requires Rust 1.89")
+        .call()
+        .await;
 
     assert!(!project.path("mise.lock").exists());
 }
 
 #[tokio::test]
 async fn run_without_a_matching_pin_changes_no_file() {
-    let project = Project::new(WORKSPACE, "[tools]\nrust = \"1.98.1\"\n");
+    let project = Project::builder()
+        .manifest(WORKSPACE)
+        .pins("[tools]\nrust = \"1.98.1\"\n")
+        .build();
 
     let _error = project.fail().await;
 
@@ -754,7 +913,10 @@ async fn run_without_a_matching_pin_changes_no_file() {
 
 #[tokio::test]
 async fn run_without_a_matching_pin_names_the_version() {
-    let project = Project::new(WORKSPACE, "[tools]\nrust = \"1.98.1\"\n");
+    let project = Project::builder()
+        .manifest(WORKSPACE)
+        .pins("[tools]\nrust = \"1.98.1\"\n")
+        .build();
 
     let error = project.fail().await;
 
@@ -766,7 +928,7 @@ async fn run_without_a_matching_pin_names_the_version() {
 
 #[tokio::test]
 async fn run_without_a_mise_toml_changes_no_file() {
-    let project = Project::new(WORKSPACE, TEXTS);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
     std::fs::remove_file(project.path("mise.toml")).expect("the test removes the pins");
 
     let _error = project.fail().await;
@@ -776,7 +938,7 @@ async fn run_without_a_mise_toml_changes_no_file() {
 
 #[tokio::test]
 async fn run_without_a_mise_toml_names_it() {
-    let project = Project::new(WORKSPACE, TEXTS);
+    let project = Project::builder().manifest(WORKSPACE).pins(TEXTS).build();
     std::fs::remove_file(project.path("mise.toml")).expect("the test removes the pins");
 
     let error = project.fail().await;
@@ -789,7 +951,10 @@ async fn run_without_a_mise_toml_names_it() {
 
 #[tokio::test]
 async fn run_without_a_reader_names_the_check() {
-    let project = Project::installable(OLD_PACKAGE, OLD_PIN);
+    let project = Project::installable()
+        .manifest(OLD_PACKAGE)
+        .pins(OLD_PIN)
+        .call();
     let args = SetMsrvArgs::from_values(&ArgsValues::new([
         (argument_name!("msrv"), ArgumentValue::new(INSTALLED)),
         (

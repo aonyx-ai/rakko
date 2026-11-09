@@ -640,13 +640,18 @@ mod tests {
         directory: TempDir,
     }
 
+    #[bon::bon]
     impl Repository {
         /// Creates a repository with one commit that holds one file
         fn new() -> Self {
             let repository = Self::empty();
 
-            repository.write("tracked.txt", "one");
-            repository.write("crates/example/lib.rs", "// example");
+            repository.write().path("tracked.txt").content("one").call();
+            repository
+                .write()
+                .path("crates/example/lib.rs")
+                .content("// example")
+                .call();
             repository.git(&["add", "--all"]);
             repository.git(&["commit", "--message", "The first commit"]);
 
@@ -721,6 +726,7 @@ mod tests {
         }
 
         /// Writes a file of the working tree, and its parent directories
+        #[builder]
         fn write(&self, path: &str, content: &str) {
             let file = self.root().get().join(path);
 
@@ -792,7 +798,7 @@ mod tests {
     #[tokio::test]
     async fn create_copies_a_changed_file() {
         let repository = Repository::new();
-        repository.write("tracked.txt", "two");
+        repository.write().path("tracked.txt").content("two").call();
 
         let worktree = Worktree::create(repository.root())
             .await
@@ -804,7 +810,11 @@ mod tests {
     #[tokio::test]
     async fn create_copies_a_staged_file() {
         let repository = Repository::new();
-        repository.write("staged.txt", "staged");
+        repository
+            .write()
+            .path("staged.txt")
+            .content("staged")
+            .call();
         repository.git(&["add", "staged.txt"]);
 
         let worktree = Worktree::create(repository.root())
@@ -834,7 +844,11 @@ mod tests {
     #[tokio::test]
     async fn create_copies_an_untracked_file_in_a_new_directory() {
         let repository = Repository::new();
-        repository.write("fresh/deep/new.txt", "new");
+        repository
+            .write()
+            .path("fresh/deep/new.txt")
+            .content("new")
+            .call();
 
         let worktree = Worktree::create(repository.root())
             .await
@@ -849,10 +863,18 @@ mod tests {
     #[tokio::test]
     async fn create_ignores_a_file_that_git_ignores() {
         let repository = Repository::new();
-        repository.write(".gitignore", "target/\n");
+        repository
+            .write()
+            .path(".gitignore")
+            .content("target/\n")
+            .call();
         repository.git(&["add", ".gitignore"]);
         repository.git(&["commit", "--message", "Ignore the build directory"]);
-        repository.write("target/artifact.bin", "a gigabyte, in spirit");
+        repository
+            .write()
+            .path("target/artifact.bin")
+            .content("a gigabyte, in spirit")
+            .call();
 
         let worktree = Worktree::create(repository.root())
             .await
@@ -875,7 +897,7 @@ mod tests {
     #[tokio::test]
     async fn create_in_a_modified_project_reports_the_copy_as_modified() {
         let repository = Repository::new();
-        repository.write("tracked.txt", "two");
+        repository.write().path("tracked.txt").content("two").call();
 
         let worktree = Worktree::create(repository.root())
             .await
@@ -902,8 +924,12 @@ mod tests {
     #[tokio::test]
     async fn create_leaves_the_project_as_it_was() {
         let repository = Repository::new();
-        repository.write("tracked.txt", "two");
-        repository.write("untracked.txt", "new");
+        repository.write().path("tracked.txt").content("two").call();
+        repository
+            .write()
+            .path("untracked.txt")
+            .content("new")
+            .call();
         repository.git(&["add", "tracked.txt"]);
         let before = repository.state();
 
@@ -945,7 +971,11 @@ mod tests {
     #[tokio::test]
     async fn create_removes_a_directory_that_the_project_deleted() {
         let repository = Repository::new();
-        repository.write("crates/example/Cargo.toml", "[package]");
+        repository
+            .write()
+            .path("crates/example/Cargo.toml")
+            .content("[package]")
+            .call();
         repository.git(&["add", "--all"]);
         repository.git(&["commit", "--message", "Add a manifest"]);
         repository.delete_directory("crates/example");
@@ -975,7 +1005,11 @@ mod tests {
     #[tokio::test]
     async fn create_removes_a_staged_file_whose_directory_the_project_deleted() {
         let repository = Repository::new();
-        repository.write("fresh/deep/new.txt", "new");
+        repository
+            .write()
+            .path("fresh/deep/new.txt")
+            .content("new")
+            .call();
         repository.git(&["add", "fresh/deep/new.txt"]);
         repository.delete_directory("fresh");
 

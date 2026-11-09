@@ -111,12 +111,12 @@ impl Observation {
             Exit::Failed
         };
 
-        self::report::read(
-            &execution.stdout().to_string_lossy(),
-            &execution.stderr().to_string_lossy(),
-            exit,
-            operation,
-        )
+        self::report::read()
+            .stdout(&execution.stdout().to_string_lossy())
+            .stderr(&execution.stderr().to_string_lossy())
+            .succeeded(exit)
+            .operation(operation)
+            .call()
     }
 }
 

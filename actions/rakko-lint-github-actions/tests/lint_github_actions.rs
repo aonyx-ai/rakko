@@ -110,6 +110,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a zizmor to resolve
     ///
@@ -178,6 +179,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -189,8 +191,12 @@ impl Project {
     }
 
     /// Writes a workflow of the project
+    #[builder]
     fn workflow(&self, name: &str, content: &str) {
-        self.write(&format!("{WORKFLOWS}/{name}"), content);
+        self.write()
+            .path(&format!("{WORKFLOWS}/{name}"))
+            .content(content)
+            .call();
     }
 }
 
@@ -284,7 +290,7 @@ fn action_identifies_itself_as_lint_github_actions() {
 #[tokio::test]
 async fn run_in_a_clean_project_passes() {
     let project = Project::new();
-    project.workflow("clean.yml", CLEAN);
+    project.workflow().name("clean.yml").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -297,7 +303,11 @@ async fn run_in_a_clean_project_passes() {
 #[tokio::test]
 async fn run_leaves_a_workflow_with_a_finding_unchanged() {
     let project = Project::new();
-    project.workflow("injection.yml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
     project.run().await;
 
@@ -307,7 +317,11 @@ async fn run_leaves_a_workflow_with_a_finding_unchanged() {
 #[tokio::test]
 async fn run_names_the_project_and_reports_the_path_below_it() {
     let project = Project::new();
-    project.workflow("injection.yaml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yaml")
+        .content(INJECTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -326,8 +340,16 @@ async fn run_names_the_project_and_reports_the_path_below_it() {
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
-    project.write("zizmor.yml", PERMISSIVE_CONFIGURATION);
-    project.workflow("injection.yml", INJECTION);
+    project
+        .write()
+        .path("zizmor.yml")
+        .content(PERMISSIVE_CONFIGURATION)
+        .call();
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -340,7 +362,11 @@ async fn run_reads_the_configuration_of_the_project() {
 #[tokio::test]
 async fn run_reports_a_finding_of_the_pedantic_persona() {
     let project = Project::new();
-    project.workflow("pedantic.yml", PEDANTIC);
+    project
+        .workflow()
+        .name("pedantic.yml")
+        .content(PEDANTIC)
+        .call();
 
     let outcome = project.run().await;
 
@@ -359,8 +385,12 @@ async fn run_reports_a_finding_of_the_pedantic_persona() {
 #[tokio::test]
 async fn run_whose_zizmor_collects_nothing_skips() {
     let project = Project::new();
-    project.workflow("clean.yml", CLEAN);
-    project.write(".gitignore", IGNORE_WORKFLOWS);
+    project.workflow().name("clean.yml").content(CLEAN).call();
+    project
+        .write()
+        .path(".gitignore")
+        .content(IGNORE_WORKFLOWS)
+        .call();
 
     let outcome = project.run().await;
 
@@ -373,7 +403,11 @@ async fn run_whose_zizmor_collects_nothing_skips() {
 #[tokio::test]
 async fn run_with_a_finding_carries_the_message_of_zizmor() {
     let project = Project::new();
-    project.workflow("injection.yml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -393,7 +427,11 @@ async fn run_with_a_finding_carries_the_message_of_zizmor() {
 #[tokio::test]
 async fn run_with_a_finding_covers_the_range_of_zizmor() {
     let project = Project::new();
-    project.workflow("injection.yml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -419,7 +457,11 @@ async fn run_with_a_finding_covers_the_range_of_zizmor() {
 #[tokio::test]
 async fn run_with_a_finding_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.workflow("injection.yml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
     // The helper asserts that the run left every file of the project as it
     // was.
@@ -429,7 +471,11 @@ async fn run_with_a_finding_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn run_with_a_finding_reports_every_place_that_zizmor_named() {
     let project = Project::new();
-    project.workflow("pedantic.yml", PEDANTIC);
+    project
+        .workflow()
+        .name("pedantic.yml")
+        .content(PEDANTIC)
+        .call();
 
     let outcome = project.run().await;
 
@@ -450,8 +496,12 @@ async fn run_with_a_finding_reports_every_place_that_zizmor_named() {
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::new();
-    project.write("zizmor.yml", BROKEN_CONFIGURATION);
-    project.workflow("clean.yml", CLEAN);
+    project
+        .write()
+        .path("zizmor.yml")
+        .content(BROKEN_CONFIGURATION)
+        .call();
+    project.workflow().name("clean.yml").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -464,8 +514,12 @@ async fn run_with_a_refused_configuration_stops() {
 #[tokio::test]
 async fn run_with_a_workflow_that_zizmor_cannot_read_stops() {
     let project = Project::new();
-    project.workflow("clean.yml", CLEAN);
-    project.workflow("unreadable.yml", UNREADABLE);
+    project.workflow().name("clean.yml").content(CLEAN).call();
+    project
+        .workflow()
+        .name("unreadable.yml")
+        .content(UNREADABLE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -478,7 +532,7 @@ async fn run_with_a_workflow_that_zizmor_cannot_read_stops() {
 #[tokio::test]
 async fn run_without_a_zizmor_stops() {
     let project = Project::without_zizmor();
-    project.workflow("clean.yml", CLEAN);
+    project.workflow().name("clean.yml").content(CLEAN).call();
 
     let outcome = project.run().await;
 

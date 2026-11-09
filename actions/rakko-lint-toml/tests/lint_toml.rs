@@ -46,6 +46,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project that pins a taplo that nothing installed
     ///
@@ -88,6 +89,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -193,7 +195,7 @@ async fn run_in_a_missing_directory_stops_without_a_taplo() {
 #[tokio::test]
 async fn run_in_a_valid_project_counts_the_files() {
     let project = Project::new();
-    project.write("clean.toml", VALID);
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -210,7 +212,7 @@ async fn run_in_a_valid_project_counts_the_files() {
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
-    project.write("clean.toml", VALID);
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -223,7 +225,11 @@ async fn run_in_a_valid_project_passes() {
 #[tokio::test]
 async fn run_leaves_an_unformatted_file_unchanged() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
     project.run().await;
 
@@ -233,8 +239,12 @@ async fn run_leaves_an_unformatted_file_unchanged() {
 #[tokio::test]
 async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
     let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", VALID);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -250,8 +260,12 @@ async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
 #[tokio::test]
 async fn run_with_a_rejected_configuration_stops() {
     let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", VALID);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -264,7 +278,7 @@ async fn run_with_a_rejected_configuration_stops() {
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     let outcome = project.run().await;
 
@@ -281,7 +295,7 @@ async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
 #[tokio::test]
 async fn run_with_an_invalid_file_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("broken.toml", INVALID);
+    project.write().path("broken.toml").content(INVALID).call();
 
     // The helper asserts that the run left every file of the project as it
     // was.
@@ -291,7 +305,11 @@ async fn run_with_an_invalid_file_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
-    project.write("sub/broken.toml", INVALID);
+    project
+        .write()
+        .path("sub/broken.toml")
+        .content(INVALID)
+        .call();
 
     let outcome = project.run().await;
 
@@ -316,7 +334,7 @@ async fn run_with_an_unreadable_file_carries_the_reason_of_taplo() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.toml", VALID);
+    project.write().path("secret.toml").content(VALID).call();
     let path = project.directory.path().join("secret.toml");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -341,7 +359,7 @@ async fn run_with_an_unreadable_file_names_the_file() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.toml", VALID);
+    project.write().path("secret.toml").content(VALID).call();
     let path = project.directory.path().join("secret.toml");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");

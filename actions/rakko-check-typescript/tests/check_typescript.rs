@@ -79,6 +79,7 @@ struct Project {
     root: PathBuf,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a tsc to resolve
     ///
@@ -169,6 +170,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         create(&self.root.join(path), content);
     }
@@ -180,6 +182,7 @@ impl Project {
     /// there the file lands in the project.
     ///
     /// [nested]: Project::nested
+    #[builder]
     fn write_beside(&self, path: &str, content: &str) {
         create(&self.directory.path().join(path), content);
     }
@@ -277,8 +280,12 @@ fn action_identifies_itself_as_check_typescript() {
 #[tokio::test]
 async fn run_in_a_valid_project_passes() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", VALID);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -291,8 +298,16 @@ async fn run_in_a_valid_project_passes() {
 #[tokio::test]
 async fn run_leaves_a_file_with_a_type_error_unchanged() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     project.run().await;
 
@@ -302,8 +317,12 @@ async fn run_leaves_a_file_with_a_type_error_unchanged() {
 #[tokio::test]
 async fn run_of_a_project_that_builds_writes_no_output() {
     let project = Project::new();
-    project.write("tsconfig.json", EMITTING);
-    project.write("src/index.ts", VALID);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(EMITTING)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
 
     project.run().await;
 
@@ -316,9 +335,17 @@ async fn run_of_a_project_that_builds_writes_no_output() {
 #[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", VALID);
-    project.write("src/deep/sub/broken.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
+    project
+        .write()
+        .path("src/deep/sub/broken.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -331,8 +358,16 @@ async fn run_reaches_a_file_below_a_directory_of_the_project() {
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
-    project.write("tsconfig.json", UNUSED_PARAMETERS);
-    project.write("src/index.ts", UNUSED_PARAMETER);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(UNUSED_PARAMETERS)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNUSED_PARAMETER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -345,8 +380,16 @@ async fn run_reads_the_configuration_of_the_project() {
 #[tokio::test]
 async fn run_whose_configuration_selected_nothing_skips() {
     let project = Project::new();
-    project.write("tsconfig.json", ELSEWHERE);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(ELSEWHERE)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -361,8 +404,12 @@ async fn run_whose_configuration_selected_nothing_skips() {
 #[tokio::test]
 async fn run_with_a_refused_configuration_reports_the_configuration_file() {
     let project = Project::new();
-    project.write("tsconfig.json", UNKNOWN_OPTION);
-    project.write("src/index.ts", VALID);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(UNKNOWN_OPTION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -375,9 +422,13 @@ async fn run_with_a_refused_configuration_reports_the_configuration_file() {
 #[tokio::test]
 async fn run_with_a_type_error_beside_the_project_names_its_place() {
     let project = Project::nested();
-    project.write("tsconfig.json", PARENT);
-    project.write("src/index.ts", VALID);
-    project.write_beside("shared/index.ts", WRONG_TYPE);
+    project.write().path("tsconfig.json").content(PARENT).call();
+    project.write().path("src/index.ts").content(VALID).call();
+    project
+        .write_beside()
+        .path("shared/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -399,8 +450,16 @@ async fn run_with_a_type_error_beside_the_project_names_its_place() {
 #[tokio::test]
 async fn run_with_a_type_error_carries_the_message_of_tsc() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -416,8 +475,16 @@ async fn run_with_a_type_error_carries_the_message_of_tsc() {
 #[tokio::test]
 async fn run_with_a_type_error_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     // The helper asserts that the run left every file of the project as it
     // was.
@@ -431,8 +498,16 @@ async fn run_with_a_type_error_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn run_with_a_type_error_reports_a_message_without_color_codes() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -449,8 +524,16 @@ async fn run_with_a_type_error_reports_a_message_without_color_codes() {
 #[tokio::test]
 async fn run_with_a_type_error_reports_the_position_of_tsc() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -471,8 +554,16 @@ async fn run_with_a_type_error_reports_the_position_of_tsc() {
 #[tokio::test]
 async fn run_with_an_explained_diagnostic_carries_the_explanation() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", EXPLAINED);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(EXPLAINED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -492,8 +583,16 @@ async fn run_with_an_explained_diagnostic_carries_the_explanation() {
 #[tokio::test]
 async fn run_with_an_explained_diagnostic_reports_one_finding() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", EXPLAINED);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(EXPLAINED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -508,7 +607,11 @@ async fn run_with_an_explained_diagnostic_reports_one_finding() {
 #[tokio::test]
 async fn run_without_a_configuration_file_skips() {
     let project = Project::new();
-    project.write("src/index.ts", WRONG_TYPE);
+    project
+        .write()
+        .path("src/index.ts")
+        .content(WRONG_TYPE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -524,8 +627,12 @@ async fn run_without_a_configuration_file_skips() {
 #[tokio::test]
 async fn run_without_a_tsc_stops() {
     let project = Project::without_tsc();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", VALID);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -538,8 +645,16 @@ async fn run_without_a_tsc_stops() {
 #[tokio::test]
 async fn run_without_the_option_of_the_project_passes_the_same_file() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", UNUSED_PARAMETER);
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(UNUSED_PARAMETER)
+        .call();
 
     let outcome = project.run().await;
 

@@ -10,7 +10,7 @@ mod report;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
 use rakko_cargo::{CargoRoot, lockfile};
-use rakko_tool::{Launch, ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::CheckWorkspaceError;
 use self::report::Entry;
@@ -26,7 +26,8 @@ const PROGRAM: &str = "cargo-deny";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), CARGO_DENY);
+const VERSION: &str =
+    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(CARGO_DENY);
 
 /// The option that asks cargo-deny for its report as data
 ///

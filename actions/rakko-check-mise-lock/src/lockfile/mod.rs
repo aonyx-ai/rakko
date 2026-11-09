@@ -281,6 +281,7 @@ backend = "cargo:cargo-deny"
 "#;
 
     /// Returns the differences between two lockfiles, as finding messages
+    #[bon::builder]
     fn compare(before: &str, after: &str) -> Vec<String> {
         let before = Lockfile::parse(before).unwrap();
         let after = Lockfile::parse(after).unwrap();
@@ -299,7 +300,7 @@ backend = "cargo:cargo-deny"
             "backend = \"cargo:other\"",
         );
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -311,7 +312,7 @@ backend = "cargo:cargo-deny"
     fn differences_with_a_changed_platform_name_the_platform() {
         let after = COMPLETE.replace("jq-linux", "jq-linux-amd64");
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -323,7 +324,7 @@ backend = "cargo:cargo-deny"
     fn differences_with_a_changed_shared_field_name_every_platform() {
         let after = COMPLETE.replace("aqua:jqlang/jq", "github:jqlang/jq");
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -341,7 +342,7 @@ backend = "cargo:cargo-deny"
             "",
         );
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -355,7 +356,7 @@ backend = "cargo:cargo-deny"
             "{COMPLETE}\n[[tools.jq]]\nversion = \"1.8.1\"\nbackend = \"aqua:jqlang/jq\"\n\n[tools.jq.\"platforms.linux-x64\"]\nurl = \"https://example.com/jq-linux\"\n"
         );
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert_eq!(
             differences,
@@ -370,7 +371,7 @@ backend = "cargo:cargo-deny"
             "",
         );
 
-        let differences = compare(&before, COMPLETE);
+        let differences = compare().before(&before).after(COMPLETE).call();
 
         assert_eq!(
             differences,
@@ -385,7 +386,7 @@ backend = "cargo:cargo-deny"
             "{before}\n[tools.jq.\"platforms.linux-x64\"]\nurl = \"https://example.com/jq-linux\"\n"
         );
 
-        let differences = compare(before, &after);
+        let differences = compare().before(before).after(&after).call();
 
         assert_eq!(
             differences,
@@ -411,7 +412,7 @@ backend = "cargo:cargo-deny"
             )
             .replace("lockfile_version = 1", "# a comment\nlockfile_version = 1");
 
-        let differences = compare(COMPLETE, &after);
+        let differences = compare().before(COMPLETE).after(&after).call();
 
         assert!(
             differences.is_empty(),
@@ -421,7 +422,7 @@ backend = "cargo:cargo-deny"
 
     #[test]
     fn differences_with_the_same_lockfile_are_empty() {
-        let differences = compare(COMPLETE, COMPLETE);
+        let differences = compare().before(COMPLETE).after(COMPLETE).call();
 
         assert!(
             differences.is_empty(),
@@ -435,7 +436,7 @@ backend = "cargo:cargo-deny"
             "{COMPLETE}\n[[tools.jq]]\nversion = \"1.8.1\"\nbackend = \"aqua:jqlang/jq\"\n\n[tools.jq.\"platforms.linux-x64\"]\nurl = \"https://example.com/jq-linux\"\n"
         );
 
-        let differences = compare(&before, COMPLETE);
+        let differences = compare().before(&before).after(COMPLETE).call();
 
         assert_eq!(
             differences,

@@ -47,6 +47,7 @@ const SECONDS: &str = "s";
 /// prettier could not do arrives on the standard error stream. The reading
 /// walks both, recognizes the lines that carry an answer, and ignores the
 /// rest.
+#[bon::builder]
 pub(super) fn read(
     stdout: &str,
     stderr: &str,
@@ -99,7 +100,7 @@ pub(super) fn read(
             }
         } else if report.starts_with(UNMATCHED_PATTERN) {
             observation.unmatched_pattern = Matching::Unmatched;
-        } else if let Some(path) = quoted_path(report, UNREADABLE) {
+        } else if let Some(path) = quoted_path().report(report).marker(UNREADABLE).call() {
             let detail = ProblemDetail::Unreadable {
                 reason: reason(&lines[index + 1..]),
             };
@@ -157,6 +158,7 @@ fn position(report: &str) -> Option<(u32, u32)> {
 }
 
 /// Returns the path that a marker of a line quotes, if the line carries it
+#[bon::builder]
 fn quoted_path(report: &str, marker: &str) -> Option<PathBuf> {
     let quoted = report.strip_prefix(marker)?;
 
@@ -253,7 +255,12 @@ mod tests {
 
     /// Returns the detail of the only problem of a report
     fn detail(stderr: &str) -> ProblemDetail {
-        let observation = read("", stderr, Exit::Failed, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(stderr)
+            .succeeded(Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
         let [problem] = observation.problems.as_slice() else {
             panic!("expected one problem, got {:?}", observation.problems);
@@ -264,7 +271,12 @@ mod tests {
 
     #[test]
     fn read_a_clean_report_finds_no_problem() {
-        let observation = read("", "", Exit::Succeeded, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr("")
+            .succeeded(Exit::Succeeded)
+            .operation(Operation::Report)
+            .call();
 
         assert!(observation.problems.is_empty());
     }
@@ -285,21 +297,36 @@ mod tests {
 
     #[test]
     fn read_a_failed_run_reports_the_failure() {
-        let observation = read("", INVALID, Exit::Failed, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(INVALID)
+            .succeeded(Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
         assert_eq!(observation.succeeded(), Exit::Failed);
     }
 
     #[test]
     fn read_a_pattern_without_a_match_reports_it() {
-        let observation = read("", UNMATCHED, Exit::Failed, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(UNMATCHED)
+            .succeeded(Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
         assert_eq!(observation.unmatched_pattern(), Matching::Unmatched);
     }
 
     #[test]
     fn read_a_rejected_configuration_reports_what_prettier_said() {
-        let observation = read("", REJECTED, Exit::Failed, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(REJECTED)
+            .succeeded(Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
         assert_eq!(
             observation.rejected_configuration.as_deref(),
@@ -311,7 +338,12 @@ mod tests {
 
     #[test]
     fn read_a_report_names_the_files_that_differ() {
-        let observation = read(DIFFERENT, "", Exit::Failed, Operation::Report);
+        let observation = read()
+            .stdout(DIFFERENT)
+            .stderr("")
+            .succeeded(Exit::Failed)
+            .operation(Operation::Report)
+            .call();
 
         let paths: Vec<&PathBuf> = observation
             .problems
@@ -327,21 +359,36 @@ mod tests {
 
     #[test]
     fn read_a_rewrite_names_the_files_that_changed() {
-        let observation = read(WRITTEN, "", Exit::Succeeded, Operation::Rewrite);
+        let observation = read()
+            .stdout(WRITTEN)
+            .stderr("")
+            .succeeded(Exit::Succeeded)
+            .operation(Operation::Rewrite)
+            .call();
 
         assert_eq!(observation.rewritten, [PathBuf::from("sub/messy.md")]);
     }
 
     #[test]
     fn read_a_rewrite_reports_no_problem_of_its_own() {
-        let observation = read(WRITTEN, "", Exit::Succeeded, Operation::Rewrite);
+        let observation = read()
+            .stdout(WRITTEN)
+            .stderr("")
+            .succeeded(Exit::Succeeded)
+            .operation(Operation::Rewrite)
+            .call();
 
         assert!(observation.problems.is_empty());
     }
 
     #[test]
     fn read_an_ignored_option_reports_what_prettier_said() {
-        let observation = read("", IGNORED, Exit::Succeeded, Operation::Report);
+        let observation = read()
+            .stdout("")
+            .stderr(IGNORED)
+            .succeeded(Exit::Succeeded)
+            .operation(Operation::Report)
+            .call();
 
         assert_eq!(
             observation.rejected_configuration.as_deref(),

@@ -57,6 +57,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a prettier to resolve
     ///
@@ -134,6 +135,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -197,7 +199,7 @@ fn action_identifies_itself_as_format_json() {
 #[tokio::test]
 async fn run_in_a_formatted_project_passes() {
     let project = Project::new();
-    project.write("clean.json", FORMATTED);
+    project.write().path("clean.json").content(FORMATTED).call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -210,7 +212,7 @@ async fn run_in_a_formatted_project_passes() {
 #[tokio::test]
 async fn run_in_a_project_without_json_skips() {
     let project = Project::new();
-    project.write("notes.txt", FORMATTED);
+    project.write().path("notes.txt").content(FORMATTED).call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -223,8 +225,12 @@ async fn run_in_a_project_without_json_skips() {
 #[tokio::test]
 async fn run_with_a_broken_configuration_stops() {
     let project = Project::new();
-    project.write(".prettierrc.json", BROKEN_CONFIGURATION);
-    project.write("clean.json", FORMATTED);
+    project
+        .write()
+        .path(".prettierrc.json")
+        .content(BROKEN_CONFIGURATION)
+        .call();
+    project.write().path("clean.json").content(FORMATTED).call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -237,8 +243,12 @@ async fn run_with_a_broken_configuration_stops() {
 #[tokio::test]
 async fn run_with_an_ignored_option_reports_what_prettier_said() {
     let project = Project::new();
-    project.write(".prettierrc.json", IGNORED_CONFIGURATION);
-    project.write("clean.json", FORMATTED);
+    project
+        .write()
+        .path(".prettierrc.json")
+        .content(IGNORED_CONFIGURATION)
+        .call();
+    project.write().path("clean.json").content(FORMATTED).call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -254,7 +264,7 @@ async fn run_with_an_ignored_option_reports_what_prettier_said() {
 #[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
     let project = Project::new();
-    project.write("broken.json", INVALID);
+    project.write().path("broken.json").content(INVALID).call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -271,7 +281,7 @@ async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
 #[tokio::test]
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
-    project.write("broken.json", INVALID);
+    project.write().path("broken.json").content(INVALID).call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -293,7 +303,11 @@ async fn run_with_an_invalid_file_reports_the_position() {
 #[tokio::test]
 async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::new();
-    project.write("sub/messy.json", UNFORMATTED);
+    project
+        .write()
+        .path("sub/messy.json")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -316,8 +330,16 @@ async fn run_with_an_unreadable_file_and_fix_keeps_the_problem() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("messy.json", UNFORMATTED);
-    project.write("secret.json", FORMATTED);
+    project
+        .write()
+        .path("messy.json")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("secret.json")
+        .content(FORMATTED)
+        .call();
     let path = project.directory.path().join("secret.json");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -338,8 +360,16 @@ async fn run_with_an_unreadable_file_and_fix_reports_the_repair() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("messy.json", UNFORMATTED);
-    project.write("secret.json", FORMATTED);
+    project
+        .write()
+        .path("messy.json")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("secret.json")
+        .content(FORMATTED)
+        .call();
     let path = project.directory.path().join("secret.json");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -360,7 +390,11 @@ async fn run_with_an_unreadable_file_carries_the_reason_of_prettier() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.json", FORMATTED);
+    project
+        .write()
+        .path("secret.json")
+        .content(FORMATTED)
+        .call();
     let path = project.directory.path().join("secret.json");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -385,7 +419,11 @@ async fn run_with_an_unreadable_file_names_the_file() {
     use std::os::unix::fs::PermissionsExt;
 
     let project = Project::new();
-    project.write("secret.json", FORMATTED);
+    project
+        .write()
+        .path("secret.json")
+        .content(FORMATTED)
+        .call();
     let path = project.directory.path().join("secret.json");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
@@ -410,8 +448,16 @@ async fn run_with_an_unreadable_file_names_the_file() {
 #[tokio::test]
 async fn run_with_fix_leaves_the_other_languages_alone() {
     let project = Project::new();
-    project.write("messy.json", UNFORMATTED);
-    project.write("notes.md", UNFORMATTED_MARKDOWN);
+    project
+        .write()
+        .path("messy.json")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNFORMATTED_MARKDOWN)
+        .call();
 
     project.run(Operation::Rewrite).await;
 
@@ -421,7 +467,11 @@ async fn run_with_fix_leaves_the_other_languages_alone() {
 #[tokio::test]
 async fn run_with_fix_names_the_file_that_it_repaired() {
     let project = Project::new();
-    project.write("sub/messy.json", UNFORMATTED);
+    project
+        .write()
+        .path("sub/messy.json")
+        .content(UNFORMATTED)
+        .call();
 
     let outcome = project.run(Operation::Rewrite).await;
 
@@ -441,7 +491,11 @@ async fn run_with_fix_names_the_file_that_it_repaired() {
 #[tokio::test]
 async fn run_with_fix_rewrites_the_file() {
     let project = Project::new();
-    project.write("messy.json", UNFORMATTED);
+    project
+        .write()
+        .path("messy.json")
+        .content(UNFORMATTED)
+        .call();
 
     project.run(Operation::Rewrite).await;
 
@@ -451,7 +505,7 @@ async fn run_with_fix_rewrites_the_file() {
 #[tokio::test]
 async fn run_without_a_prettier_stops() {
     let project = Project::without_prettier();
-    project.write("clean.json", FORMATTED);
+    project.write().path("clean.json").content(FORMATTED).call();
 
     let outcome = project.run(Operation::Report).await;
 
@@ -464,7 +518,11 @@ async fn run_without_a_prettier_stops() {
 #[tokio::test]
 async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
-    project.write("messy.json", UNFORMATTED);
+    project
+        .write()
+        .path("messy.json")
+        .content(UNFORMATTED)
+        .call();
 
     project.run(Operation::Report).await;
 
@@ -474,7 +532,11 @@ async fn run_without_fix_leaves_the_file_unchanged() {
 #[tokio::test]
 async fn run_without_fix_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("messy.json", UNFORMATTED);
+    project
+        .write()
+        .path("messy.json")
+        .content(UNFORMATTED)
+        .call();
 
     // The helper asserts that the run left every file of the project as it
     // was.

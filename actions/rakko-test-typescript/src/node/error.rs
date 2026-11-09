@@ -60,7 +60,7 @@ impl ObserveNodeError {
     #[builder]
     pub(super) fn silent(stdout: &str, stderr: &str) -> Self {
         Self::MissingFailure {
-            details: diagnosis(stdout, stderr),
+            details: diagnosis().stdout(stdout).stderr(stderr).call(),
         }
     }
 }
@@ -71,6 +71,7 @@ impl ObserveNodeError {
 /// reason of its own writes that reason there, while the standard output
 /// stream carries the report that said nothing. A run that wrote nothing there
 /// leaves only the report.
+#[bon::builder]
 fn diagnosis(stdout: &str, stderr: &str) -> String {
     let written = stderr.trim();
 

@@ -5,7 +5,7 @@
 
 use getset::Getters;
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{MiseFile, ResolveRequirementError, Tool};
 
 /// The name that mise knows the tool by
 const CARGO_UDEPS: &str = "cargo:cargo-udeps";
@@ -17,7 +17,8 @@ const PROGRAM: &str = "cargo-udeps";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), CARGO_UDEPS);
+const VERSION: &str =
+    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(CARGO_UDEPS);
 
 /// The cargo-udeps that a project runs
 ///

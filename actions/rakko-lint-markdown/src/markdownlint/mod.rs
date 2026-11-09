@@ -116,7 +116,7 @@ impl Markdownlint {
         let stdout = execution.stdout().to_string_lossy();
         let stderr = execution.stderr().to_string_lossy();
 
-        let examined = examined(&stdout, &stderr);
+        let examined = examined().stdout(&stdout).stderr(&stderr).call();
 
         let problems = if examined {
             self::report::problems(&stderr).map_err(|source| {
@@ -179,6 +179,7 @@ impl Markdownlint {
 /// a single sentence on the standard error stream in place of the report.
 /// Both versions then end with success, like a run that examined the project
 /// and found nothing.
+#[bon::builder]
 fn examined(stdout: &str, stderr: &str) -> bool {
     stdout.trim().is_empty() && stderr.trim() != NO_MATCHING_FILES
 }
@@ -199,28 +200,31 @@ mod tests {
 
     #[test]
     fn examined_of_a_run_with_a_report_is_true() {
-        let examined = examined("", REPORT);
+        let examined = examined().stdout("").stderr(REPORT).call();
 
         assert!(examined);
     }
 
     #[test]
     fn examined_of_a_run_with_no_matching_files_is_false() {
-        let examined = examined("", "No matching files found\n");
+        let examined = examined()
+            .stdout("")
+            .stderr("No matching files found\n")
+            .call();
 
         assert!(!examined);
     }
 
     #[test]
     fn examined_of_a_run_with_the_usage_text_is_false() {
-        let examined = examined(USAGE, "");
+        let examined = examined().stdout(USAGE).stderr("").call();
 
         assert!(!examined);
     }
 
     #[test]
     fn examined_of_a_run_without_output_is_true() {
-        let examined = examined("", "");
+        let examined = examined().stdout("").stderr("").call();
 
         assert!(examined);
     }

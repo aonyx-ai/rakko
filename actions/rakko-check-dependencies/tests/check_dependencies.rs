@@ -150,6 +150,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a tool to resolve
     ///
@@ -184,9 +185,13 @@ impl Project {
     /// Creates a project with one package that the given configuration judges
     fn with_configuration(configuration: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", LIBRARY);
-        project.write("deny.toml", configuration);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(LIBRARY).call();
+        project
+            .write()
+            .path("deny.toml")
+            .content(configuration)
+            .call();
 
         project
     }
@@ -195,12 +200,20 @@ impl Project {
     /// the manifest declares
     fn stale() -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", STALE);
-        project.write("Cargo.lock", LOCKFILE);
-        project.write("src/lib.rs", LIBRARY);
-        project.write("helper/Cargo.toml", HELPER);
-        project.write("helper/src/lib.rs", LIBRARY);
-        project.write("deny.toml", ALLOW_MIT);
+        project.write().path("Cargo.toml").content(STALE).call();
+        project.write().path("Cargo.lock").content(LOCKFILE).call();
+        project.write().path("src/lib.rs").content(LIBRARY).call();
+        project
+            .write()
+            .path("helper/Cargo.toml")
+            .content(HELPER)
+            .call();
+        project
+            .write()
+            .path("helper/src/lib.rs")
+            .content(LIBRARY)
+            .call();
+        project.write().path("deny.toml").content(ALLOW_MIT).call();
 
         project
     }
@@ -261,6 +274,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -351,9 +365,21 @@ fn summary(outcome: &Outcome) -> String {
 /// the two answers, and whether either of them refuses what it found.
 fn two_workspaces(harness: &str) -> Project {
     let project = Project::with_configuration(ALLOW_MIT);
-    project.write(&format!("{TOOLS}/Cargo.toml"), HARNESS);
-    project.write(&format!("{TOOLS}/src/lib.rs"), LIBRARY);
-    project.write(&format!("{TOOLS}/deny.toml"), harness);
+    project
+        .write()
+        .path(&format!("{TOOLS}/Cargo.toml"))
+        .content(HARNESS)
+        .call();
+    project
+        .write()
+        .path(&format!("{TOOLS}/src/lib.rs"))
+        .content(LIBRARY)
+        .call();
+    project
+        .write()
+        .path(&format!("{TOOLS}/deny.toml"))
+        .content(harness)
+        .call();
 
     project
 }
@@ -436,7 +462,11 @@ async fn run_in_a_clean_project_passes() {
 #[tokio::test]
 async fn run_in_a_project_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Notes\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Notes\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -458,11 +488,23 @@ async fn run_leaves_the_manifest_of_a_refused_package_unchanged() {
 #[tokio::test]
 async fn run_reaches_a_member_that_no_other_member_depends_on() {
     let project = Project::new();
-    project.write("Cargo.toml", WORKSPACE_WITH_MEMBER);
-    project.write("src/lib.rs", LIBRARY);
-    project.write("crates/sidecar/Cargo.toml", MEMBER);
-    project.write("crates/sidecar/src/lib.rs", LIBRARY);
-    project.write("deny.toml", ALLOW_MIT);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(WORKSPACE_WITH_MEMBER)
+        .call();
+    project.write().path("src/lib.rs").content(LIBRARY).call();
+    project
+        .write()
+        .path("crates/sidecar/Cargo.toml")
+        .content(MEMBER)
+        .call();
+    project
+        .write()
+        .path("crates/sidecar/src/lib.rs")
+        .content(LIBRARY)
+        .call();
+    project.write().path("deny.toml").content(ALLOW_MIT).call();
 
     let outcome = project.run().await;
 
@@ -490,7 +532,11 @@ async fn run_reads_the_configuration_that_lies_closest_to_a_workspace() {
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run().await;
 

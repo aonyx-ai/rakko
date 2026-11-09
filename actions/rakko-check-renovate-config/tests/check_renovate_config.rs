@@ -70,6 +70,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a validator to resolve
     ///
@@ -138,6 +139,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -259,7 +261,11 @@ fn action_identifies_itself_as_check_renovate_config() {
 #[tokio::test]
 async fn run_leaves_a_configuration_with_a_problem_unchanged() {
     let project = Project::new();
-    project.write("renovate.json", MIGRATION);
+    project
+        .write()
+        .path("renovate.json")
+        .content(MIGRATION)
+        .call();
 
     project.run().await;
 
@@ -269,7 +275,11 @@ async fn run_leaves_a_configuration_with_a_problem_unchanged() {
 #[tokio::test]
 async fn run_with_a_denied_header_reports_the_error_at_the_file() {
     let project = Project::new();
-    project.write("renovate.json", DENIED_HEADER);
+    project
+        .write()
+        .path("renovate.json")
+        .content(DENIED_HEADER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -279,7 +289,11 @@ async fn run_with_a_denied_header_reports_the_error_at_the_file() {
 #[tokio::test]
 async fn run_with_a_file_named_like_the_global_configuration_reports_it() {
     let project = Project::new();
-    project.write("config.js", UNRELATED_GLOBAL_CONFIGURATION);
+    project
+        .write()
+        .path("config.js")
+        .content(UNRELATED_GLOBAL_CONFIGURATION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -292,8 +306,12 @@ async fn run_with_a_file_named_like_the_global_configuration_reports_it() {
 #[tokio::test]
 async fn run_with_a_global_configuration_that_does_not_parse_stops() {
     let project = Project::new();
-    project.write("renovate.json", VALID);
-    project.write("config.js", BROKEN_GLOBAL_CONFIGURATION);
+    project.write().path("renovate.json").content(VALID).call();
+    project
+        .write()
+        .path("config.js")
+        .content(BROKEN_GLOBAL_CONFIGURATION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -312,7 +330,11 @@ async fn run_with_a_global_configuration_that_does_not_parse_stops() {
 #[tokio::test]
 async fn run_with_a_global_configuration_that_needs_a_migration_passes() {
     let project = Project::new();
-    project.write("config.js", GLOBAL_MIGRATION);
+    project
+        .write()
+        .path("config.js")
+        .content(GLOBAL_MIGRATION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -325,7 +347,11 @@ async fn run_with_a_global_configuration_that_needs_a_migration_passes() {
 #[tokio::test]
 async fn run_with_a_needed_migration_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("renovate.json", MIGRATION);
+    project
+        .write()
+        .path("renovate.json")
+        .content(MIGRATION)
+        .call();
 
     // The helper asserts that the run left every file of the project as it
     // was.
@@ -335,7 +361,11 @@ async fn run_with_a_needed_migration_leaves_the_project_unchanged() {
 #[tokio::test]
 async fn run_with_a_needed_migration_names_the_option_that_it_changes() {
     let project = Project::new();
-    project.write("renovate.json", MIGRATION);
+    project
+        .write()
+        .path("renovate.json")
+        .content(MIGRATION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -348,8 +378,12 @@ async fn run_with_a_needed_migration_names_the_option_that_it_changes() {
 #[tokio::test]
 async fn run_with_a_preset_and_a_configuration_counts_both() {
     let project = Project::new();
-    project.write(".github/renovate.json", VALID);
-    project.write("default.json", VALID);
+    project
+        .write()
+        .path(".github/renovate.json")
+        .content(VALID)
+        .call();
+    project.write().path("default.json").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -365,7 +399,11 @@ async fn run_with_a_preset_and_a_configuration_counts_both() {
 #[tokio::test]
 async fn run_with_a_preset_that_needs_a_migration_reports_the_preset() {
     let project = Project::new();
-    project.write("default.json", MIGRATION);
+    project
+        .write()
+        .path("default.json")
+        .content(MIGRATION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -375,7 +413,11 @@ async fn run_with_a_preset_that_needs_a_migration_reports_the_preset() {
 #[tokio::test]
 async fn run_with_a_problem_in_package_json_reports_package_json() {
     let project = Project::new();
-    project.write("package.json", PACKAGE_WITH_UNKNOWN_OPTION);
+    project
+        .write()
+        .path("package.json")
+        .content(PACKAGE_WITH_UNKNOWN_OPTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -385,7 +427,11 @@ async fn run_with_a_problem_in_package_json_reports_package_json() {
 #[tokio::test]
 async fn run_with_a_problem_in_the_preset_reports_the_preset() {
     let project = Project::new();
-    project.write("default.json", UNKNOWN_OPTION);
+    project
+        .write()
+        .path("default.json")
+        .content(UNKNOWN_OPTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -395,7 +441,11 @@ async fn run_with_a_problem_in_the_preset_reports_the_preset() {
 #[tokio::test]
 async fn run_with_a_syntax_error_reports_the_position_of_the_error() {
     let project = Project::new();
-    project.write("renovate.json", SYNTAX_ERROR);
+    project
+        .write()
+        .path("renovate.json")
+        .content(SYNTAX_ERROR)
+        .call();
 
     let outcome = project.run().await;
 
@@ -416,7 +466,11 @@ async fn run_with_a_syntax_error_reports_the_position_of_the_error() {
 #[tokio::test]
 async fn run_with_a_valid_configuration_passes() {
     let project = Project::new();
-    project.write(".github/renovate.json", VALID);
+    project
+        .write()
+        .path(".github/renovate.json")
+        .content(VALID)
+        .call();
 
     let outcome = project.run().await;
 
@@ -429,7 +483,11 @@ async fn run_with_a_valid_configuration_passes() {
 #[tokio::test]
 async fn run_with_an_unknown_option_reports_the_error_at_the_file() {
     let project = Project::new();
-    project.write("renovate.json", UNKNOWN_OPTION);
+    project
+        .write()
+        .path("renovate.json")
+        .content(UNKNOWN_OPTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -452,7 +510,7 @@ async fn run_with_an_unknown_option_reports_the_error_at_the_file() {
 #[tokio::test]
 async fn run_with_only_a_valid_preset_passes() {
     let project = Project::new();
-    project.write("default.json", VALID);
+    project.write().path("default.json").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -465,7 +523,11 @@ async fn run_with_only_a_valid_preset_passes() {
 #[tokio::test]
 async fn run_with_only_a_warning_fails_with_the_warning() {
     let project = Project::new();
-    project.write("renovate.json", WARNING);
+    project
+        .write()
+        .path("renovate.json")
+        .content(WARNING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -494,8 +556,16 @@ async fn run_with_only_a_warning_fails_with_the_warning() {
 #[tokio::test]
 async fn run_with_two_broken_configurations_reports_both_files() {
     let project = Project::new();
-    project.write(".github/renovate.json", UNKNOWN_OPTION);
-    project.write("renovate.json5", UNKNOWN_OPTION);
+    project
+        .write()
+        .path(".github/renovate.json")
+        .content(UNKNOWN_OPTION)
+        .call();
+    project
+        .write()
+        .path("renovate.json5")
+        .content(UNKNOWN_OPTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -513,7 +583,11 @@ async fn run_with_two_broken_configurations_reports_both_files() {
 #[tokio::test]
 async fn run_with_two_presets_in_package_json_counts_both() {
     let project = Project::new();
-    project.write("package.json", PACKAGE_WITH_PRESETS);
+    project
+        .write()
+        .path("package.json")
+        .content(PACKAGE_WITH_PRESETS)
+        .call();
 
     let outcome = project.run().await;
 
@@ -529,8 +603,12 @@ async fn run_with_two_presets_in_package_json_counts_both() {
 #[tokio::test]
 async fn run_with_two_valid_configurations_names_both_in_the_summary() {
     let project = Project::new();
-    project.write(".github/renovate.json", VALID);
-    project.write("renovate.json5", VALID);
+    project
+        .write()
+        .path(".github/renovate.json")
+        .content(VALID)
+        .call();
+    project.write().path("renovate.json5").content(VALID).call();
 
     let outcome = project.run().await;
 
@@ -561,7 +639,7 @@ async fn run_without_a_configuration_skips_with_the_words_of_the_validator() {
 #[tokio::test]
 async fn run_without_a_validator_stops() {
     let project = Project::without_validator();
-    project.write("renovate.json", VALID);
+    project.write().path("renovate.json").content(VALID).call();
 
     let outcome = project.run().await;
 
