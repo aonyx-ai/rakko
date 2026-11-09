@@ -73,24 +73,44 @@ project creates its lockfile with `check-mise-lock --fix`, which writes what
 
 ## Tools
 
-Each action runs the tool that [mise] installed for the project, at the
-version that the project pinned. Rakko installs nothing, and an action whose
-tool mise does not report stops instead of passing quietly, so a project that
-mounts this bundle pins these tools in its `mise.toml`:
+Rakko installs nothing, and an action whose tool [mise] does not report stops
+instead of passing quietly. An action runs two kinds of tool: toolchains and
+the tools of the action.
 
-- `node`, because every tool of the npm backend runs on it, and mise puts no
-  node on the path for such a tool. The pin must be a version that each of
-  these tools supports, and the `renovate` package supports fewer versions of
-  node than the others do.
-- `npm:markdownlint-cli`, for `lint-markdown`.
-- `npm:prettier`, for the three actions that format with prettier.
-- `npm:renovate`, for `check-renovate-config`.
-- `taplo`, for `format-toml` and `lint-toml`. These two actions run the
-  version that the crate `rakko-taplo` pins in its `mise.rakko.toml`, and not
-  the version that the project pins. So the pin of the project must be that
-  same version, until Rakko writes the pin into the project itself.
-- `yamllint`, for `lint-yaml`.
-- `zizmor`, for `lint-github-actions`.
+A toolchain is a compiler or runtime that the code of the project builds or
+runs with. The project pins its version, and an action accepts a range of
+versions. Node is the toolchain of this bundle. Every tool of the npm backend
+runs on Node, and mise puts no Node on the path for such a tool. So an action
+puts the Node that it resolved first on the path of its tool. The project pins
+Node in its `mise.toml`. Each action takes the first version of the `node`
+entry that its range accepts. A run stops when the range accepts no version of
+the entry. These actions need Node:
+
+- The three actions that format with prettier accept Node 14 and later.
+- `lint-markdown` accepts Node 22 and later.
+- `check-renovate-config` accepts Node 24.11 and later.
+
+For example, with `node = ["22.12.0", "26.13.0"]`, the prettier actions and
+`lint-markdown` run on 22.12.0. `check-renovate-config` runs on 26.13.0. The
+package of Renovate supports 24.11 and later releases of 24, and 26.13 and
+later releases of 26. A range of an action cannot exclude the releases between
+them. So a pin of Node 25 is in the range of `check-renovate-config`, but
+Renovate refuses it. Pin a version that the package of Renovate supports, such
+as 26.13.0.
+
+The other tools belong to the actions. Each of these actions runs the version
+that its crate pins in a `mise.rakko.toml`, and not the version that the
+project pins. So the pin of the project must be that same version, until Rakko
+writes the pin into the project itself. When that version is not installed, a
+run stops, and its error gives the tool and the version:
+
+- `npm:markdownlint-cli`, for `lint-markdown`, which pins it itself.
+- `npm:prettier`, for the three actions that format with prettier. The crate
+  `rakko-prettier` pins it.
+- `npm:renovate`, for `check-renovate-config`, which pins it itself.
+- `taplo`, for `format-toml` and `lint-toml`. The crate `rakko-taplo` pins it.
+- `yamllint`, for `lint-yaml`, which pins it itself.
+- `zizmor`, for `lint-github-actions`, which pins it itself.
 
 `check-mise-lock` runs mise itself, so it needs no pin. `mise lock` asks the
 API of GitHub for the downloads of the tools of the `aqua` and `github`

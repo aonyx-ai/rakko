@@ -5,10 +5,11 @@
 //! this repository, where Renovate and the checks of the repository itself
 //! would read it.
 //!
-//! The tests run the validator that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
-//! without a change to them.
+//! The tests run the validator that the action declares. A project copies the
+//! `mise.toml` of the repository and trusts it, so the Node that answers is
+//! the one that the repository installs. The copy pins another Renovate that
+//! nothing installs, so a test passes only when the run ignores the pin of
+//! the project.
 
 // An assertion in a test panics by design, and the helpers of this file exist
 // only for tests. The lints that guard production code do not apply.
@@ -21,6 +22,7 @@ use std::process::Command;
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Summary};
 use rakko_check_renovate_config::{CheckRenovateConfig, CheckRenovateConfigError};
 use rakko_test_utils::{path_text, run_checking_access};
+use rakko_tool::ResolveRequirementError;
 use tempfile::TempDir;
 
 /// A configuration that Renovate accepts
@@ -64,6 +66,9 @@ const GLOBAL_MIGRATION: &str = "module.exports = { extends: ['config:base'] };\n
 /// A global configuration of Renovate that Node cannot parse
 const BROKEN_GLOBAL_CONFIGURATION: &str = "module.exports = {\n";
 
+/// The start of the line of the repository's `mise.toml` that pins Renovate
+const TOOL_PIN: &str = "\"npm:renovate\"";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -71,46 +76,29 @@ struct Project {
 }
 
 impl Project {
-    /// Creates a project without a validator to resolve
+    /// Creates a project with the Node of this repository and a Renovate that
+    /// nothing installed
     ///
-    /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when the run must end before the tool
-    /// runs.
-    fn bare() -> Self {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        Self { directory }
-    }
-
-    /// Creates a project with the validator of this repository
-    ///
-    /// The project copies the `mise.toml` of this repository, so the validator
-    /// that mise resolves for it is the validator that the repository pins and
-    /// installs. Mise ignores a configuration that nobody trusts, so the copy
-    /// is trusted right away.
+    /// The project copies the `mise.toml` of this repository, so the Node that
+    /// mise resolves for it is the Node that the repository pins and installs.
+    /// The copy pins Renovate at a version that no machine installs, and the
+    /// run resolves the validator that the action declares, so the pin of the
+    /// project must not change what runs. Mise ignores a configuration that
+    /// nobody trusts, so the copy is trusted right away.
     fn new() -> Self {
-        let project = Self::bare();
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = Self { directory };
 
-        let pins = repository().join("mise.toml");
+        let pins = std::fs::read_to_string(repository().join("mise.toml"))
+            .expect("the test reads the mise.toml of the repository");
+        let pin = pins
+            .lines()
+            .find(|line| line.starts_with(TOOL_PIN))
+            .expect("the mise.toml of the repository pins Renovate");
         let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
-        trust(&copy);
-
-        project
-    }
-
-    /// Creates a project that pins a validator that nothing installed
-    ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about Renovate.
-    fn without_validator() -> Self {
-        let project = Self::bare();
-
-        let pins = project.directory.path().join("mise.toml");
-        std::fs::write(&pins, "[tools]\n\"npm:renovate\" = \"0.0.1\"\n")
+        std::fs::write(&copy, pins.replace(pin, &format!("{TOOL_PIN} = \"0.0.1\"")))
             .expect("the test writes the mise.toml of the project");
-        trust(&pins);
+        trust(&copy);
 
         project
     }
@@ -254,6 +242,46 @@ fn action_identifies_itself_as_check_renovate_config() {
     let name = CheckRenovateConfig.name();
 
     assert_eq!(name.get(), "check-renovate-config");
+}
+
+#[tokio::test]
+async fn run_in_a_missing_directory_stops_without_a_validator() {
+    let parent = tempfile::tempdir().expect("the test creates a temporary directory");
+    let missing = parent.path().join("missing");
+    let context = Context::builder().root(missing.as_path()).build();
+
+    let outcome = CheckRenovateConfig.run(&context, &()).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(CheckRenovateConfigError::UnresolvedTool { .. }))
+        ),
+        "expected the run to stop without a validator, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_project_without_node_stops_on_node() {
+    let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+    let context = Context::builder().root(directory.path()).build();
+
+    let outcome = CheckRenovateConfig.run(&context, &()).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(CheckRenovateConfigError::UnresolvedTool {
+                        source: ResolveRequirementError::UnresolvedToolchain { tool, .. },
+                    }) if tool.get() == "node"
+                )
+        ),
+        "expected the run to stop without a Node, got {outcome:?}"
+    );
 }
 
 #[tokio::test]
@@ -555,21 +583,5 @@ async fn run_without_a_configuration_skips_with_the_words_of_the_validator() {
     assert_eq!(
         reason.get(),
         "No files to perform configuration validation against"
-    );
-}
-
-#[tokio::test]
-async fn run_without_a_validator_stops() {
-    let project = Project::without_validator();
-    project.write("renovate.json", VALID);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(
-            error(&outcome),
-            CheckRenovateConfigError::UnresolvedTool { .. }
-        ),
-        "expected no validator, got {outcome:?}"
     );
 }

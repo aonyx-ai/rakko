@@ -1,22 +1,30 @@
 //! The zizmor that a project runs
 //!
-//! This module holds the program that mise installed for a project and the
-//! run that produces a report. An action asks for a run, and everything
-//! between the action and the process lives here.
+//! This module holds the version that the crate declares, the program that mise
+//! installed at that version, and the run that produces a report. An action
+//! asks for a run, and everything between the action and the process lives
+//! here.
 
 /// The error that leaves a run without an answer
 mod error;
 /// The reading of the report that zizmor wrote
 mod report;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
+use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+use rakko_tool::{Launch, ResolveRequirementError, Tool, pinned_version};
 
 pub(crate) use self::error::ObserveZizmorError;
 use crate::observation::Observation;
 
-/// The name that mise knows the tool by
+/// The name that mise knows the tool by, which is also the name of its
+/// program
 const ZIZMOR: &str = "zizmor";
+
+/// The version of zizmor that the crate runs
+///
+/// The version comes from the mise file of the crate, which the build
+/// embeds, so a file without the pin fails the build.
+const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), ZIZMOR);
 
 /// The option that asks zizmor for its report as data
 ///
@@ -80,14 +88,14 @@ const HIGHEST_FINDING: i32 = 14;
 
 /// The zizmor that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// editor and the terminal of a contributor. Nothing here installs a tool:
+/// The value holds the program that mise installed at the version that the
+/// crate declares. The pin of the project does not change it, so a run reaches
+/// the version that the tests of the crate cover. Nothing here installs a tool:
 /// provisioning is the job of mise, and a zizmor that mise does not report
 /// stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Zizmor {
-    /// The program that mise installed for the project
+    /// The program that mise installed at the declared version
     tool: Tool,
 }
 
@@ -150,18 +158,32 @@ impl Zizmor {
         Ok(Observation::builder().problems(problems).build())
     }
 
-    /// Returns the zizmor that mise installed for the project
+    /// Returns the requirement of the zizmor that the crate runs
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path.
+    /// The requirement holds the exact version that the crate pins.
+    pub(crate) fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(ZIZMOR)
+            .executable(ZIZMOR)
+            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
+            .build()
+    }
+
+    /// Returns the zizmor that mise installed at the version of the crate
+    ///
+    /// The lookup asks mise for the version that [`requirement`][requirement]
+    /// holds, so a pin of zizmor in the project does not change the answer.
+    /// A run of zizmor starts in the root of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no zizmor for the
-    /// project.
-    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(ZIZMOR), root).await?;
+    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
+    /// it reports no zizmor at that version, for example because nothing
+    /// installed it.
+    ///
+    /// [requirement]: Zizmor::requirement
+    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
 
         Ok(Self { tool })
     }

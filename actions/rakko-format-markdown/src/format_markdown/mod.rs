@@ -15,7 +15,7 @@ use std::path::PathBuf;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    action_name,
+    ToolRequirement, action_name,
 };
 use rakko_prettier::{
     FileExtension, Filter, Observation, Operation, Prettier, PrettierProblem, ProblemDetail,
@@ -45,8 +45,10 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// The action wraps [prettier]: the action names the Markdown files, prettier
 /// reads its own configuration and formats what its ignore files leave, so a
 /// run agrees with an editor and with a contributor that runs prettier bare.
-/// The prettier that runs is the one that [mise] installed for the project, at
-/// the version that the project pinned, and the action installs nothing.
+/// The prettier that runs is the version that the action declares, which
+/// [mise] installed, whatever version the project pins. It runs on the Node
+/// that the project pins, when the action accepts that version. The action
+/// installs nothing.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
 /// that names the file, and a file that prettier cannot parse becomes a
@@ -59,8 +61,8 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// then run a rewrite before the actions that read.
 ///
 /// A run whose prettier found no Markdown file to examine skips visibly, and
-/// says so. A run stops with an error when mise reports no prettier,
-/// when a configuration of the project did not reach the run, and when
+/// says so. A run stops with an error when mise reports no prettier at the
+/// declared version or no Node in the accepted range, when a configuration of the project did not reach the run, and when
 /// prettier writes a report that the action does not recognize.
 ///
 /// # Examples
@@ -94,6 +96,10 @@ impl Action for FormatMarkdown {
         }
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Prettier::requirement(), Prettier::node_requirement()]
+    }
+
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
@@ -120,7 +126,7 @@ async fn drive(
 ) -> Result<Outcome, FormatMarkdownError> {
     let filter = filter();
 
-    let prettier = Prettier::resolve(context.root().clone())
+    let prettier = Prettier::resolve(context)
         .await
         .map_err(|source| FormatMarkdownError::UnresolvedTool { source })?;
 

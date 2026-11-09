@@ -4,14 +4,11 @@
 //! against it, so no fixture with a deliberately unformatted file sits in this
 //! repository, where the formatting of the repository itself would fight it.
 //!
-//! The tests run the prettier that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
-//! without a change to them.
-//!
-//! Prettier runs on Node, and the program that mise reports starts Node from
-//! the environment of the process. The tests therefore run inside the
-//! environment of mise, which the task that starts the harness enters.
+//! The tests run the prettier that the action declares. A project copies the
+//! `mise.toml` of the repository and trusts it, so the Node that answers is
+//! the one that the repository installs. The copy pins another prettier that
+//! nothing installs, so a test passes only when the run ignores the pin of
+//! the project.
 
 // An assertion in a test panics by design, and the helpers of this file exist
 // only for tests. The lints that guard production code do not apply.
@@ -24,7 +21,8 @@ use std::process::Command;
 use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Location, Outcome, ProjectRoot, argument_name,
 };
-use rakko_format_markdown::{FormatMarkdown, FormatMarkdownArgs};
+use rakko_format_markdown::{FormatMarkdown, FormatMarkdownArgs, FormatMarkdownError};
+use rakko_prettier::Prettier;
 use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
@@ -46,6 +44,9 @@ const BROKEN_CONFIGURATION: &str = "{ \"printWidth\": ,, }\n";
 /// the run ends with success and without the configuration of the project.
 const IGNORED_CONFIGURATION: &str = "{ \"notAnOption\": 5 }\n";
 
+/// The start of the line of the repository's `mise.toml` that pins prettier
+const PRETTIER_PIN: &str = "\"npm:prettier\"";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -53,46 +54,32 @@ struct Project {
 }
 
 impl Project {
-    /// Creates a project without a prettier to resolve
+    /// Creates a project with the Node of this repository and a prettier that
+    /// nothing installed
     ///
-    /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when the run must end before the tool
-    /// runs.
-    fn bare() -> Self {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        Self { directory }
-    }
-
-    /// Creates a project with the prettier of this repository
-    ///
-    /// The project copies the `mise.toml` of this repository, so the prettier
-    /// that mise resolves for it is the prettier that the repository pins and
-    /// installs. Mise ignores a configuration that nobody trusts, so the copy
-    /// is trusted right away.
+    /// The project copies the `mise.toml` of this repository, so the Node that
+    /// mise resolves for it is the Node that the repository pins and installs.
+    /// The copy pins prettier at a version that no machine installs, and the
+    /// run resolves the prettier that the action declares, so the pin of the
+    /// project must not change what runs. Mise ignores a configuration that
+    /// nobody trusts, so the copy is trusted right away.
     fn new() -> Self {
-        let project = Self::bare();
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = Self { directory };
 
-        let pins = repository().join("mise.toml");
+        let pins = std::fs::read_to_string(repository().join("mise.toml"))
+            .expect("the test reads the mise.toml of the repository");
+        let pin = pins
+            .lines()
+            .find(|line| line.starts_with(PRETTIER_PIN))
+            .expect("the mise.toml of the repository pins prettier");
         let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
+        std::fs::write(
+            &copy,
+            pins.replace(pin, &format!("{PRETTIER_PIN} = \"0.0.1\"")),
+        )
+        .expect("the test writes the mise.toml of the project");
         trust(&copy);
-
-        project
-    }
-
-    /// Creates a project that pins a prettier that nothing installed
-    ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about prettier.
-    fn without_prettier() -> Self {
-        let project = Self::bare();
-
-        let pins = project.directory.path().join("mise.toml");
-        std::fs::write(&pins, "[tools]\n\"npm:prettier\" = \"0.0.1\"\n")
-            .expect("the test writes the mise.toml of the project");
-        trust(&pins);
 
         project
     }
@@ -182,6 +169,16 @@ impl Drop for Project {
 }
 
 #[test]
+fn action_declares_prettier_and_its_node() {
+    let tools = FormatMarkdown.tools();
+
+    assert_eq!(
+        tools,
+        vec![Prettier::requirement(), Prettier::node_requirement()]
+    );
+}
+
+#[test]
 fn action_identifies_itself_as_format_markdown() {
     let name = FormatMarkdown.name();
 
@@ -198,6 +195,26 @@ async fn run_in_a_formatted_project_passes() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_missing_directory_stops_without_a_prettier() {
+    let parent = tempfile::tempdir().expect("the test creates a temporary directory");
+    let missing = parent.path().join("missing");
+    let context = Context::builder().root(missing.as_path()).build();
+    let args = FormatMarkdownArgs::from_values(&ArgsValues::empty())
+        .expect("the test builds the arguments of a run without fix");
+
+    let outcome = FormatMarkdown.run(&context, &args).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(FormatMarkdownError::UnresolvedTool { .. }))
+        ),
+        "expected the run to stop without a prettier, got {outcome:?}"
     );
 }
 
@@ -424,17 +441,4 @@ async fn run_without_fix_leaves_the_project_unchanged() {
         &FormatMarkdownArgs::default(),
     )
     .await;
-}
-
-#[tokio::test]
-async fn run_without_a_prettier_stops() {
-    let project = Project::without_prettier();
-    project.write("clean.md", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
 }

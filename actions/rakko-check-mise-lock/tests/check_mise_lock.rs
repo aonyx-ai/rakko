@@ -404,6 +404,15 @@ fn platforms(lockfile: &str) -> Vec<String> {
         .collect()
 }
 
+// The action runs mise, which provisions every other tool and cannot
+// provision itself, so mise is no tool that the action declares.
+#[test]
+fn action_declares_no_tool() {
+    let tools = CheckMiseLock.tools();
+
+    assert!(tools.is_empty(), "expected no tool, got {tools:?}");
+}
+
 #[test]
 fn action_identifies_itself_as_check_mise_lock() {
     let name = CheckMiseLock.name();

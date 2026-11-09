@@ -4,10 +4,9 @@
 //! against it, so no fixture with a deliberately broken YAML file sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
-//! The tests run the yamllint that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
-//! without a change to them.
+//! The tests run the yamllint that the action declares. Each project pins
+//! another yamllint that nothing installs, so a test passes only when the run
+//! ignores the pin of the project.
 //!
 //! A project also writes its own configuration. Yamllint looks for one in
 //! every directory above the run, and it falls back to the configuration of
@@ -25,7 +24,7 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
-use rakko_lint_yaml::LintYaml;
+use rakko_lint_yaml::{LintYaml, LintYamlError};
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
@@ -58,49 +57,24 @@ struct Project {
 }
 
 impl Project {
-    /// Creates a project without a yamllint to resolve
-    ///
-    /// The project holds no mise configuration and no configuration of
-    /// yamllint, so nothing in it reaches a tool. A test uses this shape when
-    /// the run must end before the tool runs.
-    fn bare() -> Self {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        Self { directory }
-    }
-
-    /// Creates a project with the yamllint of this repository
-    ///
-    /// The project copies the `mise.toml` of this repository, so the yamllint
-    /// that mise resolves for it is the yamllint that the repository pins and
-    /// installs. Mise ignores a configuration that nobody trusts, so the copy
-    /// is trusted right away. The project also states the rules that yamllint
-    /// applies, so that no configuration of the machine reaches the run.
-    fn new() -> Self {
-        let project = Self::bare();
-
-        let pins = repository().join("mise.toml");
-        let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
-        trust(&copy);
-
-        project.write(".yamllint", DEFAULT_CONFIGURATION);
-
-        project
-    }
-
     /// Creates a project that pins a yamllint that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about yamllint.
-    fn without_yamllint() -> Self {
-        let project = Self::bare();
+    /// The pin holds a version that no machine installs. The run resolves the
+    /// yamllint that the action declares, so the pin of the project must not
+    /// change what runs. Mise ignores a configuration that nobody trusts, so
+    /// the file is trusted right away. The project also states the rules that
+    /// yamllint applies, so that no configuration of the machine reaches the
+    /// run.
+    fn new() -> Self {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = Self { directory };
 
         let pins = project.directory.path().join("mise.toml");
         std::fs::write(&pins, "[tools]\nyamllint = \"0.0.1\"\n")
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
+
+        project.write(".yamllint", DEFAULT_CONFIGURATION);
 
         project
     }
@@ -149,16 +123,6 @@ fn locations(findings: &[Finding]) -> Vec<String> {
             other => panic!("expected a finding with a path, got {other:?}"),
         })
         .collect()
-}
-
-/// Returns the root of the repository that the tests run in
-fn repository() -> &'static Path {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-
-    manifest
-        .parent()
-        .and_then(Path::parent)
-        .expect("the crate lives two directories below the root of the repository")
 }
 
 /// Trusts a mise configuration, so that mise reads it
@@ -217,6 +181,24 @@ fn action_identifies_itself_as_lint_yaml() {
     let name = LintYaml.name();
 
     assert_eq!(name.get(), "lint-yaml");
+}
+
+#[tokio::test]
+async fn run_in_a_missing_directory_stops_without_a_yamllint() {
+    let parent = tempfile::tempdir().expect("the test creates a temporary directory");
+    let missing = parent.path().join("missing");
+    let context = Context::builder().root(missing.as_path()).build();
+
+    let outcome = LintYaml.run(&context, &()).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(LintYamlError::UnresolvedTool { .. }))
+        ),
+        "expected the run to stop without a yamllint, got {outcome:?}"
+    );
 }
 
 #[tokio::test]
@@ -421,18 +403,5 @@ async fn run_whose_yamllint_examined_nothing_skips() {
     assert!(
         reason.get().contains("yamllint"),
         "expected the reason to name the tool, got {reason:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_without_a_yamllint_stops() {
-    let project = Project::without_yamllint();
-    project.write("notes.yaml", VALID);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
     );
 }

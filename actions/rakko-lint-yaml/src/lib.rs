@@ -1,11 +1,11 @@
 //! The action that lints the YAML files of a project
 //!
 //! [Yamllint] does the work: it discovers the YAML files, reads its own
-//! configuration, and applies the rules that the project turned on, so a run
-//! of the action agrees with an editor and with a contributor that runs
-//! yamllint bare. The action starts the yamllint that [mise] installed for
-//! the project, at the version that the project pinned, and translates what
-//! yamllint reported into the outcome of the run.
+//! configuration, and applies the rules that the project turned on, so a run of
+//! the action agrees with an editor and with a contributor that runs yamllint
+//! bare. The action declares the version of yamllint that it runs. It starts
+//! that version, which [mise] installed, and translates what yamllint reported
+//! into the outcome of the run.
 //!
 //! A run only reports, so the action takes no argument, and yamllint repairs
 //! nothing that it finds. The action applies to a project that holds YAML

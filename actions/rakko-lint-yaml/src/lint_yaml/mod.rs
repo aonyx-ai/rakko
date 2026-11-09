@@ -10,7 +10,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    Summary, action_name,
+    Summary, ToolRequirement, action_name,
 };
 
 pub use self::error::LintYamlError;
@@ -28,10 +28,10 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 /// The action that lints the YAML files of a project
 ///
 /// The action wraps [yamllint]: yamllint discovers the YAML files of the
-/// project, reads its own configuration, and applies the rules that the
-/// project turned on, so a run agrees with an editor and with a contributor
-/// that runs yamllint bare. The yamllint that runs is the one that [mise]
-/// installed for the project, at the version that the project pinned, and the
+/// project, reads its own configuration, and applies the rules that the project
+/// turned on, so a run agrees with an editor and with a contributor that runs
+/// yamllint bare. The yamllint that runs is the version that the action
+/// declares, which [mise] installed, whatever version the project pins. The
 /// action installs nothing.
 ///
 /// A run only reports, and it takes no argument. Every rule that a file broke
@@ -41,10 +41,10 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 /// error, because a project that wants a rule to stay quiet turns that rule
 /// off.
 ///
-/// The action applies to a project that holds YAML files, and it skips
-/// visibly otherwise. A run stops with an error when mise reports no
-/// yamllint, when yamllint refuses the configuration of the project, and when
-/// yamllint writes a report that the action cannot read.
+/// The action applies to a project that holds YAML files, and it skips visibly
+/// otherwise. A run stops with an error when mise reports no yamllint at the
+/// declared version, when yamllint refuses the configuration of the project,
+/// and when yamllint writes a report that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -76,6 +76,10 @@ impl Action for LintYaml {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Yamllint::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -98,7 +102,7 @@ impl Action for LintYaml {
 /// tool, the listing of the files, the yamllint run, or the reading of the
 /// report.
 async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
-    let yamllint = Yamllint::resolve(context.root().clone())
+    let yamllint = Yamllint::resolve(context)
         .await
         .map_err(|source| LintYamlError::UnresolvedTool { source })?;
 
@@ -351,5 +355,12 @@ mod tests {
         let summary = summary(1);
 
         assert_eq!(summary.get(), "checked 1 file");
+    }
+
+    #[test]
+    fn tools_declare_the_yamllint_of_the_crate() {
+        let tools = LintYaml.tools();
+
+        assert_eq!(tools, vec![Yamllint::requirement()]);
     }
 }

@@ -18,10 +18,6 @@ pub enum ObservePrettierError {
     ///
     /// The program was resolved and did not start, or it started and its
     /// output could not be read. Nothing of the project was examined.
-    ///
-    /// Prettier runs on Node, and mise installs the two as separate tools. A
-    /// project that pins prettier without Node resolves a program that cannot
-    /// start, and the failure arrives here.
     #[error("failed to run prettier")]
     PrettierUnavailable {
         /// The cause of the failure
