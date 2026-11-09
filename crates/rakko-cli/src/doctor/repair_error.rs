@@ -84,6 +84,8 @@ mod tests {
 
     use super::*;
 
+    /// The error of a run is readable across threads
+    ///
     /// The run puts the error in an outcome, and that outcome holds an error
     /// that another thread can read.
     #[test]

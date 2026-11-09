@@ -108,7 +108,9 @@ impl Pins {
         for (tool, versions) in &self.0 {
             let value = match versions.first() {
                 Some(version) if versions.len() == 1 => Value::from(version.get()),
-                _ => Value::Array(versions.iter().map(ToolVersion::get).collect::<Array>()),
+                Some(_) | None => {
+                    Value::Array(versions.iter().map(ToolVersion::get).collect::<Array>())
+                }
             };
 
             tools.insert(tool.get(), Item::Value(value));
@@ -222,7 +224,7 @@ pub(crate) fn retire_lockfile(root: &ProjectRoot) -> Result<bool, RepairToolPins
                 source: error,
             })
         }
-        _ => Ok(false),
+        Ok(()) | Err(_) => Ok(false),
     }
 }
 
@@ -280,6 +282,7 @@ mod tests {
     use super::*;
 
     /// Returns the requirement of a tool at an exact version
+    #[bon::builder]
     fn exact(tool: &str, version: &str) -> ToolRequirement {
         ToolRequirement::builder()
             .tool(tool)
@@ -289,6 +292,7 @@ mod tests {
     }
 
     /// Returns the requirement of a toolchain in a range
+    #[bon::builder]
     fn range(tool: &str, range: &str) -> ToolRequirement {
         ToolRequirement::builder()
             .tool(tool)
@@ -333,7 +337,7 @@ mod tests {
 
     /// Returns the pins of one tool at an exact version
     fn taplo() -> Pins {
-        Pins::of(&[exact("taplo", "0.10.0")])
+        Pins::of(&[exact().tool("taplo").version("0.10.0").call()])
     }
 
     #[test]
@@ -416,7 +420,7 @@ mod tests {
 
     #[test]
     fn of_leaves_out_a_toolchain() {
-        let pins = Pins::of(&[range("node", ">=22")]);
+        let pins = Pins::of(&[range().tool("node").range(">=22").call()]);
 
         assert!(pins.is_empty());
     }
@@ -431,8 +435,11 @@ mod tests {
     #[test]
     fn render_pins_each_tool_in_alphabetical_order() {
         let pins = Pins::of(&[
-            exact("taplo", "0.10.0"),
-            exact("npm:markdownlint-cli", "0.50.0"),
+            exact().tool("taplo").version("0.10.0").call(),
+            exact()
+                .tool("npm:markdownlint-cli")
+                .version("0.50.0")
+                .call(),
         ]);
 
         let text = pins.render().expect("the pins give a file");
@@ -445,7 +452,10 @@ mod tests {
 
     #[test]
     fn render_pins_two_versions_of_one_tool_as_an_array() {
-        let pins = Pins::of(&[exact("taplo", "0.9.0"), exact("taplo", "0.10.0")]);
+        let pins = Pins::of(&[
+            exact().tool("taplo").version("0.9.0").call(),
+            exact().tool("taplo").version("0.10.0").call(),
+        ]);
 
         let text = pins.render().expect("the pins give a file");
 

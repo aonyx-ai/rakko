@@ -215,6 +215,13 @@ mod tests {
         Context::builder().root(root).build()
     }
 
+    #[test]
+    fn oxfmt_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Oxfmt>();
+    }
+
     #[tokio::test]
     async fn resolve_runs_oxfmt_on_the_node_of_the_project() {
         let context = context();

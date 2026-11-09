@@ -1439,14 +1439,16 @@ mod tests {
     }
 
     /// Returns the declaration of a tool at a version by an action
+    #[bon::builder]
     fn declaration(action: &str, tool: &str, version: &str) -> doctor::Declaration {
         doctor::Declaration::builder()
             .action(action_name(action))
-            .requirement(exact(tool, version))
+            .requirement(exact().tool(tool).version(version).call())
             .build()
     }
 
     /// Returns the requirement of a tool at an exact version
+    #[bon::builder]
     fn exact(tool: &str, version: &str) -> ToolRequirement {
         ToolRequirement::builder()
             .tool(tool)
@@ -1566,10 +1568,11 @@ mod tests {
     }
 
     /// Returns one erased action that declares a tool at a version
+    #[bon::builder]
     fn tooled(name: &str, tool: &str, version: &str) -> Box<dyn ErasedAction> {
         Box::new(Tooled {
             name: action_name(name),
-            tool: exact(tool, version),
+            tool: exact().tool(tool).version(version).call(),
         })
     }
 
@@ -1582,7 +1585,11 @@ mod tests {
     fn run_doctor(arguments: &[&str]) -> (tempfile::TempDir, u8) {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let root = directory.path().as_os_str().to_owned();
-        let builder = builder().mount([tooled("format-toml", "taplo", "0.10.0")]);
+        let builder = builder().mount([tooled()
+            .name("format-toml")
+            .tool("taplo")
+            .version("0.10.0")
+            .call()]);
         let mut line: Vec<OsString> = vec!["rakko".into(), "--project-root".into(), root];
         line.extend(arguments.iter().map(OsString::from));
 
@@ -2442,13 +2449,29 @@ mod tests {
     #[test]
     fn resolve_gives_the_doctor_each_tool_of_the_actions_and_the_members_once() {
         let group = sequence(vec![
-            tooled("format-toml", "taplo", "0.10.0"),
-            tooled("lint-json", "jq", "1.8.2"),
+            tooled()
+                .name("format-toml")
+                .tool("taplo")
+                .version("0.10.0")
+                .call(),
+            tooled()
+                .name("lint-json")
+                .tool("jq")
+                .version("1.8.2")
+                .call(),
         ]);
         let builder = builder()
             .mount([
-                tooled("format-toml", "taplo", "0.10.0"),
-                tooled("lint-yaml", "yamllint", "1.38.0"),
+                tooled()
+                    .name("format-toml")
+                    .tool("taplo")
+                    .version("0.10.0")
+                    .call(),
+                tooled()
+                    .name("lint-yaml")
+                    .tool("yamllint")
+                    .version("1.38.0")
+                    .call(),
             ])
             .mount(group);
 
@@ -2460,9 +2483,21 @@ mod tests {
         assert_eq!(
             declarations,
             BTreeSet::from([
-                declaration("format-toml", "taplo", "0.10.0"),
-                declaration("lint-json", "jq", "1.8.2"),
-                declaration("lint-yaml", "yamllint", "1.38.0"),
+                declaration()
+                    .action("format-toml")
+                    .tool("taplo")
+                    .version("0.10.0")
+                    .call(),
+                declaration()
+                    .action("lint-json")
+                    .tool("jq")
+                    .version("1.8.2")
+                    .call(),
+                declaration()
+                    .action("lint-yaml")
+                    .tool("yamllint")
+                    .version("1.38.0")
+                    .call(),
             ])
         );
     }

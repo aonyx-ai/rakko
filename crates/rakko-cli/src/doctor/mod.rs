@@ -143,7 +143,7 @@ async fn report(
 ) -> Result<Vec<Finding>, CheckToolPinsError> {
     let pins = pins(declarations);
 
-    let mut findings: Vec<Finding> = generated::check()
+    let mut findings: Vec<Finding> = self::generated::check()
         .pins(&pins)
         .root(context.root())
         .call()?
@@ -151,16 +151,16 @@ async fn report(
         .collect();
 
     findings.extend(
-        shadow::find()
+        self::shadow::find()
             .pins(&pins)
             .context(context)
             .call()
             .await?
             .iter()
-            .map(shadow::Shadow::finding),
+            .map(self::shadow::Shadow::finding),
     );
     findings.extend(
-        toolchain::check()
+        self::toolchain::check()
             .declarations(declarations)
             .context(context)
             .call()
@@ -189,18 +189,23 @@ async fn repair(
 
     let mut locks = !pins.is_empty();
 
-    if let Some(problem) = generated::check().pins(&pins).root(root).call()? {
-        generated::write().pins(&pins).root(root).call()?;
+    if let Some(problem) = self::generated::check().pins(&pins).root(root).call()? {
+        self::generated::write().pins(&pins).root(root).call()?;
 
         if pins.is_empty() {
-            locks = generated::retire_lockfile(root)?;
+            locks = self::generated::retire_lockfile(root)?;
         }
 
         repairs.push(problem);
     }
 
-    for shadow in shadow::find().pins(&pins).context(context).call().await? {
-        if shadow::remove().shadow(&shadow).root(root).call()? {
+    for shadow in self::shadow::find()
+        .pins(&pins)
+        .context(context)
+        .call()
+        .await?
+    {
+        if self::shadow::remove().shadow(&shadow).root(root).call()? {
             repairs.push(shadow.finding());
         } else {
             findings.push(shadow.finding());
@@ -212,7 +217,7 @@ async fn repair(
     }
 
     findings.extend(
-        toolchain::check()
+        self::toolchain::check()
             .declarations(declarations)
             .context(context)
             .call()
@@ -320,6 +325,7 @@ mod tests {
 
     /// Returns the version that a mise file of this repository pins for a
     /// tool
+    #[bon::builder]
     fn pinned_in(file: &str, tool: &str) -> String {
         let pins = std::fs::read_to_string(repository().join(file))
             .expect("the test reads a mise file of the repository");
@@ -330,7 +336,10 @@ mod tests {
     /// Returns the declaration of the tool at the version that the crate of
     /// the tool pins
     fn tool() -> Declaration {
-        let version = pinned_in("crates/rakko-taplo/mise.rakko.toml", TOOL);
+        let version = pinned_in()
+            .file("crates/rakko-taplo/mise.rakko.toml")
+            .tool(TOOL)
+            .call();
 
         Declaration::builder()
             .action("format-toml".parse().expect("the test names an action"))
@@ -394,7 +403,7 @@ mod tests {
         /// Creates a project that pins the toolchain at the version of this
         /// repository, and the tool at a version that no action declares
         fn shadowing() -> Self {
-            let toolchain = pinned_in("mise.toml", TOOLCHAIN);
+            let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
 
             Self::with(&format!(
                 "[tools]\n{TOOLCHAIN} = \"{toolchain}\"\n{TOOL} = \"0.9.0\"\n"
@@ -522,7 +531,7 @@ mod tests {
     #[tokio::test]
     async fn run_in_repair_mode_keeps_the_pin_of_the_toolchain() {
         let project = Project::shadowing();
-        let toolchain = pinned_in("mise.toml", TOOLCHAIN);
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
 
         let _outcome = run()
             .declarations(&declarations())
@@ -601,7 +610,7 @@ mod tests {
     #[tokio::test]
     async fn run_in_repair_mode_with_a_left_over_file_beside_a_configuration_prunes_the_lockfile() {
         let project = Project::with("[tools]\n");
-        let toolchain = pinned_in("mise.toml", TOOLCHAIN);
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
         project.left_over(&format!(
             "lockfile_version = 3\n\n[[tools.{TOOL}]]\nversion = \"0.10.0\"\nbackend = \"aqua:tamasfe/taplo\"\n"
         ));
@@ -647,7 +656,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_in_repair_mode_without_a_declared_tool_locks_nothing() {
-        let toolchain = pinned_in("mise.toml", TOOLCHAIN);
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
         let project = Project::with(&format!("[tools]\n{TOOLCHAIN} = \"{toolchain}\"\n"));
 
         let _outcome = run()
