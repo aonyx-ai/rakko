@@ -49,8 +49,11 @@ const IGNORE_EVERYTHING: &str = "*.md\n";
 /// An ignore file that excludes a directory whose name starts with a dot
 const IGNORE_DOT_DIRECTORY: &str = ".claude/\n";
 
-/// The start of the line of the repository's `mise.toml` that pins markdownlint
+/// The key that pins markdownlint in the mise configuration of a project
 const TOOL_PIN: &str = "\"npm:markdownlint-cli\"";
+
+/// The header of the table of tools in a mise configuration
+const TOOLS_TABLE: &str = "[tools]\n";
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -75,13 +78,15 @@ impl Project {
 
         let pins = std::fs::read_to_string(repository().join("mise.toml"))
             .expect("the test reads the mise.toml of the repository");
-        let pin = pins
-            .lines()
-            .find(|line| line.starts_with(TOOL_PIN))
-            .expect("the mise.toml of the repository pins markdownlint");
+        let (head, tail) = pins
+            .split_once(TOOLS_TABLE)
+            .expect("the mise.toml of the repository holds a table of tools");
         let copy = project.directory.path().join("mise.toml");
-        std::fs::write(&copy, pins.replace(pin, &format!("{TOOL_PIN} = \"0.0.1\"")))
-            .expect("the test writes the mise.toml of the project");
+        std::fs::write(
+            &copy,
+            format!("{head}{TOOLS_TABLE}{TOOL_PIN} = \"0.0.1\"\n{tail}"),
+        )
+        .expect("the test writes the mise.toml of the project");
         trust(&copy);
 
         project

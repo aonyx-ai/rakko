@@ -4,10 +4,11 @@
 //! against it. So no fixture with a deliberately broken file sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
-//! The tests run the tsc that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it. So the version that answers is
-//! the version that the repository installs. A new pin reaches the tests
-//! without a change to them.
+//! The tests run the tsc that this repository pins. TypeScript and Node are
+//! toolchains, so the project pins them. A project copies the `mise.toml` of
+//! the repository and trusts it. So the versions that answer are the versions
+//! that the repository installs, and a new pin reaches the tests without a
+//! change to them.
 //!
 //! A project states the compiler options that its test is about and no others.
 //! Tsc applies its own defaults for the rest, and it reads no configuration of
@@ -24,8 +25,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
-use rakko_check_typescript::CheckTypeScript;
+use rakko_check_typescript::{CheckTypeScript, CheckTypeScriptError};
 use rakko_test_utils::{path_text, run_checking_access};
+use rakko_tool::ResolveRequirementError;
 use tempfile::TempDir;
 
 /// A configuration that selects the source directory of the project
@@ -70,6 +72,9 @@ const UNUSED_PARAMETER: &str = "export function greet(name: string): string {\n 
 const EXPLAINED: &str = "type Greet = (name: string) => string;\n\nexport const greet: Greet = \
                          (name: number): string => `${name}`;\n";
 
+/// The start of the line of the repository's `mise.toml` that pins TypeScript
+const TYPESCRIPT_PIN: &str = "\"npm:typescript\"";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The temporary directory that holds the project
@@ -82,10 +87,12 @@ struct Project {
 
 #[bon::bon]
 impl Project {
-    /// Creates a project without a tsc to resolve
+    /// Creates a project without a mise configuration
     ///
-    /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when the run must end before the tool runs.
+    /// Nothing in the project reaches a tool. A test of a project with
+    /// TypeScript pins the toolchains with [`pinned`][pinned].
+    ///
+    /// [pinned]: Project::pinned
     fn bare() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let root = directory.path().to_path_buf();
@@ -128,18 +135,28 @@ impl Project {
         project.pinned()
     }
 
-    /// Creates a project that pins a TypeScript that nothing installed
+    /// Creates a project with the Node of this repository and another
+    /// TypeScript
     ///
-    /// The pin names a version that no machine installs. So mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about TypeScript.
-    fn without_tsc() -> Self {
+    /// The project copies the `mise.toml` of this repository, and the copy
+    /// pins TypeScript at the given version instead. Mise ignores a
+    /// configuration that nobody trusts, so the copy is trusted right away.
+    fn pinning_typescript(version: &str) -> Self {
         let project = Self::bare();
 
-        let pins = project.root.join("mise.toml");
-        std::fs::write(&pins, "[tools]\n\"npm:typescript\" = \"0.0.1\"\n")
-            .expect("the test writes the mise.toml of the project");
-        trust(&pins);
+        let pins = std::fs::read_to_string(repository().join("mise.toml"))
+            .expect("the test reads the mise.toml of the repository");
+        let pin = pins
+            .lines()
+            .find(|line| line.starts_with(TYPESCRIPT_PIN))
+            .expect("the mise.toml of the repository pins TypeScript");
+        let copy = project.root.join("mise.toml");
+        std::fs::write(
+            &copy,
+            pins.replace(pin, &format!("{TYPESCRIPT_PIN} = \"{version}\"")),
+        )
+        .expect("the test writes the mise.toml of the project");
+        trust(&copy);
 
         project
     }
@@ -378,6 +395,10 @@ async fn run_reads_the_configuration_of_the_project() {
     );
 }
 
+/// Shows that a run whose configuration selected nothing skips
+///
+/// A project that holds no configuration of tsc is no TypeScript project.
+/// Tsc reports that it found none rather than that it found no problem.
 #[tokio::test]
 async fn run_whose_configuration_selected_nothing_skips() {
     let project = Project::new();
@@ -560,6 +581,33 @@ async fn run_with_a_type_error_reports_the_position_of_tsc() {
 }
 
 #[tokio::test]
+async fn run_with_a_typescript_outside_the_range_stops_on_typescript() {
+    let project = Project::pinning_typescript("4.9.5");
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(CheckTypeScriptError::UnresolvedTool {
+                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
+                    }) if tool.get() == "npm:typescript"
+                )
+        ),
+        "expected the run to stop on the TypeScript of the project, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_an_explained_diagnostic_carries_the_explanation() {
     let project = Project::new();
     project
@@ -610,10 +658,6 @@ async fn run_with_an_explained_diagnostic_reports_one_finding() {
     assert_eq!(findings.len(), 1);
 }
 
-/// Shows that run without a configuration file skips
-///
-/// A project that holds no configuration of tsc is no TypeScript project.
-/// Tsc reports that it found none rather than that it found no problem.
 #[tokio::test]
 async fn run_without_a_configuration_file_skips() {
     let project = Project::new();
@@ -635,8 +679,8 @@ async fn run_without_a_configuration_file_skips() {
 }
 
 #[tokio::test]
-async fn run_without_a_tsc_stops() {
-    let project = Project::without_tsc();
+async fn run_without_a_node_stops_on_node() {
+    let project = Project::bare();
     project
         .write()
         .path("tsconfig.json")
@@ -647,8 +691,44 @@ async fn run_without_a_tsc_stops() {
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(CheckTypeScriptError::UnresolvedTool {
+                        source: ResolveRequirementError::UnresolvedToolchain { tool, .. },
+                    }) if tool.get() == "node"
+                )
+        ),
+        "expected the run to stop without a Node, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_a_tsc_stops() {
+    let project = Project::pinning_typescript("99.0.0");
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(CheckTypeScriptError::UnresolvedTool {
+                        source: ResolveRequirementError::UnresolvedVersion { tool, .. },
+                    }) if tool.get() == "npm:typescript"
+                )
+        ),
+        "expected the run to stop without a tsc, got {outcome:?}"
     );
 }
 

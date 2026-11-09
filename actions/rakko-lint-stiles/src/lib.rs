@@ -6,8 +6,8 @@
 //! with a contributor that runs stiles bare.
 //!
 //! The action starts the stiles that [mise] installed for the project. It uses
-//! the version that the project pinned. The action translates what stiles
-//! reported into the outcome of the run.
+//! the version that the project pinned, if the action accepts that version.
+//! The action translates what stiles reported into the outcome of the run.
 //!
 //! Stiles ships no rule of its own. A project names the lints it runs in
 //! `.config/stiles.toml`, and those rules are all that a check applies.
@@ -35,12 +35,19 @@
 //! # Provisioning
 //!
 //! A project pins stiles in its `mise.toml` with the GitHub backend of mise,
-//! which downloads the archive of a release:
+//! which downloads the archive of a release. Stiles tags each release with the
+//! name of the tool, so the pin names that prefix. Stiles publishes no build
+//! for Windows, so the pin installs it only on the platforms that have one:
 //!
 //! ```toml
 //! [tools]
-//! "github:aonyx-ai/stiles" = "0.1.0"
+//! "github:aonyx-ai/stiles" = { version = "0.6.0", version_prefix = "stiles@", os = ["linux", "macos"] }
 //! ```
+//!
+//! The action declares stiles as a requirement that accepts exactly one
+//! version. The rules that a project loads are built against one version of
+//! stiles, and another version refuses them. So the action stops when the
+//! project pins another version.
 //!
 //! The action asks mise for the program named `stiles`. So a release whose
 //! archive holds a program of another name needs the `bin` option of the

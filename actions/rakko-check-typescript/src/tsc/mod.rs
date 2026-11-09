@@ -1,20 +1,43 @@
 //! The tsc that a project runs
 //!
-//! This module holds the compiler that mise installed for a project and the
-//! run that produces its diagnostics. An action asks for a run, and everything
-//! between the action and the process lives here.
+//! This module holds the versions of TypeScript and of Node that the crate
+//! accepts. It also holds the compiler that mise installed at the version that
+//! the project pins, and the run that produces its diagnostics. An action asks
+//! for a run, and everything between the action and the process lives here.
 
 mod error;
 pub(crate) mod report;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
+use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
+use rakko_tool::{Launch, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveTscError;
 use crate::diagnostic::Diagnostic;
 
-/// The name that mise knows the tool by
+/// The name that mise knows TypeScript by
+const TYPESCRIPT: &str = "npm:typescript";
+
+/// The program of the compiler
 const TSC: &str = "tsc";
+
+/// The versions of TypeScript that the action reads the report of
+///
+/// TypeScript is a toolchain of the project, so the project pins its version,
+/// and a run stops when that version is outside the range. The action reads
+/// the diagnostics of TypeScript 5 and later. It knows the number that the
+/// diagnostic of a missing configuration has in each of these releases.
+const TYPESCRIPT_RANGE: &str = ">=5";
+
+/// The name that mise knows Node by, which is also the name of its program
+const NODE: &str = "node";
+
+/// The versions of Node that tsc runs on
+///
+/// Node is a toolchain of the project, so the project pins its version, and
+/// a run stops when that version is outside the range. The range is the one
+/// of the oldest TypeScript that the action accepts. A newer TypeScript can
+/// need a newer Node, such as 16.20 and later for TypeScript 7.
+const NODE_RANGE: &str = ">=12.20";
 
 /// The option that stops tsc from writing the output of a build
 ///
@@ -52,12 +75,15 @@ const HERE: &str = ".";
 /// version that the project pinned. So a run reaches the same program as the
 /// editor and the terminal of a contributor. The version decides what the
 /// language is. A release of TypeScript adds rules, and a program that one
-/// version accepts is a program that the next one can refuse. Nothing here
-/// installs a tool: provisioning is the job of mise, and a tsc that mise does
-/// not report stops the caller.
+/// version accepts is a program that the next one can refuse. TypeScript is
+/// therefore a toolchain of the project, and the crate states only the range
+/// of versions that it accepts. The compiler runs on the Node that the project
+/// pins, when the range of the crate accepts it. Nothing here installs a tool:
+/// provisioning is the job of mise, and a tsc that mise does not report stops
+/// the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Tsc {
-    /// The program that mise installed for the project
+    /// The program that mise installed at the version that the project pins
     tool: Tool,
 }
 
@@ -117,22 +143,63 @@ impl Tsc {
         Ok(diagnostics)
     }
 
-    /// Returns the tsc that mise installed for the project
+    /// Returns the requirement of the Node that tsc runs on
     ///
-    /// The lookup asks mise about the project whose root the caller names. So
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path.
+    /// Node is a toolchain, so the requirement holds the range of versions
+    /// that tsc accepts, and the project pins the version.
+    pub(crate) fn node_requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(NODE)
+            .executable(NODE)
+            .version(RequiredVersion::Range(VersionRange::new(NODE_RANGE)))
+            .build()
+    }
+
+    /// Returns the requirement of the TypeScript that the action checks with
+    ///
+    /// TypeScript is a toolchain, so the requirement holds the range of
+    /// versions that the action accepts, and the project pins the version.
+    pub(crate) fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(TYPESCRIPT)
+            .executable(TSC)
+            .version(RequiredVersion::Range(VersionRange::new(TYPESCRIPT_RANGE)))
+            .build()
+    }
+
+    /// Returns the tsc that mise installed at the version that the project
+    /// pins
+    ///
+    /// The lookup asks mise for the TypeScript that the project pins and that
+    /// [`requirement`][requirement] accepts. It also asks mise for the Node
+    /// that the project pins and that [`node_requirement`][node] accepts. A
+    /// run starts in the root of the context, with that Node first on its
+    /// path.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no tsc for the
-    /// project.
-    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve()
-            .name(ToolName::new(TSC))
-            .root(root)
+    /// Returns a [`ResolveRequirementError`] in these conditions:
+    ///
+    /// - Mise does not run.
+    /// - The project pins no TypeScript or no Node in the range.
+    /// - Mise reports no tsc or no Node at the pinned version, for example
+    ///   because nothing installed it.
+    /// - The directory of that Node cannot be an entry of `PATH`.
+    ///
+    /// [node]: Tsc::node_requirement
+    /// [requirement]: Tsc::requirement
+    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let node = Tool::resolve_requirement()
+            .requirement(&Self::node_requirement())
+            .context(context)
             .call()
             .await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
+            .await?
+            .with_toolchain(&node)?;
 
         Ok(Self { tool })
     }
@@ -140,7 +207,56 @@ impl Tsc {
 
 #[cfg(test)]
 mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use std::path::Path;
+
     use super::*;
+
+    /// Returns the context of a run in the root of this repository
+    ///
+    /// The repository pins a TypeScript and a Node that the ranges of the
+    /// crate accept, and it installs both. The crate lives two directories
+    /// below the root.
+    fn context() -> Context {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let root = manifest
+            .parent()
+            .and_then(Path::parent)
+            .expect("the crate lives two directories below the root of the repository");
+
+        Context::builder().root(root).build()
+    }
+
+    #[tokio::test]
+    async fn resolve_runs_tsc_on_the_node_of_the_project() {
+        let context = context();
+        let node = Tool::resolve_requirement()
+            .requirement(&Tsc::node_requirement())
+            .context(&context)
+            .call()
+            .await
+            .expect("the test resolves the Node that the repository pins");
+
+        let tsc = Tsc::resolve(&context)
+            .await
+            .expect("the test resolves the TypeScript that the repository pins");
+
+        let invocation = tsc.tool.invocation();
+        let path = invocation
+            .environment()
+            .iter()
+            .find(|variable| variable.name().get() == "PATH")
+            .map(|variable| variable.value().get().to_owned())
+            .expect("expected the command of tsc to set the path");
+        assert_eq!(
+            std::env::split_paths(&path).next().as_deref(),
+            node.program().get().parent()
+        );
+    }
 
     #[test]
     fn tsc_is_send_sync_and_unpin() {

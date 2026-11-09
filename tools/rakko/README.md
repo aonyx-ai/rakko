@@ -1,10 +1,32 @@
 # Harness
 
 This package is the harness of the Rakko repository: the one place that states
-which maintenance actions run here. It mounts the bundles and the actions that
-this repository uses, and the command line that it builds turns each of them
-into a command. A bundle carries a set of actions that projects adopt
-together, so the harness names the bundle instead of each action in it.
+which maintenance actions run here. It mounts the actions of the repository,
+and the command line that it builds turns each of them into a command. A
+bundle carries a set of actions that projects adopt together, so the harness
+mounts the bundle instead of each action in it.
+
+The harness also mounts actions that find nothing to do here, such as the
+actions for TypeScript. Each action pins the tools that it runs, and
+`doctor --fix` writes the pins of the mounted actions into
+`.config/mise/conf.d/rakko.toml`. This repository holds the tests of every
+action, and those tests run the tools at their pinned versions. So the mounts
+make mise install every declared tool that a test needs. The root `mise.toml`
+supplies the toolchains. Each mounted action is also a job of CI. So the job
+of a TypeScript action installs the tools, and then the action skips.
+
+The harness does not mount the action `check-specs`. Mise cannot install
+tracey from the pin of `check-specs`, because the pin cannot carry the `crate`
+option that the cargo backend needs for tracey. Mise installs the tools of the
+generated file before it runs a task. So if the harness mounts `check-specs`,
+every task fails. The tests of the crate need no installed tool, so mise still
+installs every tool that the tests need.
+
+The action `lint-stiles` accepts exactly one version of stiles, and the root
+`mise.toml` pins that version. Stiles has no release for Windows. The pin
+installs it only on the platforms that have one, and the generated file cannot
+carry that limit. So `doctor` writes no pin of stiles into it, and
+`check-mise-lock` finds no Windows entry to complain about.
 
 It also mounts commands, for a maintenance activity that no single action
 describes. A command comes from a crate, as an action does, and `src/main.rs`

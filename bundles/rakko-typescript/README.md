@@ -42,19 +42,43 @@ The bundle exports four actions:
 
 ## Tools
 
-Each action runs the tool that [mise] installed for the project, at the
-version that the project pinned. Rakko installs nothing, and an action whose
-tool mise does not report stops instead of passing quietly, so a project that
-mounts this bundle pins these tools in its `mise.toml`:
+Rakko installs nothing, and an action whose tool [mise] does not report stops
+instead of passing quietly. An action runs two kinds of tool: toolchains and
+the tools of the action.
 
-- `node`, for `test-typescript`, and because tsc and oxfmt run on it. Mise
-  puts no node on the path for them. The baseline runs on the same node, so
-  the pin must also be a version that the tools of the baseline support.
-- `npm:typescript`, for `check-typescript`. The editor of a contributor uses
-  the TypeScript in `node_modules`, so pin the version that the project
-  depends on.
-- `oxfmt`, for `format-typescript`.
-- `oxlint`, for `lint-typescript`.
+A toolchain is a compiler or runtime that the code of the project builds or
+runs with. The project pins its version in its `mise.toml`, and an action
+accepts a range of versions. Each action takes the first version of the `node`
+or `npm:typescript` entry that its range accepts. A run stops when the range
+accepts no version of the entry. For example, with
+`node = ["22.12.0", "26.13.0"]`, `format-typescript` runs on 22.12.0. The
+toolchains of this bundle are Node and TypeScript:
+
+- `check-typescript` accepts `npm:typescript` 5 and later. The editor of a
+  contributor uses the TypeScript in `node_modules`, so pin the version that
+  the project depends on. Tsc runs on Node, and the action accepts Node 12.20
+  and later, the range of TypeScript 5.0. A newer TypeScript can need a newer
+  Node, such as 16.20 and later for TypeScript 7.
+- `format-typescript` accepts the Node that oxfmt supports: 20.19 and later
+  releases of 20, and 22.12 and later releases. So a run on a pin of Node 21
+  stops.
+- `test-typescript` accepts 22.18 and later releases of 22, and 23.6 and later
+  releases, as the next section explains.
+
+Every tool of the npm backend runs on Node, and mise puts no Node on the path
+for such a tool. So `check-typescript` and `format-typescript` put the Node that
+they resolved at the start of the path of their tool. The baseline reads the
+same `node` entry, so the entry must hold a version in the range of each action
+of both bundles.
+
+The other tools belong to the actions. Each of these actions runs the version
+that its crate pins in a `mise.rakko.toml`, and not the version that the
+project pins. So the pin of the project must be that same version, until Rakko
+writes the pin into the project itself. When that version is not installed, a
+run stops, and its error gives the tool and the version:
+
+- `oxfmt`, for `format-typescript`, which pins it itself.
+- `oxlint`, for `lint-typescript`, which pins it itself.
 
 Each tool reads its own configuration, so a run of an action agrees with the
 editor of a contributor and with a run of the tool alone on what the
@@ -68,9 +92,11 @@ types when it loads the file. It finds such files only in the releases that
 strip types by default: 22.18 and later on the line of 22, and 23.6 and later.
 The action was built against node 24.
 
-An older node leaves out every test in TypeScript, and it says nothing about
-it. A project without other tests sees the action skip. A project with tests
-in JavaScript passes on those tests alone.
+Another release leaves out every test in TypeScript, and it says nothing about
+it. Without a range, the action skips in a project without other tests. In a
+project with tests in JavaScript, it passes on those tests alone. So
+`test-typescript` accepts only the releases that strip types by default, and a
+run on another pin stops.
 
 Node only removes the types, so it refuses some code that tsc accepts. Set
 these options in the `tsconfig.json` of the project, so that `check-typescript`

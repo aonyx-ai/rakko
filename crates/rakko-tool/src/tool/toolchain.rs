@@ -9,6 +9,9 @@
 //! of one channel, such as `>=nightly-2025-02-20`. Rustup names a dated
 //! toolchain of a channel by its date. So a nightly toolchain has a date
 //! and no version of its own to compare.
+//!
+//! A range can hold alternatives, joined by `||`, such as `^22.18 || >=23.6`.
+//! It accepts a pin that one of them accepts.
 
 use std::path::{Path, PathBuf};
 
@@ -149,6 +152,9 @@ pub(super) async fn pinned_toolchain(
     }
 }
 
+/// The text that joins the alternatives of a range
+const ALTERNATIVE: &str = "||";
+
 /// The versions that a range accepts, in the form that the pins are read in
 ///
 /// A range compares the versions of releases, such as `>=1.85`. A range can
@@ -156,18 +162,22 @@ pub(super) async fn pinned_toolchain(
 /// comparator of such a range gives the same channel and a date. A pin of
 /// that channel then carries a date as well, such as `nightly-2026-11-02`,
 /// and the range compares the dates.
+///
+/// A range holds one or more alternatives, and it accepts a pin that one of
+/// them accepts. The alternatives of a range of dates give the same channel.
 #[derive(Debug)]
 enum Accepted {
     /// A range of the versions of releases
-    Releases(VersionReq),
+    Releases(Vec<VersionReq>),
 
     /// A range of the dates of one channel
     Dated {
         /// The channel that every comparator of the range gives
         channel: String,
 
-        /// The range of the dates, with each date read as a version
-        dates: VersionReq,
+        /// The alternatives of the range of the dates, with each date read
+        /// as a version
+        dates: Vec<VersionReq>,
     },
 }
 
@@ -193,21 +203,34 @@ enum Reading {
 impl Accepted {
     /// Returns the range that a text gives
     ///
-    /// A text whose every comparator gives a date of one channel is a range
-    /// of dates. Every other text is a range of releases, in the syntax of a
-    /// version requirement of Cargo.
+    /// The text holds one or more alternatives, joined by `||`. Each
+    /// alternative uses the syntax of a version requirement of Cargo. A text
+    /// whose every comparator gives a date of one channel is a range of dates.
+    /// Every other text is a range of releases.
     ///
     /// # Errors
     ///
-    /// Returns the error of the reading when the text is no range.
+    /// Returns the error of the reading when the text is no range. Examples are
+    /// an alternative that is empty, and one alternative that gives dates beside
+    /// another that gives releases.
     fn parse(range: &VersionRange) -> Result<Self, semver::Error> {
-        if let Some((channel, text)) = dated(range.get()) {
-            let dates = VersionReq::parse(&text)?;
+        let alternatives: Vec<&str> = range.get().split(ALTERNATIVE).collect();
+
+        if let Some((channel, texts)) = dated_alternatives(&alternatives) {
+            let dates = texts
+                .iter()
+                .map(|text| VersionReq::parse(text))
+                .collect::<Result<_, _>>()?;
 
             return Ok(Self::Dated { channel, dates });
         }
 
-        Ok(Self::Releases(VersionReq::parse(range.get())?))
+        let releases = alternatives
+            .iter()
+            .map(|text| VersionReq::parse(text))
+            .collect::<Result<_, _>>()?;
+
+        Ok(Self::Releases(releases))
     }
 
     /// Returns what the range says about a pin
@@ -221,13 +244,17 @@ impl Accepted {
     fn read(&self, pin: &str, requested: &str) -> Reading {
         match self {
             Self::Releases(accepted) => match Version::parse(pin) {
-                Ok(version) if accepted.matches(&version) => Reading::Accepted,
+                Ok(version) if accepted.iter().any(|range| range.matches(&version)) => {
+                    Reading::Accepted
+                }
                 Ok(_) => Reading::Outside,
                 Err(source) => Reading::Unreadable(source),
             },
             Self::Dated { channel, dates } => {
                 match date_of().pin(requested).channel(channel).call() {
-                    Some(date) if dates.matches(&date) => Reading::Accepted,
+                    Some(date) if dates.iter().any(|range| range.matches(&date)) => {
+                        Reading::Accepted
+                    }
                     Some(_) => Reading::Outside,
                     None => Reading::Foreign,
                 }
@@ -246,6 +273,30 @@ impl Accepted {
             ),
         }
     }
+}
+
+/// Returns the channel of a range of dates, and each alternative with each
+/// date written as a version
+///
+/// It returns them when every comparator of every alternative gives a date of
+/// one channel. An alternative without a date, or with another channel than the
+/// others, makes the text no range of dates.
+fn dated_alternatives(alternatives: &[&str]) -> Option<(String, Vec<String>)> {
+    let mut channel: Option<String> = None;
+    let mut texts = Vec::new();
+
+    for alternative in alternatives {
+        let (name, text) = dated(alternative)?;
+
+        if channel.as_ref().is_some_and(|known| *known != name) {
+            return None;
+        }
+        channel = Some(name);
+
+        texts.push(text);
+    }
+
+    channel.map(|channel| (channel, texts))
 }
 
 /// Returns the channel of a range of dates and the range with each date
@@ -447,6 +498,13 @@ mod tests {
     }
 
     #[test]
+    fn dated_alternatives_of_two_channels_are_no_range_of_dates() {
+        let range = dated_alternatives(&[">=nightly-2025-02-20", ">=beta-2026-01-01"]);
+
+        assert_eq!(range, None);
+    }
+
+    #[test]
     fn dated_with_a_channel_that_holds_a_digit_is_no_range_of_dates() {
         let range = dated(">=n1ghtly-2025-02-20");
 
@@ -485,6 +543,20 @@ mod tests {
     }
 
     #[test]
+    fn parse_with_an_alternative_of_dates_beside_one_of_releases_reports_an_invalid_range() {
+        let range = Accepted::parse(&VersionRange::new(">=nightly-2025-02-20 || >=1.85"));
+
+        assert!(range.is_err(), "expected an invalid range, got {range:?}");
+    }
+
+    #[test]
+    fn parse_with_an_empty_alternative_reports_an_invalid_range() {
+        let range = Accepted::parse(&VersionRange::new(">=22 ||"));
+
+        assert!(range.is_err(), "expected an invalid range, got {range:?}");
+    }
+
+    #[test]
     fn pin_is_send_sync_and_unpin() {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
@@ -509,6 +581,16 @@ mod tests {
     fn read_with_a_date_in_a_range_of_dates_accepts_the_pin() {
         let reading = read()
             .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-11-02")
+            .call();
+
+        assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
+    }
+
+    #[test]
+    fn read_with_a_date_in_the_second_alternative_of_dates_accepts_the_pin() {
+        let reading = read()
+            .range("<nightly-2025-01-01 || >=nightly-2026-01-01")
             .pin("nightly-2026-11-02")
             .call();
 
@@ -580,8 +662,22 @@ mod tests {
     }
 
     #[test]
+    fn read_with_a_release_between_two_alternatives_reports_it_outside() {
+        let reading = read().range("^22.18 || >=23.6").pin("23.5.0").call();
+
+        assert!(matches!(reading, Reading::Outside), "got {reading:?}");
+    }
+
+    #[test]
     fn read_with_a_release_in_a_range_of_releases_accepts_the_pin() {
         let reading = read().range(">=1.85").pin("1.99.1").call();
+
+        assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
+    }
+
+    #[test]
+    fn read_with_a_release_in_the_second_alternative_accepts_the_pin() {
+        let reading = read().range("^22.18 || >=23.6").pin("23.6.0").call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
     }

@@ -67,8 +67,11 @@ const GLOBAL_MIGRATION: &str = "module.exports = { extends: ['config:base'] };\n
 /// A global configuration of Renovate that Node cannot parse
 const BROKEN_GLOBAL_CONFIGURATION: &str = "module.exports = {\n";
 
-/// The start of the line of the repository's `mise.toml` that pins Renovate
+/// The key that pins Renovate in the mise configuration of a project
 const TOOL_PIN: &str = "\"npm:renovate\"";
+
+/// The header of the table of tools in a mise configuration
+const TOOLS_TABLE: &str = "[tools]\n";
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -93,13 +96,15 @@ impl Project {
 
         let pins = std::fs::read_to_string(repository().join("mise.toml"))
             .expect("the test reads the mise.toml of the repository");
-        let pin = pins
-            .lines()
-            .find(|line| line.starts_with(TOOL_PIN))
-            .expect("the mise.toml of the repository pins Renovate");
+        let (head, tail) = pins
+            .split_once(TOOLS_TABLE)
+            .expect("the mise.toml of the repository holds a table of tools");
         let copy = project.directory.path().join("mise.toml");
-        std::fs::write(&copy, pins.replace(pin, &format!("{TOOL_PIN} = \"0.0.1\"")))
-            .expect("the test writes the mise.toml of the project");
+        std::fs::write(
+            &copy,
+            format!("{head}{TOOLS_TABLE}{TOOL_PIN} = \"0.0.1\"\n{tail}"),
+        )
+        .expect("the test writes the mise.toml of the project");
         trust(&copy);
 
         project
@@ -262,6 +267,38 @@ async fn run_in_a_missing_directory_stops_without_a_validator() {
                 if matches!(source.downcast_ref(), Some(CheckRenovateConfigError::UnresolvedTool { .. }))
         ),
         "expected the run to stop without a validator, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_project_with_node_between_the_releases_of_renovate_stops_on_node() {
+    let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+    let pins = directory.path().join("mise.toml");
+    std::fs::write(&pins, "[tools]\nnode = \"25.0.0\"\n")
+        .expect("the test writes the mise.toml of the project");
+    trust(&pins);
+    let context = Context::builder().root(directory.path()).build();
+
+    let outcome = CheckRenovateConfig.run(&context, &()).await;
+
+    let _ = Command::new("mise")
+        .arg("trust")
+        .arg("--quiet")
+        .arg("--untrust")
+        .arg(&pins)
+        .status();
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(CheckRenovateConfigError::UnresolvedTool {
+                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
+                    }) if tool.get() == "node"
+                )
+        ),
+        "expected the run to stop on Node 25.0.0, which Renovate does not support, got {outcome:?}"
     );
 }
 

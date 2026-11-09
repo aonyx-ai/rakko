@@ -44,11 +44,21 @@ actions that maintain Rakko itself.
 
 ## Development
 
-[Mise] provisions every tool that this repository needs, at the versions that
-`mise.toml` pins:
+[Mise] provisions every tool that this repository needs. `mise.toml` pins the
+toolchains and the tools that no action declares. Each action pins the tools
+that it runs, and the harness writes those pins into
+`.config/mise/conf.d/rakko.toml`. Mise reads that file beside `mise.toml`.
+Install the tools:
 
 ```console
 mise install
+```
+
+After you change the mounted actions or the pin of an action, write
+`.config/mise/conf.d/rakko.toml` and `.config/mise/mise.lock` again:
+
+```console
+mise run rakko -- doctor --fix
 ```
 
 `pre-commit install` installs the Git hook, which runs `rakko pre-commit

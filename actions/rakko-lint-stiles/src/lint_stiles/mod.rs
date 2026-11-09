@@ -11,7 +11,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
-    action_name,
+    ToolRequirement, action_name,
 };
 
 pub use self::error::LintStilesError;
@@ -42,6 +42,8 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 /// contributor that runs stiles bare.
 /// The stiles that runs is the one that [mise] installed for the project, at
 /// the version that the project pinned, and the action installs nothing.
+/// The action accepts one version of stiles, because the lints that a project
+/// loads are built against it.
 ///
 /// A run only reports, and it takes no argument.
 /// Stiles repairs nothing that a rule finds.
@@ -59,7 +61,8 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 /// It skips when that list is empty, because stiles checks such a project with
 /// no rule at all.
 /// It also skips when stiles finds no file to check.
-/// A run stops with an error when mise reports no stiles.
+/// A run stops with an error when mise reports no stiles at an accepted
+/// version.
 /// It stops when stiles stops before checking the whole project.
 /// It stops when stiles writes a report that the action cannot read.
 ///
@@ -97,6 +100,10 @@ impl Action for LintStiles {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Stiles::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -118,7 +125,7 @@ impl Action for LintStiles {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, a stiles run, or the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, LintStilesError> {
-    let stiles = Stiles::resolve(context.root().clone())
+    let stiles = Stiles::resolve(context)
         .await
         .map_err(|source| LintStilesError::UnresolvedTool { source })?;
 
@@ -316,5 +323,12 @@ mod tests {
         let summary = summary(23);
 
         assert_eq!(summary.get(), "applied 23 rules");
+    }
+
+    #[test]
+    fn tools_declare_the_stiles_of_the_crate() {
+        let tools = LintStiles.tools();
+
+        assert_eq!(tools, vec![Stiles::requirement()]);
     }
 }

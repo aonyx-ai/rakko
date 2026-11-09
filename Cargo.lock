@@ -788,12 +788,17 @@ dependencies = [
  "clap",
  "clawless",
  "futures-util",
+ "getset",
  "kawauso-project",
  "rakko",
+ "rakko-tool",
+ "semver",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror",
+ "tokio",
+ "toml_edit",
 ]
 
 [[package]]
@@ -1160,7 +1165,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
- "typed-fields",
 ]
 
 [[package]]

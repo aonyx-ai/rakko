@@ -79,6 +79,9 @@ const WARNED: &str = "pub fn warned() {\n    let unused = 1;\n}\n";
 /// The key that pins cargo-udeps in the mise configuration of a project
 const UNINSTALLED_PIN_KEY: &str = "\"cargo:cargo-udeps\"";
 
+/// The header of the table of tools in a mise configuration
+const TOOLS_TABLE: &str = "[tools]\n";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -317,12 +320,11 @@ fn pins_with_an_uninstalled_tool() -> String {
     let pins = std::fs::read_to_string(repository().join("mise.toml"))
         .expect("the test reads the mise.toml of the repository");
 
-    let pin = pins
-        .lines()
-        .find(|line| line.starts_with(UNINSTALLED_PIN_KEY))
-        .expect("the mise.toml of the repository pins cargo-udeps");
+    let (head, tail) = pins
+        .split_once(TOOLS_TABLE)
+        .expect("the mise.toml of the repository holds a table of tools");
 
-    pins.replace(pin, &format!("{UNINSTALLED_PIN_KEY} = \"0.0.1\""))
+    format!("{head}{TOOLS_TABLE}{UNINSTALLED_PIN_KEY} = \"0.0.1\"\n{tail}")
 }
 
 /// Returns the root of the repository that the tests run in

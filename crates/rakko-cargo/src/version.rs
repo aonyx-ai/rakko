@@ -1,13 +1,12 @@
 //! A version of the Rust compiler
 //!
-//! Two questions of this crate answer with a version. The first asks which
-//! toolchain a project pins for its builds. The second asks which toolchain
-//! the packages of a workspace promise to compile on. Both read a version out
-//! of text that another program wrote, and both pick the newest of several. So
-//! this module holds the version and the comparison that orders them.
+//! A question of this crate answers with a version. It asks which toolchain
+//! the packages of a workspace promise to compile on. The crate reads the
+//! version out of text that cargo wrote, and it picks the newest of several.
+//! So this module holds the version and the comparison that orders them.
 //!
-//! Nothing here fails. A version that a program wrote is either a version or
-//! a name that is none, and the reading says which.
+//! Nothing here fails. The comparison answers for every value that a caller
+//! can build.
 
 use std::cmp::Ordering;
 
@@ -17,10 +16,8 @@ const SEPARATOR: char = '.';
 /// A version of the Rust compiler
 ///
 /// A version names a release of the compiler, such as `1.88.0`. It reaches
-/// the crate as text that another program wrote.
-/// Mise reports the version that a pin of a project resolved to.
-/// Cargo reports the version that a package declares as the oldest one it
-/// compiles on.
+/// the crate as text that cargo wrote. It is the version that a package
+/// declares as the oldest one it compiles on.
 ///
 /// The value carries that text as it was written, because it is the name
 /// that rustup and a provisioning layer know the toolchain by. `1.88` and
@@ -85,26 +82,10 @@ impl RustVersion {
         &self.0
     }
 
-    /// Returns the version that a name states, or `None` when the name is
-    /// not a version
-    ///
-    /// A version is a sequence of numbers that dots separate. A name such as
-    /// `nightly-2026-08-11` is a toolchain and not a version, and it answers
-    /// `None`, so a caller can tell the two apart.
-    pub(crate) fn parse(name: &str) -> Option<Self> {
-        let numeric = !name.is_empty()
-            && name
-                .split(SEPARATOR)
-                .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()));
-
-        numeric.then(|| Self::new(name))
-    }
-
     /// Returns the highest of the versions, or `None` when there is none
     ///
     /// A caller that holds several versions and needs one asks for the newest.
-    /// The newest pin of a project is the toolchain that it builds with. The
-    /// newest declaration of a workspace is the only toolchain that can
+    /// The newest declaration of a workspace is the only toolchain that can
     /// compile every package in it.
     pub(crate) fn highest(versions: impl IntoIterator<Item = Self>) -> Option<Self> {
         versions.into_iter().max_by(compare)
@@ -201,20 +182,6 @@ mod tests {
         let highest = RustVersion::highest(versions);
 
         assert_eq!(highest, Some(RustVersion::new("1.88.0")));
-    }
-
-    #[test]
-    fn parse_a_name_that_is_not_a_version_answers_nothing() {
-        let version = RustVersion::parse("nightly-2026-08-11");
-
-        assert_eq!(version, None);
-    }
-
-    #[test]
-    fn parse_a_version_answers_it() {
-        let version = RustVersion::parse("1.88.0");
-
-        assert_eq!(version, Some(RustVersion::new("1.88.0")));
     }
 
     #[test]

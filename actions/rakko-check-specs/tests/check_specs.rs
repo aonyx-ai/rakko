@@ -1,9 +1,9 @@
 //! Tests of the action that need no installation of tracey
 //!
-//! The tests cover what the action declares and the run that stops when the
-//! project pins a tracey that nothing installed. A test that needs files
-//! builds a project in a temporary directory, so no fixture sits in this
-//! repository.
+//! The tests cover what the action declares. They also cover the run that
+//! stops when mise cannot read the configuration of the project, so that it
+//! reports no tracey. A test that needs files builds a project in a temporary
+//! directory, so no fixture sits in this repository.
 
 #![allow(
     clippy::expect_used,
@@ -11,11 +11,8 @@
 )]
 #![allow(clippy::missing_panics_doc)]
 
-use std::path::Path;
-use std::process::Command;
-
 use rakko::{Action, Args, Context, Outcome, ProjectRoot};
-use rakko_check_specs::CheckSpecs;
+use rakko_check_specs::{CheckSpecs, CheckSpecsError};
 use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
@@ -52,28 +49,20 @@ struct Project {
 
 #[bon::bon]
 impl Project {
-    /// Creates an empty project without a tracey to resolve
+    /// Creates a project whose mise configuration mise cannot read
     ///
-    /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool.
-    fn bare() -> Self {
+    /// The mise configuration of the project is no TOML, and mise stops on a
+    /// configuration that it cannot read. So mise reports no tracey at the
+    /// declared version, whatever versions the machine installed.
+    fn with_an_unreadable_mise_configuration() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = Self { directory };
 
-        Self { directory }
-    }
-
-    /// Creates a project that pins a tracey that nothing installed
-    fn without_tracey() -> Self {
-        let project = Self::bare();
-
-        let pins = project.directory.path().join("mise.toml");
-        std::fs::write(
-            &pins,
-            "[tools]\n\"cargo:https://github.com/bearcove/tracey\" = { version = \"rev:0000000000000000000000000000000000000000\", crate = \"tracey\" }\n",
-        )
-        .expect("the test writes the mise.toml of the project");
-        trust(&pins);
-
+        project
+            .write()
+            .path("mise.toml")
+            .content("this is not a configuration\n")
+            .call();
         project
             .write()
             .path(".config/tracey/config.styx")
@@ -125,47 +114,6 @@ impl Project {
     }
 }
 
-impl Drop for Project {
-    /// Withdraws the trust that the project received
-    ///
-    /// Mise records the trust of a configuration in the state of the user.
-    /// The temporary directory of a test never comes back, so the record would
-    /// pile up there forever.
-    ///
-    /// A project that never pinned a tool trusted nothing, and mise reads a
-    /// path that is not there as its parent directory. The method skips such a
-    /// project.
-    fn drop(&mut self) {
-        let configuration = self.directory.path().join("mise.toml");
-
-        if !configuration.is_file() {
-            return;
-        }
-
-        let _ = Command::new("mise")
-            .arg("trust")
-            .arg("--quiet")
-            .arg("--untrust")
-            .arg(configuration)
-            .status();
-    }
-}
-
-/// Trusts a mise configuration, so that mise reads it
-fn trust(configuration: &Path) {
-    let trusted = Command::new("mise")
-        .arg("trust")
-        .arg("--quiet")
-        .arg(configuration)
-        .status()
-        .expect("the test starts mise to trust a configuration");
-
-    assert!(
-        trusted.success(),
-        "expected mise to trust the configuration"
-    );
-}
-
 #[test]
 fn action_declares_no_argument() {
     let schema = <<CheckSpecs as Action>::Args as Args>::schema();
@@ -185,20 +133,24 @@ fn action_identifies_itself_as_check_specs() {
 }
 
 #[tokio::test]
-async fn run_without_a_tracey_leaves_the_project_unchanged() {
-    let project = Project::without_tracey();
+async fn run_with_an_unreadable_mise_configuration_leaves_the_project_unchanged() {
+    let project = Project::with_an_unreadable_mise_configuration();
 
     run_checking_access(&CheckSpecs, &project.context(), &()).await;
 }
 
 #[tokio::test]
-async fn run_without_a_tracey_stops() {
-    let project = Project::without_tracey();
+async fn run_with_an_unreadable_mise_configuration_stops() {
+    let project = Project::with_an_unreadable_mise_configuration();
 
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(CheckSpecsError::UnresolvedTool { .. }))
+        ),
+        "expected the run to stop without a tracey, got {outcome:?}"
     );
 }

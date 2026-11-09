@@ -143,6 +143,9 @@ const TOOLS: &str = "tools/harness";
 /// The key that pins cargo-deny in the mise configuration of a project
 const DENY_PIN: &str = "\"cargo:cargo-deny\"";
 
+/// The header of the table of tools in a mise configuration
+const TOOLS_TABLE: &str = "[tools]\n";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -172,11 +175,12 @@ impl Project {
     fn new() -> Self {
         let project = Self::bare();
         let pins = pins();
-        let pin = pins
-            .lines()
-            .find(|line| line.starts_with(DENY_PIN))
-            .expect("the mise.toml of the repository pins cargo-deny");
-        project.pin(&pins.replace(pin, &format!("{DENY_PIN} = \"0.0.1\"")));
+        let (head, tail) = pins
+            .split_once(TOOLS_TABLE)
+            .expect("the mise.toml of the repository holds a table of tools");
+        project.pin(&format!(
+            "{head}{TOOLS_TABLE}{DENY_PIN} = \"0.0.1\"\n{tail}"
+        ));
 
         project
     }

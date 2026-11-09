@@ -4,10 +4,10 @@
 //! against it. No fixture with a deliberately failing test sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
-//! The tests run the node that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it. The version that answers is
-//! the version that the repository installs. A new pin reaches the tests
-//! without a change to them.
+//! The tests run the node that this repository pins. Node is a toolchain, so
+//! the project pins it. A project copies the `mise.toml` of the repository and
+//! trusts it. The version that answers is the version that the repository
+//! installs. A new pin reaches the tests without a change to them.
 //!
 //! A project states no configuration of the runner, because there is none to
 //! state. Node carries the patterns that select the test files. A test file
@@ -23,8 +23,9 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
-use rakko_test_typescript::TestTypeScript;
+use rakko_test_typescript::{TestTypeScript, TestTypeScriptError};
 use rakko_test_utils::{path_text, run_checking_access};
+use rakko_tool::ResolveRequirementError;
 use tempfile::TempDir;
 
 /// A test that passes
@@ -90,16 +91,17 @@ impl Project {
         project
     }
 
-    /// Creates a project that pins a node that nothing installed
+    /// Creates a project that pins node at the given version and nothing else
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it. This holds whatever the global configuration of the
-    /// machine says about node.
-    fn without_node() -> Self {
+    /// A test that pins a version that no machine installs gets no location
+    /// for it from mise. This holds whatever the global configuration of the
+    /// machine says about node. Mise ignores a configuration that nobody
+    /// trusts, so the file is trusted right away.
+    fn pinning_node(version: &str) -> Self {
         let project = Self::bare();
 
         let pins = project.directory.path().join("mise.toml");
-        std::fs::write(&pins, "[tools]\nnode = \"0.0.1\"\n")
+        std::fs::write(&pins, format!("[tools]\nnode = \"{version}\"\n"))
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
 
@@ -515,8 +517,8 @@ async fn run_reads_the_report_of_node_rather_than_its_drawing() {
 }
 
 #[tokio::test]
-async fn run_without_a_node_stops() {
-    let project = Project::without_node();
+async fn run_with_a_node_between_the_releases_that_strip_types_stops_on_node() {
+    let project = Project::pinning_node("23.5.0");
     project
         .write()
         .path("src/add.test.ts")
@@ -526,7 +528,94 @@ async fn run_without_a_node_stops() {
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(TestTypeScriptError::UnresolvedTool {
+                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
+                    }) if tool.get() == "node"
+                )
+        ),
+        "expected the run to stop on the Node of the project, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_node_outside_the_range_stops_on_node() {
+    let project = Project::pinning_node("20.19.0");
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(TestTypeScriptError::UnresolvedTool {
+                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
+                    }) if tool.get() == "node"
+                )
+        ),
+        "expected the run to stop on the Node of the project, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_a_node_stops() {
+    let project = Project::pinning_node("99.0.0");
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(TestTypeScriptError::UnresolvedTool {
+                        source: ResolveRequirementError::UnresolvedVersion { tool, .. },
+                    }) if tool.get() == "node"
+                )
+        ),
+        "expected the run to stop without a node, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_a_pinned_node_stops() {
+    let project = Project::bare();
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(TestTypeScriptError::UnresolvedTool {
+                        source: ResolveRequirementError::UnresolvedToolchain { tool, .. },
+                    }) if tool.get() == "node"
+                )
+        ),
+        "expected the run to stop without a pinned node, got {outcome:?}"
     );
 }

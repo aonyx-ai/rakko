@@ -2,18 +2,18 @@
 //!
 //! A package manager for Node installs a tool as a script, with a launcher
 //! beside it under the same name. On Windows the launcher is a batch file,
-//! and [`Tool::resolve`][resolve] answers with it, because Windows cannot
-//! start the script. A batch file runs in `cmd.exe`, and `cmd.exe` stops when
-//! the operating system refuses it a file that another process holds at
-//! that moment. It writes the message of the operating system and ends
-//! without success, before the tool writes anything.
+//! and [`Tool::resolve_requirement`][resolve] answers with it, because
+//! Windows cannot start the script. A batch file runs in `cmd.exe`, and
+//! `cmd.exe` stops when the operating system refuses it a file that another
+//! process holds at that moment. It writes the message of the operating
+//! system and ends without success, before the tool writes anything.
 //!
 //! The refusal lasts only as long as the other process holds the file, so a
 //! run that starts again a moment later reaches the tool. This module holds
 //! the run that does that, so that an action receives the answer of its tool
 //! and not the refusal of the launcher.
 //!
-//! [resolve]: crate::Tool::resolve
+//! [resolve]: crate::Tool::resolve_requirement
 
 use std::future::Future;
 use std::time::Duration;
@@ -59,11 +59,19 @@ const SHARING_VIOLATION: i32 = 32;
 /// # Examples
 ///
 /// ```no_run
-/// use rakko_tool::{Launch, Tool, ToolName};
+/// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+/// use rakko_tool::{Launch, Tool};
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let tool = Tool::resolve().name(ToolName::new("prettier")).root("/home/otter/project".into()).call().await?;
+/// let requirement = ToolRequirement::builder()
+///     .tool("npm:prettier")
+///     .executable("prettier")
+///     .version(RequiredVersion::Exact(ToolVersion::new("3.9.10")))
+///     .build();
+/// let context = Context::builder().root("/home/otter/project").build();
+///
+/// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
 ///
 /// let execution = tool.invocation().arg("--check").arg(".").launch().await?;
 ///
@@ -192,12 +200,12 @@ mod tests {
 
     #[cfg(windows)]
     use kawauso_process::invocation::Program;
-    use rakko::ProjectRoot;
+    use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
     #[cfg(windows)]
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{Tool, ToolName};
+    use crate::{MiseFile, Tool};
 
     /// A launcher that the operating system refuses once and then runs
     #[cfg(windows)]
@@ -326,9 +334,20 @@ mod tests {
 
     #[tokio::test]
     async fn launch_of_a_tool_reports_what_it_wrote() {
-        let tool = Tool::resolve()
-            .name(ToolName::new("jq"))
-            .root(root())
+        let pins = std::fs::read_to_string(root().get().join("mise.toml"))
+            .expect("the test reads the mise.toml of the repository");
+        let requirement = ToolRequirement::builder()
+            .tool("jq")
+            .executable("jq")
+            .version(RequiredVersion::Exact(ToolVersion::new(
+                MiseFile::new(&pins).pinned_version("jq"),
+            )))
+            .build();
+        let context = Context::builder().root(root()).build();
+
+        let tool = Tool::resolve_requirement()
+            .requirement(&requirement)
+            .context(&context)
             .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins");

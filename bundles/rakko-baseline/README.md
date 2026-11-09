@@ -90,15 +90,12 @@ the entry. These actions need Node:
 
 - The three actions that format with prettier accept Node 14 and later.
 - `lint-markdown` accepts Node 22 and later.
-- `check-renovate-config` accepts Node 24.11 and later.
+- `check-renovate-config` accepts the Node that the package of Renovate
+  supports: 24.11 and later releases of 24, and 26.13 and later releases of 26.
 
 For example, with `node = ["22.12.0", "26.13.0"]`, the prettier actions and
-`lint-markdown` run on 22.12.0. `check-renovate-config` runs on 26.13.0. The
-package of Renovate supports 24.11 and later releases of 24, and 26.13 and
-later releases of 26. A range of an action cannot exclude the releases between
-them. So a pin of Node 25 is in the range of `check-renovate-config`, but
-Renovate refuses it. Pin a version that the package of Renovate supports, such
-as 26.13.0.
+`lint-markdown` run on 22.12.0. `check-renovate-config` runs on 26.13.0. A run
+of `check-renovate-config` on a pin of Node 25 stops.
 
 The other tools belong to the actions. Each of these actions runs the version
 that its crate pins in a `mise.rakko.toml`, and not the version that the

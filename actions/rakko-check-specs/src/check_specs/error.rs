@@ -1,7 +1,7 @@
 //! The error that stops a run of the action
 
 use rakko::ParseFilePathError;
-use rakko_tool::ResolveToolError;
+use rakko_tool::ResolveRequirementError;
 use thiserror::Error;
 
 use crate::comparison::PrepareComparisonError;
@@ -58,14 +58,16 @@ pub enum CheckSpecsError {
         source: PrepareComparisonError,
     },
 
-    /// Mise reported no tracey for the project
+    /// Mise reported no tracey at the version that the action declares
     ///
-    /// Provisioning is the job of mise, and the action installs nothing, so a
-    /// tracey that nobody installed stops the run.
+    /// Mise did not run, or it reports no tracey at that version. For example,
+    /// nothing installed that version yet, or mise cannot read the
+    /// configuration of the project. Provisioning is the job of mise, and
+    /// the action installs nothing, so the run stops here.
     #[error("failed to resolve tracey")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

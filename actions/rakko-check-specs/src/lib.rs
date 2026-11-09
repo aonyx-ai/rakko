@@ -3,8 +3,8 @@
 //! [Tracey] does the work. A specification states what a crate does as a list
 //! of requirements, each with an identifier. The code that implements or
 //! verifies a requirement names that identifier in a comment. Tracey holds the
-//! two together. The action starts the tracey that [mise] installed for the
-//! project at the version that the project pinned.
+//! two together. The action declares the version of tracey that it runs. It
+//! starts that version, which [mise] installed.
 //!
 //! A run asks three questions, because a specification can fail a project in
 //! three ways. Does every reference point at a requirement that exists, at the

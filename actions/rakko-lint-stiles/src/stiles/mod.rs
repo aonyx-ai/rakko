@@ -1,22 +1,35 @@
 //! The stiles that a project runs
 //!
-//! This module holds the program that mise installed for a project. It holds
-//! the two runs that the action asks of it. These runs are the listing of the
-//! rules the project runs and the check of the project. An action asks for a
-//! run, and everything between the action and the process lives here.
+//! This module holds the version that the crate accepts and the program that
+//! mise installed at that version. It also holds the two runs that the action
+//! asks of stiles. These runs are the listing of the rules the project runs and
+//! the check of the project. An action asks for a run, and everything between
+//! the action and the process lives here.
 
 mod error;
 mod report;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Execution, ResolveToolError, Tool, ToolName};
+use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
+use rakko_tool::{Execution, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveStilesError;
 use crate::observation::{Examination, Observation};
 use crate::problem::{Severity, StilesProblem};
 
 /// The name that mise knows the tool by
+///
+/// Stiles is in no registry of mise, so the name holds the backend that
+/// downloads a release from GitHub and the repository of the releases.
+const TOOL: &str = "github:aonyx-ai/stiles";
+
+/// The program of the tool that a run starts
 const STILES: &str = "stiles";
+
+/// The versions of stiles that the crate accepts
+///
+/// A project loads lints that are built against one version of stiles, and
+/// another version refuses them. So the range names that version alone.
+const ACCEPTED: &str = "=0.6.0";
 
 /// The command of stiles that lists the rules of the project
 const RULES: &str = "rules";
@@ -69,13 +82,13 @@ const FAILED: i32 = 1;
 /// The stiles that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
-/// version that the project pinned. So a run reaches the same program as the
-/// editor and the terminal of a contributor. Nothing here installs a tool:
-/// provisioning is the job of mise, and a stiles that mise does not report
-/// stops the caller.
+/// version that the project pinned. The crate accepts one version only. So a
+/// run reaches the same program as the editor and the terminal of a
+/// contributor. Nothing here installs a tool: provisioning is the job of mise,
+/// and a stiles that mise does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Stiles {
-    /// The program that mise installed for the project
+    /// The program that mise installed at the declared version
     tool: Tool,
 }
 
@@ -169,20 +182,36 @@ impl Stiles {
         Ok(Observation::builder().problems(problems).build())
     }
 
-    /// Returns the stiles that mise installed for the project
+    /// Returns the requirement of the stiles that the crate runs
     ///
-    /// The lookup asks mise about the project whose root the caller names. So
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path.
+    /// The requirement accepts exactly one version. The project pins it in its
+    /// `mise.toml`. Stiles publishes no build for Windows, and only the pin of
+    /// the project can limit the platforms that install it.
+    pub(crate) fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(TOOL)
+            .executable(STILES)
+            .version(RequiredVersion::Range(VersionRange::new(ACCEPTED)))
+            .build()
+    }
+
+    /// Returns the stiles that mise installed at the version of the crate
+    ///
+    /// The lookup asks mise for the version that the project pins and that
+    /// [`requirement`][requirement] accepts. A run of stiles starts in the root
+    /// of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no stiles for the
-    /// project.
-    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve()
-            .name(ToolName::new(STILES))
-            .root(root)
+    /// Returns a [`ResolveRequirementError`] when mise does not run. It returns
+    /// the same error when the project pins no stiles at the accepted version,
+    /// or when nothing installed that version.
+    ///
+    /// [requirement]: Stiles::requirement
+    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
             .call()
             .await?;
 

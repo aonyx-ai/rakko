@@ -25,6 +25,30 @@
 //! run, and it runs the members itself. A run of a group answers as a run of
 //! one action does, with one summary and one exit code.
 //!
+//! Every harness also gets the command `doctor`, and the harness writes no
+//! code for it. An action declares the tools that it runs. The project
+//! commits a mise file, `.config/mise/conf.d/rakko.toml`, with the exact
+//! version of each tool that is not a toolchain. `doctor` reports these
+//! problems:
+//!
+//! - The file does not match the tools of the mounted actions.
+//! - A pin of the project overrides a declared tool.
+//! - The project does not pin a toolchain that an action requires in the
+//!   range of the action.
+//!
+//! The check needs no network. `doctor --fix` writes the file, and it
+//! removes each pin that overrides a declared tool. Then it locks the tools
+//! with `mise lock`, which needs the network. The repair does not change the
+//! pin of a toolchain, because its version is a decision of the project. The
+//! report says which pin to change. A project runs `doctor --fix` once when
+//! it adopts Rakko, and again when an update of Rakko changes a tool.
+//!
+//! `doctor` sees the actions that the harness mounts and the members of its
+//! groups. It does not see the actions that the harness gives to a command
+//! that it mounts, such as the list of a pre-commit command. A harness that
+//! gives an action only to a command also mounts that action, so that
+//! `doctor` pins its tools.
+//!
 //! A command that drives actions shows what they found with the [`Report`] of
 //! this crate. So its output takes the shape that a run of one action has.
 //!
@@ -53,6 +77,7 @@
 mod builder;
 mod chain;
 mod command;
+mod doctor;
 mod erased_command;
 mod report;
 mod root;

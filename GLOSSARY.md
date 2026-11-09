@@ -46,6 +46,14 @@ from the design discussions to the terms that replaced them.
   the access types, and the other shared types. The contract crate stays
   small, because every action and every harness depends on it. The contract
   crate also contains the trait of a group, which uses only its types.
+- **`doctor`** — The command that every harness has. The harness writes no
+  code for it. It checks the precondition on the tools. The generated mise
+  file `.config/mise/conf.d/rakko.toml` must match the tools that the mounted
+  actions declare. No pin of the project can override a declared tool. The
+  project must pin each toolchain that an action requires in its range. The
+  check needs no network. `doctor --fix` writes the generated file, removes
+  each pin that overrides a declared tool, and locks the tools with mise. It
+  does not change the pin of a toolchain, and it says which pin to change.
 - **Erased action** — The internal, object-safe view of an action. Bundles
   export erased actions, and the registry in the harness holds them. Action
   authors do not see this type. A harness that only mounts does not write it
@@ -103,11 +111,11 @@ from the design discussions to the terms that replaced them.
   action passed, changed the project by repairing everything that it found,
   failed with findings, skipped because there was nothing to examine, or
   stopped with an error.
-- **Precondition** — (Planned.) A condition about the environment of the
-  project that a correct run needs, such as a current file of tool pins. The
-  projection checks the preconditions before it runs anything, and a failed
-  precondition stops the run. The `doctor` command reports them, and
-  `doctor --fix` repairs them.
+- **Precondition** — A condition about the environment of the project that a
+  correct run needs, such as a current file of tool pins. The `doctor`
+  command reports them, and `doctor --fix` repairs them. Later, the
+  projection will check the preconditions before it runs anything, and a
+  failed precondition will stop the run.
 - **Project** — The unit that Rakko maintains: a directory tree with its own
   tools, actions, and harness. A project is usually a Git repository, but
   Rakko does not require one. A project marks its root with
@@ -161,8 +169,8 @@ from the design discussions to the terms that replaced them.
   declaration takes no arguments and no context, because the machinery
   reads it before any run starts.
 - **Toolchain** — A tool that the code of the project builds or runs with,
-  such as Rust, Node.js, or TypeScript. The project pins its toolchains.
-  (Planned.) An action pins every other tool that it runs, and it accepts a
+  such as Rust, Node.js, or TypeScript. The project pins its toolchains. An
+  action pins every other tool that it runs through mise, and it accepts a
   range of versions for each toolchain that it needs.
 - **Wrapping** — The execution of an external tool as a subprocess of an
   action. Wrapping is the normal integration path, and Rakko makes it a

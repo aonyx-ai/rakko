@@ -1,6 +1,6 @@
 //! The error that stops a run of the action
 
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::tsc::ObserveTscError;
@@ -67,14 +67,20 @@ pub enum CheckTypeScriptError {
         source: ReadReportError,
     },
 
-    /// Mise reported no tsc for the project
+    /// Mise reported no tsc or no Node that the action accepts
     ///
-    /// The project pins no TypeScript, or nothing installed the pin yet. The
-    /// action installs nothing, so the run stops here.
+    /// The cause is one of these conditions:
+    ///
+    /// - Mise did not run.
+    /// - The project pins no TypeScript or no Node in the range of the action.
+    /// - Nothing installed the pinned TypeScript or the pinned Node yet.
+    /// - The directory of that Node cannot be an entry of `PATH`.
+    ///
+    /// The action installs nothing, so the run stops here.
     #[error("failed to resolve tsc")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

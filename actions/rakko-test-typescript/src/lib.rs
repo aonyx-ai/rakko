@@ -2,9 +2,10 @@
 //!
 //! The [test runner] that Node carries does the work. It walks the project for
 //! the files that hold tests. It runs each of them in a process of its own and
-//! reports what every test did. The action starts the node that [mise]
-//! installed for the project, at the version that the project pinned. It
-//! translates what the runner reported into the outcome of the run.
+//! reports what every test did. Node is a toolchain of the project, so the
+//! action declares the range of versions that it accepts. It starts the node
+//! that [mise] installed for the project, at the version that the project
+//! pinned. It translates what the runner reported into the outcome of the run.
 //!
 //! The runner needs nothing from a project. A test file imports `node:test`,
 //! and the project adds no dependency, no configuration file, and no script.

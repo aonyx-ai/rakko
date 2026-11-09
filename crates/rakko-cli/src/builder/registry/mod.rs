@@ -13,10 +13,10 @@ pub(crate) use self::mounted::Mounted;
 /// The names of the commands that the command line holds or will hold itself
 ///
 /// The parser adds `help` to every command line with commands. The
-/// projection will add `doctor` to every harness, to report and repair the
-/// conditions that a correct run needs. If the command line reserves a name
-/// after a project mounted an action, a command, or a group with that name,
-/// that project breaks. So the command line reserves both names now.
+/// projection adds `doctor` to every harness, to report and repair the tool
+/// pins that a correct run needs. A command line cannot hold two commands
+/// with one name. So the command line refuses an action, a command, or a
+/// group with one of these names.
 const RESERVED: [&str; 2] = ["doctor", "help"];
 
 /// The actions, the commands, and the groups that a harness mounted

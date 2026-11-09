@@ -186,15 +186,15 @@ impl Cargo {
     ///
     /// ```no_run
     /// use rakko::{Context, ProjectRoot};
-    /// use rakko_cargo::{Cargo, Channel, Toolchain};
+    /// use rakko_cargo::{Cargo, Toolchain};
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
-    /// let toolchain = Toolchain::resolve()
-    ///     .channel(Channel::new("nightly"))
-    ///     .root(context.root())
+    /// let toolchain = Toolchain::resolve_requirement()
+    ///     .requirement(&Toolchain::nightly())
+    ///     .context(&context)
     ///     .call()
     ///     .await?;
     ///
@@ -280,16 +280,16 @@ impl Cargo {
     ///
     /// ```no_run
     /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
-    /// use rakko_cargo::{Cargo, Channel, Toolchain};
+    /// use rakko_cargo::{Cargo, Toolchain};
     /// use rakko_tool::Tool;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
-    /// let toolchain = Toolchain::resolve()
-    ///     .channel(Channel::new("nightly"))
-    ///     .root(context.root())
+    /// let toolchain = Toolchain::resolve_requirement()
+    ///     .requirement(&Toolchain::nightly())
+    ///     .context(&context)
     ///     .call()
     ///     .await?;
     /// let requirement = ToolRequirement::builder()
@@ -391,10 +391,7 @@ impl Cargo {
             .context(context)
             .call()
             .await?;
-        let toolchain = Toolchain::of()
-            .requirement(&requirement)
-            .tool(&tool)
-            .call()?;
+        let toolchain = Toolchain::of(&tool);
 
         Ok(Self {
             root: context.root().clone(),

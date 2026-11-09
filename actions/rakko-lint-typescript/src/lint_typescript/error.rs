@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::oxlint::ObserveOxlintError;
@@ -80,14 +80,14 @@ pub enum LintTypeScriptError {
         source: ReadReportError,
     },
 
-    /// Mise reported no oxlint for the project
+    /// Mise reported no oxlint at the version that the action declares
     ///
-    /// The project pins no oxlint, or nothing installed the pin yet. The action
-    /// installs nothing, so the run stops here.
+    /// Mise did not run, or nothing installed that version of oxlint yet. The
+    /// action installs nothing, so the run stops here.
     #[error("failed to resolve oxlint")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

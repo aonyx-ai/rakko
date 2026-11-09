@@ -23,7 +23,7 @@ use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, Position,
     ProjectRoot, Summary, argument_name,
 };
-use rakko_cargo::Toolchain;
+use rakko_cargo::Cargo;
 use rakko_format_rust::{FormatRust, FormatRustArgs, Operation};
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
@@ -190,9 +190,12 @@ fn locations(findings: &[Finding]) -> Vec<String> {
 /// of the repository would. Asking the crate keeps the version out of the
 /// tests, and the rule that picks it in one place with its own tests.
 async fn pinned_rust() -> String {
-    Toolchain::newest(&ProjectRoot::new(repository().to_path_buf()))
+    let context = Context::builder().root(repository()).build();
+
+    Cargo::resolve(&context)
         .await
-        .expect("the repository pins a Rust toolchain by a version")
+        .expect("the repository pins a stable Rust toolchain")
+        .toolchain()
         .get()
         .to_owned()
 }
