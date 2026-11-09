@@ -751,10 +751,14 @@ dependencies = [
  "clap",
  "clawless",
  "futures-util",
+ "getset",
  "kawauso-project",
  "rakko",
+ "rakko-tool",
  "serde",
+ "serde_json",
  "thiserror",
+ "toml_edit",
 ]
 
 [[package]]

@@ -3,6 +3,7 @@
 ## Status
 
 Accepted. [ADR-024] supersedes points 2 and 3 for the run of a group.
+[ADR-022] supersedes point 3 for `doctor`.
 
 ## Context
 
@@ -142,6 +143,7 @@ generated in one place but reimplemented in every binary.
   A false "does not apply" hides a real check behind a skip message, so the
   message must say enough for a reader to question it.
 
+[adr-022]: 022-preconditions.md
 [adr-024]: 024-group-runs.md
 [clawless]: https://github.com/aonyx-ai/clawless
 [glossary]: ../GLOSSARY.md

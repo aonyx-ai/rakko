@@ -10,14 +10,19 @@ rust-version.workspace = true
 clap = { workspace = true, features = ["string"] }
 clawless = { workspace = true }
 futures-util = { workspace = true }
+getset = { workspace = true }
 kawauso-project = { workspace = true }
 rakko = { workspace = true }
+rakko-tool = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
+toml_edit = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+semver = { workspace = true }
 tempfile = { workspace = true }
+tokio = { workspace = true }
 
 [lints]
 workspace = true
