@@ -14,10 +14,10 @@ use crate::diagnostic::{Category, Diagnostic, Origin};
 
 /// The text that closes the place of a diagnostic
 ///
-/// Tsc writes the place as the path, the line, and the column in brackets, and
-/// it closes the whole of it with this text before it writes the kind. A path
-/// can hold a bracket of its own, so the first occurrence is the one that
-/// closes the place.
+/// Tsc writes the place as the path, the line, and the column in brackets.
+/// This text closes the whole of it before tsc writes the kind. A path can
+/// hold a bracket of its own, so the first occurrence is the one that closes
+/// the place.
 const PLACE_CLOSE: &str = "): ";
 
 /// The character that opens the line and the column of a place
@@ -48,8 +48,8 @@ const JOIN: char = ' ';
 /// about it.
 ///
 /// A run that reported nothing produces no diagnostic. The caller decides what
-/// that means, because tsc writes nothing both for a project that it checked
-/// and found clean and for a run that it never started.
+/// that means. This is because tsc writes nothing both for a project that it
+/// checked and found clean and for a run that it never started.
 ///
 /// # Errors
 ///
@@ -130,8 +130,8 @@ impl Pending {
 
 /// Returns the parts of a diagnostic that tsc reported about a place
 ///
-/// Returns `None` when the text in front of the kind is no place, which
-/// happens for a message of tsc that holds the text that closes a place.
+/// Returns `None` when the text in front of the kind is no place. This happens
+/// for a message of tsc that holds the text that closes a place.
 #[bon::builder]
 fn located(place: &str, rest: &str) -> Option<Pending> {
     let (path, position) = place.rsplit_once(POSITION_OPEN)?;
@@ -168,7 +168,7 @@ fn stated(origin: Option<Origin>, text: &str) -> Option<Pending> {
 ///
 /// A diagnostic that tsc found in a file names the place in front of the kind,
 /// and one about the run itself names none. A path can hold the text that
-/// closes a place, so a line whose place does not read as one is read as a
+/// closes a place. So a line whose place does not read as one is read as a
 /// diagnostic without a place.
 ///
 /// Returns `None` when the line starts no diagnostic at all.

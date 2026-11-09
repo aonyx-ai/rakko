@@ -13,8 +13,8 @@ pub use self::error::ParseFilePathError;
 /// The path of a file that a problem is in
 ///
 /// The path is relative to the project root. A reader, a machine, and a code
-/// host therefore see the same path for the same file, and none of them has to
-/// know where the project lives on disk.
+/// host therefore see the same path for the same file. None of them has to know
+/// where the project lives on disk.
 ///
 /// Construct a file path through [`FromStr`], [`TryFrom<&str>`],
 /// [`TryFrom<String>`], [`TryFrom<&Path>`], or [`TryFrom<PathBuf>`]. Each of
@@ -69,15 +69,15 @@ impl FilePath {
     /// system resolves it, which asks the file system and can take time.
     ///
     /// Returns `None` when the path does not name a file below the root. That
-    /// is the case for an absolute path that does not start with the root,
-    /// and for a path that holds `..`. The answer does not resolve `..`,
-    /// because a symbolic link makes a resolution from the text alone wrong.
-    /// It is also the case for a relative path that names a root directory or
-    /// a drive, which a relative path on Windows can do, and for a path that
-    /// names the root itself. A tool that starts in the root reports files
-    /// below it, so a path that does not fit points at a report that the
-    /// caller misread, or at a file outside the project. The caller decides
-    /// what to do about that.
+    /// is the case for an absolute path that does not start with the root, and
+    /// for a path that holds `..`. The answer does not resolve `..`, because a
+    /// symbolic link makes a resolution from the text alone wrong. It is also
+    /// the case for a relative path that names a root directory or a drive,
+    /// which a relative path on Windows can do. It is also the case for a path
+    /// that names the root itself. A tool that starts in the root reports files
+    /// below it. So a path that does not fit points at a report that the caller
+    /// misread, or at a file outside the project. The caller decides what to do
+    /// about that.
     ///
     /// # Examples
     ///
@@ -221,10 +221,10 @@ mod tests {
 
     /// A path that the platform of the test reads as absolute
     ///
-    /// A path that starts with a separator is absolute on Unix and relative
-    /// on Windows, where a path is absolute only when it names a volume as
-    /// well. The tests below need a path that the platform they run on
-    /// refuses, so each platform names one of its own.
+    /// A path that starts with a separator is absolute on Unix and relative on
+    /// Windows. On Windows, a path is absolute only when it names a volume as
+    /// well. The tests below need a path that the platform they run on refuses,
+    /// so each platform names one of its own.
     const ABSOLUTE: &str = if cfg!(windows) {
         r"C:\Windows\system.ini"
     } else {

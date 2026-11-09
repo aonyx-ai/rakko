@@ -1,10 +1,11 @@
 //! The nextest that a project runs
 //!
-//! This module holds the version of nextest that the crate declares, the
-//! program that mise installed at that version, the cargo that its builds
-//! start, the command line of a run, and the consent that the experimental
-//! report of nextest needs. A caller names the workspace that it wants
-//! tested, and everything between the caller and the process lives here.
+//! This module holds the version of nextest that the crate declares and the
+//! program that mise installed at that version. It also holds the cargo that
+//! the builds of that program start and the command line of a run. The consent
+//! that the experimental report of nextest needs sits here as well. A caller
+//! names the workspace that it wants tested. Everything between the caller and
+//! the process lives here.
 
 mod error;
 mod lockfile;
@@ -38,7 +39,7 @@ const VERSION: &str =
 ///
 /// The reports of nextest and of cargo arrive as JSON, because the crate
 /// reads them as data. The formats select the presentation of the reports
-/// and not the behavior of the tools: how the tests run comes from the
+/// and not the behavior of the tools. How the tests run comes from the
 /// configuration of the project alone.
 const NEXTEST: [&str; 8] = [
     "nextest",
@@ -53,9 +54,9 @@ const NEXTEST: [&str; 8] = [
 
 /// The argument that asks cargo to build the versions of the lockfile
 ///
-/// Cargo refuses the build when it would have to write the lockfile, so a
-/// dependency that arrived since the lockfile was written ends the run
-/// without success instead of joining the build unannounced.
+/// Cargo refuses the build when it would have to write the lockfile. So a
+/// dependency that arrived since the lockfile was written ends the run without
+/// success instead of joining the build unannounced.
 const LOCKED: &str = "--locked";
 
 /// The variable that gives consent to the experimental report of nextest
@@ -69,10 +70,10 @@ const CONSENT_VALUE: &str = "1";
 /// The value holds the program of nextest that mise installed at the version
 /// that the crate declares. The pin of the project does not change it, so a
 /// run reaches the version that the tests of the crate cover. Nextest is a
-/// plugin of cargo, so the value also holds the cargo that the builds of a
-/// run start, on the stable toolchain that the project pins. Nothing here
-/// installs a tool. The caller resolves cargo for the project and hands it
-/// over, so that an action which also runs cargo for a job of its own asks
+/// plugin of cargo, so the value also holds the cargo that the builds of a run
+/// start. That cargo runs on the stable toolchain that the project pins.
+/// Nothing here installs a tool. The caller resolves cargo for the project and hands it
+/// over. That way an action which also runs cargo for a job of its own asks
 /// mise once.
 ///
 /// An action that runs nextest declares [`requirement`][requirement] among
@@ -82,10 +83,9 @@ const CONSENT_VALUE: &str = "1";
 /// about it. The caller discovers the roots of the project and decides what
 /// the answers mean for its outcome.
 ///
-/// The caller also decides what a run does with the lockfile of the
-/// workspace. A run that only examines the project holds cargo to the
-/// lockfile, and a run that may change the project can let cargo resolve
-/// the dependencies and write it.
+/// The caller also decides what a run does with the lockfile of the workspace.
+/// A run that only examines the project holds cargo to the lockfile. A run that
+/// may change the project can let cargo resolve the dependencies and write it.
 ///
 /// # Examples
 ///
@@ -159,7 +159,7 @@ impl Nextest {
     /// The lookup asks mise for the version that
     /// [`requirement`][requirement] holds, so a pin of nextest in the project
     /// does not change the answer. The lockfile tells a run whether cargo may
-    /// resolve the dependencies of the build, or whether it builds the
+    /// resolve the dependencies of the build. Otherwise cargo builds the
     /// versions that the lockfile holds and refuses every other one.
     ///
     /// # Examples
@@ -212,10 +212,10 @@ impl Nextest {
 
     /// Tests one workspace of the project and reads what the run reported
     ///
-    /// The run starts in the directory of the root, and it names the files
-    /// of its findings relative to the project root that the caller gives.
-    /// The two need not be the directories of the contributor: a caller that
-    /// tests a copy of the project names the roots of the copy, and the
+    /// The run starts in the directory of the root. It names the files of its
+    /// findings relative to the project root that the caller gives. The two
+    /// need not be the directories of the contributor. For example, a caller
+    /// that tests a copy of the project names the roots of the copy. The
     /// findings then carry the paths that the project has.
     ///
     /// Nothing outside the workspace of the root changes, whatever the run

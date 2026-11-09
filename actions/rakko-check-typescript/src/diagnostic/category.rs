@@ -19,13 +19,13 @@ const SUGGESTION: &str = "suggestion";
 /// Tsc writes the kind in front of the number of every diagnostic, and the
 /// four variants below are the words that it writes. A check of a project sees
 /// the error almost always, because that is the kind of a rule of the language
-/// that the code breaks. The other three exist in the compiler, and a reader
-/// of a finding gets the word that tsc wrote rather than one that this crate
-/// chose for it.
+/// that the code breaks. The other three exist in the compiler. A reader of a
+/// finding gets the word that tsc wrote rather than one that this crate chose
+/// for it.
 ///
 /// The action reports every kind as a finding. A project that runs the type
-/// check asked the compiler to speak, and a diagnostic that the compiler holds
-/// back until it is asked is not one that Rakko decides to hide.
+/// check asked the compiler to speak. A diagnostic that the compiler holds back
+/// until it is asked is not one that Rakko decides to hide.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) enum Category {
     /// The code breaks a rule of the language

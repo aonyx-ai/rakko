@@ -44,9 +44,10 @@ const PLACE_PARTS: usize = 3;
 
 /// The markers of the lines that report a configuration file oxfmt refused
 ///
-/// Oxfmt writes the first one for a file that it cannot read as JSON and the
-/// second for a file that holds a value of the wrong kind. It formats nothing
-/// at all in either case, so the run never looked at a file of the project.
+/// Oxfmt writes the first one for a file that it cannot read as JSON. Oxfmt
+/// writes the second one for a file that holds a value of the wrong kind. It
+/// formats nothing at all in either case, so the run never looked at a file of
+/// the project.
 const REFUSED_CONFIGURATION: [&str; 2] = [
     "Failed to load configuration file",
     "Failed to parse configuration",
@@ -103,8 +104,8 @@ pub(super) fn read(stdout: &str, stderr: &str, exit: Exit) -> Observation {
 
 /// Returns the text without the sequences that color it
 ///
-/// Oxfmt colors its report when it believes that a person reads it, which is
-/// what a build server gets, and it offers no option to stop that. The color
+/// Oxfmt colors its report when it believes that a person reads it. This is
+/// what a build server gets. It offers no option to stop that. The color
 /// arrives as sequences that carry no text of their own, so removing them
 /// leaves the report that a plain stream would have carried.
 fn plain(text: &str) -> String {
@@ -144,8 +145,8 @@ fn plain(text: &str) -> String {
 ///
 /// Oxfmt draws the place of a failure into the frame of its report, so the
 /// line carries characters of the frame around it. The place stands in
-/// brackets and holds the path, the line, and the column, and a line that does
-/// not hold those three parts is a line of the frame and nothing else.
+/// brackets and holds the path, the line, and the column. A line that does not
+/// hold those three parts is a line of the frame and nothing else.
 fn place(line: &str) -> Option<(PathBuf, u32, u32)> {
     let line = line.trim_end();
     let line = line.strip_suffix(PLACE_CLOSE)?;
@@ -162,10 +163,10 @@ fn place(line: &str) -> Option<(PathBuf, u32, u32)> {
 /// Returns the problems that oxfmt reported on its standard error stream
 ///
 /// Oxfmt opens a report with a mark and then draws a frame around what it
-/// knows: the place of the failure where it reached one, and the sentence that
-/// it suggests about the failure where it has one. A report therefore runs
-/// until the next one opens, and a line that says nothing this reading knows
-/// belongs to the frame.
+/// knows. The frame contains the place of the failure where it reached one and
+/// the sentence that it suggests about the failure where it has one. A report
+/// therefore runs until the next one opens, and a line that says nothing this
+/// reading knows belongs to the frame.
 fn problems(stderr: &str) -> Vec<OxfmtProblem> {
     let mut problems = Vec::new();
     let mut message: Option<String> = None;
@@ -219,8 +220,8 @@ fn opening(line: &str) -> Option<&str> {
 
 /// Returns the problem that one report of oxfmt describes
 ///
-/// A report that named a place belongs to that place of that file, and a
-/// report that named none belongs to the project, because oxfmt writes the
+/// A report that named a place belongs to that place of that file. A report
+/// that named none belongs to the project. This is because oxfmt writes the
 /// path of the file into the sentence when it has no place to point at.
 fn problem(message: String, place: Option<(PathBuf, u32, u32)>) -> OxfmtProblem {
     match place {
@@ -263,7 +264,7 @@ mod tests {
 
     /// What oxfmt writes about a file that it could not open
     ///
-    /// Oxfmt reaches no place in a file that it never read, so it writes the
+    /// Oxfmt reaches no place in a file that it never read. So it writes the
     /// path of the file into the sentence and draws no frame around it.
     const UNPLACED_BLOCK: &str = "\n  x Failed to save '/home/otter/project/src/a.ts': Permission \
                                   denied (os error 13)\nError occurred when checking code style \
@@ -280,7 +281,7 @@ mod tests {
     /// What oxfmt writes about the same file when it draws for a reader
     ///
     /// Oxfmt colors the text and draws the frame with box characters when it
-    /// believes that a person reads its output, which is what a build server
+    /// believes that a person reads its output. This is what a build server
     /// gets. It says nothing here that the plain shape does not say.
     const DRAWN_BLOCK: &str = "\n  \u{1b}[38;2;225;80;80;1m\u{d7}\u{1b}[0m \
                                \u{1b}[38;2;225;80;80;1mUnexpected token\u{1b}[0m\n   \

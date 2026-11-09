@@ -17,7 +17,7 @@ const TRUE: &str = "true";
 /// Returns the flags that render the arguments of an entry of the command tree
 ///
 /// Every argument becomes one long flag that carries the name of the
-/// argument. The projection gives no short flag: one letter is a name that
+/// argument. The projection gives no short flag. One letter is a name that
 /// only one argument in the whole fleet can hold, and no action has a claim
 /// on it.
 ///
@@ -39,15 +39,15 @@ pub(super) fn render(mounted: &Mounted) -> Vec<Arg> {
 ///
 /// A flag that the user left out gets no value, because the action decides
 /// what an absent value means. A flag that the user gave carries the text
-/// that the user wrote, so the action reads the same text that a run from a
+/// that the user wrote. So the action reads the same text that a run from a
 /// test or from a scheduler would give it.
 ///
 /// # Panics
 ///
 /// Panics when the matches hold no flag of the same shape for an argument of
 /// the schema. The flags come from [`render`] when the harness mounts the
-/// entry, so only a schema that changed since then causes the panic, such as
-/// a member that a group added to its list after the mount.
+/// entry, so only a schema that changed since then causes the panic. An
+/// example is a member that a group added to its list after the mount.
 pub(super) fn collect(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
     ArgsValues::new(schema.arguments().iter().filter_map(|argument| {
         value(argument, matches).map(|value| (argument.name().clone(), value))
@@ -59,14 +59,14 @@ pub(super) fn collect(schema: &ArgsSchema, matches: &ArgMatches) -> ArgsValues {
 /// The command line holds flags of its own, and a user reaches every one of
 /// them in every command. An argument with such a name would take a name that
 /// means something else in every other command of the fleet. Only a change of
-/// the action or the command corrects that, so the failure happens where the
+/// the action or the command corrects that. So the failure happens where the
 /// harness mounts it and not where a user runs it. A group takes its flags
 /// from its members, so each member of a group passes the same check.
 ///
 /// # Panics
 ///
 /// Panics when an argument of an action, a command, or a member of a group
-/// carries the name of a flag of the command line, and reports the entry, the
+/// carries the name of a flag of the command line. It reports the entry, the
 /// member, and the argument.
 pub(super) fn refuse_reserved(entries: &[Mounted]) {
     let reserved = reserved();
@@ -134,7 +134,7 @@ fn flag(argument: &Argument, help: String) -> Arg {
 ///
 /// The value travels as the user wrote it, because the action reads it into a
 /// type of its own. This function answers whether the value is a number at
-/// all, so that a user who wrote something else gets the usage message of the
+/// all. So a user who wrote something else gets the usage message of the
 /// command line instead of an error from the action.
 ///
 /// # Errors
@@ -156,7 +156,7 @@ fn placeholder(name: &str) -> String {
 
 /// Returns the names of the flags that the command line defines itself
 ///
-/// The names come from the command that the builder assembles, so a flag that
+/// The names come from the command that the builder assembles. So a flag that
 /// arrives with a new version of a dependency reaches this list without a
 /// change here. The command is built first, because the parser adds the flag
 /// for the help while it builds.

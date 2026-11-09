@@ -9,13 +9,12 @@ use crate::erased_command::ErasedCommand;
 
 /// One entry of the command tree: an action, a command, or a group
 ///
-/// The projection derives a command from an action, it places a command that
-/// the harness wrote as it is, and it derives the flags of a group from the
-/// arguments of its members when the harness mounts the group. Each of the
-/// three carries a name and a place in one flat tree, so the registry holds
-/// them as one type. Their flags and their runs differ, so the code that
-/// renders the flags, checks them at the mount, and drives a run tells the
-/// three apart.
+/// The projection derives a command from an action. It places a command that
+/// the harness wrote as it is. When the harness mounts a group, it derives the
+/// flags of the group from the arguments of its members. Each of the three
+/// carries a name and a place in one flat tree, so the registry holds them as
+/// one type. Their flags and their runs differ. So the code that renders the
+/// flags, checks them at the mount, and drives a run tells the three apart.
 pub(crate) enum Mounted {
     /// An action, whose command the projection derives
     Action(Box<dyn ErasedAction>),

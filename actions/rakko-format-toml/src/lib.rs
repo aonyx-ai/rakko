@@ -1,7 +1,7 @@
 //! The action that formats the TOML files of a project
 //!
-//! [Taplo] does the work: it discovers the TOML files, reads its own
-//! configuration, and formats what that configuration selects, so a run of
+//! [Taplo] does the work. It discovers the TOML files, reads its own
+//! configuration, and formats what that configuration selects. So a run of
 //! the action agrees with an editor and with a contributor that runs taplo
 //! bare. The action declares the version of taplo that it runs. It starts
 //! that version, which [mise] installed, and translates what taplo reported

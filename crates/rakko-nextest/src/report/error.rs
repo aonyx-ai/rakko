@@ -6,10 +6,10 @@ use thiserror::Error;
 ///
 /// The reading tolerates every line that is not a record of nextest, so the
 /// JSON of cargo can share the stream. A record of nextest that the crate
-/// cannot read is another matter: the shape belongs to a version of nextest,
-/// and a reading that skipped a test it did not understand would let a run
-/// pass with its failures unread. The reading therefore stops, and the action
-/// reports the error.
+/// cannot read is another matter: the shape belongs to a version of nextest. A
+/// reading that skipped a test it did not understand would let a run pass with
+/// its failures unread. The reading therefore stops, and the action reports the
+/// error.
 ///
 /// A later release can add a variant for another reason why a report of nextest
 /// cannot be read. So a match on this error outside this crate needs an arm for
@@ -63,10 +63,10 @@ mod tests {
 
     /// Shows that the error type satisfies Send and Sync
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn read_nextest_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

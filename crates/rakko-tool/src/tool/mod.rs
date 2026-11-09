@@ -1,10 +1,10 @@
 //! The external program that an action runs
 //!
 //! An action gives the name of the tool that it wraps, or declares a
-//! requirement of it, and this module turns that into a program that a run
-//! can start. The tool holds what a run needs: the
-//! name that the action asked for, the location that mise reported, and the
-//! root of the project that the tool works on.
+//! requirement of it. This module turns that into a program that a run can
+//! start. The tool holds what a run needs.
+//! That is the name that the action asked for, the location that mise
+//! reported, and the root of the project that the tool works on.
 //!
 //! Nothing starts a program until the caller runs a command. A tool describes
 //! the command, the action adds its arguments, and the run reports what the
@@ -52,9 +52,9 @@ const NO_LOCATION: &str = "mise named no location";
 /// The extensions that Windows starts a program by
 ///
 /// The list holds the extensions of `PATHEXT` that carry a program of their
-/// own, in the order that Windows reads them. It leaves out the ones that
-/// name a script for an interpreter, such as `.ps1`, because starting one of
-/// those is a setting of a machine and not a property of the project.
+/// own, in the order that Windows reads them. It leaves out the ones that name
+/// a script for an interpreter, such as `.ps1`. It does so because starting one
+/// of those is a setting of a machine and not a property of the project.
 #[cfg(windows)]
 const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 
@@ -65,10 +65,10 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 /// [`resolve`][resolve] asks mise for the version that the project pins.
 /// [`invocation`][invocation] describes the command that runs the tool.
 ///
-/// The value carries the root of the project, because a tool behaves the same
-/// from every directory of a project only if every run of it starts in the
-/// same one. An action therefore resolves a tool once and runs it as often as
-/// it needs.
+/// The value carries the root of the project. That is because a tool behaves
+/// the same from every directory of a project only if every run of it starts in
+/// the same one. An action therefore resolves a tool once and runs it as often
+/// as it needs.
 ///
 /// # Examples
 ///
@@ -121,19 +121,19 @@ impl Tool {
     /// Returns the command that runs the tool
     ///
     /// The command starts the program that [`resolve`][resolve] found, in the
-    /// root of the project, and it carries no argument yet. The caller adds
-    /// the arguments of the operation that it wants, and then runs the
-    /// command with [`launch`][launch], which survives a launcher that
-    /// Windows refused for a moment.
+    /// root of the project, and it carries no argument yet. The caller adds the
+    /// arguments of the operation that it wants, and then runs the command with
+    /// [`launch`][launch]. This survives a launcher that Windows refused for a
+    /// moment.
     ///
     /// No shell reads the command. Nothing splits an argument at a space,
-    /// removes a quotation mark, or expands a character such as `*`, so the
+    /// removes a quotation mark, or expands a character such as `*`. So the
     /// tool receives every argument as the caller wrote it.
     ///
     /// A command that ends without success is no failure of the run. The exit
-    /// status travels in the result, because a tool that reports a problem of
-    /// the project ends without success, and that is the answer that the
-    /// caller asked for.
+    /// status travels in the result. That is because a tool that reports a
+    /// problem of the project ends without success, and that is the answer that
+    /// the caller asked for.
     ///
     /// # Examples
     ///
@@ -159,10 +159,10 @@ impl Tool {
 
     /// Returns the tool of a project, at the location that mise reports
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
+    /// The lookup asks mise about the project whose root the caller names. So
     /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path. The answer is an absolute
-    /// path, and a run of the tool therefore searches nothing.
+    /// started the process carries on its path. The answer is an absolute path,
+    /// and a run of the tool therefore searches nothing.
     ///
     /// The lookup starts a process, so a caller that resolves several tools
     /// pays for each of them. An action resolves the tool that it wraps once
@@ -233,17 +233,19 @@ impl Tool {
     /// that the tests of the action cover.
     ///
     /// For a range, the tool is a toolchain, and the project pins its version.
-    /// The lookup asks mise which versions the configuration of the project
-    /// pins. It takes the first of them, in the order of the pins, that the
-    /// range accepts. Then it asks mise for the program at that version. A
-    /// range compares the versions of releases, such as `>=1.85`, or the dates
-    /// of one channel, such as `>=nightly-2025-02-20`, which reads only the
-    /// pins of that channel that the configuration writes with a date, such
-    /// as `nightly-2026-11-02`. A pin in the global configuration of the
-    /// user does not count, and neither does a pin in a directory above the
-    /// project. These files are different on each machine. A local mise file
-    /// inside the project, such as `mise.local.toml`, counts. So a developer
-    /// can override the pin of the project on their own machine.
+    /// The lookup asks mise which versions the project configuration pins.
+    /// It takes the first one that the range accepts, in the order of the pins.
+    /// Then it asks mise for the program at that version.
+    /// A range compares release versions such as `>=1.85`, or dates of one
+    /// channel such as `>=nightly-2025-02-20`.
+    /// A range of dates reads only the pins of that channel that the
+    /// configuration writes with a date, such as `nightly-2026-11-02`.
+    /// A pin in the global user configuration does not count.
+    /// Neither does a pin in a directory above the project.
+    /// These files differ on each machine.
+    /// A local mise file inside the project, such as `mise.local.toml`,
+    /// counts. So a developer can override the pin of the project on their own
+    /// machine.
     ///
     /// The answer is an absolute path, and a command of the tool starts in
     /// the root of the context. The lookup starts up to three processes, so an
@@ -252,21 +254,24 @@ impl Tool {
     ///
     /// # Errors
     ///
-    /// Returns [`MiseUnavailable`][unavailable] when mise does not run, and
-    /// [`UnresolvedVersion`][unresolved] when mise reports no program of the
-    /// tool at the version, for example because nothing installed that
-    /// version. Rakko installs nothing, so a missing version is a failure and
-    /// not a step that this method takes.
+    /// Returns [`MiseUnavailable`][unavailable] when mise does not run.
+    /// Returns [`UnresolvedVersion`][unresolved] when mise reports no program
+    /// of the tool at the version, for example because nothing installed that
+    /// version.
+    /// Rakko installs nothing, so a missing version is a failure and not a
+    /// step this method takes.
     ///
     /// For a toolchain, returns [`InvalidRange`][invalid] when the range is
-    /// not a range, [`UnresolvedToolchain`][toolchain] when no configuration
-    /// inside the project pins the toolchain, or no dated version of the
-    /// channel of a range of dates, and [`UnrecognizedReport`][unrecognized]
-    /// when mise lists the pins in a form that the crate does not read. When
-    /// the range accepts no pin, returns [`VersionOutOfRange`][outside] for
-    /// the first pin with three numbers or a date to compare, or
-    /// [`UnreadableVersion`][unreadable] when a range of releases finds no
-    /// pin with three numbers.
+    /// not a range.
+    /// Returns [`UnresolvedToolchain`][toolchain] when no configuration inside
+    /// the project pins the toolchain, or no dated version of the channel of a
+    /// range of dates.
+    /// Returns [`UnrecognizedReport`][unrecognized] when mise lists pins in a
+    /// form the crate does not read.
+    /// When the range accepts no pin, returns [`VersionOutOfRange`][outside]
+    /// for the first pin with three numbers or a date to compare.
+    /// Returns [`UnreadableVersion`][unreadable] when a range of releases
+    /// finds no pin with three numbers.
     ///
     /// Returns [`UnknownRequirement`][unknown] for a kind of version that this
     /// release does not know.
@@ -371,7 +376,7 @@ fn diagnosis(execution: &Execution) -> String {
 ///
 /// Mise writes its diagnosis to the standard error stream, and that diagnosis
 /// names the step that installs a tool which nothing installed yet. The text
-/// travels into the message of the error, so whoever reads the failure reads
+/// travels into the message of the error. So whoever reads the failure reads
 /// the answer of mise instead of a sentence that Rakko wrote about it.
 ///
 /// A run that ended with success and named no location leaves that stream
@@ -393,7 +398,7 @@ fn details(execution: &Execution) -> String {
 /// character reaches a command.
 ///
 /// An unsuccessful run and an answer without a path mean the same thing to an
-/// action, so both answer `None` here, and the caller turns them into one
+/// action. So both answer `None` here, and the caller turns them into one
 /// error.
 fn program(execution: &Execution) -> Option<Program> {
     if !execution.status().success() {
@@ -422,14 +427,14 @@ fn executable(program: Program) -> Program {
 ///
 /// Windows decides what it can start from the extension of a file. A package
 /// manager for Node writes a script without an extension and a launcher with
-/// one, side by side under the same name, and mise names the script, which
-/// Windows refuses to start. The lookup therefore adds the extensions of the
-/// platform to the name and answers with the first file that exists.
+/// one, side by side under the same name. Mise names the script, which Windows
+/// refuses to start. The lookup therefore adds the extensions of the platform
+/// to the name and answers with the first file that exists.
 ///
 /// A file that already carries an extension is the answer, and so is one that
-/// no launcher sits beside, so that a tool which mise resolved and this
-/// platform cannot start fails where a run starts it, with the location that
-/// mise reported in the message.
+/// no launcher sits beside. So a tool which mise resolved and this platform
+/// cannot start fails where a run starts it. The message then names the
+/// location that mise reported.
 #[cfg(windows)]
 fn executable(program: Program) -> Program {
     let path = program.get();
@@ -464,9 +469,9 @@ mod tests {
 
     /// The tool that this repository pins and that the tests resolve
     ///
-    /// The tests need a tool that mise installs for this project, and one
-    /// that reads an argument and writes it back, so that a run can show what
-    /// reached the tool.
+    /// The tests need a tool that mise installs for this project. The tool
+    /// reads an argument and writes it back, so a run can show what reached the
+    /// tool.
     const PINNED: &str = "jq";
 
     /// A tool of this repository that a package manager for Node installed
@@ -597,10 +602,9 @@ mod tests {
     impl Drop for Project {
         /// Withdraws the trust that the project received
         ///
-        /// Mise records the trust of a configuration in the state of the
-        /// user, and the temporary directory never comes back, so the record
-        /// would pile up there. A failure stays quiet, because the test
-        /// already reported what it was about.
+        /// Mise records configuration trust in the user state.
+        /// The temporary directory never returns, so the record would pile up.
+        /// A failure stays quiet, because the test already reported what it was about.
         fn drop(&mut self) {
             let _ = Command::new("mise")
                 .arg("trust")
@@ -1010,9 +1014,9 @@ mod tests {
     /// Shows that a package manager tool resolves to a runnable program
     ///
     /// A file that mise names for a package of Node is a script on every
-    /// platform, and Windows starts a program by the extension of its file, so
-    /// this run reaches the tool only when resolution answered with the
-    /// launcher beside the script.
+    /// platform. Windows starts a program by the extension of its file. So this
+    /// run reaches the tool only when resolution answered with the launcher
+    /// beside the script.
     #[tokio::test]
     async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
         let tool = Tool::resolve()
@@ -1098,10 +1102,10 @@ mod tests {
     /// Shows that the tool type satisfies Send and Sync
     ///
     /// A scheduler runs actions in parallel and can move a run to a different
-    /// thread, so a tool that an action holds across a wait travels with it.
-    /// This test holds the tool to the auto traits that make this possible,
-    /// because a field of a later version could take them away without a word
-    /// from the compiler.
+    /// thread. So a tool that an action holds across a wait travels with it.
+    /// This test holds the tool to the auto traits that make this possible. It
+    /// does so because a field of a later version could take them away without
+    /// a word from the compiler.
     #[test]
     fn tool_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

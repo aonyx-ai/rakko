@@ -1,16 +1,16 @@
 //! The machinery that the actions which wrap taplo share
 //!
-//! [Taplo] does several jobs of project maintenance, and one action wraps
-//! each of them. Every one of those actions asks the same questions: does
-//! this project hold TOML files at all, which taplo does it run, and what
-//! did that taplo report? This crate answers all three, so that an action
-//! states the operation that it wants and reads the answer as data.
+//! [Taplo] does several jobs of project maintenance, and one action wraps each
+//! of them. Every one of those actions asks the same questions. Does this
+//! project hold TOML files at all? Which taplo does it run? What did that taplo
+//! report? This crate answers all three, so that an action states the operation
+//! that it wants and reads the answer as data.
 //!
 //! Taplo reports as text on its standard error stream, and this crate reads
-//! that text. The shape of the text belongs to a version of taplo, so
-//! keeping the reading in one place keeps the version surface in one place
-//! as well: a taplo that reports differently breaks one crate, and not one
-//! crate per operation.
+//! that text. The shape of the text belongs to a version of taplo. So keeping
+//! the reading in one place keeps the version surface in one place as well. A
+//! taplo that reports differently breaks one crate, and not one crate per
+//! operation.
 //!
 //! For the same reason, the crate pins the version of taplo that every such
 //! action runs, in the file `mise.rakko.toml` that the build embeds. An

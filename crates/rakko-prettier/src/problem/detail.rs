@@ -3,10 +3,10 @@
 /// What prettier reported about a file, at the level that prettier could name
 ///
 /// Prettier names a problem as precisely as its operation allows. A report
-/// knows only that a file differs from what prettier would write, a run that
-/// could not open a file knows only the reason, and a run that parsed a file
-/// points at the character that broke it. Each variant carries one of those
-/// levels, so a caller reports what prettier knew and invents nothing.
+/// knows only that a file differs from what prettier would write. A run that
+/// could not open a file knows only the reason. A run that parsed a file points
+/// at the character that broke it. Each variant carries one of those levels, so
+/// a caller reports what prettier knew and invents nothing.
 ///
 /// # Examples
 ///

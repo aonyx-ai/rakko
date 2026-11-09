@@ -15,9 +15,9 @@ use serde::Deserialize;
 /// note and a help add context to the code, and stiles fails a run on neither
 /// of them, whatever a run asks.
 ///
-/// A reader of a finding sees the severity, because an error and a warning
-/// both fail a run of the action, and the severity tells the reader which one
-/// to read first.
+/// A reader of a finding sees the severity, because an error and a warning both
+/// fail a run of the action. The severity tells the reader which one to read
+/// first.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum Severity {
@@ -38,9 +38,9 @@ impl Severity {
     /// Returns whether a diagnostic of this severity fails a run of the action
     ///
     /// An error and a warning fail a run, because both are a rule that the
-    /// project asked stiles to run, and a project that wants a rule to stay
-    /// quiet turns that rule off. A note and a help never fail a run, which is
-    /// how stiles treats them in its strictest mode as well.
+    /// project asked stiles to run. A project that wants a rule to stay quiet
+    /// turns that rule off. A note and a help never fail a run, which is how
+    /// stiles treats them in its strictest mode as well.
     pub(crate) fn fails(self) -> bool {
         match self {
             Self::Error | Self::Warning => true,

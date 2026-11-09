@@ -6,11 +6,11 @@ use getset::Getters;
 
 /// One problem that rustfmt reported about a file
 ///
-/// The path is absolute, because rustfmt names the files that it read, and
-/// it carries the plain spelling, without the verbatim prefix of Windows,
-/// unless the plain spelling cannot describe it. A caller that reports the
-/// problem asks the root for the path relative to the project, which is the
-/// name that a reader, a machine, and a code host all recognize.
+/// The path is absolute because rustfmt names the files that it read. It
+/// carries the plain spelling, without the verbatim prefix of Windows, unless
+/// the plain spelling cannot describe it. A caller that reports the problem
+/// asks the root for the path relative to the project. That is the name that a
+/// reader, a machine, and a code host all recognize.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, bon::Builder, Getters)]
 pub(crate) struct RustfmtProblem {
     /// The absolute path of the file

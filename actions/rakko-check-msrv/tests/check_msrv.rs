@@ -1,11 +1,11 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately faulty crate sits in this
+//! against it. So no fixture with a deliberately faulty crate sits in this
 //! repository, where the lints of the repository itself would fight it.
 //!
 //! The tests run the cargo that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers
+//! `mise.toml` of the repository and trusts it. So the version that answers
 //! is the version that the repository installs, and a new pin reaches the
 //! tests without a change to them. A project that must reach a toolchain
 //! declares the Rust version of this repository, which the copied
@@ -58,14 +58,14 @@ const LOCKFILE: &str = "version = 4\n\n[[package]]\nname = \"probe\"\nversion = 
 /// A build script that fails
 ///
 /// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the report holds nothing that the action
+/// diagnostic of the compiler. So the report holds nothing that the action
 /// recognizes.
 const FAILING_SCRIPT: &str = "fn main() {\n    std::process::exit(1);\n}\n";
 
 /// A version that no toolchain of this repository answers to
 ///
 /// Cargo refuses a manifest whose `rust-version` is older than the version
-/// that its edition needs, and edition 2024 needs 1.85.0, so the version
+/// that its edition needs. Edition 2024 needs 1.85.0, so the version
 /// that stands for an unpinned one is the oldest that cargo accepts here.
 const UNPINNED: &str = "1.85.0";
 
@@ -92,7 +92,7 @@ impl Project {
     ///
     /// The project copies the `mise.toml` of this repository, so the cargo
     /// that mise resolves for it is the cargo that the repository pins and
-    /// installs, and the toolchains that it pins are the toolchains that a
+    /// installs. The toolchains that it pins are the toolchains that a
     /// declaration of the project can reach. Mise ignores a configuration
     /// that nobody trusts, so the copy is trusted right away.
     fn new() -> Self {
@@ -147,7 +147,7 @@ impl Project {
 
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for cargo, whatever the global configuration of the machine
     /// says about Rust.
     fn without_cargo() -> Self {
@@ -174,7 +174,7 @@ impl Project {
 
     /// Writes the lockfile of every workspace of the project that has none
     ///
-    /// The action holds cargo to the lockfile of a workspace, and cargo
+    /// The action holds cargo to the lockfile of a workspace. Cargo
     /// refuses a workspace without one, as a project that commits its
     /// lockfile never is. A test that writes a workspace therefore gets the
     /// lockfile that a first build would write. A project in which cargo
@@ -224,7 +224,7 @@ impl Project {
 
 /// Returns the Rust version that this repository declares in its manifest
 ///
-/// The repository pins a toolchain for that version, and a project of a test
+/// The repository pins a toolchain for that version. A project of a test
 /// copies those pins, so a project that declares this version reaches a
 /// toolchain that the machine has installed. Reading the declaration from
 /// the manifest keeps the version out of the tests.
@@ -271,7 +271,7 @@ fn repository() -> &'static Path {
 /// Returns the manifest of a package that belongs to no workspace
 ///
 /// The empty workspace table tells cargo that the package is a root of its
-/// own, which cargo demands from a package below a workspace that does not
+/// own. Cargo demands this from a package below a workspace that does not
 /// list it.
 #[bon::builder]
 fn standalone(name: &str, version: &str) -> String {
@@ -311,8 +311,8 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record
     /// would pile up there forever. A failure stays quiet, because the test
     /// already reported what it was about.
     fn drop(&mut self) {

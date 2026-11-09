@@ -1,12 +1,12 @@
 //! What one run of prettier produced
 //!
-//! Prettier reports over both of its streams: the files that a run named
-//! travel on the standard output stream, and everything that prettier could
-//! not do travels on the standard error stream. This module turns both into
-//! data. The reading recognizes the lines that carry an answer and ignores
-//! everything else, so a line that a new version adds does not break it. What
-//! the reading cannot find is absent from the observation, and the caller
-//! decides what the absence means.
+//! Prettier reports over both of its streams. The files that a run named travel
+//! on the standard output stream. Everything that prettier could not do travels
+//! on the standard error stream. This module turns both into data. The reading
+//! recognizes the lines that carry an answer and ignores everything else, so a
+//! line that a new version adds does not break it. What the reading cannot find
+//! is absent from the observation, and the caller decides what the absence
+//! means.
 
 mod report;
 
@@ -23,15 +23,15 @@ use crate::problem::PrettierProblem;
 
 /// What one run of prettier produced
 ///
-/// The value holds the answer of one run: whether prettier ended with
-/// success, what it said about a configuration that did not reach the run,
-/// whether it refused the pattern of the run, the problems that it named, the
-/// files that it rewrote, and the text that it wrote about its failures.
+/// The value holds the answer of one run. The answer holds whether prettier
+/// ended with success and what it said about a configuration that did not reach
+/// the run. The answer also holds whether prettier refused the pattern of the
+/// run and the problems that prettier named. Last, the answer holds the files
+/// that prettier rewrote and the text that prettier wrote about its failures.
 ///
 /// An observation describes the run and judges nothing. A file that is not
-/// formatted and a file that prettier refused are both problems of the
-/// project, and the action that asked for the run decides what they mean for
-/// its outcome.
+/// formatted and a file that prettier refused are both problems of the project.
+/// The action that asked for the run decides what they mean for its outcome.
 ///
 /// # Examples
 ///
@@ -55,8 +55,8 @@ pub struct Observation {
 
     /// What prettier said about a configuration that did not reach the run
     ///
-    /// Prettier ignores an option that it does not know with a warning and
-    /// then runs without it, so this is the only trace of the loss.
+    /// Prettier ignores an option that it does not know with a warning and then
+    /// runs without it. So this is the only trace of the loss.
     #[getset(get = "pub")]
     rejected_configuration: Option<String>,
 
@@ -77,10 +77,9 @@ pub struct Observation {
 
     /// Whether the pattern of the run matched a file
     ///
-    /// Prettier treats a pattern that matches nothing as an error, so this
-    /// is how a run reports that the project holds no file of the group. A
-    /// caller answers it as a run that had nothing to examine, not as a
-    /// failure.
+    /// Prettier treats a pattern that matches nothing as an error. So this is
+    /// how a run reports that the project holds no file of the group. A caller
+    /// answers it as a run that had nothing to examine, not as a failure.
     #[getset(get_copy = "pub")]
     unmatched_pattern: Matching,
 }
@@ -89,9 +88,9 @@ pub struct Observation {
 impl Observation {
     /// Creates the observation of a run
     ///
-    /// A run of prettier builds one from what prettier wrote, and a caller
+    /// A run of prettier builds one from what prettier wrote. A caller
     /// builds one where a test stands in for a prettier that nobody started.
-    /// Every part is optional, so a test names what its case is about and
+    /// Every part is optional. A test therefore names what its case is about and
     /// leaves the rest at the answer of a run that reported nothing.
     ///
     /// # Examples
@@ -129,7 +128,7 @@ impl Observation {
     ///
     /// The reading takes both streams of the run and its exit status. It also
     /// takes the operation, because a rewrite states how long each file took
-    /// and marks the files that it left alone, while a report names paths and
+    /// and marks the files that it left alone. A report names paths and
     /// nothing else.
     #[builder]
     pub(crate) fn read(execution: &Execution, operation: Operation) -> Self {

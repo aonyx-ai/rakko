@@ -1,8 +1,8 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it with the mise of the machine, so the test answers for the
-//! lockfiles that a real `mise lock` writes.
+//! against it with the mise of the machine.
+//! So the test answers for the lockfiles that a real `mise lock` writes.
 //!
 //! A project of a test is a git repository with one empty commit, and the
 //! files of the project are untracked on top of it. That is the tree of a
@@ -12,15 +12,15 @@
 //! A project pins `jq`, a small tool that mise downloads, so its lockfile
 //! records a download for each platform. Mise asks the network for those
 //! downloads, so the tests need it. A project that a test needs with a
-//! complete lockfile gets that lockfile from `mise lock` itself, so the
-//! platform of the machine that runs the tests is always in it.
+//! complete lockfile gets that lockfile from `mise lock` itself.
+//! So the platform of the machine that runs the tests is always in it.
 //!
 //! The projects lock in the default mode of mise, as the projects that use
 //! the action do. In that mode, `mise lock` rebuilds the lockfile for the
-//! platforms that it targets and removes every other entry. The tests expect
-//! the answers of the version of mise that CI pins, and a mise that locks in
-//! another mode, because it is older or because its user chose the mode,
-//! answers some of them differently.
+//! platforms that it targets and removes every other entry.
+//! The tests expect the answers of the version of mise that CI pins.
+//! A mise that locks in another mode, because it is older or because its
+//! user chose the mode, answers some of them differently.
 
 #![allow(
     clippy::expect_used,
@@ -42,11 +42,12 @@ use tempfile::TempDir;
 /// The configuration of a project that pins one tool that mise downloads
 ///
 /// Mise checks the provenance of every download when it locks, and it asks a
-/// service over the network for each platform. A busy service makes mise skip
-/// a platform, so a test whose project kept the checks would fail now and
-/// then for a reason that is not the code under test. The configuration
-/// therefore turns the checks off, and mise then locks from what it knows of
-/// the tool.
+/// service over the network for each platform.
+/// A busy service makes mise skip a platform.
+/// So a test whose project kept the checks would fail now and then for a reason
+/// that is not the code under test.
+/// The configuration therefore turns the checks off, and mise then locks
+/// from what it knows of the tool.
 const PINNED: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\naqua.github_attestations = false\naqua.slsa = false\naqua.cosign = false\naqua.minisign = false\n";
 
 /// The configuration of a project that pins two tools that mise downloads
@@ -59,8 +60,8 @@ const PINNED_TWICE: &str = "[tools]\njq = \"1.8.1\"\ntaplo = \"0.10.0\"\n\n[sett
 /// the network
 ///
 /// The configuration keeps the checks of provenance, and every download that
-/// they need times out, so `mise lock` resolves no platform of the tool and
-/// ends with an error.
+/// they need times out.
+/// So `mise lock` resolves no platform of the tool and ends with an error.
 const IMPATIENT: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nhttp_timeout = \"1ms\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
 /// The configuration that a contributor keeps for themselves
@@ -78,8 +79,8 @@ const IGNORED_LOCAL: &str = "mise.local.toml\nmise.local.lock\n";
 /// The configuration of a project that pins a release that does not exist
 ///
 /// `mise lock` writes a table for each platform that holds only the
-/// provenance of the download, warns about nothing, and ends with success,
-/// and a second run leaves that lockfile as it is.
+/// provenance of the download, warns about nothing, and ends with success.
+/// A second run leaves that lockfile as it is.
 const PHANTOM: &str = "[tools]\njq = \"1.99.0\"\n\n[settings]\nlockfile = true\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
 /// The impatient configuration, in a project that also asks mise to be quiet
@@ -125,9 +126,9 @@ const JQ_PLATFORM: &str = "[tools.jq.\"platforms.";
 /// The prefix of the names of the environment that git reads for itself
 ///
 /// A test that runs inside a hook, a rebase, or a bisect of another repository
-/// inherits variables that name that repository, and those beat the directory
-/// that a command runs in. They therefore leave the environment of every git
-/// command of a test.
+/// inherits variables that name that repository.
+/// Those variables beat the directory that a command runs in.
+/// They therefore leave the environment of every git command of a test.
 const GIT_PREFIX: &[u8] = b"GIT_";
 
 /// A project that a test builds in a temporary directory
@@ -156,8 +157,8 @@ impl Project {
     /// Creates a project with the given configuration, in a repository
     ///
     /// The repository holds one empty commit, and every file of the project
-    /// is untracked, which is the tree of a contributor who has not committed
-    /// their work yet.
+    /// is untracked.
+    /// This is the tree of a contributor who has not committed their work yet.
     fn new(configuration: &str) -> Self {
         let project = Self::without_repository(configuration);
 
@@ -223,9 +224,9 @@ impl Project {
 
     /// Runs git in the project
     ///
-    /// The command forgets the variables that name a repository, so a test
-    /// that runs inside a hook of another repository still works on the one
-    /// that it created.
+    /// The command forgets the variables that name a repository.
+    /// So a test that runs inside a hook of another repository still works on
+    /// the one that it created.
     fn git(&self, arguments: &[&str]) {
         let mut command = Command::new("git");
         command.current_dir(self.directory.path()).args(arguments);
@@ -348,10 +349,10 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
-    /// reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
+    /// pile up there forever.
+    /// A failure stays quiet, because the test already reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")
@@ -430,12 +431,13 @@ fn action_identifies_itself_as_check_mise_lock() {
 /// Shows that a run that stops after the lock keeps the lockfile
 ///
 /// A lockfile with a stale entry is one that `mise lock` rewrites, also in a
-/// run that then stops, so the lockfile shows where the run locked. The
-/// release that the project pins has no downloads, so `mise lock` ends with
-/// success after it removes the stale entry, and the run stops after it. A
-/// project whose downloads fail would not do: mise ends with an error before
-/// it writes anything, and the lockfile stays as it was wherever the run
-/// locked.
+/// run that then stops. So the lockfile shows where the run locked.
+/// The release that the project pins has no downloads.
+/// So `mise lock` ends with success after it removes the stale entry.
+/// The run stops after it.
+/// A project whose downloads fail would not do.
+/// Mise ends with an error before it writes anything, and the lockfile
+/// stays as it was wherever the run locked.
 #[tokio::test]
 async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
     let project = Project::new(PHANTOM);
@@ -696,7 +698,8 @@ async fn run_with_an_ignored_local_configuration_passes() {
 /// Shows that a run with an ignored lockfile that mise cannot read stops
 ///
 /// The question for the lockfiles in the project makes mise read a lockfile
-/// that only the checkout holds, and mise refuses one that is not TOML.
+/// that only the checkout holds.
+/// Mise refuses a lockfile that is not TOML.
 #[tokio::test]
 async fn run_with_an_ignored_lockfile_that_mise_cannot_read_stops() {
     let project = Project::locked(PINNED);
@@ -809,9 +812,9 @@ async fn run_with_an_unreadable_lockfile_stops() {
 
 /// Shows that a run with an untargeted platform reports its removal
 ///
-/// A machine that locks on a platform outside the list of a project, such as
-/// the one of a bot that moves the pins, writes entries that `mise lock` on
-/// every other machine removes.
+/// A machine that locks on a platform outside the list of a project writes
+/// entries. The command `mise lock` on every other machine removes these
+/// entries. An example is the platform of a bot that moves the pins.
 #[tokio::test]
 async fn run_with_an_untargeted_platform_reports_its_removal() {
     let project = Project::locked(PINNED);
@@ -911,12 +914,14 @@ async fn run_with_missing_platforms_reports_a_finding_for_each() {
 
 /// Shows that a run with platforms without an address reports its change
 ///
-/// The second gap that the parent of this action, the issue "Catch gaps in mise
-/// lockfiles in CI", names: the tables of the platforms held no address and no
-/// checksum. In that gap the tables still named the provenance of the
-/// download. The project turns the checks of provenance off, and mise can
-/// refuse a lockfile that names a provenance whose check is off, so the tables
-/// here hold nothing at all.
+/// The parent of this action, the issue "Catch gaps in mise
+/// lockfiles in CI", names the second gap.
+/// The gap is that the tables of the platforms held no address and no
+/// checksum.
+/// In that gap the tables still named the provenance of the download.
+/// The project turns the checks of provenance off.
+/// Mise can refuse a lockfile that names a provenance whose check is off.
+/// So the tables here hold nothing at all.
 #[tokio::test]
 async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
     let project = Project::locked(PINNED);
@@ -947,10 +952,12 @@ async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
 /// Shows that a run with targeted platforms without an address stops
 ///
 /// The lockfile already holds the tables without an address that `mise lock`
-/// writes for the release, so the run leaves it as it is. Mise asks the API of
-/// GitHub about the release as well, and when that API limits the rate of the
-/// machine, mise warns, and the warning stops the run first. Either stop is
-/// the answer, and the unit tests of the two checks tell them apart.
+/// writes for the release, so the run leaves it as it is.
+/// Mise asks the API of GitHub about the release as well.
+/// When that API limits the rate of the machine, mise warns.
+/// The warning stops the run first.
+/// Either stop is the answer, and the unit tests of the two checks tell
+/// them apart.
 #[tokio::test]
 async fn run_with_targeted_platforms_without_an_address_stops() {
     let project = Project::new(PHANTOM);
@@ -1114,10 +1121,11 @@ mod home {
     /// directory that mise uses now
     ///
     /// Unless its own variable names it, mise derives each of these
-    /// directories from a variable of XDG, such as `XDG_DATA_HOME`, or else
-    /// from the home directory. The run in the moved home directory sets all
-    /// of them. Its mise then reads the trust, the configuration, and the
-    /// cache of the machine.
+    /// directories from a variable of XDG, such as `XDG_DATA_HOME`.
+    /// Or else, mise derives them from the home directory.
+    /// The run in the moved home directory sets all of them.
+    /// Its mise then reads the trust, the configuration, and the cache
+    /// of the machine.
     fn directories() -> Vec<(&'static str, PathBuf)> {
         let output = Command::new("mise")
             .arg("doctor")

@@ -5,18 +5,18 @@ use thiserror::Error;
 
 /// An error that leaves a run of zizmor without an answer
 ///
-/// A pattern that zizmor recognized in a workflow is no failure of a run: it
+/// A pattern that zizmor recognized in a workflow is no failure of a run. It
 /// travels in the observation, and the caller decides what it means. The
 /// variants here describe a run that produced no answer at all.
 #[derive(Debug, Error)]
 pub(crate) enum ObserveZizmorError {
     /// Zizmor stopped before it had audited every file
     ///
-    /// Zizmor ends a run when it cannot read the configuration of the project,
-    /// and, because the run asks it to, when it cannot read a file that it
-    /// collected. It audits nothing in the first case, and less than the
-    /// project in the second, so an answer built on such a run would describe
-    /// a part of the project as though it were the whole.
+    /// Zizmor ends a run when it cannot read the configuration of the project.
+    /// Because the run asks it to, it also ends when it cannot read a file that
+    /// it collected. It audits nothing in the first case, and less than the
+    /// project in the second. So an answer built on such a run would describe a
+    /// part of the project as though it were the whole.
     #[error("zizmor stopped before it had audited the project: {details}")]
     IncompleteAudit {
         /// What zizmor wrote about the run that it stopped
@@ -27,7 +27,7 @@ pub(crate) enum ObserveZizmorError {
     ///
     /// The shape of the report belongs to a version of zizmor. A report that
     /// this crate cannot read therefore points at a version that it does not
-    /// know, and the findings of such a run would be the ones that the reading
+    /// know. The findings of such a run would be the ones that the reading
     /// happened to understand.
     #[error("failed to read zizmor's report: {report}")]
     UnreadableReport {
@@ -60,10 +60,10 @@ mod tests {
 
     /// Shows that error is Send and Sync
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_zizmor_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

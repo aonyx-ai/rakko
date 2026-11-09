@@ -8,7 +8,7 @@ use crate::chain::Chain;
 
 /// The value that the schema field carries while the shape can still change
 ///
-/// The payload promises nothing yet: a consumer that reads this value knows
+/// The payload promises nothing yet. A consumer that reads this value knows
 /// that the shape can change in any release, and a stable schema replaces it
 /// later.
 pub(super) const UNSTABLE: &str = "unstable";
@@ -16,10 +16,9 @@ pub(super) const UNSTABLE: &str = "unstable";
 /// The JSON that a run emits for a machine
 ///
 /// The payload is a type of this crate, and it is not a serialization of the
-/// types that an action produces. The two therefore change on their own
-/// clocks: the contract crate can rearrange a finding without breaking a
-/// consumer, and this schema can promise a shape that no type in the contract
-/// crate has to hold.
+/// types that an action produces. The two therefore change on their own clocks:
+/// the contract crate can rearrange a finding without breaking a consumer. This
+/// schema can promise a shape that no type in the contract crate has to hold.
 #[derive(Serialize)]
 pub(super) struct Payload<'a> {
     /// Whether the shape of this payload is stable
@@ -82,8 +81,8 @@ impl<'a> Payload<'a> {
 
     /// Returns the payload of an action that reported the given state
     ///
-    /// The state decides which of the remaining fields carry a value, so this
-    /// constructor leaves all of them empty and each state fills in its own.
+    /// The state decides which of the remaining fields carry a value. So this
+    /// constructor leaves all of them empty, and each state fills in its own.
     #[builder]
     fn new(action: &'a str, outcome: &'static str) -> Self {
         Self {
@@ -173,8 +172,8 @@ impl<'a> FindingPayload<'a> {
 
     /// Returns the payload of a finding at the given level
     ///
-    /// The level decides which of the remaining fields carry a value, so this
-    /// constructor leaves all of them empty and each level fills in its own.
+    /// The level decides which of the remaining fields carry a value. So this
+    /// constructor leaves all of them empty, and each level fills in its own.
     #[builder]
     fn new(level: &'static str, message: &'a str) -> Self {
         Self {

@@ -1,27 +1,27 @@
 //! The action that type checks the TypeScript of a project
 //!
-//! [Tsc] does the work: it reads the `tsconfig.json` of the project, collects
-//! the files that the configuration selects, and reports every rule of the
-//! language that the code breaks, so a run of the action agrees with an editor
-//! and with a contributor that runs tsc bare. The action starts the tsc that
-//! [mise] installed for the project, at the version that the project pinned,
-//! and translates what tsc reported into the outcome of the run.
+//! [Tsc] does the work. It reads the `tsconfig.json` of the project and
+//! collects the files that the configuration selects. It reports every rule of
+//! the language that the code breaks. So a run of the action agrees with an
+//! editor and with a contributor that runs tsc bare. The action starts the tsc
+//! that [mise] installed for the project. It uses the version that the project
+//! pinned. It translates what tsc reported into the run outcome.
 //!
 //! A run only reports, so the action takes no argument. It emits nothing
-//! either: tsc builds a project as well as it checks one, and a check that
-//! left output behind would write files that nobody asked for.
+//! either. Tsc builds a project as well as it checks one, and a check that left
+//! output behind would write files that nobody asked for.
 //!
 //! Type checking is not linting. The compiler asks whether the program holds
-//! together, and a linter asks whether the code does something that the
-//! project turned a rule against. A design that rests on the compiler to
-//! reject a wrong composition has no guarantee at all while no check runs the
-//! compiler, which is what this action is for.
+//! together, and a linter asks whether the code does something that the project
+//! turned a rule against. A design that rests on the compiler to reject a wrong
+//! composition has no guarantee at all while no check runs the compiler. That
+//! check is what this action is for.
 //!
-//! The diagnostics of tsc are the answer, and the status of the process
-//! decides only whether a run without any is trusted. Tsc reports a diagnostic
-//! for everything that it finds, including a configuration that it refuses and
-//! a project that it finds no configuration of, so a run that reported nothing
-//! and ended without success stopped for a reason of its own, and it stops the
+//! The diagnostics of tsc are the answer. The status of the process decides
+//! only whether a run without any is trusted. Tsc reports a diagnostic for
+//! everything that it finds, including a configuration that it refuses and a
+//! project that it finds no configuration of. So a run that reported nothing
+//! and ended without success stopped for a reason of its own. It stops the
 //! action instead of passing.
 //!
 //! # Asynchronous Runtime

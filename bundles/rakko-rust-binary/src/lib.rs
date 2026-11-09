@@ -5,8 +5,9 @@ use rakko::Bundle;
 /// Returns the actions that a Rust project which ships a binary runs
 ///
 /// The list is the one of the core, in the order in which `rakko-rust` lists
-/// it, because a binary runs no check that a library does not run as well.
-/// A check that only a binary runs joins the list here when there is one.
+/// it. It is the same list because a binary runs no check that a library does
+/// not run as well. A check that only a binary runs joins the list here when
+/// there is one.
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.

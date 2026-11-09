@@ -2,9 +2,9 @@
 //!
 //! This module holds the action, the arguments that a run reads, the error
 //! that stops a run, and the reading of what rustfmt reports. The action
-//! wraps cargo as a subprocess: cargo reads the manifests, rustfmt reads its
-//! own configuration and does the formatting, and the action translates
-//! what rustfmt reported into an outcome.
+//! wraps cargo as a subprocess. Cargo reads the manifests, rustfmt reads its
+//! own configuration and does the formatting. The action translates what
+//! rustfmt reported into an outcome.
 
 mod args;
 mod error;
@@ -32,9 +32,8 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 ///
 /// The short report lists the files instead of showing a diff of each,
 /// because the action reads the report as data. The format selects the
-/// presentation of the report and not the behavior of the tool: what
-/// rustfmt does to a project comes from the configuration of that project
-/// alone.
+/// presentation, not the behavior of the tool. What rustfmt does to a
+/// project comes from the configuration of that project alone.
 const CHECK: [&str; 4] = ["fmt", "--check", "--message-format", "short"];
 
 /// The arguments that ask rustfmt to rewrite the files and list them
@@ -49,20 +48,20 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// The action that formats the Rust code of a project
 ///
 /// The action wraps [rustfmt]: cargo reads the manifests of the project, and
-/// rustfmt reads its own configuration and formats every target, so a run
+/// rustfmt reads its own configuration and formats every target. So a run
 /// agrees with an editor and with a contributor that runs rustfmt bare. The
-/// cargo that runs is the one that [mise] installed for the project, on the
-/// nightly toolchain that the project pins, and the action installs
-/// nothing. The action accepts a range of nightly toolchains by their dates,
-/// and the first pin in that range answers.
+/// cargo that runs is the one that [mise] installed for the project. It runs
+/// on the nightly toolchain that the project pins. The action installs nothing.
+/// The action accepts a range of nightly toolchains by their dates, and the
+/// first pin in that range answers.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
-/// that names the file, and a file that rustfmt cannot parse becomes a
-/// finding at the position that rustfmt reports. With the `fix` argument,
-/// rustfmt rewrites the files that it can format, and the outcome carries
-/// one repair for each file that it rewrote, next to the problems that
-/// remain. A run formats every workspace of the project, because the harness
-/// of a project is a package of its own.
+/// that names the file. A file that rustfmt cannot parse becomes a finding at
+/// the position that rustfmt reports. With the `fix` argument, rustfmt rewrites
+/// the files that it can format. The outcome carries one repair for each file
+/// that it rewrote, next to the problems that remain. A run formats every
+/// workspace of the project, because the harness of a project is a package of
+/// its own.
 ///
 /// A run that reports declares a read of the project, and a run with `fix`
 /// declares a write. A caller that orders runs by their declarations can
@@ -70,9 +69,10 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
 /// run stops with an error when the project pins no stable or no nightly Rust
-/// toolchain that the action accepts, when the workspaces of the project cannot
-/// be discovered, when rustfmt warns about its configuration, and when rustfmt
-/// writes a report that the action does not recognize.
+/// toolchain that the action accepts. The run also stops when the workspaces of
+/// the project cannot be discovered, or when rustfmt warns about its
+/// configuration. It also stops when rustfmt writes a report that the action
+/// does not recognize.
 ///
 /// # Examples
 ///
@@ -120,10 +120,10 @@ impl Action for FormatRust {
 
 /// Runs the action against the project of the context
 ///
-/// The run examines the project, resolves cargo and the nightly toolchain,
-/// discovers the workspaces, checks each of them, and fixes when the
-/// arguments ask for it. An error that this function returns stops the run,
-/// and the caller reports it in the outcome.
+/// The run examines the project and resolves cargo and the nightly toolchain.
+/// It discovers the workspaces, checks each of them, and fixes when the
+/// arguments ask for it. An error that this function returns stops the run, and
+/// the caller reports it in the outcome.
 ///
 /// The run asks for the nightly toolchain, because rustfmt honors the unstable
 /// options of a configuration only on the nightly channel. A stable rustfmt
@@ -131,9 +131,9 @@ impl Action for FormatRust {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of
-/// the tool or the toolchain, the discovery of the workspaces, a rustfmt
-/// run, or the reading of a report.
+/// Returns the error of the step that could not finish. That step is the
+/// resolution of the tool or the toolchain, or the discovery of the workspaces.
+/// It can also be a rustfmt run, or the reading of a report.
 async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, FormatRustError> {
     let cargo = Cargo::resolve(context)
         .await
@@ -189,11 +189,11 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
 
 /// Returns the finding that reports one problem of the project
 ///
-/// A file that is not formatted gets a finding at the level of the file, and
-/// a file that rustfmt cannot parse gets one at the position that rustfmt
-/// named. The message for an unformatted file comes from the caller,
-/// because a finding states a problem that the project has and a repair
-/// states one that the run took away.
+/// A file that is not formatted gets a finding at the level of the file. A file
+/// that rustfmt cannot parse gets one at the position that rustfmt named. The
+/// message for an unformatted file comes from the caller. This is because a
+/// finding states a problem that the project has. A repair states one that the
+/// run took away.
 ///
 /// # Errors
 ///
@@ -256,17 +256,17 @@ fn findings_of(
 /// Rewrites one workspace and splits the problems of the check into the
 /// repaired ones and the remaining ones
 ///
-/// The rewrite lists the files that it rewrote, so a problem of the check
-/// whose file the rewrite lists was repaired, and every other problem
-/// remains. A file that rustfmt cannot parse remains this way, and so does
-/// every file of the package that holds it, because rustfmt rewrites
-/// nothing in a package that it cannot read as a whole.
+/// The rewrite lists the files that it rewrote. A problem of the check
+/// whose file the rewrite lists was repaired. Every other problem remains.
+/// A file that rustfmt cannot parse remains this way. So does every file
+/// of the package that holds it, because rustfmt rewrites nothing in a
+/// package that it cannot read as a whole.
 ///
 /// # Errors
 ///
-/// Returns the error of a rewrite that could not finish: cargo did not run,
-/// rustfmt warned about its configuration, or it wrote a report that the
-/// action does not recognize.
+/// Returns the error of a rewrite that could not finish. This occurs when
+/// cargo does not run, rustfmt warns about its configuration, or it writes
+/// a report the action does not recognize.
 async fn fix(
     cargo: &Cargo,
     toolchain: &Toolchain,
@@ -286,9 +286,9 @@ async fn fix(
 ///
 /// # Errors
 ///
-/// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
-/// [`RejectedConfiguration`][rejected] when rustfmt warned about its
-/// configuration, and [`UnrecognizedReport`][unrecognized] when the run
+/// Returns [`CargoUnavailable`][unavailable] when cargo does not run.
+/// Returns [`RejectedConfiguration`][rejected] when rustfmt warned about its
+/// configuration. Returns [`UnrecognizedReport`][unrecognized] when the run
 /// ended without success and named no problem.
 ///
 /// [rejected]: FormatRustError::RejectedConfiguration
@@ -328,9 +328,9 @@ async fn observe(
 
 /// Returns the outcome of a run from what it found and what it repaired
 ///
-/// A run without findings and without repairs passed, a run that repaired
-/// everything changed the project, and a run with a finding failed, whether
-/// it repaired something on the way or not.
+/// A run without findings and without repairs passed. A run that repaired
+/// everything changed the project. A run with a finding failed, whether it
+/// repaired something on the way or not.
 fn outcome(findings: Vec<Finding>, repairs: Vec<Finding>, roots: usize) -> Outcome {
     if !findings.is_empty() {
         Outcome::Failed { findings, repairs }

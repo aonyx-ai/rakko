@@ -1,9 +1,9 @@
 //! The action that lints the Markdown files of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps markdownlint as a subprocess: markdownlint discovers the files,
-//! reads its own configuration, and applies its rules, and the action
-//! translates what markdownlint reported into an outcome.
+//! wraps markdownlint as a subprocess. Markdownlint discovers the files, reads
+//! its configuration, and applies its rules. The action translates what
+//! markdownlint reported into an outcome.
 
 mod error;
 
@@ -19,20 +19,19 @@ use crate::problem::MarkdownlintProblem;
 
 /// The reason of a run whose markdownlint examined nothing
 ///
-/// Markdownlint answers with its usage text or with a sentence of its own
-/// when it resolves no file, so this is what a project without Markdown files
-/// reports. A project whose ignore file excludes every one of them reports the
-/// same way.
+/// Markdownlint answers with its usage text or with a sentence of its own when
+/// it resolves no file. This is what a project without Markdown files reports.
+/// A project whose ignore file excludes every one of them reports the same way.
 const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine";
 
 /// The action that lints the Markdown files of a project
 ///
-/// The action wraps [markdownlint]: markdownlint discovers the Markdown files
-/// of the project, reads its own configuration, and applies the rules that
-/// the project turned on, so a run agrees with an editor and with a
-/// contributor that runs markdownlint bare. The markdownlint that runs is the
-/// one that [mise] installed for the project, at the version that the project
-/// pinned, and the action installs nothing.
+/// The action wraps [markdownlint]. Markdownlint discovers the Markdown files
+/// of the project, reads its configuration, and applies the rules that the
+/// project turned on. So a run agrees with an editor and with a contributor
+/// that runs markdownlint bare. The markdownlint that runs is the one that
+/// [mise] installed for the project, at the version that the project pinned,
+/// and the action installs nothing.
 ///
 /// A run examines the files and directories whose name starts with a dot,
 /// such as `.github`, which markdownlint skips by default. It leaves out every
@@ -41,8 +40,8 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 ///
 /// A run only reports, and it takes no argument. Every rule that a file broke
 /// becomes a finding on the line that markdownlint named, at the column when
-/// the rule points at one, and the message of the finding is the sentence
-/// that markdownlint would have written for a reader.
+/// the rule points at one. The message of the finding is the sentence that
+/// markdownlint would have written for a reader.
 ///
 /// The action applies to a project that holds Markdown files, and it skips
 /// visibly otherwise. A run stops with an error when mise reports no
@@ -170,12 +169,11 @@ fn findings(
 /// Returns what a run reports when it cannot answer from its findings
 ///
 /// Three conditions end a run before its findings matter. A markdownlint that
-/// examined no file leaves the action with nothing to answer for, which the
-/// ignore file of the project explains, so the run skips. A run that reported
+/// examined no file leaves the action with nothing to answer for. The ignore
+/// file of the project explains this, so the run skips. A run that reported
 /// no rule and ended with success found a clean project. A run that reported
-/// no rule and ended without success failed for a reason that the action
-/// cannot name, and an answer built on it would hide every problem behind a
-/// green result.
+/// no rule and ended without success failed for a reason the action cannot
+/// name. An answer built on it would hide every problem behind a green result.
 ///
 /// Returns `None` when the caller reports what the run found.
 ///

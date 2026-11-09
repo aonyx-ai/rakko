@@ -8,7 +8,7 @@ use thiserror::Error;
 /// An error that leaves a workspace unchecked
 ///
 /// A shape that cargo-deny recognized in the dependencies of a workspace is
-/// no failure of a run: it travels as a problem, and the caller decides what
+/// no failure of a run. It travels as a problem, and the caller decides what
 /// it means. The variants here describe a run that produced no answer about
 /// the workspace at all.
 #[derive(Debug, Error)]
@@ -30,7 +30,7 @@ pub(crate) enum CheckWorkspaceError {
     ///
     /// Cargo-deny ends every run that reached its checks with a summary of
     /// them. A report without that summary belongs to a run that stopped
-    /// earlier, which it does when it cannot read the configuration of the
+    /// earlier. The run stops when it cannot read the configuration of the
     /// project or the manifests of the workspace. An answer built on such a
     /// report would describe a workspace that nothing examined.
     #[error("cargo-deny stopped before it had checked {}: {details}", root.display())]
@@ -45,10 +45,10 @@ pub(crate) enum CheckWorkspaceError {
     /// The lockfile of a workspace needs an update
     ///
     /// The manifests of the workspace ask for something that the lockfile does
-    /// not hold, such as a new dependency or a new version of a member, or the
-    /// workspace has no lockfile. Cargo-deny checks the versions that the
-    /// lockfile holds and never lets cargo write it, so cargo refused to
-    /// describe the workspace. A build of the workspace writes the lockfile.
+    /// not hold. That is a new dependency, a new version of a member, or no
+    /// lockfile. Cargo-deny checks the versions that the
+    /// lockfile holds and never lets cargo write it. So cargo refused to describe
+    /// the workspace. A build of the workspace writes the lockfile.
     #[error("the lockfile of the workspace in {} needs an update", root.display())]
     StaleLockfile {
         /// The workspace root whose lockfile needs an update
@@ -57,10 +57,10 @@ pub(crate) enum CheckWorkspaceError {
 
     /// Cargo-deny wrote a record that the crate cannot read
     ///
-    /// The shape of a record belongs to a version of cargo-deny. A record
-    /// that this crate cannot read therefore points at a version that it does
-    /// not know, and the problems of such a run would be the ones that the
-    /// reading happened to understand.
+    /// The shape of a record belongs to a version of cargo-deny. A record that
+    /// this crate cannot read therefore points at a version that it does not
+    /// know. The problems of such a run would be the ones that the reading
+    /// happened to understand.
     #[error("failed to read cargo-deny's record in {}: {record}", root.display())]
     UnreadableReport {
         /// The workspace root that the run was about
@@ -87,8 +87,8 @@ mod tests {
     ///
     /// An action puts the error in the outcome of a run, and that outcome
     /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// to the auto traits that make this possible. The reason is that a field of a later version
+    /// could take them away without a word from the compiler.
     #[test]
     fn check_workspace_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

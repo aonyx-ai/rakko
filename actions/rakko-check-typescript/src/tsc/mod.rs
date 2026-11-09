@@ -18,18 +18,18 @@ const TSC: &str = "tsc";
 
 /// The option that stops tsc from writing the output of a build
 ///
-/// Tsc is the compiler of the project as well as its type checker, and it
-/// writes the JavaScript of every file that it reads unless it is told not to.
-/// A check that emitted would leave files behind that whoever started it did
-/// not ask for, in the directory that the configuration of the project names
-/// for them. The option selects the diagnosis and not the build.
+/// Tsc is the compiler of the project as well as its type checker. It writes
+/// the JavaScript of every file that it reads unless it is told not to. A check
+/// that emitted would leave files behind that whoever started it did not ask
+/// for. Those files would sit in the directory that the configuration of the
+/// project names for them. The option selects the diagnosis and not the build.
 const NO_EMIT: &str = "--noEmit";
 
 /// The option that decides how tsc draws its diagnostics
 ///
 /// Tsc draws the source of a diagnostic underneath it with the place marked in
-/// color when it writes to a terminal, and it writes one line per diagnostic
-/// otherwise, so the report of a run would depend on where the run happened.
+/// color when it writes to a terminal. It writes one line per diagnostic
+/// otherwise. So the report of a run would depend on where the run happened.
 /// The option settles that, and it selects the presentation of the report and
 /// not the behavior of the compiler.
 const PRETTY: &str = "--pretty";
@@ -49,9 +49,9 @@ const HERE: &str = ".";
 /// The tsc that a project runs
 ///
 /// The value holds the compiler that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
+/// version that the project pinned. So a run reaches the same program as the
 /// editor and the terminal of a contributor. The version decides what the
-/// language is: a release of TypeScript adds rules, and a program that one
+/// language is. A release of TypeScript adds rules, and a program that one
 /// version accepts is a program that the next one can refuse. Nothing here
 /// installs a tool: provisioning is the job of mise, and a tsc that mise does
 /// not report stops the caller.
@@ -68,17 +68,17 @@ impl Tsc {
     /// the diagnostics without the drawing. Tsc writes its diagnostics on the
     /// standard output stream, whatever they are about.
     ///
-    /// The diagnostics are the answer, and the status of the process decides
-    /// only whether a run without one is trusted. Tsc reports a diagnostic for
-    /// everything that it finds, including a configuration that it refuses and
-    /// a project that it finds no configuration of, so a run that reported
+    /// The diagnostics are the answer. The status of the process decides only
+    /// whether a run without one is trusted. Tsc reports a diagnostic for
+    /// everything that it finds. That includes a configuration that it refuses
+    /// and a project that it finds no configuration of. So a run that reported
     /// nothing and ended without success stopped for a reason of its own.
     ///
     /// # Errors
     ///
-    /// Returns [`TscUnavailable`][unavailable] when tsc does not run,
+    /// Returns [`TscUnavailable`][unavailable] when tsc does not run. Returns
     /// [`MissingReport`][missing] when tsc reported nothing and ended without
-    /// success, and [`UnreadableReport`][unreadable] when it wrote a report
+    /// success. Returns [`UnreadableReport`][unreadable] when it wrote a report
     /// that this crate cannot read.
     ///
     /// [missing]: ObserveTscError::MissingReport
@@ -119,7 +119,7 @@ impl Tsc {
 
     /// Returns the tsc that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
+    /// The lookup asks mise about the project whose root the caller names. So
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
     ///

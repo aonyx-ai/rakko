@@ -53,11 +53,11 @@ pub enum FormatRustError {
 
     /// Rustfmt does not honor the configuration of the project
     ///
-    /// Rustfmt warns about an option that it does not know, and about an
-    /// option that its channel does not support, and then formats without
-    /// the option. A run without the option quietly does what the project
-    /// asked it not to do, so the action stops instead of reporting what
-    /// such a run found.
+    /// Rustfmt warns about an option that it does not know. It also warns about
+    /// options that its channel does not support. Then it formats without the
+    /// option. A run without the option quietly does what the project asked it
+    /// not to do. So the action stops instead of reporting what such a run
+    /// found.
     #[error(
         "rustfmt does not honor the configuration and would have formatted without it: {details}"
     )]
@@ -68,9 +68,9 @@ pub enum FormatRustError {
 
     /// The workspaces of the project could not be discovered
     ///
-    /// A run formats every workspace of the project, and a run that does not
-    /// know them all would hide every problem of the missing one behind a
-    /// green result.
+    /// A run formats every workspace of the project.
+    /// A run that does not know them all would hide every problem of the
+    /// missing one behind a green result.
     #[error("failed to discover the workspaces of the project")]
     UndiscoveredRoots {
         /// The cause of the failure
@@ -79,10 +79,11 @@ pub enum FormatRustError {
 
     /// Rustfmt wrote a report that the action does not recognize
     ///
-    /// The shape of the report belongs to a version of rustfmt. A run that
-    /// ended without success and named no problem wrote something the
-    /// action could not read, and an answer built on such a report would
-    /// hide problems behind a green result.
+    /// The shape of the report belongs to a version of rustfmt.
+    /// A run that ended without success and named no problem wrote something
+    /// the action could not read.
+    /// An answer built on such a report would hide problems behind a green
+    /// result.
     #[error("rustfmt wrote a report in {} that the action does not recognize: {stderr}", root.display())]
     UnrecognizedReport {
         /// The workspace root that rustfmt worked on

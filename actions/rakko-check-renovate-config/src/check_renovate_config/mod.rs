@@ -1,8 +1,8 @@
 //! The action that checks the Renovate configuration of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps the validator of Renovate as a subprocess: the validator finds the
-//! configurations, reads them, and reports what Renovate would refuse, and the
+//! wraps the validator of Renovate as a subprocess. The validator finds the
+//! configurations, reads them, and reports what Renovate would refuse. The
 //! action translates what the validator reported into an outcome.
 
 mod error;
@@ -18,12 +18,12 @@ use crate::validator::Validator;
 /// The action that checks the Renovate configuration of a project
 ///
 /// The action wraps `renovate-config-validator`, the validator that [Renovate]
-/// ships: the validator finds the configurations of the project, reads each
-/// of them, and reports every option that Renovate would refuse. A run agrees
-/// with a contributor that runs `renovate-config-validator --strict`, and then
-/// `renovate-config-validator --strict --no-global default.json`. The
-/// validator that runs is the one that [mise] installed for the project, at
-/// the version that the project pinned, and the action installs nothing.
+/// ships. The validator finds the configurations of the project, reads each of
+/// them, and reports every option that Renovate would refuse. A run agrees with
+/// a contributor that runs `renovate-config-validator --strict`, and then
+/// `renovate-config-validator --strict --no-global default.json`. The validator
+/// that runs is the one that [mise] installed for the project, at the version
+/// that the project pinned, and the action installs nothing.
 ///
 /// A preset is a configuration that other configurations extend. Renovate
 /// reads a preset such as `github>owner/repository` from the `default.json` in
@@ -35,17 +35,17 @@ use crate::validator::Validator;
 /// preset that only fits inside a package rule fails the run, such as one
 /// that sets `matchPackageNames` at the top.
 ///
-/// A run only reports, and it takes no argument. A run asks for strict
-/// validation, so a configuration that needs a migration fails the run like an
-/// error and a warning do. Each error and each warning becomes a finding at
-/// the file that the validator named, with the topic and the message of the
-/// validator, and a configuration that needs a migration becomes one finding
-/// that names the options that the migration changes.
+/// A run only reports and takes no argument. A run asks for strict validation.
+/// So a configuration that needs a migration fails the run like an error or
+/// warning. Each error and warning becomes a finding at the file the validator
+/// named, with the validator's topic and message. A configuration that needs a
+/// migration becomes one finding that names the options the migration changes.
 ///
 /// The action applies to a project that holds a Renovate configuration or a
 /// preset, and it skips visibly otherwise. A run stops with an error when mise
-/// reports no validator, when the validator stops before it has validated the
-/// project, and when the validator writes a log that the action cannot read.
+/// reports no validator. It also stops if the validator stops before validating
+/// the project. It stops if the validator writes a log that the action cannot
+/// read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -98,8 +98,8 @@ impl Action for CheckRenovateConfig {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of the
-/// tool, a run of the validator, or the reading of its log.
+/// Returns the error of the step that could not finish. The step is the
+/// resolution of the tool, a run of the validator, or the reading of its log.
 async fn drive(context: &Context) -> Result<Outcome, CheckRenovateConfigError> {
     let validator = Validator::resolve(context.root().clone())
         .await

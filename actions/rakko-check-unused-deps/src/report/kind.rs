@@ -15,9 +15,9 @@ const BUILD_DEPENDENCY: &str = "build-dependency";
 ///
 /// A manifest declares a dependency in one of three tables, and the table
 /// decides which targets of the package may reach the dependency. The kind
-/// therefore belongs to a report of an unused dependency: a reader needs it
-/// to find the entry, because one name can appear in more than one table of
-/// the same manifest.
+/// therefore belongs to a report of an unused dependency. A reader needs it to
+/// find the entry, because one name can appear in more than one table of the
+/// same manifest.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) enum DependencyKind {
     /// The package declares the dependency in `[dependencies]`

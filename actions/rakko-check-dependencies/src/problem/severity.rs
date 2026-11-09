@@ -9,14 +9,14 @@ use serde::Deserialize;
 /// The weight that cargo-deny gave a report
 ///
 /// The weight is the answer that the project already gave. Every check of
-/// cargo-deny carries a level in the configuration: `deny` for a shape that
-/// must not appear, `warn` for one that a maintainer wants to read about, and
-/// `allow` for one that the project does not care about. A check that the
+/// cargo-deny carries a level in the configuration. `deny` marks a shape that
+/// must not appear. `warn` marks one that a maintainer wants to read about.
+/// `allow` marks one that the project does not care about. A check that the
 /// project turned off reports nothing, and the other two arrive here.
 ///
 /// Cargo-deny counts four weights in the summary that it ends a run with, and
 /// all four are held here. The two below a warning carry the detail that a
-/// report adds about a crate, and cargo-deny writes neither of them while it
+/// report adds about a crate. Cargo-deny writes neither of them while it
 /// reports at its own default level. A report that carries one is read all the
 /// same, because a run that stopped over a word would say nothing about the
 /// project.
@@ -90,7 +90,7 @@ mod tests {
     /// Shows that an unknown severity word is not read
     ///
     /// The severity arrives from the report of cargo-deny. A weight that this
-    /// crate does not know stops the reading, so that a new weight of a later
+    /// crate does not know stops the reading. This way a new weight of a later
     /// version cannot land in the wrong one.
     #[test]
     fn severity_of_an_unknown_word_is_not_read() {

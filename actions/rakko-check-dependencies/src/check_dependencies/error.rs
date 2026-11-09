@@ -77,10 +77,10 @@ pub enum CheckDependenciesError {
     /// The lockfile of a workspace needs an update
     ///
     /// The manifests of the workspace ask for something that the lockfile does
-    /// not hold, such as a new dependency or a new version of a member, or the
-    /// workspace has no lockfile. The action checks the versions that the
-    /// lockfile holds and never writes it, so cargo refused to describe the
-    /// workspace to cargo-deny. A build of the workspace writes the lockfile.
+    /// not hold. That is a new dependency, a new version of a member, or no
+    /// lockfile. The action checks the versions that the lockfile holds and
+    /// never writes it, so cargo refused to describe the workspace to
+    /// cargo-deny. A build of the workspace writes the lockfile.
     #[error("the lockfile of the workspace in {} needs an update", root.display())]
     StaleLockfile {
         /// The workspace root whose lockfile needs an update
@@ -89,9 +89,9 @@ pub enum CheckDependenciesError {
 
     /// The workspaces of the project could not be discovered
     ///
-    /// A run checks every workspace of the project, so a run that does not
-    /// know them would check less than the project and report a green result
-    /// for the rest.
+    /// A run checks every workspace of the project. So a run that does not know
+    /// them would check less than the project and report a green result for the
+    /// rest.
     #[error("failed to discover the workspaces of the project")]
     UndiscoveredRoots {
         /// The cause of the failure
@@ -100,10 +100,12 @@ pub enum CheckDependenciesError {
 
     /// Cargo-deny wrote a record that the action cannot read
     ///
-    /// The shape of a record belongs to a version of cargo-deny. A record
-    /// that the action cannot read therefore points at a version that this
-    /// crate does not know, and the findings of such a run would be the ones
-    /// that the reading happened to understand.
+    /// The shape of a record belongs to a version of cargo-deny.
+    ///
+    /// A record that the action cannot read therefore points at a version that
+    /// this crate does not know. The findings of such a run would be the ones
+    /// that the
+    /// reading happened to understand.
     #[error("failed to read cargo-deny's record in {}: {record}", root.display())]
     UnreadableReport {
         /// The workspace root that the run was about
@@ -119,8 +121,8 @@ pub enum CheckDependenciesError {
     /// Mise reported no cargo for the project
     ///
     /// Cargo describes the workspaces that a run checks. The project pins no
-    /// stable Rust toolchain that the action accepts, or nothing installed
-    /// the pin yet, and the action installs nothing, so the run stops here.
+    /// stable Rust toolchain that the action accepts, or nothing installed the
+    /// pin yet. The action installs nothing, so the run stops here.
     #[error("failed to resolve cargo")]
     UnresolvedCargo {
         /// The cause of the failure
@@ -190,9 +192,11 @@ mod tests {
     /// Shows that a dependencies error is send and sync
     ///
     /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// holds an error that another thread can read.
+    ///
+    /// This test holds the error to the auto traits that make this possible.
+    /// The reason is that a field of a later version could take them away
+    /// without a word from the compiler.
     #[test]
     fn check_dependencies_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

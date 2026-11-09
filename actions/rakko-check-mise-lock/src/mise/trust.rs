@@ -20,8 +20,8 @@ pub(crate) enum Trust {
     ///
     /// The run skips the question whether anybody trusted the configuration
     /// of the directory. A caller grants it only for a directory whose
-    /// configuration somebody trusted in another place, such as a copy of a
-    /// project whose lockfiles mise already listed in the project.
+    /// configuration somebody trusted in another place. One example is a copy
+    /// of a project whose lockfiles mise already listed in the project.
     Granted,
 }
 

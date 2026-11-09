@@ -63,9 +63,8 @@ pub enum ResolveRequirementError {
     ///
     /// No program answers to the name `mise`, or the operating system refused
     /// to start it. The canonical way to start a harness enters the
-    /// environment of mise first, so a run that reports this failure ran
-    /// outside that environment, and every tool of the project is out of
-    /// reach.
+    /// environment of mise first. A run that reports this failure therefore ran
+    /// outside that environment. Every tool of the project is out of reach.
     #[error("failed to ask mise about `{tool}`")]
     MiseUnavailable {
         /// The tool that the requirement is for
@@ -112,9 +111,9 @@ pub enum ResolveRequirementError {
     /// with a range
     ///
     /// A range compares versions with three numbers, such as `22.4.0`. Mise
-    /// gives the version that a pin resolves to, and a pin that holds no such
-    /// version, such as a pin of a branch or of the Rust channel `stable`, has
-    /// nothing to compare. An added pin with a version number repairs the
+    /// gives the version that a pin resolves to. A pin that holds no such
+    /// version, such as a pin of a branch or of the Rust channel `stable`,
+    /// has nothing to compare. An added pin with a version number repairs the
     /// failure.
     #[error(
         "failed to read the version `{version}` of `{tool}` that the project pins, so add a \
@@ -201,8 +200,9 @@ mod tests {
     ///
     /// An action puts the error in the outcome of a run, and that outcome
     /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// to the auto traits that make this possible. It does so because a field
+    /// of a later version could take them away without a word from the
+    /// compiler.
     #[test]
     fn resolve_requirement_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

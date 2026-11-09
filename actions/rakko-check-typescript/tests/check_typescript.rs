@@ -1,17 +1,17 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken file sits in this
+//! against it. So no fixture with a deliberately broken file sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the tsc that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project states the compiler options that its test is about and no others.
 //! Tsc applies its own defaults for the rest, and it reads no configuration of
-//! the user, so a project answers the same way on the machine of every
+//! the user. So a project answers the same way on the machine of every
 //! contributor.
 
 #![allow(
@@ -43,9 +43,9 @@ const EMITTING: &str = "{\n  \"compilerOptions\": { \"outDir\": \"dist\" },\n  \
 
 /// A configuration that asks tsc for a rule that it applies to nothing else
 ///
-/// The rule reports a parameter that the body of a function never reads, and
-/// tsc applies it only where the project asks for it, so a project that states
-/// this and a project that states nothing disagree about the same file.
+/// The rule reports a parameter that the body of a function never reads. Tsc
+/// applies it only where the project asks for it. So a project that states this
+/// and a project that states nothing disagree about the same file.
 const UNUSED_PARAMETERS: &str = "{\n  \"compilerOptions\": { \"noUnusedParameters\": true },\n  \
                                  \"include\": [\"src\"]\n}\n";
 
@@ -95,10 +95,10 @@ impl Project {
 
     /// Returns the project with the tsc of this repository pinned in its root
     ///
-    /// The project copies the `mise.toml` of this repository into its root,
-    /// so the tsc that mise resolves for it is the tsc that the repository
-    /// pins and installs. Mise ignores a configuration that nobody trusts, so
-    /// the copy is trusted right away.
+    /// The project copies the `mise.toml` of this repository into its root. So
+    /// the tsc that mise resolves for it is the tsc that the repository pins
+    /// and installs. Mise ignores a configuration that nobody trusts, so the
+    /// copy is trusted right away.
     fn pinned(self) -> Self {
         let pins = repository().join("mise.toml");
         let copy = self.root.join("mise.toml");
@@ -130,7 +130,7 @@ impl Project {
 
     /// Creates a project that pins a TypeScript that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about TypeScript.
     fn without_tsc() -> Self {
@@ -238,12 +238,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.root.join("mise.toml");
 
@@ -449,9 +449,9 @@ async fn run_with_a_type_error_beside_the_project_names_its_place() {
 ///
 /// The message reads like the line that tsc writes, which it does only because
 /// the run asks for the diagnostics without the drawing. A drawn report names
-/// the place in another shape, and it carries the source of the file and the
-/// marks under it, so this test also fails wherever the environment would make
-/// tsc draw.
+/// the place in another shape. It carries the source of the file and the marks
+/// under it. So this test also fails wherever the environment would make tsc
+/// draw.
 #[tokio::test]
 async fn run_with_a_type_error_carries_the_message_of_tsc() {
     let project = Project::new();
@@ -499,9 +499,9 @@ async fn run_with_a_type_error_leaves_the_project_unchanged() {
 
 /// Shows that run with a type error reports a message without color codes
 ///
-/// Tsc draws its diagnostics in color when it writes to a terminal, and an
+/// Tsc draws its diagnostics in color when it writes to a terminal. An
 /// environment that states a terminal is capable of color makes it draw without
-/// one, which is how a report that reads on a workstation arrives in escape
+/// one. That is how a report that reads on a workstation arrives in escape
 /// codes on a build server.
 #[tokio::test]
 async fn run_with_a_type_error_reports_a_message_without_color_codes() {
@@ -612,8 +612,8 @@ async fn run_with_an_explained_diagnostic_reports_one_finding() {
 
 /// Shows that run without a configuration file skips
 ///
-/// A project that holds no configuration of tsc is no TypeScript project, and
-/// tsc reports that it found none rather than that it found no problem.
+/// A project that holds no configuration of tsc is no TypeScript project.
+/// Tsc reports that it found none rather than that it found no problem.
 #[tokio::test]
 async fn run_without_a_configuration_file_skips() {
     let project = Project::new();

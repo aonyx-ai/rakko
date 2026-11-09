@@ -1,14 +1,13 @@
 //! The version of a toolchain that a project pins
 //!
 //! A toolchain is a decision of the project, so the project pins its
-//! version, and an action states only the range of versions that it accepts.
-//! This module asks mise which versions the configuration of the project
-//! pins, in the order of its pins, and picks the first one that the range
-//! accepts.
+//! version. An action states only the range of versions that it accepts. This
+//! module asks mise which versions the configuration of the project pins, in
+//! the order of its pins. It picks the first one that the range accepts.
 //!
 //! A range compares the versions of releases, such as `>=1.85`, or the dates
 //! of one channel, such as `>=nightly-2025-02-20`. Rustup names a dated
-//! toolchain of a channel by its date, so a nightly toolchain has a date
+//! toolchain of a channel by its date. So a nightly toolchain has a date
 //! and no version of its own to compare.
 
 use std::path::{Path, PathBuf};
@@ -64,8 +63,8 @@ struct Source {
 /// the range accepts
 ///
 /// A range of dates reads only the pins of its channel that the
-/// configuration writes with a date, and it passes over every other pin of
-/// the toolchain. A range of releases reads every pin.
+/// configuration writes with a date. It passes over every other pin of the
+/// toolchain. A range of releases reads every pin.
 ///
 /// Only a pin in a configuration file inside the root of the project counts.
 /// Mise also applies the global configuration of the user and the files of
@@ -76,16 +75,15 @@ struct Source {
 ///
 /// # Errors
 ///
-/// Returns [`InvalidRange`][invalid] when the range is not a range,
-/// [`MiseUnavailable`][unavailable] when mise does not run,
+/// Returns [`InvalidRange`][invalid] when the range is not a range. Returns
+/// [`MiseUnavailable`][unavailable] when mise does not run. Returns
 /// [`UnrecognizedReport`][unrecognized] when mise lists the pins in a form
-/// that the crate does not read, and [`UnresolvedToolchain`][unresolved]
+/// that the crate does not read. Returns [`UnresolvedToolchain`][unresolved]
 /// when no configuration inside the project pins the toolchain, or no dated
-/// version of the channel of a range of dates. When the project pins
-/// versions and the range accepts none of them, returns
-/// [`VersionOutOfRange`][outside] for the first pin with three numbers or a
-/// date to compare, or [`UnreadableVersion`][unreadable] when a range of
-/// releases finds no pin with three numbers.
+/// version of the channel of a range of dates. The project can pin versions
+/// that the range does not accept. Returns [`VersionOutOfRange`][outside] then,
+/// for the first pin with three numbers or a date to compare. Returns [`UnreadableVersion`][unreadable] when a range
+/// of releases finds no pin with three numbers.
 ///
 /// [invalid]: ResolveRequirementError::InvalidRange
 /// [outside]: ResolveRequirementError::VersionOutOfRange
@@ -217,8 +215,8 @@ impl Accepted {
     /// A range of releases reads the version that the pin resolves to, so a
     /// pin such as `1.88` reads as `1.88.0`. A range of dates reads the pin
     /// as the configuration writes it. Mise can resolve a bare `nightly` to
-    /// a dated version that one machine holds and another does not, so only
-    /// a pin that writes the date counts on every machine.
+    /// a dated version that one machine holds and another does not. So only a
+    /// pin that writes the date counts on every machine.
     #[builder]
     fn read(&self, pin: &str, requested: &str) -> Reading {
         match self {
@@ -250,9 +248,11 @@ impl Accepted {
     }
 }
 
-/// Returns the channel of a range of dates, and the range with each date
-/// written as a version, when every comparator of the text gives a date of
-/// one channel
+/// Returns the channel of a range of dates and the range with each date
+/// written as a version
+///
+/// It returns them when every comparator of the text gives a date of one
+/// channel
 ///
 /// A comparator such as `>=nightly-2025-02-20` gives the channel `nightly`
 /// and the date `2025.2.20`. The numbers of a version carry no leading
@@ -337,15 +337,15 @@ fn number(part: &str, width: usize) -> Option<u32> {
 /// Returns the pins of a toolchain that a configuration inside the project
 /// holds
 ///
-/// The list of mise gives the file of each pin, but it sorts the versions,
-/// so the caller takes their order from another answer of mise.
+/// The list of mise gives the file of each pin, but it sorts the versions.
+/// So the caller takes their order from another answer of mise.
 ///
 /// # Errors
 ///
 /// Returns [`MiseUnavailable`][unavailable] when mise does not run,
-/// [`UnresolvedToolchain`][unresolved] when mise ends without success, and
-/// [`UnrecognizedReport`][unrecognized] when the list is not the JSON that
-/// the crate reads.
+/// [`UnresolvedToolchain`][unresolved] when mise ends without success.
+/// Returns [`UnrecognizedReport`][unrecognized] when the list is not the JSON
+/// that the crate reads.
 ///
 /// [unavailable]: ResolveRequirementError::MiseUnavailable
 /// [unrecognized]: ResolveRequirementError::UnrecognizedReport
@@ -412,7 +412,7 @@ async fn ask(
 /// does not resolve
 ///
 /// Mise gives the file of a pin with its links resolved, such as the
-/// temporary directory of macOS under `/private`, so the root of the project
+/// temporary directory of macOS under `/private`. So the root of the project
 /// needs the same form before a comparison.
 fn canonical(path: &Path) -> PathBuf {
     dunce::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())

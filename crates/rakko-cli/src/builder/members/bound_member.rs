@@ -7,10 +7,10 @@ use rakko::{ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError};
 /// One member of a group, bound to the values of one run
 ///
 /// A group lists actions, its members. The command line binds every member to
-/// the values of the run before any member runs, and the scheduler receives
-/// one bound member for each member of the group. A bound member keeps the
-/// name of the action beside the [`BoundAction`], so that the scheduler can
-/// report what each member found under the name of the member.
+/// the values of the run before any member runs. The scheduler receives one
+/// bound member for each member of the group. A bound member keeps the name
+/// of the action beside the [`BoundAction`]. This lets the scheduler report
+/// what each member found under the name of the member.
 ///
 /// The values are bound once. The bound action declares how its run uses the
 /// project and then runs, and both see the same arguments. So the scheduler

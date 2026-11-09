@@ -1,13 +1,13 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately faulty crate sits in this
+//! against it. So no fixture with a deliberately faulty crate sits in this
 //! repository, where the lints of the repository itself would fight it.
 //!
 //! The tests run the cargo that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers
-//! is the version that the repository installs, and a new pin reaches the
-//! tests without a change to them.
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs, and a new pin reaches the tests
+//! without a change to them.
 
 #![allow(
     clippy::expect_used,
@@ -33,8 +33,8 @@ const FEATURED: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\neditio
 /// The manifest of a package that belongs to no workspace
 ///
 /// The empty workspace table tells cargo that the package is a root of its
-/// own, which cargo demands from a package below a workspace that does not
-/// list it.
+/// own. Cargo demands this from a package below a workspace that does not list
+/// it.
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
@@ -62,9 +62,8 @@ const EXTRA: &str = "[package]\nname = \"extra\"\nversion = \"0.1.0\"\nedition =
 
 /// A manifest with a build script that fails
 ///
-/// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the report holds nothing that the action
-/// recognizes.
+/// Cargo reports the failure on its standard error stream, not as a compiler
+/// diagnostic. So the report holds nothing that the action recognizes.
 const FAILING_BUILD: &str =
     "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\nbuild = \"build.rs\"\n";
 
@@ -207,8 +206,8 @@ impl Project {
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
     /// The pin names a version that no machine installs, so mise reports no
-    /// location for cargo, whatever the global configuration of the machine
-    /// says about Rust.
+    /// location for cargo. This is true whatever the global configuration of
+    /// the machine says about Rust.
     fn without_cargo() -> Self {
         let project = Self::bare();
 
@@ -233,12 +232,11 @@ impl Project {
 
     /// Writes the lockfile of every workspace of the project that has none
     ///
-    /// The action holds cargo to the lockfile of a workspace, and cargo
-    /// refuses a workspace without one, as a project that commits its
-    /// lockfile never is. A test that writes a workspace therefore gets the
-    /// lockfile that a first build would write. A project in which cargo
-    /// cannot find its workspaces stays as it is, so that the run reports
-    /// what stops it.
+    /// The action holds cargo to the lockfile of a workspace. Cargo refuses a
+    /// workspace without one, as a project that commits its lockfile never is.
+    /// A test that writes a workspace therefore gets the lockfile that a first
+    /// build would write. A project in which cargo cannot find its workspaces
+    /// stays as it is, so that the run reports what stops it.
     async fn lock(&self) {
         let Ok(cargo) = Cargo::resolve(&self.context()).await else {
             return;
@@ -343,10 +341,10 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
-    /// would pile up there forever. A failure stays quiet, because the test
-    /// already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
+    /// pile up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")
@@ -674,8 +672,8 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
 /// features
 ///
 /// A single run turns every feature of the library on, and the link resolves.
-/// The run of the other packages leaves the library out and builds it with the
-/// features that those packages ask for, so only a split breaks the link.
+/// The run of the other packages leaves the library out and builds it with
+/// the features that those packages ask for. So only a split breaks the link.
 #[tokio::test]
 async fn run_with_a_shared_name_documents_the_rest_without_the_features_of_the_sharing_packages() {
     let project = Project::new();

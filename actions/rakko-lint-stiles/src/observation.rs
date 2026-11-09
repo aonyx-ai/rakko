@@ -27,10 +27,9 @@ pub(crate) enum Examination {
 /// The value holds the answer of one check: the diagnostics that stiles
 /// reported, and whether stiles found a file to check at all.
 ///
-/// A check that found no file is not a check that found nothing. Stiles
-/// reports no diagnostic in both cases, and the two mean opposite things for
-/// the outcome of an action: one project is clean, and the other was never
-/// looked at.
+/// A check that found no file is not a check that found nothing. Stiles reports
+/// no diagnostic in both cases. The two mean opposite things for the outcome of
+/// an action. One project is clean, and the other was never looked at.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub(crate) struct Observation {
     /// The diagnostics that stiles reported, in the order of the report
@@ -48,7 +47,7 @@ impl Observation {
     ///
     /// A run of stiles builds one through [`Stiles::observe`], and a caller
     /// builds one where a test stands in for a stiles that nobody started.
-    /// Every part is optional, so a test names what its case is about and
+    /// Every part is optional. So a test names what its case is about. It
     /// leaves the rest at the answer of a check that examined the project and
     /// found nothing.
     ///

@@ -32,8 +32,8 @@ const NO_DECLARATION: &str =
 /// holds and does not write the lockfile, because the action only examines
 /// the project. The report arrives as JSON, because the
 /// action reads it as data. The format selects the presentation of the
-/// report and not the behavior of the tool: which lints apply, and at which
-/// level, comes from the configuration of the project alone.
+/// report, not the behavior of the tool. Which lints apply and at which
+/// level comes from the configuration of the project alone.
 const CHECK: [&str; 5] = [
     "check",
     LOCKED,
@@ -45,36 +45,35 @@ const CHECK: [&str; 5] = [
 /// The action that checks a project against the Rust version it promises
 ///
 /// A package writes the oldest toolchain that it compiles on as the
-/// `rust-version` of its manifest, and whoever depends on the package reads
+/// `rust-version` of its manifest. Whoever depends on the package reads
 /// that as a fact. The action runs the compiler on the toolchain that the
 /// promise names, so the compiler confirms the fact. The cargo that runs is
 /// the one that [mise] installed for the project, on the toolchain that mise
-/// installed for the declared version, and the action installs nothing.
+/// installed for the declared version. The action installs nothing.
 ///
-/// The action declares the range of stable toolchains whose cargo discovers
-/// the workspaces. The toolchain of a declared version comes from a
-/// manifest, so the action cannot declare it. A run takes the first pin of
-/// the project that is a patch of the declared release, so `1.88` accepts the
-/// pin `1.88.1`, and `1.88.0` accepts only the pin `1.88.0`.
+/// The action declares the range of stable toolchains whose cargo discovers the
+/// workspaces. The toolchain of a declared version comes from a manifest, so
+/// the action cannot declare it. A run takes the first pin of the project that
+/// is a patch of the declared release. For example, `1.88` accepts the pin
+/// `1.88.1`, and `1.88.0` accepts only the pin `1.88.0`.
 ///
 /// A run only reports, and it takes no argument. It checks every workspace
 /// of the project that declares a version, each on the toolchain that it
-/// declares, because the harness of a project is a package of its own and
-/// makes a promise of its own. Every diagnostic becomes a finding at the
-/// range that the compiler named, and a run with a finding fails, whether
+/// declares. The reason is that the harness of a project is a package of its own. It makes a
+/// promise of its own. Every diagnostic becomes a finding at the
+/// range that the compiler named. A run with a finding fails, whether
 /// the compiler warned or refused the code.
 ///
 /// A project whose cargo discovers no workspace, and one whose workspaces
-/// declare no Rust version, skip visibly and say so. A run
-/// stops with an error when the project pins no stable Rust toolchain that
-/// the action accepts, when mise reports no toolchain of the declared version,
-/// when the workspaces of the project cannot be discovered, when a
-/// declaration cannot be read, when the lockfile of a workspace needs an
-/// update, and when cargo writes a report that the action does not
-/// recognize.
+/// declare no Rust version, skip visibly and say so. A run stops with an error
+/// when the project pins no stable Rust toolchain that the action accepts. It
+/// also stops when mise reports no toolchain of the declared version. It stops
+/// when the workspaces of the project cannot be discovered, or when a
+/// declaration cannot be read. It stops when the lockfile of a workspace needs
+/// an update, or when cargo writes a report that the action does not recognize.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of each
-/// workspace, and cargo writes what it builds into the `target` directory,
+/// workspace. Cargo writes what it builds into the `target` directory,
 /// which cargo locks against parallel use itself. The declaration covers the
 /// action and cargo, and not the build scripts and procedural macros of the
 /// project, which can write files of their own. A caller that orders runs by
@@ -129,9 +128,10 @@ impl Action for CheckMsrv {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of
-/// the tool or of a toolchain, the discovery of the workspaces, the reading
-/// of a declaration, a cargo run, or the reading of a report.
+/// Returns the error of the step that could not finish. The step can be the
+/// resolution of the tool or of a toolchain, the discovery of the workspaces,
+/// or the reading of a declaration. It can also be a cargo run or the reading
+/// of a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
     let cargo = Cargo::resolve(context)
         .await
@@ -183,8 +183,8 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
 ///
 /// Returns [`UnresolvedToolchain`][toolchain] when mise reports no toolchain
 /// for the declared version, [`CargoUnavailable`][unavailable] when cargo
-/// does not run, [`StaleLockfile`][stale] when cargo refused to check because
-/// the lockfile needs an update, and [`UnrecognizedReport`][unrecognized]
+/// does not run. Returns [`StaleLockfile`][stale] when cargo refused to check
+/// because the lockfile needs an update. Returns [`UnrecognizedReport`][unrecognized]
 /// when cargo writes a report that the action cannot answer from.
 ///
 /// [stale]: CheckMsrvError::StaleLockfile
@@ -255,10 +255,10 @@ fn declarations(roots: &[CargoRoot]) -> Vec<(CargoRoot, RustVersion)> {
 
 /// Returns whether the action can answer from a report
 ///
-/// A run that ended without success and named no diagnostic, and a run that
-/// ended with success without saying that the build finished, both wrote a
-/// report that the action cannot read, and an answer built on such a report
-/// would hide problems behind a green result.
+/// A run that ended without success and named no diagnostic wrote a report
+/// that the action cannot read. A run that ended with success without saying
+/// that the build finished wrote such a report. An answer built on such a
+/// report would hide problems behind a green result.
 fn recognized(report: &CargoReport, execution: &Execution) -> bool {
     if execution.status().success() {
         report.finished() == Some(true)
@@ -273,7 +273,7 @@ fn recognized(report: &CargoReport, execution: &Execution) -> bool {
 ///
 /// Returns [`UnreadableReport`][unreadable] when the report holds a record
 /// of cargo that the action cannot read. The shape of a record belongs to a
-/// version of cargo, and an answer built on a report with such a record
+/// version of cargo. An answer built on a report with such a record
 /// would hide problems behind a green result.
 ///
 /// [unreadable]: CheckMsrvError::UnreadableReport

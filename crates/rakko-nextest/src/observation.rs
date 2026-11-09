@@ -1,10 +1,10 @@
 //! What one run of nextest produced
 //!
-//! Nextest and cargo write their JSON to the same stream, and this module
-//! turns both into data. The reading recognizes the lines that carry an
-//! answer and ignores everything else, so a line that a new version adds does
-//! not break it. A run whose reports leave no answer at all stops here, so
-//! that no caller reads a green result out of a report it could not read.
+//! Nextest and cargo write their JSON to the same stream, and this module turns
+//! both into data. The reading recognizes the lines that carry an answer and
+//! ignores everything else, so a line that a new version adds does not break
+//! it. A run whose reports leave no answer at all stops here. So no caller
+//! reads a green result out of a report it could not read.
 
 use getset::{CopyGetters, Getters};
 use rakko::{Finding, ProjectRoot};
@@ -22,14 +22,14 @@ const NO_TESTS: i32 = 4;
 
 /// What one run of nextest produced
 ///
-/// The value holds the answer of one run at one workspace root: the findings
-/// of the run, and how many tests it ran. A test that failed and a diagnostic
-/// of a build that did not finish are both problems of the project, and both
-/// arrive as findings, because a caller reports them the same way.
+/// The value holds the answer of one run at one workspace root: the findings of
+/// the run, and how many tests it ran. A test that failed and a diagnostic of a
+/// build that did not finish are both problems of the project. Both arrive as
+/// findings, because a caller reports them the same way.
 ///
-/// An observation describes the run and judges nothing. A run without a
-/// finding says nothing about whether the caller passes, because a caller
-/// that tests several workspaces sums the answers of all of them.
+/// An observation describes the run and judges nothing. A run without a finding
+/// says nothing about whether the caller passes. That is because a caller that
+/// tests several workspaces sums the answers of all of them.
 ///
 /// # Examples
 ///
@@ -76,18 +76,18 @@ pub struct Observation {
 impl Observation {
     /// Reads the observation of a run from what nextest and cargo wrote
     ///
-    /// The findings name their files relative to the project root, and a
-    /// file that the project root does not contain leaves its finding at the
-    /// level of the project.
+    /// The findings name their files relative to the project root. A file that
+    /// the project root does not contain leaves its finding at the level of the
+    /// project.
     ///
     /// # Errors
     ///
     /// Returns [`UnreadableReport`][report] or
-    /// [`UnreadableDiagnostics`][diagnostics] when a stream holds a record
-    /// that the crate cannot read, and [`UnrecognizedReport`][unrecognized]
-    /// when the run ended without success and reported nothing that the
-    /// crate can answer from. An answer built on such a report would hide
-    /// failures behind a green result.
+    /// [`UnreadableDiagnostics`][diagnostics] when a stream holds a record that
+    /// the crate cannot read. Returns [`UnrecognizedReport`][unrecognized] when
+    /// the run ended without success and reported nothing that the crate can
+    /// answer from. An answer built on such a report would hide failures behind
+    /// a green result.
     ///
     /// [diagnostics]: ObserveNextestError::UnreadableDiagnostics
     /// [report]: ObserveNextestError::UnreadableReport

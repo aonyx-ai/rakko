@@ -7,8 +7,9 @@ use thiserror::Error;
 ///
 /// The command line binds every member of a group to the values of the run
 /// before the group runs. A member whose values do not convert stops the run
-/// of the group before any member runs, because a run that drives only some of
-/// its members would report on a project that it did not fully examine.
+/// of the group before any member runs. This is because a run that drives only
+/// some of its members would report on a project that it did not fully
+/// examine.
 #[derive(Debug, Error)]
 pub(crate) enum BindMembersError {
     /// The values of the run do not convert into the arguments of a member

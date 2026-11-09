@@ -10,8 +10,8 @@ pub use self::error::ParseDirectoryPathError;
 /// The path of a directory that a problem is in
 ///
 /// The path is relative to the project root. A reader, a machine, and a code
-/// host therefore see the same path for the same directory, and none of them
-/// has to know where the project lives on disk.
+/// host therefore see the same path for the same directory. None of them has to
+/// know where the project lives on disk.
 ///
 /// A tool that reports per directory rather than per file gives this path. A
 /// coverage report is one example: it names a directory and says nothing
@@ -127,10 +127,10 @@ mod tests {
 
     /// A path that the platform of the test reads as absolute
     ///
-    /// A path that starts with a separator is absolute on Unix and relative
-    /// on Windows, where a path is absolute only when it names a volume as
-    /// well. The tests below need a path that the platform they run on
-    /// refuses, so each platform names one of its own.
+    /// A path that starts with a separator is absolute on Unix and relative on
+    /// Windows. On Windows, a path is absolute only when it names a volume as
+    /// well. The tests below need a path that the platform they run on refuses,
+    /// so each platform names one of its own.
     const ABSOLUTE: &str = if cfg!(windows) { r"C:\Windows" } else { "/etc" };
 
     #[test]

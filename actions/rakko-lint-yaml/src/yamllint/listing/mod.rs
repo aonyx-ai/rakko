@@ -1,12 +1,12 @@
 //! The files that yamllint examines in a project
 //!
-//! Yamllint collects the files of a run from the place that the run names and
-//! from the configuration of the project, and it can report that selection
+//! Yamllint collects the files of a run from the place that the run names
+//! and from the configuration of the project. It can report that selection
 //! without linting anything. This module asks for it.
 //!
-//! The selection answers what the report of a lint run leaves open. A yamllint
-//! that collected no file writes the same empty report as a yamllint that
-//! examined the whole project and found nothing, and the two runs mean
+//! The selection answers what the report of a lint run leaves open. A
+//! yamllint that collected no file writes the same empty report as a yamllint
+//! that examined the whole project and found nothing. The two runs mean
 //! opposite things for the outcome of an action.
 
 mod error;

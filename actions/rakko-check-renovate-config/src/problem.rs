@@ -23,13 +23,13 @@ const TOPIC_CLOSE: &str = ": ";
 ///
 /// The topic and the detail are the words of the validator. The topic names
 /// the kind of problem, such as `Configuration Error` for an error or `Config
-/// migration necessary` for a migration, and the detail says what the
-/// validator found. A reader of a finding therefore reads the answer of the
-/// tool, and not one that this crate wrote about it.
+/// migration necessary` for a migration. The detail says what the validator
+/// found. A reader of a finding therefore reads the answer of the tool, not
+/// one this crate wrote.
 ///
 /// A problem sits at a position only where the validator names one. Most of
 /// what the validator reports is about an option and not about a place in the
-/// file, and the problem then belongs to the file as a whole.
+/// file. The problem then belongs to the file as a whole.
 ///
 /// [relative]: RenovateProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
@@ -58,10 +58,10 @@ impl RenovateProblem {
     /// file where it named none.
     ///
     /// Returns `None` when the root does not contain the file. The validator
-    /// starts in the root, so a path that does not fit points at a report that
-    /// the caller misread, or at a global configuration that the environment
-    /// of the run named outside the project, and the caller decides what to
-    /// do about that.
+    /// starts in the root. So a path that does not fit points at a report that
+    /// the caller misread. It can also point at a global configuration that the
+    /// environment of the run named outside the project. The caller decides
+    /// what to do about that.
     pub(crate) fn location(&self, root: &ProjectRoot) -> Option<Location> {
         let path = self.relative_path(root)?;
 

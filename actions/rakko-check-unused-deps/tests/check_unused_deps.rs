@@ -1,21 +1,20 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately unused dependency sits in
-//! this repository, where the checks of the repository itself would fight
-//! it.
+//! against it. So no fixture with a deliberately unused dependency sits in this
+//! repository, where the checks of the repository itself would fight it.
 //!
-//! A project depends on a package that it carries, and never on a package of
-//! a registry. The dependency that a test declares is therefore the one that
-//! the action reports, the build reaches no network, and it compiles two
-//! small libraries and nothing else.
+//! A project depends on a package that it carries, and never on a package of a
+//! registry. The dependency that a test declares is therefore the one that the
+//! action reports. The build reaches no network. It compiles two small
+//! libraries and nothing else.
 //!
-//! The tests run the cargo-udeps that the action declares, with the cargo
-//! that this repository pins. A project copies the `mise.toml` of the
-//! repository and trusts it, so the Rust toolchains that answer are ones that
-//! the repository installs, the nightly that cargo-udeps needs among them.
-//! The copy pins another cargo-udeps that nothing installs, so a test passes
-//! only when the run ignores the pin of the project.
+//! The tests run the cargo-udeps that the action declares, with the cargo that
+//! this repository pins. A project copies the `mise.toml` of the repository and
+//! trusts it. So the Rust toolchains that answer are ones that the repository
+//! installs, including the nightly that cargo-udeps needs. The copy pins
+//! another cargo-udeps that nothing installs, so a test passes only when the
+//! run ignores the pin of the project.
 
 #![allow(
     clippy::expect_used,
@@ -45,7 +44,7 @@ const DEVELOPMENT: &str = "\n[dev-dependencies]\nhelper = { path = \"helper\" }\
 /// A build script that fails
 ///
 /// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the run holds nothing that the action
+/// diagnostic of the compiler. So the run holds nothing that the action
 /// recognizes.
 const FAILING_SCRIPT: &str = "fn main() {\n    std::process::exit(1);\n}\n";
 
@@ -91,8 +90,7 @@ impl Project {
     /// Creates a project without a cargo to resolve
     ///
     /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when the run must end before the tool
-    /// runs.
+    /// tool. A test uses this shape when the run must end before the tool runs.
     fn bare() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
 
@@ -102,12 +100,12 @@ impl Project {
     /// Creates a project with the cargo and the toolchains of this
     /// repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the cargo
-    /// that mise resolves for it is the cargo that the repository pins and
-    /// installs, and the nightly channel that cargo-udeps needs is the one
-    /// that the repository pins. The copy pins a cargo-udeps that nothing
-    /// installs. Mise ignores a configuration that nobody trusts, so the copy
-    /// is trusted right away.
+    /// The project copies the `mise.toml` of this repository. So the cargo that
+    /// mise resolves for it is the cargo that the repository pins and installs.
+    /// The nightly channel that cargo-udeps needs is also the one that the
+    /// repository pins. The copy pins a cargo-udeps that nothing installs. Mise
+    /// ignores a configuration that nobody trusts, so the copy is trusted right
+    /// away.
     fn new() -> Self {
         let project = Self::bare();
 
@@ -170,7 +168,7 @@ impl Project {
 
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for cargo, whatever the global configuration of the machine
     /// says about Rust.
     fn without_cargo() -> Self {
@@ -200,12 +198,11 @@ impl Project {
 
     /// Writes the lockfile of every workspace of the project that has none
     ///
-    /// The action holds cargo to the lockfile of a workspace, and cargo
-    /// refuses a workspace without one, as a project that commits its
-    /// lockfile never is. A test that writes a workspace therefore gets the
-    /// lockfile that a first build would write. A project in which cargo
-    /// cannot find its workspaces stays as it is, so that the run reports
-    /// what stops it.
+    /// The action holds cargo to the lockfile of a workspace. Cargo refuses a
+    /// workspace without one, as a project that commits its lockfile never is.
+    /// A test that writes a workspace therefore gets the lockfile that a first
+    /// build would write. A project in which cargo cannot find its workspaces
+    /// stays as it is, so that the run reports what stops it.
     async fn lock(&self) {
         let Ok(cargo) = Cargo::resolve(&self.context()).await else {
             return;
@@ -251,10 +248,10 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
-    /// would pile up there forever. A failure stays quiet, because the test
-    /// already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
+    /// pile up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")
@@ -350,8 +347,8 @@ fn summary(outcome: &Outcome) -> Option<&str> {
 /// Returns the manifest of a workspace whose package declares the helper in
 /// the given tables
 ///
-/// The workspace lists the helper as a member, so that cargo describes both
-/// packages as one workspace and the discovery of the roots finds one root.
+/// The workspace lists the helper as a member. That way cargo describes both
+/// packages as one workspace. So the discovery of the roots finds one root.
 fn workspace(tables: &str) -> String {
     format!(
         "[workspace]\nmembers = [\"helper\"]\n\n[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n{tables}"
@@ -401,9 +398,9 @@ async fn run_in_a_project_that_uses_every_dependency_counts_the_workspaces() {
 
 /// Shows that runs pass when all dependencies are used
 ///
-/// A run of cargo-udeps needs an unstable option of the compiler, and a
-/// stable toolchain refuses it and reports nothing, so a run that answers at
-/// all ran on the nightly toolchain that mise pins for the project.
+/// A run of cargo-udeps needs an unstable option of the compiler. A stable
+/// toolchain refuses it and reports nothing. So a run that answers at all ran
+/// on the nightly toolchain that mise pins for the project.
 #[tokio::test]
 async fn run_in_a_project_that_uses_every_dependency_passes() {
     let project = Project::with_dependency()

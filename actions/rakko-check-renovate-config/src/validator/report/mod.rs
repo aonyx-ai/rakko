@@ -1,11 +1,12 @@
 //! The reading of the log that the validator wrote
 //!
 //! The validator writes one JSON record per line on request. Most records are
-//! the log of the run, and some of them carry the answer: the configurations
-//! that the validator read, the problems that it found in them, and the note
-//! that it found no configuration at all. This module turns the records into
-//! that answer, and it judges nothing: the caller decides what the answer
-//! means for the outcome of a run.
+//! the log of the run. Some of them carry the answer. The answer holds the
+//! configurations that the validator read and the problems that it found in
+//! them. It also holds the note that it found no configuration at all.
+//!
+//! This module turns the records into that answer. It judges nothing. The
+//! caller decides what the answer means for the outcome of a run.
 
 mod error;
 
@@ -22,10 +23,11 @@ use crate::problem::RenovateProblem;
 
 /// The level of a record that reports a warning
 ///
-/// The log gives each record a number for its level: 30 for information, 40
-/// for a warning, 50 for an error, and 60 for a fatal record. A problem of a
-/// configuration arrives as a warning or as an error, and a record below this
-/// level is the log of the run.
+/// The log gives each record a number for its level. The numbers are 30 for
+/// information, 40 for a warning, 50 for an error, and 60 for a fatal record.
+///
+/// A problem of a configuration arrives as a warning or as an error. A record
+/// below this level is the log of the run.
 const WARNING: u32 = 40;
 
 /// The level of a record that the validator writes before it stops
@@ -33,8 +35,8 @@ const FATAL: u32 = 60;
 
 /// The text that starts the record that announces a configuration
 ///
-/// The validator writes it before it reads a configuration, and the rest of
-/// the text names the configuration in the same words as the problems of it.
+/// The validator writes it before it reads a configuration. The rest of the
+/// text names the configuration in the same words as the problems of it.
 const ANNOUNCEMENT: &str = "Validating ";
 
 /// The text that ends the announcement of a file that a run passes
@@ -46,11 +48,13 @@ const PASSED_REPOSITORY_CONFIGURATION: &str = " as repo config";
 
 /// The text that starts the record that counts what a passing run validated
 ///
-/// The validator writes it at the end of a run that found no problem, with the
-/// number of configurations that it validated between this text and
-/// [`COUNT_CLOSE`]. A key of `package.json` that holds several presets counts
-/// once for each of them, so the number is the answer of the validator and not
-/// a count of its announcements.
+/// The validator writes it at the end of a run that found no problem. It
+/// writes the number of configurations that it validated between this text and
+/// [`COUNT_CLOSE`].
+///
+/// A key of `package.json` that holds several presets counts once for each of
+/// them. So the number is the answer of the validator, not a count of its
+/// announcements.
 const COUNT_OPEN: &str = "Config validated successfully against ";
 
 /// The text that ends the record that counts what a passing run validated
@@ -91,9 +95,9 @@ pub(crate) enum Report {
 
     /// The validator wrote a fatal record and stopped
     ///
-    /// The validator stops when it cannot read the global configuration that
-    /// a run of Renovate would start with, before it reads a configuration of
-    /// the project.
+    /// The validator stops when it cannot read the global configuration that a
+    /// run of Renovate would start with. It stops before it reads a
+    /// configuration of the project.
     Halted {
         /// What the validator wrote in the fatal record
         details: String,
@@ -119,23 +123,25 @@ struct Record {
     /// The kind of global configuration that the record is about
     ///
     /// Before it looks for a configuration, the validator reads the global
-    /// configuration of the environment as Renovate would start with it, and
-    /// the records of that reading carry this field. Where the global
-    /// configuration is a file, the validator reads it again as a
-    /// configuration that it validates, and reports its errors and warnings
-    /// again with the file. The second reading starts from the configuration
-    /// that the first one migrated, so a migration of the file is reported
-    /// only by the first reading. A global configuration that the environment
-    /// holds in a variable is only read the first time. The validator fails a
-    /// run for neither of the two.
+    /// configuration of the environment as Renovate would start with it. The
+    /// records of that reading carry this field.
+    ///
+    /// Where the global configuration is a file, the validator reads it again
+    /// as a configuration that it validates. It reports its errors and
+    /// warnings again with the file. The second reading starts from the
+    /// configuration that the first one migrated. So a migration of the file is
+    /// reported only by the first reading.
+    ///
+    /// A global configuration that the environment holds in a variable is only
+    /// read the first time. The validator fails a run for neither of the two.
     #[serde(rename = "configType")]
     config_type: Option<Value>,
 
     /// The headers of a host rule that Renovate would not send
     ///
-    /// The validator lists them in a warning without a file before it
-    /// validates the configuration, and it reports each of them again as an
-    /// error of the configuration with the file.
+    /// The validator lists them in a warning without a file. This happens
+    /// before it validates the configuration. It then reports each of them
+    /// again as an error of the configuration with the file.
     denied: Option<Value>,
 
     /// The errors that the validator found in the configuration
@@ -237,16 +243,16 @@ enum Meaning {
 ///
 /// A record that the validator writes only as a log of the run carries no
 /// answer, and the reading leaves it out. A warning or an error that the
-/// reading does not know stops it instead, because a reading that tolerated
-/// such a record would let a run pass while a problem of the project went
-/// unread.
+/// reading
+/// does not know stops it instead. The reason is that a reading that tolerated such a record
+/// would let a run pass while a problem of the project went unread.
 ///
 /// # Errors
 ///
-/// Returns [`MalformedRecord`][malformed] for a line that is no JSON record,
-/// [`UnattributedMigration`][unattributed] for a migration before the first
-/// announcement, and [`UnrecognizedRecord`][unrecognized] for a warning or an
-/// error that the reading does not know.
+/// Returns [`MalformedRecord`][malformed] for a line that is no JSON record.
+/// Returns [`UnattributedMigration`][unattributed] for a migration before the
+/// first announcement. Returns [`UnrecognizedRecord`][unrecognized] for a
+/// warning or an error that the reading does not know.
 ///
 /// [malformed]: ReadReportError::MalformedRecord
 /// [unattributed]: ReadReportError::UnattributedMigration
@@ -311,15 +317,18 @@ pub(crate) fn read(log: &str) -> Result<Report, ReadReportError> {
 /// Returns what a record means for the answer, or `None` for a record that
 /// the reading does not know
 ///
-/// A fatal record stops the validator whatever else it carries. A record of
-/// the first reading of the global configuration counts as the log of the run,
-/// because the validator decides on the global configuration only where it
-/// reads it again as a file, and a migration that only the first reading
-/// reports does not fail the run of the validator either. A record that lists
-/// the denied headers of a host rule counts as the log as well, because the
-/// error that follows it reports the same headers with the file. Below the
-/// level of a warning, only the announcement of a configuration and the count
-/// of a passing run carry an answer.
+/// A fatal record stops the validator whatever else it carries.
+///
+/// A record of the first reading of the global configuration counts as the
+/// log of the run. The reason is that the validator decides on the global configuration only
+/// where it reads it again as a file. A migration that only the first reading
+/// reports does not fail the run of the validator either.
+///
+/// A record that lists the denied headers of a host rule counts as the log as
+/// well. The reason is that the error that follows it reports the same headers with the file.
+///
+/// Below the level of a warning, only the announcement of a configuration and
+/// the count of a passing run carry an answer.
 fn meaning(record: Record) -> Option<Meaning> {
     if record.level >= FATAL {
         return Some(Meaning::Fatal(fatal(&record)));

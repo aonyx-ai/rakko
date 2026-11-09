@@ -1,9 +1,8 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken TOML file sits in
-//! this repository, where the checks of the repository itself would fight
-//! it.
+//! against it. So no fixture with a deliberately broken TOML file sits in this
+//! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the taplo that the action declares. Each project pins
 //! another taplo that nothing installs, so a test passes only when the run
@@ -37,8 +36,8 @@ const INVALID: &str = "broken = [1,\n";
 
 /// A taplo configuration that taplo rejects
 ///
-/// The file is valid TOML, and the value of the option has the wrong type,
-/// so taplo warns and falls back to its defaults instead of failing.
+/// The file is valid TOML, and the value of the option has the wrong type. So
+/// taplo warns and falls back to its defaults instead of failing.
 const REJECTED_CONFIGURATION: &str = "[formatting]\nalign_entries = \"banana\"\n";
 
 /// A project that a test builds in a temporary directory
@@ -136,10 +135,10 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
-    /// would pile up there forever. A failure stays quiet, because the test
-    /// already reported what it was about.
+    /// Mise records the trust of a configuration in the user's state. The
+    /// temporary directory of a test never comes back, so the record would
+    /// pile up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")

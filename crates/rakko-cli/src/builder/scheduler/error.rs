@@ -34,7 +34,7 @@ pub(crate) enum RunGroupError {
 
     /// What a member found did not reach the reader
     ///
-    /// The run writes each report when its member finishes, and it stops at a
+    /// The run writes each report when its member finishes. It stops at a
     /// report that nothing takes, because the reader would learn nothing about
     /// the members that follow either.
     #[error("failed to report the outcome of the {member} action")]

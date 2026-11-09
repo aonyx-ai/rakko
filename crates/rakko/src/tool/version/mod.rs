@@ -8,11 +8,11 @@ pub use self::version_range::VersionRange;
 
 /// The versions of a tool that an action runs
 ///
-/// An action pins the exact version of a tool that it wraps, so that every
-/// run uses the version that the tests of the action cover. A toolchain is a
-/// tool that the code of the project builds or runs with, such as Node.js or
-/// TypeScript. The project pins its toolchains. So an action states only the
-/// range of versions that it accepts.
+/// An action pins the exact version of a tool that it wraps. That way every run
+/// uses the version that the tests of the action cover. A toolchain is a tool that the code
+/// of the project builds or runs with, such as Node.js or TypeScript. The
+/// project pins its toolchains. So an action states only the range of
+/// versions that it accepts.
 ///
 /// A later release can add a kind of requirement. So a match on
 /// `RequiredVersion` outside this crate needs an arm for a kind that it does

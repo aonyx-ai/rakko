@@ -18,11 +18,11 @@ const BACKTRACE_NOTE: &str = "note: run with `RUST_BACKTRACE=1`";
 
 /// One test that failed
 ///
-/// Nextest names the test and keeps what the test wrote, and the test
-/// harness of Rust writes the location and the message of a panic there. The
-/// failure keeps the output as it is and reads the panic out of it on
-/// demand, so a test that failed without a panic, or with an output that
-/// the crate cannot read, still names the test.
+/// Nextest names the test and keeps what the test wrote. The test harness
+/// of Rust writes the location and message of a panic there. The failure
+/// keeps the output as is and reads the panic out on demand.
+/// Therefore a test that failed without a panic, or with output that the
+/// crate cannot read, still names the test.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, bon::Builder, Getters)]
 pub(crate) struct TestFailure {
     /// The name of the test, as nextest wrote it
@@ -39,12 +39,12 @@ pub(crate) struct TestFailure {
 impl TestFailure {
     /// Returns the finding that reports the failure
     ///
-    /// The finding names the test and carries the message of the panic, at
-    /// the position where the test panicked, with the path relative to the
-    /// project root.
+    /// The finding names the test and carries the panic message at the
+    /// position where the test panicked. The path is relative to the project
+    /// root.
     ///
-    /// A test whose output names no panic, and a test that panicked in a
-    /// file outside the project, get a finding at the level of the project.
+    /// A test whose output names no panic gets a finding at the project level.
+    /// A test that panicked in a file outside the project gets one too.
     pub(crate) fn finding(&self, root: &CargoRoot, project: &ProjectRoot) -> Finding {
         let Some(panic) = self.panic() else {
             return Finding::builder()
@@ -77,11 +77,10 @@ impl TestFailure {
 
     /// Returns where and why the test panicked, when its output says
     ///
-    /// The test harness of Rust writes one line that names the location,
-    /// and the message of the panic follows on the lines below it, up to
-    /// the note about the backtrace. A test that ended another way, such as
-    /// one that the process killed, wrote no such line, and the method
-    /// answers `None`.
+    /// The test harness of Rust writes one line naming the location. The panic
+    /// message follows on the lines below it, up to the backtrace note. A test
+    /// that ended another way, such as one the process killed, wrote no such
+    /// line. The method answers `None`.
     pub(crate) fn panic(&self) -> Option<Panic> {
         let mut lines = self.output.lines();
         let header = lines.find(|line| line.contains(PANICKED_AT))?;

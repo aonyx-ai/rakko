@@ -1,10 +1,10 @@
 //! A version of the Rust compiler
 //!
-//! Two questions of this crate answer with a version: which toolchain a
-//! project pins for its builds, and which toolchain the packages of a
-//! workspace promise to compile on. Both read a version out of text that
-//! another program wrote, and both pick the newest of several, so this
-//! module holds the version and the comparison that orders them.
+//! Two questions of this crate answer with a version. The first asks which
+//! toolchain a project pins for its builds. The second asks which toolchain
+//! the packages of a workspace promise to compile on. Both read a version out
+//! of text that another program wrote, and both pick the newest of several. So
+//! this module holds the version and the comparison that orders them.
 //!
 //! Nothing here fails. A version that a program wrote is either a version or
 //! a name that is none, and the reading says which.
@@ -17,9 +17,10 @@ const SEPARATOR: char = '.';
 /// A version of the Rust compiler
 ///
 /// A version names a release of the compiler, such as `1.88.0`. It reaches
-/// the crate as text that another program wrote: mise reports the version
-/// that a pin of a project resolved to, and cargo reports the version that a
-/// package declares as the oldest one it compiles on.
+/// the crate as text that another program wrote.
+/// Mise reports the version that a pin of a project resolved to.
+/// Cargo reports the version that a package declares as the oldest one it
+/// compiles on.
 ///
 /// The value carries that text as it was written, because it is the name
 /// that rustup and a provisioning layer know the toolchain by. `1.88` and
@@ -27,8 +28,7 @@ const SEPARATOR: char = '.';
 /// here.
 ///
 /// The type has no order, because the order of the text is not the order of
-/// the versions: `1.9` comes before `1.88` as text and after it as a
-/// version.
+/// the versions. `1.9` comes before `1.88` as text and after it as a version.
 ///
 /// # Examples
 ///
@@ -104,10 +104,10 @@ impl RustVersion {
 
     /// Returns the highest of the versions, or `None` when there is none
     ///
-    /// A caller that holds several versions and needs one asks for the
-    /// newest of them: the newest pin of a project is the toolchain that it
-    /// builds with, and the newest declaration of a workspace is the only
-    /// toolchain that can compile every package in it.
+    /// A caller that holds several versions and needs one asks for the newest.
+    /// The newest pin of a project is the toolchain that it builds with. The
+    /// newest declaration of a workspace is the only toolchain that can
+    /// compile every package in it.
     pub(crate) fn highest(versions: impl IntoIterator<Item = Self>) -> Option<Self> {
         versions.into_iter().max_by(compare)
     }
@@ -138,18 +138,18 @@ fn compare(left: &RustVersion, right: &RustVersion) -> Ordering {
 
 /// Returns the number at an index of a version, and zero past its end
 ///
-/// A version can leave the parts behind the first one out, and `1.88` and
-/// `1.88.0` name one toolchain, so a part that is not there is a zero.
+/// A version can leave the parts behind the first one out. `1.88` and `1.88.0`
+/// name one toolchain, so a part that is not there is a zero.
 fn part(parts: &[u64], index: usize) -> u64 {
     parts.get(index).copied().unwrap_or(0)
 }
 
 /// Returns the numbers of a version, in the order that it wrote them
 ///
-/// Cargo refuses a manifest whose `rust-version` is not a version, so a part
-/// that is not a number cannot come from a manifest that cargo read. Such a
-/// part counts as zero, so that the comparison answers for every value that
-/// a caller can build.
+/// Cargo refuses a manifest whose `rust-version` is not a version.
+/// So a part that is not a number cannot come from a manifest that cargo read.
+/// Such a part counts as zero, so the comparison answers for every value
+/// that a caller can build.
 fn parts(version: &RustVersion) -> Vec<u64> {
     version
         .0

@@ -2,8 +2,8 @@
 //!
 //! This module holds the action and the error that stops a run. The action
 //! wraps zizmor as a subprocess: zizmor collects the files, reads its own
-//! configuration, and applies its audits, and the action translates what
-//! zizmor reported into an outcome.
+//! configuration, and applies its audits. The action translates what zizmor
+//! reported into an outcome.
 
 mod error;
 
@@ -26,29 +26,29 @@ const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 /// The action that audits the GitHub Actions workflows of a project
 ///
 /// The action wraps [zizmor]: zizmor collects the workflows of the project,
-/// reads its own configuration, and applies the audits that it knows, so a run
+/// reads its own configuration, and applies the audits that it knows. So a run
 /// agrees with an editor and with a contributor that runs zizmor bare. The
 /// zizmor that runs is the one that [mise] installed for the project, at the
 /// version that the project pinned, and the action installs nothing.
 ///
 /// A run only reports, and it takes no argument. A finding of zizmor names one
-/// or more places of a workflow, and each of those places becomes a finding of
-/// the run at the range that zizmor named. The message holds the severity, the
+/// or more places of a workflow. Each of those places becomes a finding of the
+/// run at the range that zizmor named. The message holds the severity, the
 /// audit, and the words that zizmor wrote about the place. A finding that
-/// zizmor calls informational fails a run like one that it calls high, because
-/// a project that wants an audit to stay quiet turns that audit off.
+/// zizmor calls informational fails a run like one that it calls high. This is
+/// because a project that wants an audit to stay quiet turns that audit off.
 ///
-/// A run asks zizmor for the pedantic persona, which reports the code smells
-/// of a workflow as well as the findings that zizmor is confident about.
+/// A run asks zizmor for the pedantic persona. This persona reports the code
+/// smells of a workflow as well as the findings that zizmor is confident about.
 /// Zizmor takes a persona on its command line alone, so a project cannot ask
 /// for one in its configuration file. A run also asks zizmor to stop at a file
-/// that it collected and cannot read, instead of dropping that file with a
-/// warning that no outcome carries.
+/// that it collected and cannot read. Zizmor would otherwise drop that file
+/// with a warning that no outcome carries.
 ///
 /// The action applies to a project that holds GitHub Actions workflows, and it
 /// skips visibly otherwise. A run stops with an error when mise reports no
-/// zizmor, when zizmor stops before it has audited the project, and when
-/// zizmor writes a report that the action cannot read.
+/// zizmor or when zizmor stops before auditing the project. An error also
+/// occurs when zizmor writes a report that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -96,9 +96,9 @@ impl Action for LintGitHubActions {
 /// it. An error that this function returns stops the run, and the caller
 /// reports it in the outcome.
 ///
-/// A passing run carries no summary. Zizmor names no count in its report, so
-/// a count from the action would be a guess about the set of files that the
-/// run examined.
+/// A passing run carries no summary. Zizmor names no count in its report. A
+/// count from the action would therefore be a guess about the set of files that
+/// the run examined.
 ///
 /// # Errors
 ///
@@ -134,8 +134,8 @@ async fn drive(context: &Context) -> Result<Outcome, LintGitHubActionsError> {
 ///
 /// The finding covers the range that zizmor named, so a reader and a code host
 /// see the part of the file that zizmor underlines. The message comes from
-/// zizmor, so a reader of a finding reads what the tool itself would have told
-/// them, including the severity that the audit carries.
+/// zizmor. So a reader of a finding reads what the tool itself would have told
+/// them. This includes the severity that the audit carries.
 ///
 /// # Errors
 ///

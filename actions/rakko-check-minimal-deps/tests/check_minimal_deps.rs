@@ -1,7 +1,7 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately failing test sits in this
+//! against it. So no fixture with a deliberately failing test sits in this
 //! repository, where the tests of the repository itself would fight it.
 //!
 //! A project of a test is a git repository with one empty commit, and the
@@ -12,8 +12,8 @@
 //! No project of a test declares a dependency that a registry holds. The
 //! resolution then needs no network, and what a test asserts does not depend
 //! on what crates.io published this morning. A floor that no registry serves
-//! resolves to itself, so a test reads whether the run resolved and tested at
-//! all, and cargo answers for which versions it picks.
+//! resolves to itself. So a test reads whether the run resolved and tested at
+//! all. Cargo answers for which versions it picks.
 //!
 //! The tests run the nextest that the action declares, with the cargo that
 //! this repository pins. A project copies the `mise.toml` of the repository
@@ -42,8 +42,8 @@ const PACKAGE: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition
 /// The manifest of a package that belongs to no workspace
 ///
 /// The empty workspace table tells cargo that the package is a root of its
-/// own, which cargo demands from a package below a workspace that does not
-/// list it.
+/// own. Cargo demands this from a package below a workspace that does not list
+/// it.
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
@@ -62,8 +62,8 @@ const MEMBER_LIBRARY: &str = "pub fn value() -> i32 {\n    1\n}\n";
 /// The manifest of a package whose dependency lies at a path that nothing
 /// holds
 ///
-/// Cargo describes the workspace of such a manifest without a word, because
-/// the description reads no dependency, and the resolution then fails over the
+/// Cargo describes the workspace of such a manifest without a word because the
+/// description reads no dependency. The resolution then fails over the
 /// directory that is not there.
 const MISSING_DEPENDENCY: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nmissing = { path = \"missing\" }\n";
 
@@ -77,7 +77,7 @@ const STALE_LOCK: &str = "version = 4\n\n[[package]]\nname = \"probe\"\nversion 
 /// A manifest with a build script that fails
 ///
 /// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the report holds nothing that the action
+/// diagnostic of the compiler. So the report holds nothing that the action
 /// recognizes.
 const FAILING_BUILD: &str =
     "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\nbuild = \"build.rs\"\n";
@@ -111,9 +111,9 @@ const BROKEN: &str = "pub fn broken() -> i32 {\n    \"no\"\n}\n";
 /// The prefix of the names of the environment that git reads for itself
 ///
 /// A test that runs inside a hook, a rebase, or a bisect of another repository
-/// inherits variables that name that repository, and those beat the directory
-/// that a command runs in. They therefore leave the environment of every git
-/// command of a test.
+/// inherits variables that name that repository. Those variables beat the
+/// directory that a command runs in. They therefore leave the environment of
+/// every git command of a test.
 const GIT_PREFIX: &[u8] = b"GIT_";
 
 /// The key that pins nextest in the mise configuration of a project
@@ -140,15 +140,15 @@ impl Project {
 
     /// Creates a project with the cargo of this repository, in a repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the cargo
-    /// and the nightly toolchain that mise resolves for it are the ones that
-    /// the repository pins and installs. The copy pins a nextest that nothing
+    /// The project copies the `mise.toml` of this repository. So the cargo and
+    /// the nightly toolchain that mise resolves for it are the ones that the
+    /// repository pins and installs. The copy pins a nextest that nothing
     /// installs. Mise ignores a configuration that nobody trusts, so the copy
     /// is trusted right away.
     ///
-    /// The repository holds one empty commit, and every file that a test
-    /// writes afterwards is untracked, which is the tree of a contributor who
-    /// has not committed their work yet.
+    /// The repository holds one empty commit. Every file that a test writes
+    /// afterwards is untracked, which is the tree of a contributor who has not
+    /// committed their work yet.
     fn new() -> Self {
         let project = Self::without_repository();
 
@@ -188,7 +188,7 @@ impl Project {
 
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for cargo, whatever the global configuration of the machine
     /// says about Rust.
     fn without_cargo() -> Self {
@@ -239,9 +239,9 @@ impl Project {
 
     /// Runs git in the project
     ///
-    /// The command forgets the variables that name a repository, so a test
-    /// that runs inside a hook of another repository still works on the one
-    /// that it created.
+    /// The command forgets the variables that name a repository. So a test that
+    /// runs inside a hook of another repository still works on the one that it
+    /// created.
     fn git(&self, arguments: &[&str]) {
         let mut command = Command::new("git");
         command.current_dir(self.directory.path()).args(arguments);
@@ -289,9 +289,9 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
     /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
@@ -448,8 +448,8 @@ async fn run_in_a_workspace_without_tests_counts_zero() {
 /// Shows that a run leaves the lockfile of the project alone
 ///
 /// The lockfile of the project is the one file that the recipe this action
-/// replaces used to leave rewritten, and the reason that the recipe refused a
-/// tree with changes in it.
+/// replaces used to leave rewritten. This is the reason that the recipe refused
+/// a tree with changes in it.
 #[tokio::test]
 async fn run_leaves_the_lockfile_of_the_project_alone() {
     let project = Project::new();
@@ -575,8 +575,8 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote(
 /// Shows that a dependency that cargo cannot resolve runs no test
 ///
 /// A run that tested a workspace whose resolution failed would answer for a
-/// lockfile that nobody wrote, so the finding of the update is the only one
-/// that such a run reports.
+/// lockfile that nobody wrote. So the finding of the update is the only one that
+/// such a run reports.
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_runs_no_test() {
     let project = Project::new();
@@ -688,10 +688,10 @@ async fn run_with_a_stale_lockfile_leaves_the_project_unchanged() {
 /// Shows that a run with a stale lockfile passes
 ///
 /// The lockfile of the project names no member, so a build that holds cargo to
-/// it ends without success. The run passes, which it can only do when the
-/// update wrote the member into the lockfile of the copy and the tests built
-/// what that lockfile holds. Cargo refuses the option of the update on every
-/// channel but the nightly, so an update that reached this far ran there.
+/// it ends without success. The run passes only when the update wrote the
+/// member into the lockfile of the copy and the tests built what that lockfile
+/// holds. Cargo refuses the option of the update on every channel but the
+/// nightly, so an update that reached this far ran there.
 #[tokio::test]
 async fn run_with_a_stale_lockfile_passes() {
     let project = Project::new();

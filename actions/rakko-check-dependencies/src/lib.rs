@@ -1,13 +1,13 @@
 //! The action that examines the dependencies of a project
 //!
 //! A project depends on code that it did not write, and [cargo-deny] answers
-//! three questions about that code: whether every package carries a license
-//! that the project accepts, whether the packages come from a registry that
-//! the project trusts, and whether the graph holds a shape that the project
-//! banned, such as two versions of one package or a version requirement that
-//! accepts any future release. The action declares the version of
-//! cargo-deny that it runs. It starts that version, which [mise] installed,
-//! and translates what cargo-deny reported into the outcome of the run.
+//! three questions about that code. Does every package carry a license that the
+//! project accepts? Do the packages come from a registry that the project
+//! trusts? Does the graph hold a shape that the project banned? Examples are
+//! two versions of one package and a version requirement that accepts any
+//! future release. The action declares the version of cargo-deny that it runs.
+//! It starts that version, which [mise] installed, and translates what
+//! cargo-deny reported into the outcome of the run.
 //!
 //! Cargo-deny is its own program, and not a subcommand that cargo carries, so
 //! the action starts it directly. Cargo answers a different question for the
@@ -16,15 +16,16 @@
 //! checks each of them.
 //!
 //! Cargo-deny weighs everything that it reports with the level that the
-//! configuration of the project gave the check: `deny` for a shape that must
-//! not appear, `warn` for one that a maintainer wants to read about, and
-//! `allow` for one that the project does not care about. An error therefore
-//! fails a run, a warning does not, and a passing run says how many warnings
-//! it read, so the middle level keeps the meaning that the project gave it.
+//! configuration of the project gave the check. `deny` marks a shape that must
+//! not appear. `warn` marks one that a maintainer wants to read about. `allow`
+//! marks one that the project does not care about. An error therefore fails a
+//! run. A warning does not. A passing run says how many warnings it read, so
+//! the
+//! middle level keeps the meaning that the project gave it.
 //!
 //! A finding names the workspace that the error came from and no path. The
 //! place that cargo-deny underlines is a line of a lock file, or of a
-//! manifest that lies in the registry cache of the machine, so a finding that
+//! manifest that lies in the registry cache of the machine. So a finding that
 //! claimed a path would name a file that a reader cannot open.
 //!
 //! A run only reports, so the action takes no argument. The action applies to

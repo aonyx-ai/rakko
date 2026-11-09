@@ -9,8 +9,8 @@ use rakko::{FilePath, ProjectRoot};
 /// The place in the project that a diagnostic points at
 ///
 /// Tsc writes the path, the line, and the column in front of a diagnostic that
-/// it found in a file. The path stands as tsc wrote it: a run starts tsc in
-/// the project root and names the root as the project, so tsc reports a path
+/// it found in a file. The path stands as tsc wrote it. A run starts tsc in the
+/// project root and names the root as the project, so tsc reports a path
 /// relative to it. A caller that reports the diagnostic asks for the
 /// [relative][relative] path.
 ///

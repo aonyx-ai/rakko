@@ -21,20 +21,20 @@ use crate::tool::ToolRequirement;
 /// holds erased actions instead.
 ///
 /// An erased action answers everything that the machinery needs without
-/// naming the type of the action: the name that identifies it, the
-/// description of the arguments that a projection turns into a command, the
-/// external tools that it runs, and a bind that takes the values of that
-/// command. The conversion from those
-/// values into the arguments of the action happens inside, where the type is
-/// still known. The bind returns a [`BoundAction`], which declares how the run
-/// uses the project and then runs with the same arguments.
+/// naming the type of the action. It gives the name that identifies it and
+/// the external tools that it runs. It gives the description of the arguments
+/// that a projection turns into a command. It also gives a bind that takes the
+/// values of that command. The conversion from those values into the
+/// arguments of the action happens inside, where the type is still known.
+/// The bind returns a [`BoundAction`], which declares how the run uses the
+/// project and then runs with the same arguments.
 ///
 /// Every action has an erased view, because this trait is implemented for all
 /// of them. An action author never writes this implementation and never
 /// writes this trait. A harness does not write it either. The harness gives
 /// each action as it is to the builder of the command line, or to the list of
-/// a [`Bundle`], and these erase the action themselves. Only an author of a
-/// group writes the trait, in the members of the group.
+/// a [`Bundle`]. These erase the action themselves. Only an author of a group writes the
+/// trait, in the members of the group.
 ///
 /// No crate outside this one can implement the trait. So a later release can
 /// add a method to it, such as one that reads a new declaration of the
@@ -112,9 +112,9 @@ pub trait ErasedAction: Send + Sync + Sealed {
     /// Converts the values of a run into the arguments of the action
     ///
     /// The values hold what the machinery parsed for the arguments of the
-    /// action. The answer holds the action together with its arguments, so a
-    /// caller can ask it how the run uses the project and then run it, and
-    /// both see the same arguments.
+    /// action. The answer holds the action together with its arguments. So a
+    /// caller can ask it how the run uses the project and then run it, and both
+    /// see the same arguments.
     ///
     /// # Errors
     ///

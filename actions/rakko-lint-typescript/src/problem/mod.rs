@@ -1,8 +1,8 @@
 //! One diagnostic that oxlint reported about a project
 //!
-//! A run of oxlint reports one diagnostic for each rule that a file broke, and
-//! one for each problem that it found with the project itself, such as a
-//! suppressions file that no longer agrees with the code. This module holds
+//! A run of oxlint reports one diagnostic for each rule that a file broke. It
+//! reports one for each problem that it found with the project itself, such as
+//! a suppressions file that no longer agrees with the code. This module holds
 //! one of them: where it belongs, how the project weighs it, and what oxlint
 //! said about it.
 
@@ -33,14 +33,14 @@ const HELP_OPEN: &str = " help: ";
 /// One diagnostic that oxlint reported about a project
 ///
 /// A diagnostic belongs to a position in a file, to a whole file, or to the
-/// project, and the [place][place] says which. A diagnostic about the code of
-/// a file marks one or more places in it, and this value carries the first of
-/// them, because oxlint reports one diagnostic however many places it marks.
+/// project, and the [place][place] says which. A diagnostic about the code of a
+/// file marks one or more places in it. This value carries the first of them,
+/// because oxlint reports one diagnostic however many places it marks.
 ///
-/// The description is the sentence that oxlint wrote for a reader, the code is
-/// the rule that the diagnostic reports, and the severity is the one that
-/// oxlint gave it, which the configuration of the project decides for a rule.
-/// A diagnostic that no rule reports, such as a syntax error or a diagnostic
+/// The description is the sentence that oxlint wrote for a reader. The code is
+/// the rule that the diagnostic reports. The severity is the one that oxlint
+/// gave it, which the configuration of the project decides for a rule. A
+/// diagnostic that no rule reports, such as a syntax error or a diagnostic
 /// about the project, has no code. Oxlint suggests what to do about most
 /// diagnostics, and the suggestion travels where oxlint wrote one. A reader of
 /// a finding therefore reads the answer of the tool, and not one that this
@@ -78,8 +78,8 @@ impl OxlintProblem {
     /// Returns the sentence that oxlint wrote about the diagnostic
     ///
     /// The sentence holds the severity, the rule, the description, and the
-    /// suggestion, in the order that oxlint writes them, so that a finding
-    /// reads like the line that a contributor sees when they run oxlint
+    /// suggestion, in the order that oxlint writes them. The order makes a
+    /// finding read like the line that a contributor sees when they run oxlint
     /// themselves. A diagnostic without a rule leaves the rule and its
     /// separator out, so that the sentence holds only the words of oxlint.
     pub(crate) fn message(&self) -> String {

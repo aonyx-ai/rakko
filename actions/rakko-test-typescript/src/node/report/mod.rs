@@ -1,16 +1,16 @@
 //! The reading of the report that the test runner wrote
 //!
 //! The runner reports a run as TAP: one line per test that says whether it
-//! passed, and an indented block below it that carries the place of the test
-//! and, for a test that failed, what went wrong. The report closes with one
-//! line per count of the run.
+//! passed. An indented block below it carries the place of the test and, for a
+//! test that failed, what went wrong. The report closes with one line per
+//! count of the run.
 //!
 //! This module turns that text into a [`Report`]. It judges nothing: the
 //! caller decides what a failure means for the outcome of a run.
 //!
 //! The reading keeps only what a caller needs, which is the tests that failed
 //! and the counts. It is strict about the shape all the same, because a line
-//! that it cannot place belongs to a report that it does not know, and the
+//! that it cannot place belongs to a report that it does not know. The
 //! failures it collected from such a report are the ones that it happened to
 //! understand.
 
@@ -79,11 +79,11 @@ const JOIN: char = ' ';
 /// What the test runner reported about a run
 ///
 /// The report carries the tests that failed and the count of the tests that
-/// ran. A run that ran no test counted none, which is how a caller tells a
-/// project that holds no test from one whose tests all passed: both report no
-/// failure, and only the first reports no test.
+/// ran. A run that ran no test counted none. This separates a project with no
+/// test from one whose tests all passed: both report no failure, and only the
+/// first reports no test.
 ///
-/// A test that passed carries nothing that a caller needs, so the report keeps
+/// A test that passed carries nothing that a caller needs. So the report keeps
 /// no record of it beyond the count.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub(crate) struct Report {
@@ -100,15 +100,15 @@ pub(crate) struct Report {
 ///
 /// The reading collects the tests that failed and the counts that close the
 /// report. A test that the project marked as skipped or as still to do carries
-/// a directive behind its name, and the runner counts neither as a failure
+/// a directive behind its name. The runner counts neither as a failure
 /// however it ended, so the reading leaves it out as well.
 ///
 /// # Errors
 ///
-/// Returns [`MissingHeader`][header] for text that opens no report,
+/// Returns [`MissingHeader`][header] for text that opens no report. Returns
 /// [`MissingCounts`][counts] for a report that ends without the counts of the
-/// run, and [`UnreadableLine`][unreadable] for a line that the reading cannot
-/// place.
+/// run. Returns [`UnreadableLine`][unreadable] for a line that the reading
+/// cannot place.
 ///
 /// [counts]: ReadReportError::MissingCounts
 /// [header]: ReadReportError::MissingHeader
@@ -233,8 +233,8 @@ fn number(text: &str) -> bool {
 /// Returns the name of a test, with the escapes of the report undone
 ///
 /// The report escapes the character that opens a comment and the character
-/// that escapes, so that the name of a test always fits on one line and never
-/// reads as a directive.
+/// that escapes. So the name of a test always fits on one line and never reads
+/// as a directive.
 fn unescape(name: &str) -> String {
     let mut unescaped = String::with_capacity(name.len());
     let mut characters = name.chars();
@@ -256,17 +256,17 @@ fn unescape(name: &str) -> String {
 
 /// Returns the key and the value that a line of counts states
 ///
-/// The report writes a count as a comment that holds the name and the number,
-/// so the reading drops the character that opens the comment first.
+/// The report writes a count as a comment that holds the name and the number.
+/// So the reading drops the character that opens the comment first.
 fn stated(line: &str) -> Option<(&str, &str)> {
     line.trim().strip_prefix(HASH)?.trim().split_once(JOIN)
 }
 
 /// Returns the lines of a report, split into its results and its counts
 ///
-/// The report closes with one line per count of the run, and each of them is a
+/// The report closes with one line per count of the run. Each of them is a
 /// comment that holds a name and a number. A test writes to its own output as
-/// a comment as well, so the counts are the block of them that the report ends
+/// a comment as well. So the counts are the block of them that the report ends
 /// with, and nothing before it.
 ///
 /// # Errors
@@ -336,7 +336,7 @@ fn start(line: &str) -> Option<Pending> {
 
 /// Returns the name of a test and the directive that follows it
 ///
-/// A directive says that the project excused the test, and it sits behind the
+/// A directive says that the project excused the test. It sits behind the
 /// name after the character that opens a comment. That character is escaped
 /// inside a name, so the first one that is not escaped opens the directive.
 fn split_directive(named: &str) -> (&str, Option<&str>) {
@@ -379,8 +379,8 @@ enum TestOutcome {
 
 /// One result of a report whose block the reading has yet to see
 ///
-/// The report writes the block of a result below the line that states it, so a
-/// result is complete only once the next one starts or the report ends. This
+/// The report writes the block of a result below the line that states it. So a
+/// result is complete only once the next one starts or the report ends. It
 /// holds the parts until then.
 struct Pending {
     /// The name of the test, with the escapes of the report undone
@@ -403,8 +403,8 @@ impl Pending {
     /// Adds the failures of this result to the given list
     ///
     /// A result that passed adds nothing. Neither does one that failed only
-    /// because a test below it failed, because that test is in the list
-    /// already, at the place where a reader repairs it.
+    /// because a test below it failed. That test is in the list already, at
+    /// the place where a reader repairs it.
     fn collect(self, failures: &mut Vec<Failure>) {
         match self.outcome {
             TestOutcome::Passed => {}
@@ -578,8 +578,8 @@ mod tests {
     /// Shows that a read of a report of a test whose name holds a hash reports
     /// the failure
     ///
-    /// The report escapes the character that opens a directive inside a name,
-    /// so a name that holds one is no directive and the test still counts.
+    /// The report escapes the character that opens a directive inside a name.
+    /// A name that holds one is no directive, so the test still counts.
     #[test]
     fn read_of_a_report_of_a_test_whose_name_holds_a_hash_reports_the_failure() {
         let report = read(

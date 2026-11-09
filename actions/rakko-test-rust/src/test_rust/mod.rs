@@ -21,8 +21,8 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
 /// The action that runs the tests of a project
 ///
-/// The action wraps [nextest]: cargo builds every target of every package
-/// with every feature, and nextest reads its own configuration and runs the
+/// The action wraps [nextest]. Cargo builds every target of every package
+/// with every feature. Nextest reads its own configuration and runs the
 /// tests, so a run agrees with a contributor that runs nextest bare. The
 /// nextest that runs is the version that the action declares, which [mise]
 /// installed, whatever version the project pins. The cargo that builds is
@@ -41,17 +41,18 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
 /// run stops with an error when the project pins no stable Rust toolchain that
-/// the action accepts, when mise reports no nextest at the declared version,
-/// when the workspaces of the project cannot be discovered, when the lockfile
-/// of a workspace needs an update, and when nextest writes a report that the
-/// run cannot answer from.
+/// the action accepts. It stops when mise reports no nextest at the declared
+/// version. It stops when the workspaces of the project cannot be discovered or
+/// when the lockfile of a workspace needs an update. It stops when nextest
+/// writes a report that the run cannot answer from.
 ///
-/// A run declares a read of the project. It holds cargo to the lockfile of each
-/// workspace, and cargo writes what it builds into the `target` directory,
+/// A run declares a read of the project. It holds cargo to the lockfile of
+/// each workspace. Cargo writes what it builds into the `target` directory,
 /// which cargo locks against parallel use itself. The declaration covers the
-/// action and cargo, and not the tests, build scripts, and procedural macros of
-/// the project, which can write files of their own. A caller that orders runs
-/// by their declarations runs it after the actions that write.
+/// action and cargo. It does not cover the tests, build scripts, and
+/// procedural macros of the project, which can write files of their own. A
+/// caller that orders runs by their declarations runs it after the actions
+/// that write.
 ///
 /// # Examples
 ///
@@ -102,9 +103,9 @@ impl Action for TestRust {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of
-/// a tool, the discovery of the workspaces, or a run of nextest that left
-/// no answer.
+/// Returns the error of the step that could not finish. The step is the
+/// resolution of a tool, the discovery of the workspaces, or a run of nextest
+/// that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
     let cargo = Cargo::resolve(context)
         .await

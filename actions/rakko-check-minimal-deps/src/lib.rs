@@ -3,21 +3,21 @@
 //!
 //! A manifest states a floor for each dependency, and a floor is a promise:
 //! that version of the dependency works. An ordinary build reaches for the
-//! newest version that the floor allows and never touches the floor itself,
-//! so the action resolves the floors and runs the tests against them.
+//! newest version that the floor allows and never touches the floor itself.
+//! So the action resolves the floors and runs the tests against them.
 //!
 //! [Cargo] resolves and [nextest] tests. Nextest runs at the version that the
 //! action declares, which [mise] installed. The resolution runs on the nightly
 //! toolchain that the project pins, because the option that asks for the floors
-//! is unstable, and the tests run on the toolchain that the project builds
-//! with. The whole run happens in a disposable copy of the project, because a
-//! resolution rewrites a lockfile, and the checkout of a contributor is no
-//! place for that.
+//! is unstable. The tests run on the toolchain that the project builds with.
+//! The whole run happens in a disposable copy of the project. A resolution
+//! rewrites a lockfile, so the checkout of a contributor is not the place for
+//! it.
 //!
 //! A run only reports, and it takes no argument. An update that cargo could
-//! not finish becomes a finding at the manifest of its workspace, a test that
-//! failed becomes a finding at the position where it panicked, and a build
-//! that does not finish becomes findings from the diagnostics of the compiler.
+//! not finish becomes a finding at the manifest of its workspace. A test that
+//! failed becomes a finding at the position where it panicked. A build that
+//! does not finish becomes findings from the diagnostics of the compiler.
 //! A project whose cargo discovers no workspace skips visibly, and says so.
 //!
 //! # Examples

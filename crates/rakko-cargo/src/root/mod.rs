@@ -1,8 +1,8 @@
 //! One workspace root of a project
 //!
-//! This module holds the root that the discovery reports and what a root
-//! knows about the packages of its workspace, which is what a caller reads
-//! instead of asking cargo a second time.
+//! This module holds the root that the discovery reports and what a root knows
+//! about the packages of its workspace. A caller reads that instead of asking
+//! cargo a second time.
 
 mod documentation;
 mod package;
@@ -24,22 +24,21 @@ pub(crate) const MANIFEST: &str = "Cargo.toml";
 /// One workspace root of a project
 ///
 /// Cargo works on one workspace at a time, and a project can hold more than
-/// one: the harness of a project is a package of its own, outside the
+/// one. The harness of a project is a package of its own, outside the
 /// workspace of the crates that it maintains. A root names the directory of
-/// one workspace, so that an action runs its job there and reads the paths
+/// one workspace. This lets an action run its job there and read the paths
 /// that cargo reports relative to it.
 ///
-/// The directory is absolute, because a run starts cargo in it. A caller
-/// that reports a problem asks for a path [relative][relative] to the
-/// project root, which is the name that a reader, a machine, and a code host
-/// all recognize.
+/// The directory is absolute, because a run starts cargo in it. A caller that
+/// reports a problem asks for a path [relative][relative] to the project root.
+/// This is the name that a reader, a machine, and a code host all recognize.
 ///
-/// A root also carries what cargo said about the packages of its workspace:
-/// their names, which of them share a crate name, whether cargo can test the
-/// examples in their documentation, and the oldest toolchain that they
-/// promise to compile on. The discovery of the roots asks cargo to describe
-/// every workspace anyway, and one description answers all of them, so a
-/// caller reads them here instead of asking cargo again.
+/// A root also carries what cargo said about the packages of its workspace. It
+/// carries their names and which of them share a crate name. It also carries
+/// whether cargo can test the examples in their documentation and the oldest
+/// toolchain that they promise to compile on. The discovery of the roots asks
+/// cargo to describe every workspace anyway, and one description answers all
+/// of them. So a caller reads them here instead of asking cargo again.
 ///
 /// The type has no order, because a version has none. A caller that wants
 /// the roots in a fixed order sorts them by their directory, which is how
@@ -89,7 +88,7 @@ impl CargoRoot {
     ///
     /// A root whose packages declare no `rust-version` carries none. A root
     /// built without its packages names none, so no package of it shares a
-    /// crate name, and a caller treats the workspace as one whole.
+    /// crate name. A caller treats the workspace as one whole.
     ///
     /// # Examples
     ///
@@ -141,9 +140,9 @@ impl CargoRoot {
     /// Returns the directory of the root, relative to the project root
     ///
     /// Returns `None` when the project root does not contain the directory.
-    /// The discovery finds a root below the project root, so a directory
-    /// that does not fit points at a project that moved while the run was
-    /// on, and the caller decides what to do about that.
+    /// The discovery finds a root below the project root. So a directory that
+    /// does not fit points at a project that moved while the run was on. The
+    /// caller decides what to do about that.
     ///
     /// The directory of the project root itself has no name, and the empty
     /// path is that name: joining a file to it yields the file.
@@ -234,8 +233,9 @@ fn normalize(path: &Path) -> PathBuf {
 /// Returns the path without the project root that prefixes it
 ///
 /// The root of a context can name the same directory through a symbolic
-/// link, and cargo answers with the directory that it resolved, which is why
-/// the canonical root is tried as well.
+/// link.
+/// Cargo answers with the directory that it resolved, which is why the
+/// canonical root is tried as well.
 fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
     if let Ok(stripped) = path.strip_prefix(root.get()) {
         return Some(stripped.to_path_buf());
@@ -370,10 +370,11 @@ mod tests {
 
     /// Shows that the resolved root must use cargo's spelling
     ///
-    /// Cargo writes the directory that the file system resolved, and on some
-    /// platforms the temporary directory differs from it as text: a symbolic
-    /// link on macOS, and a short name on Windows. The resolved root must then
-    /// carry the spelling that cargo writes, or no file gets a name.
+    /// Cargo writes the directory that the file system resolved.
+    /// On some platforms the temporary directory differs from it as text: a
+    /// symbolic link on macOS or a short name on Windows.
+    /// The resolved root must carry the spelling that cargo writes, or no file
+    /// gets a name.
     #[test]
     fn relative_path_of_an_absolute_path_under_the_resolved_root_drops_it() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");

@@ -14,21 +14,21 @@ pub(crate) use self::group_summary::GroupSummary;
 /// What a run reports about the action that it drove
 ///
 /// A report owns the name of the action and the outcome that the action
-/// returned, and it is what a run hands to the command line. Every way of
-/// showing a run reads this one value: [`Display`] writes the text that a
-/// reader at a terminal gets, and [`Serialize`] writes the JSON that a
-/// machine gets. The report of an action that stopped shows the error and
-/// every cause of it, in text and in JSON.
+/// returned. It is what a run hands to the command line. Every way of showing a
+/// run reads this one value. [`Display`] writes the text that a reader at a
+/// terminal gets, and [`Serialize`] writes the JSON that a machine gets. The
+/// report of an action that stopped shows the error and every cause of it, in
+/// text and in JSON.
 ///
 /// An action produces none of this. It returns an outcome, and the report
-/// decides how that outcome reaches a reader, so the output of every project
-/// in the fleet has one shape and no action carries code that draws it.
+/// decides how that outcome reaches a reader. So the output of every project in
+/// the fleet has one shape, and no action carries code that draws it.
 ///
 /// A command that a harness wrote reports what it wants, and a command that
 /// drives actions itself wants exactly this. It creates one report for each
-/// action that it ran and writes that report as an artifact of Clawless, so
-/// the run shows what a run of each action alone shows, in text and in JSON,
-/// and the harness carries no renderer of its own.
+/// action that it ran and writes that report as an artifact of Clawless. So the
+/// run shows what a run of each action alone shows, in text and in JSON. The
+/// harness carries no renderer of its own.
 ///
 /// # Examples
 ///

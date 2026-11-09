@@ -18,14 +18,14 @@ const ZIZMOR: &str = "zizmor";
 
 /// The option that asks zizmor for its report as data
 ///
-/// Zizmor writes a block of source per finding by default, with the audit
-/// above it and the annotations of its places drawn into it. The same run
-/// writes the findings as data on request, and each of them then carries the
-/// audit, the severity, the place, and the annotation in fields instead of in
-/// a block that a reader has to take apart. The format also protects a run
+/// Zizmor writes a block of source per finding by default, with the audit above
+/// it and the annotations of its places drawn into it. The same run writes the
+/// findings as data on request. Each finding then carries the audit, the
+/// severity, the place, and the annotation in fields instead of in a block. A
+/// reader would have to take that block apart. The format also protects a run
 /// from its environment, because the default format changes on a terminal and
-/// on a build server. The option selects the presentation of the report and
-/// not the behavior of the tool.
+/// on a build server. The option selects the presentation of the report and not
+/// the behavior of the tool.
 const FORMAT: &str = "--format";
 
 /// The name of the format that carries the findings as data
@@ -33,9 +33,9 @@ const JSON: &str = "json";
 
 /// The option that asks zizmor how much of what it sees to report
 ///
-/// Zizmor takes the persona on its command line alone, and its configuration
-/// file has no key for one, so a run that names no persona gets the regular
-/// persona and the project has no way to ask for more.
+/// Zizmor takes the persona on its command line alone. Its configuration file
+/// has no key for one. So a run that names no persona gets the regular persona,
+/// and the project has no way to ask for more.
 const PERSONA: &str = "--persona";
 
 /// The persona that reports the code smells of a workflow as well
@@ -47,10 +47,10 @@ const PEDANTIC: &str = "pedantic";
 
 /// The option that asks zizmor to stop at a file that it cannot read
 ///
-/// Zizmor warns about such a file by default, drops it, and audits the rest,
-/// so a workflow with a syntax error or with a key that GitHub does not define
-/// leaves the audit through a warning that no outcome carries. An audit that
-/// is worth running is worth running over every file that it collected.
+/// Zizmor warns about such a file by default, drops it, and audits the rest. A
+/// workflow with a syntax error or a key that GitHub does not define therefore
+/// leaves the audit through a warning that no outcome carries. An audit worth
+/// running is worth running over every file that it collected.
 const STRICT_COLLECTION: &str = "--strict-collection";
 
 /// The place that a run tells zizmor to look
@@ -67,10 +67,10 @@ const NOTHING_COLLECTED: i32 = 3;
 
 /// The lowest status of a zizmor that audited the project and found something
 ///
-/// Zizmor separates the findings of a project from its own failures. It ends
-/// with one of the statuses of this range when it has a finding to report,
-/// and the status names the highest severity that the run found. Every other
-/// status belongs to a run that stopped before it was done.
+/// Zizmor separates the findings of a project from its own failures. When the
+/// run has a finding, it exits with a status from this range. The status
+/// names the highest severity that the run found. Every other status belongs
+/// to a run that stopped before it was done.
 const LOWEST_FINDING: i32 = 11;
 
 /// The highest status of a zizmor that audited the project and found something
@@ -78,8 +78,8 @@ const HIGHEST_FINDING: i32 = 14;
 
 /// The zizmor that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
+/// The value holds the program that mise installed for the project at the
+/// version that the project pinned. So a run reaches the same program as the
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and a zizmor that mise does not report
 /// stops the caller.
@@ -92,11 +92,11 @@ pub(crate) struct Zizmor {
 impl Zizmor {
     /// Runs zizmor over the project and reads what it reported
     ///
-    /// The run names the root of the project, asks for the pedantic persona,
-    /// asks zizmor to stop at a file that it cannot read, and asks for the
-    /// report as data. Zizmor writes the report on its standard output stream,
-    /// and it uses the standard error stream for its log and for the reason of
-    /// a run that it stopped.
+    /// The run names the root of the project and asks for the pedantic persona.
+    /// It asks zizmor to stop at a file that it cannot read and to give the
+    /// report as data. Zizmor writes the report on its standard output stream.
+    /// It uses the standard error stream for its log and for the reason of a
+    /// run that it stopped.
     ///
     /// A run that collected no file to audit is no failure. The observation
     /// reports it, because zizmor writes the same empty report for a project
@@ -105,9 +105,9 @@ impl Zizmor {
     /// # Errors
     ///
     /// Returns [`ZizmorUnavailable`][unavailable] when zizmor does not run,
-    /// [`IncompleteAudit`][incomplete] when zizmor stopped before it had
-    /// audited the project, and [`UnreadableReport`][unreadable] when it wrote
-    /// a report that this crate cannot read.
+    /// Returns [`IncompleteAudit`][incomplete] when zizmor stopped before it
+    /// had audited the project. Returns [`UnreadableReport`][unreadable] when
+    /// it wrote a report that this crate cannot read.
     ///
     /// [incomplete]: ObserveZizmorError::IncompleteAudit
     /// [unavailable]: ObserveZizmorError::ZizmorUnavailable
@@ -155,9 +155,9 @@ impl Zizmor {
 
     /// Returns the zizmor that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path.
+    /// The lookup asks mise about the project at the caller's root. The version
+    /// that the project pinned answers, whatever the shell that started the
+    /// process carries on its path.
     ///
     /// # Errors
     ///
@@ -190,8 +190,8 @@ enum Collection {
 
 /// Returns what a run found to audit, or `None` for a run that stopped
 ///
-/// Zizmor ends with success when it audited the project and found nothing,
-/// and with one of the statuses of the finding range when it has something to
+/// Zizmor ends with success when it audited the project and found nothing. It
+/// ends with one of the statuses of the finding range when it has something to
 /// report. It ends with its own status when it collected no file. Every other
 /// status, and a run that no status ended, belongs to a zizmor that stopped
 /// before it had audited the project.

@@ -19,11 +19,11 @@ pub use self::span::Span;
 /// all.
 ///
 /// A location therefore names the level that it speaks at, and each level
-/// carries what that level knows and nothing more. A reader of a location
-/// gets the level first, and the level alone tells the reader what it can
-/// show. A level that says less is an honest answer, not a defect: an action
-/// gives the level that its tool supports, and it never claims a precision
-/// that the tool did not give it.
+/// carries what that level knows and nothing more. A reader of a location gets
+/// the level first, and the level alone tells the reader what it can show. A
+/// level that says less is an honest answer, not a defect. An action gives the
+/// level that its tool supports, and it never claims a precision that the tool
+/// did not give it.
 ///
 /// Every path in a location is relative to the project root. A reader, a
 /// machine, and a code host therefore see the same path for the same file.
@@ -82,8 +82,8 @@ pub enum Location {
     },
     /// The problem covers a range of a file
     ///
-    /// A compiler and a formatter report at this level, because a problem
-    /// that they find can start on one line and end on a later one.
+    /// A compiler and a formatter report at this level. That is because a
+    /// problem that they find can start on one line and end on a later one.
     Span {
         /// The path of the file that the problem is in
         path: FilePath,

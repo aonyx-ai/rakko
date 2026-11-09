@@ -1,9 +1,9 @@
 //! The action that formats the TypeScript of a project
 //!
 //! This module holds the action, the arguments that a run reads, and the error
-//! that stops a run. The action wraps oxfmt as a subprocess: it names the files
-//! of the language, oxfmt reads its own configuration and does the formatting,
-//! and the action translates what oxfmt reported into an outcome.
+//! that stops a run. The action wraps oxfmt as a subprocess and names the files
+//! of the language. Oxfmt reads its own configuration and does the formatting.
+//! The action translates what oxfmt reported into an outcome.
 
 mod args;
 mod error;
@@ -38,32 +38,32 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 
 /// The action that formats the TypeScript of a project
 ///
-/// The action wraps [oxfmt]: the action names the files of the language, oxfmt
-/// reads its own configuration and formats what its ignore files leave, so a
-/// run agrees with an editor and with a contributor that runs oxfmt bare. The
-/// oxfmt that runs is the one that [mise] installed for the project, at the
-/// version that the project pinned, and the action installs nothing.
+/// The action wraps [oxfmt] and names the files of the language. Oxfmt reads
+/// its own configuration and formats what its ignore files leave. So a run
+/// agrees with an editor and with a contributor that runs oxfmt bare. The oxfmt
+/// that runs is the one that [mise] installed for the project, at the version
+/// that the project pinned, and the action installs nothing.
 ///
-/// Oxfmt formats more languages than the action asks it about, and it would
+/// Oxfmt formats more languages than the action asks it about. It would
 /// otherwise rewrite the Markdown, the JSON, and the YAML of a project that
-/// another action already formats. The action therefore names the extensions
-/// of TypeScript and of JavaScript, and oxfmt never sees the rest.
+/// another action already formats. The action therefore names the extensions of
+/// TypeScript and of JavaScript, and oxfmt never sees the rest.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
-/// that names the file, a file that oxfmt cannot parse becomes a finding at
-/// the position that oxfmt reports, and a failure that oxfmt placed nowhere
-/// becomes a finding about the project. With the `fix` argument, oxfmt
-/// rewrites the files that it can format, and the outcome carries one repair
-/// for each file that changed, next to the problems that remain.
+/// that names the file. A file that oxfmt cannot parse becomes a finding at the
+/// position that oxfmt reports. A failure that oxfmt placed nowhere becomes a
+/// finding about the project. With the `fix` argument, oxfmt rewrites the files
+/// that it can format. The outcome carries one repair for each file that
+/// changed, next to the problems that remain.
 ///
 /// A run that reports declares a read of the project, and a run with `fix`
 /// declares a write. A caller that orders runs by their declarations can
 /// then run a rewrite before the actions that read.
 ///
 /// A run whose oxfmt found no file of the language skips visibly, and says so.
-/// A run stops with an error when mise reports no oxfmt, when oxfmt refused a
-/// configuration of the project, and when oxfmt writes a report that the
-/// action does not recognize.
+/// A run stops with an error when mise reports no oxfmt. It also stops when
+/// oxfmt refused a configuration of the project. It stops when oxfmt writes a
+/// report that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -132,10 +132,9 @@ async fn drive(
 /// Lets oxfmt rewrite the project and reports what the rewrite left
 ///
 /// Oxfmt names no file that it rewrote, so the rewrite alone says only that it
-/// happened. The action therefore asks for the list of files before the
-/// rewrite and again after it: what the first list holds and the second one
-/// does not is what the run repaired, and what the second list still holds is
-/// what remains.
+/// happened. The action therefore asks for the list of files before the rewrite
+/// and again after it. What the first list holds and the second one does not is
+/// what the run repaired. What the second list still holds is what remains.
 ///
 /// A file that oxfmt cannot parse remains, and so does a file that it cannot
 /// write. A rewrite repairs formatting, and a file that the tool cannot read
@@ -143,8 +142,8 @@ async fn drive(
 ///
 /// # Errors
 ///
-/// Returns the error of a run that could not finish: oxfmt did not run, it
-/// refused a configuration of the project, it wrote a report that the action
+/// Returns the error of a run that could not finish. Oxfmt did not run, or it
+/// refused a configuration of the project. Or it wrote a report that the action
 /// does not recognize, or it reported a path outside the project.
 async fn fix(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatTypeScriptError> {
     let before = oxfmt.list().await?;
@@ -210,13 +209,12 @@ fn repairs(
 
 /// Returns the finding that reports one problem of the project
 ///
-/// A file that is not formatted gets a finding at the level of the file, a
-/// file that oxfmt could not format gets a finding at the place that oxfmt
-/// named, and a failure that oxfmt placed nowhere gets a finding about the
-/// project, because oxfmt writes the file into the sentence instead. The
-/// message for an unformatted file comes from the caller, because a finding
-/// states a problem that the project has and a repair states one that the run
-/// took away.
+/// A file that is not formatted gets a finding at the level of the file. A file
+/// that oxfmt could not format gets a finding at the place that oxfmt named. A
+/// failure that oxfmt placed nowhere gets a finding about the project, because
+/// oxfmt writes the file into the sentence instead. The message for an
+/// unformatted file comes from the caller. This is because a finding states a
+/// problem that the project has. A repair states one that the run took away.
 ///
 /// # Errors
 ///
@@ -300,8 +298,8 @@ fn findings(
 /// project asked for rules that never applied. An oxfmt that matched no file
 /// leaves the action with nothing to examine, which the ignore files of the
 /// project explain, so the run skips. A run that ended without success and
-/// named no problem wrote a report that the action could not read, and an
-/// answer built on it would hide every problem behind a green result.
+/// named no problem wrote a report that the action could not read. An answer
+/// built on it would hide every problem behind a green result.
 ///
 /// Returns `None` when the caller reports what the run found.
 ///
@@ -341,14 +339,13 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatTypeScriptE
 
 /// Asks oxfmt what it would change and reports the answer
 ///
-/// The run changes nothing: oxfmt names the files that a rewrite would change,
-/// and each of them becomes a finding next to the files that oxfmt could not
-/// format.
+/// The run changes nothing. Oxfmt names the files that a rewrite would change.
+/// Each becomes a finding next to the files that oxfmt could not format.
 ///
 /// # Errors
 ///
-/// Returns the error of a run that could not finish: oxfmt did not run, it
-/// refused a configuration of the project, it wrote a report that the action
+/// Returns the error of a run that could not finish. Oxfmt did not run, or it
+/// refused a configuration of the project. Or it wrote a report that the action
 /// does not recognize, or it reported a path outside the project.
 async fn report(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatTypeScriptError> {
     let observation = oxfmt.list().await?;

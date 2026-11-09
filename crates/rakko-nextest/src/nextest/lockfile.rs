@@ -2,13 +2,13 @@
 
 /// What a run does with the lockfile of the workspace
 ///
-/// Cargo resolves the dependencies of a build and records the versions that
-/// it chose in a lockfile. A run that only examines the project, such as one
-/// that tests the code as the project committed it, or one that tests a
-/// resolution which another job produced, holds cargo to the versions that
-/// the lockfile records. Otherwise a build that chose another version would
-/// answer a question that nobody asked, and it would change a file of the
-/// project as well.
+/// Cargo resolves the dependencies of a build and records the versions that it
+/// chose in a lockfile. A run that only examines the project holds cargo to the
+/// versions that the lockfile records. Otherwise a build that chose another
+/// version would answer a question that nobody asked, and it would change a
+/// file of the project as well. Two examples are a run that tests the code as
+/// the project committed it and a run that tests a resolution which another job
+/// produced.
 ///
 /// Cargo refuses such a build instead, and it refuses a workspace without a
 /// lockfile too. The run then reports nothing that the crate can answer

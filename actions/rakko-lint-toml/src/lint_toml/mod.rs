@@ -1,9 +1,9 @@
 //! The action that validates the TOML files of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps taplo as a subprocess: taplo discovers the files, reads its own
-//! configuration, and does the validation, and the action translates what
-//! taplo reported into an outcome.
+//! wraps taplo as a subprocess. Taplo discovers the files, reads its own
+//! configuration, and validates them. The action translates what taplo
+//! reported into an outcome.
 
 mod error;
 
@@ -17,30 +17,29 @@ pub use self::error::LintTomlError;
 
 /// The message of a finding about a file that is not formatted
 ///
-/// A validation never reports one. The message exists because the problems
-/// of taplo carry every level that any of its operations can name, and a
-/// finding that says what taplo meant is better than one that guesses.
+/// A validation never reports one. The message exists because the problems of
+/// taplo carry every level that any of its operations can name. A finding that
+/// says what taplo meant is better than one that guesses.
 const UNFORMATTED: &str = "the file is not properly formatted";
 
 /// The action that validates the TOML files of a project
 ///
-/// The action wraps [taplo]: taplo discovers the TOML files of the project,
-/// reads its own configuration, and validates what its configuration
-/// selects, so a run agrees with an editor and with a contributor that runs
-/// taplo bare. The taplo that runs is the version that the action declares,
-/// which [mise] installed, whatever version the project pins. The action
-/// installs nothing.
+/// The action wraps [taplo]. Taplo discovers the TOML files of the project,
+/// reads its own configuration, and validates what its configuration selects.
+/// So a run agrees with an editor and with a contributor that runs taplo bare.
+/// The taplo that runs is the version that the action declares, which [mise]
+/// installed, whatever version the project pins. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. A file that taplo cannot
-/// parse, and a file whose content its schema refuses, become findings at
-/// the position that taplo reports. A file that taplo cannot open becomes a
-/// finding that names the file and carries the reason of taplo, because
-/// taplo never read a character of it.
+/// parse, and a file whose content its schema refuses, become findings at the
+/// position that taplo reports. A file that taplo cannot open becomes a finding
+/// that names the file and carries the reason of taplo. This is because taplo
+/// never read a character of it.
 ///
-/// A project that holds no TOML file passes, having found nothing to report. A run stops
-/// with an error when mise reports no taplo at the declared version,
-/// when taplo rejects a configuration file of the project, and when taplo
-/// writes a report that the action does not recognize.
+/// A project that holds no TOML file passes, having found nothing to report. A
+/// run stops with an error when mise reports no taplo at the declared version
+/// or when taplo rejects a configuration file of the project. It also stops
+/// when taplo writes a report that the action does not recognize.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -121,10 +120,10 @@ async fn drive(context: &Context) -> Result<Outcome, LintTomlError> {
 
 /// Returns the finding that reports one problem of the project
 ///
-/// A problem that taplo placed in a file gets a finding at that position,
-/// and a problem that taplo could only attach to a file gets one at the
-/// level of the file. Every message comes from taplo, so a reader of a
-/// finding reads what the tool itself would have told them.
+/// A problem that taplo placed in a file gets a finding at that position.
+/// A problem that taplo could only attach to a file gets a finding at the
+/// file level. Every message comes from taplo, so a reader reads what the
+/// tool itself would have said.
 ///
 /// # Errors
 ///
@@ -179,10 +178,10 @@ fn findings(problems: &[TaploProblem], root: &ProjectRoot) -> Result<Vec<Finding
 /// Returns the outcome of a run that reported no problem
 ///
 /// A pass says how many files taplo checked, so that a reader can question a
-/// pass that examined nothing. Taplo can lose the line that carries the
-/// count, and a pass without it stays a pass: taplo ended the run with
-/// success, and no line that a report loses can turn a run that found
-/// problems into one that found none.
+/// pass that examined nothing. Taplo can lose the line that carries the count.
+/// A pass without it stays a pass, because taplo ended the run with success. No
+/// line that a report loses can turn a run that found problems into one that
+/// found none.
 fn passed(observation: &Observation) -> Outcome {
     Outcome::Passed {
         summary: observation.checked().map(summary),

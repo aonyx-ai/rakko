@@ -1,7 +1,8 @@
 //! Tests that run the set-msrv command against a project on disk
 //!
 //! Each test writes a root manifest and a `mise.toml` into a temporary
-//! directory, runs the command there, and reads what the run left behind.
+//! directory and runs the command there. The test reads what the run left
+//! behind.
 //! Every run starts the mise of the machine, because mise writes its own lock
 //! and installs the new toolchain.
 //!
@@ -10,9 +11,9 @@
 //! directory whose configuration of mise demands a version of mise that does
 //! not exist. Mise reads that configuration as well, so a run stops at its
 //! first call to mise, after it wrote the files. A project that has to pass
-//! the install moves to the Rust version of this crate instead, because this
-//! repository pins that toolchain, and mise has installed it wherever the
-//! tests run.
+//! the install moves to the Rust version of this crate instead. This is
+//! because this repository pins that toolchain, and mise has installed it
+//! wherever the tests run.
 
 #![allow(
     clippy::expect_used,
@@ -346,8 +347,8 @@ fn locked(lock: &str) -> Vec<(String, String)> {
 
 /// Shows that a run in a package-workspace sets the workspace version
 ///
-/// A root that is a package and a workspace at once inherits the version of
-/// the workspace, so the version of the workspace is the one to change.
+/// A root that is a package and a workspace at once inherits the version
+/// of the workspace. So the version of the workspace is the one to change.
 #[tokio::test]
 async fn run_in_a_package_of_a_workspace_sets_the_version_of_the_workspace() {
     let project = Project::builder().manifest("[package]\nname = \"otter\"\nrust-version.workspace = true\n\n[workspace.package]\nrust-version = \"1.88.0\"\n").pins(TEXTS).build();

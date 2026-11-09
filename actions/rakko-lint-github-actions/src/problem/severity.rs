@@ -10,15 +10,14 @@ use serde::Deserialize;
 
 /// The severity that zizmor gave a finding
 ///
-/// The severity belongs to the audit and not to the workflow: a template that
-/// expands attacker-controlled text into a shell is high wherever it appears,
-/// and a naming habit that a reviewer wants to see is informational wherever
-/// it appears. Zizmor reports every severity in one run, and a project that
+/// The severity belongs to the audit and not to the workflow. A template that
+/// expands attacker-controlled text into a shell is high wherever it appears.
+/// A naming habit that a reviewer wants to see is informational wherever it
+/// appears. Zizmor reports every severity in one run, and a project that
 /// wants an audit to stay quiet turns that audit off.
 ///
-/// A reader of a finding sees the severity, because a finding of every
-/// severity fails a run, and the severity is what tells the reader which one
-/// to read first.
+/// A reader of a finding sees the severity, because a finding of every severity
+/// fails a run. The severity is what tells the reader which one to read first.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Deserialize)]
 pub(crate) enum Severity {
     /// The finding tells the reader something about the workflow
@@ -112,8 +111,8 @@ mod tests {
     /// Shows that unknown severity words are not read
     ///
     /// The severity arrives from the report of zizmor, which writes the name of
-    /// the variant. A severity that this crate does not know stops the reading,
-    /// so that a new weight of a later version cannot land in the wrong one.
+    /// the variant. A severity that this crate does not know stops the reading.
+    /// A new weight of a later version cannot land in the wrong one.
     #[test]
     fn severity_of_an_unknown_word_is_not_read() {
         let severity = serde_json::from_str::<Severity>("\"Critical\"");

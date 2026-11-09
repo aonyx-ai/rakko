@@ -44,11 +44,12 @@ pub enum LintStilesError {
 
     /// Stiles stopped before it had checked the project
     ///
-    /// Stiles stops when it cannot read its configuration, when it cannot
-    /// build or load a lint that the configuration names, and when it cannot
-    /// read or analyze a file that it found. The report of such a run
-    /// describes less than the project, and an outcome built on it would hide
-    /// the rest behind that part.
+    /// Stiles stops when it cannot read its configuration.
+    /// It stops when it cannot build or load a lint that the configuration
+    /// names.
+    /// It stops when it cannot read or analyze a file that it found.
+    /// The report of such a run describes less than the project, and an
+    /// outcome built on it would hide the rest behind that part.
     #[error("stiles stopped before it had checked the project: {details}")]
     IncompleteCheck {
         /// What stiles wrote about the run that it stopped
@@ -67,10 +68,11 @@ pub enum LintStilesError {
 
     /// Stiles wrote a report that the action cannot read
     ///
-    /// The shape of the report belongs to a version of stiles. A report that
-    /// the action cannot read therefore points at a version that this crate
-    /// does not know, and the findings of such a run would be the ones that
-    /// the reading happened to understand.
+    /// The shape of the report belongs to a version of stiles.
+    /// A report that the action cannot read therefore points at a version that
+    /// this crate does not know.
+    /// The findings of such a run would be the ones that the reading happened
+    /// to understand.
     #[error("failed to read the report from stiles: {report}")]
     UnreadableReport {
         /// What stiles wrote in place of a report that the action reads
@@ -152,10 +154,10 @@ mod tests {
 
     /// Shows that error is Send and Sync
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn lint_stiles_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

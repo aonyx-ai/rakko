@@ -22,14 +22,14 @@ const YAMLLINT: &str = "yamllint";
 
 /// The option that asks yamllint for its report in the parsable format
 ///
-/// Yamllint groups its findings under a heading per file by default, and it
-/// writes one self-contained line per problem in this format, which carries
-/// the file, the position, the level, and the description in fields instead
-/// of in a block that a reader has to take apart. The format also protects a
+/// Yamllint groups its findings under a heading per file by default. It
+/// writes one self-contained line per problem in this format. The line carries
+/// the file, the position, the level, and the description in fields. A block
+/// would make a reader take them apart. The format also protects a
 /// run from its environment, because the default format changes on a terminal
-/// and on a build server. The option selects the presentation of the report
-/// and not the behavior of the tool: which rules apply to which file comes
-/// from the configuration of the project alone.
+/// and on a build server. The option selects how the report is shown, not how
+/// the tool behaves. Which rules apply to which file comes from the project
+/// configuration alone.
 const FORMAT: &str = "--format";
 
 /// The name of the format that carries one problem per line
@@ -44,7 +44,7 @@ const HERE: &str = ".";
 /// The status of a yamllint that examined every file and found a problem
 ///
 /// Yamllint separates the problems of a project from its own failures. It
-/// ends this way when a rule of an error level was broken, and it ends with
+/// ends this way when a rule of an error level was broken. It ends with
 /// success when nothing was broken and when the problems were warnings alone.
 /// Every other status belongs to a run that stopped before it was done.
 const PROBLEMS_FOUND: i32 = 1;
@@ -52,7 +52,7 @@ const PROBLEMS_FOUND: i32 = 1;
 /// The yamllint that a project runs
 ///
 /// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
+/// version that the project pinned. So a run reaches the same program as the
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and a yamllint that mise does not report
 /// stops the caller.
@@ -84,7 +84,7 @@ impl Yamllint {
     ///
     /// The run names the root of the project and asks for the report in the
     /// parsable format. Yamllint writes the report on its standard output
-    /// stream, and it uses the standard error stream for the reason of a run
+    /// stream. It uses the standard error stream for the reason of a run
     /// that it could not finish.
     ///
     /// # Errors
@@ -133,8 +133,8 @@ impl Yamllint {
 
     /// Returns the yamllint that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
+    /// The lookup asks mise about the project whose root the caller names.
+    /// The version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
     ///
     /// # Errors

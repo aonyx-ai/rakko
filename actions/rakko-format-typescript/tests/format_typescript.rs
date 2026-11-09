@@ -1,18 +1,18 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately unformatted file sits in this
+//! against it. So no fixture with a deliberately unformatted file sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the oxfmt that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 //!
 //! A project states no configuration of oxfmt unless the test is about one.
-//! Oxfmt formats with its own defaults in that case, and it reads no
-//! configuration of the user, so a project without one answers the same way on
-//! the machine of every contributor.
+//! Oxfmt formats with its own defaults in that case. It reads no configuration
+//! of the user. So a project without one answers the same way on the machine of
+//! every contributor.
 
 #![allow(
     clippy::expect_used,
@@ -39,8 +39,8 @@ const BROKEN: &str = "export const = ;;;\n";
 
 /// Markdown that oxfmt would rewrite if the action asked it about Markdown
 ///
-/// Oxfmt formats the code that a fenced block of a Markdown file holds, and
-/// the action that wraps prettier owns Markdown in a project that mounts it.
+/// Oxfmt formats the code that a fenced block of a Markdown file holds. The
+/// action that wraps prettier owns Markdown in a project that mounts it.
 const UNFORMATTED_MARKDOWN: &str = "# Guide\n\n```js\nexport  const   answer=42\n```\n";
 
 /// A configuration that oxfmt refuses to read
@@ -83,7 +83,7 @@ impl Project {
 
     /// Creates a project that pins an oxfmt that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about oxfmt.
     fn without_oxfmt() -> Self {
@@ -185,12 +185,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 

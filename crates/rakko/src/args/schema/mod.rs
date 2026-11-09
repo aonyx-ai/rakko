@@ -10,12 +10,12 @@ pub use self::argument::{Argument, ArgumentName, ArgumentShape, Documentation};
 ///
 /// A schema lists the arguments of an action as data, in the order that the
 /// action declares them. A projection reads the schema to build a command
-/// before any value exists, so the schema is available without an instance of
+/// before any value exists. So the schema is available without an instance of
 /// the argument set.
 ///
 /// The schema describes what an action reads, not how a user writes it. It
-/// carries no flag syntax and no position in a command tree, because those
-/// decisions belong to the projection and are the same for every action.
+/// carries no flag syntax and no position in a command tree. That is because
+/// those decisions belong to the projection and are the same for every action.
 ///
 /// # Examples
 ///

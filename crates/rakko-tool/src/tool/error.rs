@@ -10,8 +10,8 @@ use crate::tool::ToolName;
 /// The variants separate what an action can do about the failure. Mise that
 /// does not run is a broken environment, and every tool of the project fails
 /// with it. A tool that mise does not report is a gap in the pins of one
-/// project, and the message carries what mise said, because mise names the
-/// step that closes the gap.
+/// project. The message carries what mise said, because mise names the step
+/// that closes the gap.
 ///
 /// No variant means that the tool ran. Nothing started, so there is no exit
 /// status and no output to read.
@@ -43,10 +43,9 @@ pub enum ResolveToolError {
     /// Mise did not run
     ///
     /// No program answers to the name `mise`, or the operating system refused
-    /// to start it. The canonical way to start a harness enters the
-    /// environment of mise first, so a run that reports this failure ran
-    /// outside that environment, and every tool of the project is out of
-    /// reach.
+    /// to start it. The canonical way to start a harness enters the environment
+    /// of mise first. So a run that reports this failure ran outside that
+    /// environment, and every tool of the project is out of reach.
     #[error("failed to ask mise where `{tool}` is")]
     MiseUnavailable {
         /// The tool that the crate looked for
@@ -82,10 +81,10 @@ mod tests {
 
     /// Shows that the error type satisfies Send and Sync
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn resolve_tool_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

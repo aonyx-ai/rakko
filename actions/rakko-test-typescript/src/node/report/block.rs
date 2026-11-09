@@ -17,7 +17,8 @@ const KEY_END: char = ':';
 /// The characters that open a value which the report writes over several lines
 ///
 /// The report writes a value that holds a line break as a key, one of these
-/// characters, and the value below it, indented further than the key.
+/// characters, and the value below it. The value is indented further than the
+/// key.
 const LONG: [char; 2] = ['|', '>'];
 
 /// The character that quotes a value which the report writes verbatim
@@ -45,15 +46,15 @@ enum BlockState {
 
 /// One indented block of a report
 ///
-/// The report writes a block below every line that states a result, and the
-/// block carries what the runner knows about that test: where the project
-/// declares it, how long it took, and, for a test that failed, what went
+/// The report writes a block below every line that states a result. The block
+/// carries what the runner knows about that test. It holds where the project
+/// declares the test, how long it took, and, for a test that failed, what went
 /// wrong. A block is a set of entries, and a value spans several lines where
 /// it holds a line break.
 ///
 /// A block reads its own lines and keeps every entry, including the ones that
-/// no caller asks for, because a block that refused an entry it does not know
-/// would break on the next release of Node that adds one.
+/// no caller asks for. It does so because a block that refused an entry it does
+/// not know would break on the next release of Node that adds one.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub(crate) struct Block {
     /// The indentation of the lines that state the entries of the block
@@ -82,8 +83,8 @@ impl Block {
 
     /// Returns whether the block still takes lines
     ///
-    /// A block takes every line until the report closes it, so that a caller
-    /// hands it the lines of a value that reads like anything else.
+    /// A block takes every line until the report closes it. This lets a caller
+    /// hand it the lines of a value that reads like anything else.
     pub(crate) fn open(&self) -> bool {
         match self.state {
             BlockState::Open => true,
@@ -174,9 +175,9 @@ pub(crate) enum Scalar {
 impl Scalar {
     /// Returns the value as one line
     ///
-    /// The parts of the value join with a single space, and a run of spaces
-    /// inside it becomes one, because the report indents a value that it wrote
-    /// over several lines and a finding carries no formatting.
+    /// The parts of the value join with a single space. A run of spaces inside
+    /// it becomes one. This is because the report indents a value that it wrote
+    /// over several lines, and a finding carries no formatting.
     pub(crate) fn flattened(&self) -> String {
         let joined = match self {
             Self::Lines(lines) => lines.join(" "),
@@ -188,9 +189,9 @@ impl Scalar {
 
     /// Returns the place that the value names
     ///
-    /// A place reads as the path, the line, and the column, separated by the
-    /// character that also separates the parts of a path on Windows, so the
-    /// reading starts from the end.
+    /// A place reads as the path, the line, and the column. They are separated
+    /// by the character that also separates the parts of a path on Windows. So
+    /// the reading starts from the end.
     ///
     /// Returns `None` when the value names no place.
     pub(crate) fn place(&self) -> Option<Origin> {
@@ -236,8 +237,8 @@ fn unreadable(line: &str) -> ReadReportError {
 
 /// Returns the value without the quotes that the report wrote around it
 ///
-/// The report quotes a value in one of two ways, and each of them escapes the
-/// quote differently: a value written verbatim doubles it, and a value written
+/// The report quotes a value in one of two ways. Each of them escapes the
+/// quote differently. A value written verbatim doubles it. A value written
 /// with escapes puts the character that escapes in front of it. A value that
 /// needs no quote at all, such as a number, stands as it is.
 ///
@@ -272,7 +273,7 @@ fn unquote(value: &str) -> Result<String, ReadReportError> {
 /// Returns a quoted value with the escapes of the report undone
 ///
 /// A value that the report writes with escapes carries a line break, a tab, a
-/// quote, or the character that escapes, and each of them arrives as two
+/// quote, or the character that escapes. Each of them arrives as two
 /// characters. An escape that this crate does not know keeps the character
 /// behind it, which is what the standard says for every escape of one
 /// character.
@@ -479,8 +480,8 @@ mod tests {
 
     /// Shows that a value of several lines keeps a line that reads like the close
     ///
-    /// A line of a value can read exactly like the line that closes a block,
-    /// and it belongs to the value because it stands further in.
+    /// A line of a value can read exactly like the line that closes a block.
+    /// It belongs to the value because it stands further in.
     #[test]
     fn value_of_several_lines_keeps_a_line_that_reads_like_the_close() {
         let block = block(&["  stack: |-", "    ...", "  ..."]);

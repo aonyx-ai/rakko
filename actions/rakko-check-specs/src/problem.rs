@@ -10,10 +10,10 @@ use getset::Getters;
 
 /// A problem that tracey found in the specifications of a project
 ///
-/// Tracey places every problem in a file, at a line and a column, and writes
-/// a message about it. The message is the one that tracey wrote, so a reader
-/// of a finding reads the answer of the tool instead of one that Rakko wrote
-/// about it.
+/// Tracey places every problem in a file, at a line and a column, and writes a
+/// message about it. The message is the one that tracey wrote. So a reader of a
+/// finding reads the answer of the tool instead of one that Rakko wrote about
+/// it.
 ///
 /// The path is the one that tracey reported. Tracey starts in the root of the
 /// project and names a file below it, so the path is already the one that a

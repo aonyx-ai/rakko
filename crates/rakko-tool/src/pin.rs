@@ -18,8 +18,8 @@ const TOOLS: &[u8] = b"[tools]";
 
 /// The text of a mise file
 ///
-/// A crate that wraps a tool wraps the embedded text of its mise file in this
-/// type to read the pin of the tool in a constant context.
+/// A crate that wraps a tool embeds its mise file as text.
+/// This type wraps that text to read the tool pin in a constant context.
 ///
 /// # Examples
 ///

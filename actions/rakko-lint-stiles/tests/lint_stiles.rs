@@ -2,7 +2,7 @@
 //!
 //! The tests cover what the action declares, and the run that stops when the
 //! project pins a stiles that nothing installed. This repository pins no
-//! stiles, because it holds no stiles rule to apply, so the tests that read
+//! stiles because it holds no stiles rule to apply. So the tests that read
 //! what stiles reported live beside the code that reads it, and they read
 //! reports in the shape that stiles writes.
 
@@ -36,7 +36,7 @@ struct Project {
 impl Project {
     /// Creates a project that pins a stiles that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for it, whatever the global configuration of the machine says
     /// about stiles.
     fn without_stiles() -> Self {
@@ -90,9 +90,9 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
     /// reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");

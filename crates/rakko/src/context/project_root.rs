@@ -31,13 +31,13 @@ typed_fields::path! {
 impl ProjectRoot {
     /// Returns the root at a path, as the file system names the directory
     ///
-    /// The file system resolves the path, so a relative path and a path
-    /// through a symbolic link both reach an action as the directory that
-    /// they name. A caller that has a path instead of a root uses this rather
-    /// than the plain constructor: an action reports every location relative
-    /// to the root, and a root that spells a directory differently from the
-    /// programs that the action starts leaves every path they report outside
-    /// the root.
+    /// The file system resolves the path. So a relative path and a path through
+    /// a symbolic link both reach an action as the directory that they name. A
+    /// caller that has a path instead of a root uses this rather than the plain
+    /// constructor. The reason is that an action reports every location
+    /// relative to the root. A root that spells a directory differently from
+    /// the programs that the action starts leaves every path they report
+    /// outside the root.
     ///
     /// # Errors
     ///

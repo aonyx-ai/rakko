@@ -50,8 +50,8 @@ const WARNINGS: &str = "warnings";
 
 /// The tracey that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
+/// The value holds the program that mise installed for the project at the
+/// version that the project pinned. So a run reaches the same program as the
 /// editor and the terminal of a contributor. Nothing here installs a tool:
 /// provisioning is the job of mise, and a tracey that mise does not report
 /// stops the caller.
@@ -83,7 +83,7 @@ impl Tracey {
 
     /// Returns the tracey that mise installed for the project
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
+    /// The lookup asks mise about the project whose root the caller names. So
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
     ///
@@ -103,10 +103,10 @@ impl Tracey {
 
     /// Stops the daemon that answers the questions of a workspace
     ///
-    /// Tracey answers from a daemon that serves what it scanned, and that scan
-    /// can be seconds old. A caller that stops the daemon first gets an answer
-    /// about the tree as it is now, because the next question starts a daemon
-    /// that scans the workspace before it answers.
+    /// Tracey answers from a daemon that serves what it scanned. That scan can
+    /// be seconds old. A caller that stops the daemon first gets an answer
+    /// about the tree as it is now. This works because the next question starts
+    /// a daemon that scans the workspace before it answers.
     ///
     /// A workspace without a daemon is not a failure. Tracey says so and ends
     /// with success, and the caller wanted no daemon running either way.
@@ -180,9 +180,9 @@ impl Tracey {
 
     /// Returns the command that runs tracey
     ///
-    /// Tracey reads a repository for the question about a staged change, and
-    /// it starts git to do so. A run inside a git hook would hand it the
-    /// repository of the hook, whatever directory the command names, so the
+    /// Tracey reads a repository for the question about a staged change and
+    /// starts git to do so. A run inside a git hook would hand it the
+    /// repository of the hook, whatever directory the command names. So the
     /// variables that git reads for itself leave the command.
     fn invocation(&self) -> Invocation {
         inherited().fold(self.tool.invocation(), Invocation::env_remove)
@@ -206,9 +206,9 @@ impl Tracey {
 
 /// A question that an action asks tracey about a project
 ///
-/// One place holds the command line of every question, so an action states
-/// what it wants to know and never a flag, and a change to how tracey is
-/// called reaches every action at once.
+/// One place holds the command line of every question. So an action states what
+/// it wants to know and never a flag. A change to how tracey is called reaches
+/// every action at once.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 enum Question {
     /// How much of the specifications the code answers for
@@ -252,7 +252,7 @@ fn diagnosis(execution: &Execution) -> String {
 
 /// Returns the report of tracey, read into the shape of the crate
 ///
-/// The diagnosis is built only for a report that the crate cannot read, so a
+/// The diagnosis is built only for a report that the crate cannot read. So a
 /// run that tracey answered pays nothing for the text that a failure needs.
 ///
 /// # Errors
@@ -330,7 +330,7 @@ mod tests {
     /// Shows that tracey is send and sync
     ///
     /// A scheduler runs actions in parallel and can move a run to a different
-    /// thread, so a tracey that an action holds across a wait travels with it.
+    /// thread. So a tracey that an action holds across a wait travels with it.
     #[test]
     fn tracey_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

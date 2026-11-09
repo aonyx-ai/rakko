@@ -1,15 +1,15 @@
 //! What one run of taplo produced
 //!
-//! Taplo reports as text on two streams, and this module turns that text
-//! into data. A formatting run names the files that it would rewrite on its
-//! standard output stream, and everything else arrives on its standard error
-//! stream. The reading recognizes the lines that carry an answer and ignores
-//! everything else, so a log line that a new version adds does not break it.
-//! What the reading cannot find is absent from the observation, and the
-//! caller decides what the absence means.
+//! Taplo reports as text on two streams, and this module turns that text into
+//! data. A formatting run names the files that it would rewrite on its standard
+//! output stream, and everything else arrives on its standard error stream. The
+//! reading recognizes the lines that carry an answer and ignores everything
+//! else. So a log line that a new version adds does not break it. What the
+//! reading cannot find is absent from the observation, and the caller decides
+//! what the absence means.
 //!
 //! One answer needs more than the text. A validating run names a file that it
-//! could not read only on a line that taplo can lose when it exits, so the
+//! could not read only on a line that taplo can lose when it exits. So the
 //! reading of such a run also reads the files that taplo examined.
 
 mod report;
@@ -40,14 +40,15 @@ enum Exit {
 
 /// What one run of taplo produced
 ///
-/// The value holds the answer of one run: what taplo said about a
-/// configuration file that it rejected, how many files it examined, and the
-/// problems that it reported. A field that is `None` means that taplo wrote no
-/// such line.
+/// The value holds the answer of one run.
+/// It includes what taplo said about a rejected configuration file, how many
+/// files it examined, and the problems it reported.
+/// A field that is `None` means that taplo wrote no such line.
 ///
-/// An observation describes the run and judges nothing. A file that is not
-/// formatted and a file that taplo refused are both problems of the project,
-/// and the action that asked for the run decides what they mean for its
+/// An observation describes the run and judges nothing.
+/// A file that is not formatted and a file that taplo refused are both
+/// problems of the project.
+/// The action that asked for the run decides what they mean for its
 /// outcome.
 ///
 /// # Examples
@@ -108,10 +109,11 @@ pub struct Observation {
 impl Observation {
     /// Creates the observation of a run
     ///
-    /// A run of taplo builds one from what taplo wrote, and a caller builds
-    /// one where a test stands in for a taplo that nobody started. Every
-    /// part is optional, so a test names what its case is about and leaves
-    /// the rest at the answer of a run that reported nothing.
+    /// A run of taplo builds one from what taplo wrote.
+    /// A caller builds one where a test stands in for a taplo that nobody
+    /// started.
+    /// Every part is optional. A test therefore names what its case is about
+    /// and leaves the rest at the answer of a run that reported nothing.
     ///
     /// # Examples
     ///
@@ -148,13 +150,13 @@ impl Observation {
 
     /// Returns whether the report holds the answer of the run
     ///
-    /// A run that ended with success answered by ending that way: taplo
-    /// leaves nothing for a reader to find, and no line that a report lost
-    /// can turn a run that found problems into one that found none.
+    /// A run that ended with success answered by ending that way. Taplo leaves
+    /// nothing for a reader to find. No line that a report lost can turn a run
+    /// that found problems into one that found none.
     ///
     /// A run that ended without success found something, so its report
     /// names at least one problem. A report of such a run that names none
-    /// lost the lines that held them, and the caller must not read a silent
+    /// lost the lines that held them. The caller must not read a silent
     /// failure as an empty one.
     pub(crate) fn complete(&self) -> bool {
         match self.succeeded {
@@ -169,10 +171,13 @@ impl Observation {
     /// operation that the run did.
     ///
     /// A validating run names a file that it could not read only on a line
-    /// that taplo can lose when it exits. The reading of a validating run
-    /// that ended without success therefore also reads each file that taplo
-    /// examined, and a file that it cannot read becomes a problem even when
-    /// taplo lost that line. The reading changes no file.
+    /// that taplo can lose when it exits.
+    /// The reading of a validating run that ended without success therefore
+    /// also reads
+    /// each file that taplo examined.
+    /// A file that it cannot read becomes a problem even when taplo lost
+    /// that line.
+    /// The reading changes no file.
     #[builder]
     pub(crate) async fn read(execution: &Execution, operation: Operation) -> Self {
         let exit = if execution.status().success() {
@@ -194,13 +199,14 @@ impl Observation {
 
     /// Adds a problem for each examined file that cannot be read
     ///
-    /// A validating run names a file that it could not read on a single line,
-    /// and that line comes just before the end of the report, where taplo
-    /// can lose it. The line that counts the files comes early and lists
-    /// every file that the run examined, so the reading tries to read each of
-    /// those files. A file that it cannot read becomes a problem with the
-    /// message of the operating system, which is also the reason that taplo
-    /// gives. A file that a problem already names stays as taplo reported it.
+    /// A validating run names a file that it could not read on a single line.
+    /// That line comes just before the report end, where taplo can lose it.
+    /// The line that counts the files comes early and lists every examined
+    /// file.
+    /// So the reading tries to read each of those files.
+    /// A file that it cannot read becomes a problem with the operating system
+    /// message (also the reason taplo gives).
+    /// A file that a problem already names stays as taplo reported it.
     ///
     /// A run that ended with success read every file, so nothing is read for
     /// it.

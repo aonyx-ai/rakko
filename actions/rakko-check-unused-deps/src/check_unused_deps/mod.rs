@@ -1,8 +1,8 @@
 //! The action that finds the dependencies a project declares and never uses
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps cargo as a subprocess: cargo builds the targets of a workspace,
-//! cargo-udeps reads which crates those targets loaded, and the action
+//! wraps cargo as a subprocess. Cargo builds the targets of a workspace.
+//! Cargo-udeps reads which crates those targets loaded. The action
 //! translates what both reported into an outcome.
 
 mod error;
@@ -29,15 +29,15 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// Cargo hands it to the program of a plugin, and the program expects it
 /// when it starts without cargo as well.
 ///
-/// A dependency that only a test reaches, and a dependency that only a
-/// feature reaches, are used as much as one that the library reaches, so a
-/// run that examined less would call them unused. Cargo builds the versions
-/// that the lockfile holds and does not write the lockfile, because the
-/// action only examines the project. The reports of cargo-udeps
-/// and of cargo arrive as JSON, because the action reads them as data. The
-/// formats select the presentation of the reports and not the behavior of
-/// the tools: which dependencies a run passes over comes from the
-/// configuration of the project alone.
+/// A dependency that only a test reaches is used as much as one that the
+/// library reaches. The same holds for a dependency that only a feature
+/// reaches. So a run that examined less would call them unused. Cargo builds
+/// the versions that the lockfile holds and does not write the lockfile,
+/// because the action only examines the project. The reports of cargo-udeps and
+/// cargo arrive as JSON because the action reads them as data. The formats
+/// select the presentation of the reports and not the behavior of the tools.
+/// Which dependencies a run passes over comes from the configuration of the
+/// project alone.
 const UDEPS: [&str; 7] = [
     "udeps",
     LOCKED,
@@ -50,13 +50,13 @@ const UDEPS: [&str; 7] = [
 
 /// The action that finds the dependencies a project declares and never uses
 ///
-/// The action wraps [cargo-udeps]: cargo builds every target of every
-/// package with every feature, and cargo-udeps holds the crates that those
-/// targets loaded against the dependencies of the manifests, so a run agrees
-/// with a contributor that runs cargo-udeps bare. The cargo-udeps that runs
-/// is the version that the action declares, which [mise] installed, whatever
-/// version the project pins. Its builds run on the nightly toolchain that the
-/// project pins, and the action installs nothing.
+/// The action wraps [cargo-udeps]. Cargo builds every target of every package
+/// with every feature. Cargo-udeps holds the crates that those targets loaded
+/// against the dependencies of the manifests. So a run agrees with a
+/// contributor that runs cargo-udeps bare. The cargo-udeps that runs is the
+/// version that the action declares, which [mise] installed, whatever version
+/// the project pins. Its builds run on the nightly toolchain that the project
+/// pins, and the action installs nothing.
 ///
 /// A run only reports, and it takes no argument. It examines every workspace
 /// of the project, because the harness of a project is a package of its own
@@ -67,17 +67,18 @@ const UDEPS: [&str; 7] = [
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
 /// run stops with an error when the project pins no stable or no nightly Rust
-/// toolchain that the action accepts, when mise reports no cargo-udeps at the
-/// declared version, when the workspaces of the project cannot be discovered,
-/// when the lockfile of a workspace needs an update, and when the tools write a
-/// report that the action does not recognize.
+/// toolchain that the action accepts. It stops when mise reports no cargo-udeps
+/// at the declared version. It stops when the workspaces of the project cannot
+/// be discovered, or when the lockfile of a workspace needs an update. It stops
+/// when the tools write a report that the action does not recognize.
 ///
-/// A run declares a read of the project. It holds cargo to the lockfile of each
-/// workspace, and cargo writes what it builds into the `target` directory,
-/// which cargo locks against parallel use itself. The declaration covers the
-/// action and cargo, and not the build scripts and procedural macros of the
-/// project, which can write files of their own. A caller that orders runs by
-/// their declarations runs it after the actions that write.
+/// A run declares a read of the project. It holds cargo to the lockfile of
+/// each workspace. Cargo writes what it builds into the `target` directory.
+/// Cargo locks that directory against parallel use itself. The declaration
+/// covers the action and cargo. It does not cover the build scripts and
+/// procedural macros of the project. Those can write files of their own. A
+/// caller that orders runs by their declarations runs it after the actions
+/// that write.
 ///
 /// # Examples
 ///
@@ -137,9 +138,9 @@ impl Action for CheckUnusedDeps {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of
-/// a tool or of the toolchain, the discovery of the workspaces, a run of
-/// cargo-udeps, or the reading of a report.
+/// Returns the error of the step that could not finish. That step is the
+/// resolution of a tool or of the toolchain. It can also be the discovery of
+/// the workspaces, a run of cargo-udeps, or the reading of a report.
 async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
     let cargo = Cargo::resolve(context)
         .await
@@ -190,17 +191,17 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
 /// A run that reached an answer reports the dependencies that no target
 /// loaded. A run whose build did not finish has no such answer, and the
 /// diagnostics of the compiler say why, so they become the findings instead.
-/// The diagnostics of a build that finished stay behind: they belong to the
-/// action that lints the code, and the answer of this run is the report of
+/// The diagnostics of a build that finished stay behind. They belong to the
+/// action that lints the code. The answer of this run is the report of
 /// cargo-udeps.
 ///
 /// # Errors
 ///
-/// Returns [`UdepsUnavailable`][unavailable] when cargo-udeps does not run,
-/// [`StaleLockfile`][stale] when cargo refused to build because the lockfile
-/// needs an update, [`UnrecognizedReport`][unrecognized] when the run wrote
-/// no report that the action can answer from, and the reading errors when a
-/// report holds a record that the action cannot read.
+/// Returns [`UdepsUnavailable`][unavailable] when cargo-udeps does not run. It
+/// returns [`StaleLockfile`][stale] when cargo refused to build because the
+/// lockfile needs an update. It returns [`UnrecognizedReport`][unrecognized]
+/// when the run wrote no report that the action can answer from. It returns the
+/// reading errors when a report holds a record that the action cannot read.
 ///
 /// [stale]: CheckUnusedDepsError::StaleLockfile
 /// [unavailable]: CheckUnusedDepsError::UdepsUnavailable
@@ -265,11 +266,12 @@ async fn check(
 
 /// Returns whether the action can answer from a run
 ///
-/// A run that reached an answer wrote the report of cargo-udeps, whatever
-/// its exit status says: the status only tells a clean workspace from one
-/// with an unused dependency. A run without that report answers only when it
-/// ended without success and the compiler said why, because that is a build
-/// that did not finish. Anything else leaves the action without an answer.
+/// A run that reached an answer wrote the report of cargo-udeps, whatever its
+/// exit status says. The status only tells a clean workspace from one with an
+/// unused dependency. A run without that report answers only when it ended
+/// without success and the compiler said why. It answers then because that is a
+/// build that did not finish. Anything else leaves the action without an
+/// answer.
 fn recognized(report: Option<&UdepsReport>, build: &CargoReport, execution: &Execution) -> bool {
     if report.is_some() {
         return true;

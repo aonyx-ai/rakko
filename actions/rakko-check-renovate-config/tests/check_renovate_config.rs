@@ -1,13 +1,13 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken configuration sits in
+//! against it. So no fixture with a deliberately broken configuration sits in
 //! this repository, where Renovate and the checks of the repository itself
 //! would read it.
 //!
 //! The tests run the validator that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs. A new pin reaches the tests
 //! without a change to them.
 
 #![allow(
@@ -103,9 +103,8 @@ impl Project {
 
     /// Creates a project that pins a validator that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about Renovate.
+    /// The pin names a version that no machine installs. So mise reports no
+    /// location for it regardless of the global configuration of the machine.
     fn without_validator() -> Self {
         let project = Self::bare();
 
@@ -155,12 +154,12 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the user state. The
+    /// temporary directory of a test never comes back. So the record would pile up
+    /// there forever. A project that never wrote a configuration has nothing to
+    /// withdraw. Mise resolves a path that is not there to the directory above
+    /// it. So the file has to exist first. A failure stays quiet because the test
+    /// already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 
@@ -327,9 +326,9 @@ async fn run_with_a_global_configuration_that_does_not_parse_stops() {
 
 /// Shows that a run with a global configuration that needs migration passes
 ///
-/// The validator migrates the global configuration before it validates it, and
-/// it fails no run for the migration, so the action passes as the validator
-/// does. The action keeps this limit of the validator.
+/// The validator migrates the global configuration before it validates it. It
+/// fails no run for the migration. So the action passes as the validator does.
+/// The action keeps this limit of the validator.
 #[tokio::test]
 async fn run_with_a_global_configuration_that_needs_a_migration_passes() {
     let project = Project::new();

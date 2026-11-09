@@ -1,9 +1,9 @@
 //! One thing that cargo-deny reported about a workspace
 //!
 //! A run of cargo-deny reports one entry for every shape that it recognized
-//! in the dependencies of a workspace. This module holds one of those
-//! entries: how the project weighed the shape, which check recognized it,
-//! what cargo-deny wrote about it, and the packages that it is about.
+//! in the dependencies of a workspace. This module holds one of those entries.
+//! Each entry shows how the project weighed the shape, which check recognized
+//! it, what cargo-deny wrote about it, and the packages that it is about.
 
 mod package;
 mod severity;
@@ -31,22 +31,22 @@ const PACKAGES_CLOSE: char = ')';
 
 /// One thing that cargo-deny reported about a workspace
 ///
-/// The value holds one entry of a report: the weight that the configuration
-/// of the project gave it, the check that recognized the shape, the sentence
-/// that cargo-deny wrote about it, and the packages that the entry is about.
+/// The value holds one entry of a report. The entry holds the weight that the
+/// configuration of the project gave it and the check that recognized the
+/// shape. It also holds the sentence that cargo-deny wrote about it and the
+/// packages that the entry is about.
 ///
 /// The packages travel with the entry because the message often does not name
 /// them. Cargo-deny draws a block for a reader with the manifest of the
-/// package above it, so the identity of a package whose license was rejected
-/// sits in the path of that block. The report keeps the same identity in the
-/// inclusion graph of the entry, and a problem carries it in a field, so that
-/// a reader of a finding learns which package the answer is about.
+/// package above it. So the identity of a package whose license was rejected sits
+/// in the path of that block. The report keeps the same identity in the
+/// inclusion graph of the entry. A problem carries it in a field so that a
+/// reader of a finding learns which package the answer is about.
 ///
-/// An entry names no file of the project. The place that cargo-deny
-/// underlines is a line of a lock file, or of a manifest in the registry
-/// cache of the machine, and the report leaves the file out of the entry
-/// altogether. A caller therefore places a problem at the workspace that it
-/// came from, and never at a path.
+/// An entry names no file of the project. The place that cargo-deny underlines
+/// is a line of a lock file or a manifest in the registry cache of the machine.
+/// The report leaves the file out of the entry altogether. A caller therefore
+/// places a problem at the workspace that it came from, and never at a path.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub(crate) struct DenyProblem {
     /// How the configuration of the project weighed the shape
@@ -78,11 +78,10 @@ impl DenyProblem {
 
     /// Returns the sentence that cargo-deny wrote about the problem
     ///
-    /// The sentence opens with the check that recognized the shape, in the
-    /// place where cargo-deny writes it, and it ends with the packages that
-    /// the entry is about. A problem that names no package ends with the
-    /// sentence of cargo-deny, because empty parentheses tell a reader
-    /// nothing.
+    /// The sentence opens with the check that recognized the shape where
+    /// cargo-deny writes it. It ends with the packages that the entry is
+    /// about. A problem that names no package ends with the sentence of
+    /// cargo-deny, because empty parentheses tell a reader nothing.
     pub(crate) fn description(&self) -> String {
         let head = format!("{CHECK_OPEN}{}{CHECK_CLOSE}{}", self.check, self.message);
 

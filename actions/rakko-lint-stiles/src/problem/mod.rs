@@ -67,7 +67,7 @@ pub(crate) struct StilesProblem {
 impl StilesProblem {
     /// Returns the sentence that stiles wrote about the problem
     ///
-    /// The sentence holds the severity, the rule, and what the rule said, so a
+    /// The sentence holds the severity, the rule, and what the rule said. So a
     /// reader sees which rule to turn off or to fix the code for.
     pub(crate) fn message(&self) -> String {
         format!(
@@ -79,8 +79,8 @@ impl StilesProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. A run names the
-    /// root as the place to check, so a path that does not fit points at a
-    /// report that the caller misread, and the caller decides what to do about
+    /// root as the place to check. A path that does not fit therefore points at
+    /// a report that the caller misread. The caller decides what to do about
     /// that.
     pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()

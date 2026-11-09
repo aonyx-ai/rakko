@@ -1,13 +1,13 @@
 //! Tests that drive the crate against real projects
 //!
-//! Each test builds a project in a temporary directory, so no fixture with a
+//! Each test builds a project in a temporary directory. So no fixture with a
 //! deliberately broken manifest sits in this repository, where cargo would
 //! stumble over it.
 //!
 //! The tests run the cargo that this repository pins. A project copies the
 //! `mise.toml` of the repository and trusts it, so the toolchain that
-//! answers is a toolchain that the repository installs, and a new pin
-//! reaches the tests without a change to them.
+//! answers is one that the repository installs. A new pin reaches the tests without
+//! a change to them.
 
 #![allow(
     clippy::expect_used,
@@ -34,7 +34,7 @@ const WORKSPACE: &str = "[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"3\"
 /// The manifest of a package that belongs to no workspace
 ///
 /// The empty workspace table tells cargo that the package is a root of its
-/// own, which cargo demands from a package below a workspace that does not
+/// own. Cargo demands this from a package below a workspace that does not
 /// list it.
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
@@ -42,7 +42,7 @@ const STANDALONE: &str =
 /// The manifest of a package that belongs to no workspace and excludes the
 /// fixtures below it
 ///
-/// The fixtures are not part of the workspace of the package, and a path that
+/// The fixtures are not part of the workspace of the package. A path that
 /// the manifest excludes is relative to the directory of the manifest.
 const STANDALONE_EXCLUDING: &str = "[workspace]\nexclude = [\"fixtures\"]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
@@ -88,7 +88,9 @@ const UNDOCUMENTED_CLI: &str = "[package]\nname = \"demo-cli\"\nversion = \"0.1.
 const HYPHENATED: &str = "[workspace]\nmembers = [\"demo-core\", \"tool\"]\nresolver = \"3\"\n";
 
 /// The manifest of a package whose binary carries the name of the library
-/// of another package, with a hyphen where the crate name has an underscore
+/// of another package
+///
+/// The binary name has a hyphen where the crate name has an underscore.
 const TOOL: &str = "[package]\nname = \"tool\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[[bin]]\nname = \"demo-core\"\npath = \"src/main.rs\"\n";
 
 /// The manifest of a workspace whose members sit in directories that do not
@@ -139,7 +141,7 @@ impl Project {
     /// Creates a project below a workspace that lists it as a member
     ///
     /// The workspace sits in the temporary directory, and the project is the
-    /// package in its `project` directory, so the root that cargo names for
+    /// package in its `project` directory. So the root that cargo names for
     /// the manifest of the project lies above the project.
     fn inside_a_workspace() -> Self {
         let mut project = Self::bare();
@@ -348,10 +350,10 @@ fn package(name: &str, documented_names: DocumentedNames) -> CargoPackage {
 
 /// Returns the Rust toolchain that this repository builds with
 ///
-/// The crate itself makes the choice, so a test that needs a toolchain which
-/// every machine running the tests has installed names the same one that a
-/// job of the repository would. Asking the crate keeps the version out of
-/// the tests, and the rule that picks it in one place with its own tests.
+/// The crate itself makes the choice. So a test that needs a toolchain which
+/// every machine running the tests has installed names the same one. A job of
+/// the repository names that one too. Asking the crate keeps the version out
+/// of the tests, and the rule that picks it in one place with its own tests.
 async fn pinned_rust() -> String {
     Toolchain::newest(&ProjectRoot::new(repository().to_path_buf()))
         .await
@@ -365,8 +367,8 @@ async fn pinned_rust() -> String {
 /// Mise names the toolchain of the default pin in `RUSTUP_TOOLCHAIN`, and it
 /// reports that through another interface than the list of pins that
 /// [`pinned_rust`] reads. The test below holds the two answers against each
-/// other, so a pin that moves which toolchain the helper picks fails a test
-/// instead of sending every test that needs a cargo to another toolchain.
+/// other. So a pin that moves which toolchain the helper picks fails a test.
+/// Every test that needs a cargo would otherwise go to another toolchain.
 fn selected_rust() -> String {
     let output = Command::new("mise")
         .args(["env", "--json"])
@@ -419,8 +421,8 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record
     /// would pile up there forever. A failure stays quiet, because the test
     /// already reported what it was about.
     fn drop(&mut self) {
@@ -912,7 +914,7 @@ async fn roots_ignore_a_nested_project() {
 
 /// Shows that roots ignore a directory marker
 ///
-/// A marker that is a directory cannot be read as a file, so the test fails
+/// A marker that is a directory cannot be read as a file. So the test fails
 /// when the discovery decides by reading the marker instead of by its presence.
 #[tokio::test]
 async fn roots_ignore_a_nested_project_whose_marker_is_a_directory() {

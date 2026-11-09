@@ -11,7 +11,7 @@ use crate::finding::Finding;
 
 /// The result of one action run
 ///
-/// An outcome has one of five states: the action passed, the action changed the
+/// An outcome has one of five states. The action passed, the action changed the
 /// project, the action failed, the action does not apply, or the action
 /// stopped. The machinery maps each state to output and to an exit code.
 ///

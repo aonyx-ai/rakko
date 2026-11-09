@@ -5,14 +5,13 @@ use thiserror::Error;
 /// An error that leaves a caller without the answer of a run
 ///
 /// A problem that the validator found in a configuration is no failure of a
-/// reading: it travels in the report, and the caller decides what it means.
+/// reading. It travels in the report. The caller decides what it means.
 /// The variants here describe a log that holds no answer about the project
 /// that this crate can trust.
 ///
 /// The shape of the log belongs to a version of Renovate. A record that does
-/// not fit therefore points at a version that this crate does not know, and
-/// the findings of such a run would be the problems that the reading happened
-/// to understand.
+/// not fit points at a version that this crate does not know. The findings of
+/// such a run would be the problems that the reading happened to understand.
 ///
 /// # Examples
 ///
@@ -70,10 +69,10 @@ mod tests {
 
     /// Checks that the error holds auto traits
     ///
-    /// An action puts the error in the outcome of a run, and that outcome holds
-    /// an error that another thread can read. This test holds the error to the
-    /// auto traits that make this possible, because a field of a later version
-    /// could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run. That outcome holds an
+    /// error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. The reason is that a field of a later version could
+    /// take them away without a word from the compiler.
     #[test]
     fn read_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

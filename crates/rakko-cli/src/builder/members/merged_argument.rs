@@ -5,10 +5,10 @@ use rakko::{Argument, ArgumentShape, Documentation, Name};
 /// One flag of a group, with every member that declares its argument
 ///
 /// The members of a group can declare the same argument, and the group then
-/// carries one flag for it. The flag takes its name and its shape from the
-/// first member that declares the argument, and every later member has to
-/// declare the same shape. The help of the flag comes from all of them,
-/// because each member describes the argument in a sentence of its own.
+/// carries one flag for it. The flag takes its name and shape from the first
+/// member that declares the argument. Every later member has to declare the
+/// same shape. The help of the flag comes from all of them, because each
+/// member describes the argument in a sentence of its own.
 pub(crate) struct MergedArgument {
     /// The member that declares the argument first
     owner: Name,
@@ -35,9 +35,9 @@ impl MergedArgument {
     ///
     /// # Panics
     ///
-    /// Panics when the member declares the argument with a shape other than
-    /// the shape of the first member, and reports the group, both members,
-    /// the argument, and both shapes.
+    /// Panics when the member declares the argument with a different shape
+    /// than the first member. It reports the group, both members, the
+    /// argument, and both shapes.
     pub(crate) fn add(&mut self, group: &Name, member: Name, argument: &Argument) {
         assert!(
             self.argument.shape() == argument.shape(),
@@ -64,9 +64,9 @@ impl MergedArgument {
     /// Returns the help of the flag
     ///
     /// The help holds one line for each member that declares the argument, in
-    /// the order of the members. Each line starts with the name of the
-    /// member, because several members can share one sentence, and without
-    /// the names the help would repeat a line that a reader cannot place.
+    /// the order of the members. Each line starts with the name of the member,
+    /// because several members can share one sentence. Without the names the
+    /// help would repeat a line that a reader cannot place.
     pub(crate) fn help(&self) -> String {
         self.declarations
             .iter()

@@ -14,10 +14,10 @@ use super::step::MiseStep;
 
 /// An error that stops a run of the set-msrv command
 ///
-/// A run reads both files and finds what it changes before it writes, so an
+/// A run reads both files and finds what it changes before it writes. So an
 /// error that names a file it read, the manifest, or the pin leaves the
 /// project as it was. An error that names a write, the lock, the install, or
-/// the check comes after a write, and the files that the run wrote stay.
+/// the check comes after a write. The files that the run wrote stay.
 ///
 /// # Examples
 ///

@@ -55,11 +55,10 @@ pub enum LintMarkdownError {
 
     /// Markdownlint wrote a report that the action cannot read
     ///
-    /// The shape of the report belongs to a version of markdownlint. A run
-    /// that could not open a file also ends this way, because markdownlint
-    /// then writes the failure of its runtime in place of the report, and an
-    /// answer built on such a report would leave an unknown part of the
-    /// project unread.
+    /// The report shape belongs to a version of markdownlint. A run that could
+    /// not open a file also ends this way. Markdownlint then writes the failure
+    /// of its runtime in place of the report. So an answer built on such a
+    /// report would leave an unknown part of the project unread.
     #[error("failed to read markdownlint's report: {report}")]
     UnreadableReport {
         /// What markdownlint wrote in place of a report
@@ -71,9 +70,9 @@ pub enum LintMarkdownError {
 
     /// Markdownlint ended without success and reported no rule
     ///
-    /// A run that failed says why in its report, so a failure without one
-    /// happened for a reason that the action cannot name, and an answer built
-    /// on it would hide every problem behind a green result.
+    /// A run that failed says why in its report. So a failure without one
+    /// happened for a reason that the action cannot name. An answer built on it
+    /// would hide every problem behind a green result.
     #[error("markdownlint ended without success and reported nothing: {stderr}")]
     UnrecognizedReport {
         /// What markdownlint wrote to its standard error stream
@@ -140,10 +139,10 @@ mod tests {
 
     /// Shows that error is Send and Sync
     ///
-    /// An action puts the error in the outcome of a run, and that outcome
-    /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn lint_markdown_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

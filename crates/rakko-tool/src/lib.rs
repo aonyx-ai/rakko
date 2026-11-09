@@ -4,9 +4,10 @@
 //! subprocess. This crate finds the tool and describes the command that runs
 //! it, so that every action reaches its tool in the same way.
 //!
-//! [mise] answers where a tool is. The crate searches no path of its own, and
-//! it installs nothing: a tool that mise did not install stops the action with
-//! an error that gives its name.
+//! [mise] answers where a tool is.
+//! The crate searches no path of its own and installs nothing.
+//! A tool that mise did not install stops the action with an error that
+//! gives the name of the tool.
 //!
 //! An action declares the tools that it runs, each as a
 //! [`ToolRequirement`][requirement] of the contract.
@@ -26,9 +27,9 @@
 //! an error, before anything runs.
 //!
 //! An action runs the command with [`launch`][launch]. On Windows, a tool that
-//! a package manager for Node installed starts through a launcher, and the
-//! launch starts that launcher again when the operating system refused it a
-//! file for a moment.
+//! a package manager for Node installed starts through a launcher. The launch
+//! starts that launcher again when the operating system refused it a file for a
+//! moment.
 //!
 //! # Asynchronous Runtime
 //!

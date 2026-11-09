@@ -1,8 +1,8 @@
 //! What one run of zizmor produced
 //!
 //! Zizmor answers over both of its streams. The report travels on the
-//! standard output stream, and the standard error stream carries the log of
-//! the run and the reason of a run that stopped. This module turns one run
+//! standard output stream. The standard error stream carries the log of the
+//! run and the reason of a run that stopped. This module turns one run
 //! into data and judges nothing: the action that asked for the run decides
 //! what the answer means for its outcome.
 
@@ -28,7 +28,7 @@ pub(crate) enum Examination {
 /// and whether zizmor collected a file to audit at all.
 ///
 /// A run that collected nothing is not a run that found nothing. Zizmor
-/// reports an empty array in both cases, and the two mean opposite things for
+/// reports an empty array in both cases. The two mean opposite things for
 /// the outcome of an action: one project is clean, and the other was never
 /// looked at.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
@@ -48,7 +48,7 @@ impl Observation {
     ///
     /// A run of zizmor builds one through [`Zizmor::observe`], and a caller
     /// builds one where a test stands in for a zizmor that nobody started.
-    /// Every part is optional, so a test names what its case is about and
+    /// Every part is optional. So a test names what its case is about. It
     /// leaves the rest at the answer of a run that audited the project and
     /// found nothing.
     ///

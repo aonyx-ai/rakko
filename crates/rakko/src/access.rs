@@ -28,14 +28,14 @@
 ///
 /// A later release can add a kind of access. So a match on `Access` outside
 /// this crate needs an arm for a kind that it does not know. A caller outside
-/// this crate that runs a [`BoundAction`] asks for its access first, also
-/// when it runs only one action. A caller that meets a kind that it does not
-/// know must not run the action, because the caller does not know what the
+/// this crate that runs a [`BoundAction`] asks for its access first, also when
+/// it runs only one action. A caller that meets a kind that it does not know
+/// must not run the action. That is because the caller does not know what the
 /// kind asks of the run. If the caller runs the action anyway, the run can
 /// change the project. The caller stops with an error instead, and the error
 /// tells the user to update to a release that knows the kind. A caller that
-/// orders several actions by their declarations stops before it runs the
-/// first of them.
+/// orders several actions by their declarations stops before it runs the first
+/// of them.
 ///
 /// [`BoundAction`]: crate::BoundAction
 ///

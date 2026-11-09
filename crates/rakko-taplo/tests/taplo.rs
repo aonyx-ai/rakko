@@ -1,8 +1,8 @@
 //! Tests that drive the crate against real projects
 //!
-//! Each test builds a project in a temporary directory, so no fixture with a
-//! deliberately broken TOML file sits in this repository, where the
-//! formatting of the repository itself would fight it.
+//! Each test builds a project in a temporary directory. So no fixture with a
+//! deliberately broken TOML file sits in this repository, where the formatting
+//! of the repository itself would fight it.
 //!
 //! The tests run the taplo that the crate declares. Each project pins
 //! another taplo that nothing installs, so a test passes only when the run
@@ -114,10 +114,10 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
-    /// would pile up there forever. A failure stays quiet, because the test
-    /// already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")

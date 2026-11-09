@@ -1,8 +1,8 @@
 //! One rule that yamllint reported about a file
 //!
-//! A run of yamllint reports one problem for each rule that a file broke, and
-//! this module holds one of them: where the rule was broken, how the project
-//! weighed it, and what yamllint said about it.
+//! A run of yamllint reports one problem for each rule that a file broke.
+//! This module holds one of them. It names where the rule was broken, how the
+//! project weighed it, and what yamllint said about it.
 
 mod level;
 
@@ -64,8 +64,8 @@ impl YamllintProblem {
     /// Returns the sentence that yamllint wrote about the problem
     ///
     /// The sentence holds the level and the description, in the order that
-    /// yamllint writes them, so that a finding reads like the line that a
-    /// contributor sees when they run yamllint themselves.
+    /// yamllint writes them. The order makes a finding read like the line that
+    /// a contributor sees when they run yamllint themselves.
     pub(crate) fn message(&self) -> String {
         format!(
             "{LEVEL_OPEN}{}{LEVEL_CLOSE}{}",
@@ -76,8 +76,8 @@ impl YamllintProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. A run names the
-    /// root as the place to look, so a path that does not fit points at a
-    /// report that the caller misread, and the caller decides what to do about
+    /// root as the place to look. A path that does not fit therefore points at
+    /// a report that the caller misread. The caller decides what to do about
     /// that.
     pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()

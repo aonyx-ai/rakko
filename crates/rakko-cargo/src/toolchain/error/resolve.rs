@@ -9,10 +9,9 @@ use crate::toolchain::{Channel, Toolchain};
 ///
 /// The variants separate what an action can do about the failure. Mise that
 /// does not run is a broken environment. A channel that the project does not
-/// pin, and a pin that nothing installed, are gaps in the provisioning of
-/// one project, and the message names the step that closes each of them. A
-/// report that the crate cannot read points at a mise that changed its
-/// output.
+/// pin, and a pin that nothing installed, are gaps in the provisioning of one
+/// project. The message names the step that closes each of them. A report that
+/// the crate cannot read points at a mise that changed its output.
 ///
 /// No variant means that cargo ran. Nothing of the project was examined.
 ///
@@ -101,8 +100,9 @@ mod tests {
     ///
     /// An action puts the error in the outcome of a run, and that outcome
     /// holds an error that another thread can read. This test holds the error
-    /// to the auto traits that make this possible, because a field of a later
-    /// version could take them away without a word from the compiler.
+    /// to the auto traits that make this possible. It does so because a field
+    /// of a later version could take them away without a word from the
+    /// compiler.
     #[test]
     fn resolve_toolchain_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

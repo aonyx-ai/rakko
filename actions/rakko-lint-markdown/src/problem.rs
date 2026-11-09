@@ -1,7 +1,7 @@
 //! One rule that markdownlint reported about a file
 //!
-//! A run of markdownlint reports one result for each rule that a file broke,
-//! and this module holds one of them: where the rule was broken, and what
+//! A run of markdownlint reports one result for each rule that a file broke.
+//! This module holds one of them: where the rule was broken, and what
 //! markdownlint said about it.
 
 use std::path::PathBuf;
@@ -12,19 +12,20 @@ use rakko::{FilePath, ProjectRoot};
 
 /// One rule that markdownlint reported about a file
 ///
-/// The path stands as markdownlint wrote it. Markdownlint starts in the
-/// project root and names a file relative to it, and a caller that reports
-/// the problem asks for the [relative][relative] path, which strips a root
-/// that arrived in front of it anyway.
+/// The path stands as markdownlint wrote it.
+/// Markdownlint starts in the project root and names a file relative to it.
+/// A caller that reports the problem asks for the [relative][relative] path.
+/// This path strips a root that arrived in front of it anyway.
 ///
-/// Every result of markdownlint names a line, so a problem always has one. A
-/// rule that can point at a character in that line names a column as well,
-/// and one that speaks about the whole line names none.
+/// Every result of markdownlint names a line, so a problem always has one.
+/// A rule that can point at a character in that line names a column as well.
+/// One that speaks about the whole line names none.
 ///
-/// The message is the sentence that markdownlint would have written for a
-/// reader: the rule and its aliases, what the rule is about, and what it
-/// expected here. A reader of a finding therefore reads the answer of the
-/// tool, and not one that this crate wrote about it.
+/// The message is the sentence markdownlint would have written for a reader.
+/// It includes the rule, its aliases, what the rule is about, and what it
+/// expected here.
+/// A reader of a finding therefore reads the answer of the tool, and not one
+/// that this crate wrote about it.
 ///
 /// [relative]: MarkdownlintProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
@@ -52,9 +53,9 @@ impl MarkdownlintProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. Markdownlint
-    /// starts in the root and names what it found below it, so a path that
-    /// does not fit points at a report that the caller misread, and the
-    /// caller decides what to do about that.
+    /// starts in the root and names what it found below it. So a path that does
+    /// not fit points at a report that the caller misread. The caller decides
+    /// what to do about that.
     pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

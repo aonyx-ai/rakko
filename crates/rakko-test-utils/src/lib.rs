@@ -5,29 +5,33 @@
 //! a test run an action and check that the action keeps its declaration of
 //! how it uses the project.
 //!
-//! Add this crate as a development dependency of the crate of the action.
-//! Then `rakko-test-utils` builds only for the tests of the action. It does
-//! not build for a harness, the binary that mounts the actions of a project
-//! and runs them. Use a release of `rakko-test-utils` whose dependency on
-//! `rakko` is compatible with the release of `rakko` that the action uses,
-//! such as 0.1 with 0.1, but not 0.1 with 0.2. Otherwise the action does not
-//! implement the `Action` trait that the helpers expect, and the tests do not
-//! compile.
+//! Add this crate as a development dependency of the action crate.
+//! Then `rakko-test-utils` builds only for the tests of the action.
+//! It does not build for a harness, the binary that mounts and runs the
+//! actions of a project.
+//! Use a release of `rakko-test-utils` whose dependency on `rakko` is
+//! compatible with the release of `rakko` that the action uses.
+//! For example, 0.1 is compatible with 0.1, but not with 0.2.
+//! Otherwise the action does not implement the `Action` trait that the
+//! helpers expect, and the tests do not compile.
 //!
 //! # Paths
 //!
-//! A test that refers to a file compares a path, and a path reads differently
-//! on each platform: Windows separates the parts of one with a different
-//! character, and it calls a path absolute only when the path starts with a
-//! volume as well. A literal in a test therefore describes one path on one
-//! platform and another, or no absolute path at all, on the next.
+//! A test that refers to a file compares a path.
+//! A path reads differently on each platform.
+//! Windows separates the parts with a different character, and it calls a
+//! path absolute only when the path starts with a volume as well.
+//! A literal in a test therefore describes one path on one platform and
+//! another, or no absolute path at all, on the next.
 //!
 //! This crate takes a literal in the one form that a reader knows, with a
-//! forward slash between the parts, and builds the path that the platform
-//! uses. One literal then describes the same file everywhere, and no test
-//! states a path twice. [`path`][path] answers with the path, and
-//! [`path_text`][path_text] with the text of that path, which is what a
-//! program writes and what a test that reads a report compares.
+//! forward slash between the parts.
+//! It builds the path that the platform uses.
+//! One literal then describes the same file everywhere, and no test states a
+//! path twice.
+//! [`path`][path] answers with the path.
+//! [`path_text`][path_text] answers with the text of that path, which is
+//! what a program writes and what a test that reads a report compares.
 //!
 //! # Access
 //!
@@ -79,9 +83,9 @@ const SEPARATOR: char = '/';
 /// Returns the path that the parts of a literal name on this platform
 ///
 /// The literal writes a forward slash between the parts, and the answer joins
-/// them the way the platform joins them. A literal that opens with a
-/// separator names an absolute path, and the answer opens with what the
-/// platform reads as the root of the file system.
+/// them the way the platform joins them. A literal that opens with a separator
+/// names an absolute path. The answer opens with what the platform reads as the
+/// root of the file system.
 ///
 /// # Examples
 ///

@@ -39,11 +39,12 @@ const SHARING_VIOLATION: i32 = 32;
 
 /// The run of an invocation that starts a refused launcher again
 ///
-/// [`launch`][launch] runs the invocation as [`Invocation::run`] does. When
-/// the program is a batch file and `cmd.exe` reported only that another
-/// process holds a file, the run starts again after a short pause, a few
-/// times at most. Every other result is the answer, whatever its exit status,
-/// so a tool that reports a problem of the project never runs twice.
+/// [`launch`][launch] runs the invocation as [`Invocation::run`] does. When the
+/// program is a batch file and `cmd.exe` reported only that another process
+/// holds a file, the run starts again. The run waits a short pause before each
+/// new start, and it starts again a few times at most. Every other result is
+/// the answer, whatever its exit status. So a tool that reports a problem of
+/// the project never runs twice.
 ///
 /// Every operating system but Windows starts a tool directly, so there a
 /// launch is one run.
@@ -88,12 +89,11 @@ pub trait Launch: Sealed {
     /// Runs the invocation, and starts it again when Windows refused its
     /// launcher
     ///
-    /// A refused launcher wrote the message of the operating system for a
-    /// file that another process holds, and nothing of its tool. Every
-    /// attempt asks the tool the same question, so another attempt changes
-    /// no answer. When the last attempt is refused as well, the result is
-    /// that attempt, and the caller reports it as a run that said nothing
-    /// about the project.
+    /// A refused launcher wrote the message of the operating system for a file
+    /// that another process holds, and nothing of its tool. Every attempt asks
+    /// the tool the same question, so another attempt changes no answer. When
+    /// the last attempt is refused as well, the result is that attempt. The
+    /// caller reports it as a run that said nothing about the project.
     ///
     /// The message arrives in the language of the system. A launcher that
     /// writes it in a code page that this crate does not read is not
@@ -132,10 +132,10 @@ impl Launch for Invocation {
 
 /// Returns whether Windows refused the launcher of a run
 ///
-/// A launcher is a batch file, so the extension of the program decides
-/// whether `cmd.exe` ran it. A refused one ended without success, wrote
-/// nothing on its standard output stream, and wrote only the message of the
-/// operating system on its standard error stream.
+/// A launcher is a batch file, so the extension of the program decides whether
+/// `cmd.exe` ran it. A refused launcher ended without success. It wrote nothing
+/// on its standard output stream and only the message of the operating system
+/// on its standard error stream.
 #[cfg(windows)]
 fn refused(execution: &Execution) -> bool {
     let batch = execution
@@ -278,9 +278,9 @@ mod tests {
     /// Shows that the launch type satisfies Send
     ///
     /// A scheduler runs actions in parallel and can move a run to a different
-    /// thread while it waits. This test holds the launch to the auto trait
-    /// that makes this possible, because a change to the future could take it
-    /// away without a word from the compiler.
+    /// thread while it waits. This test holds the launch to the auto trait that
+    /// makes this possible. It does so because a change to the future could
+    /// take it away without a word from the compiler.
     #[test]
     fn launch_is_send() {
         fn assert_send<T: Send>(_: &T) {}

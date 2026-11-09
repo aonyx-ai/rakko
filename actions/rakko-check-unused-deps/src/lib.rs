@@ -1,13 +1,13 @@
 //! The action that finds the dependencies a project declares and never uses
 //!
-//! A dependency that nothing reaches still costs the project: it is built,
-//! it is audited, it is updated, and it widens the surface that a reader of
+//! A dependency that nothing reaches still costs the project. It is built, it
+//! is audited, and it is updated. It also widens the surface that a reader of
 //! the manifest has to understand. Nothing in the manifest says whether a
 //! dependency is used, so the answer comes from a build.
 //!
 //! [Cargo-udeps] does the work. It reads the record that the compiler writes
-//! about the crates each target actually loaded, and it holds that record
-//! against the dependencies of the manifest. The action declares the version of
+//! about the crates each target actually loaded. It holds that record against
+//! the dependencies of the manifest. The action declares the version of
 //! cargo-udeps that it runs. It starts that version, which [mise] installed, on
 //! the nightly toolchain that the project pins, and it installs nothing. The
 //! nightly channel is not a preference: the record comes from an unstable
