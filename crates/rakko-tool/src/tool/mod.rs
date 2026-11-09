@@ -49,8 +49,8 @@ const TOOL: &str = "--tool";
 /// programs that it starts
 ///
 /// A tool that runs on a toolchain, such as a package for Node, starts the
-/// program of the toolchain by its name, so this variable decides which
-/// version of the toolchain runs the tool.
+/// program of the toolchain by its name. So this variable decides which version
+/// of the toolchain runs the tool.
 const PATH: &str = "PATH";
 
 /// The details of a failure that mise did not explain
@@ -157,7 +157,11 @@ impl Tool {
     ///
     /// A tool that runs on a toolchain from [`with_toolchain`][toolchain]
     /// gets a command that puts the directory of that toolchain first on the
-    /// path.
+    /// path. The command then never fails to build. A toolchain directory
+    /// that cannot be an entry of `PATH` is refused when the caller adds the
+    /// toolchain. An entry of the inherited path holds no separator, so joining
+    /// the directories cannot fail. If it did, the command would keep the
+    /// inherited path.
     ///
     /// # Examples
     ///
@@ -192,9 +196,6 @@ impl Tool {
             .cloned()
             .chain(std::env::split_paths(&inherited));
 
-        // `with_toolchain` refuses a directory that cannot be an entry of
-        // `PATH`, and an entry of the inherited path holds no separator, so the join
-        // does not fail. A failure would keep the inherited path.
         match std::env::join_paths(directories) {
             Ok(path) => invocation.env(PATH, path),
             Err(_) => invocation,
@@ -206,11 +207,11 @@ impl Tool {
     /// Some tools start a toolchain by its name. For example, a package for
     /// Node starts the `node` program that it finds first on the path. The
     /// toolchain that the environment puts first can then be another version
-    /// than the one that the action resolved, or a version outside the range
-    /// of the action. A command of the returned tool puts the directory of
-    /// the program of the toolchain before the path that the process
-    /// inherited. So the tool runs on the toolchain that the caller resolved,
-    /// and the inherited path follows that directory.
+    /// than the one that the action resolved. That toolchain can also be a
+    /// version outside the range of the action. A command of the returned tool
+    /// puts the directory of the program of the toolchain before the path that
+    /// the process inherited. So the tool runs on the toolchain that the caller
+    /// resolved, and the inherited path follows that directory.
     ///
     /// A tool can run on several toolchains. A run searches their
     /// directories in the order that the caller added the toolchains.
@@ -218,10 +219,11 @@ impl Tool {
     /// # Errors
     ///
     /// Returns [`UnplaceableToolchain`][unplaceable] when the directory of the
-    /// program of the toolchain cannot be an entry of `PATH`, because it holds
-    /// the separator of the entries, such as `:` on Unix, or when the program
-    /// has no directory. A run then stops. Else the tool runs on a toolchain
-    /// that the environment chose.
+    /// program of the toolchain cannot be an entry of `PATH`. That happens
+    /// because the directory holds the separator of the entries, such as `:` on
+    /// Unix. It also returns that error when the program has no directory. A
+    /// run then stops. Else the tool runs on a toolchain that the environment
+    /// chose.
     ///
     /// # Examples
     ///

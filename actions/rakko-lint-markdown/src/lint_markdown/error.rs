@@ -82,10 +82,10 @@ pub enum LintMarkdownError {
     /// Mise reported no markdownlint at the version that the action declares, or
     /// no Node that the action accepts
     ///
-    /// Mise did not run, the project pins no Node in the range of the action,
-    /// nothing installed the declared markdownlint or the pinned Node yet, or the
-    /// directory of that Node cannot be an entry of `PATH`. The action
-    /// installs nothing, so the run stops here.
+    /// Mise did not run, or the project pins no Node in the range of the
+    /// action. Nothing installed the declared markdownlint or the pinned Node
+    /// yet, or the directory of that Node cannot be an entry of `PATH`. The
+    /// action installs nothing, so the run stops here.
     #[error("failed to resolve markdownlint")]
     UnresolvedTool {
         /// The cause of the failure

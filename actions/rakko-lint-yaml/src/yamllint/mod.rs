@@ -1,9 +1,9 @@
 //! The yamllint that a project runs
 //!
-//! This module holds the version that the crate declares, the program that mise
-//! installed at that version, and the runs that produce a listing and a report.
-//! An action asks for a run, and everything between the action and the process
-//! lives here.
+//! This module holds the version that the crate declares and the program that
+//! mise installed at that version. It also holds the runs that produce a
+//! listing and a report. An action asks for a run, and everything between the
+//! action and the process lives here.
 
 mod error;
 pub(crate) mod listing;

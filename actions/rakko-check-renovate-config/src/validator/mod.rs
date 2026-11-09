@@ -209,9 +209,9 @@ impl Validator {
     /// Returns a [`ResolveRequirementError`] when mise does not run. It also
     /// returns one when the project pins no Node in the range. It also returns
     /// one when mise reports no validator at the declared version or no Node at
-    /// the pinned one, for example because nothing installed it. It also
-    /// returns one when the directory of that Node cannot be an entry of
-    /// `PATH`.
+    /// the pinned one. This happens, for example, because nothing installed
+    /// that validator or that Node. It also returns one when the directory of
+    /// that Node cannot be an entry of `PATH`.
     ///
     /// [node]: Validator::node_requirement
     /// [requirement]: Validator::requirement
@@ -415,9 +415,9 @@ mod tests {
 
     /// Returns the context of a run in the repository that the tests run in
     ///
-    /// The repository pins a Node that the range of the crate accepts, and it
-    /// installs the Renovate that the crate declares, so the tests resolve
-    /// the validator there.
+    /// The repository pins a Node that the range of the crate accepts. The
+    /// repository also installs the Renovate that the crate declares, so the
+    /// tests resolve the validator there.
     fn context() -> Context {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let root = manifest

@@ -1,10 +1,10 @@
 //! The prettier that a project runs
 //!
-//! This module holds the version of prettier that the crate declares, the
-//! range of Node that it accepts, the program that mise installed at that
-//! version, and the run of one operation. An action states which operation
-//! it wants and which files it cares about, and everything between the action
-//! and the process lives here.
+//! This module holds the version of prettier that the crate declares and the
+//! range of Node that it accepts. It also holds the program that mise installed
+//! at that version and the run of one operation. An action states which
+//! operation it wants and which files it cares about, and everything between
+//! the action and the process lives here.
 
 mod error;
 
@@ -238,11 +238,12 @@ impl Prettier {
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
-    /// project pins no Node in the range, when mise reports no prettier at the
-    /// declared version or no Node at the pinned one, for example because
-    /// nothing installed it, or when the directory of that Node cannot be an
-    /// entry of `PATH`.
+    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
+    /// returns one when the project pins no Node in the range. It also returns
+    /// one when mise reports no prettier at the declared version or no Node at
+    /// the pinned one. This happens, for example, because nothing installed
+    /// that prettier or that Node. It also returns one when the directory of
+    /// that Node cannot be an entry of `PATH`.
     ///
     /// [node]: Prettier::node_requirement
     /// [requirement]: Prettier::requirement

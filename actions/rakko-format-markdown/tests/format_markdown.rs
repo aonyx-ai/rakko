@@ -61,8 +61,8 @@ impl Project {
     ///
     /// The project copies the `mise.toml` of this repository, so the Node that
     /// mise resolves for it is the Node that the repository pins and installs.
-    /// The copy pins prettier at a version that no machine installs, and the
-    /// run resolves the prettier that the action declares, so the pin of the
+    /// The copy pins prettier at a version that no machine installs. The run
+    /// resolves the prettier that the action declares, so the pin of the
     /// project must not change what runs. Mise ignores a configuration that
     /// nobody trusts, so the copy is trusted right away.
     fn new() -> Self {

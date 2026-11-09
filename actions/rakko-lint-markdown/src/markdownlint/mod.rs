@@ -1,9 +1,9 @@
 //! The markdownlint that a project runs
 //!
-//! This module holds the version of markdownlint that the crate declares, the
-//! program that mise installed at that version, and the run that produces a
-//! report. An action asks for a run, and everything between the action and
-//! the process lives here.
+//! This module holds the version of markdownlint that the crate declares and
+//! the program that mise installed at that version. It also holds the run that
+//! produces a report. An action asks for a run, and everything between the
+//! action and the process lives here.
 
 mod error;
 mod report;
@@ -204,9 +204,9 @@ impl Markdownlint {
     /// Returns a [`ResolveRequirementError`] when mise does not run. It also
     /// returns one when the project pins no Node in the range. It also returns
     /// one when mise reports no markdownlint at the declared version or no Node
-    /// at the pinned one, for example because nothing installed it. It also
-    /// returns one when the directory of that Node cannot be an entry of
-    /// `PATH`.
+    /// at the pinned one. This happens, for example, because nothing installed
+    /// that markdownlint or that Node. It also returns one when the directory
+    /// of that Node cannot be an entry of `PATH`.
     ///
     /// [node]: Markdownlint::node_requirement
     /// [requirement]: Markdownlint::requirement

@@ -46,8 +46,9 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 ///
 /// The action applies to a project that holds Markdown files, and it skips
 /// visibly otherwise. A run stops with an error when mise reports no
-/// markdownlint at the declared version or no Node in the accepted range, and
-/// when markdownlint writes a report that the action cannot read.
+/// markdownlint at the declared version or no Node in the accepted range. It
+/// also stops with an error when markdownlint writes a report that the action
+/// cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
