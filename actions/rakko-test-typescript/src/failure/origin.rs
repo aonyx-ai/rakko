@@ -1,3 +1,5 @@
+//! The place in the project where a test that failed was declared
+
 use std::path::PathBuf;
 
 use bon::Builder;
@@ -7,9 +9,10 @@ use rakko::{FilePath, ProjectRoot};
 /// The place in the project where a test that failed was declared
 ///
 /// Node reports the place of a test as the path, the line, and the column of
-/// the call that declared it, and not the place where the test broke. The two
-/// differ for a test whose body calls a helper, and the declaration is the one
-/// that a reader goes to, because it names the test that the report named.
+/// the call that declared it. It does not report the place where the test
+/// broke. The two differ for a test whose body calls a helper. The declaration
+/// is the one that a reader goes to, because it names the test that the report
+/// named.
 ///
 /// The path stands as Node wrote it, which is absolute. A caller that reports
 /// the failure asks for the [relative][relative] path.
@@ -34,19 +37,20 @@ impl Origin {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. A run starts
-    /// node in the root and lets node walk down from there, so a path that
-    /// does not fit points at a report that the caller misread, and the caller
+    /// node in the root and lets node walk down from there. So a path that
+    /// does not fit points at a report that the caller misread. The caller
     /// decides what to do about that.
     pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -60,6 +64,13 @@ mod tests {
     /// The root that the failures of a test belong to
     fn root() -> ProjectRoot {
         ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn origin_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Origin>();
     }
 
     #[test]

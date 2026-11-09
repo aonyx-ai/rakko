@@ -1,5 +1,8 @@
+//! One dependency that a package declares and never uses
+
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko::{Finding, Location, ProjectRoot};
 use rakko_cargo::CargoRoot;
@@ -12,14 +15,14 @@ const UNUSED: &str = "unused";
 /// One dependency that a package declares and no target of it loads
 ///
 /// Cargo-udeps names the dependency, the manifest that declares it, and the
-/// table of that manifest which declares it. All three travel together,
-/// because a workspace holds more than one manifest, and one name can appear
-/// in more than one table of the same manifest.
+/// table of that manifest which declares it. All three travel together
+/// because a workspace holds more than one manifest. One name can appear in
+/// more than one table of the same manifest.
 ///
-/// The manifest is the path that cargo-udeps reported, which is absolute. A
-/// finding names it relative to the project root instead, which is the name
+/// The manifest is the path that cargo-udeps reported. That path is absolute.
+/// A finding names it relative to the project root instead. That is the name
 /// that a reader, a machine, and a code host all recognize.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub(crate) struct UnusedDependency {
     /// The table of the manifest that declares the dependency
     #[getset(get_copy = "pub(crate)")]
@@ -35,21 +38,12 @@ pub(crate) struct UnusedDependency {
 }
 
 impl UnusedDependency {
-    /// Creates an unused dependency from what cargo-udeps reported
-    pub(crate) fn new(kind: DependencyKind, name: String, manifest: PathBuf) -> Self {
-        Self {
-            kind,
-            name,
-            manifest,
-        }
-    }
-
     /// Returns the finding that reports this dependency
     ///
     /// The finding belongs to the manifest that declares the dependency,
-    /// because cargo-udeps reports no line of it, and the message names the
-    /// dependency together with the kind, so that a reader finds the entry
-    /// to remove.
+    /// because cargo-udeps reports no line of it. The message names the
+    /// dependency together with the kind, so that a reader finds the entry to
+    /// remove.
     ///
     /// A manifest that lies outside the project gets a finding at the level
     /// of the project. The message then names the manifest, so the place is
@@ -72,9 +66,10 @@ impl UnusedDependency {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
 
@@ -97,7 +92,11 @@ mod tests {
 
     /// Returns an unused dependency that the given manifest declares
     fn unused(kind: DependencyKind, manifest: &str) -> UnusedDependency {
-        UnusedDependency::new(kind, "serde".to_owned(), PathBuf::from(manifest))
+        UnusedDependency::builder()
+            .kind(kind)
+            .name("serde".to_owned())
+            .manifest(PathBuf::from(manifest))
+            .build()
     }
 
     #[test]
@@ -150,5 +149,12 @@ mod tests {
             finding.message().get(),
             "unused dependency: serde in /home/otter/elsewhere/Cargo.toml"
         );
+    }
+
+    #[test]
+    fn unused_dependency_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<UnusedDependency>();
     }
 }

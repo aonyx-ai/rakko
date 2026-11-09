@@ -1,5 +1,8 @@
+//! The source that a diagnostic points at
+
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::Getters;
 use rakko::Span;
 
@@ -10,7 +13,7 @@ use rakko::Span;
 /// root that cargo checked, because the compiler runs there. A caller that
 /// reports the diagnostic asks the root for the path relative to the
 /// project.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub(crate) struct DiagnosticSpan {
     /// The file that the diagnostic is about, as cargo wrote it
     #[getset(get = "pub(crate)")]
@@ -21,9 +24,14 @@ pub(crate) struct DiagnosticSpan {
     range: Span,
 }
 
-impl DiagnosticSpan {
-    /// Creates a span from the path and the range that the compiler named
-    pub(crate) fn new(path: PathBuf, range: Span) -> Self {
-        Self { path, range }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn diagnostic_span_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DiagnosticSpan>();
     }
 }

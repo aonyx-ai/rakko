@@ -1,7 +1,7 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately failing test sits in this
+//! against it. So no fixture with a deliberately failing test sits in this
 //! repository, where the tests of the repository itself would fight it.
 //!
 //! A project of a test is a git repository with one empty commit, and the
@@ -12,8 +12,8 @@
 //! No project of a test declares a dependency that a registry holds. The
 //! resolution then needs no network, and what a test asserts does not depend
 //! on what crates.io published this morning. A floor that no registry serves
-//! resolves to itself, so a test reads whether the run resolved and tested at
-//! all, and cargo answers for which versions it picks.
+//! resolves to itself. So a test reads whether the run resolved and tested at
+//! all. Cargo answers for which versions it picks.
 //!
 //! The tests run the nextest that the action declares, with the cargo that
 //! this repository pins. A project copies the `mise.toml` of the repository
@@ -21,9 +21,10 @@
 //! repository installs. The copy pins another nextest that nothing installs,
 //! so a test passes only when the run ignores the pin of the project.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -41,8 +42,8 @@ const PACKAGE: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition
 /// The manifest of a package that belongs to no workspace
 ///
 /// The empty workspace table tells cargo that the package is a root of its
-/// own, which cargo demands from a package below a workspace that does not
-/// list it.
+/// own. Cargo demands this from a package below a workspace that does not list
+/// it.
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
@@ -61,8 +62,8 @@ const MEMBER_LIBRARY: &str = "pub fn value() -> i32 {\n    1\n}\n";
 /// The manifest of a package whose dependency lies at a path that nothing
 /// holds
 ///
-/// Cargo describes the workspace of such a manifest without a word, because
-/// the description reads no dependency, and the resolution then fails over the
+/// Cargo describes the workspace of such a manifest without a word because the
+/// description reads no dependency. The resolution then fails over the
 /// directory that is not there.
 const MISSING_DEPENDENCY: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nmissing = { path = \"missing\" }\n";
 
@@ -76,7 +77,7 @@ const STALE_LOCK: &str = "version = 4\n\n[[package]]\nname = \"probe\"\nversion 
 /// A manifest with a build script that fails
 ///
 /// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the report holds nothing that the action
+/// diagnostic of the compiler. So the report holds nothing that the action
 /// recognizes.
 const FAILING_BUILD: &str =
     "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\nbuild = \"build.rs\"\n";
@@ -110,9 +111,9 @@ const BROKEN: &str = "pub fn broken() -> i32 {\n    \"no\"\n}\n";
 /// The prefix of the names of the environment that git reads for itself
 ///
 /// A test that runs inside a hook, a rebase, or a bisect of another repository
-/// inherits variables that name that repository, and those beat the directory
-/// that a command runs in. They therefore leave the environment of every git
-/// command of a test.
+/// inherits variables that name that repository. Those variables beat the
+/// directory that a command runs in. They therefore leave the environment of
+/// every git command of a test.
 const GIT_PREFIX: &[u8] = b"GIT_";
 
 /// The key that pins nextest in the mise configuration of a project
@@ -127,6 +128,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a cargo to resolve and without a repository
     ///
@@ -141,15 +143,15 @@ impl Project {
 
     /// Creates a project with the cargo of this repository, in a repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the cargo
-    /// and the nightly toolchain that mise resolves for it are the ones that
-    /// the repository pins and installs. The copy pins a nextest that nothing
+    /// The project copies the `mise.toml` of this repository. So the cargo and
+    /// the nightly toolchain that mise resolves for it are the ones that the
+    /// repository pins and installs. The copy pins a nextest that nothing
     /// installs. Mise ignores a configuration that nobody trusts, so the copy
     /// is trusted right away.
     ///
-    /// The repository holds one empty commit, and every file that a test
-    /// writes afterwards is untracked, which is the tree of a contributor who
-    /// has not committed their work yet.
+    /// The repository holds one empty commit. Every file that a test writes
+    /// afterwards is untracked, which is the tree of a contributor who has not
+    /// committed their work yet.
     fn new() -> Self {
         let project = Self::without_repository();
 
@@ -165,8 +167,8 @@ impl Project {
     /// Creates a project with one package whose library holds the given source
     fn with_library(source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", source);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(source).call();
 
         project
     }
@@ -189,7 +191,7 @@ impl Project {
 
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for cargo, whatever the global configuration of the machine
     /// says about Rust.
     fn without_cargo() -> Self {
@@ -199,8 +201,8 @@ impl Project {
         std::fs::write(&pins, "[tools]\nrust = \"0.0.1\"\n")
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", PASSING);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(PASSING).call();
 
         project
     }
@@ -223,8 +225,8 @@ impl Project {
         std::fs::write(&pins, format!("[tools]\nrust = \"{}\"\n", toolchain.get()))
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", PASSING);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(PASSING).call();
 
         project
     }
@@ -242,9 +244,9 @@ impl Project {
 
     /// Runs git in the project
     ///
-    /// The command forgets the variables that name a repository, so a test
-    /// that runs inside a hook of another repository still works on the one
-    /// that it created.
+    /// The command forgets the variables that name a repository. So a test that
+    /// runs inside a hook of another repository still works on the one that it
+    /// created.
     fn git(&self, arguments: &[&str]) {
         let mut command = Command::new("git");
         command.current_dir(self.directory.path()).args(arguments);
@@ -277,6 +279,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -291,9 +294,9 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A failure stays quiet, because the test already
     /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
@@ -373,9 +376,14 @@ fn action_identifies_itself_as_check_minimal_deps() {
     assert_eq!(name.get(), "check-minimal-deps");
 }
 
+/// Shows that a run builds the tests on the toolchain of the project
+///
+/// The library reports the toolchain that built it, and the test in it fails
+/// when that toolchain is the nightly of the update. The run passes, so the
+/// tests built on the toolchain that the project pins.
 #[tokio::test]
-async fn run_in_a_project_with_a_passing_test_passes() {
-    let project = Project::with_library(PASSING);
+async fn run_builds_the_tests_on_the_toolchain_of_the_project() {
+    let project = Project::with_library(REPORTING_TOOLCHAIN);
 
     let outcome = project.run().await;
 
@@ -401,10 +409,22 @@ async fn run_in_a_project_with_a_passing_test_counts_it() {
 }
 
 #[tokio::test]
+async fn run_in_a_project_with_a_passing_test_passes() {
+    let project = Project::with_library(PASSING);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_in_a_project_without_a_repository_stops() {
     let project = Project::without_repository();
-    project.write("Cargo.toml", PACKAGE);
-    project.write("src/lib.rs", PASSING);
+    project.write().path("Cargo.toml").content(PACKAGE).call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let outcome = project.run().await;
 
@@ -429,32 +449,39 @@ async fn run_in_a_workspace_without_tests_counts_zero() {
     );
 }
 
-// The library reports the toolchain that built it, and the test in it fails
-// when that toolchain is the nightly of the update. The run passes, so the
-// tests built on the toolchain that the project pins.
-#[tokio::test]
-async fn run_builds_the_tests_on_the_toolchain_of_the_project() {
-    let project = Project::with_library(REPORTING_TOOLCHAIN);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-// The lockfile of the project is the one file that the recipe this action
-// replaces used to leave rewritten, and the reason that the recipe refused a
-// tree with changes in it.
+/// Shows that a run leaves the lockfile of the project alone
+///
+/// The lockfile of the project is the one file that the recipe this action
+/// replaces used to leave rewritten. This is the reason that the recipe refused
+/// a tree with changes in it.
 #[tokio::test]
 async fn run_leaves_the_lockfile_of_the_project_alone() {
     let project = Project::new();
-    project.write("Cargo.toml", WITH_MEMBER);
-    project.write("src/lib.rs", PASSING_THROUGH_MEMBER);
-    project.write("dep/Cargo.toml", MEMBER);
-    project.write("dep/src/lib.rs", MEMBER_LIBRARY);
-    project.write("Cargo.lock", STALE_LOCK);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(WITH_MEMBER)
+        .call();
+    project
+        .write()
+        .path("src/lib.rs")
+        .content(PASSING_THROUGH_MEMBER)
+        .call();
+    project
+        .write()
+        .path("dep/Cargo.toml")
+        .content(MEMBER)
+        .call();
+    project
+        .write()
+        .path("dep/src/lib.rs")
+        .content(MEMBER_LIBRARY)
+        .call();
+    project
+        .write()
+        .path("Cargo.lock")
+        .content(STALE_LOCK)
+        .call();
 
     project.run().await;
 
@@ -473,9 +500,17 @@ async fn run_leaves_the_project_without_a_build_directory() {
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let outcome = project.run().await;
 
@@ -505,8 +540,12 @@ async fn run_with_a_compiler_error_fails_with_a_finding() {
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_fails_at_the_manifest() {
     let project = Project::new();
-    project.write("Cargo.toml", MISSING_DEPENDENCY);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(MISSING_DEPENDENCY)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let outcome = project.run().await;
 
@@ -519,8 +558,12 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_fails_at_the_manifest()
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote() {
     let project = Project::new();
-    project.write("Cargo.toml", MISSING_DEPENDENCY);
-    project.write("src/lib.rs", PASSING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(MISSING_DEPENDENCY)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
 
     let outcome = project.run().await;
 
@@ -533,14 +576,20 @@ async fn run_with_a_dependency_that_cargo_cannot_resolve_holds_what_cargo_wrote(
     );
 }
 
-// A run that tested a workspace whose resolution failed would answer for a
-// lockfile that nobody wrote, so the finding of the update is the only one
-// that such a run reports.
+/// Shows that a dependency that cargo cannot resolve runs no test
+///
+/// A run that tested a workspace whose resolution failed would answer for a
+/// lockfile that nobody wrote. So the finding of the update is the only one that
+/// such a run reports.
 #[tokio::test]
 async fn run_with_a_dependency_that_cargo_cannot_resolve_runs_no_test() {
     let project = Project::new();
-    project.write("Cargo.toml", MISSING_DEPENDENCY);
-    project.write("src/lib.rs", FAILING);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(MISSING_DEPENDENCY)
+        .call();
+    project.write().path("src/lib.rs").content(FAILING).call();
 
     let outcome = project.run().await;
 
@@ -562,13 +611,23 @@ async fn run_with_a_failing_test_fails() {
     );
 }
 
-// The run works in the copy, and the finding still names the file that the
-// contributor can open.
+/// Shows that a failing test in a second workspace names its path
+///
+/// The run works in the copy, and the finding still names the file that the
+/// contributor can open.
 #[tokio::test]
 async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", FAILING);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -581,7 +640,11 @@ async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -591,33 +654,76 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_stale_lockfile_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("Cargo.toml", WITH_MEMBER);
-    project.write("src/lib.rs", PASSING_THROUGH_MEMBER);
-    project.write("dep/Cargo.toml", MEMBER);
-    project.write("dep/src/lib.rs", MEMBER_LIBRARY);
-    project.write("Cargo.lock", STALE_LOCK);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(WITH_MEMBER)
+        .call();
+    project
+        .write()
+        .path("src/lib.rs")
+        .content(PASSING_THROUGH_MEMBER)
+        .call();
+    project
+        .write()
+        .path("dep/Cargo.toml")
+        .content(MEMBER)
+        .call();
+    project
+        .write()
+        .path("dep/src/lib.rs")
+        .content(MEMBER_LIBRARY)
+        .call();
+    project
+        .write()
+        .path("Cargo.lock")
+        .content(STALE_LOCK)
+        .call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckMinimalDeps, &project.context(), &()).await;
 }
 
-// The lockfile of the project names no member, so a build that holds cargo to
-// it ends without success. The run passes, which it can only do when the
-// update wrote the member into the lockfile of the copy and the tests built
-// what that lockfile holds. Cargo refuses the option of the update on every
-// channel but the nightly, so an update that reached this far ran there.
+/// Shows that a run with a stale lockfile passes
+///
+/// The lockfile of the project names no member, so a build that holds cargo to
+/// it ends without success. The run passes only when the update wrote the
+/// member into the lockfile of the copy and the tests built what that lockfile
+/// holds. Cargo refuses the option of the update on every channel but the
+/// nightly, so an update that reached this far ran there.
 #[tokio::test]
 async fn run_with_a_stale_lockfile_passes() {
     let project = Project::new();
-    project.write("Cargo.toml", WITH_MEMBER);
-    project.write("src/lib.rs", PASSING_THROUGH_MEMBER);
-    project.write("dep/Cargo.toml", MEMBER);
-    project.write("dep/src/lib.rs", MEMBER_LIBRARY);
-    project.write("Cargo.lock", STALE_LOCK);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(WITH_MEMBER)
+        .call();
+    project
+        .write()
+        .path("src/lib.rs")
+        .content(PASSING_THROUGH_MEMBER)
+        .call();
+    project
+        .write()
+        .path("dep/Cargo.toml")
+        .content(MEMBER)
+        .call();
+    project
+        .write()
+        .path("dep/src/lib.rs")
+        .content(MEMBER_LIBRARY)
+        .call();
+    project
+        .write()
+        .path("Cargo.lock")
+        .content(STALE_LOCK)
+        .call();
 
     let outcome = project.run().await;
 
@@ -630,8 +736,16 @@ async fn run_with_a_stale_lockfile_passes() {
 #[tokio::test]
 async fn run_with_two_workspaces_sums_the_tests() {
     let project = Project::with_library(PASSING);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", PASSING);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -663,7 +777,11 @@ async fn run_without_a_cargo_stops() {
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Project\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Project\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -673,9 +791,11 @@ async fn run_without_a_manifest_skips() {
     );
 }
 
-// The project pins a cargo, so the run gets past the tool and stops over the
-// channel that the update needs. The message names the nightly, which tells
-// the two conditions apart.
+/// Shows that a run without a nightly toolchain stops
+///
+/// The project pins a cargo, so the run gets past the tool and stops over the
+/// channel that the update needs. The message names the nightly, which tells
+/// the two conditions apart.
 #[tokio::test]
 async fn run_without_a_nightly_toolchain_stops() {
     let project = Project::without_nightly().await;

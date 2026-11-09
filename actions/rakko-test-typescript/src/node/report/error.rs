@@ -1,3 +1,5 @@
+//! The error that leaves a caller without the report of a run
+
 use thiserror::Error;
 
 /// An error that leaves a caller without the report of a run
@@ -5,6 +7,16 @@ use thiserror::Error;
 /// A test that failed is no failure of the reading: it arrives as a result of
 /// the report, and the caller decides what it means. The variants here
 /// describe text that is not the report of a run at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::ReadReportError;
+///
+/// let error = ReadReportError::MissingHeader;
+///
+/// assert_eq!(error.to_string(), "the report does not open with a version of TAP");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Error)]
 #[non_exhaustive]
 pub enum ReadReportError {
@@ -28,8 +40,8 @@ pub enum ReadReportError {
     /// A line of the report is no part of the report that this crate reads
     ///
     /// The shape of a report belongs to a version of Node. A line that does
-    /// not fit therefore points at a version that this crate does not know,
-    /// and the results of such a reading would be the ones that it happened to
+    /// not fit therefore points at a version that this crate does not know. The
+    /// results of such a reading would be the ones that it happened to
     /// understand.
     #[error("the report holds a line that the action cannot read: {line}")]
     UnreadableLine {
@@ -40,20 +52,30 @@ pub enum ReadReportError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Shows that `ReadReportError` is `Send` and `Sync`
+    ///
+    /// An action puts the error in the outcome of a run. That outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn read_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ReadReportError>();
+    }
+
+    #[test]
+    fn read_report_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ReadReportError>();
     }
 }

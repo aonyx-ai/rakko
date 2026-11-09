@@ -1,3 +1,5 @@
+//! What a run of `mise lock` that ended with success did
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use rakko::{FilePath, SkipReason};
@@ -26,4 +28,16 @@ pub(crate) enum Lock {
         /// What mise wrote about the project
         reason: SkipReason,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lock_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Lock>();
+    }
 }

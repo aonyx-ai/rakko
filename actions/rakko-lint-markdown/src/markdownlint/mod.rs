@@ -1,20 +1,18 @@
 //! The markdownlint that a project runs
 //!
-//! This module holds the version of markdownlint that the crate declares, the
-//! program that mise installed at that version, and the run that produces a
-//! report. An action asks for a run, and everything between the action and
-//! the process lives here.
+//! This module holds the version of markdownlint that the crate declares and
+//! the program that mise installed at that version. It also holds the run that
+//! produces a report. An action asks for a run, and everything between the
+//! action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the report that markdownlint wrote
 mod report;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Launch, ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveMarkdownlintError;
-use crate::observation::Observation;
+use crate::observation::{Examination, Exit, Observation};
 
 /// The name that mise knows the tool by
 const MARKDOWNLINT_CLI: &str = "npm:markdownlint-cli";
@@ -26,7 +24,8 @@ const MARKDOWNLINT: &str = "markdownlint";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), MARKDOWNLINT_CLI);
+const VERSION: &str =
+    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(MARKDOWNLINT_CLI);
 
 /// The name that mise knows Node by, which is also the name of its program
 const NODE: &str = "node";
@@ -39,12 +38,11 @@ const NODE_RANGE: &str = ">=22";
 
 /// The flag that asks markdownlint for its report as data
 ///
-/// Markdownlint writes one line per result for a reader by default, and the
-/// same results as JSON on request, which carries the rule, the position, and
-/// the message in fields instead of in a line that a reader has to take
-/// apart. The flag selects the presentation of the report and not the
-/// behavior of the tool: which rules apply to which file comes from the
-/// configuration of the project alone.
+/// Markdownlint writes one line per result for a reader by default. On request,
+/// JSON carries the rule, the position, and the message in fields instead of in
+/// a line that a reader has to take apart. The flag selects the presentation of
+/// the report, not the behavior of the tool. Which rules apply to which file
+/// comes from the configuration of the project alone.
 const JSON: &str = "--json";
 
 /// The flag that asks markdownlint to examine the entries with a dot
@@ -66,11 +64,11 @@ const IGNORE: &str = "--ignore";
 
 /// The pattern of the directories in which Git keeps a repository
 ///
-/// The directory of a repository starts with a dot, so a run that asks for
-/// the entries with a dot reaches it, and it holds no content of the project.
-/// The pattern matches at every depth, because a repository that a project
-/// holds in its tree has a `.git` directory of its own. The argument reaches
-/// markdownlint without a shell, so nothing expands the wildcards on the way.
+/// The repository directory starts with a dot. So a run that asks for the
+/// entries with a dot reaches it, and it holds no project content. The pattern
+/// matches at every depth, because a repository that a project holds in its
+/// tree has a `.git` directory of its own. The argument reaches markdownlint
+/// without a shell, so nothing expands the wildcards on the way.
 const GIT: &str = "**/.git/**";
 
 /// The place that a run tells markdownlint to look
@@ -89,7 +87,7 @@ const NO_MATCHING_FILES: &str = "No matching files found";
 /// The markdownlint that a project runs
 ///
 /// The value holds the program that mise installed at the version that the
-/// crate declares. The pin of the project does not change it, so a run reaches
+/// crate declares. The pin of the project does not change it. So a run reaches
 /// the version that the tests of the crate cover. The program runs on the Node
 /// that the project pins, when the range of the crate accepts it. Nothing here
 /// installs a tool: provisioning is the job of mise, and a markdownlint that
@@ -104,15 +102,14 @@ impl Markdownlint {
     /// Runs markdownlint over the project and reads what it reported
     ///
     /// The run names the root of the project and asks for the report as data.
-    /// It includes the files and directories whose name starts with a dot,
-    /// which markdownlint skips by default, and it leaves out every directory
-    /// with the name `.git`. The ignore file of the project decides what else
-    /// the run leaves out.
+    /// It includes files and directories whose name starts with a dot, which
+    /// markdownlint skips by default. It leaves out the `.git` directory. The
+    /// ignore file of the project decides what else the run leaves out.
     ///
-    /// Markdownlint writes the report on its standard error stream. A run
-    /// that finds no file to examine writes no report and ends with success,
-    /// like a run that found nothing wrong, so the observation also says
-    /// whether the run examined a file.
+    /// Markdownlint writes the report on its standard error stream. A run that
+    /// finds no file to examine writes no report and ends with success, like a
+    /// run that found nothing wrong. So the observation also says whether the
+    /// run examined a file.
     ///
     /// # Errors
     ///
@@ -138,7 +135,7 @@ impl Markdownlint {
         let stdout = execution.stdout().to_string_lossy();
         let stderr = execution.stderr().to_string_lossy();
 
-        let examined = examined(&stdout, &stderr);
+        let examined = examined().stdout(&stdout).stderr(&stderr).call();
 
         let problems = if examined {
             self::report::problems(&stderr).map_err(|source| {
@@ -151,11 +148,23 @@ impl Markdownlint {
             Vec::new()
         };
 
+        let examination = if examined {
+            Examination::Examined
+        } else {
+            Examination::Skipped
+        };
+
+        let exit = if execution.status().success() {
+            Exit::Succeeded
+        } else {
+            Exit::Failed
+        };
+
         Ok(Observation::builder()
             .problems(problems)
-            .examined(examined)
+            .examined(examination)
             .stderr(stderr.into_owned())
-            .succeeded(execution.status().success())
+            .succeeded(exit)
             .build())
     }
 
@@ -192,17 +201,25 @@ impl Markdownlint {
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
-    /// project pins no Node in the range, when mise reports no markdownlint at the
-    /// declared version or no Node at the pinned one, for example because
-    /// nothing installed it, or when the directory of that Node cannot be an
-    /// entry of `PATH`.
+    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
+    /// returns one when the project pins no Node in the range. It also returns
+    /// one when mise reports no markdownlint at the declared version or no Node
+    /// at the pinned one. This happens, for example, because nothing installed
+    /// that markdownlint or that Node. It also returns one when the directory
+    /// of that Node cannot be an entry of `PATH`.
     ///
     /// [node]: Markdownlint::node_requirement
     /// [requirement]: Markdownlint::requirement
     pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement(&Self::node_requirement(), context).await?;
-        let tool = Tool::resolve_requirement(&Self::requirement(), context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Self::node_requirement())
+            .context(context)
+            .call()
+            .await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
             .await?
             .with_toolchain(&node)?;
 
@@ -219,15 +236,17 @@ impl Markdownlint {
 /// a single sentence on the standard error stream in place of the report.
 /// Both versions then end with success, like a run that examined the project
 /// and found nothing.
+#[bon::builder]
 fn examined(stdout: &str, stderr: &str) -> bool {
     stdout.trim().is_empty() && stderr.trim() != NO_MATCHING_FILES
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that resolves a tool expects mise to find it. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use std::path::Path;
@@ -257,36 +276,49 @@ mod tests {
 
     #[test]
     fn examined_of_a_run_with_a_report_is_true() {
-        let examined = examined("", REPORT);
+        let examined = examined().stdout("").stderr(REPORT).call();
 
         assert!(examined);
     }
 
     #[test]
     fn examined_of_a_run_with_no_matching_files_is_false() {
-        let examined = examined("", "No matching files found\n");
+        let examined = examined()
+            .stdout("")
+            .stderr("No matching files found\n")
+            .call();
 
         assert!(!examined);
     }
 
     #[test]
     fn examined_of_a_run_with_the_usage_text_is_false() {
-        let examined = examined(USAGE, "");
+        let examined = examined().stdout(USAGE).stderr("").call();
 
         assert!(!examined);
     }
 
     #[test]
     fn examined_of_a_run_without_output_is_true() {
-        let examined = examined("", "");
+        let examined = examined().stdout("").stderr("").call();
 
         assert!(examined);
+    }
+
+    #[test]
+    fn markdownlint_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Markdownlint>();
     }
 
     #[tokio::test]
     async fn resolve_runs_markdownlint_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_requirement(&Markdownlint::node_requirement(), &context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Markdownlint::node_requirement())
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the Node that the repository pins");
 

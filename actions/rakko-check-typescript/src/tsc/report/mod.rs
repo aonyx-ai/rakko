@@ -5,7 +5,6 @@
 //! it judges nothing: the caller decides what a diagnostic means for the
 //! outcome of a run.
 
-/// The error that leaves a caller without the diagnostics of a run
 mod error;
 
 use std::path::PathBuf;
@@ -15,10 +14,10 @@ use crate::diagnostic::{Category, Diagnostic, Origin};
 
 /// The text that closes the place of a diagnostic
 ///
-/// Tsc writes the place as the path, the line, and the column in brackets, and
-/// it closes the whole of it with this text before it writes the kind. A path
-/// can hold a bracket of its own, so the first occurrence is the one that
-/// closes the place.
+/// Tsc writes the place as the path, the line, and the column in brackets.
+/// This text closes the whole of it before tsc writes the kind. A path can
+/// hold a bracket of its own, so the first occurrence is the one that closes
+/// the place.
 const PLACE_CLOSE: &str = "): ";
 
 /// The character that opens the line and the column of a place
@@ -49,8 +48,8 @@ const JOIN: char = ' ';
 /// about it.
 ///
 /// A run that reported nothing produces no diagnostic. The caller decides what
-/// that means, because tsc writes nothing both for a project that it checked
-/// and found clean and for a run that it never started.
+/// that means. This is because tsc writes nothing both for a project that it
+/// checked and found clean and for a run that it never started.
 ///
 /// # Errors
 ///
@@ -131,8 +130,9 @@ impl Pending {
 
 /// Returns the parts of a diagnostic that tsc reported about a place
 ///
-/// Returns `None` when the text in front of the kind is no place, which
-/// happens for a message of tsc that holds the text that closes a place.
+/// Returns `None` when the text in front of the kind is no place. This happens
+/// for a message of tsc that holds the text that closes a place.
+#[bon::builder]
 fn located(place: &str, rest: &str) -> Option<Pending> {
     let (path, position) = place.rsplit_once(POSITION_OPEN)?;
     let (line, column) = position.split_once(POSITION_SEPARATOR)?;
@@ -168,13 +168,13 @@ fn stated(origin: Option<Origin>, text: &str) -> Option<Pending> {
 ///
 /// A diagnostic that tsc found in a file names the place in front of the kind,
 /// and one about the run itself names none. A path can hold the text that
-/// closes a place, so a line whose place does not read as one is read as a
+/// closes a place. So a line whose place does not read as one is read as a
 /// diagnostic without a place.
 ///
 /// Returns `None` when the line starts no diagnostic at all.
 fn start(line: &str) -> Option<Pending> {
     if let Some((place, rest)) = line.split_once(PLACE_CLOSE)
-        && let Some(pending) = located(place, rest)
+        && let Some(pending) = located().place(place).rest(rest).call()
     {
         return Some(pending);
     }
@@ -191,9 +191,10 @@ fn unreadable(line: &str) -> ReadReportError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -213,6 +214,13 @@ mod tests {
     /// What tsc writes about a project that it found no configuration for
     const UNCONFIGURED: &str = "error TS5081: Cannot find a tsconfig.json file at the current \
                                 directory: /home/otter/project/tsconfig.json.\n";
+
+    #[test]
+    fn pending_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Pending>();
+    }
 
     #[test]
     fn read_of_a_diagnostic_that_names_a_file_reports_its_place() {

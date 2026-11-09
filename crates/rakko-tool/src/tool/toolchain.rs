@@ -1,17 +1,17 @@
 //! The version of a toolchain that a project pins
 //!
 //! A toolchain is a decision of the project, so the project pins its
-//! version, and an action states only the range of versions that it accepts.
-//! This module asks mise which versions the configuration of the project
-//! pins, in the order of its pins, and picks the first one that the range
-//! accepts.
+//! version. An action states only the range of versions that it accepts. This
+//! module asks mise which versions the configuration of the project pins, in
+//! the order of its pins. It picks the first one that the range accepts.
 //!
 //! A range compares the versions of releases, such as `>=1.85`, or the dates
 //! of one channel, such as `>=nightly-2025-02-20`. Rustup names a dated
-//! toolchain of a channel by its date, so a nightly toolchain has a date
-//! and no version of its own to compare. A range can hold alternatives,
-//! joined by `||`, such as `^22.18 || >=23.6`, and it accepts a pin that one
-//! of them accepts.
+//! toolchain of a channel by its date. So a nightly toolchain has a date
+//! and no version of its own to compare.
+//!
+//! A range can hold alternatives, joined by `||`, such as `^22.18 || >=23.6`.
+//! It accepts a pin that one of them accepts.
 
 use std::path::{Path, PathBuf};
 
@@ -66,8 +66,8 @@ struct Source {
 /// the range accepts
 ///
 /// A range of dates reads only the pins of its channel that the
-/// configuration writes with a date, and it passes over every other pin of
-/// the toolchain. A range of releases reads every pin.
+/// configuration writes with a date. It passes over every other pin of the
+/// toolchain. A range of releases reads every pin.
 ///
 /// Only a pin in a configuration file inside the root of the project counts.
 /// Mise also applies the global configuration of the user and the files of
@@ -78,16 +78,15 @@ struct Source {
 ///
 /// # Errors
 ///
-/// Returns [`InvalidRange`][invalid] when the range is not a range,
-/// [`MiseUnavailable`][unavailable] when mise does not run,
+/// Returns [`InvalidRange`][invalid] when the range is not a range. Returns
+/// [`MiseUnavailable`][unavailable] when mise does not run. Returns
 /// [`UnrecognizedReport`][unrecognized] when mise lists the pins in a form
-/// that the crate does not read, and [`UnresolvedToolchain`][unresolved]
+/// that the crate does not read. Returns [`UnresolvedToolchain`][unresolved]
 /// when no configuration inside the project pins the toolchain, or no dated
-/// version of the channel of a range of dates. When the project pins
-/// versions and the range accepts none of them, returns
-/// [`VersionOutOfRange`][outside] for the first pin with three numbers or a
-/// date to compare, or [`UnreadableVersion`][unreadable] when a range of
-/// releases finds no pin with three numbers.
+/// version of the channel of a range of dates. The project can pin versions
+/// that the range does not accept. Returns [`VersionOutOfRange`][outside] then,
+/// for the first pin with three numbers or a date to compare. Returns [`UnreadableVersion`][unreadable] when a range
+/// of releases finds no pin with three numbers.
 ///
 /// [invalid]: ResolveRequirementError::InvalidRange
 /// [outside]: ResolveRequirementError::VersionOutOfRange
@@ -123,7 +122,7 @@ pub(super) async fn pinned_toolchain(
     let mut unreadable: Option<(&str, semver::Error)> = None;
 
     for (pin, requested) in ordered {
-        match accepted.read(pin, requested) {
+        match accepted.read().pin(pin).requested(requested).call() {
             Reading::Accepted => return Ok(ToolVersion::new(pin)),
             Reading::Outside => {
                 outside.get_or_insert(pin);
@@ -200,6 +199,7 @@ enum Reading {
     Foreign,
 }
 
+#[bon::bon]
 impl Accepted {
     /// Returns the range that a text gives
     ///
@@ -210,9 +210,9 @@ impl Accepted {
     ///
     /// # Errors
     ///
-    /// Returns the error of the reading when the text is no range, for
-    /// example because an alternative is empty, or because one alternative
-    /// gives dates and another gives releases.
+    /// Returns the error of the reading when the text is no range. Examples are
+    /// an alternative that is empty, and one alternative that gives dates beside
+    /// another that gives releases.
     fn parse(range: &VersionRange) -> Result<Self, semver::Error> {
         let alternatives: Vec<&str> = range.get().split(ALTERNATIVE).collect();
 
@@ -238,8 +238,9 @@ impl Accepted {
     /// A range of releases reads the version that the pin resolves to, so a
     /// pin such as `1.88` reads as `1.88.0`. A range of dates reads the pin
     /// as the configuration writes it. Mise can resolve a bare `nightly` to
-    /// a dated version that one machine holds and another does not, so only
-    /// a pin that writes the date counts on every machine.
+    /// a dated version that one machine holds and another does not. So only a
+    /// pin that writes the date counts on every machine.
+    #[builder]
     fn read(&self, pin: &str, requested: &str) -> Reading {
         match self {
             Self::Releases(accepted) => match Version::parse(pin) {
@@ -249,11 +250,15 @@ impl Accepted {
                 Ok(_) => Reading::Outside,
                 Err(source) => Reading::Unreadable(source),
             },
-            Self::Dated { channel, dates } => match date_of(requested, channel) {
-                Some(date) if dates.iter().any(|range| range.matches(&date)) => Reading::Accepted,
-                Some(_) => Reading::Outside,
-                None => Reading::Foreign,
-            },
+            Self::Dated { channel, dates } => {
+                match date_of().pin(requested).channel(channel).call() {
+                    Some(date) if dates.iter().any(|range| range.matches(&date)) => {
+                        Reading::Accepted
+                    }
+                    Some(_) => Reading::Outside,
+                    None => Reading::Foreign,
+                }
+            }
         }
     }
 
@@ -271,11 +276,11 @@ impl Accepted {
 }
 
 /// Returns the channel of a range of dates, and each alternative with each
-/// date written as a version, when every comparator of every alternative
-/// gives a date of one channel
+/// date written as a version
 ///
-/// An alternative without a date, or with another channel than the others,
-/// makes the text no range of dates.
+/// It returns them when every comparator of every alternative gives a date of
+/// one channel. An alternative without a date, or with another channel than the
+/// others, makes the text no range of dates.
 fn dated_alternatives(alternatives: &[&str]) -> Option<(String, Vec<String>)> {
     let mut channel: Option<String> = None;
     let mut texts = Vec::new();
@@ -294,9 +299,11 @@ fn dated_alternatives(alternatives: &[&str]) -> Option<(String, Vec<String>)> {
     channel.map(|channel| (channel, texts))
 }
 
-/// Returns the channel of a range of dates, and the range with each date
-/// written as a version, when every comparator of the text gives a date of
-/// one channel
+/// Returns the channel of a range of dates and the range with each date
+/// written as a version
+///
+/// It returns them when every comparator of the text gives a date of one
+/// channel
 ///
 /// A comparator such as `>=nightly-2025-02-20` gives the channel `nightly`
 /// and the date `2025.2.20`. The numbers of a version carry no leading
@@ -331,6 +338,7 @@ fn dated(range: &str) -> Option<(String, String)> {
 /// Rustup gives a dated toolchain the name of its channel and its date, such
 /// as `nightly-2026-11-02`. A pin of another channel, and a pin without a
 /// date, answer `None`.
+#[bon::builder]
 fn date_of(pin: &str, channel: &str) -> Option<Version> {
     let (name, date) = channel_date(pin)?;
 
@@ -380,15 +388,15 @@ fn number(part: &str, width: usize) -> Option<u32> {
 /// Returns the pins of a toolchain that a configuration inside the project
 /// holds
 ///
-/// The list of mise gives the file of each pin, but it sorts the versions,
-/// so the caller takes their order from another answer of mise.
+/// The list of mise gives the file of each pin, but it sorts the versions.
+/// So the caller takes their order from another answer of mise.
 ///
 /// # Errors
 ///
 /// Returns [`MiseUnavailable`][unavailable] when mise does not run,
-/// [`UnresolvedToolchain`][unresolved] when mise ends without success, and
-/// [`UnrecognizedReport`][unrecognized] when the list is not the JSON that
-/// the crate reads.
+/// [`UnresolvedToolchain`][unresolved] when mise ends without success.
+/// Returns [`UnrecognizedReport`][unrecognized] when the list is not the JSON
+/// that the crate reads.
 ///
 /// [unavailable]: ResolveRequirementError::MiseUnavailable
 /// [unrecognized]: ResolveRequirementError::UnrecognizedReport
@@ -455,7 +463,7 @@ async fn ask(
 /// does not resolve
 ///
 /// Mise gives the file of a pin with its links resolved, such as the
-/// temporary directory of macOS under `/private`, so the root of the project
+/// temporary directory of macOS under `/private`. So the root of the project
 /// needs the same form before a comparison.
 fn canonical(path: &Path) -> PathBuf {
     dunce::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
@@ -463,18 +471,37 @@ fn canonical(path: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     /// Returns what a range says about a pin that the configuration writes
     /// as the version that it resolves to
+    #[bon::builder]
     fn read(range: &str, pin: &str) -> Reading {
         Accepted::parse(&VersionRange::new(range))
             .expect("the test gives a valid range")
-            .read(pin, pin)
+            .read()
+            .pin(pin)
+            .requested(pin)
+            .call()
+    }
+
+    #[test]
+    fn accepted_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Accepted>();
+    }
+
+    #[test]
+    fn dated_alternatives_of_two_channels_are_no_range_of_dates() {
+        let range = dated_alternatives(&[">=nightly-2025-02-20", ">=beta-2026-01-01"]);
+
+        assert_eq!(range, None);
     }
 
     #[test]
@@ -509,13 +536,6 @@ mod tests {
     }
 
     #[test]
-    fn dated_alternatives_of_two_channels_are_no_range_of_dates() {
-        let range = dated_alternatives(&[">=nightly-2025-02-20", ">=beta-2026-01-01"]);
-
-        assert_eq!(range, None);
-    }
-
-    #[test]
     fn parse_with_a_bare_channel_reports_an_invalid_range() {
         let range = Accepted::parse(&VersionRange::new("nightly"));
 
@@ -537,107 +557,150 @@ mod tests {
     }
 
     #[test]
+    fn pin_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Pin>();
+    }
+
+    #[test]
     fn read_with_a_bare_channel_that_resolves_to_a_date_reports_it_foreign() {
         let range = Accepted::parse(&VersionRange::new(">=nightly-2025-02-20"))
             .expect("the test gives a valid range");
 
-        let reading = range.read("nightly-2026-11-02", "nightly");
+        let reading = range
+            .read()
+            .pin("nightly-2026-11-02")
+            .requested("nightly")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_date_in_a_range_of_dates_accepts_the_pin() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2026-11-02");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-11-02")
+            .call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_date_in_the_second_alternative_of_dates_accepts_the_pin() {
-        let reading = read(
-            "<nightly-2025-01-01 || >=nightly-2026-01-01",
-            "nightly-2026-11-02",
-        );
+        let reading = read()
+            .range("<nightly-2025-01-01 || >=nightly-2026-01-01")
+            .pin("nightly-2026-11-02")
+            .call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_date_outside_a_range_of_dates_reports_it_outside() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2024-12-31");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2024-12-31")
+            .call();
 
         assert!(matches!(reading, Reading::Outside), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_dated_pin_in_a_range_of_releases_reports_it_unreadable() {
-        let reading = read(">=1.85", "nightly-2026-11-02");
+        let reading = read().range(">=1.85").pin("nightly-2026-11-02").call();
 
         assert!(matches!(reading, Reading::Unreadable(_)), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_of_another_channel_in_a_range_of_dates_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "beta-2026-11-02");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("beta-2026-11-02")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_whose_date_has_four_parts_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2026-11-02-01");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-11-02-01")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_whose_date_has_no_leading_zeros_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2026-1-2");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-1-2")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_whose_date_holds_a_sign_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "nightly-2026-+1-02");
+        let reading = read()
+            .range(">=nightly-2025-02-20")
+            .pin("nightly-2026-+1-02")
+            .call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_pin_without_a_date_in_a_range_of_dates_reports_it_foreign() {
-        let reading = read(">=nightly-2025-02-20", "1.99.1");
+        let reading = read().range(">=nightly-2025-02-20").pin("1.99.1").call();
 
         assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_release_between_two_alternatives_reports_it_outside() {
-        let reading = read("^22.18 || >=23.6", "23.5.0");
+        let reading = read().range("^22.18 || >=23.6").pin("23.5.0").call();
 
         assert!(matches!(reading, Reading::Outside), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_release_in_a_range_of_releases_accepts_the_pin() {
-        let reading = read(">=1.85", "1.99.1");
+        let reading = read().range(">=1.85").pin("1.99.1").call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_release_in_the_second_alternative_accepts_the_pin() {
-        let reading = read("^22.18 || >=23.6", "23.6.0");
+        let reading = read().range("^22.18 || >=23.6").pin("23.6.0").call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
     }
 
     #[test]
     fn read_with_a_release_outside_a_range_of_releases_reports_it_outside() {
-        let reading = read(">=1.85", "1.84.1");
+        let reading = read().range(">=1.85").pin("1.84.1").call();
 
         assert!(matches!(reading, Reading::Outside), "got {reading:?}");
+    }
+
+    #[test]
+    fn reading_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Reading>();
+    }
+
+    #[test]
+    fn source_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Source>();
     }
 
     #[test]

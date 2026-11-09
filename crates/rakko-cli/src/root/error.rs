@@ -1,3 +1,5 @@
+//! What a run reports when it cannot name the root of its project
+
 use std::io;
 use std::path::PathBuf;
 
@@ -6,9 +8,9 @@ use thiserror::Error;
 
 /// An error that occurs when a run resolves the root of its project
 ///
-/// A run reads and writes paths that start at the root of the project, so a
-/// run that cannot name the root reports nothing instead of reporting against
-/// a directory that it guessed.
+/// A run reads and writes paths that start at the root of the project. So a run
+/// that cannot name the root reports nothing instead of reporting against a
+/// directory that it guessed.
 #[derive(Debug, Error)]
 pub(crate) enum ResolveProjectRootError {
     /// The name that identifies Rakko to the search is not a valid name
@@ -41,7 +43,7 @@ pub(crate) enum ResolveProjectRootError {
     /// The directory that the user named cannot be read
     ///
     /// The path names nothing, or the file system refuses to report on it. A
-    /// run resolves the path before an action sees it, so a path that no
+    /// run resolves the path before an action sees it. So a path that no
     /// directory answers is a mistake in an argument and not a project.
     #[error("failed to read the project root at `{root}`")]
     UnreadableRoot {
@@ -62,4 +64,16 @@ pub(crate) enum ResolveProjectRootError {
         /// The cause of the failure
         source: LoadProjectError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_project_root_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ResolveProjectRootError>();
+    }
 }

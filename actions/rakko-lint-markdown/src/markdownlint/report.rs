@@ -1,3 +1,5 @@
+//! The reading of the report that markdownlint wrote
+
 use std::path::PathBuf;
 
 use serde::Deserialize;
@@ -6,8 +8,8 @@ use crate::problem::MarkdownlintProblem;
 
 /// The separator between the name of a rule and its aliases
 ///
-/// Markdownlint joins them this way when it writes its report for a reader,
-/// and a message that a contributor can search for reads the same either way.
+/// Markdownlint joins them this way when writing its report for a reader.
+/// A message a contributor searches for reads the same either way.
 const ALIAS_SEPARATOR: &str = "/";
 
 /// One result of the report that markdownlint wrote
@@ -51,16 +53,21 @@ impl Record {
             .and_then(|range| range.first().copied())
             .filter(|column| *column > 0);
 
-        MarkdownlintProblem::new(self.file_name, self.line_number, column, message)
+        MarkdownlintProblem::builder()
+            .path(self.file_name)
+            .line(self.line_number)
+            .maybe_column(column)
+            .message(message)
+            .build()
     }
 }
 
 /// Returns the sentence that markdownlint would have written for a reader
 ///
-/// Markdownlint builds it from the rule, what the rule is about, what it
-/// expected, and the text that broke it, and it leaves out the parts that a
-/// rule does not report. Building the same sentence here means that a finding
-/// says what a contributor sees when they run markdownlint themselves.
+/// Markdownlint includes the rule, what the rule is about, what it expected,
+/// and the text that broke it. It omits parts that a rule does not report.
+/// Building the same sentence here means that a finding says what a
+/// contributor sees when they run markdownlint themselves.
 fn message(record: &Record) -> String {
     let mut message = record.rule_names.join(ALIAS_SEPARATOR);
 
@@ -90,9 +97,9 @@ fn message(record: &Record) -> String {
 /// # Errors
 ///
 /// Returns the error of a report that is not the array that markdownlint
-/// writes. Markdownlint answers a file that it cannot open by ending the run
-/// with a stack trace and no report, so a reading that tolerated such a
-/// report would let a run pass with an unknown part of the project unread.
+/// writes. Markdownlint answers when it cannot open a file by writing a stack
+/// trace and no report. A reading that tolerates such a report would let a
+/// run pass with an unknown part of the project unread.
 pub(super) fn problems(report: &str) -> Result<Vec<MarkdownlintProblem>, serde_json::Error> {
     let text = report.trim();
 
@@ -107,11 +114,10 @@ pub(super) fn problems(report: &str) -> Result<Vec<MarkdownlintProblem>, serde_j
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a report
-    // which markdownlint could have written expects the reading to succeed. A
-    // `# Panics` section on every test would repeat that and give the reader
-    // no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a report which markdownlint could have written expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -143,6 +149,16 @@ mod tests {
     }
 
     #[test]
+    fn problems_of_a_report_that_is_not_a_report_stop_the_reading() {
+        let problems = problems(STACK_TRACE);
+
+        assert!(
+            problems.is_err(),
+            "expected the reading to stop, got {problems:?}"
+        );
+    }
+
+    #[test]
     fn problems_of_a_result_name_the_file() {
         let problem = problem(RANGED);
 
@@ -157,16 +173,6 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_result_with_a_detail_read_like_markdownlint() {
-        let problem = problem(RANGED);
-
-        assert_eq!(
-            problem.message(),
-            "MD030/list-marker-space Spaces after list markers [Expected: 1; Actual: 2]"
-        );
-    }
-
-    #[test]
     fn problems_of_a_result_with_a_context_quote_it_like_markdownlint() {
         let problem = problem(UNRANGED);
 
@@ -177,10 +183,13 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_an_unranged_result_name_no_column() {
-        let problem = problem(UNRANGED);
+    fn problems_of_a_result_with_a_detail_read_like_markdownlint() {
+        let problem = problem(RANGED);
 
-        assert_eq!(problem.column(), None);
+        assert_eq!(
+            problem.message(),
+            "MD030/list-marker-space Spaces after list markers [Expected: 1; Actual: 2]"
+        );
     }
 
     #[test]
@@ -191,12 +200,16 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_report_that_is_not_a_report_stop_the_reading() {
-        let problems = problems(STACK_TRACE);
+    fn problems_of_an_unranged_result_name_no_column() {
+        let problem = problem(UNRANGED);
 
-        assert!(
-            problems.is_err(),
-            "expected the reading to stop, got {problems:?}"
-        );
+        assert_eq!(problem.column(), None);
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
     }
 }

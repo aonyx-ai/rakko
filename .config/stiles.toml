@@ -1,0 +1,16 @@
+# Stiles reads this file when `stiles check` runs against this repository. The
+# patterns below anchor at the repository root, not at `.config`.
+# `/tools/rakko/` holds the harness, a workspace of its own that the toolchain
+# of the root workspace does not load, so stiles cannot analyze its types.
+ignore = ["/tools/rakko/"]
+
+# The rules of Aonyx live in their own repository, pinned to one commit that
+# builds against the stiles that `mise.toml` pins. Both pins move together.
+[[lints]]
+git = "https://github.com/aonyx-ai/stiles-aonyx-rules"
+rev = "764333ada2cdbfe1391dc9a9389718ade61181f2"
+
+# Rakko re-exports these crates and keeps their types in its public traits on
+# purpose, so a consumer works with them directly.
+[rules.options."lint.external-type-in-port"]
+allowed-crates = ["clawless", "kawauso_process"]

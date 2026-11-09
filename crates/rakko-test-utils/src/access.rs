@@ -1,3 +1,5 @@
+//! The check that a run keeps its declaration of access
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -61,11 +63,11 @@ enum Entry {
 /// # Panics
 ///
 /// Panics when the action declares a read and the run added, removed, or
-/// changed a file of the project. The message gives each such file relative
-/// to the root. Panics as well when a file or a directory of the project
-/// cannot be read, because then the comparison has no answer. Panics before
-/// the run when the action declares a kind of access that the helper does not
-/// know, and the message tells the author to update Rakko.
+/// changed a file of the project. The message gives each such file relative to
+/// the root. Panics as well when a file or a directory of the project cannot be
+/// read, because then the comparison has no answer. Panics before the run when
+/// the action declares a kind of access that the helper does not know. The
+/// message tells the author to update Rakko.
 ///
 /// # Examples
 ///
@@ -222,9 +224,10 @@ fn record(root: &Path, directory: &Path, entries: &mut BTreeMap<PathBuf, Entry>)
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::future::Future;
     use std::pin::pin;
@@ -267,8 +270,9 @@ mod tests {
         let mut future = pin!(future);
         let mut task_context = TaskContext::from_waker(Waker::noop());
         loop {
-            if let Poll::Ready(output) = future.as_mut().poll(&mut task_context) {
-                return output;
+            match future.as_mut().poll(&mut task_context) {
+                Poll::Ready(output) => return output,
+                Poll::Pending => {}
             }
         }
     }
@@ -288,6 +292,13 @@ mod tests {
         let scribe = Scribe { access, effect };
 
         block_on(run_checking_access(&scribe, &context, &()))
+    }
+
+    #[test]
+    fn entry_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Entry>();
     }
 
     #[test]

@@ -1,6 +1,6 @@
 //! What one run of oxlint produced
 //!
-//! Oxlint writes one JSON object per run, and it carries both answers that an
+//! Oxlint writes one JSON object per run. It carries both answers that an
 //! action needs: how many files the run examined, and which diagnostics it
 //! reported. This module turns one run into data and judges nothing: the action
 //! that asked for the run decides what the answer means for its outcome.
@@ -17,7 +17,7 @@ use crate::problem::OxlintProblem;
 ///
 /// A run that examined nothing is not a run that found nothing. Oxlint reports
 /// no diagnostic for a project that holds no file it lints and for a project
-/// that it linted and found clean, and the two mean opposite things for the
+/// that it linted and found clean. The two mean opposite things for the
 /// outcome of an action, so the count travels with the diagnostics.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub(crate) struct Observation {
@@ -36,7 +36,7 @@ impl Observation {
     ///
     /// A run of oxlint builds one through [`Oxlint::observe`], and a caller
     /// builds one where a test stands in for an oxlint that nobody started.
-    /// Every part is optional, so a test names what its case is about and
+    /// Every part is optional. So a test names what its case is about. It
     /// leaves the rest at the answer of a run that examined nothing at all.
     ///
     /// [`Oxlint::observe`]: crate::oxlint::Oxlint::observe
@@ -46,5 +46,17 @@ impl Observation {
         #[builder(default)] examined: usize,
     ) -> Self {
         Self { problems, examined }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Observation>();
     }
 }

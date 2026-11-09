@@ -1,3 +1,5 @@
+//! One example that failed
+
 use std::path::PathBuf;
 
 use getset::Getters;
@@ -22,32 +24,26 @@ const ITEM_OPENS: &str = " - ";
 
 /// One example of the documentation that failed
 ///
-/// The harness names an example by the file that documents it and the line
-/// that the example starts on, and it keeps what the example wrote: the
+/// The harness names an example by the file that documents it and the line that
+/// the example starts on. It keeps what the example wrote. That is the
 /// diagnostics of the compiler for an example that does not compile, and the
-/// panic for an example that ran and failed. The failure keeps the output as
-/// it is and reads it on demand, so an example that wrote nothing the crate
-/// knows still names the example.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
+/// panic for an example that ran and failed. The failure keeps the output as it
+/// is and reads it on demand. So an example that wrote nothing the crate knows
+/// still names the example.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, bon::Builder, Getters)]
 pub(crate) struct DoctestFailure {
     /// The name of the example, as the harness wrote it
     #[getset(get = "pub(crate)")]
+    #[builder(into)]
     name: String,
 
     /// What the example wrote while it compiled and ran
     #[getset(get = "pub(crate)")]
+    #[builder(into)]
     output: String,
 }
 
 impl DoctestFailure {
-    /// Creates a failure from the name of the example and its output
-    pub(crate) fn new(name: impl Into<String>, output: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            output: output.into(),
-        }
-    }
-
     /// Returns the finding that reports the failure
     ///
     /// The finding names the example and carries what the example wrote, at
@@ -99,11 +95,10 @@ impl DoctestFailure {
 
     /// Returns where the example that failed is documented
     ///
-    /// The place where an example panicked is not that place: the compiler
-    /// builds the examples of a workspace into one program, and the panic
-    /// then names a file of that program. The name of the example names the
-    /// file of the project instead, relative to the workspace that cargo
-    /// tested.
+    /// The place where an example panicked is not that place. The compiler
+    /// builds the examples of a workspace into one program, and the panic then
+    /// names a file of that program. The name of the example names the file of
+    /// the project instead, relative to the workspace that cargo tested.
     fn location(&self, root: &CargoRoot, project: &ProjectRoot) -> Location {
         let Some((path, line)) = documented(&self.name) else {
             return Location::Project;
@@ -137,9 +132,10 @@ fn documented(name: &str) -> Option<(PathBuf, u32)> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::FilePath;
     use rakko_cargo::Documentation;
@@ -166,8 +162,18 @@ mod tests {
     }
 
     #[test]
+    fn doctest_failure_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DoctestFailure>();
+    }
+
+    #[test]
     fn finding_of_a_refused_example_carries_what_the_compiler_wrote() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - sub (line 14)", REFUSED);
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - sub (line 14)")
+            .output(REFUSED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -178,32 +184,11 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_an_example_that_panicked_carries_the_message() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
-
-        let finding = failure.finding(&root(), &project());
-
-        assert_eq!(
-            finding.message().get(),
-            "example `probe/src/lib.rs - add (line 5)` failed: assertion `left == right` failed left: 3 right: 4"
-        );
-    }
-
-    #[test]
-    fn finding_of_an_example_that_wrote_nothing_names_it() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", "");
-
-        let finding = failure.finding(&root(), &project());
-
-        assert_eq!(
-            finding.message().get(),
-            "example `probe/src/lib.rs - add (line 5)` failed"
-        );
-    }
-
-    #[test]
     fn finding_of_an_example_is_at_the_line_that_documents_it() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - add (line 5)")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -218,7 +203,10 @@ mod tests {
 
     #[test]
     fn finding_of_an_example_of_a_crate_reads_the_file_without_an_item() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - (line 3)", PANICKED);
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - (line 3)")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -232,8 +220,11 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_an_example_whose_name_carries_no_line_is_at_the_project() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add", PANICKED);
+    fn finding_of_an_example_outside_the_project_is_at_the_project() {
+        let failure = DoctestFailure::builder()
+            .name("/elsewhere/src/lib.rs - add (line 5)")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 
@@ -241,8 +232,41 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_an_example_outside_the_project_is_at_the_project() {
-        let failure = DoctestFailure::new("/elsewhere/src/lib.rs - add (line 5)", PANICKED);
+    fn finding_of_an_example_that_panicked_carries_the_message() {
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - add (line 5)")
+            .output(PANICKED)
+            .build();
+
+        let finding = failure.finding(&root(), &project());
+
+        assert_eq!(
+            finding.message().get(),
+            "example `probe/src/lib.rs - add (line 5)` failed: assertion `left == right` failed left: 3 right: 4"
+        );
+    }
+
+    #[test]
+    fn finding_of_an_example_that_wrote_nothing_names_it() {
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - add (line 5)")
+            .output("")
+            .build();
+
+        let finding = failure.finding(&root(), &project());
+
+        assert_eq!(
+            finding.message().get(),
+            "example `probe/src/lib.rs - add (line 5)` failed"
+        );
+    }
+
+    #[test]
+    fn finding_of_an_example_whose_name_carries_no_line_is_at_the_project() {
+        let failure = DoctestFailure::builder()
+            .name("probe/src/lib.rs - add")
+            .output(PANICKED)
+            .build();
 
         let finding = failure.finding(&root(), &project());
 

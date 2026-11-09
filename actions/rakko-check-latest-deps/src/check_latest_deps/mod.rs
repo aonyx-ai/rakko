@@ -8,7 +8,6 @@
 //! the machinery that runs nextest. What the two runs reported becomes the
 //! outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{
@@ -45,7 +44,7 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 ///
 /// A manifest states a floor for each dependency, and whoever reads the floor
 /// reads a promise: every later version of that dependency works as well. The
-/// action resolves the newest versions that the manifests allow and runs the
+/// action resolves the newest versions that the manifests allow. It runs the
 /// tests of the project against them, so the promise is confirmed instead of
 /// assumed. The cargo that runs is the one of the stable toolchain that the
 /// project pins, and [nextest] runs at the version that the action declares.
@@ -55,20 +54,20 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// the project, because the harness of a project is a package of its own. An
 /// update that cargo could not finish becomes a finding at the manifest of its
 /// workspace, and such a run runs no test. A test that failed becomes a
-/// finding that names the test, and a build that does not finish becomes
-/// findings from the diagnostics of the compiler.
+/// finding that names the test. A build that does not finish becomes findings
+/// from the diagnostics of the compiler.
 ///
-/// The whole run happens in a disposable copy of the project, so the checkout
-/// of a contributor keeps its lockfiles and its build directory, whatever the
-/// run finds. A tree with changes in it is copied as it is, so a contributor
-/// reads the answer for the manifest that they are editing.
+/// The whole run happens in a disposable copy of the project. So the checkout of
+/// a contributor keeps its lockfiles and its build directory, whatever the run
+/// finds. A tree with changes in it is copied as it is, so a contributor reads
+/// the answer for the manifest that they are editing.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
 /// run stops with an error when the project pins no stable Rust toolchain that
-/// the action accepts, when mise reports no nextest at the declared version,
-/// when the project is no git repository, when the copy cannot be created, when
-/// the workspaces of the project cannot be discovered, and when nextest writes
-/// a report that the run cannot answer from.
+/// the action accepts. It stops when mise reports no nextest at the declared
+/// version, the project is no git repository, or the copy cannot be created. It
+/// stops when the workspaces of the project cannot be discovered, or when
+/// nextest writes a report that the run cannot answer from.
 ///
 /// A run declares a read of the project, because it builds in a temporary
 /// worktree outside the project. Git records that worktree only under `.git`,
@@ -124,15 +123,15 @@ impl Action for CheckLatestDeps {
 /// this function returns stops the run, and the caller reports it in the
 /// outcome.
 ///
-/// The copy lives until this function returns, and the drop takes it with it,
-/// so a run that ends with an answer and a run that stops with an error clear
-/// it alike.
+/// The copy lives until this function returns, and the drop takes it with it.
+/// So a run that ends with an answer and a run that stops with an error clear it
+/// alike.
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of the
-/// tool, the discovery of the workspaces, the creation of the copy, a run of
-/// cargo, or a run of nextest that left no answer.
+/// Returns the error of the step that could not finish. It may be from tool
+/// resolution, workspace discovery, copy creation, a cargo run, or a nextest
+/// run that left no answer.
 async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
     let cargo = Cargo::resolve(context)
         .await
@@ -167,7 +166,11 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
         });
     }
 
-    let nextest = Nextest::resolve(cargo, Lockfile::Locked, context)
+    let nextest = Nextest::resolve()
+        .cargo(cargo)
+        .lockfile(Lockfile::Locked)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckLatestDepsError::UnresolvedNextest { source })?;
     let mut ran = 0;
@@ -193,11 +196,11 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
 
 /// Returns the workspace roots as the copy holds them
 ///
-/// The copy holds the tree of the project at its own root, so a root of the
+/// The copy holds the tree of the project at its own root. So a root of the
 /// project keeps the path that it has below the project root. The run works
-/// on the roots of the copy from here on, and it names the paths of its
-/// findings against the root of the copy, which gives them the paths that the
-/// project has.
+/// on the roots of the copy from here on. It names the paths of its findings
+/// against the root of the copy, which gives them the paths that the project
+/// has.
 ///
 /// # Errors
 ///
@@ -231,9 +234,9 @@ fn copies(
 
 /// Returns what cargo wrote about an update that it could not finish
 ///
-/// Cargo writes its diagnosis to the standard error stream, so whoever reads
-/// the finding reads the answer of cargo instead of a sentence that Rakko
-/// wrote about it.
+/// Cargo writes its diagnosis to the standard error stream. So whoever reads the
+/// finding reads the answer of cargo instead of a sentence that Rakko wrote
+/// about it.
 fn details(execution: &Execution) -> String {
     let diagnosis = execution.stderr().to_string_lossy();
     let text = diagnosis.trim();
@@ -248,9 +251,10 @@ fn details(execution: &Execution) -> String {
 /// Returns the finding of an update that cargo could not finish
 ///
 /// The message carries what cargo wrote, because cargo names the dependency
-/// that it could not resolve and the reason, and nothing that Rakko could
-/// write about it would say more. The finding belongs to the manifest of the
-/// root, which is the file that states the requirements that cargo read.
+/// that it could not resolve and the reason. Nothing that Rakko could write
+/// about it would
+/// say more. The finding belongs to the manifest of the root, which is the
+/// file that states the requirements that cargo read.
 fn finding(root: &CargoRoot, project: &ProjectRoot, execution: &Execution) -> Finding {
     let message = format!("{NOT_UPDATED} {}", details(execution));
 
@@ -283,10 +287,10 @@ fn summary(roots: usize, ran: u64) -> Summary {
 
 /// Resolves the newest versions that the manifests of one workspace allow
 ///
-/// The update runs in the directory of the root, which lies in the copy, so
-/// the lockfile that it rewrites is the lockfile of the copy. An update that
-/// ends without success is an answer about the project, and it comes back as
-/// the finding that reports it.
+/// The update runs in the directory of the root, which lies in the copy. So the
+/// lockfile that it rewrites is the lockfile of the copy. An update that ends
+/// without success is an answer about the project, and it comes back as the
+/// finding that reports it.
 ///
 /// # Errors
 ///
@@ -314,9 +318,10 @@ async fn update(
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -331,6 +336,13 @@ mod tests {
         let access = CheckLatestDeps.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn check_latest_deps_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckLatestDeps>();
     }
 
     #[test]

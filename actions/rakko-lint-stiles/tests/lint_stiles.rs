@@ -1,14 +1,16 @@
 //! Tests of the action that need no installation of stiles
 //!
-//! The tests cover what the action declares, and the run that stops when mise
-//! cannot read the configuration of the project, so that it reports no
-//! stiles. This repository installs no stiles, because it holds no stiles
-//! rule to apply, so the tests that read what stiles reported live beside the
-//! code that reads it, and they read reports in the shape that stiles writes.
+//! The tests cover what the action declares. They also cover the run that
+//! stops when mise cannot read the configuration of the project, so that it
+//! reports no stiles. This repository installs no stiles, because it holds no
+//! stiles rule to apply. So the tests that read what stiles reported live
+//! beside the code that reads it, and they read reports in the shape that
+//! stiles writes.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use rakko::{Action, Args, Context, Outcome, ProjectRoot};
@@ -28,19 +30,28 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project whose mise configuration mise cannot read
     ///
     /// The mise configuration of the project is no TOML, and mise stops on a
     /// configuration that it cannot read. So mise reports no stiles at the
-    /// declared version, whatever versions the machine installed.
+    /// accepted version, whatever versions the machine installed.
     fn with_an_unreadable_mise_configuration() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let project = Self { directory };
 
-        project.write("mise.toml", "this is not a configuration\n");
-        project.write(".config/stiles.toml", CONFIGURATION);
-        project.write("src/lib.rs", SOURCE);
+        project
+            .write()
+            .path("mise.toml")
+            .content("this is not a configuration\n")
+            .call();
+        project
+            .write()
+            .path(".config/stiles.toml")
+            .content(CONFIGURATION)
+            .call();
+        project.write().path("src/lib.rs").content(SOURCE).call();
 
         project
     }
@@ -62,6 +73,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -91,12 +103,13 @@ fn action_identifies_itself_as_lint_stiles() {
     assert_eq!(name.get(), "lint-stiles");
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_an_unreadable_mise_configuration_leaves_the_project_unchanged() {
     let project = Project::with_an_unreadable_mise_configuration();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintStiles, &project.context(), &()).await;
 }
 

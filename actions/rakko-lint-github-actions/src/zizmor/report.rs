@@ -1,3 +1,5 @@
+//! The reading of the report that zizmor wrote
+
 use std::path::PathBuf;
 
 use rakko::{Position, Span};
@@ -8,9 +10,9 @@ use crate::problem::{Severity, ZizmorProblem};
 /// The distance between a point of zizmor and a position of a finding
 ///
 /// Zizmor counts rows and columns from zero, and a position of Rakko counts
-/// lines and columns from one. The report of zizmor and the block that it
-/// draws for a reader therefore disagree by this much, and the reading closes
-/// the gap so that a finding names the line that an editor shows.
+/// lines and columns from one. The report of zizmor and the block that it draws
+/// for a reader therefore disagree by this much. The reading closes the gap so
+/// that a finding names the line that an editor shows.
 const ORIGIN: u32 = 1;
 
 /// One finding of the report that zizmor wrote
@@ -35,24 +37,26 @@ struct Record {
 impl Record {
     /// Returns one problem for each place that the finding names
     ///
-    /// Zizmor draws every place of a finding in one block of source, which an
-    /// outcome of Rakko has no place for, so each place becomes a problem of
-    /// its own. The audit and the severity travel with each of them, so that
-    /// a reader sees which problems came from the same finding.
+    /// Zizmor draws every place in one source block. Rakko has no place for
+    /// this, so each place becomes a problem of its own. The audit and
+    /// severity travel with each problem so a reader sees which problems came
+    /// from the same finding.
     fn into_problems(self) -> Vec<ZizmorProblem> {
         let severity = self.determinations.severity;
 
         self.locations
             .into_iter()
             .map(|location| {
-                ZizmorProblem::new(
-                    location.symbolic.key.local.verbatim_path,
-                    span(&location.concrete.location),
-                    severity,
-                    self.ident.clone(),
-                    self.desc.clone(),
-                    location.symbolic.annotation,
-                )
+                let Location { symbolic, concrete } = location;
+                let Symbolic { key, annotation } = symbolic;
+                ZizmorProblem::builder()
+                    .path(key.local.verbatim_path)
+                    .span(span(&concrete.location))
+                    .severity(severity)
+                    .audit(self.ident.clone())
+                    .description(self.desc.clone())
+                    .annotation(annotation)
+                    .build()
             })
             .collect()
     }
@@ -87,10 +91,10 @@ struct Symbolic {
 
 /// The file that a place is in
 ///
-/// Zizmor audits a repository of a code host as well as a checkout on disk,
-/// and it names the file of a remote repository differently. A run of this
-/// action names a directory of the machine, so every file arrives as a local
-/// one, and a report that names another kind stops the reading.
+/// Zizmor audits both remote repositories and local checkouts. It names files
+/// differently for each. A run of this action names a machine directory, so
+/// files arrive as local ones. A report that names another kind stops the
+/// reading.
 #[derive(Deserialize)]
 struct Key {
     /// The file below the place that the run named
@@ -169,19 +173,22 @@ pub(super) fn problems(report: &str) -> Result<Vec<ZizmorProblem>, serde_json::E
 
 /// Returns the range of a finding that a range of zizmor covers
 fn span(range: &Range) -> Span {
+    let Range {
+        start_point,
+        end_point,
+    } = range;
     Span::builder()
-        .start(range.start_point.position())
-        .end(range.end_point.position())
+        .start(start_point.position())
+        .end(end_point.position())
         .build()
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a report
-    // which zizmor could have written expects the reading to succeed. A
-    // `# Panics` section on every test would repeat that and give the reader
-    // no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a report which zizmor could have written expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -209,6 +216,48 @@ mod tests {
     }
 
     #[test]
+    fn concrete_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Concrete>();
+    }
+
+    #[test]
+    fn determinations_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Determinations>();
+    }
+
+    #[test]
+    fn key_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Key>();
+    }
+
+    #[test]
+    fn local_key_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LocalKey>();
+    }
+
+    #[test]
+    fn location_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Location>();
+    }
+
+    #[test]
+    fn point_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Point>();
+    }
+
+    #[test]
     fn problems_of_a_finding_carry_the_words_of_zizmor() {
         let problem = problem(SINGLE);
 
@@ -233,6 +282,16 @@ mod tests {
     }
 
     #[test]
+    fn problems_of_a_finding_in_a_remote_repository_stop_the_reading() {
+        let problems = problems(REMOTE);
+
+        assert!(
+            problems.is_err(),
+            "expected the reading to stop, got {problems:?}"
+        );
+    }
+
+    #[test]
     fn problems_of_a_finding_name_the_file() {
         let problem = problem(SINGLE);
 
@@ -253,13 +312,6 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_an_empty_report_hold_nothing() {
-        let problems = problems("[]").expect("the test reads the report of a run that passed");
-
-        assert!(problems.is_empty(), "expected no problem, got {problems:?}");
-    }
-
-    #[test]
     fn problems_of_a_report_that_is_not_a_report_stop_the_reading() {
         let problems = problems(DIAGNOSIS);
 
@@ -270,12 +322,30 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_finding_in_a_remote_repository_stop_the_reading() {
-        let problems = problems(REMOTE);
+    fn problems_of_an_empty_report_hold_nothing() {
+        let problems = problems("[]").expect("the test reads the report of a run that passed");
 
-        assert!(
-            problems.is_err(),
-            "expected the reading to stop, got {problems:?}"
-        );
+        assert!(problems.is_empty(), "expected no problem, got {problems:?}");
+    }
+
+    #[test]
+    fn range_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Range>();
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
+    }
+
+    #[test]
+    fn symbolic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Symbolic>();
     }
 }

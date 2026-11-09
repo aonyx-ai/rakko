@@ -1,12 +1,13 @@
 //! The action that examines the dependencies of a project
 //!
-//! This module holds the action and the error that stops a run. The action
-//! wraps cargo-deny as a subprocess: cargo-deny reads the manifests and the
-//! lock file of a workspace, reads its own configuration, and applies the
-//! checks that the project asked for, and the action translates what
-//! cargo-deny reported into an outcome.
+//! This module holds the action and the error that stops a run.
+//!
+//! The action wraps cargo-deny as a subprocess. Cargo-deny reads the manifests
+//! and lock file of a workspace and reads its own configuration. It applies the
+//! checks that the project asked for. The action translates what
+//! cargo-deny reported
+//! into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{
@@ -36,39 +37,42 @@ const WARNINGS: &str = "warnings";
 
 /// The action that examines the dependencies of a project
 ///
-/// The action wraps [cargo-deny]: cargo-deny reads the manifests and the lock
-/// file of a workspace, reads its own configuration, and answers whether every
-/// package carries a license that the project accepts, whether the packages
-/// come from a registry that the project trusts, and whether the graph holds a
-/// shape that the project banned. The cargo-deny that runs is the version that
-/// the action declares, which [mise] installed, whatever version the project
-/// pins. The cargo that discovers the workspaces is the one of the stable
-/// toolchain that the project pins. The action installs nothing.
+/// The action wraps [cargo-deny], which reads the manifests and the lock file
+/// of a workspace and its own configuration. It answers whether every package
+/// carries a license that the project accepts. It answers whether the packages
+/// come from a registry that the project trusts. It answers whether the graph
+/// holds a shape that the project banned. The cargo-deny that runs is the
+/// version that the action declares, which [mise] installed, whatever version
+/// the project pins. The cargo that discovers the workspaces is the one of the
+/// stable toolchain that the project pins. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. It checks every workspace of
-/// the project, because the harness of a project is a package of its own, and
-/// it asks cargo for those workspaces. It checks the versions that the
+/// the project because the harness of a project is a package of its own.
+///
+/// It asks cargo for those workspaces. It checks the versions that the
 /// lockfile of a workspace holds, and it leaves the lockfile as it is.
 ///
 /// Cargo-deny weighs everything that it reports with the level that the
 /// configuration of the project gave the check. An error is a shape that the
-/// project said must not appear, and a run that reports one fails. A warning
-/// is a shape that the project asked to read about, and a run that reports one
-/// passes and says how many warnings it read. The action adds no weight of its
-/// own.
+/// project said must not appear, and a run that reports one fails.
 ///
-/// A finding names the workspace that the error came from and no path,
-/// because a report of cargo-deny names no file that the project holds: the
-/// place that it underlines is a line of a lock file, or of a manifest in the
+/// A warning is a shape that the project asked to read about. A run that
+/// reports one passes and says how many warnings it read. The action adds no
+/// weight of its own.
+///
+/// A finding names the workspace that the error came from, not a file path,
+/// because cargo-deny reports no file the project holds.
+///
+/// The place it underlines is a line of a lock file or a manifest in the
 /// registry cache of the machine.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
 /// run stops with an error when mise reports no cargo-deny at the declared
-/// version, when the project pins no stable Rust toolchain that the action
-/// accepts, when the workspaces of the project cannot be discovered, when the
-/// lockfile of a workspace needs an update, when cargo-deny stops before it has
-/// checked a workspace, and when it writes a record that the action cannot
-/// read.
+/// version. It stops when the project pins no stable Rust toolchain that the
+/// action accepts. It stops when the workspaces of the project cannot be
+/// discovered, or when the lockfile of a workspace needs an update. It stops
+/// when cargo-deny stops before it has checked a workspace, or when it writes a
+/// record that the action cannot read.
 ///
 /// A run declares a read of the project. It holds cargo-deny to the lockfile of
 /// each workspace, so the run leaves every lockfile as it is. A caller that
@@ -123,9 +127,8 @@ impl Action for CheckDependencies {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of a
-/// tool, the discovery of the workspaces, a cargo-deny run, or the reading of
-/// a report.
+/// Returns the error of the step that could not finish. The step can be tool
+/// resolution, workspace discovery, a cargo-deny run, or report reading.
 async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
     let cargo = Cargo::resolve(context)
         .await
@@ -161,7 +164,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
 
     if findings.is_empty() {
         Ok(Outcome::Passed {
-            summary: Some(summary(roots.len(), warnings)),
+            summary: Some(summary().roots(roots.len()).warnings(warnings).call()),
         })
     } else {
         Ok(Outcome::Failed {
@@ -198,9 +201,10 @@ fn finding(
 /// Returns the place that a finding of a workspace belongs to
 ///
 /// A workspace below the project root is a directory of the project, and the
-/// workspace at the project root is the project itself. The directory of the
-/// project root has no name of its own, and the empty path is that name, so
-/// an empty answer means the project.
+/// workspace at the project root is the project itself.
+///
+/// The directory of the project root has no name of its own, and the empty
+/// path is that name. So an empty answer means the project.
 ///
 /// # Errors
 ///
@@ -231,10 +235,13 @@ fn location(root: &CargoRoot, project: &ProjectRoot) -> Result<Location, CheckDe
 /// Returns the summary that tells what a passing run examined and read
 ///
 /// The summary counts the workspaces, so that a reader can question a pass
-/// that covered less than they expect. It counts the warnings next to them,
-/// because a warning is a shape that the project asked to read about, and a
-/// warning that no outcome carried would be one that nobody reads. A run
-/// without a warning says nothing about warnings.
+/// that covered less than they expect.
+///
+/// It counts the warnings next to them because a warning is a shape that
+/// the project asked to read about. A warning that no outcome carried would
+/// be one that nobody reads. A run without a warning says nothing about
+/// warnings.
+#[bon::builder]
 fn summary(roots: usize, warnings: usize) -> Summary {
     let workspaces = if roots == 1 { WORKSPACE } else { WORKSPACES };
     let checked = format!("checked {roots} {workspaces}");
@@ -250,9 +257,10 @@ fn summary(roots: usize, warnings: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::{Path, PathBuf};
 
@@ -277,12 +285,17 @@ mod tests {
 
     /// Returns a problem of the given weight about one package
     fn problem(severity: Severity) -> DenyProblem {
-        DenyProblem::new(
-            severity,
-            "rejected".to_owned(),
-            "failed to satisfy license requirements".to_owned(),
-            vec![Package::new("option-ext".to_owned(), "0.2.0".to_owned())],
-        )
+        DenyProblem::builder()
+            .severity(severity)
+            .check("rejected".to_owned())
+            .message("failed to satisfy license requirements".to_owned())
+            .packages(vec![
+                Package::builder()
+                    .name("option-ext".to_owned())
+                    .version("0.2.0".to_owned())
+                    .build(),
+            ])
+            .build()
     }
 
     /// Returns the root of the project that the tests are about
@@ -303,6 +316,13 @@ mod tests {
         let access = CheckDependencies.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn check_dependencies_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckDependencies>();
     }
 
     #[test]
@@ -328,13 +348,6 @@ mod tests {
     }
 
     #[test]
-    fn location_of_the_workspace_at_the_project_root_names_the_project() {
-        let location = location(&project_workspace(), &root()).unwrap();
-
-        assert_eq!(location, Location::Project);
-    }
-
-    #[test]
     fn location_of_a_workspace_outside_the_project_reports_the_path() {
         let outside = CargoRoot::builder()
             .directory(PathBuf::from("/home/otter/elsewhere"))
@@ -350,29 +363,36 @@ mod tests {
     }
 
     #[test]
+    fn location_of_the_workspace_at_the_project_root_names_the_project() {
+        let location = location(&project_workspace(), &root()).unwrap();
+
+        assert_eq!(location, Location::Project);
+    }
+
+    #[test]
     fn summary_of_one_workspace_counts_it_in_the_singular() {
-        let summary = summary(1, 0);
+        let summary = summary().roots(1).warnings(0).call();
 
         assert_eq!(summary.get(), "checked 1 workspace");
     }
 
     #[test]
     fn summary_of_several_workspaces_counts_them() {
-        let summary = summary(2, 0);
+        let summary = summary().roots(2).warnings(0).call();
 
         assert_eq!(summary.get(), "checked 2 workspaces");
     }
 
     #[test]
     fn summary_with_one_warning_counts_it_in_the_singular() {
-        let summary = summary(2, 1);
+        let summary = summary().roots(2).warnings(1).call();
 
         assert_eq!(summary.get(), "checked 2 workspaces, 1 warning");
     }
 
     #[test]
     fn summary_with_several_warnings_counts_them() {
-        let summary = summary(2, 3);
+        let summary = summary().roots(2).warnings(3).call();
 
         assert_eq!(summary.get(), "checked 2 workspaces, 3 warnings");
     }

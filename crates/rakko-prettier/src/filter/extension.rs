@@ -1,3 +1,5 @@
+//! The extension of a file that a run examines
+
 typed_fields::name! {
     /// The extension of a file that a run of prettier examines
     ///

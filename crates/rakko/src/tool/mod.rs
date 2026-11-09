@@ -1,8 +1,7 @@
-/// The name of a program that a tool provides
+//! Types for the external tools that an action runs
+
 mod executable;
-/// The identifier of a tool in the configuration of mise
 mod mise_tool;
-/// Types for the versions of a tool that an action runs
 mod version;
 
 use bon::bon;
@@ -55,6 +54,20 @@ pub struct ToolRequirement {
 #[bon]
 impl ToolRequirement {
     /// Creates a requirement from a tool, its program, and its versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{RequiredVersion, ToolRequirement, ToolVersion};
+    ///
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("npm:prettier")
+    ///     .executable("prettier")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("3.3.0")))
+    ///     .build();
+    ///
+    /// assert_eq!(requirement.tool().get(), "npm:prettier");
+    /// ```
     #[builder]
     pub fn new(
         #[builder(into)] tool: MiseTool,
@@ -71,9 +84,10 @@ impl ToolRequirement {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -97,6 +111,13 @@ mod tests {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ToolRequirement>();
+    }
+
+    #[test]
+    fn tool_requirement_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ToolRequirement>();
     }
 
     #[test]

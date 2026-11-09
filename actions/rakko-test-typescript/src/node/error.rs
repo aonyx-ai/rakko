@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -12,10 +14,10 @@ use crate::node::report::ReadReportError;
 pub(crate) enum ObserveNodeError {
     /// The runner reported no failure and ended without success
     ///
-    /// The runner reports every test that it ran and every one that failed, so
-    /// a run that ended without success and reported no failure stopped for a
-    /// reason that this crate cannot name, and the tests of the project never
-    /// ran to the end.
+    /// The runner reports every test that it ran and every one that failed.
+    /// So a run that ended without success and reported no failure stopped for
+    /// a reason that this crate cannot name. The tests of the project never ran
+    /// to the end.
     #[error("node reported no failure and ended without success: {details}")]
     MissingFailure {
         /// What node wrote in place of a failure
@@ -36,9 +38,9 @@ pub(crate) enum ObserveNodeError {
     ///
     /// The shape of the report belongs to a version of Node. A report that
     /// does not fit therefore points at a version that this crate does not
-    /// know, and the failures of such a run would be the ones that the reading
+    /// know. The failures of such a run would be the ones that the reading
     /// happened to understand.
-    #[error("node wrote a report that the action cannot read: {report}")]
+    #[error("failed to read the report from node: {report}")]
     UnreadableReport {
         /// What node wrote in place of a report that the crate reads
         report: String,
@@ -48,15 +50,17 @@ pub(crate) enum ObserveNodeError {
     },
 }
 
+#[bon::bon]
 impl ObserveNodeError {
     /// Returns the error of a run that ended without success and found nothing
     ///
     /// The runner writes its report on the standard output stream, so that is
     /// what the details carry. A run that stopped before it wrote one leaves
     /// its reason on the standard error stream, or says nothing at all.
+    #[builder]
     pub(super) fn silent(stdout: &str, stderr: &str) -> Self {
         Self::MissingFailure {
-            details: diagnosis(stdout, stderr),
+            details: diagnosis().stdout(stdout).stderr(stderr).call(),
         }
     }
 }
@@ -64,9 +68,10 @@ impl ObserveNodeError {
 /// Returns what node wrote about a run that reported no failure
 ///
 /// The standard error stream answers first, because a run that stopped for a
-/// reason of its own writes that reason there, while the standard output
-/// stream carries the report that said nothing. A run that wrote nothing there
-/// leaves only the report.
+/// reason of its own writes that reason there. The standard output stream, in
+/// contrast, carries the report that said nothing. A run that wrote nothing
+/// there leaves only the report.
+#[bon::builder]
 fn diagnosis(stdout: &str, stderr: &str) -> String {
     let written = stderr.trim();
 
@@ -79,15 +84,19 @@ fn diagnosis(stdout: &str, stderr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     #[test]
     fn error_of_a_silent_run_holds_what_node_wrote() {
-        let error = ObserveNodeError::silent("", "out of memory");
+        let error = ObserveNodeError::silent()
+            .stdout("")
+            .stderr("out of memory")
+            .call();
 
         assert!(
             matches!(&error, ObserveNodeError::MissingFailure { details } if details == "out of memory"),
@@ -97,7 +106,10 @@ mod tests {
 
     #[test]
     fn error_of_a_silent_run_that_wrote_nothing_holds_the_other_stream() {
-        let error = ObserveNodeError::silent("TAP version 13", "");
+        let error = ObserveNodeError::silent()
+            .stdout("TAP version 13")
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&error, ObserveNodeError::MissingFailure { details } if details == "TAP version 13"),
@@ -105,14 +117,23 @@ mod tests {
         );
     }
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Shows that `ObserveNodeError` is `Send` and `Sync`
+    ///
+    /// An action puts the error in the outcome of a run. That outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_node_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ObserveNodeError>();
+    }
+
+    #[test]
+    fn observe_node_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveNodeError>();
     }
 }

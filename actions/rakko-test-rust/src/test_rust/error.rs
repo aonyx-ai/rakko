@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_cargo::{DiscoverRootsError, ReadReportError, lockfile};
@@ -11,6 +13,22 @@ use thiserror::Error;
 /// diagnostic of a build that did not finish travel as findings in the
 /// outcome of the run. The variants of this error describe a run whose
 /// answer cannot be trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_rust::TestRustError;
+/// use std::path::PathBuf;
+///
+/// let error = TestRustError::StaleLockfile {
+///     root: PathBuf::from("/home/otter/project"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "the lockfile of the workspace in /home/otter/project needs an update"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum TestRustError {
@@ -27,10 +45,10 @@ pub enum TestRustError {
     /// The lockfile of a workspace needs an update
     ///
     /// The manifests of the workspace ask for something that the lockfile does
-    /// not hold, such as a new dependency or a new version of a member, or the
-    /// workspace has no lockfile. The action tests the versions that the
-    /// lockfile holds and never writes it, so cargo refused the run. A build of
-    /// the workspace writes the lockfile.
+    /// not hold. An example is a new dependency or a new version of a member.
+    /// The workspace may also have no lockfile. The action tests the versions
+    /// that the lockfile holds and never writes it, so cargo refused the run.
+    /// A build of the workspace writes the lockfile.
     #[error("the lockfile of the workspace in {} needs an update", root.display())]
     StaleLockfile {
         /// The workspace root whose lockfile needs an update
@@ -39,9 +57,9 @@ pub enum TestRustError {
 
     /// The workspaces of the project could not be discovered
     ///
-    /// A run tests every workspace of the project, and a run that does not
-    /// know them all would hide every failure of the missing one behind a
-    /// green result.
+    /// A run tests every workspace of the project. A run that does not know
+    /// them all would hide every failure of the missing one behind a green
+    /// result.
     #[error("failed to discover the workspaces of the project")]
     UndiscoveredRoots {
         /// The cause of the failure
@@ -62,10 +80,10 @@ pub enum TestRustError {
     /// Cargo wrote a record that the action cannot read
     ///
     /// Nextest forwards the JSON of cargo on the same stream, and the shape
-    /// of a record belongs to a version of cargo. A line that names a
-    /// compiler message or the end of the build in a shape that the action
-    /// does not know leaves the diagnostics of the build untrusted, and an
-    /// answer built on them would hide problems behind a green result.
+    /// of a record belongs to a version of cargo. A line names a compiler
+    /// message or the end of the build in a shape that the action does not
+    /// know. That leaves the diagnostics of the build untrusted. An answer
+    /// built on them would hide problems behind a green result.
     #[error("failed to read what cargo reported in {}", root.display())]
     UnreadableDiagnostics {
         /// The workspace root that the run worked on
@@ -79,7 +97,7 @@ pub enum TestRustError {
     ///
     /// The shape of a record belongs to a version of nextest. A line about a
     /// test or a binary of tests in a shape that the action does not know
-    /// leaves the report untrusted, and an answer built on it would hide
+    /// leaves the report untrusted. An answer built on it would hide
     /// failures behind a green result.
     #[error("failed to read what nextest reported in {}", root.display())]
     UnreadableReport {
@@ -94,9 +112,8 @@ pub enum TestRustError {
     ///
     /// The shape of the report belongs to a version of nextest. A run that
     /// ended without success and reported no failure, no diagnostic, and no
-    /// absence of tests wrote something the action could not read, and an
-    /// answer built on such a report would hide failures behind a green
-    /// result.
+    /// absence of tests wrote something the action could not read. An answer
+    /// built on such a report would hide failures behind a green result.
     #[error("nextest wrote a report in {} that the action does not recognize: {stderr}", root.display())]
     UnrecognizedReport {
         /// The workspace root that nextest worked on
@@ -132,9 +149,9 @@ impl From<ObserveNextestError> for TestRustError {
     /// Turns the failure of a nextest run into the error of the action
     ///
     /// The machinery that runs nextest names the conditions that the action
-    /// reports, so the conversion renames them. The one exception is a report
+    /// reports. So the conversion renames them. The one exception is a report
     /// that the machinery does not recognize because cargo refused to write
-    /// the lockfile, which the action names as a lockfile that needs an
+    /// the lockfile. The action names it as a lockfile that needs an
     /// update.
     ///
     /// A failure that a later release of the machinery adds becomes the source
@@ -159,5 +176,17 @@ impl From<ObserveNextestError> for TestRustError {
             }
             source => Self::UnknownNextestFailure { source },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rust_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TestRustError>();
     }
 }

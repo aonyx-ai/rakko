@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -17,4 +19,16 @@ pub(crate) enum ObserveOxfmtError {
         /// The cause of the failure
         source: RunCommandError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observe_oxfmt_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveOxfmtError>();
+    }
 }

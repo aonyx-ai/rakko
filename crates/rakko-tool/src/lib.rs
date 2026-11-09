@@ -4,9 +4,10 @@
 //! subprocess. This crate finds the tool and describes the command that runs
 //! it, so that every action reaches its tool in the same way.
 //!
-//! [mise] answers where a tool is. The crate searches no path of its own, and
-//! it installs nothing: a tool that mise did not install stops the action with
-//! an error that gives its name.
+//! [mise] answers where a tool is.
+//! The crate searches no path of its own and installs nothing.
+//! A tool that mise did not install stops the action with an error that
+//! gives the name of the tool.
 //!
 //! An action declares the tools that it runs, each as a
 //! [`ToolRequirement`][requirement] of the contract.
@@ -17,8 +18,8 @@
 //! resolves at the version that the project pins, when the range of the
 //! action accepts it. A tool that starts its toolchain by name, such as a
 //! package for Node, runs on the toolchain that [`Tool::with_toolchain`]
-//! gives it. A crate that wraps a tool keeps its pin in a mise file. It reads
-//! the pin with [`pinned_version`] when it compiles.
+//! gives it. A crate that wraps a tool keeps its pin in a mise file.
+//! It reads the pin with [`MiseFile::pinned_version`] when it compiles.
 //!
 //! Every lookup of this crate takes a requirement, and no lookup takes the
 //! name of a tool alone. An action resolves the requirements that it
@@ -32,9 +33,9 @@
 //! an error, before anything runs.
 //!
 //! An action runs the command with [`launch`][launch]. On Windows, a tool that
-//! a package manager for Node installed starts through a launcher, and the
-//! launch starts that launcher again when the operating system refused it a
-//! file for a moment.
+//! a package manager for Node installed starts through a launcher. The launch
+//! starts that launcher again when the operating system refused it a file for a
+//! moment.
 //!
 //! # Asynchronous Runtime
 //!
@@ -57,7 +58,7 @@
 //!     .build();
 //! let context = Context::builder().root("/home/otter/project").build();
 //!
-//! let tool = Tool::resolve_requirement(&requirement, &context).await?;
+//! let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
 //!
 //! let execution = tool.invocation().arg("--check").arg(".").launch().await?;
 //!
@@ -71,13 +72,9 @@
 //! [requirement]: rakko::ToolRequirement
 //! [tokio]: https://tokio.rs
 
-/// The run of a tool that survives a launcher that Windows stopped
 mod launch;
-/// The version that a mise file of a crate pins for a tool
 mod pin;
-/// The seal on the run of a tool
 mod seal;
-/// Types for an external program that an action runs
 mod tool;
 
 pub use kawauso_process::error::RunCommandError;
@@ -85,5 +82,5 @@ pub use kawauso_process::invocation::Program;
 pub use kawauso_process::{Execution, Invocation};
 
 pub use self::launch::Launch;
-pub use self::pin::pinned_version;
+pub use self::pin::MiseFile;
 pub use self::tool::{ResolveRequirementError, Tool};

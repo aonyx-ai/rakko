@@ -1,4 +1,5 @@
-/// The description of one argument
+//! Types for the description of an argument set
+
 mod argument;
 
 use getset::Getters;
@@ -9,12 +10,29 @@ pub use self::argument::{Argument, ArgumentName, ArgumentShape, Documentation};
 ///
 /// A schema lists the arguments of an action as data, in the order that the
 /// action declares them. A projection reads the schema to build a command
-/// before any value exists, so the schema is available without an instance of
+/// before any value exists. So the schema is available without an instance of
 /// the argument set.
 ///
 /// The schema describes what an action reads, not how a user writes it. It
-/// carries no flag syntax and no position in a command tree, because those
-/// decisions belong to the projection and are the same for every action.
+/// carries no flag syntax and no position in a command tree. That is because
+/// those decisions belong to the projection and are the same for every action.
+///
+/// # Examples
+///
+/// Create a schema for an action that reads arguments.
+///
+/// ```
+/// use rakko::{ArgsSchema, Argument, ArgumentShape, argument_name};
+///
+/// let argument = Argument::builder()
+///     .name(argument_name!("fix"))
+///     .shape(ArgumentShape::Boolean)
+///     .documentation("Rewrite files that need repairs")
+///     .build();
+///
+/// let schema = ArgsSchema::new([argument]);
+/// assert_eq!(schema.arguments()[0].name().get(), "fix");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Getters)]
 pub struct ArgsSchema {
     /// The arguments, in the order that the action declares them
@@ -24,6 +42,15 @@ pub struct ArgsSchema {
 
 impl ArgsSchema {
     /// Returns the schema of an action that reads no arguments
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::ArgsSchema;
+    ///
+    /// let schema = ArgsSchema::empty();
+    /// assert!(schema.arguments().is_empty());
+    /// ```
     #[must_use]
     pub fn empty() -> Self {
         Self::default()
@@ -33,6 +60,21 @@ impl ArgsSchema {
     ///
     /// The order of the arguments is preserved, because a projection may show
     /// them in the order that the action declares them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{ArgsSchema, Argument, ArgumentShape, argument_name};
+    ///
+    /// let argument = Argument::builder()
+    ///     .name(argument_name!("fix"))
+    ///     .shape(ArgumentShape::Boolean)
+    ///     .documentation("Rewrite files that need repairs")
+    ///     .build();
+    ///
+    /// let schema = ArgsSchema::new([argument]);
+    /// assert_eq!(schema.arguments().len(), 1);
+    /// ```
     pub fn new(arguments: impl IntoIterator<Item = Argument>) -> Self {
         Self {
             arguments: arguments.into_iter().collect(),
@@ -42,9 +84,10 @@ impl ArgsSchema {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -55,6 +98,13 @@ mod tests {
             .shape(ArgumentShape::Boolean)
             .documentation("Rewrite the files that the tool can format")
             .build()
+    }
+
+    #[test]
+    fn args_schema_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ArgsSchema>();
     }
 
     #[test]

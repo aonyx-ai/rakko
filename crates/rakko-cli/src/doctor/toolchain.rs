@@ -1,3 +1,7 @@
+//! The toolchains that the mounted actions require of the project
+
+use std::collections::BTreeSet;
+
 use rakko::{Context, Finding, Location, Name, RequiredVersion, VersionRange};
 use rakko_tool::{ResolveRequirementError, Tool};
 
@@ -7,18 +11,19 @@ use super::check_error::CheckToolPinsError;
 /// Returns a finding for each toolchain that a mounted action requires and
 /// that the project does not pin in its range
 ///
-/// A toolchain is a decision of the project, so `doctor --fix` leaves it, and
-/// the finding says which pin to change. A toolchain that the project pins in
-/// its range passes, also when mise did not install that version yet, because
-/// an install of mise repairs that, and the condition is about the pin.
+/// A toolchain is a decision of the project, so `doctor --fix` leaves it. The
+/// finding says which pin to change. A toolchain that the project pins in its
+/// range passes, also when mise did not install that version yet. An install
+/// of mise repairs that, and the condition is about the pin.
 ///
 /// # Errors
 ///
 /// Returns [`CheckToolPinsError::UnresolvedToolchain`] when the resolution of
-/// a toolchain fails for a reason that no pin of the project repairs, such as
-/// mise that does not run, or a range that the action wrote wrong.
-pub(crate) async fn check<'a>(
-    declarations: impl IntoIterator<Item = &'a Declaration>,
+/// a toolchain fails for a reason that no pin of the project repairs. Examples
+/// are mise that does not run, and a range that the action wrote wrong.
+#[bon::builder]
+pub(crate) async fn check(
+    declarations: &BTreeSet<Declaration>,
     context: &Context,
 ) -> Result<Vec<Finding>, CheckToolPinsError> {
     let mut findings = Vec::new();
@@ -28,9 +33,19 @@ pub(crate) async fn check<'a>(
             continue;
         };
 
-        let result = Tool::resolve_requirement(declaration.requirement(), context).await;
+        let result = Tool::resolve_requirement()
+            .requirement(declaration.requirement())
+            .context(context)
+            .call()
+            .await;
 
-        findings.extend(finding(declaration.action(), range, result)?);
+        findings.extend(
+            finding()
+                .action(declaration.action())
+                .range(range)
+                .result(result)
+                .call()?,
+        );
     }
 
     Ok(findings)
@@ -43,6 +58,7 @@ pub(crate) async fn check<'a>(
 ///
 /// Returns [`CheckToolPinsError::UnresolvedToolchain`] for an error of the
 /// resolution that no pin of the project repairs.
+#[bon::builder]
 fn finding(
     action: &Name,
     range: &VersionRange,
@@ -81,9 +97,10 @@ fn finding(
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{Executable, MiseTool, ToolVersion};
 
@@ -94,7 +111,11 @@ mod tests {
     fn message_of(error: ResolveRequirementError) -> Option<String> {
         let action: Name = "check-msrv".parse().expect("the test names an action");
 
-        finding(&action, &VersionRange::new(">=1.85"), Err(error))
+        finding()
+            .action(&action)
+            .range(&VersionRange::new(">=1.85"))
+            .result(Err(error))
+            .call()
             .expect("the resolution gives a finding or nothing")
             .map(|finding| finding.message().get().to_owned())
     }
@@ -153,7 +174,11 @@ mod tests {
             tool: MiseTool::new("rust"),
         };
 
-        let result = finding(&action, &VersionRange::new(">=1.85"), Err(error));
+        let result = finding()
+            .action(&action)
+            .range(&VersionRange::new(">=1.85"))
+            .result(Err(error))
+            .call();
 
         assert!(
             matches!(result, Err(CheckToolPinsError::UnresolvedToolchain { .. })),

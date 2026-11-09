@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -5,18 +7,18 @@ use crate::tsc::report::ReadReportError;
 
 /// An error that leaves a run of tsc without an answer
 ///
-/// A rule of the language that the code breaks is no failure of a run: it
+/// A rule of the language that the code breaks is no failure of a run. It
 /// travels as a diagnostic, and the caller decides what it means. The variants
 /// here describe a run that produced no answer about the project at all.
 #[derive(Debug, Error)]
 pub(crate) enum ObserveTscError {
     /// Tsc reported nothing and ended without success
     ///
-    /// Tsc reports a diagnostic for everything that it finds, including for a
-    /// configuration that it refuses and for a project that it finds no
+    /// Tsc reports a diagnostic for everything that it finds. That includes a
+    /// configuration that it refuses and a project that it finds no
     /// configuration of. A run that ended without success and said nothing
-    /// therefore stopped for a reason that this crate cannot name, and the
-    /// project was never checked.
+    /// therefore stopped for a reason that this crate cannot name. The project
+    /// was never checked.
     #[error("tsc reported nothing and ended without success: {details}")]
     MissingReport {
         /// What tsc wrote in place of a diagnostic
@@ -36,10 +38,10 @@ pub(crate) enum ObserveTscError {
     /// Tsc wrote a report that the crate cannot read
     ///
     /// The shape of the report belongs to a version of tsc. A report that does
-    /// not fit therefore points at a version that this crate does not know,
-    /// and the diagnostics of such a run would be the ones that the reading
-    /// happened to understand.
-    #[error("tsc wrote a report that the action cannot read: {report}")]
+    /// not fit therefore points at a version that this crate does not know. The
+    /// diagnostics of such a run would be the ones that the reading happened to
+    /// understand.
+    #[error("failed to read tsc's report: {report}")]
     UnreadableReport {
         /// What tsc wrote in place of a report that the crate reads
         report: String,
@@ -49,15 +51,17 @@ pub(crate) enum ObserveTscError {
     },
 }
 
+#[bon::bon]
 impl ObserveTscError {
     /// Returns the error of a run that ended without success and said nothing
     ///
     /// Tsc writes what it has to say on its standard output stream, so that is
     /// what the details carry. A run that wrote nothing there leaves its
     /// reason on the standard error stream, or says nothing at all.
+    #[builder]
     pub(super) fn silent(stdout: &str, stderr: &str) -> Self {
         Self::MissingReport {
-            details: diagnosis(stdout, stderr),
+            details: diagnosis().stdout(stdout).stderr(stderr).call(),
         }
     }
 }
@@ -65,9 +69,9 @@ impl ObserveTscError {
 /// Returns what tsc wrote about a run that reported no diagnostic
 ///
 /// The standard output stream answers, because that is where tsc writes. A run
-/// that wrote nothing there says what happened on the standard error stream,
-/// or says nothing at all, and the caller reports whichever of the two carries
-/// text.
+/// that wrote nothing there says what happened on the standard error stream, or
+/// says nothing at all. The caller reports whichever of the two carries text.
+#[bon::builder]
 fn diagnosis(stdout: &str, stderr: &str) -> String {
     let written = stdout.trim();
 
@@ -80,15 +84,19 @@ fn diagnosis(stdout: &str, stderr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     #[test]
     fn error_of_a_silent_run_holds_what_tsc_wrote() {
-        let error = ObserveTscError::silent("out of memory", "");
+        let error = ObserveTscError::silent()
+            .stdout("out of memory")
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&error, ObserveTscError::MissingReport { details } if details == "out of memory"),
@@ -98,7 +106,7 @@ mod tests {
 
     #[test]
     fn error_of_a_silent_run_that_wrote_nothing_holds_the_other_stream() {
-        let error = ObserveTscError::silent("", "killed");
+        let error = ObserveTscError::silent().stdout("").stderr("killed").call();
 
         assert!(
             matches!(&error, ObserveTscError::MissingReport { details } if details == "killed"),
@@ -106,14 +114,23 @@ mod tests {
         );
     }
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Shows that the error is send and sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_tsc_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ObserveTscError>();
+    }
+
+    #[test]
+    fn observe_tsc_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveTscError>();
     }
 }

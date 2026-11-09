@@ -1,16 +1,16 @@
 //! The machinery that the actions which wrap taplo share
 //!
-//! [Taplo] does several jobs of project maintenance, and one action wraps
-//! each of them. Every one of those actions asks the same questions: does
-//! this project hold TOML files at all, which taplo does it run, and what
-//! did that taplo report? This crate answers all three, so that an action
-//! states the operation that it wants and reads the answer as data.
+//! [Taplo] does several jobs of project maintenance, and one action wraps each
+//! of them. Every one of those actions asks the same questions. Does this
+//! project hold TOML files at all? Which taplo does it run? What did that taplo
+//! report? This crate answers all three, so that an action states the operation
+//! that it wants and reads the answer as data.
 //!
 //! Taplo reports as text on its standard error stream, and this crate reads
-//! that text. The shape of the text belongs to a version of taplo, so
-//! keeping the reading in one place keeps the version surface in one place
-//! as well: a taplo that reports differently breaks one crate, and not one
-//! crate per operation.
+//! that text. The shape of the text belongs to a version of taplo. So keeping
+//! the reading in one place keeps the version surface in one place as well. A
+//! taplo that reports differently breaks one crate, and not one crate per
+//! operation.
 //!
 //! For the same reason, the crate pins the version of taplo that every such
 //! action runs, in the file `mise.rakko.toml` that the build embeds. An
@@ -27,17 +27,18 @@
 //! An action resolves taplo and reads what one operation reported:
 //!
 //! ```no_run
-//! use rakko::Context;
+//! use rakko::{Context, ProjectRoot};
 //! use rakko_taplo::{Operation, Taplo};
+//! use rakko_test_utils::path;
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let context = Context::builder().root("/home/otter/project").build();
+//! let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 //!
 //! let taplo = Taplo::resolve(&context).await?;
 //! let observation = taplo.observe(Operation::Lint).await?;
 //!
-//! println!("{} problems", observation.problems().len());
+//! assert!(observation.problems().is_empty());
 //! # Ok(())
 //! # }
 //! ```
@@ -45,13 +46,9 @@
 //! [taplo]: https://taplo.tamasfe.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for what one run of taplo produced
 mod observation;
-/// Types for the operations of taplo that an action runs
 mod operation;
-/// Types for one problem that taplo reported about a file
 mod problem;
-/// Types for the taplo that a project runs
 mod taplo;
 
 pub use self::observation::Observation;

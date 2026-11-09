@@ -1,15 +1,14 @@
 //! The action that formats the TOML files of a project
 //!
 //! This module holds the action, the arguments that a run reads, and the
-//! error that stops a run. The action wraps taplo as a subprocess: taplo
-//! discovers the files, reads its own configuration, and does the
-//! formatting, and the action translates what taplo reported into an
+//! error that stops a run. The action wraps taplo as a subprocess.
+//! Taplo discovers the files, reads its own configuration, and does the
+//! formatting. The action translates what taplo reported into an
 //! outcome.
 
-/// The arguments that a run of the action reads
 mod args;
-/// The error that stops a run of the action
 mod error;
+mod format_mode;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -22,6 +21,7 @@ use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
 pub use self::args::FormatTomlArgs;
 pub use self::error::FormatTomlError;
+pub use self::format_mode::FormatMode;
 
 /// The message of a finding about a file that is not formatted
 const UNFORMATTED_FINDING: &str = "the file is not properly formatted";
@@ -31,27 +31,26 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 
 /// The action that formats the TOML files of a project
 ///
-/// The action wraps [taplo]: taplo discovers the TOML files of the project,
-/// reads its own configuration, and formats what its configuration selects,
-/// so a run agrees with an editor and with a contributor that runs taplo
-/// bare. The taplo that runs is the version that the action declares, which
-/// [mise] installed, whatever version the project pins. The action installs
-/// nothing.
+/// The action wraps [taplo]. Taplo discovers the TOML files of the project. It
+/// reads its own configuration and formats what its configuration selects. So a
+/// run agrees with an editor and with a contributor that runs taplo bare. The
+/// taplo that runs is the version that the action declares, which [mise]
+/// installed, whatever version the project pins. The action installs nothing.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
-/// that names the file, and a file that taplo cannot parse becomes a finding
+/// that names the file. A file that taplo cannot parse becomes a finding
 /// at the position that taplo reports. With the `fix` argument, taplo
-/// rewrites the files that it can format, and the outcome carries one repair
+/// rewrites the files that it can format. The outcome carries one repair
 /// for each file that it rewrote, next to the problems that remain.
 ///
 /// A run that reports declares a read of the project, and a run with `fix`
 /// declares a write. A caller that orders runs by their declarations can
 /// then run a rewrite before the actions that read.
 ///
-/// A project that holds no TOML file passes, having formatted nothing. A run stops
-/// with an error when mise reports no taplo at the declared version,
-/// when taplo rejects a configuration file of the project, and when taplo
-/// writes a report that the action does not recognize.
+/// A project that holds no TOML file passes, having formatted nothing. A run
+/// stops with an error when mise reports no taplo at the declared version, or
+/// when taplo rejects a configuration file of the project. It also stops when
+/// taplo writes a report that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -77,10 +76,9 @@ impl Action for FormatToml {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
-            Access::Write
-        } else {
-            Access::Read
+        match args.format_mode() {
+            FormatMode::Rewrite => Access::Write,
+            FormatMode::Report => Access::Read,
         }
     }
 
@@ -121,23 +119,21 @@ async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, Form
         return Ok(passed(&observation));
     }
 
-    if args.fix() {
-        fix(&taplo, observation.problems(), context.root()).await
-    } else {
-        Ok(Outcome::Failed {
+    match args.format_mode() {
+        FormatMode::Rewrite => fix(&taplo, observation.problems(), context.root()).await,
+        FormatMode::Report => Ok(Outcome::Failed {
             findings: findings(observation.problems(), context.root())?,
             repairs: Vec::new(),
-        })
+        }),
     }
 }
 
 /// Returns the finding that reports one problem of the project
 ///
-/// A file that is not formatted gets a finding at the level of the file, and
-/// a diagnostic gets one at the position that taplo named. The message for
-/// an unformatted file comes from the caller, because a finding states a
-/// problem that the project has and a repair states one that the run took
-/// away.
+/// A file that is not formatted gets a finding at the level of the file. A
+/// diagnostic gets one at the position that taplo named. The message for an
+/// unformatted file comes from the caller. This is because a finding states a
+/// problem that the project has. A repair states one that the run took away.
 ///
 /// # Errors
 ///
@@ -202,15 +198,15 @@ fn findings(
 /// Repairs the problems that the check found and reports what remains
 ///
 /// Taplo does not report which files a rewrite touched, so the repairs
-/// derive from the two reports: a problem of the check whose file the
+/// derive from the two reports. A problem of the check whose file the
 /// rewrite does not report again was repaired, and what the rewrite still
 /// reports remains. The files that taplo cannot parse remain this way,
 /// because a rewrite repairs formatting and a syntax error needs a hand.
 ///
 /// # Errors
 ///
-/// Returns the error of a rewrite that could not finish: taplo did not run,
-/// it rejected a configuration file, it wrote a report that the action does
+/// Returns the error of a rewrite that could not finish. Taplo did not run, or
+/// it rejected a configuration file. Or it wrote a report that the action does
 /// not recognize, or it reported a path outside the project.
 async fn fix(
     taplo: &Taplo,
@@ -244,10 +240,10 @@ async fn fix(
 /// Returns the outcome of a check that reported no problem
 ///
 /// A pass says how many files taplo checked, so that a reader can question a
-/// pass that examined nothing. Taplo can lose the line that carries the
-/// count, and a pass without it stays a pass: taplo ended the check with
-/// success, and no line that a report loses can turn a check that found
-/// problems into one that found none.
+/// pass that examined nothing. Taplo can lose the line that carries the count.
+/// A pass without it stays a pass, because taplo ended the check with success.
+/// No line that a report loses can turn a check that found problems into one
+/// that found none.
 fn passed(observation: &Observation) -> Outcome {
     Outcome::Passed {
         summary: observation.checked().map(summary),
@@ -285,9 +281,10 @@ fn summary(checked: u64) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
 
@@ -322,5 +319,12 @@ mod tests {
         let access = FormatToml.access(&context(), &args);
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn format_toml_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatToml>();
     }
 }

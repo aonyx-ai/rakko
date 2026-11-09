@@ -1,10 +1,10 @@
 //! What one run of nextest produced
 //!
-//! Nextest and cargo write their JSON to the same stream, and this module
-//! turns both into data. The reading recognizes the lines that carry an
-//! answer and ignores everything else, so a line that a new version adds does
-//! not break it. A run whose reports leave no answer at all stops here, so
-//! that no caller reads a green result out of a report it could not read.
+//! Nextest and cargo write their JSON to the same stream, and this module turns
+//! both into data. The reading recognizes the lines that carry an answer and
+//! ignores everything else, so a line that a new version adds does not break
+//! it. A run whose reports leave no answer at all stops here. So no caller
+//! reads a green result out of a report it could not read.
 
 use getset::{CopyGetters, Getters};
 use rakko::{Finding, ProjectRoot};
@@ -22,14 +22,44 @@ const NO_TESTS: i32 = 4;
 
 /// What one run of nextest produced
 ///
-/// The value holds the answer of one run at one workspace root: the findings
-/// of the run, and how many tests it ran. A test that failed and a diagnostic
-/// of a build that did not finish are both problems of the project, and both
-/// arrive as findings, because a caller reports them the same way.
+/// The value holds the answer of one run at one workspace root: the findings of
+/// the run, and how many tests it ran. A test that failed and a diagnostic of a
+/// build that did not finish are both problems of the project. Both arrive as
+/// findings, because a caller reports them the same way.
 ///
-/// An observation describes the run and judges nothing. A run without a
-/// finding says nothing about whether the caller passes, because a caller
-/// that tests several workspaces sums the answers of all of them.
+/// An observation describes the run and judges nothing. A run without a finding
+/// says nothing about whether the caller passes. That is because a caller that
+/// tests several workspaces sums the answers of all of them.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko::{Context, ProjectRoot};
+/// use rakko_cargo::Cargo;
+/// use rakko_nextest::{Lockfile, Nextest};
+/// use rakko_test_utils::path;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+/// let cargo = Cargo::resolve(&context).await?;
+/// let roots = cargo.roots().await?;
+/// let nextest = Nextest::resolve()
+///     .cargo(cargo)
+///     .lockfile(Lockfile::Locked)
+///     .context(&context)
+///     .call()
+///     .await?;
+///
+/// for root in &roots {
+///     let observation = nextest.observe(root, context.root()).await?;
+///
+///     assert!(observation.findings().is_empty());
+///     assert!(observation.ran() > 0);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The findings of the run: the tests that failed, and the diagnostics
@@ -42,25 +72,27 @@ pub struct Observation {
     ran: u64,
 }
 
+#[bon::bon]
 impl Observation {
     /// Reads the observation of a run from what nextest and cargo wrote
     ///
-    /// The findings name their files relative to the project root, and a
-    /// file that the project root does not contain leaves its finding at the
-    /// level of the project.
+    /// The findings name their files relative to the project root. A file that
+    /// the project root does not contain leaves its finding at the level of the
+    /// project.
     ///
     /// # Errors
     ///
     /// Returns [`UnreadableReport`][report] or
-    /// [`UnreadableDiagnostics`][diagnostics] when a stream holds a record
-    /// that the crate cannot read, and [`UnrecognizedReport`][unrecognized]
-    /// when the run ended without success and reported nothing that the
-    /// crate can answer from. An answer built on such a report would hide
-    /// failures behind a green result.
+    /// [`UnreadableDiagnostics`][diagnostics] when a stream holds a record that
+    /// the crate cannot read. Returns [`UnrecognizedReport`][unrecognized] when
+    /// the run ended without success and reported nothing that the crate can
+    /// answer from. An answer built on such a report would hide failures behind
+    /// a green result.
     ///
     /// [diagnostics]: ObserveNextestError::UnreadableDiagnostics
     /// [report]: ObserveNextestError::UnreadableReport
     /// [unrecognized]: ObserveNextestError::UnrecognizedReport
+    #[builder]
     pub(crate) fn read(
         execution: &Execution,
         root: &CargoRoot,
@@ -143,15 +175,23 @@ fn recognized(nextest: &NextestReport, cargo: &CargoReport, execution: &Executio
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::{Path, PathBuf};
 
     use rakko_cargo::Documentation;
 
     use super::*;
+
+    #[test]
+    fn observation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Observation>();
+    }
 
     #[test]
     fn read_diagnostics_in_a_shape_the_crate_does_not_know_names_the_root() {

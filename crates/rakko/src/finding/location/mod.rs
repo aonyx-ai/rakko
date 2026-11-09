@@ -1,10 +1,8 @@
-/// The path of a directory that a problem is in
+//! The location of a problem in a project
+
 mod directory_path;
-/// The path of a file that a problem is in
 mod file_path;
-/// The position of a problem in a file
 mod position;
-/// The range of a file that a problem covers
 mod span;
 
 pub use self::directory_path::{DirectoryPath, ParseDirectoryPathError};
@@ -21,14 +19,34 @@ pub use self::span::Span;
 /// all.
 ///
 /// A location therefore names the level that it speaks at, and each level
-/// carries what that level knows and nothing more. A reader of a location
-/// gets the level first, and the level alone tells the reader what it can
-/// show. A level that says less is an honest answer, not a defect: an action
-/// gives the level that its tool supports, and it never claims a precision
-/// that the tool did not give it.
+/// carries what that level knows and nothing more. A reader of a location gets
+/// the level first, and the level alone tells the reader what it can show. A
+/// level that says less is an honest answer, not a defect. An action gives the
+/// level that its tool supports, and it never claims a precision that the tool
+/// did not give it.
 ///
 /// Every path in a location is relative to the project root. A reader, a
 /// machine, and a code host therefore see the same path for the same file.
+///
+/// # Examples
+///
+/// Report a problem in a specific file.
+///
+/// ```
+/// use rakko::{FilePath, Finding, Location};
+/// use std::str::FromStr;
+///
+/// let path = FilePath::from_str("src/main.rs").unwrap();
+/// let finding = Finding::builder()
+///     .message("missing semicolon")
+///     .location(Location::File { path })
+///     .build();
+///
+/// let Location::File { path } = finding.location() else {
+///     panic!("expected a file location");
+/// };
+/// assert_eq!(path.get().to_str(), Some("src/main.rs"));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Location {
     /// The problem belongs to the project, and to no path in it
@@ -64,8 +82,8 @@ pub enum Location {
     },
     /// The problem covers a range of a file
     ///
-    /// A compiler and a formatter report at this level, because a problem
-    /// that they find can start on one line and end on a later one.
+    /// A compiler and a formatter report at this level. That is because a
+    /// problem that they find can start on one line and end on a later one.
     Span {
         /// The path of the file that the problem is in
         path: FilePath,
@@ -76,9 +94,10 @@ pub enum Location {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
 
@@ -106,6 +125,13 @@ mod tests {
             panic!("expected File level");
         };
         assert_eq!(path.get(), Path::new("Cargo.toml"));
+    }
+
+    #[test]
+    fn location_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Location>();
     }
 
     #[test]

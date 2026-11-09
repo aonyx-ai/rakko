@@ -1,3 +1,5 @@
+//! The trait that every action implements
+
 use std::future::Future;
 
 use crate::access::Access;
@@ -56,10 +58,10 @@ use crate::tool::ToolRequirement;
 pub trait Action: Send + Sync {
     /// The arguments that a run of the action reads
     ///
-    /// Each action defines its own type, and that type implements [`Args`].
-    /// It describes itself as data, so that a projection can build a command
-    /// before a run exists, and it builds itself from what the machinery
-    /// parsed. An action that reads no arguments uses the unit type.
+    /// Each action defines its own type that implements [`Args`]. That type
+    /// describes itself as data, so a projection can build a command before a
+    /// run exists. It builds itself from what the machinery parsed. An action
+    /// that reads no arguments uses the unit type.
     ///
     /// [`run`]: Action::run
     type Args: Args;
@@ -106,26 +108,37 @@ pub trait Action: Send + Sync {
 
     /// Runs the action against the project that the context names
     ///
-    /// The method returns a future, and the caller drives that future to get
-    /// the [`Outcome`]. The run reports every result in the outcome: problems
-    /// travel as findings in [`Outcome::Failed`], problems that the action
-    /// repaired travel as repairs in [`Outcome::Changed`], and an error that
-    /// stops the run travels in [`Outcome::Errored`]. The method itself has no
-    /// error type.
+    /// The method returns a future. The caller drives that future to get the
+    /// [`Outcome`]. The run reports every result in the outcome. Problems travel
+    /// as findings in [`Outcome::Failed`]. Problems that the action repaired
+    /// travel as repairs in [`Outcome::Changed`]. An error that stops the run
+    /// travels in [`Outcome::Errored`]. The method itself has no error type.
     fn run(&self, context: &Context, args: &Self::Args) -> impl Future<Output = Outcome> + Send;
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::pin::{Pin, pin};
     use std::task::{Context as TaskContext, Poll, Waker};
 
     use super::*;
     use crate::tool::{RequiredVersion, ToolVersion};
+
+    /// Whether a future has returned control already
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+    enum PollState {
+        /// The future has returned control and is ready
+        Ready,
+
+        /// The future has not returned control yet
+        #[default]
+        Pending,
+    }
 
     /// A minimal action that yields once and then passes
     struct Probe;
@@ -175,18 +188,19 @@ mod tests {
     #[derive(Default)]
     struct YieldOnce {
         /// Whether the future has returned control already
-        yielded: bool,
+        state: PollState,
     }
 
     impl Future for YieldOnce {
         type Output = ();
 
         fn poll(mut self: Pin<&mut Self>, _cx: &mut TaskContext<'_>) -> Poll<()> {
-            if self.yielded {
-                Poll::Ready(())
-            } else {
-                self.yielded = true;
-                Poll::Pending
+            match self.state {
+                PollState::Ready => Poll::Ready(()),
+                PollState::Pending => {
+                    self.state = PollState::Ready;
+                    Poll::Pending
+                }
             }
         }
     }
@@ -255,6 +269,13 @@ mod tests {
         let action = Probe;
 
         assert_eq!(action.name().get(), "probe");
+    }
+
+    #[test]
+    fn poll_state_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<PollState>();
     }
 
     #[test]

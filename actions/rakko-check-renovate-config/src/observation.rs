@@ -12,13 +12,13 @@ use crate::problem::RenovateProblem;
 
 /// What one run of the validator produced
 ///
-/// The value holds the answer of one run that the validator finished: the
-/// problems that it reported, how many configurations it validated, and what
-/// it wrote when it found no configuration at all.
+/// The value holds the answer of one run that the validator finished. The
+/// answer holds the problems that it reported, how many configurations it
+/// validated, and what it wrote when it found no configuration at all.
 ///
 /// A run that found no configuration is not a run that found nothing wrong.
-/// Both report no problem, and the two mean opposite things for the outcome of
-/// an action: one project is valid, and the other was never looked at.
+/// Both report no problem. The two mean opposite things for the outcome of an
+/// action. One project is valid, and the other was never looked at.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub(crate) struct Observation {
     /// The problems that the validator reported, in the order of its log
@@ -39,11 +39,11 @@ pub(crate) struct Observation {
 impl Observation {
     /// Creates the observation of a run
     ///
-    /// A run of the validator builds one through [`Validator::observe`], and a
+    /// A run of the validator builds one through [`Validator::observe`]. A
     /// caller builds one where a test stands in for a validator that nobody
-    /// started. Every part is optional, so a test names what its case is
-    /// about and leaves the rest at the answer of a run that validated nothing
-    /// and found nothing.
+    /// started. Every part is optional, so a test names what its case is about.
+    /// The rest stays at the answer of a run that validated nothing and found
+    /// nothing.
     ///
     /// [`Validator::observe`]: crate::validator::Validator::observe
     #[builder]
@@ -81,9 +81,10 @@ impl Observation {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::PathBuf;
 
@@ -94,12 +95,11 @@ mod tests {
 
     /// Returns an error of the validator about the given file
     fn problem(file: &str) -> RenovateProblem {
-        RenovateProblem::new(
-            PathBuf::from(file),
-            None,
-            "Configuration Error".to_owned(),
-            "Invalid configuration option: foo".to_owned(),
-        )
+        RenovateProblem::builder()
+            .path(PathBuf::from(file))
+            .topic("Configuration Error".to_owned())
+            .detail("Invalid configuration option: foo".to_owned())
+            .build()
     }
 
     /// Returns the observation of a run that found no configuration
@@ -159,5 +159,12 @@ mod tests {
         let joined = unconfigured().join(unconfigured());
 
         assert_eq!(joined.unconfigured().as_deref(), Some(UNCONFIGURED));
+    }
+
+    #[test]
+    fn observation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Observation>();
     }
 }

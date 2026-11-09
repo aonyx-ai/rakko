@@ -1,11 +1,10 @@
 //! The action that lints the TypeScript of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps oxlint as a subprocess: oxlint discovers the files, reads its own
-//! configuration, and applies its rules, and the action translates what oxlint
+//! wraps oxlint as a subprocess. Oxlint discovers the files, reads its own
+//! configuration, and applies its rules. The action translates what oxlint
 //! reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use std::path::Path;
@@ -29,20 +28,20 @@ const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 
 /// The action that lints the TypeScript of a project
 ///
-/// The action wraps [oxlint]: oxlint discovers the files of the project, reads
-/// its own configuration, and applies the rules that the project turned on, so
-/// a run agrees with an editor and with a contributor that runs oxlint bare.
+/// The action wraps [oxlint]. Oxlint discovers the files of the project, reads
+/// its own configuration, and applies the rules that the project turned on.
+/// A run agrees with an editor and with a contributor that runs oxlint bare.
 /// The oxlint that runs is the version that the action declares, which [mise]
 /// installed, whatever version the project pins. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. Every diagnostic that oxlint
 /// writes becomes a finding, and the message of the finding is the sentence
 /// that oxlint wrote for a reader. A rule that a file broke becomes a finding
-/// at the place that oxlint marked. A diagnostic about the project, such as a
-/// suppressions file that no longer agrees with the code, becomes a finding of
-/// the project beside the others. A diagnostic that oxlint weighs as a warning
-/// becomes a finding like one that it weighs as an error, because a project
-/// that wants a rule to stay quiet turns that rule off.
+/// at the place that oxlint marked. A diagnostic about the project becomes a
+/// finding of the project beside the others. An example is a suppressions file
+/// that no longer agrees with the code. A diagnostic that oxlint weighs as a
+/// warning becomes a finding like one that it weighs as an error. This is
+/// because a project that wants a rule to stay quiet turns that rule off.
 ///
 /// The action applies to a project that holds files which oxlint lints, and it
 /// skips visibly otherwise. A run stops with an error in these conditions:
@@ -125,8 +124,8 @@ async fn drive(context: &Context) -> Result<Outcome, LintTypeScriptError> {
 /// Returns the finding that reports one diagnostic of oxlint
 ///
 /// The finding sits where the diagnostic belongs: at the place that oxlint
-/// marked, in a whole file, or in the project. The message comes from oxlint,
-/// so a reader of a finding reads what the tool itself would have told them,
+/// marked, in a whole file, or in the project. The message comes from oxlint.
+/// A reader of a finding reads what the tool itself would have told them,
 /// including the severity that oxlint gave the diagnostic.
 ///
 /// # Errors
@@ -200,8 +199,8 @@ fn guard(observation: &Observation) -> Option<Outcome> {
 /// root
 ///
 /// A run starts oxlint in the project root and names the root as the place to
-/// look, so oxlint reports a path relative to the root, and the answer drops a
-/// root that the path starts with.
+/// look. So oxlint reports a path relative to the root. The answer drops a root
+/// that the path starts with.
 ///
 /// # Errors
 ///
@@ -210,9 +209,13 @@ fn guard(observation: &Observation) -> Option<Outcome> {
 ///
 /// [foreign]: LintTypeScriptError::ForeignPath
 fn relative_path(path: &Path, root: &ProjectRoot) -> Result<FilePath, LintTypeScriptError> {
-    FilePath::within(path, root).ok_or_else(|| LintTypeScriptError::ForeignPath {
-        path: path.to_path_buf(),
-    })
+    FilePath::within()
+        .path(path)
+        .root(root)
+        .call()
+        .ok_or_else(|| LintTypeScriptError::ForeignPath {
+            path: path.to_path_buf(),
+        })
 }
 
 /// Returns the summary of a run that found no problem
@@ -231,9 +234,10 @@ fn summary(examined: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::Position;
     use rakko_test_utils::path;
@@ -428,6 +432,13 @@ mod tests {
         let outcome = guard(&observation);
 
         assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+    }
+
+    #[test]
+    fn lint_type_script_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintTypeScript>();
     }
 
     #[test]

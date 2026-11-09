@@ -1,3 +1,5 @@
+//! The error of a run whose member cannot bind its values
+
 use rakko::{Name, ReadArgsError};
 use thiserror::Error;
 
@@ -5,8 +7,9 @@ use thiserror::Error;
 ///
 /// The command line binds every member of a group to the values of the run
 /// before the group runs. A member whose values do not convert stops the run
-/// of the group before any member runs, because a run that drives only some of
-/// its members would report on a project that it did not fully examine.
+/// of the group before any member runs. This is because a run that drives only
+/// some of its members would report on a project that it did not fully
+/// examine.
 #[derive(Debug, Error)]
 pub(crate) enum BindMembersError {
     /// The values of the run do not convert into the arguments of a member
@@ -17,4 +20,16 @@ pub(crate) enum BindMembersError {
         /// The error of the conversion, which gives the argument
         source: ReadArgsError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bind_members_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<BindMembersError>();
+    }
 }

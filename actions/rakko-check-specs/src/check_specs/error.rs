@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use rakko::ParseFilePathError;
 use rakko_tool::ResolveRequirementError;
 use thiserror::Error;
@@ -10,15 +12,30 @@ use crate::tracey::ObserveTraceyError;
 /// A broken link between a specification and the code is no error: it travels
 /// as a finding, and the outcome of the run reports it. The variants here
 /// describe a run that reached no answer about the project at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::{CheckSpecsError, PrepareComparisonError};
+///
+/// let source = PrepareComparisonError::RefusedCopy {
+///     details: "not a git repository".to_owned(),
+/// };
+/// let error = CheckSpecsError::from(source);
+/// assert_eq!(
+///     error.to_string(),
+///     "failed to compare the pull request with its base branch"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckSpecsError {
     /// Tracey reported a problem in a file outside the project
     ///
-    /// Tracey starts in the root of the project and names a file below it, so
-    /// a path that the root does not contain points at a tracey that reports
-    /// something else than the crate expects.
-    #[error("tracey reported a problem in {path}, which is not a file of the project")]
+    /// Tracey starts in the project root and names a file below it. So a path
+    /// that the root does not contain points at a tracey that reports something
+    /// else than the crate expects.
+    #[error("failed to parse {path} as a path of the project")]
     ForeignPath {
         /// The path that tracey reported
         path: String,
@@ -68,18 +85,28 @@ impl From<PrepareComparisonError> for CheckSpecsError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read.
+    /// Shows that the error is send and sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome
+    /// holds an error that another thread can read.
     #[test]
     fn check_specs_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<CheckSpecsError>();
+    }
+
+    #[test]
+    fn check_specs_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckSpecsError>();
     }
 }

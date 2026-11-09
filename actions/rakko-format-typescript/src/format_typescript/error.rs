@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_tool::{ResolveRequirementError, RunCommandError};
@@ -11,6 +13,21 @@ use crate::oxfmt::ObserveOxfmtError;
 /// a file that oxfmt cannot parse travel as findings in the outcome of the
 /// run. The variants of this error describe a run whose answer cannot be
 /// trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_typescript::FormatTypeScriptError;
+///
+/// let error = FormatTypeScriptError::ForeignPath {
+///     path: std::path::PathBuf::from("../outside/project"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "oxfmt reported a path outside the project: ../outside/project"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum FormatTypeScriptError {
@@ -37,8 +54,8 @@ pub enum FormatTypeScriptError {
 
     /// Oxfmt refused a configuration file of the project
     ///
-    /// Oxfmt reads its configuration before it collects a single file, and it
-    /// formats nothing at all when it cannot accept that configuration, so the
+    /// Oxfmt reads its configuration before it collects a single file. When it
+    /// cannot accept that configuration, it formats nothing at all, so the
     /// project asked for rules that never applied.
     #[error("oxfmt did not run with the configuration of the project: {details}")]
     RejectedConfiguration {
@@ -48,9 +65,9 @@ pub enum FormatTypeScriptError {
 
     /// Oxfmt wrote a report that the action does not recognize
     ///
-    /// The shape of the report belongs to a version of oxfmt. A run that ended
-    /// without success and named no problem wrote something the action could
-    /// not read, and an answer built on such a report would hide problems
+    /// The shape of the report belongs to a version of oxfmt. A run that
+    /// ended without success and named no problem wrote something the action
+    /// could not read. An answer built on such a report would hide problems
     /// behind a green result.
     #[error("oxfmt wrote a report that the action does not recognize: {stderr}")]
     UnrecognizedReport {
@@ -85,5 +102,17 @@ impl From<ObserveOxfmtError> for FormatTypeScriptError {
         match error {
             ObserveOxfmtError::OxfmtUnavailable { source } => Self::OxfmtUnavailable { source },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_type_script_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatTypeScriptError>();
     }
 }

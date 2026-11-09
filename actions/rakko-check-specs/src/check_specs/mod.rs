@@ -1,11 +1,10 @@
 //! The action that checks the specifications of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps tracey as a subprocess: tracey reads the specifications and the code
-//! that answers them, and the action asks it the questions that gate a project
+//! wraps tracey as a subprocess. Tracey reads the specifications and the code
+//! that answers them. The action asks tracey the questions that gate a project
 //! and translates the answers into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{
@@ -14,7 +13,7 @@ use rakko::{
 };
 
 pub use self::error::CheckSpecsError;
-use crate::comparison::Comparison;
+use crate::comparison::{Comparison, Scope};
 use crate::problem::TraceyProblem;
 use crate::tracey::{Coverage, Tracey};
 
@@ -30,21 +29,21 @@ const BASE_REF: &str = "GITHUB_BASE_REF";
 /// The action that checks the specifications of a project
 ///
 /// The action wraps [tracey]. A specification states what a crate does as a
-/// list of requirements, each with an identifier, and the code that implements
-/// or verifies a requirement names that identifier in a comment. Tracey holds
-/// the two together. The tracey that runs is the version that the action
-/// declares, which [mise] installed, whatever version the project pins.
+/// list of requirements with identifiers. The code that implements or verifies
+/// a requirement names that identifier in a comment. Tracey holds the two
+/// together. The tracey that runs is the version that the action declares,
+/// which [mise] installed, whatever version the project pins.
 ///
 /// A run asks three questions. Does every reference point at a requirement
 /// that exists, at the version it carries now? Does a change to the text of a
 /// requirement carry the version bump that such a change needs? And how much
-/// of the specification does the code answer for? The first two gate the run,
-/// and the third travels in the summary of a run that passed, because a
-/// specification may land before the code that answers it.
+/// of the specification does the code answer for? The first two gate the run.
+/// The third travels in the summary of a run that passed. The reason is that a specification may
+/// land before the code that answers it.
 ///
-/// A run only reports, and it takes no argument. It changes nothing about the
-/// project, and nothing about the repository of the project: the comparison
-/// that a pull request needs is built in a copy.
+/// A run only reports. It takes no argument. It changes nothing about the
+/// project or its repository. The comparison that a pull request needs is
+/// built in a copy.
 ///
 /// A project whose tracey tracks no requirement skips visibly, and says so.
 ///
@@ -104,9 +103,9 @@ impl Action for CheckSpecs {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of the
-/// tool, a question that tracey left unanswered, or the comparison that a pull
-/// request needs.
+/// Returns the error of the step that could not finish. That step is the
+/// resolution of the tool, a question that tracey left unanswered, or the
+/// comparison that a pull request needs.
 async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
     let tracey = Tracey::resolve(context)
         .await
@@ -116,7 +115,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
 
     let coverage = tracey.coverage().await?;
 
-    if coverage.total == 0 {
+    if *coverage.total() == 0 {
         return Ok(Outcome::Skipped {
             reason: SkipReason::new(NO_SPECIFICATIONS),
         });
@@ -125,8 +124,12 @@ async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
     let problems = tracey.validate().await?;
     let mut findings = findings(&problems)?;
 
-    let pull_request = std::env::var_os(BASE_REF).is_some();
-    let comparison = Comparison::prepare(context.root(), pull_request).await?;
+    let scope = if std::env::var_os(BASE_REF).is_some() {
+        Scope::PullRequest
+    } else {
+        Scope::Checkout
+    };
+    let comparison = Comparison::prepare(context.root(), scope).await?;
     let directory = comparison
         .as_ref()
         .map_or(context.root().get(), Comparison::directory);
@@ -203,23 +206,25 @@ fn findings(problems: &[TraceyProblem]) -> Result<Vec<Finding>, CheckSpecsError>
 /// A pass needs the counts, so that a reader can question a pass over a
 /// project whose specifications nothing answers yet.
 fn summary(coverage: Coverage) -> Summary {
-    let requirements = if coverage.total == 1 {
+    let requirements = if *coverage.total() == 1 {
         "1 requirement".to_owned()
     } else {
-        format!("{} requirements", coverage.total)
+        format!("{} requirements", coverage.total())
     };
 
     Summary::new(format!(
         "checked {requirements}, {} implemented and {} verified",
-        coverage.covered, coverage.verified
+        coverage.covered(),
+        coverage.verified()
     ))
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -237,12 +242,15 @@ mod tests {
     }
 
     #[test]
+    fn check_specs_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckSpecs>();
+    }
+
+    #[test]
     fn summary_of_one_requirement_says_so() {
-        let summary = summary(Coverage {
-            total: 1,
-            covered: 1,
-            verified: 1,
-        });
+        let summary = summary(Coverage::builder().total(1).covered(1).verified(1).build());
 
         assert_eq!(
             summary.get(),
@@ -252,11 +260,13 @@ mod tests {
 
     #[test]
     fn summary_reports_the_counts_of_the_project() {
-        let summary = summary(Coverage {
-            total: 15,
-            covered: 14,
-            verified: 12,
-        });
+        let summary = summary(
+            Coverage::builder()
+                .total(15)
+                .covered(14)
+                .verified(12)
+                .build(),
+        );
 
         assert_eq!(
             summary.get(),

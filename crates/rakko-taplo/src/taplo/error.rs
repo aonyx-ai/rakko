@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -11,13 +13,30 @@ use thiserror::Error;
 /// A later release can add a variant for another reason why a run of taplo has
 /// no answer. So a match on this error outside this crate needs an arm for a
 /// variant that it does not know.
+///
+/// # Examples
+///
+/// A report that lost its last line keeps what taplo wrote:
+///
+/// ```
+/// use rakko_taplo::ObserveTaploError;
+///
+/// let error = ObserveTaploError::IncompleteReport {
+///     stderr: "error: invalid TOML".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "taplo wrote a report that ends before its last line: error: invalid TOML"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ObserveTaploError {
     /// Every attempt lost part of the report
     ///
     /// Taplo can lose the end of its report when it exits. A run that ended
-    /// without success names at least one problem, so a report of such a run
+    /// without success names at least one problem. So a report of such a run
     /// that names none lost the lines that held them. The run repeats a few
     /// times, and this is what remains when no attempt held an answer.
     #[error("taplo wrote a report that ends before its last line: {stderr}")]
@@ -35,4 +54,16 @@ pub enum ObserveTaploError {
         /// The cause of the failure
         source: RunCommandError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observe_taplo_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveTaploError>();
+    }
 }

@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_cargo::{DiscoverRootsError, ReadReportError};
@@ -8,21 +10,37 @@ use crate::report::ReadUdepsReportError;
 
 /// An error that stops a run of the action before it has an answer
 ///
-/// Nothing here is a problem of the project. A dependency that no target
-/// loads, and a diagnostic of a build that did not finish, both travel as
-/// findings in the outcome of the run. The variants of this error describe a
-/// run whose answer cannot be trusted, and such a run stops instead of
-/// reporting one.
+/// Nothing here is a problem of the project.
+/// A dependency that no target loads travels as a finding in the outcome of
+/// the run.
+/// A diagnostic of a build that did not finish also travels as a finding.
+/// The variants of this error describe a run whose answer cannot be trusted,
+/// and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_check_unused_deps::CheckUnusedDepsError;
+///
+/// let error = CheckUnusedDepsError::StaleLockfile {
+///     root: PathBuf::from("/home/otter/project"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the lockfile of the workspace in /home/otter/project needs an update"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckUnusedDepsError {
     /// The lockfile of a workspace needs an update
     ///
     /// The manifests of the workspace ask for something that the lockfile does
-    /// not hold, such as a new dependency or a new version of a member, or the
-    /// workspace has no lockfile. The action examines the versions that the
-    /// lockfile holds and never writes it, so cargo refused the run. A build of
-    /// the workspace writes the lockfile.
+    /// not hold. This includes a new dependency or a new version of a member.
+    /// The workspace may also have no lockfile. The action examines the
+    /// versions that the lockfile holds and never writes it, so cargo refused
+    /// the run. A build of the workspace writes the lockfile.
     #[error("the lockfile of the workspace in {} needs an update", root.display())]
     StaleLockfile {
         /// The workspace root whose lockfile needs an update
@@ -41,9 +59,9 @@ pub enum CheckUnusedDepsError {
 
     /// The workspaces of the project could not be discovered
     ///
-    /// A run examines every workspace, and a run that does not know them all
-    /// would hide every unused dependency of the missing one behind a green
-    /// result.
+    /// A run examines every workspace.
+    /// A run that does not know them all would hide every unused dependency of
+    /// the missing one behind a green result.
     #[error("failed to discover the workspaces of the project")]
     UndiscoveredRoots {
         /// The cause of the failure
@@ -52,10 +70,10 @@ pub enum CheckUnusedDepsError {
 
     /// Cargo wrote a record that the action cannot read
     ///
-    /// The shape of a record belongs to a version of cargo. A line that
-    /// names a compiler message or the end of the build in a shape that the
-    /// action does not know leaves the report untrusted, and an answer built
-    /// on it would hide problems behind a green result.
+    /// The shape of a record belongs to a version of cargo.
+    /// A line that names a compiler message or the end of the build in an
+    /// unknown shape leaves the report untrusted.
+    /// An answer built on it would hide problems behind a green result.
     #[error("failed to read what cargo reported in {}", root.display())]
     UnreadableCargoReport {
         /// The workspace root that the run worked on
@@ -67,9 +85,9 @@ pub enum CheckUnusedDepsError {
 
     /// Cargo-udeps wrote its report in a shape that the action cannot read
     ///
-    /// The shape belongs to a version of cargo-udeps, and an answer built on
-    /// a report that the action could not read would hide every unused
-    /// dependency of the workspace behind a green result.
+    /// The shape belongs to a version of cargo-udeps.
+    /// An answer built on a report that the action could not read would hide
+    /// every unused dependency of the workspace behind a green result.
     #[error("failed to read what cargo-udeps reported in {}", root.display())]
     UnreadableUdepsReport {
         /// The workspace root that the run worked on
@@ -82,10 +100,11 @@ pub enum CheckUnusedDepsError {
     /// The run wrote no report that the action can answer from
     ///
     /// A run that ended without success and named neither an unused
-    /// dependency nor a diagnostic, and a run that ended with success and
-    /// wrote no report of cargo-udeps, both leave the action without an
-    /// answer, and a result built on such a run would hide every unused
-    /// dependency behind a green result.
+    /// dependency nor a diagnostic leaves the action without an answer.
+    /// A run that ended with success and wrote no report of cargo-udeps also
+    /// leaves the action without an answer.
+    /// A result built on such a run would hide every unused dependency behind
+    /// a green result.
     #[error("the run in {} wrote no report that the action recognizes: {stderr}", root.display())]
     UnrecognizedReport {
         /// The workspace root that the run worked on
@@ -109,9 +128,9 @@ pub enum CheckUnusedDepsError {
     /// Mise reported no toolchain for the nightly channel of the project
     ///
     /// Cargo-udeps reads the crates that a target loaded from a record that
-    /// only an unstable option of the compiler writes, so the build needs
-    /// the nightly channel. The action installs nothing, so a project that
-    /// pins no nightly that the action accepts stops the run.
+    /// only an unstable option of the compiler writes. So the build needs the
+    /// nightly channel. The action installs nothing, so a project that pins no
+    /// nightly that the action accepts stops the run.
     #[error("failed to resolve the nightly toolchain")]
     UnresolvedToolchain {
         /// The cause of the failure
@@ -127,4 +146,16 @@ pub enum CheckUnusedDepsError {
         /// The cause of the failure
         source: ResolveRequirementError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_unused_deps_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckUnusedDepsError>();
+    }
 }

@@ -1,4 +1,5 @@
-/// The error that stops a run of a group
+//! The part of the command line that runs the members of a group
+
 mod error;
 
 use clawless::context::Context as ClawlessContext;
@@ -19,14 +20,13 @@ use crate::report::{GroupSummary, Report};
 /// project before any member runs. So a kind of access that the scheduler does
 /// not know stops the run before any member changes the project.
 ///
-/// The members that write run first, so that the members that read examine
-/// the project as the writers left it. The writers can write the same files,
-/// so no two of them run at the same time, and they run in the order of the
-/// list. When the last writer finished, all the readers start at the same
-/// time, with no limit on their number. They share the task of the run, so
-/// only one of them runs code at a time. They overlap while they wait, such as
-/// for a tool. So a reader that blocks the thread delays the other readers
-/// until it returns.
+/// The members that write run first, so that the members that read examine the
+/// project as the writers left it. The writers can write the same files, so no
+/// two of them run at the same time. They run in the order of the list. When
+/// the last writer finished, all the readers start at the same time, with no
+/// limit on their number. They share the task of the run, so only one of them
+/// runs code at a time. They overlap while they wait, such as for a tool. So a
+/// reader that blocks the thread delays the other readers until it returns.
 ///
 /// The report of each member goes out as a message when the member finishes.
 /// So the reports of the readers follow the order in which the readers
@@ -83,7 +83,12 @@ pub(super) async fn run(
 
     clawless
         .output()
-        .artifact(GroupSummary::new(group.clone(), reports))
+        .artifact(
+            GroupSummary::builder()
+                .group(group.clone())
+                .members(reports)
+                .build(),
+        )
         .await
         .map_err(|source| RunGroupError::UnreportedSummary {
             group: group.clone(),
@@ -110,11 +115,11 @@ struct Finished {
 /// Runs the members that write one at a time, in the order of the list, and
 /// returns them as they finished
 ///
-/// The run reports a member as soon as that member finishes, so whoever runs
+/// The run reports a member as soon as that member finishes. So whoever runs
 /// the group learns what one member found while the next one runs.
 ///
 /// A member that found problems or stopped does not end the run. A run that
-/// stopped at the first problem would hide the problems after it, and whoever
+/// stopped at the first problem would hide the problems after it. Whoever
 /// started it would learn them one run at a time.
 ///
 /// # Errors
@@ -188,7 +193,10 @@ async fn report(
     clawless: &ClawlessContext,
 ) -> Result<Finished, RunGroupError> {
     let code = exit_code(&outcome);
-    let report = Report::new(name.clone(), outcome);
+    let report = Report::builder()
+        .action(name.clone())
+        .outcome(outcome)
+        .build();
 
     clawless.output().message(&report).await.map_err(|source| {
         RunGroupError::UnreportedOutcome {
@@ -206,9 +214,10 @@ async fn report(
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::future::{pending, poll_fn};
     use std::path::Path;
@@ -393,8 +402,10 @@ mod tests {
         }
     }
 
-    /// An action that declares `fix` and writes only when a run gives it, as a
-    /// formatter does, and otherwise runs as the recorder that it wraps
+    /// An action that declares `fix`, as a formatter does
+    ///
+    /// It writes only when a run gives it `fix`. Otherwise it runs as the
+    /// recorder that it wraps.
     struct Formatter {
         /// The recorder that gives the action its name and runs it
         recorder: Recorder,
@@ -483,7 +494,10 @@ mod tests {
                         .map(|value| (argument.name().clone(), value.clone()))
                 }));
 
-                BoundMember::bind(action.as_ref(), &declared)
+                BoundMember::bind()
+                    .action(action.as_ref())
+                    .values(&declared)
+                    .call()
                     .expect("every action of the test reads the values that it declares")
             })
             .collect()
@@ -499,8 +513,9 @@ mod tests {
         let mut task_context = TaskContext::from_waker(Waker::noop());
 
         loop {
-            if let Poll::Ready(output) = future.as_mut().poll(&mut task_context) {
-                return output;
+            match future.as_mut().poll(&mut task_context) {
+                Poll::Ready(output) => return output,
+                Poll::Pending => {}
             }
         }
     }
@@ -580,9 +595,11 @@ mod tests {
     ///
     /// The run has ended or was dropped, so nothing writes through the context
     /// anymore.
+    ///
+    /// The function drops the context first. The context holds the sender of
+    /// the output, and without the sender the receiver ends after the last
+    /// event that the run wrote.
     fn received(clawless: ClawlessContext, mut receiver: EventReceiver) -> Sent {
-        // The context holds the sender of the output. Without the sender, the
-        // receiver ends after the last event that the run wrote.
         drop(clawless);
 
         let mut sent = Sent {
@@ -590,9 +607,13 @@ mod tests {
             artifacts: Vec::new(),
         };
         while let Some(event) = block_on(receiver.recv()) {
+            let Sent {
+                messages,
+                artifacts,
+            } = &mut sent;
             match event {
-                Event::Message(message) => sent.messages.push(message),
-                Event::Artifact(artifact) => sent.artifacts.push(
+                Event::Message(message) => messages.push(message),
+                Event::Artifact(artifact) => artifacts.push(
                     serde_json::to_string(&artifact).expect("every artifact of a run serializes"),
                 ),
                 Event::Detail(_) | Event::Process(_) | Event::Prompt(_) => {}
@@ -683,6 +704,13 @@ mod tests {
     }
 
     #[test]
+    fn finished_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Finished>();
+    }
+
+    #[test]
     fn run_drives_a_writer_that_follows_a_reader_in_the_list_first() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
@@ -716,7 +744,7 @@ mod tests {
 
     /// The test binds `fix` only to the formatter, which declares it, as the
     /// command line does. The run adds no value, so the writer, which declares
-    /// nothing, runs without it.
+    /// nothing, runs without it
     #[test]
     fn run_drives_each_member_with_the_values_that_it_was_bound_to() {
         let log = Arc::new(Mutex::new(Vec::new()));

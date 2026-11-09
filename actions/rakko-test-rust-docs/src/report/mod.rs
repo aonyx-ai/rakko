@@ -1,15 +1,13 @@
 //! What the test harness reported about the examples of a workspace
 //!
-//! The harness of Rust writes its report as text: one line per example, one
-//! block for each example that failed, and a summary that counts what ran.
-//! Cargo writes its own records as JSON to the same stream, so the report is
-//! a set of lines among many, and this module picks them out and reads them.
-//! The shape belongs to a version of the harness, and keeping the reading in
-//! one place keeps the version surface in one place as well.
+//! The harness of Rust writes its report as text. It writes one line per
+//! example, one block for each example that failed, and a summary that counts
+//! what ran. Cargo writes its own records as JSON to the same stream. So the
+//! report is a set of lines among many, and this module picks them out and
+//! reads them. The shape belongs to a version of the harness. Keeping the
+//! reading in one place keeps the version surface in one place as well.
 
-/// The error that stops the reading
 mod error;
-/// One example that failed
 mod failure;
 
 use getset::{CopyGetters, Getters};
@@ -44,12 +42,12 @@ const FAILED: &str = "failed";
 
 /// What the test harness reported about the examples of one workspace
 ///
-/// The report holds how many examples ran, the examples that failed with
-/// what each of them wrote, and how many summaries the harness wrote. Cargo
-/// tests one package at a time and the harness writes a summary per package,
-/// so the count of the summaries says whether the harness reported at all,
-/// which is what tells a run that examined nothing from a run that examined
-/// something and found it good.
+/// The report holds how many examples ran, the examples that failed with what
+/// each of them wrote, and how many summaries the harness wrote. Cargo tests
+/// one package at a time and the harness writes a summary per package. So the
+/// count of the summaries says whether the harness reported at all. That count
+/// is what tells a run that examined nothing from a run that examined something
+/// and found it good.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
 pub(crate) struct DoctestReport {
     /// The examples that failed, in the order that the harness named them
@@ -72,21 +70,21 @@ impl DoctestReport {
     /// output
     ///
     /// The reading takes the examples that failed from the lines that name
-    /// them, what each of them wrote from the block that follows, and the
-    /// count from the summaries. It ignores every other line, so the records
-    /// that cargo writes to the same stream do not disturb it, and neither
-    /// does a line that a new version of the harness adds.
+    /// them. It takes what each of them wrote from the block that follows. It
+    /// takes the count from the summaries. It ignores every other line, so the
+    /// records that cargo writes to the same stream do not disturb it. A line
+    /// that a new version of the harness adds does not disturb it either.
     ///
-    /// What an example wrote is arbitrary text, and the reading takes it up
-    /// to the next line that opens a block, closes the failures, or ends a
+    /// What an example wrote is arbitrary text. The reading takes it up to
+    /// the next line that opens a block, closes the failures, or ends a
     /// package.
     ///
     /// # Errors
     ///
     /// Returns [`UnreadableSummary`][unreadable] when a summary does not
     /// count the examples that passed and the examples that failed. The
-    /// shape belongs to a version of the harness, and a reading that
-    /// skipped such a line would answer with a count that is too low.
+    /// shape belongs to a version of the harness. A reading that skipped such
+    /// a line would answer with a count that is too low.
     ///
     /// [unreadable]: ReadDoctestReportError::UnreadableSummary
     pub(crate) fn read(stdout: &str) -> Result<Self, ReadDoctestReportError> {
@@ -129,10 +127,10 @@ impl DoctestReport {
 /// Returns the examples that failed, each with what it wrote
 ///
 /// The harness names an example by the file that documents it and the line
-/// that the example starts on, and two workspaces of a project can hold two
+/// that the example starts on. Two workspaces of a project can hold two
 /// examples of that name. Each block therefore answers one name once, in the
-/// order that the harness wrote them, and an example without a block keeps
-/// its name and no output.
+/// order that the harness wrote them. An example without a block keeps its
+/// name and no output.
 fn failures(names: Vec<&str>, mut blocks: Vec<(&str, String)>) -> Vec<DoctestFailure> {
     names
         .into_iter()
@@ -143,7 +141,7 @@ fn failures(names: Vec<&str>, mut blocks: Vec<(&str, String)>) -> Vec<DoctestFai
                 .map(|index| blocks.remove(index).1)
                 .unwrap_or_default();
 
-            DoctestFailure::new(name, output)
+            DoctestFailure::builder().name(name).output(output).build()
         })
         .collect()
 }
@@ -151,11 +149,11 @@ fn failures(names: Vec<&str>, mut blocks: Vec<(&str, String)>) -> Vec<DoctestFai
 /// Returns how many examples a summary counts, when it counts them
 ///
 /// A summary names the examples that passed, that failed, that the harness
-/// left out, and that a filter removed, in that order and each behind its
-/// count. The reading looks for the two words that it needs and takes the
-/// word in front of each of them, so a word that a new version adds changes
-/// nothing. An example that the harness left out ran as little as one that a
-/// filter removed, so neither counts.
+/// left out, and that a filter removed. It names them in that order and each
+/// behind its count. The reading looks for the two words that it needs and
+/// takes the word in front of each of them. So a word that a new version adds
+/// changes nothing. An example that the harness left out ran as little as one
+/// that a filter removed, so neither counts.
 fn examples(counts: &str) -> Option<u64> {
     let mut ran = 0;
     let mut passed = false;
@@ -188,9 +186,10 @@ fn opens_output(line: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -203,17 +202,10 @@ mod tests {
     const FAILING: &str = "running 2 tests\ntest src/lib.rs - add (line 5) ... FAILED\ntest src/lib.rs - sub (line 16) ... ok\n\nfailures:\n\n---- src/lib.rs - add (line 5) stdout ----\nTest executable failed (exit status: 101).\n\nstderr:\n\nthread 'main' panicked at src/lib.rs:5:1:\nassertion failed: false\n\n\nfailures:\n    src/lib.rs - add (line 5)\n\ntest result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s\n";
 
     #[test]
-    fn read_a_report_of_two_packages_sums_their_examples() {
-        let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
+    fn doctest_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert_eq!(report.map(|report| report.ran()).ok(), Some(2));
-    }
-
-    #[test]
-    fn read_a_report_of_two_packages_counts_their_summaries() {
-        let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
-
-        assert_eq!(report.map(|report| report.summaries()).ok(), Some(2));
+        assert_send_sync_and_unpin::<DoctestReport>();
     }
 
     #[test]
@@ -240,10 +232,10 @@ mod tests {
                 .map(|report| report.failures().to_vec())
                 .as_deref(),
             Some(
-                [DoctestFailure::new(
-                    "src/lib.rs - add (line 5)",
-                    "Test executable failed (exit status: 101).\n\nstderr:\n\nthread 'main' panicked at src/lib.rs:5:1:\nassertion failed: false\n\n\n",
-                )]
+                [DoctestFailure::builder()
+                    .name("src/lib.rs - add (line 5)")
+                    .output("Test executable failed (exit status: 101).\n\nstderr:\n\nthread 'main' panicked at src/lib.rs:5:1:\nassertion failed: false\n\n\n")
+                    .build()]
                 .as_slice()
             )
         );
@@ -257,6 +249,20 @@ mod tests {
     }
 
     #[test]
+    fn read_a_report_of_two_packages_counts_their_summaries() {
+        let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
+
+        assert_eq!(report.map(|report| report.summaries()).ok(), Some(2));
+    }
+
+    #[test]
+    fn read_a_report_of_two_packages_sums_their_examples() {
+        let report = DoctestReport::read(&format!("{PASSING}{PASSING}"));
+
+        assert_eq!(report.map(|report| report.ran()).ok(), Some(2));
+    }
+
+    #[test]
     fn read_a_report_whose_example_wrote_nothing_holds_the_name() {
         let stdout = "running 1 test\ntest src/lib.rs - add (line 5) ... FAILED\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n";
 
@@ -267,7 +273,13 @@ mod tests {
                 .ok()
                 .map(|report| report.failures().to_vec())
                 .as_deref(),
-            Some([DoctestFailure::new("src/lib.rs - add (line 5)", "")].as_slice())
+            Some(
+                [DoctestFailure::builder()
+                    .name("src/lib.rs - add (line 5)")
+                    .output("")
+                    .build()]
+                .as_slice()
+            )
         );
     }
 

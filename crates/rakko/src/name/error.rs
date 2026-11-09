@@ -1,3 +1,5 @@
+//! The error type for name parsing
+
 use thiserror::Error;
 
 /// An error that occurs when parsing a name
@@ -9,6 +11,16 @@ use thiserror::Error;
 /// A later release can add a variant, such as for a rule that it adds. So a
 /// match on this error outside this crate needs an arm for a variant that it
 /// does not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Name, ParseNameError};
+///
+/// let error = "".parse::<Name>().unwrap_err();
+///
+/// assert_eq!(error, ParseNameError::Empty);
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 #[non_exhaustive]
 pub enum ParseNameError {
@@ -46,4 +58,16 @@ pub enum ParseNameError {
     /// The last character of the input is a hyphen
     #[error("name ends with a hyphen")]
     TrailingHyphen,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_name_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ParseNameError>();
+    }
 }

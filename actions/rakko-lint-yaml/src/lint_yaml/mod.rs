@@ -1,11 +1,11 @@
 //! The action that lints the YAML files of a project
 //!
-//! This module holds the action and the error that stops a run. The action
-//! wraps yamllint as a subprocess: yamllint discovers the files, reads its
-//! own configuration, and applies its rules, and the action translates what
-//! yamllint reported into an outcome.
+//! This module holds the action and the error that stops a run.
+//! The action wraps yamllint as a subprocess: yamllint discovers the files
+//! and reads its own configuration.
+//! It applies its rules and translates what yamllint reported into an
+//! outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{
@@ -14,7 +14,7 @@ use rakko::{
 };
 
 pub use self::error::LintYamlError;
-use crate::observation::Observation;
+use crate::observation::{Completion, Observation};
 use crate::problem::YamllintProblem;
 use crate::yamllint::Yamllint;
 
@@ -28,23 +28,24 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 /// The action that lints the YAML files of a project
 ///
 /// The action wraps [yamllint]: yamllint discovers the YAML files of the
-/// project, reads its own configuration, and applies the rules that the project
-/// turned on, so a run agrees with an editor and with a contributor that runs
-/// yamllint bare. The yamllint that runs is the version that the action
-/// declares, which [mise] installed, whatever version the project pins. The
-/// action installs nothing.
+/// project and reads its own configuration. It applies the rules that the
+/// project turned on. So a run agrees with an editor and with a contributor
+/// that runs yamllint bare. The yamllint that runs is the version that the
+/// action declares, which [mise] installed, whatever version the project pins.
+/// The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. Every rule that a file broke
-/// becomes a finding at the position that yamllint named, and the message of
-/// the finding is the sentence that yamllint wrote for a reader. A problem
-/// that yamllint calls a warning becomes a finding like one that it calls an
-/// error, because a project that wants a rule to stay quiet turns that rule
+/// becomes a finding at the position that yamllint named. The message of the
+/// finding is the sentence that yamllint wrote for a reader. A problem that
+/// yamllint calls a warning becomes a finding like one that it calls an error.
+/// This is because a project that wants a rule to stay quiet turns that rule
 /// off.
 ///
 /// The action applies to a project that holds YAML files, and it skips visibly
 /// otherwise. A run stops with an error when mise reports no yamllint at the
-/// declared version, when yamllint refuses the configuration of the project,
-/// and when yamllint writes a report that the action cannot read.
+/// declared version. It also stops when yamllint refuses the configuration of
+/// the project. It stops when yamllint writes a report that the action cannot
+/// read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -98,9 +99,8 @@ impl Action for LintYaml {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of the
-/// tool, the listing of the files, the yamllint run, or the reading of the
-/// report.
+/// Returns the error of the step that failed: tool resolution, file listing,
+/// the yamllint run, or report reading.
 async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
     let yamllint = Yamllint::resolve(context)
         .await
@@ -128,9 +128,9 @@ async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
 
 /// Returns the finding that reports one rule that a file broke
 ///
-/// The finding sits at the position that yamllint named. The message comes
-/// from yamllint, so a reader of a finding reads what the tool itself would
-/// have told them, including the level that the project gave the rule.
+/// The finding sits at the position that yamllint named. The message comes from
+/// yamllint. So a reader of a finding reads what the tool itself would have
+/// told them, including the level that the project gave the rule.
 ///
 /// # Errors
 ///
@@ -176,11 +176,11 @@ fn findings(
 
 /// Returns what a run reports when it cannot answer from its findings
 ///
-/// Two conditions end a run before its findings matter. A yamllint that
-/// stopped before it examined every file leaves the action with an answer
-/// about a part of the project, and an outcome built on it would hide the
-/// rest behind that part. A run that reported no rule found a clean project,
-/// and it says how many files it examined for that answer.
+/// Two conditions end a run before its findings matter. A yamllint that stopped
+/// before examining every file leaves the action with an answer about a part of
+/// the project. An outcome built on it would hide the rest behind that part. A
+/// run that reported no rule found a clean project. It says how many files it
+/// examined for that answer.
 ///
 /// Returns `None` when the caller reports what the run found.
 ///
@@ -191,10 +191,13 @@ fn findings(
 ///
 /// [incomplete]: LintYamlError::IncompleteExamination
 fn guard(observation: &Observation, examined: usize) -> Result<Option<Outcome>, LintYamlError> {
-    if !observation.finished() {
-        return Err(LintYamlError::IncompleteExamination {
-            details: observation.stderr().clone(),
-        });
+    match observation.finished() {
+        Completion::Interrupted => {
+            return Err(LintYamlError::IncompleteExamination {
+                details: observation.stderr().clone(),
+            });
+        }
+        Completion::Finished => {}
     }
 
     if !observation.problems().is_empty() {
@@ -222,9 +225,10 @@ fn summary(examined: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::PathBuf;
 
@@ -241,13 +245,13 @@ mod tests {
 
     /// Returns a problem of the given level in a file of the project
     fn problem(level: ProblemLevel) -> YamllintProblem {
-        YamllintProblem::new(
-            PathBuf::from("./notes.yaml"),
-            4,
-            9,
-            level,
-            "truthy value should be one of [false, true] (truthy)".to_owned(),
-        )
+        YamllintProblem::builder()
+            .path(PathBuf::from("./notes.yaml"))
+            .line(4)
+            .column(9)
+            .level(level)
+            .description("truthy value should be one of [false, true] (truthy)".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -260,6 +264,21 @@ mod tests {
         let access = LintYaml.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = YamllintProblem::builder()
+            .path(path("/elsewhere/notes.yaml"))
+            .line(1)
+            .column(1)
+            .level(ProblemLevel::Error)
+            .description("trailing spaces (trailing-spaces)".to_owned())
+            .build();
+
+        let error = finding(&problem, &root()).unwrap_err();
+
+        assert!(matches!(error, LintYamlError::ForeignPath { .. }));
     }
 
     #[test]
@@ -296,21 +315,6 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = YamllintProblem::new(
-            path("/elsewhere/notes.yaml"),
-            1,
-            1,
-            ProblemLevel::Error,
-            "trailing spaces (trailing-spaces)".to_owned(),
-        );
-
-        let error = finding(&problem, &root()).unwrap_err();
-
-        assert!(matches!(error, LintYamlError::ForeignPath { .. }));
-    }
-
-    #[test]
     fn guard_of_a_clean_run_passes() {
         let outcome = guard(&Observation::builder().build(), 3).unwrap();
 
@@ -331,15 +335,6 @@ mod tests {
     }
 
     #[test]
-    fn guard_of_a_run_that_stopped_early_stops() {
-        let observation = Observation::builder().finished(false).build();
-
-        let error = guard(&observation, 3).unwrap_err();
-
-        assert!(matches!(error, LintYamlError::IncompleteExamination { .. }));
-    }
-
-    #[test]
     fn guard_of_a_run_that_reported_a_warning_reports_nothing() {
         let observation = Observation::builder()
             .problems(vec![problem(ProblemLevel::Warning)])
@@ -348,6 +343,24 @@ mod tests {
         let outcome = guard(&observation, 3).unwrap();
 
         assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+    }
+
+    #[test]
+    fn guard_of_a_run_that_stopped_early_stops() {
+        let observation = Observation::builder()
+            .finished(Completion::Interrupted)
+            .build();
+
+        let error = guard(&observation, 3).unwrap_err();
+
+        assert!(matches!(error, LintYamlError::IncompleteExamination { .. }));
+    }
+
+    #[test]
+    fn lint_yaml_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintYaml>();
     }
 
     #[test]

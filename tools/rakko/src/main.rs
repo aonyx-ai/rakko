@@ -16,14 +16,18 @@
 //! also a job of CI. So the job of a TypeScript action installs the tools, and
 //! then the action skips.
 //!
-//! The harness does not mount two actions: `check-specs` and `lint-stiles`.
-//! Mise cannot install tracey from the pin of `check-specs`, because the pin
-//! cannot carry the `crate` option that the cargo backend needs for tracey.
-//! Mise installs the tools of the generated file before it runs a task. So if
-//! the harness mounts `check-specs`, every task fails. Stiles 0.4.0 has no
-//! release for Windows, and `check-mise-lock` stops on the warning that mise
-//! gives for it. The tests of both crates need no installed tool, so mise
-//! still installs every tool that the tests need.
+//! The harness does not mount the action `check-specs`. Mise cannot install
+//! tracey from the pin of `check-specs`, because the pin cannot carry the
+//! `crate` option that the cargo backend needs for tracey. Mise installs the
+//! tools of the generated file before it runs a task. So if the harness mounts
+//! `check-specs`, every task fails. The tests of the crate need no installed
+//! tool, so mise still installs every tool that the tests need.
+//!
+//! The action `lint-stiles` accepts exactly one version of stiles, and the
+//! root `mise.toml` pins that version. Stiles has no release for Windows. The
+//! pin installs it only on the platforms that have one, and the generated file
+//! cannot carry that limit. So `doctor` writes no pin of stiles into it, and
+//! `check-mise-lock` finds no Windows entry to complain about.
 //!
 //! It also mounts commands, for a maintenance activity that no single action
 //! describes. A command comes from a crate, as an action does, and this file
@@ -48,6 +52,7 @@ use rakko_format_yaml::FormatYaml;
 use rakko_lint_github_actions::LintGitHubActions;
 use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
+use rakko_lint_stiles::LintStiles;
 use rakko_lint_yaml::LintYaml;
 use rakko_pre_commit::PreCommit;
 use rakko_set_msrv::SetMsrv;
@@ -55,19 +60,17 @@ use rakko_test_rust::TestRust;
 use rakko_test_rust_docs::TestRustDocs;
 
 /// Builds the command line of this repository and runs it
-///
-/// The call ends the process itself, so a harness stays a `main` that names
-/// what the repository mounts and returns nothing.
-fn main() {
+fn main() -> std::process::ExitCode {
     let pre_commit = PreCommit::new(actions_that_guard_a_commit());
 
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
         .mount(rakko_typescript::bundle())
+        .mount(LintStiles)
         .mount(SetMsrv::new(CheckMsrv))
         .mount(pre_commit)
-        .run();
+        .run()
 }
 
 /// Returns the actions that guard a commit
@@ -94,6 +97,7 @@ fn actions_that_guard_a_commit() -> Bundle {
         .with(LintGitHubActions)
         .with(LintMarkdown)
         .with(LintRust)
+        .with(LintStiles)
         .with(LintYaml)
         .with(TestRust)
         .with(TestRustDocs)

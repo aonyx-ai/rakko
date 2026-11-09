@@ -1,17 +1,17 @@
 //! The action that lints the Markdown files of a project
 //!
-//! [Markdownlint] does the work: it discovers the Markdown files, reads its
-//! own configuration, and applies the rules that the project turned on, so a
-//! run of the action agrees with an editor and with a contributor that runs
+//! [Markdownlint] does the work: it discovers the Markdown files, reads its own
+//! configuration, and applies the rules that the project turned on. So a run of
+//! the action agrees with an editor and with a contributor that runs
 //! markdownlint bare. The action declares the version of markdownlint that it
-//! runs, and the range of Node that markdownlint runs on. It starts that
-//! version, which [mise] installed, on the Node that the project pins, and it
-//! translates what markdownlint reported into the outcome of the run.
+//! runs. It also declares the range of Node that markdownlint runs on. It
+//! starts that version, which [mise] installed, on the Node that the project
+//! pins. It translates what markdownlint reported into the outcome of the run.
 //!
-//! A run only reports, so the action takes no argument. Markdownlint can
-//! repair a part of what it finds, and it names none of the files that it
-//! rewrote, so a repair here would arrive without a name. It applies to a
-//! project that holds Markdown files, and it skips visibly otherwise.
+//! A run only reports, so the action takes no argument. Markdownlint can repair
+//! a part of what it finds. It names none of the files that it rewrote, so a
+//! repair here would arrive without a name. It applies to a project that holds
+//! Markdown files, and it skips visibly otherwise.
 //!
 //! Markdownlint reports as JSON, and this crate reads that JSON. The shape
 //! belongs to a version of markdownlint, so a report that the crate cannot
@@ -38,13 +38,9 @@
 //! [mise]: https://mise.jdx.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that lints the Markdown files of a project
 mod lint_markdown;
-/// Types for the markdownlint that a project runs
 mod markdownlint;
-/// Types for what one run of markdownlint produced
 mod observation;
-/// Types for one rule that markdownlint reported about a file
 mod problem;
 
 pub use self::lint_markdown::{LintMarkdown, LintMarkdownError};

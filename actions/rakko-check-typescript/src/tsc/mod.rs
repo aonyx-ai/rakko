@@ -1,13 +1,11 @@
 //! The tsc that a project runs
 //!
 //! This module holds the versions of TypeScript and of Node that the crate
-//! accepts, the compiler that mise installed at the version that the project
-//! pins, and the run that produces its diagnostics. An action asks for a run,
-//! and everything between the action and the process lives here.
+//! accepts. It also holds the compiler that mise installed at the version that
+//! the project pins, and the run that produces its diagnostics. An action asks
+//! for a run, and everything between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the report that tsc wrote
 pub(crate) mod report;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
@@ -26,7 +24,7 @@ const TSC: &str = "tsc";
 ///
 /// TypeScript is a toolchain of the project, so the project pins its version,
 /// and a run stops when that version is outside the range. The action reads
-/// the diagnostics of TypeScript 5 and later, and it knows the number that the
+/// the diagnostics of TypeScript 5 and later. It knows the number that the
 /// diagnostic of a missing configuration has in each of these releases.
 const TYPESCRIPT_RANGE: &str = ">=5";
 
@@ -43,18 +41,18 @@ const NODE_RANGE: &str = ">=12.20";
 
 /// The option that stops tsc from writing the output of a build
 ///
-/// Tsc is the compiler of the project as well as its type checker, and it
-/// writes the JavaScript of every file that it reads unless it is told not to.
-/// A check that emitted would leave files behind that whoever started it did
-/// not ask for, in the directory that the configuration of the project names
-/// for them. The option selects the diagnosis and not the build.
+/// Tsc is the compiler of the project as well as its type checker. It writes
+/// the JavaScript of every file that it reads unless it is told not to. A check
+/// that emitted would leave files behind that whoever started it did not ask
+/// for. Those files would sit in the directory that the configuration of the
+/// project names for them. The option selects the diagnosis and not the build.
 const NO_EMIT: &str = "--noEmit";
 
 /// The option that decides how tsc draws its diagnostics
 ///
 /// Tsc draws the source of a diagnostic underneath it with the place marked in
-/// color when it writes to a terminal, and it writes one line per diagnostic
-/// otherwise, so the report of a run would depend on where the run happened.
+/// color when it writes to a terminal. It writes one line per diagnostic
+/// otherwise. So the report of a run would depend on where the run happened.
 /// The option settles that, and it selects the presentation of the report and
 /// not the behavior of the compiler.
 const PRETTY: &str = "--pretty";
@@ -74,9 +72,9 @@ const HERE: &str = ".";
 /// The tsc that a project runs
 ///
 /// The value holds the compiler that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
+/// version that the project pinned. So a run reaches the same program as the
 /// editor and the terminal of a contributor. The version decides what the
-/// language is: a release of TypeScript adds rules, and a program that one
+/// language is. A release of TypeScript adds rules, and a program that one
 /// version accepts is a program that the next one can refuse. TypeScript is
 /// therefore a toolchain of the project, and the crate states only the range
 /// of versions that it accepts. The compiler runs on the Node that the project
@@ -96,17 +94,17 @@ impl Tsc {
     /// the diagnostics without the drawing. Tsc writes its diagnostics on the
     /// standard output stream, whatever they are about.
     ///
-    /// The diagnostics are the answer, and the status of the process decides
-    /// only whether a run without one is trusted. Tsc reports a diagnostic for
-    /// everything that it finds, including a configuration that it refuses and
-    /// a project that it finds no configuration of, so a run that reported
+    /// The diagnostics are the answer. The status of the process decides only
+    /// whether a run without one is trusted. Tsc reports a diagnostic for
+    /// everything that it finds. That includes a configuration that it refuses
+    /// and a project that it finds no configuration of. So a run that reported
     /// nothing and ended without success stopped for a reason of its own.
     ///
     /// # Errors
     ///
-    /// Returns [`TscUnavailable`][unavailable] when tsc does not run,
+    /// Returns [`TscUnavailable`][unavailable] when tsc does not run. Returns
     /// [`MissingReport`][missing] when tsc reported nothing and ended without
-    /// success, and [`UnreadableReport`][unreadable] when it wrote a report
+    /// success. Returns [`UnreadableReport`][unreadable] when it wrote a report
     /// that this crate cannot read.
     ///
     /// [missing]: ObserveTscError::MissingReport
@@ -136,7 +134,10 @@ impl Tsc {
         if diagnostics.is_empty() && !execution.status().success() {
             let stderr = execution.stderr().to_string_lossy();
 
-            return Err(ObserveTscError::silent(&stdout, &stderr));
+            return Err(ObserveTscError::silent()
+                .stdout(&stdout)
+                .stderr(&stderr)
+                .call());
         }
 
         Ok(diagnostics)
@@ -188,8 +189,15 @@ impl Tsc {
     /// [node]: Tsc::node_requirement
     /// [requirement]: Tsc::requirement
     pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement(&Self::node_requirement(), context).await?;
-        let tool = Tool::resolve_requirement(&Self::requirement(), context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Self::node_requirement())
+            .context(context)
+            .call()
+            .await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
             .await?
             .with_toolchain(&node)?;
 
@@ -199,10 +207,10 @@ impl Tsc {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::expect_used)]
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
 
@@ -226,7 +234,10 @@ mod tests {
     #[tokio::test]
     async fn resolve_runs_tsc_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_requirement(&Tsc::node_requirement(), &context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Tsc::node_requirement())
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the Node that the repository pins");
 
@@ -245,5 +256,12 @@ mod tests {
             std::env::split_paths(&path).next().as_deref(),
             node.program().get().parent()
         );
+    }
+
+    #[test]
+    fn tsc_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Tsc>();
     }
 }

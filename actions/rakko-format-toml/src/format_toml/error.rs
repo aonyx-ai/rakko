@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_taplo::ObserveTaploError;
@@ -10,6 +12,21 @@ use thiserror::Error;
 /// a file that taplo cannot parse travel as findings in the outcome of the
 /// run. The variants of this error describe a run whose answer cannot be
 /// trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_toml::FormatTomlError;
+///
+/// let error = FormatTomlError::RejectedConfiguration {
+///     details: "unknown field".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "taplo rejected a configuration file and would have run with its defaults: unknown field"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum FormatTomlError {
@@ -28,7 +45,7 @@ pub enum FormatTomlError {
     ///
     /// Taplo warns about a configuration that it cannot read and then runs
     /// with its defaults. A run on the defaults quietly does what the project
-    /// asked it not to do, so the action stops instead of reporting what such
+    /// asked it not to do. So the action stops instead of reporting what such
     /// a run found.
     #[error("taplo rejected a configuration file and would have run with its defaults: {details}")]
     RejectedConfiguration {
@@ -101,9 +118,10 @@ impl From<ObserveTaploError> for FormatTomlError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -120,5 +138,12 @@ mod tests {
             matches!(&error, FormatTomlError::UnrecognizedReport { stderr } if stderr == REPORT),
             "expected the report of taplo, got {error:?}"
         );
+    }
+
+    #[test]
+    fn format_toml_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatTomlError>();
     }
 }

@@ -1,22 +1,18 @@
-/// The arguments that a run of the command reads
+//! The command, the arguments that a run reads, and the errors that stop a run
+
 mod args;
-/// The errors that stop a run of the command
 mod error;
-/// The version in the root manifest
 mod manifest;
-/// The cause of a failure to parse a file of the project as TOML
 mod parse_toml_error;
-/// The Rust pins in the configuration of mise
 mod pins;
-/// The steps of a run that mise does
 mod step;
 
 use std::fmt;
 use std::path::Path;
 
 use rakko::{Action, ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
-use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
+use rakko_cli::clawless::{CommandResult, ErrorContext};
 use rakko_cli::{Command, Report};
 use rakko_tool::{Execution, Invocation};
 use toml_edit::{DocumentMut, Value};
@@ -47,19 +43,37 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 
 /// The command that sets the minimum supported Rust version of a project
 ///
-/// Three places state the version, and all three must agree: the
-/// `rust-version` of the root manifest, the Rust pin in `mise.toml` that
-/// check-msrv runs the compiler on, and the entry of that pin in
-/// `mise.lock`. A run writes the version and its reason to the manifest,
-/// moves the pin that matched the old version, and asks mise to lock the
-/// pins again. It then asks mise to install the toolchain at the new version,
-/// and runs the check on it, so that one run tells whether the code compiles
-/// on the new version.
+/// Three places state the version, and all three must agree. One is the
+/// `rust-version` of the root manifest. Another is the Rust pin in
+/// `mise.toml` that check-msrv runs the compiler on. The last is the entry of
+/// that pin in `mise.lock`.
+///
+/// A run writes the version and its reason to the manifest. It moves the pin
+/// that matched the old version and asks mise to lock the pins again. It then
+/// asks mise to install the toolchain at the new version and runs the check on
+/// it. So one run tells whether the code compiles on the new version.
 ///
 /// A run changes only the version, its comment, the pin, and the lock, so a
-/// reviewer reads a diff of a few lines. Mise locks every Rust pin again, so
+/// reviewer reads a diff of a few lines. Mise locks every Rust pin again. So
 /// in a project whose pins name exact versions, only the entry of the moved
 /// pin changes in the lock.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::action_name;
+/// use rakko_cli::Command;
+/// use rakko_set_msrv::SetMsrv;
+///
+/// # struct CheckMsrv;
+/// # impl rakko::Action for CheckMsrv {
+/// #     type Args = ();
+/// #     fn name(&self) -> rakko::Name { action_name!("check-msrv") }
+/// #     async fn run(&self, _: &rakko::Context, _: &Self::Args) -> rakko::Outcome { rakko::Outcome::Passed { summary: None } }
+/// # }
+/// let command = SetMsrv::new(CheckMsrv);
+/// assert_eq!(command.name().get(), "set-msrv");
+/// ```
 pub struct SetMsrv {
     /// The action that runs the compiler on the toolchain at the new version
     check: Box<dyn ErasedAction>,
@@ -69,8 +83,8 @@ impl SetMsrv {
     /// Creates the command from the check that confirms a new version
     ///
     /// The check is the action that the project runs to compile its code on
-    /// the toolchain that its manifest names, usually `CheckMsrv` of the
-    /// `rakko-check-msrv` crate. The command runs it with no arguments, after
+    /// the toolchain that its manifest names. This is usually `CheckMsrv` of
+    /// the `rakko-check-msrv` crate. The command runs it with no arguments, after
     /// it installed the toolchain. The check is independent of the mount, so a
     /// harness that wants a command for the check mounts it as well.
     ///
@@ -112,7 +126,7 @@ impl fmt::Debug for SetMsrv {
 
 /// The characters that end a line in a file of the project
 ///
-/// The TOML documents of a run end every line with a line feed, so a file
+/// The TOML documents of a run end every line with a line feed. So a file
 /// that ends its lines with a carriage return as well gets them back when
 /// the run writes it.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -139,11 +153,14 @@ impl Command for SetMsrv {
     ///
     /// # Errors
     ///
-    /// Returns an error when a file cannot be read, parsed, or written, when
-    /// the manifest declares no version or declares it in an inline table,
-    /// when no pin matches the version of the manifest, when mise does not
-    /// lock the new pin or install its toolchain, when the check does not
-    /// pass, and when the outcome of the check does not reach the reader.
+    /// Returns an error when a file cannot be read, parsed, or written. It
+    /// also returns an error when the manifest declares no version or declares
+    /// it in an inline table. It also returns an error when no pin matches the
+    /// version of the manifest.
+    ///
+    /// Returns an error when mise does not lock the new pin or install its
+    /// toolchain. It also returns an error when the check does not pass or
+    /// when the outcome of the check does not reach the reader.
     async fn run(
         &self,
         project: &Context,
@@ -152,10 +169,18 @@ impl Command for SetMsrv {
     ) -> CommandResult {
         let root = project.root().get();
 
-        set(root, args).await?;
-        lock(root, args.msrv(), self.check.name()).await?;
-        install(root, args.msrv(), self.check.name()).await?;
-        check(self.check.as_ref(), args.msrv(), project, clawless).await?;
+        set(root, args)
+            .await
+            .context("failed to set MSRV in manifest")?;
+        lock(root, args.msrv(), self.check.name())
+            .await
+            .context("failed to lock MSRV pin")?;
+        install(root, args.msrv(), self.check.name())
+            .await
+            .context("failed to install MSRV toolchain")?;
+        check(self.check.as_ref(), args.msrv(), project, clawless)
+            .await
+            .context("failed to run check")?;
 
         Ok(())
     }
@@ -164,14 +189,15 @@ impl Command for SetMsrv {
 /// Sets the version in the manifest and the pin in the root directory of the
 /// project
 ///
-/// The run finds everything that it changes before it writes the first file,
-/// so a project that the run refuses stays as it was.
+/// The run finds everything that it changes before it writes the first file.
+/// So a project that the run refuses stays as it was.
 ///
 /// # Errors
 ///
-/// Returns an error when a file cannot be read, parsed, or written, when the
-/// manifest declares no version or declares it in an inline table, and when
-/// no pin matches the version of the manifest.
+/// Returns an error when a file cannot be read, parsed, or written. It also
+/// returns an error when the manifest declares no version or declares it in an
+/// inline table. It also returns an error when no pin matches the version of
+/// the manifest.
 async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
     let manifest_path = root.join(MANIFEST);
     let configuration_path = root.join(CONFIGURATION);
@@ -191,11 +217,16 @@ async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
 ///
 /// Mise generates the lock, so it writes the entry of the new pin in its own
 /// format and removes the entry of the old one. It locks every Rust pin of
-/// the project, so a pin that names a channel or a partial version, such as
-/// `nightly` or `1.94`, can move to the newest version that it resolves to.
+/// the project. So a pin that names a channel or a partial version can move
+/// to the newest version that it resolves to. Examples are `nightly` and
+/// `1.94`.
 ///
 /// A project that keeps no lock is left without one. The version and the
 /// check name the steps that a failed lock leaves for the user.
+///
+/// A project that keeps no lock has chosen not to, and mise would create one. A
+/// lock whose presence is unknown is locked, because a stale lock makes `mise
+/// install --locked` fail.
 ///
 /// # Errors
 ///
@@ -203,9 +234,6 @@ async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
 /// [`SetMsrvError::UnlockedPin`] with what mise reported when it ends
 /// without success.
 async fn lock(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError> {
-    // A project that keeps no lock has chosen not to, and mise would create
-    // one. A lock whose presence is unknown is locked, because a stale lock
-    // makes `mise install --locked` fail.
     if matches!(tokio::fs::try_exists(root.join(LOCK)).await, Ok(false)) {
         return Ok(());
     }
@@ -225,9 +253,10 @@ async fn lock(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError>
 /// Has mise install the toolchain at the new version
 ///
 /// The check needs this toolchain and no other tool, so the run asks mise for
-/// nothing else, and a tool that fails to install cannot stop the run. A hook
-/// that the project gives mise runs after the install as it always does, and
-/// it can do more.
+/// nothing else. A tool that fails to install cannot stop the run.
+///
+/// A hook that the project gives mise runs after the install as it always
+/// does, and it can do more.
 ///
 /// # Errors
 ///
@@ -252,6 +281,9 @@ async fn install(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvErr
 /// The report says what the check found, so the error of a check that did not
 /// pass only names it.
 ///
+/// A check that skipped did not compile the code on the new version, so it
+/// cannot confirm the version.
+///
 /// # Errors
 ///
 /// Returns [`SetMsrvError::UnreportedOutcome`] when the report does not reach
@@ -266,8 +298,6 @@ async fn check(
     let name = check.name();
     let outcome = check.run(project, &ArgsValues::empty()).await;
 
-    // A check that skipped did not compile the code on the new version, so it
-    // cannot confirm the version.
     let confirmed = match outcome {
         Outcome::Passed { .. } | Outcome::Changed { .. } => true,
         Outcome::Failed { .. } | Outcome::Errored { .. } | Outcome::Skipped { .. } => false,
@@ -275,7 +305,12 @@ async fn check(
 
     clawless
         .output()
-        .artifact(Report::new(name.clone(), outcome))
+        .artifact(
+            Report::builder()
+                .action(name.clone())
+                .outcome(outcome)
+                .build(),
+        )
         .await
         .map_err(|source| SetMsrvError::UnreportedOutcome {
             action: name.clone(),
@@ -322,9 +357,9 @@ async fn read(path: &Path) -> Result<(DocumentMut, LineEnding), SetMsrvError> {
 
 /// Writes a document to a file of the project
 ///
-/// The document keeps the comments, the order, and the whitespace of the file
-/// that it was read from, so the file changes only where the run changed the
-/// document. The lines end as they ended in that file.
+/// The document keeps the comments, the order, and the whitespace of the
+/// file that it was read from. So the file changes only where the run changed
+/// the document. The lines end as they ended in that file.
 ///
 /// # Errors
 ///
@@ -386,9 +421,10 @@ fn replace(value: &mut Value, msrv: &Msrv) {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::error::Error as _;
 
@@ -415,6 +451,13 @@ mod tests {
     }
 
     #[test]
+    fn line_ending_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LineEnding>();
+    }
+
+    #[test]
     fn name_is_set_msrv() {
         let command = SetMsrv::new(Stub);
 
@@ -438,7 +481,16 @@ mod tests {
         assert_eq!(error.source().map(ToString::to_string), Some(said));
     }
 
-    // A directory that does not exist keeps any program from starting in it.
+    #[test]
+    fn set_msrv_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<SetMsrv>();
+    }
+
+    /// Shows that starting in a missing directory names the step
+    ///
+    /// A directory that does not exist keeps any program from starting in it.
     #[tokio::test]
     async fn start_where_mise_cannot_start_names_the_step() {
         let root = Path::new("/rakko/a directory that does not exist");

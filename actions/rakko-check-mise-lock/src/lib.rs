@@ -1,11 +1,11 @@
 //! The action that checks whether the lockfile of mise is complete
 //!
-//! A lockfile of [mise] records the version of each tool that a project pins,
-//! and for a tool that mise downloads, the address and the checksum of the
-//! file for each platform. An install in locked mode stops when the lockfile
-//! has no entry for the platform of the machine. It examines only that one
-//! platform, so a gap stays hidden until a new machine, a new platform, or a
-//! new contributor installs the tool.
+//! A lockfile of [mise] records the version of each tool that a project pins.
+//! For a tool that mise downloads, it also records the address and checksum
+//! of the file for each platform. An install in locked mode stops when the
+//! lockfile has no entry for the platform of the machine. It examines only
+//! that one platform, so a gap stays hidden until a new machine, a new
+//! platform, or a new contributor installs the tool.
 //!
 //! Mise has no operation that only checks, so the action runs `mise lock` and
 //! compares the lockfiles of the project before and after the run. A lockfile
@@ -29,16 +29,18 @@
 //!
 //! `mise lock` asks the network for the downloads of each platform. When a
 //! download fails, mise ends with an error, and the run stops with the words
-//! of mise. Some failures only make mise warn and go on, such as a failed
-//! query for the tags of a release, after which mise guesses the tag. In the
-//! mode `merge`, a failed download does the same. The run then stops with
+//! of mise. Some failures only make mise warn and go on. Examples are a
+//! failed query for the tags of a release, after which mise guesses the tag.
+//! In the mode `merge`, a failed download does the same. The run then stops
+//! with
 //! each warning, because the comparison would pass over a gap in the entry of
-//! that tool. Only a few kinds of warning that say nothing about what
-//! mise locked, such as the notice of an older format of the lockfile, stop
-//! nothing. A failure of the network is temporary, and a second run answers
+//! that tool. Only a few kinds of warning stop nothing. They say nothing about
+//! what mise locked, such as the notice of an older format of the lockfile. A
+//! failure of the
+//! network is temporary, and a second run answers
 //! the question. Other causes last, such as a release without the
-//! attestations that mise checks, and the words of mise in the error say
-//! which of the two it is. The run makes mise show its warnings, also when the
+//! attestations that mise checks. The words of mise in the error say which
+//! of the two it is. The run makes mise show its warnings, also when the
 //! environment, the project, or the global configuration of a contributor
 //! asks mise to be quiet.
 //!
@@ -60,21 +62,18 @@
 //! use rakko_check_mise_lock::CheckMiseLock;
 //!
 //! let actions = Bundle::default().with(CheckMiseLock);
+//!
+//! assert_eq!(actions.actions().len(), 1);
 //! ```
 //!
 //! [mise]: https://mise.jdx.dev
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that checks whether the lockfile of mise is complete
 mod check_mise_lock;
-/// Types for one difference between a lockfile before and after `mise lock`
 mod difference;
-/// Types for the entries of one lockfile of mise
 mod lockfile;
-/// Types for the mise that a run asks to lock a project
 mod mise;
-/// Types for one part of a lockfile of mise
 mod part;
 
-pub use self::check_mise_lock::{CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError};
+pub use self::check_mise_lock::{CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError, Operation};
 pub use self::lockfile::ReadLockfileError;

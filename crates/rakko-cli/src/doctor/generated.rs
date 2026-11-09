@@ -1,3 +1,5 @@
+//! The mise file that Rakko generates from the tools of the mounted actions
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::ErrorKind;
 use std::path::Path;
@@ -14,7 +16,7 @@ use super::repair_error::RepairToolPinsError;
 /// The place of the generated file, relative to the root of the project
 ///
 /// Mise merges every file of `.config/mise/conf.d` with the configuration of
-/// the project, so the pins of the file reach an install, an editor, and a
+/// the project. So the pins of the file reach an install, an editor, and a
 /// run of the tool by hand. Mise locks the file in `.config/mise/mise.lock`.
 pub(crate) const PATH: &str = ".config/mise/conf.d/rakko.toml";
 
@@ -106,7 +108,9 @@ impl Pins {
         for (tool, versions) in &self.0 {
             let value = match versions.first() {
                 Some(version) if versions.len() == 1 => Value::from(version.get()),
-                _ => Value::Array(versions.iter().map(ToolVersion::get).collect::<Array>()),
+                Some(_) | None => {
+                    Value::Array(versions.iter().map(ToolVersion::get).collect::<Array>())
+                }
             };
 
             tools.insert(tool.get(), Item::Value(value));
@@ -122,15 +126,16 @@ impl Pins {
 /// Returns the problem of the generated file, or `None` when the file
 /// matches the pins
 ///
-/// A project whose actions declare no tool needs no file, so the check finds
-/// nothing there when the file does not exist, and it reports a file that
-/// is left over. The comparison ignores the line endings, because Git can
-/// check the file out with the line endings of Windows.
+/// A project whose actions declare no tool needs no file. So the check finds
+/// nothing there when the file does not exist, and it reports a file that is
+/// left over. The comparison ignores the line endings, because Git can check
+/// the file out with the line endings of Windows.
 ///
 /// # Errors
 ///
 /// Returns [`CheckToolPinsError::UnreadableGeneratedFile`] when the file
 /// exists and the file system does not give its content.
+#[bon::builder]
 pub(crate) fn check(
     pins: &Pins,
     root: &ProjectRoot,
@@ -165,6 +170,7 @@ pub(crate) fn check(
 ///
 /// Returns [`RepairToolPinsError::UnwritableFile`] when the file system
 /// refuses to create the directory, to write the file, or to remove it.
+#[bon::builder]
 pub(crate) fn write(pins: &Pins, root: &ProjectRoot) -> Result<(), RepairToolPinsError> {
     let path = root.get().join(PATH);
     let unwritable = |source| RepairToolPinsError::UnwritableFile {
@@ -218,7 +224,7 @@ pub(crate) fn retire_lockfile(root: &ProjectRoot) -> Result<bool, RepairToolPins
                 source: error,
             })
         }
-        _ => Ok(false),
+        Ok(()) | Err(_) => Ok(false),
     }
 }
 
@@ -265,9 +271,10 @@ fn finding(message: &str) -> Finding {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::VersionRange;
     use tempfile::TempDir;
@@ -275,6 +282,7 @@ mod tests {
     use super::*;
 
     /// Returns the requirement of a tool at an exact version
+    #[bon::builder]
     fn exact(tool: &str, version: &str) -> ToolRequirement {
         ToolRequirement::builder()
             .tool(tool)
@@ -284,6 +292,7 @@ mod tests {
     }
 
     /// Returns the requirement of a toolchain in a range
+    #[bon::builder]
     fn range(tool: &str, range: &str) -> ToolRequirement {
         ToolRequirement::builder()
             .tool(tool)
@@ -305,7 +314,10 @@ mod tests {
             std::fs::write(path, text).expect("the test writes the file");
         }
 
-        check(pins, &root)
+        check()
+            .pins(pins)
+            .root(&root)
+            .call()
             .expect("the test project has a readable file")
             .map(|finding| finding.message().get().to_owned())
     }
@@ -325,7 +337,7 @@ mod tests {
 
     /// Returns the pins of one tool at an exact version
     fn taplo() -> Pins {
-        Pins::of(&[exact("taplo", "0.10.0")])
+        Pins::of(&[exact().tool("taplo").version("0.10.0").call()])
     }
 
     #[test]
@@ -357,7 +369,10 @@ mod tests {
         std::fs::create_dir_all(directory.path().join(PATH))
             .expect("the test creates a directory in place of the file");
 
-        let result = check(&taplo(), &ProjectRoot::from(directory.path()));
+        let result = check()
+            .pins(&taplo())
+            .root(&ProjectRoot::from(directory.path()))
+            .call();
 
         assert!(
             matches!(
@@ -405,16 +420,26 @@ mod tests {
 
     #[test]
     fn of_leaves_out_a_toolchain() {
-        let pins = Pins::of(&[range("node", ">=22")]);
+        let pins = Pins::of(&[range().tool("node").range(">=22").call()]);
 
         assert!(pins.is_empty());
     }
 
     #[test]
+    fn pins_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Pins>();
+    }
+
+    #[test]
     fn render_pins_each_tool_in_alphabetical_order() {
         let pins = Pins::of(&[
-            exact("taplo", "0.10.0"),
-            exact("npm:markdownlint-cli", "0.50.0"),
+            exact().tool("taplo").version("0.10.0").call(),
+            exact()
+                .tool("npm:markdownlint-cli")
+                .version("0.50.0")
+                .call(),
         ]);
 
         let text = pins.render().expect("the pins give a file");
@@ -427,7 +452,10 @@ mod tests {
 
     #[test]
     fn render_pins_two_versions_of_one_tool_as_an_array() {
-        let pins = Pins::of(&[exact("taplo", "0.9.0"), exact("taplo", "0.10.0")]);
+        let pins = Pins::of(&[
+            exact().tool("taplo").version("0.9.0").call(),
+            exact().tool("taplo").version("0.10.0").call(),
+        ]);
 
         let text = pins.render().expect("the pins give a file");
 
@@ -442,17 +470,6 @@ mod tests {
         let text = taplo().render().expect("the pins give a file");
 
         assert!(text.starts_with(HEADER), "got {text}");
-    }
-
-    #[test]
-    fn write_creates_the_file_that_the_check_accepts() {
-        let directory = TempDir::new().expect("the test creates a temporary directory");
-        let root = ProjectRoot::from(directory.path());
-        let pins = taplo();
-
-        write(&pins, &root).expect("the test project is writable");
-
-        assert!(matches!(check(&pins, &root), Ok(None)));
     }
 
     #[test]
@@ -512,12 +529,35 @@ mod tests {
     }
 
     #[test]
+    fn write_creates_the_file_that_the_check_accepts() {
+        let directory = TempDir::new().expect("the test creates a temporary directory");
+        let root = ProjectRoot::from(directory.path());
+        let pins = taplo();
+
+        write()
+            .pins(&pins)
+            .root(&root)
+            .call()
+            .expect("the test project is writable");
+
+        assert!(matches!(check().pins(&pins).root(&root).call(), Ok(None)));
+    }
+
+    #[test]
     fn write_without_pins_removes_the_file() {
         let directory = TempDir::new().expect("the test creates a temporary directory");
         let root = ProjectRoot::from(directory.path());
-        write(&taplo(), &root).expect("the test project is writable");
+        write()
+            .pins(&taplo())
+            .root(&root)
+            .call()
+            .expect("the test project is writable");
 
-        write(&Pins::default(), &root).expect("the test project is writable");
+        write()
+            .pins(&Pins::default())
+            .root(&root)
+            .call()
+            .expect("the test project is writable");
 
         assert!(!directory.path().join(PATH).exists());
     }

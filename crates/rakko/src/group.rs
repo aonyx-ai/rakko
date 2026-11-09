@@ -1,3 +1,5 @@
+//! The named list of actions that the command line runs as one command
+
 use crate::erased_action::ErasedAction;
 use crate::name::Name;
 
@@ -72,10 +74,10 @@ pub trait Group: Send + Sync {
 
     /// Returns the members of the group, in the order of its list
     ///
-    /// The command line reads the list when the harness mounts the group, to
-    /// derive the flags of the group, and again at each run, to bind and run
+    /// The command line reads the list when the harness mounts the group to
+    /// derive its flags. It reads the list again at each run to bind and run
     /// the members. An implementation returns the same list each time. The
-    /// command line carries only the flags of the list at the mount, so a list
+    /// command line carries only the flags of the list at the mount. So a list
     /// that changes later can panic the run or leave members out of it. The
     /// order decides the order of the flags and of the lines in their help.
     /// It also orders the run, as the documentation of `mount` describes. Two
@@ -86,9 +88,10 @@ pub trait Group: Send + Sync {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 

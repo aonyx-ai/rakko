@@ -1,16 +1,15 @@
 //! The prettier that a project runs
 //!
-//! This module holds the version of prettier that the crate declares, the
-//! range of Node that it accepts, the program that mise installed at that
-//! version, and the run of one operation. An action states which operation
-//! it wants and which files it cares about, and everything between the action
-//! and the process lives here.
+//! This module holds the version of prettier that the crate declares and the
+//! range of Node that it accepts. It also holds the program that mise installed
+//! at that version and the run of one operation. An action states which
+//! operation it wants and which files it cares about, and everything between
+//! the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Launch, ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub use self::error::ObservePrettierError;
 use crate::filter::Filter;
@@ -27,7 +26,7 @@ const PROGRAM: &str = "prettier";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), PRETTIER);
+const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(PRETTIER);
 
 /// The name that mise knows Node by, which is also the name of its program
 const NODE: &str = "node";
@@ -54,25 +53,26 @@ const IGNORE_UNKNOWN: &str = "--ignore-unknown";
 
 /// The flag that asks prettier for a report without color codes
 ///
-/// The report is read as data, and a color code inside the marker of a line
-/// would corrupt the reading. Prettier colors its report when it takes its
-/// output for a terminal, and it takes a continuous integration job for one,
-/// so a run that asked for nothing would be read correctly on the machine of
-/// a contributor and not in the job that gates a pull request.
+/// The report is read as data. A color code inside the marker of a line would
+/// corrupt the reading. Prettier colors its report when it takes its output for
+/// a terminal, and it takes a continuous integration job for one. So a run that
+/// asked for nothing would be read correctly on the machine of a contributor.
+/// It would not be read correctly in the job that gates a pull request.
 ///
-/// The flag selects the presentation of the report and not the behavior of
-/// the tool: what prettier does to a project comes from the configuration of
-/// that project alone.
+/// The flag selects the presentation of the report and not the behavior of the
+/// tool. What prettier does to a project comes from the configuration of that
+/// project alone.
 const NO_COLOR: &str = "--no-color";
 
 /// The prettier that a project runs
 ///
 /// The value holds the program that mise installed at the version that the
 /// crate declares. The pin of the project does not change it, so a run
-/// reaches the version that the tests of the crate cover. Prettier runs on
-/// the Node that the project pins, when the range of the crate accepts it.
-/// Nothing here installs a tool: provisioning is the job of mise, and a
-/// prettier or a Node that mise does not report stops the caller.
+/// reaches the version that the tests of the crate cover.
+/// Prettier runs on the Node that the project pins, when the range of the
+/// crate accepts it.
+/// Nothing here installs a tool: provisioning is the job of mise.
+/// A prettier or a Node that mise does not report stops the caller.
 ///
 /// An action that runs prettier declares [`requirement`][requirement] and
 /// [`node_requirement`][node] among its tools, so that the machinery can read
@@ -109,6 +109,24 @@ pub struct Prettier {
 impl Prettier {
     /// Runs one operation over the files that the filter selects
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::Context;
+    /// use rakko_prettier::{FileExtension, Filter, Operation, Prettier};
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root("/home/otter/project").build();
+    /// let prettier = Prettier::resolve(&context).await?;
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    /// let observation = prettier.observe(Operation::Report, &filter).await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`PrettierUnavailable`][unavailable] when prettier does not
@@ -136,15 +154,28 @@ impl Prettier {
             .await
             .map_err(|source| ObservePrettierError::PrettierUnavailable { source })?;
 
-        Ok(Observation::read(&execution, operation))
+        Ok(Observation::read()
+            .execution(&execution)
+            .operation(operation)
+            .call())
     }
 
     /// Returns the requirement of the Node that prettier runs on
     ///
     /// Node is a toolchain, so the requirement holds the range of versions
-    /// that prettier accepts, and the project pins the version. An action
-    /// that runs prettier returns it from its declaration of tools, next to
-    /// [`requirement`][requirement].
+    /// that prettier accepts, and the project pins the version.
+    /// An action that runs prettier returns it from its declaration of tools,
+    /// next to [`requirement`][requirement].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_prettier::Prettier;
+    ///
+    /// let requirement = Prettier::node_requirement();
+    ///
+    /// assert_eq!(requirement.tool().get(), "node");
+    /// ```
     ///
     /// [requirement]: Prettier::requirement
     pub fn node_requirement() -> ToolRequirement {
@@ -157,9 +188,19 @@ impl Prettier {
 
     /// Returns the requirement of the prettier that the crate runs
     ///
-    /// The requirement holds the exact version that the crate pins. An action
-    /// that runs prettier returns it from its declaration of tools, next to
-    /// [`node_requirement`][node].
+    /// The requirement holds the exact version that the crate pins.
+    /// An action that runs prettier returns it from its declaration of tools,
+    /// next to [`node_requirement`][node].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_prettier::Prettier;
+    ///
+    /// let requirement = Prettier::requirement();
+    ///
+    /// assert_eq!(requirement.tool().get(), "npm:prettier");
+    /// ```
     ///
     /// [node]: Prettier::node_requirement
     pub fn requirement() -> ToolRequirement {
@@ -175,22 +216,47 @@ impl Prettier {
     /// The lookup asks mise for the version that [`requirement`][requirement]
     /// holds, so a pin of prettier in the project does not change the answer.
     /// It also asks mise for the Node that the project pins and that
-    /// [`node_requirement`][node] accepts. A run of prettier starts in the
-    /// root of the context, with that Node first on its path.
+    /// [`node_requirement`][node] accepts.
+    /// A run of prettier starts in the root of the context, with that Node
+    /// first on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::Context;
+    /// use rakko_prettier::Prettier;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root("/home/otter/project").build();
+    /// let prettier = Prettier::resolve(&context).await?;
+    ///
+    /// assert_eq!(prettier, Prettier::resolve(&context).await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
-    /// project pins no Node in the range, when mise reports no prettier at the
-    /// declared version or no Node at the pinned one, for example because
-    /// nothing installed it, or when the directory of that Node cannot be an
-    /// entry of `PATH`.
+    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
+    /// returns one when the project pins no Node in the range. It also returns
+    /// one when mise reports no prettier at the declared version or no Node at
+    /// the pinned one. This happens, for example, because nothing installed
+    /// that prettier or that Node. It also returns one when the directory of
+    /// that Node cannot be an entry of `PATH`.
     ///
     /// [node]: Prettier::node_requirement
     /// [requirement]: Prettier::requirement
     pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement(&Self::node_requirement(), context).await?;
-        let tool = Tool::resolve_requirement(&Self::requirement(), context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Self::node_requirement())
+            .context(context)
+            .call()
+            .await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
             .await?
             .with_toolchain(&node)?;
 
@@ -200,9 +266,10 @@ impl Prettier {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that resolves a tool expects mise to find it. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use std::path::Path;
@@ -224,10 +291,20 @@ mod tests {
         Context::builder().root(root).build()
     }
 
+    #[test]
+    fn prettier_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Prettier>();
+    }
+
     #[tokio::test]
     async fn resolve_runs_prettier_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_requirement(&Prettier::node_requirement(), &context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Prettier::node_requirement())
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the Node that the repository pins");
 

@@ -15,14 +15,18 @@ make mise install every declared tool that a test needs. The root `mise.toml`
 supplies the toolchains. Each mounted action is also a job of CI. So the job
 of a TypeScript action installs the tools, and then the action skips.
 
-The harness does not mount two actions: `check-specs` and `lint-stiles`. Mise
-cannot install tracey from the pin of `check-specs`, because the pin cannot
-carry the `crate` option that the cargo backend needs for tracey. Mise
-installs the tools of the generated file before it runs a task. So if the
-harness mounts `check-specs`, every task fails. Stiles 0.4.0 has no release
-for Windows, and `check-mise-lock` stops on the warning that mise gives for
-it. The tests of both crates need no installed tool, so mise still installs
-every tool that the tests need.
+The harness does not mount the action `check-specs`. Mise cannot install
+tracey from the pin of `check-specs`, because the pin cannot carry the `crate`
+option that the cargo backend needs for tracey. Mise installs the tools of the
+generated file before it runs a task. So if the harness mounts `check-specs`,
+every task fails. The tests of the crate need no installed tool, so mise still
+installs every tool that the tests need.
+
+The action `lint-stiles` accepts exactly one version of stiles, and the root
+`mise.toml` pins that version. Stiles has no release for Windows. The pin
+installs it only on the platforms that have one, and the generated file cannot
+carry that limit. So `doctor` writes no pin of stiles into it, and
+`check-mise-lock` finds no Windows entry to complain about.
 
 It also mounts commands, for a maintenance activity that no single action
 describes. A command comes from a crate, as an action does, and `src/main.rs`

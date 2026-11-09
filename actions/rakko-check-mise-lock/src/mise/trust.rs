@@ -1,3 +1,5 @@
+//! Who trusts the configuration that a run of mise reads
+
 /// Who trusts the configuration that a run of mise reads
 ///
 /// Mise reads a configuration that needs trust, such as one with settings,
@@ -18,7 +20,19 @@ pub(crate) enum Trust {
     ///
     /// The run skips the question whether anybody trusted the configuration
     /// of the directory. A caller grants it only for a directory whose
-    /// configuration somebody trusted in another place, such as a copy of a
-    /// project whose lockfiles mise already listed in the project.
+    /// configuration somebody trusted in another place. One example is a copy
+    /// of a project whose lockfiles mise already listed in the project.
     Granted,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trust_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Trust>();
+    }
 }

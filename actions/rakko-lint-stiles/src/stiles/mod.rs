@@ -1,21 +1,19 @@
 //! The stiles that a project runs
 //!
-//! This module holds the version that the crate declares and the program that
+//! This module holds the version that the crate accepts and the program that
 //! mise installed at that version. It also holds the two runs that the action
-//! asks of stiles: the listing of the rules that the project runs, and the
-//! check of the project. An action asks for a run, and everything between the
-//! action and the process lives here.
+//! asks of stiles. These runs are the listing of the rules the project runs and
+//! the check of the project. An action asks for a run, and everything between
+//! the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the reports that stiles wrote
 mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Execution, ResolveRequirementError, Tool, pinned_version};
+use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
+use rakko_tool::{Execution, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveStilesError;
-use crate::observation::Observation;
+use crate::observation::{Examination, Observation};
 use crate::problem::{Severity, StilesProblem};
 
 /// The name that mise knows the tool by
@@ -27,11 +25,11 @@ const TOOL: &str = "github:aonyx-ai/stiles";
 /// The program of the tool that a run starts
 const STILES: &str = "stiles";
 
-/// The version of stiles that the crate runs
+/// The versions of stiles that the crate accepts
 ///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), TOOL);
+/// A project loads lints that are built against one version of stiles, and
+/// another version refuses them. So the range names that version alone.
+const ACCEPTED: &str = "=0.6.0";
 
 /// The command of stiles that lists the rules of the project
 const RULES: &str = "rules";
@@ -63,7 +61,7 @@ const FILE_ERROR: &str = "error:";
 /// The words of the error that stiles ends a run with when it found no file
 ///
 /// Stiles ends a run that found nothing to check with an error, and not with
-/// a pass, so the action reads its words to tell that run from one that
+/// a pass. So the action reads its words to tell that run from one that
 /// stopped for a reason of its own. The words leave out the name of the
 /// program, which the error opens with.
 const NOTHING_TO_CHECK: &str = "analyzed no files under";
@@ -83,10 +81,11 @@ const FAILED: i32 = 1;
 
 /// The stiles that a project runs
 ///
-/// The value holds the program that mise installed at the version that the
-/// crate declares. The pin of the project does not change it. Nothing here
-/// installs a tool: provisioning is the job of mise, and a stiles that mise
-/// does not report stops the caller.
+/// The value holds the program that mise installed for the project, at the
+/// version that the project pinned. The crate accepts one version only. So a
+/// run reaches the same program as the editor and the terminal of a
+/// contributor. Nothing here installs a tool: provisioning is the job of mise,
+/// and a stiles that mise does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Stiles {
     /// The program that mise installed at the declared version
@@ -97,19 +96,19 @@ impl Stiles {
     /// Returns the identifiers of the rules that the project runs
     ///
     /// The run asks stiles to list the rules that the lints of its
-    /// configuration declare, and it keeps the rules that the configuration
-    /// does not turn off. Stiles loads the lints to list their rules, so it
-    /// builds a lint that it has not built yet, as a check would.
+    /// configuration declare. It keeps the rules that the configuration does
+    /// not turn off. Stiles loads the lints to list their rules, so it builds
+    /// a lint that it has not built yet, as a check would.
     ///
     /// A project that configures no lint gets no rule. Stiles checks such a
-    /// project with nothing, and a check of it passes whatever the code holds,
-    /// so the answer tells a caller that a check would examine nothing.
+    /// project with nothing, and a check of it passes whatever the code holds.
+    /// So the answer tells a caller that a check would examine nothing.
     ///
     /// # Errors
     ///
     /// Returns [`StilesUnavailable`][unavailable] when stiles does not run,
-    /// [`IncompleteCheck`][incomplete] when stiles cannot read its
-    /// configuration or load a lint, and [`UnreadableReport`][unreadable]
+    /// Returns [`IncompleteCheck`][incomplete] when stiles cannot read its
+    /// configuration or load a lint. Returns [`UnreadableReport`][unreadable]
     /// when it wrote a listing that this crate cannot read.
     ///
     /// [incomplete]: ObserveStilesError::IncompleteCheck
@@ -135,9 +134,9 @@ impl Stiles {
     /// Checks the project with stiles and reads what it reported
     ///
     /// The run names the root of the project and asks for the report as data.
-    /// It leaves the threshold of stiles as it is, so stiles ends without
-    /// success only for an error, and the observation carries every
-    /// diagnostic that the run reported, whatever its severity.
+    /// It leaves the threshold of stiles as it is. So stiles ends without
+    /// success only for an error, and the observation carries every diagnostic
+    /// that the run reported, whatever its severity.
     ///
     /// A run that found no file to check is no failure. The observation
     /// reports it, because stiles reports no diagnostic for a project that it
@@ -145,10 +144,10 @@ impl Stiles {
     ///
     /// # Errors
     ///
-    /// Returns [`StilesUnavailable`][unavailable] when stiles does not run,
-    /// [`IncompleteCheck`][incomplete] when stiles stopped before it had
-    /// checked the project, and [`UnreadableReport`][unreadable] when it
-    /// wrote a report that this crate cannot read.
+    /// Returns [`StilesUnavailable`][unavailable] when stiles does not run.
+    /// Returns [`IncompleteCheck`][incomplete] when stiles stopped before it
+    /// had checked the project. Returns [`UnreadableReport`][unreadable] when
+    /// it wrote a report that this crate cannot read.
     ///
     /// [incomplete]: ObserveStilesError::IncompleteCheck
     /// [unavailable]: ObserveStilesError::StilesUnavailable
@@ -158,7 +157,9 @@ impl Stiles {
         let stderr = execution.stderr().to_string_lossy();
 
         if found_nothing(&stderr) {
-            return Ok(Observation::builder().examined(false).build());
+            return Ok(Observation::builder()
+                .examined(Examination::Skipped)
+                .build());
         }
 
         if stopped(&stderr) {
@@ -183,30 +184,36 @@ impl Stiles {
 
     /// Returns the requirement of the stiles that the crate runs
     ///
-    /// The requirement holds the exact version that the crate pins.
+    /// The requirement accepts exactly one version. The project pins it in its
+    /// `mise.toml`. Stiles publishes no build for Windows, and only the pin of
+    /// the project can limit the platforms that install it.
     pub(crate) fn requirement() -> ToolRequirement {
         ToolRequirement::builder()
             .tool(TOOL)
             .executable(STILES)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
+            .version(RequiredVersion::Range(VersionRange::new(ACCEPTED)))
             .build()
     }
 
     /// Returns the stiles that mise installed at the version of the crate
     ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of stiles in the project does not change the answer.
-    /// A run of stiles starts in the root of the context.
+    /// The lookup asks mise for the version that the project pins and that
+    /// [`requirement`][requirement] accepts. A run of stiles starts in the root
+    /// of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
-    /// it reports no stiles at that version, for example because nothing
-    /// installed it.
+    /// Returns a [`ResolveRequirementError`] when mise does not run. It returns
+    /// the same error when the project pins no stiles at the accepted version,
+    /// or when nothing installed that version.
     ///
     /// [requirement]: Stiles::requirement
     pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }
@@ -234,16 +241,17 @@ impl Stiles {
 ///
 /// Stiles ends with success when no diagnostic fails the run, and with its
 /// failure status when one does. It ends with the same failure status when it
-/// stopped, so a failure status counts as an answer only when the report
-/// holds a diagnostic that stiles fails a run for. Every other status, and a
-/// run that no status ended, belongs to a stiles that stopped.
+/// stopped. So a failure status counts as an answer only when the report holds
+/// a diagnostic that stiles fails a run for. Every other status, and a run
+/// that no status ended, belongs to a stiles that stopped.
 fn finished(status: Option<i32>, problems: &[StilesProblem]) -> bool {
     match status {
         Some(CLEAN) => true,
         Some(FAILED) => problems
             .iter()
             .any(|problem| problem.severity() == Severity::Error),
-        _ => false,
+        None => false,
+        Some(_) => false,
     }
 }
 
@@ -265,11 +273,11 @@ fn incomplete(execution: &Execution) -> ObserveStilesError {
 
 /// Returns what stiles wrote about a run that it stopped
 ///
-/// Stiles builds the lints of the project before it checks anything, and the
-/// log of that build shares the standard error stream with the errors of the
-/// run. The diagnosis starts at the first error, so that a reader sees the
-/// reason of the stop and not the log in front of it. A stream without an
-/// error is the whole diagnosis.
+/// Stiles builds the lints of the project before it checks anything. The log
+/// of that build shares the standard error stream with the errors of the run.
+/// The diagnosis starts at the first error, so that a reader sees the reason
+/// of the stop and not the log in front of it. A stream without an error is
+/// the whole diagnosis.
 fn diagnosis(stderr: &str) -> String {
     let mut offset = 0;
     let mut start = None;
@@ -300,7 +308,7 @@ fn is_error(line: &str) -> bool {
 /// Returns whether stiles wrote an error on its standard error stream
 ///
 /// Stiles writes its diagnostics on the standard output stream when a run asks
-/// for data, so a line of the standard error stream that opens with an error
+/// for data. So a line of the standard error stream that opens with an error
 /// is never a diagnostic. It is the error that ended the run, or a file that
 /// stiles could not read or analyze. Either way the report describes less than
 /// the project.
@@ -310,9 +318,10 @@ fn stopped(stderr: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::PathBuf;
 
@@ -338,13 +347,13 @@ mod tests {
 
     /// Returns a diagnostic of the given severity
     fn problem(severity: Severity) -> StilesProblem {
-        StilesProblem::new(
-            PathBuf::from("./src/lib.rs"),
-            Position::builder().line(7).column(5).build(),
-            severity,
-            "lint.todo-comment".to_owned(),
-            "a TODO comment marks unfinished work".to_owned(),
-        )
+        StilesProblem::builder()
+            .path(PathBuf::from("./src/lib.rs"))
+            .position(Position::builder().line(7).column(5).build())
+            .severity(severity)
+            .rule("lint.todo-comment".to_owned())
+            .text("a TODO comment marks unfinished work".to_owned())
+            .build()
     }
 
     #[test]
@@ -406,6 +415,13 @@ mod tests {
     #[test]
     fn found_nothing_of_a_run_without_a_file_is_true() {
         assert!(found_nothing(NOTHING));
+    }
+
+    #[test]
+    fn stiles_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Stiles>();
     }
 
     #[test]

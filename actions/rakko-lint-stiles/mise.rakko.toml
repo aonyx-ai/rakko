@@ -1,7 +1,0 @@
-# This file pins the version of stiles that the action of this crate runs.
-# The crate embeds the file when it compiles, so the pin and the code that
-# reads the reports of stiles change together. Mise reads the file only with
-# `MISE_ENV=rakko`. Stiles tags each release with the name of the tool, such
-# as `stiles@0.4.0`, so the pin names the tag.
-[tools]
-"github:aonyx-ai/stiles" = "stiles@0.4.0"

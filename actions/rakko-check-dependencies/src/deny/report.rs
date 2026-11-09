@@ -1,3 +1,5 @@
+//! The reading of the report that cargo-deny wrote
+
 use serde::Deserialize;
 
 use crate::problem::{DenyProblem, Package, Severity};
@@ -16,8 +18,8 @@ pub(super) enum Entry {
 
     /// A record that this crate does not read
     ///
-    /// Cargo-deny logs what it is doing on the same stream as the report, and
-    /// the log says nothing about the project that a finding could carry.
+    /// Cargo-deny logs what it is doing on the same stream as the report. The
+    /// log says nothing about the project that a finding could carry.
     Ignored,
 }
 
@@ -25,9 +27,9 @@ pub(super) enum Entry {
 ///
 /// Cargo-deny writes more fields than these, and the reading ignores the
 /// rest, so a field that a new version adds does not break it. A record of a
-/// kind that this crate does not know is ignored rather than refused: the
-/// records that a run answers from are the two below, and a new kind next to
-/// them says nothing about the workspace.
+/// kind that this crate does not know is ignored rather than refused. The
+/// records that a run answers from are the two below. A new kind next to them
+/// says nothing about the workspace.
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 enum Record {
@@ -59,9 +61,9 @@ struct Diagnostic {
 
     /// The inclusion graph of every package that the shape is about
     ///
-    /// A record that is about no package of the graph, such as a license that
-    /// the configuration allows and no dependency carries, holds no graph at
-    /// all.
+    /// A record about no package of the graph holds no graph at all. A
+    /// license that the configuration allows and no dependency carries is
+    /// such a record.
     #[serde(default)]
     graphs: Vec<Graph>,
 }
@@ -69,9 +71,8 @@ struct Diagnostic {
 /// The inclusion graph of one package that a shape is about
 ///
 /// The graph names the package at its root and then the packages that depend
-/// on it, up to the workspace. The reading takes the root and leaves the rest,
-/// because a finding names what the answer is about and not how the project
-/// arrived at it.
+/// on it, up to the workspace. The reading takes the root and leaves the rest.
+/// The reason is that a finding names what the answer is about, not how the project arrived at it.
 #[derive(Deserialize)]
 struct Graph {
     /// The package that the graph is rooted at
@@ -95,10 +96,20 @@ impl Diagnostic {
         let packages = self
             .graphs
             .into_iter()
-            .map(|graph| Package::new(graph.package.name, graph.package.version))
+            .map(|graph| {
+                Package::builder()
+                    .name(graph.package.name)
+                    .version(graph.package.version)
+                    .build()
+            })
             .collect();
 
-        DenyProblem::new(self.severity, self.code, self.message, packages)
+        DenyProblem::builder()
+            .severity(self.severity)
+            .check(self.code)
+            .message(self.message)
+            .packages(packages)
+            .build()
     }
 }
 
@@ -119,11 +130,10 @@ pub(super) fn read(record: &str) -> Result<Entry, serde_json::Error> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a record
-    // which cargo-deny could have written expects the reading to succeed. A
-    // `# Panics` section on every test would repeat that and give the reader
-    // no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a record which cargo-deny could have written expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -158,12 +168,57 @@ mod tests {
     }
 
     #[test]
+    fn diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Diagnostic>();
+    }
+
+    #[test]
+    fn entry_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Entry>();
+    }
+
+    #[test]
+    fn graph_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Graph>();
+    }
+
+    #[test]
+    fn krate_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Krate>();
+    }
+
+    #[test]
+    fn read_a_diagnostic_carries_the_weight_of_the_project() {
+        let problem = problem(DUPLICATE);
+
+        assert_eq!(problem.severity(), Severity::Warning);
+    }
+
+    #[test]
     fn read_a_diagnostic_holds_the_check_and_the_words_of_cargo_deny() {
         let problem = problem(REJECTED);
 
         assert_eq!(
             problem.description(),
             "[rejected] failed to satisfy license requirements (option-ext 0.2.0)"
+        );
+    }
+
+    #[test]
+    fn read_a_diagnostic_in_a_shape_the_crate_does_not_know_stops_the_reading() {
+        let entry = read(r#"{"fields":{"code":"rejected"},"type":"diagnostic"}"#);
+
+        assert!(
+            entry.is_err(),
+            "expected the reading to stop, got a record that the crate cannot answer from"
         );
     }
 
@@ -193,23 +248,6 @@ mod tests {
     }
 
     #[test]
-    fn read_a_diagnostic_carries_the_weight_of_the_project() {
-        let problem = problem(DUPLICATE);
-
-        assert_eq!(problem.severity(), Severity::Warning);
-    }
-
-    #[test]
-    fn read_the_summary_reports_a_run_that_finished_its_checks() {
-        let entry = read(SUMMARY).expect("the test reads a record that cargo-deny could write");
-
-        assert!(
-            matches!(entry, Entry::Summary),
-            "expected the summary of the checks"
-        );
-    }
-
-    #[test]
     fn read_a_log_record_reports_nothing_about_the_project() {
         let entry = read(LOG).expect("the test reads a record that cargo-deny could write");
 
@@ -230,12 +268,19 @@ mod tests {
     }
 
     #[test]
-    fn read_a_diagnostic_in_a_shape_the_crate_does_not_know_stops_the_reading() {
-        let entry = read(r#"{"fields":{"code":"rejected"},"type":"diagnostic"}"#);
+    fn read_the_summary_reports_a_run_that_finished_its_checks() {
+        let entry = read(SUMMARY).expect("the test reads a record that cargo-deny could write");
 
         assert!(
-            entry.is_err(),
-            "expected the reading to stop, got a record that the crate cannot answer from"
+            matches!(entry, Entry::Summary),
+            "expected the summary of the checks"
         );
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
     }
 }

@@ -4,13 +4,11 @@
 //! installed at that version, and the run that produces its log. An action asks
 //! for a run, and everything between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the log that the validator wrote
 pub(crate) mod report;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Invocation, Launch, ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{Invocation, Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveValidatorError;
 use self::report::Report;
@@ -26,7 +24,7 @@ const VALIDATOR: &str = "renovate-config-validator";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), RENOVATE);
+const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(RENOVATE);
 
 /// The name that mise knows Node by, which is also the name of its program
 const NODE: &str = "node";
@@ -41,11 +39,11 @@ const NODE_RANGE: &str = "^24.11.0 || ^26.13.0";
 
 /// The option that asks the validator for strict validation
 ///
-/// The validator reports a needed migration either way, and without the
-/// option it still ends with success. With it, the status of the validator
-/// agrees with the outcome of the action, and a contributor who runs the
-/// validator with the same option gets the same verdict. The option changes
-/// no option of the configuration.
+/// The validator reports a needed migration either way. Without the option it
+/// still ends with success. With it, the status of the validator agrees with
+/// the outcome of the action. A contributor who runs the validator with the
+/// same option gets the same verdict. The option changes no option of the
+/// configuration.
 const STRICT: &str = "--strict";
 
 /// The option that tells the validator to read a passed file as the
@@ -66,8 +64,8 @@ const PRESET: &str = "default.json";
 /// The variable that selects the format of the log
 ///
 /// The validator writes text for a reader by default. As JSON records, each
-/// problem carries the file, the topic, and the message in fields instead of
-/// in a sentence that a reader has to take apart.
+/// problem carries the file, the topic, and the message in fields. This
+/// replaces a sentence that a reader has to take apart.
 const LOG_FORMAT: &str = "LOG_FORMAT";
 
 /// The format that writes one JSON record per line
@@ -87,19 +85,21 @@ const INFO: &str = "info";
 /// The variable that asks the validator for the regular expressions of
 /// JavaScript
 ///
-/// The validator prefers RE2, an engine that a native module of its package
-/// provides, and it falls back to the regular expressions of JavaScript when
-/// the module is not built, with a warning about the machine in every run. A
-/// run that asks for the fallback gets the same engine on every machine, and
-/// no warning about it. RE2 refuses some patterns that JavaScript accepts,
-/// such as a lookahead, so where the module is built, a run that asks for the
-/// fallback accepts a pattern that Renovate with RE2 can refuse.
+/// The validator prefers RE2. This is an engine that a native module of its
+/// package provides. It falls back to the regular expressions of JavaScript
+/// when the module is not built. A warning about the machine appears in every
+/// run. A run that asks for the fallback gets the same engine on every
+/// machine. No warning appears about it.
+///
+/// RE2 refuses some patterns that JavaScript accepts, such as a lookahead.
+/// So where the module is built, a run that asks for the fallback accepts a
+/// pattern that Renovate with RE2 can refuse.
 const IGNORE_RE2: &str = "RENOVATE_X_IGNORE_RE2";
 
 /// The variable that names a file for a second copy of the log
 ///
 /// The validator writes its log to the file as well when the environment of
-/// the run names one, and a relative name puts the file in the project. A run
+/// the run names one. A relative name puts the file in the project. A run
 /// removes the variable, so that it changes no file of the project.
 const LOG_FILE: &str = "LOG_FILE";
 
@@ -115,7 +115,7 @@ const INVALID: i32 = 1;
 /// The validator that a project runs
 ///
 /// The value holds the program that mise installed at the version that the
-/// crate declares. The pin of the project does not change it, so a run reaches
+/// crate declares. The pin of the project does not change it. So a run reaches
 /// the version that the tests of the crate cover. The program runs on the Node
 /// that the project pins, when the range of the crate accepts it. Nothing here
 /// installs a tool: provisioning is the job of mise, and a validator that mise
@@ -143,10 +143,11 @@ impl Validator {
     /// # Errors
     ///
     /// Returns [`ValidatorUnavailable`][unavailable] when the validator does
-    /// not run, [`AbortedValidation`][aborted] when it stopped before it had
-    /// validated the project, [`UnreadableReport`][unreadable] when it wrote a
-    /// log that this crate cannot read, and [`MissingReport`][missing] when it
-    /// reported no problem and ended without success.
+    /// not run. Returns [`AbortedValidation`][aborted] when it stopped before
+    /// it had validated the project. Returns [`UnreadableReport`][unreadable]
+    /// when it wrote a log that this crate cannot read. Returns
+    /// [`MissingReport`][missing] when it reported no problem and ended without
+    /// success.
     ///
     /// [aborted]: ObserveValidatorError::AbortedValidation
     /// [missing]: ObserveValidatorError::MissingReport
@@ -207,17 +208,25 @@ impl Validator {
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
-    /// project pins no Node in the range, when mise reports no validator at the
-    /// declared version or no Node at the pinned one, for example because
-    /// nothing installed it, or when the directory of that Node cannot be an
-    /// entry of `PATH`.
+    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
+    /// returns one when the project pins no Node in the range. It also returns
+    /// one when mise reports no validator at the declared version or no Node at
+    /// the pinned one. This happens, for example, because nothing installed
+    /// that validator or that Node. It also returns one when the directory of
+    /// that Node cannot be an entry of `PATH`.
     ///
     /// [node]: Validator::node_requirement
     /// [requirement]: Validator::requirement
     pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement(&Self::node_requirement(), context).await?;
-        let tool = Tool::resolve_requirement(&Self::requirement(), context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Self::node_requirement())
+            .context(context)
+            .call()
+            .await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
             .await?
             .with_toolchain(&node)?;
 
@@ -256,11 +265,11 @@ async fn observe(invocation: Invocation) -> Result<Observation, ObserveValidator
         .await
         .map_err(|source| ObserveValidatorError::ValidatorUnavailable { source })?;
 
-    answer(
-        execution.status().code(),
-        &execution.stdout().to_string_lossy(),
-        &execution.stderr().to_string_lossy(),
-    )
+    answer()
+        .maybe_code(execution.status().code())
+        .stdout(&execution.stdout().to_string_lossy())
+        .stderr(&execution.stderr().to_string_lossy())
+        .call()
 }
 
 /// Returns the answer of a run from its status and its two streams
@@ -270,15 +279,21 @@ async fn observe(invocation: Invocation) -> Result<Observation, ObserveValidator
 /// stops as well. A run that ended without success and reported no problem
 /// failed for a reason that the validator did not name, so it stops too.
 ///
+/// A run that gets a file that is not there ends without success. It reports
+/// no problem, only that it found no configuration, so the run counts as
+/// explained and does not stop.
+///
 /// # Errors
 ///
 /// Returns [`AbortedValidation`][aborted] for a run that the validator did not
-/// finish, [`UnreadableReport`][unreadable] for a log that this crate cannot
-/// read, and [`MissingReport`][missing] for a failed run without a problem.
+/// finish. Returns [`UnreadableReport`][unreadable] for a log that this crate
+/// cannot read. Returns [`MissingReport`][missing] for a failed run without a
+/// problem.
 ///
 /// [aborted]: ObserveValidatorError::AbortedValidation
 /// [missing]: ObserveValidatorError::MissingReport
 /// [unreadable]: ObserveValidatorError::UnreadableReport
+#[bon::builder]
 fn answer(
     code: Option<i32>,
     stdout: &str,
@@ -286,7 +301,7 @@ fn answer(
 ) -> Result<Observation, ObserveValidatorError> {
     let Some(status) = status(code) else {
         return Err(ObserveValidatorError::AbortedValidation {
-            details: diagnosis(stderr, stdout),
+            details: diagnosis().stderr(stderr).stdout(stdout).call(),
         });
     };
 
@@ -303,13 +318,11 @@ fn answer(
         }
     };
 
-    // A run that gets a file that is not there ends without success. It
-    // reports no problem, only that it found no configuration.
     let unexplained = observation.problems().is_empty() && observation.unconfigured().is_none();
 
     if status == Status::Invalid && unexplained {
         return Err(ObserveValidatorError::MissingReport {
-            details: diagnosis(stderr, stdout),
+            details: diagnosis().stderr(stderr).stdout(stdout).call(),
         });
     }
 
@@ -347,6 +360,7 @@ fn status(code: Option<i32>) -> Option<Status> {
 /// the standard error stream, so the standard error stream answers first. A
 /// run that wrote nothing there leaves the reason in the log, or says nothing
 /// at all.
+#[bon::builder]
 fn diagnosis(stderr: &str, stdout: &str) -> String {
     let written = stderr.trim();
 
@@ -359,11 +373,10 @@ fn diagnosis(stderr: &str, stdout: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that resolves the
-    // validator of this repository expects mise to report it. A `# Panics`
-    // section on every test would repeat that and give the reader no
-    // information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that resolves the validator of this repository expects mise to report it. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use std::path::Path;
@@ -404,9 +417,9 @@ mod tests {
 
     /// Returns the context of a run in the repository that the tests run in
     ///
-    /// The repository pins a Node that the range of the crate accepts, and it
-    /// installs the Renovate that the crate declares, so the tests resolve
-    /// the validator there.
+    /// The repository pins a Node that the range of the crate accepts. The
+    /// repository also installs the Renovate that the crate declares, so the
+    /// tests resolve the validator there.
     fn context() -> Context {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let root = manifest
@@ -426,7 +439,11 @@ mod tests {
 
     #[test]
     fn answer_of_a_crash_stops_with_what_the_validator_wrote() {
-        let answer = answer(Some(99), "", "TypeError: boom\n");
+        let answer = answer()
+            .code(99)
+            .stdout("")
+            .stderr("TypeError: boom\n")
+            .call();
 
         assert!(
             matches!(&answer, Err(ObserveValidatorError::AbortedValidation { details }) if details == "TypeError: boom"),
@@ -436,7 +453,7 @@ mod tests {
 
     #[test]
     fn answer_of_a_failed_run_without_a_configuration_holds_the_observation() {
-        let answer = answer(Some(INVALID), ABSENT_LOG, "");
+        let answer = answer().code(INVALID).stdout(ABSENT_LOG).stderr("").call();
 
         assert!(
             matches!(&answer, Ok(observation) if observation.unconfigured().is_some()),
@@ -446,7 +463,7 @@ mod tests {
 
     #[test]
     fn answer_of_a_failed_run_without_a_problem_stops() {
-        let answer = answer(Some(INVALID), VALID_LOG, "");
+        let answer = answer().code(INVALID).stdout(VALID_LOG).stderr("").call();
 
         assert!(
             matches!(answer, Err(ObserveValidatorError::MissingReport { .. })),
@@ -456,7 +473,7 @@ mod tests {
 
     #[test]
     fn answer_of_a_fatal_record_stops() {
-        let answer = answer(Some(INVALID), FATAL_LOG, "");
+        let answer = answer().code(INVALID).stdout(FATAL_LOG).stderr("").call();
 
         assert!(
             matches!(&answer, Err(ObserveValidatorError::AbortedValidation { details }) if details == "Could not parse config file"),
@@ -466,7 +483,7 @@ mod tests {
 
     #[test]
     fn answer_of_a_valid_run_holds_the_observation() {
-        let answer = answer(Some(VALID), VALID_LOG, "");
+        let answer = answer().code(VALID).stdout(VALID_LOG).stderr("").call();
 
         assert!(
             matches!(&answer, Ok(observation) if observation.problems().is_empty()),
@@ -476,7 +493,11 @@ mod tests {
 
     #[test]
     fn answer_of_an_unreadable_log_stops_with_the_log() {
-        let answer = answer(Some(VALID), "Config validated\n", "");
+        let answer = answer()
+            .code(VALID)
+            .stdout("Config validated\n")
+            .stderr("")
+            .call();
 
         assert!(
             matches!(&answer, Err(ObserveValidatorError::UnreadableReport { report, .. }) if report == "Config validated\n"),
@@ -486,14 +507,17 @@ mod tests {
 
     #[test]
     fn diagnosis_of_a_crash_holds_the_standard_error_stream() {
-        let details = diagnosis("TypeError: boom\n", "{\"level\":30}\n");
+        let details = diagnosis()
+            .stderr("TypeError: boom\n")
+            .stdout("{\"level\":30}\n")
+            .call();
 
         assert_eq!(details, "TypeError: boom");
     }
 
     #[test]
     fn diagnosis_without_an_error_stream_holds_the_log() {
-        let details = diagnosis("", "{\"level\":30}\n");
+        let details = diagnosis().stderr("").stdout("{\"level\":30}\n").call();
 
         assert_eq!(details, "{\"level\":30}");
     }
@@ -558,7 +582,10 @@ mod tests {
 
     #[tokio::test]
     async fn invocation_runs_on_the_node_of_the_project() {
-        let node = Tool::resolve_requirement(&Validator::node_requirement(), &context())
+        let node = Tool::resolve_requirement()
+            .requirement(&Validator::node_requirement())
+            .context(&context())
+            .call()
             .await
             .expect("the test resolves the Node that the repository pins");
         let validator = validator().await;
@@ -594,6 +621,13 @@ mod tests {
     }
 
     #[test]
+    fn status_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Status>();
+    }
+
+    #[test]
     fn status_of_a_crash_reports_nothing() {
         let status = status(Some(99));
 
@@ -619,5 +653,12 @@ mod tests {
         let status = status(Some(VALID));
 
         assert_eq!(status, Some(Status::Valid));
+    }
+
+    #[test]
+    fn validator_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Validator>();
     }
 }

@@ -5,7 +5,6 @@
 //! the reading takes a line apart at the marks that yamllint puts between the
 //! fields.
 
-/// The error that stops the reading of a report
 mod error;
 
 use std::path::PathBuf;
@@ -31,8 +30,8 @@ const POSITION: char = ':';
 ///
 /// Returns [`UnreadableLine`][unreadable] for a line that does not report a
 /// problem. A reading that skipped such a line would drop a problem of the
-/// project without a word, and a reader would never learn that the report
-/// held more than the findings that arrived.
+/// project without a word. A reader would never learn that the report held
+/// more than the findings that arrived.
 ///
 /// [unreadable]: ReadReportError::UnreadableLine
 pub(crate) fn problems(report: &str) -> Result<Vec<YamllintProblem>, ReadReportError> {
@@ -52,9 +51,9 @@ pub(crate) fn problems(report: &str) -> Result<Vec<YamllintProblem>, ReadReportE
 /// Yamllint writes the path, the line, the column, the level, and the
 /// description of a problem, in that order and without escaping any of them.
 /// The reading therefore takes the line apart from the marks that separate
-/// the fields, and it takes the path from what is left. A path that holds a
-/// mark of its own keeps it, because the position is read from the end of
-/// that part and the description from the start of the rest.
+/// the fields. It takes the path from what is left. A path that holds a
+/// mark of its own keeps it. This works because the position is read from the
+/// end of that part and the description from the start of the rest.
 ///
 /// Returns `None` for a line that does not carry all five fields.
 fn problem(line: &str) -> Option<YamllintProblem> {
@@ -64,22 +63,23 @@ fn problem(line: &str) -> Option<YamllintProblem> {
     let (place, column) = place.rsplit_once(POSITION)?;
     let (path, number) = place.rsplit_once(POSITION)?;
 
-    Some(YamllintProblem::new(
-        PathBuf::from(path),
-        number.parse().ok()?,
-        column.parse().ok()?,
-        ProblemLevel::parse(level)?,
-        description.to_owned(),
-    ))
+    Some(
+        YamllintProblem::builder()
+            .path(PathBuf::from(path))
+            .line(number.parse().ok()?)
+            .column(column.parse().ok()?)
+            .level(ProblemLevel::parse(level)?)
+            .description(description.to_owned())
+            .build(),
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a report
-    // which yamllint could have written expects the reading to succeed. A
-    // `# Panics` section on every test would repeat that and give the reader
-    // no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a report which yamllint could have written expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -94,7 +94,7 @@ mod tests {
     /// What yamllint writes when a file is not YAML at all
     ///
     /// The description of the rule holds the marks that separate the fields
-    /// of a line, so a reading that searched for them from the end would take
+    /// of a line. So a reading that searched for them from the end would take
     /// the line apart in the wrong place.
     const SYNTAX: &str =
         "./a.yaml:3:1: [error] syntax error: expected ',' or ']', but got '<stream end>' (syntax)";
@@ -110,6 +110,23 @@ mod tests {
         problems
             .pop()
             .expect("the test reads a report that holds one problem")
+    }
+
+    #[test]
+    fn problems_of_a_line_that_reports_nothing_stop_the_reading() {
+        let problems = problems(UNREADABLE);
+
+        assert!(
+            problems.is_err(),
+            "expected the reading to stop, got {problems:?}"
+        );
+    }
+
+    #[test]
+    fn problems_of_a_problem_carry_the_description_of_yamllint() {
+        let problem = problem(ERROR);
+
+        assert_eq!(problem.description(), "trailing spaces (trailing-spaces)");
     }
 
     #[test]
@@ -134,17 +151,12 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_problem_carry_the_description_of_yamllint() {
-        let problem = problem(ERROR);
+    fn problems_of_a_report_hold_one_problem_per_line() {
+        let report = format!("{ERROR}\n{WARNING}\n");
 
-        assert_eq!(problem.description(), "trailing spaces (trailing-spaces)");
-    }
+        let problems = problems(&report).expect("the test reads a report of two problems");
 
-    #[test]
-    fn problems_of_a_warning_carry_the_warning_level() {
-        let problem = problem(WARNING);
-
-        assert_eq!(problem.level(), ProblemLevel::Warning);
+        assert_eq!(problems.len(), 2);
     }
 
     #[test]
@@ -158,12 +170,10 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_report_hold_one_problem_per_line() {
-        let report = format!("{ERROR}\n{WARNING}\n");
+    fn problems_of_a_warning_carry_the_warning_level() {
+        let problem = problem(WARNING);
 
-        let problems = problems(&report).expect("the test reads a report of two problems");
-
-        assert_eq!(problems.len(), 2);
+        assert_eq!(problem.level(), ProblemLevel::Warning);
     }
 
     #[test]
@@ -171,16 +181,6 @@ mod tests {
         let problems = problems("  \n").expect("the test reads the report of a run that passed");
 
         assert!(problems.is_empty(), "expected no problem, got {problems:?}");
-    }
-
-    #[test]
-    fn problems_of_a_line_that_reports_nothing_stop_the_reading() {
-        let problems = problems(UNREADABLE);
-
-        assert!(
-            problems.is_err(),
-            "expected the reading to stop, got {problems:?}"
-        );
     }
 
     #[test]

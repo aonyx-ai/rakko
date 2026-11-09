@@ -4,11 +4,11 @@
 //! project fired. This module holds one of those diagnostics: where it is, how
 //! the rule weighed it, and what the rule said about it.
 
-/// The severity that stiles gave a diagnostic
 mod severity;
 
 use std::path::PathBuf;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 use rakko::{FilePath, Position, ProjectRoot};
 
@@ -41,7 +41,7 @@ const RULE_CLOSE: &str = ": ";
 /// about it.
 ///
 /// [relative]: StilesProblem::relative_path
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, CopyGetters, Getters)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, CopyGetters, Getters)]
 pub(crate) struct StilesProblem {
     /// The path of the file, as stiles wrote it
     #[getset(get = "pub(crate)")]
@@ -65,26 +65,9 @@ pub(crate) struct StilesProblem {
 }
 
 impl StilesProblem {
-    /// Creates a problem from one diagnostic that stiles reported
-    pub(crate) fn new(
-        path: PathBuf,
-        position: Position,
-        severity: Severity,
-        rule: String,
-        text: String,
-    ) -> Self {
-        Self {
-            path,
-            position,
-            severity,
-            rule,
-            text,
-        }
-    }
-
     /// Returns the sentence that stiles wrote about the problem
     ///
-    /// The sentence holds the severity, the rule, and what the rule said, so a
+    /// The sentence holds the severity, the rule, and what the rule said. So a
     /// reader sees which rule to turn off or to fix the code for.
     pub(crate) fn message(&self) -> String {
         format!(
@@ -96,19 +79,20 @@ impl StilesProblem {
     /// Returns the path of the file, relative to the project root
     ///
     /// Returns `None` when the root does not contain the file. A run names the
-    /// root as the place to check, so a path that does not fit points at a
-    /// report that the caller misread, and the caller decides what to do about
+    /// root as the place to check. A path that does not fit therefore points at
+    /// a report that the caller misread. The caller decides what to do about
     /// that.
     pub(crate) fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
-        FilePath::within(&self.path, root)
+        FilePath::within().path(&self.path).root(root).call()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -116,13 +100,13 @@ mod tests {
 
     /// Returns a problem about the given path
     fn problem(path: PathBuf) -> StilesProblem {
-        StilesProblem::new(
-            path,
-            Position::builder().line(7).column(5).build(),
-            Severity::Warning,
-            "lint.todo-comment".to_owned(),
-            "a TODO comment marks unfinished work".to_owned(),
-        )
+        StilesProblem::builder()
+            .path(path)
+            .position(Position::builder().line(7).column(5).build())
+            .severity(Severity::Warning)
+            .rule("lint.todo-comment".to_owned())
+            .text("a TODO comment marks unfinished work".to_owned())
+            .build()
     }
 
     #[test]
@@ -157,5 +141,12 @@ mod tests {
             .relative_path(&ProjectRoot::new(path("/home/otter/project")));
 
         assert_eq!(relative, FilePath::try_from(path("src/lib.rs")).ok());
+    }
+
+    #[test]
+    fn stiles_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<StilesProblem>();
     }
 }

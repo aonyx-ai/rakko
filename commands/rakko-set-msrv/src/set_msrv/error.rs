@@ -1,3 +1,5 @@
+//! The errors that stop a run of the command
+
 use std::io;
 use std::path::PathBuf;
 
@@ -12,10 +14,24 @@ use super::step::MiseStep;
 
 /// An error that stops a run of the set-msrv command
 ///
-/// A run reads both files and finds what it changes before it writes, so an
+/// A run reads both files and finds what it changes before it writes. So an
 /// error that names a file it read, the manifest, or the pin leaves the
 /// project as it was. An error that names a write, the lock, the install, or
-/// the check comes after a write, and the files that the run wrote stay.
+/// the check comes after a write. The files that the run wrote stay.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_set_msrv::SetMsrvError;
+/// use std::path::PathBuf;
+/// use std::io;
+///
+/// let error = SetMsrvError::UnreadableFile {
+///     path: PathBuf::from("Cargo.toml"),
+///     source: io::Error::new(io::ErrorKind::NotFound, "file not found"),
+/// };
+/// assert_eq!(error.to_string(), "failed to read Cargo.toml");
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum SetMsrvError {
@@ -150,4 +166,16 @@ pub enum SetMsrvError {
         /// The cause of the failure
         source: SendError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_msrv_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<SetMsrvError>();
+    }
 }

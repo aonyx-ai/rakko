@@ -1,3 +1,5 @@
+//! The entries that one value adds to the command line
+
 use std::fmt;
 
 use crate::builder::registry::Mounted;
@@ -30,5 +32,17 @@ impl fmt::Debug for Entries {
         let entries: Vec<String> = self.0.iter().map(ToString::to_string).collect();
 
         formatter.debug_tuple("Entries").field(&entries).finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn entries_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Entries>();
     }
 }

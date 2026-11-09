@@ -1,3 +1,5 @@
+//! The pins of the project that override a declared tool
+
 use std::path::{Path, PathBuf};
 
 use rakko::{Context, FilePath, Finding, Location, MiseTool, ProjectRoot};
@@ -37,10 +39,10 @@ struct ConfigFile {
 
 /// A pin of the project that overrides a tool that a mounted action declares
 ///
-/// Mise lets a pin in a configuration file that it ranks above the generated
-/// file, such as `mise.toml`, win over the same tool in the generated file.
-/// An editor and a run of the tool by hand then get the version of the
-/// project, and not the version that the tests of the action cover.
+/// Mise ranks some configuration files above the generated file, such as
+/// `mise.toml`. A pin in such a file wins over the same tool in the generated
+/// file. An editor and a run of the tool by hand then get the version of the
+/// project. They do not get the version that the tests of the action cover.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub(crate) struct Shadow {
     /// The configuration file that holds the pin, relative to the root
@@ -86,6 +88,7 @@ impl Shadow {
 /// [unavailable]: CheckToolPinsError::MiseUnavailable
 /// [unlisted]: CheckToolPinsError::UnlistedConfiguration
 /// [unrecognized]: CheckToolPinsError::UnrecognizedConfiguration
+#[bon::builder]
 pub(crate) async fn find(
     pins: &Pins,
     context: &Context,
@@ -108,25 +111,27 @@ pub(crate) async fn find(
     let files: Vec<ConfigFile> = serde_json::from_slice(execution.stdout().get())
         .map_err(|source| CheckToolPinsError::UnrecognizedConfiguration { source })?;
 
-    Ok(shadows(&files, pins, root))
+    Ok(shadows().files(&files).pins(pins).root(root).call())
 }
 
 /// Removes the pin from its configuration file and returns whether it did
 ///
 /// The edit keeps the comments and the layout of the file. A file that is
-/// not TOML stays as it is, and so does a file whose table of tools does not
-/// hold the pin, so the caller keeps the pin as a finding.
+/// not TOML stays as it is. So does a file whose table of tools does not hold
+/// the pin, and the caller keeps the pin as a finding.
 ///
 /// # Errors
 ///
 /// Returns [`UnreadableConfiguration`][unreadable] when the file system does
-/// not give the content of the file, [`UnparsableConfiguration`][unparsable]
-/// when the file is not valid TOML, and [`UnwritableFile`][unwritable] when
-/// the file system refuses the write.
+/// not give the content of the file. Returns
+/// [`UnparsableConfiguration`][unparsable] when the file is not valid TOML.
+/// Returns [`UnwritableFile`][unwritable] when the file system refuses the
+/// write.
 ///
 /// [unparsable]: RepairToolPinsError::UnparsableConfiguration
 /// [unreadable]: RepairToolPinsError::UnreadableConfiguration
 /// [unwritable]: RepairToolPinsError::UnwritableFile
+#[bon::builder]
 pub(crate) fn remove(shadow: &Shadow, root: &ProjectRoot) -> Result<bool, RepairToolPinsError> {
     if shadow
         .file
@@ -175,12 +180,13 @@ pub(crate) fn remove(shadow: &Shadow, root: &ProjectRoot) -> Result<bool, Repair
 /// `.tool-versions`, overrides nothing. A project that holds no generated
 /// file yet gives no rank to compare with, so every file of the project
 /// counts.
+#[bon::builder]
 fn shadows(files: &[ConfigFile], pins: &Pins, root: &ProjectRoot) -> Vec<Shadow> {
     let generated = Path::new(generated::PATH);
     let mut shadows = Vec::new();
 
     for file in files {
-        let Some(path) = FilePath::within(&file.path, root) else {
+        let Some(path) = FilePath::within().path(&file.path).root(root).call() else {
             continue;
         };
 
@@ -204,9 +210,10 @@ fn shadows(files: &[ConfigFile], pins: &Pins, root: &ProjectRoot) -> Vec<Shadow>
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{RequiredVersion, ToolRequirement, ToolVersion};
     use tempfile::TempDir;
@@ -241,13 +248,18 @@ mod tests {
 
     /// Returns the files of the pins that the list gives for the root
     fn shadowed(files: &[ConfigFile]) -> Vec<String> {
-        shadows(files, &taplo(), &ProjectRoot::from(ROOT))
+        shadows()
+            .files(files)
+            .pins(&taplo())
+            .root(&ProjectRoot::from(ROOT))
+            .call()
             .iter()
             .map(|shadow| format!("{} {}", shadow.file, shadow.tool))
             .collect()
     }
 
     /// Returns the project in a temporary directory whose file holds the text
+    #[bon::builder]
     fn project_with(name: &str, text: &str) -> (TempDir, Shadow) {
         let directory = TempDir::new().expect("the test creates a temporary directory");
         std::fs::write(directory.path().join(name), text).expect("the test writes the file");
@@ -261,10 +273,14 @@ mod tests {
 
     /// Removes the pin from the file of a project and returns the file and
     /// whether the pin went
+    #[bon::builder]
     fn removed_from(name: &str, text: &str) -> (String, bool) {
-        let (directory, shadow) = project_with(name, text);
+        let (directory, shadow) = project_with().name(name).text(text).call();
 
-        let removed = remove(&shadow, &ProjectRoot::from(directory.path()))
+        let removed = remove()
+            .shadow(&shadow)
+            .root(&ProjectRoot::from(directory.path()))
+            .call()
             .expect("the test project is readable and writable");
 
         let text =
@@ -274,11 +290,15 @@ mod tests {
     }
 
     #[test]
+    fn config_file_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ConfigFile>();
+    }
+
+    #[test]
     fn remove_keeps_the_comments_and_the_other_pins_of_the_file() {
-        let (text, _) = removed_from(
-            "mise.toml",
-            "# The tools of the project\n[tools]\njq = \"1.7.1\" # for scripts\ntaplo = \"0.9.0\"\n",
-        );
+        let (text, _) = removed_from().name("mise.toml").text("# The tools of the project\n[tools]\njq = \"1.7.1\" # for scripts\ntaplo = \"0.9.0\"\n").call();
 
         assert_eq!(
             text,
@@ -288,23 +308,32 @@ mod tests {
 
     #[test]
     fn remove_with_a_dotted_pin_removes_it() {
-        let (text, _) = removed_from("mise.toml", "tools.taplo = \"0.9.0\"\ntools.jq = \"1\"\n");
+        let (text, _) = removed_from()
+            .name("mise.toml")
+            .text("tools.taplo = \"0.9.0\"\ntools.jq = \"1\"\n")
+            .call();
 
         assert_eq!(text, "tools.jq = \"1\"\n");
     }
 
     #[test]
     fn remove_with_a_file_that_is_no_toml_leaves_the_pin() {
-        let (text, removed) = removed_from(".tool-versions", "taplo 0.9.0\n");
+        let (text, removed) = removed_from()
+            .name(".tool-versions")
+            .text("taplo 0.9.0\n")
+            .call();
 
         assert_eq!((text.as_str(), removed), ("taplo 0.9.0\n", false));
     }
 
     #[test]
     fn remove_with_a_file_that_is_no_valid_toml_reports_it() {
-        let (directory, shadow) = project_with("mise.toml", "[tools\n");
+        let (directory, shadow) = project_with().name("mise.toml").text("[tools\n").call();
 
-        let result = remove(&shadow, &ProjectRoot::from(directory.path()));
+        let result = remove()
+            .shadow(&shadow)
+            .root(&ProjectRoot::from(directory.path()))
+            .call();
 
         assert!(
             matches!(
@@ -317,7 +346,10 @@ mod tests {
 
     #[test]
     fn remove_with_a_file_without_the_pin_reports_nothing_removed() {
-        let (_, removed) = removed_from("mise.toml", "[tools]\njq = \"1.7.1\"\n");
+        let (_, removed) = removed_from()
+            .name("mise.toml")
+            .text("[tools]\njq = \"1.7.1\"\n")
+            .call();
 
         assert!(!removed);
     }
@@ -330,7 +362,10 @@ mod tests {
             tool: MiseTool::new("taplo"),
         };
 
-        let result = remove(&shadow, &ProjectRoot::from(directory.path()));
+        let result = remove()
+            .shadow(&shadow)
+            .root(&ProjectRoot::from(directory.path()))
+            .call();
 
         assert!(
             matches!(
@@ -343,9 +378,19 @@ mod tests {
 
     #[test]
     fn remove_with_a_pin_reports_it_removed() {
-        let (_, removed) = removed_from("mise.toml", "[tools]\ntaplo = \"0.9.0\"\n");
+        let (_, removed) = removed_from()
+            .name("mise.toml")
+            .text("[tools]\ntaplo = \"0.9.0\"\n")
+            .call();
 
         assert!(removed);
+    }
+
+    #[test]
+    fn shadow_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Shadow>();
     }
 
     #[test]

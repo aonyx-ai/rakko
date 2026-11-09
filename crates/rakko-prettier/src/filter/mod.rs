@@ -4,7 +4,6 @@
 //! holds that name. An action states the extensions of the group that it
 //! wraps, and the filter turns them into the pattern that prettier reads.
 
-/// The extension of a file that a run examines
 mod extension;
 
 pub use self::extension::FileExtension;
@@ -21,10 +20,10 @@ const EVERY_EXTENSION: &str = "*";
 /// them. A filter that names none examines every file that has an extension,
 /// and prettier then skips the files whose language it does not know.
 ///
-/// The filter selects files and nothing else. It excludes no directory,
-/// because prettier reads the ignore files of the project, and it changes no
-/// option of prettier, because the behavior of the tool comes from the
-/// configuration of the project alone.
+/// The filter selects files and nothing else. It excludes no directory, because
+/// prettier reads the ignore files of the project. It changes no option of
+/// prettier, because the behavior of the tool comes from the configuration of
+/// the project alone.
 ///
 /// # Examples
 ///
@@ -56,6 +55,16 @@ impl Filter {
     /// returns the default filter, which examines every file with an
     /// extension. Prettier skips what it cannot assign to a language, so a
     /// run with that filter covers every language that prettier understands.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_prettier::{FileExtension, Filter};
+    ///
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    ///
+    /// assert_ne!(filter, Filter::default());
+    /// ```
     pub fn new(extensions: impl IntoIterator<Item = FileExtension>) -> Self {
         Self {
             extensions: extensions.into_iter().collect(),
@@ -93,9 +102,10 @@ impl Filter {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -105,10 +115,10 @@ mod tests {
     }
 
     #[test]
-    fn pattern_without_an_extension_matches_every_extension() {
-        let pattern = Filter::default().pattern();
+    fn filter_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert_eq!(pattern, "**/*.*");
+        assert_send_sync_and_unpin::<Filter>();
     }
 
     #[test]
@@ -123,5 +133,12 @@ mod tests {
         let pattern = filter(&["yaml", "yml"]).pattern();
 
         assert_eq!(pattern, "**/*.{yaml,yml}");
+    }
+
+    #[test]
+    fn pattern_without_an_extension_matches_every_extension() {
+        let pattern = Filter::default().pattern();
+
+        assert_eq!(pattern, "**/*.*");
     }
 }

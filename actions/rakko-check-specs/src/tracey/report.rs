@@ -1,15 +1,17 @@
 //! The reports that tracey writes as data
 //!
-//! Tracey answers a validation and a coverage query as JSON, and this module
-//! holds the shape of each answer. The shapes belong to a version of tracey,
-//! so one place reads them, and a version that writes something else breaks
-//! that one place instead of every caller of it.
+//! Tracey answers a validation and a coverage query as JSON. This module holds
+//! the shape of each answer. The shapes belong to a version of tracey, so one
+//! place reads them. A version that writes something else breaks that one place
+//! instead of every caller.
 //!
 //! Each shape names only the fields that a run reads. Tracey writes more about
 //! a problem than a finding carries, such as the rule that a stale reference
-//! points at, and a field that nothing reads is a field that a new version may
+//! points at. A field that nothing reads is a field that a new version may
 //! rename without breaking a run.
 
+use bon::bon;
+use getset::Getters;
 use serde::Deserialize;
 
 use crate::problem::TraceyProblem;
@@ -17,8 +19,8 @@ use crate::problem::TraceyProblem;
 /// What tracey reported about one specification and one implementation of it
 ///
 /// Tracey validates each pair of a specification and an implementation on its
-/// own, and reports the problems of that pair together with the counts that
-/// sort them into warnings and errors.
+/// own. It reports the problems of that pair together with the counts that sort
+/// them into warnings and errors.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Validation {
@@ -36,9 +38,9 @@ impl Validation {
 
 /// One problem that a validation of tracey reported
 ///
-/// Tracey places a problem in a file, at a line and a column, whether the
-/// problem is a reference that names nothing, a reference to a version that
-/// moved, an identifier that two requirements share, or a file that tracey
+/// Tracey places a problem in a file at a line and a column. The problem may be
+/// a reference that names nothing or a reference to a version that moved. It
+/// may also be an identifier that two requirements share, or a file that tracey
 /// could not read.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,13 +82,21 @@ pub(super) struct Status {
 impl Status {
     /// Returns the coverage of every specification of the project together
     pub(super) fn coverage(&self) -> Coverage {
-        self.impls
-            .iter()
-            .fold(Coverage::default(), |total, one| Coverage {
-                total: total.total + one.total_rules,
-                covered: total.covered + one.covered_rules,
-                verified: total.verified + one.verified_rules,
-            })
+        self.impls.iter().fold(
+            Coverage::default(),
+            |sum,
+             ImplCoverage {
+                 total_rules,
+                 covered_rules,
+                 verified_rules,
+             }| {
+                Coverage::builder()
+                    .total(sum.total() + total_rules)
+                    .covered(sum.covered() + covered_rules)
+                    .verified(sum.verified() + verified_rules)
+                    .build()
+            },
+        )
     }
 }
 
@@ -106,26 +116,43 @@ struct ImplCoverage {
 
 /// How much of the specifications of a project the code answers for
 ///
-/// The counts add every specification of the project together, because a
-/// summary of a run says what the run examined and not how each specification
+/// The counts add every specification of the project together. This is because
+/// a summary of a run says what the run examined and not how each specification
 /// fared. The report of tracey holds the detail per specification.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Getters)]
 pub(crate) struct Coverage {
     /// How many requirements the project holds
-    pub total: u64,
+    #[getset(get = "pub")]
+    total: u64,
 
     /// How many of them the code implements
-    pub covered: u64,
+    #[getset(get = "pub")]
+    covered: u64,
 
     /// How many of them a test verifies
-    pub verified: u64,
+    #[getset(get = "pub")]
+    verified: u64,
+}
+
+#[bon]
+impl Coverage {
+    /// Creates a summary of specification coverage
+    #[builder]
+    pub(crate) fn new(total: u64, covered: u64, verified: u64) -> Self {
+        Self {
+            total,
+            covered,
+            verified,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -175,6 +202,58 @@ mod tests {
     }"#;
 
     #[test]
+    fn coverage_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Coverage>();
+    }
+
+    #[test]
+    fn diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Diagnostic>();
+    }
+
+    #[test]
+    fn impl_coverage_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ImplCoverage>();
+    }
+
+    #[test]
+    fn status_adds_every_specification_together() {
+        let status: Status =
+            serde_json::from_str(STATUS).expect("the test reads a report of tracey");
+
+        let coverage = status.coverage();
+
+        assert_eq!(
+            coverage,
+            Coverage::builder()
+                .total(15)
+                .covered(14)
+                .verified(12)
+                .build()
+        );
+    }
+
+    #[test]
+    fn status_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Status>();
+    }
+
+    #[test]
+    fn validation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Validation>();
+    }
+
+    #[test]
     fn validation_reports_the_message_of_tracey() {
         let validations: Vec<Validation> =
             serde_json::from_str(VALIDATION).expect("the test reads a report of tracey");
@@ -201,23 +280,6 @@ mod tests {
                 *problems[0].column()
             ),
             ("src/lib.rs", 4, 3)
-        );
-    }
-
-    #[test]
-    fn status_adds_every_specification_together() {
-        let status: Status =
-            serde_json::from_str(STATUS).expect("the test reads a report of tracey");
-
-        let coverage = status.coverage();
-
-        assert_eq!(
-            coverage,
-            Coverage {
-                total: 15,
-                covered: 14,
-                verified: 12
-            }
         );
     }
 }

@@ -1,11 +1,28 @@
+//! The error that stops the reading of a report
+
 use thiserror::Error;
 
 /// An error that stops the reading of a report of yamllint
 ///
 /// A rule that a file broke is no failure of the reading. The variant here
 /// describes a report whose shape this crate does not know. The crate runs
-/// the version of yamllint that it declares, so such a report holds a line of
+/// the version of yamllint that it declares. So such a report holds a line of
 /// that version that the reading does not cover.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::ReadReportError;
+///
+/// let error = ReadReportError::UnreadableLine {
+///     line: "not a yamllint report".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "yamllint wrote a line that does not report a problem: not a yamllint report"
+/// );
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 #[non_exhaustive]
 pub enum ReadReportError {
@@ -24,20 +41,30 @@ pub enum ReadReportError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read. This test holds the error
-    // to the auto traits that make this possible, because a field of a later
-    // version could take them away without a word from the compiler.
+    /// Shows that `ReadReportError` is `Send` and `Sync`
+    ///
+    /// An action puts the error in the outcome of a run. That outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a later
+    /// version could take them away without a word from the compiler.
     #[test]
     fn read_report_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ReadReportError>();
+    }
+
+    #[test]
+    fn read_report_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ReadReportError>();
     }
 }

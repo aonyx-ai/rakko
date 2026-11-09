@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::io;
 use std::path::PathBuf;
 
@@ -13,6 +15,22 @@ use crate::lockfile::ReadLockfileError;
 /// changes, or removes travels as a finding in the outcome of the run. The
 /// variants of this error describe a run whose answer cannot be trusted, and
 /// such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::CheckMiseLockError;
+/// use rakko_test_utils::path;
+///
+/// let lockfile = path("/home/otter/outside/mise.lock");
+/// let error = CheckMiseLockError::ForeignLockfile {
+///     path: lockfile.clone(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     format!("mise named a lockfile outside the project: {}", lockfile.display())
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckMiseLockError {
@@ -79,9 +97,10 @@ pub enum CheckMiseLockError {
     /// A lockfile records a targeted platform without the address of its
     /// download after the run
     ///
-    /// An install in locked mode refuses such a platform, and `mise lock`
-    /// writes or keeps one when it could not resolve the tool, even when it
-    /// gives no warning, such as for a release that does not exist. The run
+    /// An install in locked mode refuses such a platform. The command `mise
+    /// lock` writes or keeps one when it could not resolve the tool. It does so
+    /// even when it gives no warning, such as for a release that does not
+    /// exist. The run
     /// cannot tell what the project lacks from what the network failed to
     /// give, so it stops. An entry that a second run does not repair belongs
     /// to a release or a platform without a download. A contributor then
@@ -98,10 +117,10 @@ pub enum CheckMiseLockError {
     /// Mise named no platform that it targeted for a lockfile with platforms
     ///
     /// Mise names the platforms that it targets for each lockfile in its
-    /// report of the run, and the run needs them to tell an entry of a
-    /// targeted platform from an old one. A report in a shape that the action
+    /// report. The run needs them to tell an entry of a targeted platform from
+    /// an old one. A report in a shape that the action
     /// does not read points at a version of mise that this crate does not
-    /// know, so the run stops rather than pass over an entry without an
+    /// know. So the run stops rather than pass over an entry without an
     /// address.
     #[error("mise named no platform that it targeted for the lockfile {}", path.display())]
     UntargetedLockfile {
@@ -111,18 +130,20 @@ pub enum CheckMiseLockError {
 
     /// Mise gave a warning that is not one of the harmless kinds
     ///
-    /// Mise can end with success when a query that it needs fails, such as
-    /// the query for the tags of a release, whose tag it then guesses, or one
-    /// for which an API limited the rate of its requests. The entry that it
-    /// writes can then be wrong or incomplete, and a run that went on would
-    /// pass over it. In the mode `merge`, mise also ends with success when a
-    /// download fails, and it leaves the entry of that platform as the
+    /// Mise can end with success when a query that it needs fails. One example
+    /// is the query for the tags of a release, whose tag it then guesses.
+    /// Another is a query for which an API limited the rate of its requests.
+    /// The entry that it
+    /// writes can then be wrong or incomplete. A run that went on would pass
+    /// over it. In the mode `merge`, mise also ends with success when a
+    /// download fails. Then it leaves the entry of that platform as the
     /// lockfile had it. In its default mode, a failed download ends mise with
     /// an error, and the run stops on that. Any warning that is not one of the
-    /// harmless kinds, which include the notice of an older format of the
-    /// lockfile, can be such a sign, a new kind of warning of a later version
-    /// of mise among them. A failure of the network is temporary, and a second
-    /// run answers the question. A cause such as a release without the
+    /// harmless kinds can be such a sign. The harmless kinds include the notice
+    /// of an older format of the lockfile. A new kind of warning of a later
+    /// version of mise is among those signs. A failure of the network is
+    /// temporary, and a
+    /// second run answers the question. A cause such as a release without the
     /// attestations that mise checks lasts, and the words of mise say which of
     /// the two it is.
     #[error(
@@ -136,9 +157,9 @@ pub enum CheckMiseLockError {
     /// Mise wrote a list of lockfiles that the action cannot read
     ///
     /// The shape of the list belongs to a version of mise. A list that the
-    /// action cannot read points at a version that this crate does not know,
-    /// and a comparison of the lockfiles that the reading happened to find
-    /// would hide the others.
+    /// action cannot read points at a version that this crate does not know.
+    /// A comparison of the lockfiles that the reading happened to find would
+    /// hide the others.
     #[error("failed to read the list of lockfiles that mise wrote: {listing}")]
     UnreadableListing {
         /// What mise wrote in place of a list that the action reads
@@ -166,14 +187,23 @@ pub enum CheckMiseLockError {
 mod tests {
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Checks that the error holds auto traits
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. The reason is that a field of a later version could
+    /// take them away without a word from the compiler.
     #[test]
     fn check_mise_lock_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<CheckMiseLockError>();
+    }
+
+    #[test]
+    fn check_mise_lock_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckMiseLockError>();
     }
 }

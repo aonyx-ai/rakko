@@ -1,10 +1,10 @@
 //! The action that lints the YAML files of a project
 //!
-//! [Yamllint] does the work: it discovers the YAML files, reads its own
-//! configuration, and applies the rules that the project turned on, so a run of
+//! [Yamllint] does the work: it discovers the YAML files and reads its own
+//! configuration. It applies the rules that the project turned on. So a run of
 //! the action agrees with an editor and with a contributor that runs yamllint
 //! bare. The action declares the version of yamllint that it runs. It starts
-//! that version, which [mise] installed, and translates what yamllint reported
+//! that version, which [mise] installed. It translates what yamllint reported
 //! into the outcome of the run.
 //!
 //! A run only reports, so the action takes no argument, and yamllint repairs
@@ -12,15 +12,15 @@
 //! files, and it skips visibly otherwise.
 //!
 //! Yamllint gives each problem a level, and the configuration of the project
-//! decides that level for each rule. This crate reports a warning and an
-//! error alike, because both are problems that the project asked yamllint to
-//! look for, and a run with either fails.
+//! decides that level for each rule. This crate reports a warning and an error
+//! alike, because both are problems that the project asked yamllint to look
+//! for. A run with either fails.
 //!
 //! A run starts yamllint twice. The first run asks which files yamllint
-//! examines, because a yamllint that collected no file writes the same empty
-//! report as one that examined the whole project and found nothing. The
-//! second run lints those files. A line of the report that this crate cannot
-//! read stops the run instead of passing quietly.
+//! examines. It needs this because a yamllint that collected no file writes the
+//! same empty report as one that examined the whole project and found nothing.
+//! The second run lints those files. A line of the report that this crate
+//! cannot read stops the run instead of passing quietly.
 //!
 //! # Asynchronous Runtime
 //!
@@ -43,13 +43,9 @@
 //! [tokio]: https://tokio.rs
 //! [yamllint]: https://github.com/adrienverge/yamllint
 
-/// Types for the action that lints the YAML files of a project
 mod lint_yaml;
-/// Types for what one run of yamllint produced
 mod observation;
-/// Types for one rule that yamllint reported about a file
 mod problem;
-/// Types for the yamllint that a project runs
 mod yamllint;
 
 pub use self::lint_yaml::{LintYaml, LintYamlError};

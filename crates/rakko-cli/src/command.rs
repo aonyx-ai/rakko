@@ -1,3 +1,6 @@
+//! The command that a harness writes for an activity that does not fit an
+//! action
+
 use std::future::Future;
 
 use clawless::CommandResult;
@@ -6,27 +9,27 @@ use rakko::{Args, Context, Name};
 
 /// A command that a harness writes for an activity that does not fit an action
 ///
-/// An action runs once and reports one outcome, and the projection derives
-/// one command from each action that a harness mounts. Some maintenance
-/// activities of a project do not fit that shape: a run that drives many
-/// actions and reports on all of them, a watch that never returns, or a
-/// server. A harness writes such an activity as a command and mounts it
-/// beside its actions, and the command line lists both as one flat list.
+/// An action runs once and reports one outcome. The projection derives one
+/// command from each action that a harness mounts. Some maintenance activities
+/// of a project do not fit that shape. Examples are a run that drives many
+/// actions and reports on all of them, a watch that never returns, or a server.
+/// A harness writes such an activity as a command and mounts it beside its
+/// actions. The command line lists both as one flat list.
 ///
 /// The trait describes the command as data, the way the [`Action`] trait
-/// describes an action: the name that identifies it and the type of the
-/// arguments that a run reads. The projection builds the command from that
-/// data before a run exists, so a command names no flag and no syntax, and
-/// its arguments render under the rules that the arguments of an action
-/// follow.
+/// describes an action. The data holds the name that identifies the command and
+/// the type of the arguments that a run reads. The projection builds the
+/// command from that data before a run exists. So a command names no flag and
+/// no syntax. Its arguments render under the rules that the arguments of an
+/// action follow.
 ///
 /// The run is arbitrary code. It receives the context of the project and the
-/// context of Clawless, writes its output through Clawless, and returns what
+/// context of Clawless. It writes its output through Clawless. It returns what
 /// a Clawless command returns: success or an error, and no value. The
-/// projection hands a command no view of the actions that the harness
-/// mounted. A command that runs actions calls them as the libraries that they
-/// are. An activity that runs a list of actions and takes its flags from their
-/// arguments is a [`Group`] instead, and the command line runs that list.
+/// projection hands a command no view of the actions that the harness mounted.
+/// A command that runs actions calls them as the libraries that they are. An
+/// activity that runs a list of actions and takes its flags from their
+/// arguments is a [`Group`] instead. The command line runs that list.
 ///
 /// The framework drives a command on a runtime of its own and can move the
 /// run to a different thread. The trait therefore requires [`Send`] and
@@ -73,10 +76,10 @@ use rakko::{Args, Context, Name};
 pub trait Command: Send + Sync {
     /// The arguments that a run of the command reads
     ///
-    /// The type implements [`Args`], the vocabulary of the contract crate, so
+    /// The type implements [`Args`], the vocabulary of the contract crate. So
     /// the projection renders the arguments of a command as it renders the
-    /// arguments of an action. A command that reads no arguments uses the
-    /// unit type.
+    /// arguments of an action. A command that reads no arguments uses the unit
+    /// type.
     type Args: Args;
 
     /// Returns the name that identifies the command
@@ -84,13 +87,13 @@ pub trait Command: Send + Sync {
 
     /// Runs the command against the project that the context names
     ///
-    /// The method returns a future, and the framework drives that future to
-    /// its end. The command writes what it has to say through the output of
-    /// the Clawless context, and it returns an error when it fails. The
-    /// command line turns success into a clean exit code and an error into
-    /// the code of a run that could not answer. It shows the error and then
-    /// every cause of it from [`source`], so the message of an error states
-    /// what failed and does not repeat its cause.
+    /// The method returns a future, and the framework drives that future to its
+    /// end. The command writes what it has to say through the output of the
+    /// Clawless context, and it returns an error when it fails. The command
+    /// line turns success into a clean exit code and an error into the code of
+    /// a run that could not answer. It shows the error and then every cause of
+    /// it from [`source`]. So the message of an error states what failed and
+    /// does not repeat its cause.
     ///
     /// [`source`]: std::error::Error::source
     fn run(
@@ -103,9 +106,10 @@ pub trait Command: Send + Sync {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::{Path, PathBuf};
     use std::pin::{Pin, pin};
@@ -147,22 +151,34 @@ mod tests {
         }
     }
 
+    /// Whether a future has returned control already
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+    enum YieldState {
+        /// The future has not returned control yet
+        #[default]
+        Pending,
+
+        /// The future has returned control already
+        Yielded,
+    }
+
     /// A future that returns control once before it resolves
     #[derive(Default)]
     struct YieldOnce {
         /// Whether the future has returned control already
-        yielded: bool,
+        yielded: YieldState,
     }
 
     impl Future for YieldOnce {
         type Output = ();
 
         fn poll(mut self: Pin<&mut Self>, _cx: &mut TaskContext<'_>) -> Poll<()> {
-            if self.yielded {
-                Poll::Ready(())
-            } else {
-                self.yielded = true;
-                Poll::Pending
+            match self.yielded {
+                YieldState::Yielded => Poll::Ready(()),
+                YieldState::Pending => {
+                    self.yielded = YieldState::Yielded;
+                    Poll::Pending
+                }
             }
         }
     }
@@ -286,5 +302,12 @@ mod tests {
         let state = future.as_mut().poll(&mut task_context);
 
         assert!(matches!(state, Poll::Pending));
+    }
+
+    #[test]
+    fn yield_state_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<YieldState>();
     }
 }

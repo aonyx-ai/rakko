@@ -1,15 +1,14 @@
 //! The files that yamllint examines in a project
 //!
-//! Yamllint collects the files of a run from the place that the run names and
-//! from the configuration of the project, and it can report that selection
+//! Yamllint collects the files of a run from the place that the run names
+//! and from the configuration of the project. It can report that selection
 //! without linting anything. This module asks for it.
 //!
-//! The selection answers what the report of a lint run leaves open. A yamllint
-//! that collected no file writes the same empty report as a yamllint that
-//! examined the whole project and found nothing, and the two runs mean
+//! The selection answers what the report of a lint run leaves open. A
+//! yamllint that collected no file writes the same empty report as a yamllint
+//! that examined the whole project and found nothing. The two runs mean
 //! opposite things for the outcome of an action.
 
-/// The error that leaves a caller without the files of a project
 mod error;
 
 use std::path::PathBuf;
@@ -75,18 +74,12 @@ fn paths(listing: &str) -> Vec<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
-
-    #[test]
-    fn paths_of_an_empty_listing_hold_nothing() {
-        let paths = paths("\n");
-
-        assert!(paths.is_empty(), "expected no path, got {paths:?}");
-    }
 
     #[test]
     fn paths_of_a_listing_hold_one_path_per_line() {
@@ -96,5 +89,12 @@ mod tests {
             paths,
             [PathBuf::from("./a.yaml"), PathBuf::from("./sub/b.yml")]
         );
+    }
+
+    #[test]
+    fn paths_of_an_empty_listing_hold_nothing() {
+        let paths = paths("\n");
+
+        assert!(paths.is_empty(), "expected no path, got {paths:?}");
     }
 }

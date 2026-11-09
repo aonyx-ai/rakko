@@ -1,3 +1,5 @@
+//! The range of versions of a toolchain that an action accepts
+
 typed_fields::name! {
     /// The range of versions of a toolchain that an action accepts
     ///

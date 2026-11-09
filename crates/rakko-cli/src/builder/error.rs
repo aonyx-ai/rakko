@@ -1,3 +1,5 @@
+//! The error of a run that the runner ended before it started
+
 use rakko::Name;
 use thiserror::Error;
 
@@ -41,13 +43,21 @@ pub(crate) enum RunEntryError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::action_name;
 
     use super::*;
+
+    #[test]
+    fn run_entry_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RunEntryError>();
+    }
 
     #[test]
     fn unknown_access_tells_the_user_to_update_rakko() {

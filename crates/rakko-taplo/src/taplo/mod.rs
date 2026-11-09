@@ -5,13 +5,12 @@
 //! operation. An action states which operation it wants, and
 //! everything between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
 
 use std::time::Duration;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Execution, Launch, ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{Execution, Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub use self::error::ObserveTaploError;
 use crate::observation::Observation;
@@ -19,25 +18,24 @@ use crate::operation::Operation;
 
 /// The number of times one operation starts before the crate gives up
 ///
-/// Taplo can lose the end of its report when it exits, and a fresh run
-/// almost always answers, so a few attempts separate a lost line from a
-/// report that has genuinely ended.
+/// Taplo can lose the end of its report when it exits, and a fresh run almost
+/// always answers. So a few attempts separate a lost line from a report that
+/// has genuinely ended.
 const ATTEMPTS: u32 = 6;
 
 /// The number of times one operation starts to get the count of the files
 ///
-/// The count is the one part of a report that no other stream carries, and
-/// a run that has nothing left to do after it counts loses it most often. A
-/// caller reports a pass without the count, so the count gets a small budget
-/// of its own instead of the whole one.
+/// The count is the one part of a report that no other stream carries. A run
+/// that has nothing left to do after it counts loses it most often. A caller
+/// reports a pass without the count, so the count gets a small budget of its
+/// own instead of the whole one.
 const COUNTED_ATTEMPTS: u32 = 2;
 
 /// The pause that grows between the attempts of one operation
 ///
-/// The loss happens while taplo exits, and a machine under load takes longer
-/// over it, so attempts that follow each other immediately tend to lose
-/// together. A growing pause carries the later attempts past the moment of
-/// load.
+/// The loss happens while taplo exits. A machine under load takes longer over
+/// it. So attempts that follow each other immediately tend to lose together. A
+/// growing pause carries the later attempts past the moment of load.
 const BACKOFF: Duration = Duration::from_millis(25);
 
 /// The name that mise knows the tool by, which is also the name of its
@@ -48,7 +46,7 @@ const TAPLO: &str = "taplo";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), TAPLO);
+const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(TAPLO);
 
 /// The subcommand of taplo that formats TOML files
 const FORMAT: &str = "fmt";
@@ -61,10 +59,10 @@ const CHECK: &str = "--check";
 
 /// The flag that asks the formatter to name its files on standard output
 ///
-/// The flag makes taplo print the difference that it would write for each
-/// file that is not formatted. The crate reads the header of each of those
-/// differences and not the text below it, because the header names the file
-/// and the stream that carries it does not lose lines.
+/// The flag makes taplo print the difference that it would write for each file
+/// that is not formatted. The crate reads the header of each of those
+/// differences and not the text below it. It does so because the header names
+/// the file, and the stream that carries it does not lose lines.
 const DIFF: &str = "--diff";
 
 /// The flag that selects how taplo colors its report
@@ -72,9 +70,9 @@ const COLORS: &str = "--colors";
 
 /// The value that asks taplo for a report without color codes
 ///
-/// The report is read as data, and a color code inside a path would corrupt
-/// the reading. The flag selects the presentation of the report and not the
-/// behavior of the tool: what taplo does to a project comes from the
+/// The report is read as data, and a color code inside a path would corrupt the
+/// reading. The flag selects the presentation of the report and not the
+/// behavior of the tool. What taplo does to a project comes from the
 /// configuration of that project alone.
 const PLAIN: &str = "never";
 
@@ -92,17 +90,18 @@ const PLAIN: &str = "never";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::Context;
+/// use rakko::{Context, ProjectRoot};
 /// use rakko_taplo::{Operation, Taplo};
+/// use rakko_test_utils::path;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let context = Context::builder().root("/home/otter/project").build();
+/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 /// let taplo = Taplo::resolve(&context).await?;
 ///
 /// let observation = taplo.observe(Operation::CheckFormat).await?;
 ///
-/// println!("{:?} files", observation.checked());
+/// assert!(observation.problems().is_empty());
 /// # Ok(())
 /// # }
 /// ```
@@ -117,24 +116,43 @@ pub struct Taplo {
 impl Taplo {
     /// Runs one operation and reads what taplo reported
     ///
-    /// Taplo can lose the end of its report when it exits. The answer of a
-    /// run survives that loss: the exit status carries whether taplo found
-    /// anything, a formatting run names the files that it would rewrite on
-    /// its standard output stream, a file that taplo read and could not
-    /// accept gets a diagnostic that the same loss never reaches, and the
-    /// reading of a failed validating run reads the files of the run itself
-    /// to find the ones that taplo could not read. A report that holds no
-    /// answer at all lost the lines that carried one, and such a run starts
-    /// again, a few times, before the crate gives up.
+    /// Taplo can lose the end of its report when it exits. The answer of a run
+    /// survives that loss. The exit status carries whether taplo found
+    /// anything. A formatting run names the files that it would rewrite on its
+    /// standard output stream. A file that taplo read and could not accept gets
+    /// a diagnostic that the same loss never reaches. The reading of a failed
+    /// validating run reads the files of the run itself to find the ones that
+    /// taplo could not read.
     ///
-    /// The count of the files is the one part that no other stream carries.
-    /// An operation starts again to get it, with a budget of its own, and
-    /// answers without the count instead of failing over it: a run that
+    /// A report that holds no answer at all lost the lines that carried one.
+    /// Such a run starts again, a few times, before the crate gives up.
+    ///
+    /// The count of the files is the one part that no other stream carries. An
+    /// operation starts again to get it, with a budget of its own, and answers
+    /// without the count instead of failing over it. That is because a run that
     /// ended with success found nothing, whatever its report lost.
     ///
     /// Repeating is safe for every operation, because a report reads the
     /// project again, and a rewrite formats files that a previous attempt
     /// already formatted.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_taplo::{Operation, Taplo};
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let taplo = Taplo::resolve(&context).await?;
+    /// let observation = taplo.observe(Operation::CheckFormat).await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -152,7 +170,11 @@ impl Taplo {
                 tokio::time::sleep(BACKOFF * attempt).await;
             }
 
-            let observation = Observation::read(&self.start(operation).await?, operation).await;
+            let observation = Observation::read()
+                .execution(&self.start(operation).await?)
+                .operation(operation)
+                .call()
+                .await;
 
             if !observation.complete() {
                 stderr = observation.stderr().clone();
@@ -173,6 +195,16 @@ impl Taplo {
     ///
     /// The requirement holds the exact version that the crate pins. An action
     /// that runs taplo returns it from its declaration of tools.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_taplo::Taplo;
+    ///
+    /// let requirement = Taplo::requirement();
+    ///
+    /// assert_eq!(requirement.executable().get(), "taplo");
+    /// ```
     pub fn requirement() -> ToolRequirement {
         ToolRequirement::builder()
             .tool(TAPLO)
@@ -187,6 +219,23 @@ impl Taplo {
     /// holds, so a pin of taplo in the project does not change the answer.
     /// A run of taplo starts in the root of the context.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_taplo::Taplo;
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let taplo = Taplo::resolve(&context).await?;
+    ///
+    /// assert_eq!(taplo, Taplo::resolve(&context).await?);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns a [`ResolveRequirementError`] when mise does not run, or when
@@ -195,7 +244,11 @@ impl Taplo {
     ///
     /// [requirement]: Taplo::requirement
     pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }
@@ -230,9 +283,10 @@ fn arguments(operation: Operation) -> &'static [&'static str] {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -255,5 +309,12 @@ mod tests {
         let selected = arguments(Operation::Lint);
 
         assert_eq!(selected, ["lint"]);
+    }
+
+    #[test]
+    fn taplo_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Taplo>();
     }
 }

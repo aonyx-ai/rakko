@@ -1,18 +1,20 @@
+//! An error and every cause behind it, as a reader sees them
+
 use std::error::Error;
 use std::fmt;
 
 /// An error together with every cause behind it
 ///
-/// The `Display` of an error writes its own layer only. An error usually
-/// states what failed and carries the reason as its source, so the layer that
-/// a reader needs is usually the innermost one. A chain writes the error and
-/// then each source in turn, joined by a colon, so that a reader learns why a
-/// run stopped without a flag that asks for more.
+/// The `Display` of an error writes its own layer only. An error usually states
+/// what failed and carries the reason as its source, so the layer that a reader
+/// needs is usually the innermost one. A chain writes the error and then each
+/// source in turn, joined by a colon. So a reader learns why a run stopped
+/// without a flag that asks for more.
 ///
-/// Every place that shows an error to a reader writes it through this type,
-/// so a failed command, a stopped action in text, and a stopped action in
-/// JSON all show the same chain. A message that holds a line break, such as
-/// the output of a tool, keeps it.
+/// Every place that shows an error to a reader writes it through this type. So
+/// a failed command, a stopped action in text, and a stopped action in JSON all
+/// show the same chain. A message that holds a line break, such as the output
+/// of a tool, keeps it.
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Chain<'a> {
     /// The outermost error of the chain
@@ -43,9 +45,10 @@ impl fmt::Display for Chain<'_> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::io;
 
@@ -57,6 +60,13 @@ mod tests {
     struct ReadManifestError {
         /// Why the file could not be read
         source: io::Error,
+    }
+
+    #[test]
+    fn chain_is_unpin() {
+        fn assert_unpin<T: Unpin>() {}
+
+        assert_unpin::<Chain<'static>>();
     }
 
     #[test]
@@ -92,4 +102,14 @@ mod tests {
             "failed to load the workspace: failed to parse Cargo.toml: the file is not TOML"
         );
     }
+
+    /// `Chain` borrows a `dyn Error`, which a source need not make `Sync`, so
+    /// the chain cannot cross a thread
+    #[test]
+    fn trait_not_send_chain() {}
+
+    /// `Chain` borrows a `dyn Error`, which a source need not make `Sync`, so
+    /// no other thread can share the chain
+    #[test]
+    fn trait_not_sync_chain() {}
 }

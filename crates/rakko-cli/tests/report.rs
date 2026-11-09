@@ -5,9 +5,10 @@
 //! tests therefore live beside the crate instead of inside it: a report that
 //! only the crate itself can build would fail them.
 
-// An assertion in a test panics by design. A `# Panics` section on every test
-// would repeat that and give the reader no information.
-#![allow(clippy::missing_panics_doc)]
+#![allow(
+    clippy::missing_panics_doc,
+    reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+)]
 
 use rakko::{FilePath, Finding, Location, Outcome, Summary, action_name};
 use rakko_cli::Report;
@@ -26,7 +27,10 @@ fn report_of_a_failed_action_shows_what_it_found() {
         repairs: Vec::new(),
     };
 
-    let report = Report::new(action_name!("format-toml"), outcome);
+    let report = Report::builder()
+        .action(action_name!("format-toml"))
+        .outcome(outcome)
+        .build();
 
     assert_eq!(
         report.to_string(),
@@ -40,7 +44,10 @@ fn report_of_a_passing_action_shows_the_action_and_its_summary() {
         summary: Some(Summary::new("checked 3 files")),
     };
 
-    let report = Report::new(action_name!("format-toml"), outcome);
+    let report = Report::builder()
+        .action(action_name!("format-toml"))
+        .outcome(outcome)
+        .build();
 
     assert_eq!(report.to_string(), "format-toml: passed, checked 3 files");
 }

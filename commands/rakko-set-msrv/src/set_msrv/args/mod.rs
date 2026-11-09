@@ -1,6 +1,6 @@
-/// A minimum supported Rust version
+//! The arguments that a run of the command reads
+
 mod msrv;
-/// Why a project needs its minimum supported Rust version
 mod reason;
 
 use getset::Getters;
@@ -32,6 +32,29 @@ const PARTS: usize = 3;
 /// The reason is one line that says something. It becomes the comment above
 /// the version, and a blank reason would only delete that comment. A comment
 /// in TOML ends at the line break and holds no other control character.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_set_msrv::{Msrv, SetMsrvArgs};
+///
+/// let values = ArgsValues::new([
+///     (argument_name!("msrv"), ArgumentValue::new("1.89.0")),
+///     (argument_name!("reason"), ArgumentValue::new("bon needs it")),
+/// ]);
+///
+/// let args = SetMsrvArgs::from_values(&values).unwrap();
+///
+/// assert_eq!(args.msrv(), &Msrv::new("1.89.0"));
+///
+/// let short = ArgsValues::new([
+///     (argument_name!("msrv"), ArgumentValue::new("1.89")),
+///     (argument_name!("reason"), ArgumentValue::new("bon needs it")),
+/// ]);
+///
+/// assert!(SetMsrvArgs::from_values(&short).is_err());
+/// ```
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Getters)]
 pub struct SetMsrvArgs {
     /// The version that the project promises to compile on after the run
@@ -116,13 +139,15 @@ fn complete(version: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     /// Returns the values of a run that gives the arguments the given text
+    #[bon::builder]
     fn values(msrv: &str, reason: &str) -> ArgsValues {
         ArgsValues::new([
             (argument_name!("msrv"), ArgumentValue::new(msrv)),
@@ -132,7 +157,8 @@ mod tests {
 
     #[test]
     fn from_values_with_a_blank_reason_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.89.0", "  ")).unwrap_err();
+        let error =
+            SetMsrvArgs::from_values(&values().msrv("1.89.0").reason("  ").call()).unwrap_err();
 
         assert_eq!(
             error,
@@ -145,14 +171,17 @@ mod tests {
 
     #[test]
     fn from_values_with_a_complete_version_reads_it() {
-        let args = SetMsrvArgs::from_values(&values("1.89.0", "bon needs it")).unwrap();
+        let args = SetMsrvArgs::from_values(&values().msrv("1.89.0").reason("bon needs it").call())
+            .unwrap();
 
         assert_eq!(args.msrv(), &Msrv::new("1.89.0"));
     }
 
     #[test]
     fn from_values_with_a_leading_zero_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.089.0", "bon needs it")).unwrap_err();
+        let error =
+            SetMsrvArgs::from_values(&values().msrv("1.089.0").reason("bon needs it").call())
+                .unwrap_err();
 
         assert_eq!(
             error,
@@ -165,7 +194,9 @@ mod tests {
 
     #[test]
     fn from_values_with_a_line_break_in_the_reason_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.89.0", "bon\nneeds it")).unwrap_err();
+        let error =
+            SetMsrvArgs::from_values(&values().msrv("1.89.0").reason("bon\nneeds it").call())
+                .unwrap_err();
 
         assert_eq!(
             error,
@@ -178,7 +209,8 @@ mod tests {
 
     #[test]
     fn from_values_with_a_version_of_two_parts_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.89", "bon needs it")).unwrap_err();
+        let error = SetMsrvArgs::from_values(&values().msrv("1.89").reason("bon needs it").call())
+            .unwrap_err();
 
         assert_eq!(
             error,
@@ -191,7 +223,9 @@ mod tests {
 
     #[test]
     fn from_values_with_a_version_that_is_no_number_reports_the_argument() {
-        let error = SetMsrvArgs::from_values(&values("1.89.x", "bon needs it")).unwrap_err();
+        let error =
+            SetMsrvArgs::from_values(&values().msrv("1.89.x").reason("bon needs it").call())
+                .unwrap_err();
 
         assert_eq!(
             error,
@@ -253,5 +287,12 @@ mod tests {
                 ("reason", &ArgumentShape::Text, false),
             ]
         );
+    }
+
+    #[test]
+    fn set_msrv_args_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<SetMsrvArgs>();
     }
 }

@@ -1,10 +1,10 @@
 //! The action that lints the TypeScript of a project
 //!
 //! [Oxlint] does the work: it discovers the files, reads its own
-//! configuration, and applies the rules that the project turned on, so a run
+//! configuration, and applies the rules that the project turned on. So a run
 //! of the action agrees with an editor and with a contributor that runs oxlint
 //! bare. The action declares the version of oxlint that it runs. It starts
-//! that version, which [mise] installed, and translates what oxlint reported
+//! that version, which [mise] installed. It translates what oxlint reported
 //! into the outcome of the run.
 //!
 //! A run only reports, so the action takes no argument. The action applies to
@@ -13,19 +13,19 @@
 //!
 //! Oxlint gives each diagnostic a severity, and the configuration of the
 //! project decides that severity for each rule. This crate reports a warning
-//! and an error alike, and a run with either fails, because a rule at either
+//! and an error alike. A run with either fails, because a rule at either
 //! severity is one that the project asked oxlint to look for.
 //!
 //! One run of oxlint answers everything that the action needs. The report
-//! carries the diagnostics and the number of files that the run examined, so
+//! carries the diagnostics and the number of files that the run examined. So
 //! the project is discovered once, by the tool that the contributor also runs.
 //!
 //! The report is also the only thing that answers. Oxlint ends with success
 //! when every rule that a file broke is one that the project weighs as a
-//! warning, and it ends without success for a project that holds no file to
-//! lint, so the status of the process would pass a project with problems and
-//! fail a project with none. A report that this crate cannot read stops the
-//! run instead of passing quietly.
+//! warning. It ends without success for a project that holds no file to lint.
+//! So the status of the process would pass a project with problems and fail a
+//! project with none. A report that this crate cannot read stops the run
+//! instead of passing quietly.
 //!
 //! # Asynchronous Runtime
 //!
@@ -48,13 +48,9 @@
 //! [oxlint]: https://oxc.rs/docs/guide/usage/linter.html
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that lints the TypeScript of a project
 mod lint_typescript;
-/// Types for what one run of oxlint produced
 mod observation;
-/// Types for the oxlint that a project runs
 mod oxlint;
-/// Types for one diagnostic that oxlint reported about a project
 mod problem;
 
 pub use self::lint_typescript::{LintTypeScript, LintTypeScriptError};

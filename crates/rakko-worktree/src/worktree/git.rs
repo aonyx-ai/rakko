@@ -1,26 +1,26 @@
 //! The commands of git that the crate starts
 //!
-//! Git is infrastructure of a machine and not a tool that an action wraps, so
+//! Git is infrastructure of a machine and not a tool that an action wraps. So
 //! the operating system finds it with the rules of the platform.
 //!
 //! Every command starts in a directory that the caller names, and it works on
-//! the repository of that directory. That is not what a bare git does: a
+//! the repository of that directory. That is not what a bare git does. A
 //! process that runs inside a git hook, a rebase, or a bisect inherits
-//! variables that name the repository, the working tree, and the index of the
-//! run above it, and those variables beat both the working directory and the
-//! `-C` option. A command of the crate would then read the index of that run
-//! and write into its repository, which is the one thing that the crate
-//! promises never to do.
+//! variables from the run above it. The variables name the repository, the
+//! working tree, and the index of that run, and they beat both the working
+//! directory and the `-C` option. A command of the crate would then read the
+//! index of that run and write into its repository. That is the one thing that
+//! the crate promises never to do.
 //!
 //! The variables therefore leave the environment of the command. Setting them
 //! is no answer: git reads an empty `GIT_DIR` as a repository named by the
-//! empty string, and a value that would be right names the repository that the
+//! empty string. A value that would be right names the repository that the
 //! command has not found yet.
 //!
-//! What leaves is the whole prefix, and not a list of the names that redirect
-//! a command today. A list is a promise that nobody renews: git adds a
-//! variable, the list stays as it was, and the command that it redirects is
-//! the one that writes. The prefix holds whatever git adds later.
+//! What leaves is the whole prefix, and not a list of the names that redirect a
+//! command today. A list is a promise that nobody renews: git adds a variable,
+//! and the list stays as it was. The command that it redirects is the one that
+//! writes. The prefix holds whatever git adds later.
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -42,9 +42,9 @@ const PREFIX: &[u8] = b"GIT_";
 
 /// Returns a command that runs git in the directory, without a runtime
 ///
-/// A drop cannot wait for a future, and the crate that describes a command
-/// runs one only as a future, so the removal of a copy describes its own
-/// command and waits for it on the thread that dropped the value.
+/// A drop cannot wait for a future, and the crate that describes a command runs
+/// one only as a future. So the removal of a copy describes its own command and
+/// waits for it on the thread that dropped the value.
 pub(super) fn blocking_command(directory: &Path) -> Command {
     let mut command = Command::new(GIT);
 
@@ -74,17 +74,18 @@ pub(super) fn command(directory: &Path) -> Invocation {
 /// Returns the names that git reads for itself
 ///
 /// The check reads the bytes of a name, because a name of the environment need
-/// not be valid text, and a name that the crate could not read would be a name
-/// that it could not drop.
+/// not be valid text. A name that the crate could not read would be a name that
+/// it could not drop.
 fn reserved(names: impl Iterator<Item = OsString>) -> impl Iterator<Item = OsString> {
     names.filter(|name| name.as_encoded_bytes().starts_with(PREFIX))
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use kawauso_process::invocation::WorkingDirectory;
 
@@ -117,27 +118,33 @@ mod tests {
         );
     }
 
-    // The variable that a hook exports is the one that would send every
-    // command of the crate at the repository of the hook.
-    #[test]
-    fn reserved_names_a_variable_of_git() {
-        assert_eq!(dropped(&["GIT_DIR"]), vec!["GIT_DIR"]);
-    }
-
-    // A name that nobody has heard of yet is what the prefix is for: it goes
-    // without anybody adding it to a list.
-    #[test]
-    fn reserved_names_a_variable_that_git_has_yet_to_add() {
-        assert_eq!(dropped(&["GIT_SOMETHING_NEW"]), vec!["GIT_SOMETHING_NEW"]);
-    }
-
-    // The underscore of the prefix keeps the variables of other programs, and
-    // this is the name that a prefix without it would take away.
+    /// Preserves a variable used by another program
+    ///
+    /// The underscore of the prefix keeps the variables of other programs, and
+    /// this is the name that a prefix without it would take away.
     #[test]
     fn reserved_keeps_a_variable_of_another_program() {
         assert_eq!(
             dropped(&["GITHUB_TOKEN", "PATH", "HOME"]),
             Vec::<String>::new()
         );
+    }
+
+    /// Names a variable exported by git itself
+    ///
+    /// The variable that a hook exports is the one that would send every
+    /// command of the crate at the repository of the hook.
+    #[test]
+    fn reserved_names_a_variable_of_git() {
+        assert_eq!(dropped(&["GIT_DIR"]), vec!["GIT_DIR"]);
+    }
+
+    /// Reserves a variable before git adds it to the spec
+    ///
+    /// A name that nobody has heard of yet is what the prefix is for: it goes
+    /// without anybody adding it to a list.
+    #[test]
+    fn reserved_names_a_variable_that_git_has_yet_to_add() {
+        assert_eq!(dropped(&["GIT_SOMETHING_NEW"]), vec!["GIT_SOMETHING_NEW"]);
     }
 }

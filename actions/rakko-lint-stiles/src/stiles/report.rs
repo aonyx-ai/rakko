@@ -1,3 +1,5 @@
+//! The reading of the reports that stiles wrote
+
 use std::path::PathBuf;
 
 use rakko::Position;
@@ -9,8 +11,8 @@ use crate::problem::{Severity, StilesProblem};
 /// One diagnostic of the report that stiles wrote
 ///
 /// Stiles writes more than these fields, such as the byte offsets where the
-/// diagnostic starts and ends, and the reading ignores the rest, so a field
-/// that a new version adds does not break it.
+/// diagnostic starts and ends. The reading ignores the rest, so a field that
+/// a new version adds does not break it.
 #[derive(Deserialize)]
 struct Record {
     /// The identifier of the rule that fired
@@ -35,16 +37,18 @@ struct Record {
 impl Record {
     /// Returns the problem that this diagnostic describes
     fn into_problem(self) -> StilesProblem {
-        StilesProblem::new(
-            self.file,
-            Position::builder()
-                .line(self.line)
-                .column(self.column)
-                .build(),
-            self.severity,
-            self.rule,
-            self.message,
-        )
+        StilesProblem::builder()
+            .path(self.file)
+            .position(
+                Position::builder()
+                    .line(self.line)
+                    .column(self.column)
+                    .build(),
+            )
+            .severity(self.severity)
+            .rule(self.rule)
+            .text(self.message)
+            .build()
     }
 }
 
@@ -80,8 +84,8 @@ pub(super) fn problems(report: &str) -> Result<Vec<StilesProblem>, serde_json::E
 /// Returns the identifiers of the rules that a listing of stiles turns on
 ///
 /// Stiles writes one object per line, one for each rule that the configured
-/// lints declare, and it marks a rule that the configuration of the project
-/// turns off. A project that configures no lint gets an empty listing.
+/// lints declare. It marks a rule that the configuration of the project turns
+/// off. A project that configures no lint gets an empty listing.
 ///
 /// # Errors
 ///
@@ -115,11 +119,10 @@ fn objects<T: DeserializeOwned>(text: &str) -> Result<Vec<T>, serde_json::Error>
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a report
-    // which stiles could have written expects the reading to succeed. A
-    // `# Panics` section on every test would repeat that and give the reader
-    // no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a report which stiles could have written expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -158,6 +161,13 @@ mod tests {
         let result = enabled_rules("lint.todo-comment (rust)\n");
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn listed_rule_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ListedRule>();
     }
 
     #[test]
@@ -209,5 +219,12 @@ mod tests {
         let result = problems("warning: something\n");
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
     }
 }

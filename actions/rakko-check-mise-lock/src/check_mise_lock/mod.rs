@@ -1,15 +1,14 @@
 //! The action that checks whether the lockfile of mise is complete
 //!
 //! This module holds the action, its arguments, and the error that stops a
-//! run. The action reads the lockfiles of the project, runs `mise lock` in a
-//! copy of the project or, with `fix`, in the project itself, and reads the
-//! lockfiles again. Each part that the run added, changed, or removed becomes
-//! a finding or a repair.
+//! run. The action reads the lockfiles of the project. It runs `mise lock` in
+//! a copy of the project, or in the project itself with `fix`. Then it reads
+//! the lockfiles again. Each part that the run added, changed, or removed
+//! becomes a finding or a repair.
 
-/// The arguments that a run reads
 mod args;
-/// The error that stops a run of the action
 mod error;
+mod operation;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -20,6 +19,7 @@ use rakko_worktree::Worktree;
 
 pub use self::args::CheckMiseLockArgs;
 pub use self::error::CheckMiseLockError;
+pub use self::operation::Operation;
 use crate::difference::Difference;
 use crate::lockfile::Lockfile;
 use crate::mise::{Lock, Mise, Trust};
@@ -30,35 +30,35 @@ use crate::part::Platform;
 /// A lockfile of [mise] records, for each tool that mise downloads, the
 /// address and the checksum of the file for each platform. An install in
 /// locked mode stops when the lockfile has no entry for the platform of the
-/// machine, and it examines only that one platform, so a gap stays hidden
-/// until a new machine installs the tool. Mise has no operation that only
-/// checks, so the action runs `mise lock` and compares the lockfiles before
-/// and after the run.
+/// machine. It examines only that one platform, so a gap stays hidden until
+/// a new machine installs the tool. Mise has no operation that only checks,
+/// so the action runs `mise lock` and compares the lockfiles before and after
+/// the run.
 ///
 /// `mise lock` targets the platforms that the setting `lockfile_platforms` of
-/// the project names, and the platform of the machine that runs it as well,
-/// and in the default mode of mise it removes the entries of every other
-/// platform. A project therefore names every platform on which something
-/// locks it, that of a bot that moves its pins among them. Otherwise a run on
-/// a machine of another platform reports the entries of that platform, as
-/// added or as removed. The lockfile also depends on the version of mise, and
-/// the version in CI decides when a contributor gets another answer.
+/// the project names, and the platform of the machine that runs it as well.
+/// In the default mode of mise it removes the entries of every other platform.
+/// A project therefore names every platform on which something locks it, that
+/// of a bot that moves its pins among them. Otherwise a run on a
+/// machine of another platform reports the entries of that platform, as added
+/// or as removed. The lockfile also depends on the version of mise, and the
+/// version in CI decides when a contributor gets another answer.
 ///
-/// A run reports by default, and it then runs `mise lock` in a disposable
-/// copy of the project, so the checkout of a contributor stays as it was. The
-/// copy holds the changes that are not committed, so a run answers for the
-/// tree that the contributor works on. It holds no file that git ignores, so a
-/// configuration such as an ignored `mise.local.toml` does not reach the run.
-/// It lies in the temporary directory of the system, so a configuration of
-/// mise in a directory above the project does not reach it either. No run of
-/// mise inherits `MISE_YES`, with which an environment such as CI answers the
-/// questions of mise in advance, so a project that nobody trusted stops the
-/// run, and the action trusts nothing in the place of its owner. Mise still
-/// reads every lockfile of the project when the run asks it for them there,
-/// so an ignored lockfile that mise cannot read stops the run. With `fix`, the
-/// run runs `mise lock` in the project, and its result stays there, also when
-/// the run stops after `mise lock`. Such a run also compares and keeps what
-/// `mise lock` writes to an ignored lockfile, such as `mise.local.lock`.
+/// A run reports by default, and it runs `mise lock` in a disposable copy of
+/// the project. So the checkout of a contributor stays as it was. The copy holds
+/// the changes that are not committed, so a run answers for the tree that the
+/// contributor works on. It holds no file that git ignores, so a configuration
+/// such as an ignored `mise.local.toml` does not reach the run. It lies in the
+/// temporary directory of the system, so a configuration of mise in a directory
+/// above the project does not reach it either. No run of mise inherits
+/// `MISE_YES`, with which an environment such as CI answers the questions of
+/// mise in advance. So a project that nobody trusted stops the run. The action
+/// trusts nothing in the place of its owner. Mise still reads every lockfile of
+/// the project when the run asks it for them there. So an ignored lockfile that
+/// mise cannot read stops the run. With `fix`, the run runs
+/// `mise lock` in the project, and its result stays there, also when the run
+/// stops after `mise lock`. Such a run also compares and keeps what `mise lock`
+/// writes to an ignored lockfile, such as `mise.local.lock`.
 ///
 /// A run that reports declares a read of the project, because its copy
 /// changes the project only inside `.git`, where git records the copy. A run
@@ -67,13 +67,14 @@ use crate::part::Platform;
 /// Each tool, version, and platform that `mise lock` adds, changes, or removes
 /// becomes one finding at its lockfile, or one repair with `fix`. A project
 /// that configures no tool to lock skips visibly. A run stops with an error
-/// when mise does not start or ends without success, when `mise lock` gives a
-/// warning that can mean an unresolved tool, when a lockfile records a
-/// platform that mise targeted without the address of its download after
-/// `mise lock`, when a lockfile has a shape that the action cannot read, and
-/// when the copy cannot be created. A warning of mise can be temporary, such
-/// as one of the network, or last, such as a release without the attestations
-/// that mise checks, and the words of mise in the error say which.
+/// when mise does not start or ends without success. It stops when `mise lock`
+/// gives a warning that can mean an unresolved tool. It stops when a lockfile
+/// records a platform that mise targeted without the address of its download
+/// after `mise lock`. It stops when a lockfile has a shape that the action
+/// cannot read, or when the copy cannot be created. A warning of mise can be
+/// temporary, such as one of the network. Other causes last, such as a release
+/// without the attestations that mise checks. The words of mise in the error
+/// say which of the two it is.
 ///
 /// # Examples
 ///
@@ -84,6 +85,8 @@ use crate::part::Platform;
 /// use rakko_check_mise_lock::CheckMiseLock;
 ///
 /// let actions = Bundle::default().with(CheckMiseLock);
+///
+/// assert_eq!(actions.actions().len(), 1);
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev
@@ -98,10 +101,9 @@ impl Action for CheckMiseLock {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
-            Access::Write
-        } else {
-            Access::Read
+        match args.operation() {
+            Operation::Rewrite => Access::Write,
+            Operation::Report => Access::Read,
         }
     }
 
@@ -119,14 +121,14 @@ impl Action for CheckMiseLock {
 ///
 /// The run asks mise for the lockfiles of the project first. Mise refuses
 /// that question for a project that nobody trusted, so such a project stops
-/// before anything else happens. The run then locks the project, in a copy
-/// without `fix` and in the project with it, and reads the lockfiles where it
-/// locks, before and after. A run without `fix` only lists the lockfiles of
-/// the project, because the copy holds no file that git ignores, and a
-/// lockfile that only the checkout holds gives no difference.
+/// before anything else happens. The run locks the project in a copy by
+/// default or in the project with `fix`. It reads the lockfiles before and
+/// after locking. A run without `fix` only lists the lockfiles of the project.
+/// The reason is that the copy holds no file that git ignores. A lockfile that
+/// only the checkout holds gives no difference.
 ///
-/// The copy lives until this function returns, and the drop takes it with it,
-/// so a run that ends with an answer and a run that stops with an error clear
+/// The copy lives until this function returns, and the drop takes it with it.
+/// So a run that ends with an answer and a run that stops with an error clear
 /// it alike.
 ///
 /// # Errors
@@ -139,24 +141,33 @@ impl Action for CheckMiseLock {
 ///
 /// [unaddressed]: CheckMiseLockError::UnaddressedPlatforms
 async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, CheckMiseLockError> {
-    let project = Mise::new(context.root().clone(), Trust::Inherited);
+    let project = Mise::builder()
+        .root(context.root().clone())
+        .trust(Trust::Inherited)
+        .build();
 
-    let (mise, before, _worktree) = if args.fix() {
-        let before = project.lockfiles().await?;
+    let (mise, before, _worktree) = match args.operation() {
+        Operation::Rewrite => {
+            let before = project.lockfiles().await?;
 
-        (project, before, None)
-    } else {
-        project.list().await?;
+            (project, before, None)
+        }
+        Operation::Report => {
+            project.list().await?;
 
-        let worktree = Worktree::create(context.root().clone())
-            .await
-            .map_err(|source| CheckMiseLockError::CopyUnavailable { source })?;
+            let worktree = Worktree::create(context.root().clone())
+                .await
+                .map_err(|source| CheckMiseLockError::CopyUnavailable { source })?;
 
-        let copy = Mise::new(worktree.root().clone(), Trust::Granted);
+            let copy = Mise::builder()
+                .root(worktree.root().clone())
+                .trust(Trust::Granted)
+                .build();
 
-        let before = copy.lockfiles().await?;
+            let before = copy.lockfiles().await?;
 
-        (copy, before, Some(worktree))
+            (copy, before, Some(worktree))
+        }
     };
 
     let targets = match mise.lock().await? {
@@ -185,23 +196,23 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
         });
     }
 
-    if args.fix() {
-        Ok(Outcome::Changed {
+    match args.operation() {
+        Operation::Rewrite => Ok(Outcome::Changed {
             repairs: findings(&differences, Difference::repair),
-        })
-    } else {
-        Ok(Outcome::Failed {
+        }),
+        Operation::Report => Ok(Outcome::Failed {
             findings: findings(&differences, Difference::finding),
             repairs: Vec::new(),
-        })
+        }),
     }
 }
 
 /// Returns the differences of every lockfile, by the path of the lockfile
 ///
 /// A lockfile that only one side holds counts as a lockfile without parts on
-/// the other side, so a lockfile that `mise lock` created gives a difference
-/// for each of its parts.
+/// the other side.
+/// So a lockfile that `mise lock` created gives a difference for each of its
+/// parts.
 fn differences(
     before: &BTreeMap<FilePath, Lockfile>,
     after: &BTreeMap<FilePath, Lockfile>,
@@ -228,8 +239,8 @@ fn differences(
 ///
 /// Mise names the platforms that it targets for each lockfile that it locks.
 /// Without them, the run cannot tell an entry of a targeted platform from an
-/// old one, so a lockfile with any platform and without targets stops the
-/// run rather than pass it.
+/// old one. So a lockfile with any platform and without targets stops the run
+/// rather than pass it.
 fn untargeted<'a>(
     after: &'a BTreeMap<FilePath, Lockfile>,
     targets: &BTreeMap<FilePath, BTreeSet<Platform>>,
@@ -240,15 +251,16 @@ fn untargeted<'a>(
         .map(|(path, _)| path)
 }
 
-/// Returns the parts of a targeted platform that the lockfiles hold without
-/// the address of their download after the run, each with its lockfile, if
-/// they hold any
+/// Returns the parts of a targeted platform without the address of their
+/// download, if any exist
 ///
-/// A part counts when mise targeted its platform for its lockfile, whether or
-/// not the run changed it, because locked mode refuses it either way. An
-/// entry of a platform that mise does not target says nothing about the run,
-/// whether `mise lock` removes it, as it does in its default mode, or keeps
-/// it.
+/// The lockfiles hold these parts after the run, and each part comes with its
+/// lockfile. A part counts when mise targeted its platform for its lockfile.
+/// This is
+/// true whether or not the run changed it, because locked mode refuses it
+/// either way. An entry of a platform that mise does not target says nothing
+/// about the run. Whether `mise lock` removes it, as it does in its default
+/// mode, or keeps it does not matter.
 fn unaddressed(
     after: &BTreeMap<FilePath, Lockfile>,
     targets: &BTreeMap<FilePath, BTreeSet<Platform>>,
@@ -307,9 +319,10 @@ fn summary(compared: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
 
@@ -374,6 +387,13 @@ mod tests {
         let access = CheckMiseLock.access(&context(), &args);
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn check_mise_lock_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckMiseLock>();
     }
 
     #[test]

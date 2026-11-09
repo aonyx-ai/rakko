@@ -1,20 +1,21 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately unsafe workflow sits in this
+//! against it. So no fixture with a deliberately unsafe workflow sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the zizmor that the action declares. Each project pins
-//! another zizmor that nothing installs, so a test passes only when the run
+//! another zizmor that nothing installs. So a test passes only when the run
 //! ignores the pin of the project.
 //!
 //! A project writes no configuration of zizmor. Zizmor needs none, and the
 //! audits that it applies without one are the audits that these tests are
 //! about. The tests that are about a configuration write their own.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -109,6 +110,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project that pins a zizmor that nothing installed
     ///
@@ -151,6 +153,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -162,8 +165,12 @@ impl Project {
     }
 
     /// Writes a workflow of the project
+    #[builder]
     fn workflow(&self, name: &str, content: &str) {
-        self.write(&format!("{WORKFLOWS}/{name}"), content);
+        self.write()
+            .path(&format!("{WORKFLOWS}/{name}"))
+            .content(content)
+            .call();
     }
 }
 
@@ -204,12 +211,12 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
-    /// directory above it, so the file has to exist first. A failure stays
-    /// quiet, because the test already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has nothing
+    /// to withdraw. Mise resolves a path that is not there to the directory
+    /// above it, so the file has to exist first. A failure stays quiet, because
+    /// the test already reported what it was about.
     fn drop(&mut self) {
         let pins = self.directory.path().join("mise.toml");
 
@@ -247,7 +254,7 @@ fn action_identifies_itself_as_lint_github_actions() {
 #[tokio::test]
 async fn run_in_a_clean_project_passes() {
     let project = Project::new();
-    project.workflow("clean.yml", CLEAN);
+    project.workflow().name("clean.yml").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -278,7 +285,11 @@ async fn run_in_a_missing_directory_stops_without_a_zizmor() {
 #[tokio::test]
 async fn run_leaves_a_workflow_with_a_finding_unchanged() {
     let project = Project::new();
-    project.workflow("injection.yml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
     project.run().await;
 
@@ -288,7 +299,11 @@ async fn run_leaves_a_workflow_with_a_finding_unchanged() {
 #[tokio::test]
 async fn run_names_the_project_and_reports_the_path_below_it() {
     let project = Project::new();
-    project.workflow("injection.yaml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yaml")
+        .content(INJECTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -305,9 +320,35 @@ async fn run_names_the_project_and_reports_the_path_below_it() {
 }
 
 #[tokio::test]
+async fn run_reads_the_configuration_of_the_project() {
+    let project = Project::new();
+    project
+        .write()
+        .path("zizmor.yml")
+        .content(PERMISSIVE_CONFIGURATION)
+        .call();
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the audits of the project to answer, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_reports_a_finding_of_the_pedantic_persona() {
     let project = Project::new();
-    project.workflow("pedantic.yml", PEDANTIC);
+    project
+        .workflow()
+        .name("pedantic.yml")
+        .content(PEDANTIC)
+        .call();
 
     let outcome = project.run().await;
 
@@ -324,23 +365,31 @@ async fn run_reports_a_finding_of_the_pedantic_persona() {
 }
 
 #[tokio::test]
-async fn run_reads_the_configuration_of_the_project() {
+async fn run_whose_zizmor_collects_nothing_skips() {
     let project = Project::new();
-    project.write("zizmor.yml", PERMISSIVE_CONFIGURATION);
-    project.workflow("injection.yml", INJECTION);
+    project.workflow().name("clean.yml").content(CLEAN).call();
+    project
+        .write()
+        .path(".gitignore")
+        .content(IGNORE_WORKFLOWS)
+        .call();
 
     let outcome = project.run().await;
 
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the audits of the project to answer, got {outcome:?}"
-    );
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
+    };
+    assert_eq!(reason.get(), "zizmor found no file to audit");
 }
 
 #[tokio::test]
 async fn run_with_a_finding_carries_the_message_of_zizmor() {
     let project = Project::new();
-    project.workflow("injection.yml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -360,7 +409,11 @@ async fn run_with_a_finding_carries_the_message_of_zizmor() {
 #[tokio::test]
 async fn run_with_a_finding_covers_the_range_of_zizmor() {
     let project = Project::new();
-    project.workflow("injection.yml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
     let outcome = project.run().await;
 
@@ -383,20 +436,29 @@ async fn run_with_a_finding_covers_the_range_of_zizmor() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_finding_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.workflow("injection.yml", INJECTION);
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&LintGitHubActions, &project.context(), &()).await;
 }
 
 #[tokio::test]
 async fn run_with_a_finding_reports_every_place_that_zizmor_named() {
     let project = Project::new();
-    project.workflow("pedantic.yml", PEDANTIC);
+    project
+        .workflow()
+        .name("pedantic.yml")
+        .content(PEDANTIC)
+        .call();
 
     let outcome = project.run().await;
 
@@ -417,8 +479,12 @@ async fn run_with_a_finding_reports_every_place_that_zizmor_named() {
 #[tokio::test]
 async fn run_with_a_refused_configuration_stops() {
     let project = Project::new();
-    project.write("zizmor.yml", BROKEN_CONFIGURATION);
-    project.workflow("clean.yml", CLEAN);
+    project
+        .write()
+        .path("zizmor.yml")
+        .content(BROKEN_CONFIGURATION)
+        .call();
+    project.workflow().name("clean.yml").content(CLEAN).call();
 
     let outcome = project.run().await;
 
@@ -431,8 +497,12 @@ async fn run_with_a_refused_configuration_stops() {
 #[tokio::test]
 async fn run_with_a_workflow_that_zizmor_cannot_read_stops() {
     let project = Project::new();
-    project.workflow("clean.yml", CLEAN);
-    project.workflow("unreadable.yml", UNREADABLE);
+    project.workflow().name("clean.yml").content(CLEAN).call();
+    project
+        .workflow()
+        .name("unreadable.yml")
+        .content(UNREADABLE)
+        .call();
 
     let outcome = project.run().await;
 
@@ -440,18 +510,4 @@ async fn run_with_a_workflow_that_zizmor_cannot_read_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
-}
-
-#[tokio::test]
-async fn run_whose_zizmor_collects_nothing_skips() {
-    let project = Project::new();
-    project.workflow("clean.yml", CLEAN);
-    project.write(".gitignore", IGNORE_WORKFLOWS);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert_eq!(reason.get(), "zizmor found no file to audit");
 }

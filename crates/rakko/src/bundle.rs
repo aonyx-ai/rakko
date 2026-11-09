@@ -1,3 +1,5 @@
+//! The list of actions that a bundle exports
+
 use std::fmt;
 
 use crate::action::Action;
@@ -5,17 +7,17 @@ use crate::erased_action::ErasedAction;
 
 /// The list of actions that a bundle exports
 ///
-/// A bundle is a crate that exports a set of actions, so that a project adopts
-/// the set with one dependency and one line in its harness. This type is what
-/// a bundle exports: the same list of erased actions that a harness mounts. A
-/// harness passes the list to its mount as it is, so a bundle needs no type of
+/// A bundle is a crate that exports a set of actions. So a project adopts the
+/// set with one dependency and one line in its harness. This type is what a
+/// bundle exports: the same list of erased actions that a harness mounts. A
+/// harness passes the list to its mount as it is. So a bundle needs no type of
 /// its own and no code that registers it.
 ///
 /// The list is an ordinary value. A bundle contains another bundle when it
-/// extends its own list with the list of that bundle. A harness joins two
-/// lists the same way, and it leaves an action out when it filters the list
-/// and collects the rest into a new one. Nothing in this crate reads the list,
-/// so the harness alone names what runs.
+/// extends its own list with the list of that bundle. A harness joins two lists
+/// the same way. It leaves an action out when it filters the list and collects
+/// the rest into a new one. Nothing in this crate reads the list. So the
+/// harness alone names what runs.
 ///
 /// A harness that needs a list of its own, such as the members of a group,
 /// starts from an empty bundle. It adds each action as it is with [`with`].
@@ -23,8 +25,8 @@ use crate::erased_action::ErasedAction;
 ///
 /// A bundle exports the list through a function, because the mount takes
 /// ownership of every action in the list. Each call builds a fresh list. The
-/// function is named `bundle`, so that a harness mounts a bundle by the name
-/// of its crate.
+/// function is named `bundle`, so that a harness mounts a bundle by the name of
+/// its crate.
 ///
 /// # Examples
 ///
@@ -163,6 +165,25 @@ impl Bundle {
     ///
     /// The answer is a slice and not a vector. So a caller does not depend on
     /// the methods of a vector, such as its capacity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # struct Example;
+    /// # impl Action for Example {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("example") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    ///
+    /// let bundle = Bundle::default().with(Example);
+    ///
+    /// assert_eq!(bundle.actions()[0].name().get(), "example");
+    /// ```
     #[must_use]
     pub fn actions(&self) -> &[Box<dyn ErasedAction>] {
         &self.actions
@@ -172,6 +193,15 @@ impl Bundle {
     ///
     /// The bundle keeps the order of the actions, and a mount receives them
     /// in that order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    ///
+    /// let bundle = Bundle::new(vec![]);
+    /// assert_eq!(bundle.actions().len(), 0);
+    /// ```
     pub fn new(actions: Vec<Box<dyn ErasedAction>>) -> Self {
         Self { actions }
     }
@@ -182,6 +212,25 @@ impl Bundle {
     /// The method takes the action as it is. A harness that builds a list of
     /// its own, such as the list of a group, starts from an empty bundle. It
     /// adds each action with this method and writes no erased type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # struct Example;
+    /// # impl Action for Example {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("example") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    ///
+    /// let bundle = Bundle::default().with(Example).with(Example);
+    ///
+    /// assert_eq!(bundle.actions().len(), 2);
+    /// ```
     #[must_use]
     pub fn with(mut self, action: impl Action + 'static) -> Self {
         self.actions.push(Box::new(action));
@@ -189,6 +238,25 @@ impl Bundle {
     }
 
     /// Adds an action after the actions that the bundle holds
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # struct Example;
+    /// # impl Action for Example {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("example") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    ///
+    /// let mut bundle = Bundle::new(vec![]);
+    /// bundle.push(Box::new(Example));
+    /// assert_eq!(bundle.actions().len(), 1);
+    /// ```
     pub fn push(&mut self, action: Box<dyn ErasedAction>) {
         self.actions.push(action);
     }
@@ -241,9 +309,10 @@ impl IntoIterator for Bundle {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
     use crate::action_name;
@@ -317,6 +386,15 @@ mod tests {
     }
 
     #[test]
+    fn bundle_holds_the_erased_actions_that_it_exports() {
+        let bundle = Bundle::new(vec![Box::new(FormatJson), Box::new(LintYaml)]);
+
+        let names = names(&bundle);
+
+        assert_eq!(names, ["format-json", "lint-yaml"]);
+    }
+
+    #[test]
     fn bundle_holds_the_list_of_another_bundle() {
         let mut bundle = Bundle::new(vec![Box::new(LintYaml)]);
 
@@ -326,12 +404,10 @@ mod tests {
     }
 
     #[test]
-    fn bundle_holds_the_erased_actions_that_it_exports() {
-        let bundle = Bundle::new(vec![Box::new(FormatJson), Box::new(LintYaml)]);
+    fn bundle_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        let names = names(&bundle);
-
-        assert_eq!(names, ["format-json", "lint-yaml"]);
+        assert_send_sync_and_unpin::<Bundle>();
     }
 
     #[test]

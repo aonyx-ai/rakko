@@ -1,22 +1,20 @@
 //! The machinery that the actions which wrap prettier share
 //!
 //! [Prettier] formats many languages, and one action wraps each group of files
-//! that a project keeps apart, so that a check names the language that needs
-//! attention. Every one of those actions asks the same questions: does this
-//! project hold files of the group, which prettier does it run, and what did
-//! that prettier report? This crate answers all three, so that an action
-//! states the operation and the files that it wants, and reads the answer as
-//! data.
+//! that a project keeps apart. So a check names the language that needs
+//! attention. Every one of those actions asks the same questions. Does this
+//! project hold files of the group? Which prettier does it run? What did that
+//! prettier report? This crate answers all three, so that an action states the
+//! operation and the files that it wants, and reads the answer as data.
 //!
 //! Prettier discovers no files of its own. A run names the files that it
-//! examines, and a [`Filter`] holds that name: an action states the extensions
-//! of its group, and the crate writes the pattern that prettier reads. A
-//! filter that names no extension covers every language that prettier
-//! understands.
+//! examines, and a [`Filter`] holds that name. An action states the extensions
+//! of its group, and the crate writes the pattern that prettier reads. A filter
+//! that names no extension covers every language that prettier understands.
 //!
 //! Prettier reports as text, and this crate reads that text. The shape of the
-//! text belongs to a version of prettier, so keeping the reading in one place
-//! keeps the version surface in one place as well: a prettier that reports
+//! text belongs to a version of prettier. So keeping the reading in one place
+//! keeps the version surface in one place as well. A prettier that reports
 //! differently breaks one crate, and not one crate per group of files.
 //!
 //! For the same reason, the crate pins the version of prettier that every
@@ -37,7 +35,7 @@
 //!
 //! ```no_run
 //! use rakko::Context;
-//! use rakko_prettier::{FileExtension, Filter, Operation, Prettier};
+//! use rakko_prettier::{FileExtension, Filter, Matching, Operation, Prettier};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -47,10 +45,9 @@
 //! let prettier = Prettier::resolve(&context).await?;
 //! let observation = prettier.observe(Operation::Report, &filter).await?;
 //!
-//! if observation.unmatched_pattern() {
-//!     println!("nothing to examine");
-//! } else {
-//!     println!("{} problems", observation.problems().len());
+//! match observation.unmatched_pattern() {
+//!     Matching::Unmatched => println!("nothing to examine"),
+//!     Matching::Matched => println!("{} problems", observation.problems().len()),
 //! }
 //! # Ok(())
 //! # }
@@ -59,18 +56,17 @@
 //! [prettier]: https://prettier.io
 //! [tokio]: https://tokio.rs
 
-/// Types for the files that a run of prettier examines
+mod exit;
 mod filter;
-/// Types for what one run of prettier produced
+mod matching;
 mod observation;
-/// Types for the operations of prettier that an action runs
 mod operation;
-/// Types for the prettier that a project runs
 mod prettier;
-/// Types for one problem that prettier reported about a file
 mod problem;
 
+pub use self::exit::Exit;
 pub use self::filter::{FileExtension, Filter};
+pub use self::matching::Matching;
 pub use self::observation::Observation;
 pub use self::operation::Operation;
 pub use self::prettier::{ObservePrettierError, Prettier};

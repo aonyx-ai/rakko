@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -10,12 +12,12 @@ use thiserror::Error;
 pub(crate) enum ObserveStilesError {
     /// Stiles stopped before it had checked the project
     ///
-    /// Stiles ends a run when it cannot read its configuration, when it cannot
-    /// build or load a lint that the configuration names, and when it cannot
-    /// read or analyze a file that it found. It checks nothing in the first
-    /// two cases, and less than the project in the last, so an answer built on
-    /// such a run would describe a part of the project as though it were the
-    /// whole.
+    /// Stiles ends a run when it cannot read its configuration. It ends a run
+    /// when it cannot build or load a lint that the configuration names. It
+    /// also ends a run when it cannot read or analyze a file that it found. It
+    /// checks nothing in the first two cases, and less than the project in the
+    /// last. So an answer built on such a run would describe a part of the
+    /// project as though it were the whole.
     #[error("stiles stopped before it had checked the project: {details}")]
     IncompleteCheck {
         /// What stiles wrote about the run that it stopped
@@ -36,9 +38,9 @@ pub(crate) enum ObserveStilesError {
     ///
     /// The shape of the report belongs to a version of stiles. A report that
     /// this crate cannot read therefore points at a version that it does not
-    /// know, and the findings of such a run would be the ones that the reading
+    /// know. The findings of such a run would be the ones that the reading
     /// happened to understand.
-    #[error("stiles wrote a report that the action cannot read: {report}")]
+    #[error("failed to read the report from stiles: {report}")]
     UnreadableReport {
         /// What stiles wrote in place of a report that the crate reads
         report: String,
@@ -50,20 +52,30 @@ pub(crate) enum ObserveStilesError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read. This test holds the error
-    // to the auto traits that make this possible, because a field of a later
-    // version could take them away without a word from the compiler.
+    /// Shows that error is Send and Sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_stiles_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ObserveStilesError>();
+    }
+
+    #[test]
+    fn observe_stiles_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveStilesError>();
     }
 }

@@ -1,8 +1,9 @@
-/// Whether the documented targets of a package share a crate name
+//! One package of a workspace
+
 mod documented_names;
-/// The name of a package of a workspace
 mod name;
 
+use bon::Builder;
 use getset::{CopyGetters, Getters};
 
 pub use self::documented_names::DocumentedNames;
@@ -10,11 +11,24 @@ pub use self::name::PackageName;
 
 /// One package of a workspace, as a root names it
 ///
-/// A job selects the packages of a workspace by name, and a job that
-/// documents the workspace also needs to know which packages it must
-/// document apart from the others. A package carries both, so a caller reads
-/// them from the root instead of asking cargo again.
-#[derive(Clone, Eq, PartialEq, Hash, Debug, CopyGetters, Getters)]
+/// A job selects the packages of a workspace by name. A job that documents the
+/// workspace also needs to know which packages it must document apart from the
+/// others. A package carries both, so a caller reads them from the root
+/// instead of asking cargo again.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoPackage, DocumentedNames, PackageName};
+///
+/// let package = CargoPackage::builder()
+///     .name(PackageName::new("otter"))
+///     .documented_names(DocumentedNames::Unique)
+///     .build();
+///
+/// assert_eq!(package.name().get(), "otter");
+/// ```
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct CargoPackage {
     /// The name that the manifest of the package states
     #[getset(get = "pub")]
@@ -26,13 +40,14 @@ pub struct CargoPackage {
     documented_names: DocumentedNames,
 }
 
-impl CargoPackage {
-    /// Creates a package from its name and whether it shares a crate name
-    /// with another package of the workspace
-    pub fn new(name: PackageName, documented_names: DocumentedNames) -> Self {
-        Self {
-            name,
-            documented_names,
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cargo_package_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CargoPackage>();
     }
 }

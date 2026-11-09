@@ -4,7 +4,7 @@
 //! copies exactly them. This module turns the report into the paths.
 //!
 //! The report separates its entries with a zero byte, which is the one byte
-//! that no path holds, so a path with a space, a quotation mark, or a line
+//! that no path holds. So a path with a space, a quotation mark, or a line
 //! break arrives as git read it from the directory. Every other format of the
 //! report escapes such a path, and the escape would have to be undone here.
 
@@ -30,10 +30,11 @@ const RENAMED: u8 = b'R';
 /// The paths are relative to the top level of the repository, in the order in
 /// which git wrote them, and each of them appears once.
 ///
-/// An entry of a rename or of a copy carries the path that the file has now
-/// and the path that it had before, in this order. Both are paths where the
-/// tree differs from the commit, so both travel to the caller: the sync copies
-/// the one that the project holds and removes the one that it does not.
+/// An entry of a rename or of a copy carries two paths, in this order. The
+/// first is the path that the file has now, and the second is the path that it
+/// had before. Both are paths where the tree differs from the commit, so both
+/// travel to the caller. The sync copies the one that the project holds and
+/// removes the one that it does not.
 ///
 /// # Errors
 ///
@@ -74,7 +75,7 @@ pub(super) fn changed_paths(report: &[u8]) -> Result<Vec<PathBuf>, String> {
 /// Returns what the crate can say about an entry that it cannot read
 ///
 /// The entry holds a path, and a path can hold bytes that are part of no
-/// character, so the description replaces those instead of dropping the entry
+/// character. So the description replaces those instead of dropping the entry
 /// from the message.
 fn describe(entry: &[u8]) -> String {
     format!(
@@ -85,8 +86,9 @@ fn describe(entry: &[u8]) -> String {
 
 /// Returns whether the entry of this state names a second path
 ///
-/// Git writes the path that the file has now and the path that it had before
-/// when it reports a rename or a copy, in the index or in the working tree.
+/// Git writes two paths when it reports a rename or a copy. One is the path the
+/// file has now, and the other is the path it had before, in the index or the
+/// working tree.
 fn moved(state: &[u8]) -> bool {
     state[..2]
         .iter()
@@ -95,7 +97,7 @@ fn moved(state: &[u8]) -> bool {
 
 /// Returns the path that the bytes of an entry name
 ///
-/// A path of this platform is a sequence of bytes, so the bytes reach the path
+/// A path of this platform is a sequence of bytes. So the bytes reach the path
 /// as git wrote them, and a name that is part of no character stays readable.
 #[cfg(unix)]
 fn path_of(bytes: &[u8]) -> Option<PathBuf> {
@@ -108,7 +110,7 @@ fn path_of(bytes: &[u8]) -> Option<PathBuf> {
 /// Returns the path that the bytes of an entry name
 ///
 /// A path of this platform is a sequence of characters, and git writes a path
-/// as UTF-8, so a sequence that is no valid UTF-8 names no path here.
+/// as UTF-8. So a sequence that is no valid UTF-8 names no path here.
 #[cfg(not(unix))]
 fn path_of(bytes: &[u8]) -> Option<PathBuf> {
     std::str::from_utf8(bytes).ok().map(PathBuf::from)
@@ -116,9 +118,10 @@ fn path_of(bytes: &[u8]) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -129,6 +132,15 @@ mod tests {
         let paths = changed_paths(report);
 
         assert_eq!(paths, Ok(vec![PathBuf::from("src/lib.rs")]));
+    }
+
+    #[test]
+    fn changed_paths_of_a_path_with_a_space_keeps_the_path_whole() {
+        let report = b"?? two words.txt\0";
+
+        let paths = changed_paths(report);
+
+        assert_eq!(paths, Ok(vec![PathBuf::from("two words.txt")]));
     }
 
     #[test]
@@ -180,15 +192,6 @@ mod tests {
         let paths = changed_paths(report);
 
         assert!(paths.is_err());
-    }
-
-    #[test]
-    fn changed_paths_of_a_path_with_a_space_keeps_the_path_whole() {
-        let report = b"?? two words.txt\0";
-
-        let paths = changed_paths(report);
-
-        assert_eq!(paths, Ok(vec![PathBuf::from("two words.txt")]));
     }
 
     #[test]

@@ -1,8 +1,8 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it with the mise of the machine, so the test answers for the
-//! lockfiles that a real `mise lock` writes.
+//! against it with the mise of the machine.
+//! So the test answers for the lockfiles that a real `mise lock` writes.
 //!
 //! A project of a test is a git repository with one empty commit, and the
 //! files of the project are untracked on top of it. That is the tree of a
@@ -12,19 +12,20 @@
 //! A project pins `jq`, a small tool that mise downloads, so its lockfile
 //! records a download for each platform. Mise asks the network for those
 //! downloads, so the tests need it. A project that a test needs with a
-//! complete lockfile gets that lockfile from `mise lock` itself, so the
-//! platform of the machine that runs the tests is always in it.
+//! complete lockfile gets that lockfile from `mise lock` itself.
+//! So the platform of the machine that runs the tests is always in it.
 //!
 //! The projects lock in the default mode of mise, as the projects that use
 //! the action do. In that mode, `mise lock` rebuilds the lockfile for the
-//! platforms that it targets and removes every other entry. The tests expect
-//! the answers of the version of mise that CI pins, and a mise that locks in
-//! another mode, because it is older or because its user chose the mode,
-//! answers some of them differently.
+//! platforms that it targets and removes every other entry.
+//! The tests expect the answers of the version of mise that CI pins.
+//! A mise that locks in another mode, because it is older or because its
+//! user chose the mode, answers some of them differently.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::unwrap_used)]
 
@@ -41,11 +42,12 @@ use tempfile::TempDir;
 /// The configuration of a project that pins one tool that mise downloads
 ///
 /// Mise checks the provenance of every download when it locks, and it asks a
-/// service over the network for each platform. A busy service makes mise skip
-/// a platform, so a test whose project kept the checks would fail now and
-/// then for a reason that is not the code under test. The configuration
-/// therefore turns the checks off, and mise then locks from what it knows of
-/// the tool.
+/// service over the network for each platform.
+/// A busy service makes mise skip a platform.
+/// So a test whose project kept the checks would fail now and then for a reason
+/// that is not the code under test.
+/// The configuration therefore turns the checks off, and mise then locks
+/// from what it knows of the tool.
 const PINNED: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\naqua.github_attestations = false\naqua.slsa = false\naqua.cosign = false\naqua.minisign = false\n";
 
 /// The configuration of a project that pins two tools that mise downloads
@@ -58,8 +60,8 @@ const PINNED_TWICE: &str = "[tools]\njq = \"1.8.1\"\ntaplo = \"0.10.0\"\n\n[sett
 /// the network
 ///
 /// The configuration keeps the checks of provenance, and every download that
-/// they need times out, so `mise lock` resolves no platform of the tool and
-/// ends with an error.
+/// they need times out.
+/// So `mise lock` resolves no platform of the tool and ends with an error.
 const IMPATIENT: &str = "[tools]\njq = \"1.8.1\"\n\n[settings]\nlockfile = true\nhttp_timeout = \"1ms\"\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
 /// The configuration that a contributor keeps for themselves
@@ -77,8 +79,8 @@ const IGNORED_LOCAL: &str = "mise.local.toml\nmise.local.lock\n";
 /// The configuration of a project that pins a release that does not exist
 ///
 /// `mise lock` writes a table for each platform that holds only the
-/// provenance of the download, warns about nothing, and ends with success,
-/// and a second run leaves that lockfile as it is.
+/// provenance of the download, warns about nothing, and ends with success.
+/// A second run leaves that lockfile as it is.
 const PHANTOM: &str = "[tools]\njq = \"1.99.0\"\n\n[settings]\nlockfile = true\nlockfile_platforms = [\"linux-x64\", \"macos-arm64\"]\n";
 
 /// The impatient configuration, in a project that also asks mise to be quiet
@@ -124,9 +126,9 @@ const JQ_PLATFORM: &str = "[tools.jq.\"platforms.";
 /// The prefix of the names of the environment that git reads for itself
 ///
 /// A test that runs inside a hook, a rebase, or a bisect of another repository
-/// inherits variables that name that repository, and those beat the directory
-/// that a command runs in. They therefore leave the environment of every git
-/// command of a test.
+/// inherits variables that name that repository.
+/// Those variables beat the directory that a command runs in.
+/// They therefore leave the environment of every git command of a test.
 const GIT_PREFIX: &[u8] = b"GIT_";
 
 /// A project that a test builds in a temporary directory
@@ -138,6 +140,7 @@ struct Project {
     configuration: &'static str,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project with the given configuration, outside a repository
     ///
@@ -154,8 +157,8 @@ impl Project {
     /// Creates a project with the given configuration, in a repository
     ///
     /// The repository holds one empty commit, and every file of the project
-    /// is untracked, which is the tree of a contributor who has not committed
-    /// their work yet.
+    /// is untracked.
+    /// This is the tree of a contributor who has not committed their work yet.
     fn new(configuration: &str) -> Self {
         let project = Self::without_repository(configuration);
 
@@ -166,6 +169,7 @@ impl Project {
 
     /// Creates a project in a repository, with the configuration at the given
     /// path
+    #[builder]
     fn at(path: &'static str, configuration: &str) -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let project = Self {
@@ -173,7 +177,7 @@ impl Project {
             configuration: path,
         };
 
-        project.write(path, configuration);
+        project.write().path(path).content(configuration).call();
         project.trust();
         project.initialize();
 
@@ -189,7 +193,11 @@ impl Project {
             configuration: "mise.toml",
         };
 
-        project.write("mise.toml", configuration);
+        project
+            .write()
+            .path("mise.toml")
+            .content(configuration)
+            .call();
 
         project
     }
@@ -216,9 +224,9 @@ impl Project {
 
     /// Runs git in the project
     ///
-    /// The command forgets the variables that name a repository, so a test
-    /// that runs inside a hook of another repository still works on the one
-    /// that it created.
+    /// The command forgets the variables that name a repository.
+    /// So a test that runs inside a hook of another repository still works on
+    /// the one that it created.
     fn git(&self, arguments: &[&str]) {
         let mut command = Command::new("git");
         command.current_dir(self.directory.path()).args(arguments);
@@ -302,7 +310,10 @@ impl Project {
             }
         }
 
-        self.write("mise.lock", &(kept.join("\n") + "\n"));
+        self.write()
+            .path("mise.lock")
+            .content(&(kept.join("\n") + "\n"))
+            .call();
 
         platforms
     }
@@ -323,6 +334,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -337,10 +349,10 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A failure stays quiet, because the test already
-    /// reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
+    /// pile up there forever.
+    /// A failure stays quiet, because the test already reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")
@@ -380,11 +392,16 @@ fn messages(findings: &[Finding]) -> Vec<String> {
 
 /// Returns the messages that report the given platforms of jq with a verb
 fn reports(verb: &str, platforms: &[String]) -> Vec<String> {
-    reports_of("jq 1.8.1", verb, platforms)
+    reports_of()
+        .tool("jq 1.8.1")
+        .verb(verb)
+        .platforms(platforms)
+        .call()
 }
 
 /// Returns the messages that report the given platforms of a tool with a
 /// verb, in the order of the platforms
+#[bon::builder]
 fn reports_of(tool: &str, verb: &str, platforms: &[String]) -> Vec<String> {
     let mut expected: Vec<String> = platforms
         .iter()
@@ -404,8 +421,10 @@ fn platforms(lockfile: &str) -> Vec<String> {
         .collect()
 }
 
-// The action runs mise, which provisions every other tool and cannot
-// provision itself, so mise is no tool that the action declares.
+/// Shows that the action declares no tool
+///
+/// The action runs mise, which provisions every other tool and cannot
+/// provision itself. So mise is no tool that the action declares.
 #[test]
 fn action_declares_no_tool() {
     let tools = CheckMiseLock.tools();
@@ -420,19 +439,22 @@ fn action_identifies_itself_as_check_mise_lock() {
     assert_eq!(name.get(), "check-mise-lock");
 }
 
-// A lockfile with a stale entry is one that `mise lock` rewrites, also in a
-// run that then stops, so the lockfile shows where the run locked. The
-// release that the project pins has no downloads, so `mise lock` ends with
-// success after it removes the stale entry, and the run stops after it. A
-// project whose downloads fail would not do: mise ends with an error before
-// it writes anything, and the lockfile stays as it was wherever the run
-// locked.
+/// Shows that a run that stops after the lock keeps the lockfile
+///
+/// A lockfile with a stale entry is one that `mise lock` rewrites, also in a
+/// run that then stops. So the lockfile shows where the run locked.
+/// The release that the project pins has no downloads.
+/// So `mise lock` ends with success after it removes the stale entry.
+/// The run stops after it.
+/// A project whose downloads fail would not do.
+/// Mise ends with an error before it writes anything, and the lockfile
+/// stays as it was wherever the run locked.
 #[tokio::test]
 async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
     let project = Project::new(PHANTOM);
     project.lock();
     let stale = project.read("mise.lock") + STALE_ENTRY;
-    project.write("mise.lock", &stale);
+    project.write().path("mise.lock").content(&stale).call();
 
     let outcome = project.run().await;
 
@@ -449,9 +471,12 @@ async fn run_that_stops_after_the_lock_leaves_the_lockfile_as_it_was() {
     assert_eq!(project.read("mise.lock"), stale);
 }
 
-// A field that the entry shares changes every part of the entry, the old
-// table of an untargeted platform among them. Whether `mise lock` keeps that
-// table or removes it, the table stops nothing.
+/// Shows that a run with a changed shared field next to an untargeted platform
+/// fails
+///
+/// A field that the entry shares changes every part of the entry, the old
+/// table of an untargeted platform among them. Whether `mise lock` keeps that
+/// table or removes it, the table stops nothing.
 #[tokio::test]
 async fn run_with_a_changed_shared_field_next_to_an_untargeted_platform_fails() {
     let project = Project::locked(PINNED);
@@ -461,13 +486,14 @@ async fn run_with_a_changed_shared_field_next_to_an_untargeted_platform_fails() 
         .filter(|line| !line.starts_with("specifiers"))
         .map(str::to_owned)
         .collect();
-    project.write(
-        "mise.lock",
-        &format!(
+    project
+        .write()
+        .path("mise.lock")
+        .content(&format!(
             "{}\n\n{JQ_PLATFORM}linux-x64-musl\"]\nprovenance = \"github-attestations\"\n",
             lockfile.join("\n")
-        ),
-    );
+        ))
+        .call();
 
     let outcome = project.run().await;
 
@@ -491,7 +517,10 @@ async fn run_with_a_complete_lockfile_passes() {
 
 #[tokio::test]
 async fn run_with_a_configuration_in_a_directory_reports_its_lockfile() {
-    let project = Project::at(".config/mise.toml", PINNED);
+    let project = Project::at()
+        .path(".config/mise.toml")
+        .configuration(PINNED)
+        .call();
 
     let outcome = project.run().await;
 
@@ -526,8 +555,10 @@ async fn run_with_a_mise_that_fails_stops_with_what_it_wrote() {
     );
 }
 
-// `mise lock` fills in the checksum that an entry of a targeted platform
-// lacks, in either mode.
+/// Shows that a run with a missing checksum reports the change
+///
+/// `mise lock` fills in the checksum that an entry of a targeted platform
+/// lacks, in either mode.
 #[tokio::test]
 async fn run_with_a_missing_checksum_reports_the_change() {
     let project = Project::locked(PINNED);
@@ -542,7 +573,7 @@ async fn run_with_a_missing_checksum_reports_the_change() {
         .find(|line| line.starts_with("checksum = "))
         .expect("the lockfile records a checksum of jq");
     let missing = lockfile.replacen(&format!("{checksum}\n"), "", 1);
-    project.write("mise.lock", &missing);
+    project.write().path("mise.lock").content(&missing).call();
 
     let outcome = project.run().await;
 
@@ -557,13 +588,15 @@ async fn run_with_a_missing_checksum_reports_the_change() {
     );
 }
 
-// The lockfile holds the version of jq, so mise needs the network only for
-// the platforms, and only those fail. Mise then ends with an error.
+/// Shows that a run with a platform that mise fails to resolve stops
+///
+/// The lockfile holds the version of jq, so mise needs the network only for
+/// the platforms, and only those fail. Mise then ends with an error.
 #[tokio::test]
 async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote() {
     let project = Project::locked(PINNED);
     project.strip();
-    project.write("mise.toml", IMPATIENT);
+    project.write().path("mise.toml").content(IMPATIENT).call();
 
     let outcome = project.run().await;
 
@@ -579,13 +612,19 @@ async fn run_with_a_platform_that_mise_fails_to_resolve_stops_with_what_it_wrote
     );
 }
 
-// A project that asks mise to be quiet still gets the words of mise in the
-// error.
+/// Shows that a run with a quiet project still gets mise words in the error
+///
+/// A project that asks mise to be quiet still gets the words of mise in the
+/// error.
 #[tokio::test]
 async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
     let project = Project::locked(PINNED);
     project.strip();
-    project.write("mise.toml", IMPATIENT_AND_QUIET);
+    project
+        .write()
+        .path("mise.toml")
+        .content(IMPATIENT_AND_QUIET)
+        .call();
 
     let outcome = project.run().await;
 
@@ -605,7 +644,11 @@ async fn run_with_a_quiet_project_that_mise_fails_to_resolve_stops() {
 async fn run_with_a_stale_entry_reports_its_removal() {
     let project = Project::locked(PINNED);
     let lockfile = project.read("mise.lock");
-    project.write("mise.lock", &(lockfile + STALE_ENTRY));
+    project
+        .write()
+        .path("mise.lock")
+        .content(&(lockfile + STALE_ENTRY))
+        .call();
 
     let outcome = project.run().await;
 
@@ -639,9 +682,21 @@ async fn run_with_a_tool_that_mise_cannot_lock_stops_with_what_it_wrote() {
 #[tokio::test]
 async fn run_with_an_ignored_local_configuration_passes() {
     let project = Project::locked(PINNED);
-    project.write(".gitignore", IGNORED_LOCAL);
-    project.write("mise.local.toml", LOCAL);
-    project.write("mise.local.lock", LOCAL_LOCK);
+    project
+        .write()
+        .path(".gitignore")
+        .content(IGNORED_LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.toml")
+        .content(LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.lock")
+        .content(LOCAL_LOCK)
+        .call();
 
     let outcome = project.run().await;
 
@@ -651,14 +706,29 @@ async fn run_with_an_ignored_local_configuration_passes() {
     );
 }
 
-// The question for the lockfiles in the project makes mise read a lockfile
-// that only the checkout holds, and mise refuses one that is not TOML.
+/// Shows that a run with an ignored lockfile that mise cannot read stops
+///
+/// The question for the lockfiles in the project makes mise read a lockfile
+/// that only the checkout holds.
+/// Mise refuses a lockfile that is not TOML.
 #[tokio::test]
 async fn run_with_an_ignored_lockfile_that_mise_cannot_read_stops() {
     let project = Project::locked(PINNED);
-    project.write(".gitignore", IGNORED_LOCAL);
-    project.write("mise.local.toml", LOCAL);
-    project.write("mise.local.lock", "this is not toml [[[\n");
+    project
+        .write()
+        .path(".gitignore")
+        .content(IGNORED_LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.toml")
+        .content(LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.lock")
+        .content("this is not toml [[[\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -677,9 +747,21 @@ async fn run_with_an_ignored_lockfile_that_mise_cannot_read_stops() {
 #[tokio::test]
 async fn run_with_an_ignored_lockfile_that_the_action_cannot_read_passes() {
     let project = Project::locked(PINNED);
-    project.write(".gitignore", IGNORED_LOCAL);
-    project.write("mise.local.toml", LOCAL);
-    project.write("mise.local.lock", VERSIONLESS);
+    project
+        .write()
+        .path(".gitignore")
+        .content(IGNORED_LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.toml")
+        .content(LOCAL)
+        .call();
+    project
+        .write()
+        .path("mise.local.lock")
+        .content(VERSIONLESS)
+        .call();
 
     let outcome = project.run().await;
 
@@ -694,7 +776,11 @@ async fn run_with_an_uncommitted_tool_reports_its_entries() {
     let project = Project::locked(PINNED);
     project.git(&["add", "--all"]);
     project.git(&["commit", "--quiet", "--message", "Pin jq"]);
-    project.write("mise.toml", PINNED_TWICE);
+    project
+        .write()
+        .path("mise.toml")
+        .content(PINNED_TWICE)
+        .call();
     let targeted = platforms(&project.read("mise.lock"));
 
     let outcome = project.run().await;
@@ -704,14 +790,22 @@ async fn run_with_an_uncommitted_tool_reports_its_entries() {
     };
     assert_eq!(
         messages(&findings),
-        reports_of("taplo 0.10.0", "adds", &targeted)
+        reports_of()
+            .tool("taplo 0.10.0")
+            .verb("adds")
+            .platforms(&targeted)
+            .call()
     );
 }
 
 #[tokio::test]
 async fn run_with_an_unreadable_lockfile_stops() {
     let project = Project::new(PINNED);
-    project.write("mise.lock", VERSIONLESS);
+    project
+        .write()
+        .path("mise.lock")
+        .content(VERSIONLESS)
+        .call();
 
     let outcome = project.run().await;
 
@@ -727,14 +821,20 @@ async fn run_with_an_unreadable_lockfile_stops() {
     );
 }
 
-// A machine that locks on a platform outside the list of a project, such as
-// the one of a bot that moves the pins, writes entries that `mise lock` on
-// every other machine removes.
+/// Shows that a run with an untargeted platform reports its removal
+///
+/// A machine that locks on a platform outside the list of a project writes
+/// entries. The command `mise lock` on every other machine removes these
+/// entries. An example is the platform of a bot that moves the pins.
 #[tokio::test]
 async fn run_with_an_untargeted_platform_reports_its_removal() {
     let project = Project::locked(PINNED);
     let lockfile = project.read("mise.lock");
-    project.write("mise.lock", &(lockfile + UNTARGETED_ENTRY));
+    project
+        .write()
+        .path("mise.lock")
+        .content(&(lockfile + UNTARGETED_ENTRY))
+        .call();
 
     let outcome = project.run().await;
 
@@ -794,13 +894,14 @@ async fn run_with_missing_platforms_leaves_the_lockfile_as_it_was() {
     assert_eq!(project.read("mise.lock"), stripped);
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_missing_platforms_leaves_the_project_unchanged() {
     let project = Project::locked(PINNED);
     project.strip();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(
         &CheckMiseLock,
         &project.context(),
@@ -822,12 +923,16 @@ async fn run_with_missing_platforms_reports_a_finding_for_each() {
     assert_eq!(messages(&findings), reports("adds", &platforms));
 }
 
-// The second gap that the parent of this action, the issue "Catch gaps in mise
-// lockfiles in CI", names: the tables of the platforms held no address and no
-// checksum. In that gap the tables still named the provenance of the
-// download. The project turns the checks of provenance off, and mise can
-// refuse a lockfile that names a provenance whose check is off, so the tables
-// here hold nothing at all.
+/// Shows that a run with platforms without an address reports its change
+///
+/// The parent of this action, the issue "Catch gaps in mise
+/// lockfiles in CI", names the second gap.
+/// The gap is that the tables of the platforms held no address and no
+/// checksum.
+/// In that gap the tables still named the provenance of the download.
+/// The project turns the checks of provenance off.
+/// Mise can refuse a lockfile that names a provenance whose check is off.
+/// So the tables here hold nothing at all.
 #[tokio::test]
 async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
     let project = Project::locked(PINNED);
@@ -841,7 +946,11 @@ async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
                 && !line.starts_with("provenance")
         })
         .collect();
-    project.write("mise.lock", &(bare.join("\n") + "\n"));
+    project
+        .write()
+        .path("mise.lock")
+        .content(&(bare.join("\n") + "\n"))
+        .call();
 
     let outcome = project.run().await;
 
@@ -851,11 +960,15 @@ async fn run_with_platforms_without_an_address_reports_the_change_of_each() {
     assert_eq!(messages(&findings), reports("changes", &platforms));
 }
 
-// The lockfile already holds the tables without an address that `mise lock`
-// writes for the release, so the run leaves it as it is. Mise asks the API of
-// GitHub about the release as well, and when that API limits the rate of the
-// machine, mise warns, and the warning stops the run first. Either stop is
-// the answer, and the unit tests of the two checks tell them apart.
+/// Shows that a run with targeted platforms without an address stops
+///
+/// The lockfile already holds the tables without an address that `mise lock`
+/// writes for the release, so the run leaves it as it is.
+/// Mise asks the API of GitHub about the release as well.
+/// When that API limits the rate of the machine, mise warns.
+/// The warning stops the run first.
+/// Either stop is the answer, and the unit tests of the two checks tell
+/// them apart.
 #[tokio::test]
 async fn run_with_targeted_platforms_without_an_address_stops() {
     let project = Project::new(PHANTOM);
@@ -1003,7 +1116,11 @@ mod home {
                 configuration: "mise.toml",
             };
 
-            project.write("mise.toml", configuration);
+            project
+                .write()
+                .path("mise.toml")
+                .content(configuration)
+                .call();
             project.trust();
             project.lock();
 
@@ -1015,10 +1132,11 @@ mod home {
     /// directory that mise uses now
     ///
     /// Unless its own variable names it, mise derives each of these
-    /// directories from a variable of XDG, such as `XDG_DATA_HOME`, or else
-    /// from the home directory. The run in the moved home directory sets all
-    /// of them. Its mise then reads the trust, the configuration, and the
-    /// cache of the machine.
+    /// directories from a variable of XDG, such as `XDG_DATA_HOME`.
+    /// Or else, mise derives them from the home directory.
+    /// The run in the moved home directory sets all of them.
+    /// Its mise then reads the trust, the configuration, and the cache
+    /// of the machine.
     fn directories() -> Vec<(&'static str, PathBuf)> {
         let output = Command::new("mise")
             .arg("doctor")
@@ -1040,8 +1158,10 @@ mod home {
             .collect()
     }
 
-    // This test runs only in the run that the test below starts, because it
-    // reads the project from the variable that the test below sets.
+    /// Shows that a run with fix in a moved home directory passes
+    ///
+    /// This test runs only in the run that the test below starts, because it
+    /// reads the project from the variable that the test below sets.
     #[tokio::test]
     #[ignore = "the test of a project under the home directory runs it"]
     async fn run_with_fix_in_a_moved_home_directory_passes() {
@@ -1058,9 +1178,11 @@ mod home {
         );
     }
 
-    // Mise names the lockfile by its canonical path. It writes `~` only where
-    // that path starts with the home directory, so the moved home directory
-    // is canonical too.
+    /// Shows that a run with fix in a project under the home directory passes
+    ///
+    /// Mise names the lockfile by its canonical path. It writes `~` only where
+    /// that path starts with the home directory, so the moved home directory
+    /// is canonical too.
     #[test]
     fn run_with_fix_in_a_project_under_the_home_directory_passes() {
         let home = tempfile::tempdir().expect("the test creates a temporary directory");

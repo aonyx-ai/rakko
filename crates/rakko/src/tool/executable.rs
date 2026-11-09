@@ -1,3 +1,5 @@
+//! The name of a program that a tool provides
+
 typed_fields::name! {
     /// The name of a program that a tool provides
     ///

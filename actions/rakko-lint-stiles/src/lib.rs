@@ -1,36 +1,57 @@
 //! The action that applies the stiles rules of a project
 //!
 //! [Stiles] does the work: it reads its own configuration, loads the lints
-//! that the configuration names, discovers the Rust and TypeScript files, and
-//! applies the rules that the configuration turns on, so a run of the action
-//! agrees with a contributor that runs stiles bare. The action declares the
-//! version of stiles that it runs. It starts that version, which [mise]
-//! installed, and translates what stiles reported into the outcome of the run.
+//! the configuration names, and discovers the Rust and TypeScript files. It
+//! applies the rules the configuration turns on, so a run of the action agrees
+//! with a contributor that runs stiles bare.
 //!
-//! Stiles ships no rule of its own. A project names the lints that it runs in
-//! `.config/stiles.toml`, and those rules are all that a check applies. The
-//! action therefore first asks stiles to list the rules that the project
-//! runs, and it skips visibly when stiles lists none, because a check with no
-//! rule passes whatever the code holds. It skips as well when stiles finds no
-//! file to check.
+//! The action starts the stiles that [mise] installed for the project. It uses
+//! the version that the project pinned, if the action accepts that version.
+//! The action translates what stiles reported into the outcome of the run.
 //!
-//! A run only reports, so the action takes no argument. Each rule gives its
-//! diagnostics a severity. This crate reports a warning and an error alike,
-//! because both are rules that the project asked stiles to run, and a run with
-//! either fails. A note and a help fail no run, as in stiles itself.
+//! Stiles ships no rule of its own. A project names the lints it runs in
+//! `.config/stiles.toml`, and those rules are all that a check applies.
 //!
-//! The status of the process does not answer alone. Stiles ends with success
-//! when every diagnostic is a warning, and it ends with the same failure
-//! status for an error in the code and for a run that it stopped. The report
-//! and the errors that stiles writes beside it decide which one a run was, and
-//! a run that stopped stops the action instead of passing quietly.
+//! The action therefore first asks stiles to list the rules that the project
+//! runs. It skips visibly when stiles lists none, because a check with no rule
+//! passes whatever the code holds. It skips as well when stiles finds no file
+//! to check.
+//!
+//! A run only reports, so the action takes no argument.
+//!
+//! Each rule gives its diagnostics a severity. This crate reports a warning
+//! and an error alike, because both are rules that the project asked stiles to
+//! run. A run with either fails. A note and a help fail no run, as in stiles
+//! itself.
+//!
+//! The status of the process does not answer alone.
+//!
+//! Stiles ends with success when every diagnostic is a warning. It ends with
+//! the same failure status for an error in the code and for a run that it
+//! stopped. The report and the errors that stiles writes beside it decide which
+//! one a run was. A run that stopped stops the action instead of passing
+//! quietly.
 //!
 //! # Provisioning
 //!
-//! The action declares stiles with the GitHub backend of mise, which downloads
-//! the archive of a release. The declaration names the tag of the release,
-//! such as `stiles@0.4.0`. The action asks mise for the program named `stiles`
-//! at that version, whatever version the project pins.
+//! A project pins stiles in its `mise.toml` with the GitHub backend of mise,
+//! which downloads the archive of a release. Stiles tags each release with the
+//! name of the tool, so the pin names that prefix. Stiles publishes no build
+//! for Windows, so the pin installs it only on the platforms that have one:
+//!
+//! ```toml
+//! [tools]
+//! "github:aonyx-ai/stiles" = { version = "0.6.0", version_prefix = "stiles@", os = ["linux", "macos"] }
+//! ```
+//!
+//! The action declares stiles as a requirement that accepts exactly one
+//! version. The rules that a project loads are built against one version of
+//! stiles, and another version refuses them. So the action stops when the
+//! project pins another version.
+//!
+//! The action asks mise for the program named `stiles`. So a release whose
+//! archive holds a program of another name needs the `bin` option of the
+//! backend to rename it.
 //!
 //! # Asynchronous Runtime
 //!
@@ -53,13 +74,9 @@
 //! [stiles]: https://github.com/aonyx-ai/stiles
 //! [tokio]: https://tokio.rs
 
-/// Types for the action that applies the stiles rules of a project
 mod lint_stiles;
-/// Types for what one check of stiles produced
 mod observation;
-/// Types for one diagnostic that stiles reported about a file
 mod problem;
-/// Types for the stiles that a project runs
 mod stiles;
 
 pub use self::lint_stiles::{LintStiles, LintStilesError};

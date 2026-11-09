@@ -1,22 +1,22 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately failing test sits in this
+//! against it. No fixture with a deliberately failing test sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
 //! The tests run the node that this repository pins. Node is a toolchain, so
-//! the project pins it. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
-//! without a change to them.
+//! the project pins it. A project copies the `mise.toml` of the repository and
+//! trusts it. The version that answers is the version that the repository
+//! installs. A new pin reaches the tests without a change to them.
 //!
 //! A project states no configuration of the runner, because there is none to
-//! state: Node carries the patterns that select the test files, and a test
-//! file needs nothing but an import of `node:test`.
+//! state. Node carries the patterns that select the test files. A test file
+//! needs nothing but an import of `node:test`.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -45,7 +45,7 @@ const SOURCE: &str = "export function add(a: number, b: number): number {\n  ret
 
 /// A test that the project marked as still to do, and that fails
 ///
-/// Node reports such a test as failed and counts it as not failed, so a
+/// Node reports such a test as failed and counts it as not failed. So a
 /// reading that went by the report alone would fail a run that Node passes.
 const TO_DO: &str = "import { test } from \"node:test\";\nimport assert from \"node:assert\";\
                      \n\ntest(\"counts\", { todo: true }, () => {\n  assert.strictEqual(1 + \
@@ -62,6 +62,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a node to resolve
     ///
@@ -93,9 +94,9 @@ impl Project {
     /// Creates a project that pins node at the given version and nothing else
     ///
     /// A test that pins a version that no machine installs gets no location
-    /// for it from mise, whatever the global configuration of the machine says
-    /// about node. Mise ignores a configuration that nobody trusts, so the file
-    /// is trusted right away.
+    /// for it from mise. This holds whatever the global configuration of the
+    /// machine says about node. Mise ignores a configuration that nobody
+    /// trusts, so the file is trusted right away.
     fn pinning_node(version: &str) -> Self {
         let project = Self::bare();
 
@@ -147,6 +148,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -198,10 +200,10 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user, and
-    /// the temporary directory of a test never comes back, so the record would
-    /// pile up there forever. A project that never wrote a configuration has
-    /// nothing to withdraw, and mise resolves a path that is not there to the
+    /// Mise records the trust of a configuration in the state of the user. The
+    /// temporary directory of a test never comes back, so the record would pile
+    /// up there forever. A project that never wrote a configuration has
+    /// nothing to withdraw. Mise resolves a path that is not there to the
     /// directory above it, so the file has to exist first. A failure stays
     /// quiet, because the test already reported what it was about.
     fn drop(&mut self) {
@@ -239,9 +241,86 @@ fn action_identifies_itself_as_test_typescript() {
 }
 
 #[tokio::test]
+async fn run_leaves_a_file_with_a_failing_test_unchanged() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
+
+    project.run().await;
+
+    assert_eq!(project.read("src/add.test.ts"), FAILING);
+}
+
+/// Shows that a run of a project adds no file of its own
+///
+/// A test that writes a file writes it, because the project asked for that.
+/// The file shows that the run reached the test at all. Everything else that
+/// the project holds afterwards is what it held before. So the action left no
+/// report, no cache, and no installed package behind.
+#[tokio::test]
+async fn run_of_a_project_adds_no_file_of_its_own() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/write.test.ts")
+        .content(WRITING)
+        .call();
+
+    project.run().await;
+
+    assert_eq!(project.entries(), ["mise.toml", "src", "written.txt"]);
+}
+
+#[tokio::test]
+async fn run_of_a_project_whose_failing_test_is_still_to_do_passes() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(TO_DO)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+/// Shows that a run of a project whose suite holds a failing test reports one
+/// finding
+///
+/// Node reports the suite as failed as well as the test inside it, and the test
+/// inside it is the one that a reader repairs.
+#[tokio::test]
+async fn run_of_a_project_whose_suite_holds_a_failing_test_reports_one_finding() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/nested.test.ts")
+        .content(NESTED)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(findings.len(), 1);
+}
+
+#[tokio::test]
 async fn run_of_a_project_whose_tests_pass_passes() {
     let project = Project::new();
-    project.write("src/add.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -254,8 +333,16 @@ async fn run_of_a_project_whose_tests_pass_passes() {
 #[tokio::test]
 async fn run_of_a_project_whose_tests_pass_says_how_many_ran() {
     let project = Project::new();
-    project.write("src/add.test.ts", PASSING);
-    project.write("src/sub.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
+    project
+        .write()
+        .path("src/sub.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -269,49 +356,13 @@ async fn run_of_a_project_whose_tests_pass_says_how_many_ran() {
 }
 
 #[tokio::test]
-async fn run_of_a_project_with_a_failing_test_fails() {
-    let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Failed { .. }),
-        "expected the run to fail, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_of_a_project_with_a_failing_test_leaves_the_project_unchanged() {
-    let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&TestTypeScript, &project.context(), &()).await;
-}
-
-#[tokio::test]
-async fn run_of_a_project_with_a_failing_test_names_the_test() {
-    let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings[0].message().get().contains("counts"),
-        "expected the name of the test, got {:?}",
-        findings[0].message()
-    );
-}
-
-#[tokio::test]
 async fn run_of_a_project_with_a_failing_test_carries_what_node_said() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -326,9 +377,66 @@ async fn run_of_a_project_with_a_failing_test_carries_what_node_said() {
 }
 
 #[tokio::test]
+async fn run_of_a_project_with_a_failing_test_fails() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
+    );
+}
+
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
+#[tokio::test]
+async fn run_of_a_project_with_a_failing_test_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
+
+    run_checking_access(&TestTypeScript, &project.context(), &()).await;
+}
+
+#[tokio::test]
+async fn run_of_a_project_with_a_failing_test_names_the_test() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings[0].message().get().contains("counts"),
+        "expected the name of the test, got {:?}",
+        findings[0].message()
+    );
+}
+
+#[tokio::test]
 async fn run_of_a_project_with_a_failing_test_reports_where_it_is_declared() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -346,25 +454,30 @@ async fn run_of_a_project_with_a_failing_test_reports_where_it_is_declared() {
     );
 }
 
-// Node reports the suite as failed as well as the test inside it, and the test
-// inside it is the one that a reader repairs.
 #[tokio::test]
-async fn run_of_a_project_whose_suite_holds_a_failing_test_reports_one_finding() {
+async fn run_of_a_project_without_a_test_skips() {
     let project = Project::new();
-    project.write("src/nested.test.ts", NESTED);
+    project.write().path("src/index.ts").content(SOURCE).call();
 
     let outcome = project.run().await;
 
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
     };
-    assert_eq!(findings.len(), 1);
+    assert!(
+        reason.get().contains("no test"),
+        "expected the reason to say that node found no test, got {reason:?}"
+    );
 }
 
 #[tokio::test]
 async fn run_reaches_a_test_below_a_directory_of_the_project() {
     let project = Project::new();
-    project.write("packages/core/src/deep.test.ts", FAILING);
+    project
+        .write()
+        .path("packages/core/src/deep.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -377,50 +490,19 @@ async fn run_reaches_a_test_below_a_directory_of_the_project() {
     );
 }
 
-#[tokio::test]
-async fn run_leaves_a_file_with_a_failing_test_unchanged() {
-    let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
-
-    project.run().await;
-
-    assert_eq!(project.read("src/add.test.ts"), FAILING);
-}
-
-// A test that writes a file writes it, because the project asked for that, and
-// the file shows that the run reached the test at all. Everything else that
-// the project holds afterwards is what it held before, so the action left no
-// report, no cache, and no installed package behind.
-#[tokio::test]
-async fn run_of_a_project_adds_no_file_of_its_own() {
-    let project = Project::new();
-    project.write("src/write.test.ts", WRITING);
-
-    project.run().await;
-
-    assert_eq!(project.entries(), ["mise.toml", "src", "written.txt"]);
-}
-
-#[tokio::test]
-async fn run_of_a_project_whose_failing_test_is_still_to_do_passes() {
-    let project = Project::new();
-    project.write("src/add.test.ts", TO_DO);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-// The report reads as TAP only because the run asks for it. The drawing that
-// Node makes for a reader carries a summary that no parse answers, so this
-// test also fails wherever the environment would make Node draw.
+/// Shows that a run reads the report of node rather than its drawing
+///
+/// The report reads as TAP only because the run asks for it. The drawing that
+/// Node makes for a reader carries a summary that no parse answers. So this
+/// test also fails wherever the environment would make Node draw.
 #[tokio::test]
 async fn run_reads_the_report_of_node_rather_than_its_drawing() {
     let project = Project::new();
-    project.write("src/add.test.ts", FAILING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -435,25 +517,13 @@ async fn run_reads_the_report_of_node_rather_than_its_drawing() {
 }
 
 #[tokio::test]
-async fn run_of_a_project_without_a_test_skips() {
-    let project = Project::new();
-    project.write("src/index.ts", SOURCE);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains("no test"),
-        "expected the reason to say that node found no test, got {reason:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_with_a_node_between_the_releases_that_strip_types_stops_on_node() {
     let project = Project::pinning_node("23.5.0");
-    project.write("src/add.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -475,7 +545,11 @@ async fn run_with_a_node_between_the_releases_that_strip_types_stops_on_node() {
 #[tokio::test]
 async fn run_with_a_node_outside_the_range_stops_on_node() {
     let project = Project::pinning_node("20.19.0");
-    project.write("src/add.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -497,7 +571,11 @@ async fn run_with_a_node_outside_the_range_stops_on_node() {
 #[tokio::test]
 async fn run_without_a_node_stops() {
     let project = Project::pinning_node("99.0.0");
-    project.write("src/add.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -519,7 +597,11 @@ async fn run_without_a_node_stops() {
 #[tokio::test]
 async fn run_without_a_pinned_node_stops() {
     let project = Project::bare();
-    project.write("src/add.test.ts", PASSING);
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
 
     let outcome = project.run().await;
 

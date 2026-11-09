@@ -1,7 +1,7 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately failing test sits in this
+//! against it. So no fixture with a deliberately failing test sits in this
 //! repository, where the tests of the repository itself would fight it.
 //!
 //! The tests run the nextest that the action declares, with the cargo that
@@ -10,9 +10,10 @@
 //! repository installs. The copy pins another nextest that nothing installs,
 //! so a test passes only when the run ignores the pin of the project.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -30,16 +31,15 @@ const PACKAGE: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition
 /// The manifest of a package that belongs to no workspace
 ///
 /// The empty workspace table tells cargo that the package is a root of its
-/// own, which cargo demands from a package below a workspace that does not
+/// own. Cargo demands this from a package below a workspace that does not
 /// list it.
 const STANDALONE: &str =
     "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
 /// A manifest with a build script that fails
 ///
-/// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the report holds nothing that the action
-/// recognizes.
+/// Cargo reports the failure on its standard error stream, not as a compiler
+/// diagnostic. So the report holds nothing that the action recognizes.
 const FAILING_BUILD: &str =
     "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\nbuild = \"build.rs\"\n";
 
@@ -85,6 +85,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a cargo to resolve
     ///
@@ -119,8 +120,8 @@ impl Project {
     /// source
     fn with_library(source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", source);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(source).call();
 
         project
     }
@@ -129,11 +130,19 @@ impl Project {
     /// the manifest declares
     fn stale() -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", STALE);
-        project.write("Cargo.lock", LOCKFILE);
-        project.write("src/lib.rs", UNTESTED);
-        project.write("helper/Cargo.toml", HELPER);
-        project.write("helper/src/lib.rs", UNTESTED);
+        project.write().path("Cargo.toml").content(STALE).call();
+        project.write().path("Cargo.lock").content(LOCKFILE).call();
+        project.write().path("src/lib.rs").content(UNTESTED).call();
+        project
+            .write()
+            .path("helper/Cargo.toml")
+            .content(HELPER)
+            .call();
+        project
+            .write()
+            .path("helper/src/lib.rs")
+            .content(UNTESTED)
+            .call();
 
         project
     }
@@ -141,8 +150,8 @@ impl Project {
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
     /// The pin names a version that no machine installs, so mise reports no
-    /// location for cargo, whatever the global configuration of the machine
-    /// says about Rust.
+    /// location for cargo. This holds whatever the global configuration of the
+    /// machine says about Rust.
     fn without_cargo() -> Self {
         let project = Self::bare();
 
@@ -150,8 +159,8 @@ impl Project {
         std::fs::write(&pins, "[tools]\nrust = \"0.0.1\"\n")
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
-        project.write("Cargo.toml", PACKAGE);
-        project.write("src/lib.rs", PASSING);
+        project.write().path("Cargo.toml").content(PACKAGE).call();
+        project.write().path("src/lib.rs").content(PASSING).call();
 
         project
     }
@@ -169,12 +178,11 @@ impl Project {
 
     /// Writes the lockfile of every workspace of the project that has none
     ///
-    /// The action holds cargo to the lockfile of a workspace, and cargo
-    /// refuses a workspace without one, as a project that commits its
-    /// lockfile never is. A test that writes a workspace therefore gets the
-    /// lockfile that a first build would write. A project in which cargo
-    /// cannot find its workspaces stays as it is, so that the run reports
-    /// what stops it.
+    /// The action holds cargo to the lockfile of a workspace. Cargo refuses
+    /// a workspace without one, as a project that commits its lockfile never
+    /// is. A test that writes a workspace therefore gets the lockfile that a
+    /// first build would write. A project in which cargo cannot find its
+    /// workspaces stays as it is, so that the run reports what stops it.
     async fn lock(&self) {
         let Ok(cargo) = Cargo::resolve(&self.context()).await else {
             return;
@@ -205,6 +213,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -272,8 +281,8 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record
     /// would pile up there forever. A failure stays quiet, because the test
     /// already reported what it was about.
     fn drop(&mut self) {
@@ -298,6 +307,137 @@ fn action_identifies_itself_as_test_rust() {
     let name = TestRust.name();
 
     assert_eq!(name.get(), "test-rust");
+}
+
+#[tokio::test]
+async fn run_in_a_project_with_a_passing_test_counts_it() {
+    let project = Project::with_library(PASSING);
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("ran 1 test in 1 workspace")
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_project_with_a_passing_test_passes() {
+    let project = Project::with_library(PASSING);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_workspace_without_tests_counts_zero() {
+    let project = Project::with_library(UNTESTED);
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("ran 0 tests in 1 workspace")
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_workspace_without_tests_passes() {
+    let project = Project::with_library(UNTESTED);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
+#[tokio::test]
+async fn run_leaves_the_project_unchanged() {
+    let project = Project::with_library(FAILING);
+    project.lock().await;
+
+    run_checking_access(&TestRust, &project.context(), &()).await;
+}
+
+#[tokio::test]
+async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains("build"),
+        "expected the diagnosis of the build, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_build_script_that_fails_stops() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_compiler_error_fails_with_a_finding() {
+    let project = Project::with_library(BROKEN);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.message().get().contains("mismatched types")),
+        "expected the error of the compiler, got {findings:?}"
+    );
 }
 
 #[tokio::test]
@@ -330,91 +470,18 @@ async fn run_with_a_failing_test_holds_its_finding() {
 }
 
 #[tokio::test]
-async fn run_with_a_compiler_error_fails_with_a_finding() {
-    let project = Project::with_library(BROKEN);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings
-            .iter()
-            .any(|finding| finding.message().get().contains("mismatched types")),
-        "expected the error of the compiler, got {findings:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_leaves_the_project_unchanged() {
-    let project = Project::with_library(FAILING);
-    project.lock().await;
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&TestRust, &project.context(), &()).await;
-}
-
-#[tokio::test]
-async fn run_in_a_project_with_a_passing_test_passes() {
-    let project = Project::with_library(PASSING);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_in_a_project_with_a_passing_test_counts_it() {
-    let project = Project::with_library(PASSING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("ran 1 test in 1 workspace")
-    );
-}
-
-#[tokio::test]
-async fn run_in_a_workspace_without_tests_counts_zero() {
-    let project = Project::with_library(UNTESTED);
-
-    let outcome = project.run().await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("ran 0 tests in 1 workspace")
-    );
-}
-
-#[tokio::test]
-async fn run_in_a_workspace_without_tests_passes() {
-    let project = Project::with_library(UNTESTED);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
     let project = Project::with_library(PASSING);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", FAILING);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(FAILING)
+        .call();
 
     let outcome = project.run().await;
 
@@ -425,65 +492,19 @@ async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
 }
 
 #[tokio::test]
-async fn run_with_two_workspaces_sums_the_tests() {
-    let project = Project::with_library(PASSING);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", PASSING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("ran 2 tests in 2 workspaces")
-    );
-}
-
-#[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run().await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_build_script_that_fails_stops() {
-    let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
-    let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Errored { source } = &outcome else {
-        panic!("expected the run to stop, got {outcome:?}");
-    };
-    assert!(
-        source.to_string().contains("build"),
-        "expected the diagnosis of the build, got {source}"
     );
 }
 
@@ -515,6 +536,31 @@ async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
 }
 
 #[tokio::test]
+async fn run_with_two_workspaces_sums_the_tests() {
+    let project = Project::with_library(PASSING);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(PASSING)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("ran 2 tests in 2 workspaces")
+    );
+}
+
+#[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
 
@@ -533,7 +579,11 @@ async fn run_without_a_cargo_stops() {
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Project\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Project\n")
+        .call();
 
     let outcome = project.run().await;
 

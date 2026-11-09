@@ -1,5 +1,9 @@
+//! The arguments that a run reads
+
 use getset::CopyGetters;
 use rakko::{Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name};
+
+use super::operation::Operation;
 
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Write the lockfiles that mise lock would change";
@@ -10,11 +14,24 @@ const FIX_DOCUMENTATION: &str = "Write the lockfiles that mise lock would change
 /// `mise lock` in the project, so that its result stays there. Reporting is
 /// the safe default, because a run that was started in order to look must not
 /// change the tree that its caller holds.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_check_mise_lock::{CheckMiseLockArgs, Operation};
+///
+/// let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+/// let args = CheckMiseLockArgs::from_values(&values).unwrap();
+///
+/// assert_eq!(args.operation(), Operation::Rewrite);
+/// assert_eq!(CheckMiseLockArgs::default().operation(), Operation::Report);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct CheckMiseLockArgs {
-    /// Whether the run writes the lockfiles of the project
+    /// What the run does with the lockfiles of the project
     #[getset(get_copy = "pub")]
-    fix: bool,
+    operation: Operation,
 }
 
 impl Args for CheckMiseLockArgs {
@@ -39,15 +56,22 @@ impl Args for CheckMiseLockArgs {
             None => false,
         };
 
-        Ok(Self { fix })
+        let operation = if fix {
+            Operation::Rewrite
+        } else {
+            Operation::Report
+        };
+
+        Ok(Self { operation })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::ArgumentValue;
 
@@ -56,6 +80,13 @@ mod tests {
     /// Returns the values of a run that gives `fix` the given text
     fn values(fix: &str) -> ArgsValues {
         ArgsValues::new([(argument_name!("fix"), ArgumentValue::new(fix))])
+    }
+
+    #[test]
+    fn check_mise_lock_args_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckMiseLockArgs>();
     }
 
     #[test]
@@ -72,14 +103,14 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = CheckMiseLockArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.operation(), Operation::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = CheckMiseLockArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.operation(), Operation::Report);
     }
 
     #[test]

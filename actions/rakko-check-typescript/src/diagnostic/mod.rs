@@ -1,13 +1,12 @@
 //! One thing that tsc reported about a project
 //!
 //! A run of tsc reports one diagnostic for each rule of the language that the
-//! code breaks, and one for each thing that stopped it from checking the code
-//! at all. This module holds one of them: where it points, what kind tsc gave
-//! it, which rule of TypeScript it belongs to, and what tsc said about it.
+//! code breaks. It also reports one for each thing that stopped it from
+//! checking the code at all. This module holds one of them. It holds where it
+//! points and what kind tsc gave it. It also holds which rule of TypeScript it
+//! belongs to and what tsc said about it.
 
-/// The kind that tsc gave a diagnostic
 mod category;
-/// The place in the project that a diagnostic points at
 mod origin;
 
 use bon::Builder;
@@ -25,20 +24,20 @@ const KIND_CLOSE: char = ' ';
 /// One thing that tsc reported about a project
 ///
 /// A diagnostic points at a place of the project, or at no place at all. Tsc
-/// writes a place for everything that it found in a file, and it writes none
-/// for what it found about the run itself, such as a configuration file that
-/// it could not find.
+/// writes a place for everything that it found in a file. It writes none for
+/// what it found about the run itself, such as a configuration file that it
+/// could not find.
 ///
 /// The number is the identifier that TypeScript gives the rule, as tsc writes
 /// it, so `TS2322` and not `2322`. It is the one part of a diagnostic that
-/// survives a rewording of the message, which is why a caller that recognizes
-/// a diagnostic recognizes it by the number.
+/// survives a rewording of the message. That is why a caller that recognizes a
+/// diagnostic recognizes it by the number.
 ///
 /// The text is what tsc said, with everything that it added below the first
 /// line joined into it. Tsc explains a diagnostic in indented lines underneath
-/// it where one sentence does not carry the answer, and those lines name which
-/// type disagreed with which, so a message without them tells a reader that
-/// two types do not fit and never says why.
+/// it. These lines appear when one sentence does not carry the answer. They
+/// name which type disagreed with which. So a message without them tells a
+/// reader that two types do not fit and never says why.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Builder, Getters)]
 pub(crate) struct Diagnostic {
     /// The place that the diagnostic points at, or `None` for no place
@@ -63,8 +62,8 @@ pub(crate) struct Diagnostic {
 impl Diagnostic {
     /// Returns the sentence that tsc wrote about the diagnostic
     ///
-    /// The sentence holds the kind, the number, and the text, in the order
-    /// that tsc writes them, so that a finding reads like the line that a
+    /// The sentence holds the kind, the number, and the text, in the order that
+    /// tsc writes them. That way a finding reads like the line that a
     /// contributor sees when they run tsc themselves.
     pub(crate) fn message(&self) -> String {
         format!(
@@ -76,11 +75,19 @@ impl Diagnostic {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
+
+    #[test]
+    fn diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Diagnostic>();
+    }
 
     #[test]
     fn message_reads_like_the_line_that_tsc_writes() {

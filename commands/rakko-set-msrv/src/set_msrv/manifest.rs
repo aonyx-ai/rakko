@@ -1,3 +1,5 @@
+//! The version in the root manifest
+
 use std::path::Path;
 
 use toml_edit::{DocumentMut, Item, RawString};

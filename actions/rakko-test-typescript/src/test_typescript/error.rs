@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
@@ -10,6 +12,18 @@ use crate::node::report::ReadReportError;
 /// finding in the outcome of the run. The variants of this error describe a
 /// run whose answer cannot be trusted, and such a run stops instead of
 /// reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::TestTypeScriptError;
+///
+/// let error = TestTypeScriptError::MissingFailure {
+///     details: "out of memory".to_owned(),
+/// };
+///
+/// assert!(error.to_string().contains("out of memory"));
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum TestTypeScriptError {
@@ -17,8 +31,8 @@ pub enum TestTypeScriptError {
     ///
     /// The test runner reports every test that it ran and every one that
     /// failed. A run that ended without success and reported no failure
-    /// therefore stopped for a reason that the action cannot name, and the
-    /// tests of the project never ran to the end.
+    /// therefore stopped for a reason that the action cannot name. The tests
+    /// of the project never ran to the end.
     #[error("node reported no failure and ended without success: {details}")]
     MissingFailure {
         /// What node wrote in place of a failure
@@ -38,10 +52,10 @@ pub enum TestTypeScriptError {
     /// Node wrote a report that the action cannot read
     ///
     /// The shape of the report belongs to a version of Node. A report that
-    /// does not fit therefore points at a version that this crate does not
-    /// know, and the findings of such a run would be the failures that the
-    /// reading happened to understand.
-    #[error("node wrote a report that the action cannot read: {report}")]
+    /// does not fit therefore points at a version that this crate does not know. The
+    /// findings of such a run would be the failures that the reading happened
+    /// to understand.
+    #[error("failed to read the report from node: {report}")]
     UnreadableReport {
         /// What node wrote in place of a report that the action reads
         report: String,
@@ -80,9 +94,10 @@ impl From<ObserveNodeError> for TestTypeScriptError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -117,14 +132,23 @@ mod tests {
         );
     }
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Shows that `TestTypeScriptError` is `Send` and `Sync`
+    ///
+    /// An action puts the error in the outcome of a run. That outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn test_type_script_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<TestTypeScriptError>();
+    }
+
+    #[test]
+    fn test_type_script_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TestTypeScriptError>();
     }
 }

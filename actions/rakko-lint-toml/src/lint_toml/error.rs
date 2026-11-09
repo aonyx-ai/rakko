@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_taplo::ObserveTaploError;
@@ -10,6 +12,21 @@ use thiserror::Error;
 /// and a file that taplo cannot open both travel as findings in the outcome
 /// of the run. The variants of this error describe a run whose answer cannot
 /// be trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_toml::LintTomlError;
+/// use std::path::PathBuf;
+///
+/// let error = LintTomlError::ForeignPath {
+///     path: PathBuf::from("../outside/project"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "taplo reported a path outside the project: ../outside/project"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum LintTomlError {
@@ -28,8 +45,8 @@ pub enum LintTomlError {
     ///
     /// Taplo warns about a configuration that it cannot read and then runs
     /// with its defaults. A run on the defaults quietly does what the project
-    /// asked it not to do, so the action stops instead of reporting what such
-    /// a run found.
+    /// asked it not to do. The action stops instead of reporting what such a
+    /// run found.
     #[error("taplo rejected a configuration file and would have run with its defaults: {details}")]
     RejectedConfiguration {
         /// What taplo reported about the file
@@ -101,9 +118,10 @@ impl From<ObserveTaploError> for LintTomlError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -120,5 +138,12 @@ mod tests {
             matches!(&error, LintTomlError::UnrecognizedReport { stderr } if stderr == REPORT),
             "expected the report of taplo, got {error:?}"
         );
+    }
+
+    #[test]
+    fn lint_toml_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintTomlError>();
     }
 }

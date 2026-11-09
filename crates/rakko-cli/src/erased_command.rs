@@ -1,3 +1,5 @@
+//! The view of a command that hides its type
+
 use std::future::Future;
 use std::pin::Pin;
 
@@ -10,14 +12,14 @@ use crate::seal::Sealed;
 
 /// One command behind an interface that hides its type
 ///
-/// The [`Command`] trait is written for the author of a command, so it
-/// carries the type of the arguments that the command reads. The builder
-/// holds many commands at once, beside the actions, and cannot name a
-/// different type for each of them, so it holds erased commands instead, the
-/// way a registry holds erased actions.
+/// The [`Command`] trait is written for the author of a command, so it carries
+/// the type of the arguments that the command reads. The builder holds many
+/// commands at once, beside the actions. It cannot name a different type for
+/// each of them. So it holds erased commands instead, the way a registry holds
+/// erased actions.
 ///
 /// An erased command answers everything that the projection needs without
-/// naming the type of the command: the name that identifies it, the
+/// naming the type of the command. It gives the name that identifies it, the
 /// description of the arguments that become flags, and a run that takes the
 /// values of those flags. The conversion from those values into the arguments
 /// of the command happens inside, where the type is still known.
@@ -108,9 +110,9 @@ pub trait ErasedCommand: Send + Sync + Sealed {
     /// Runs the command against the project that the context names
     ///
     /// The values hold what the command line parsed for the arguments of the
-    /// command. The run converts them into the arguments of the command, and
-    /// a conversion that fails is an error of the run, so a user who gave a
-    /// value that the command cannot read learns which argument it was.
+    /// command. The run converts them into the arguments of the command. A
+    /// conversion that fails is an error of the run. So a user who gave a value
+    /// that the command cannot read learns which argument it was.
     fn run<'a>(
         &'a self,
         project: &'a Context,
@@ -146,9 +148,10 @@ impl<C: Command> ErasedCommand for C {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
     use std::pin::pin;

@@ -1,3 +1,5 @@
+//! The group of the actions that guard a commit
+
 use std::fmt;
 
 use rakko::{ErasedAction, Group, Name, action_name};
@@ -6,21 +8,30 @@ use rakko::{ErasedAction, Group, Name, action_name};
 ///
 /// A commit of a project has to pass a list of actions, and no action
 /// describes that list. The list repairs the tree first and then examines what
-/// it repaired, and whoever reads it wants what each action said, where an
-/// action answers with one outcome. The hook that Git runs before a commit
-/// therefore calls one command that runs the whole list.
+/// it repaired. Whoever reads it wants what each action said, where an action
+/// answers with one outcome. The hook that Git runs before a commit therefore
+/// calls one command that runs the whole list.
 ///
 /// The group contains no action of its own. Which activities guard a commit is
 /// a decision of the project, so the harness gives the actions to the group in
 /// one list. The group is a [`Group`], and the actions in its list are its
 /// members. The command line runs the members: it asks each member whether a
-/// run reads or writes the project, and it orders the run from these
-/// declarations.
+/// run reads or writes the project. It orders the run from these declarations.
 ///
 /// The command line also derives the flags of the group from the arguments
-/// that the members declare, so the group defines no flag of its own. A flag
+/// that the members declare. So the group defines no flag of its own. A flag
 /// such as `--fix` reaches every member that declares its argument, and no
 /// other member.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::Group;
+/// use rakko_pre_commit::PreCommit;
+///
+/// let group = PreCommit::new([]);
+/// assert_eq!(group.name().get(), "pre-commit");
+/// ```
 pub struct PreCommit {
     /// The actions that guard a commit, in the order of the list that the
     /// harness gave
@@ -112,9 +123,10 @@ fn names(actions: &[Box<dyn ErasedAction>]) -> Vec<Name> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{Action, Context, Outcome};
 
@@ -163,5 +175,12 @@ mod tests {
         let group = PreCommit::new([]);
 
         assert_eq!(group.name().get(), "pre-commit");
+    }
+
+    #[test]
+    fn pre_commit_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<PreCommit>();
     }
 }

@@ -1,7 +1,7 @@
 //! The action that validates the TOML files of a project
 //!
-//! [Taplo] does the work: it discovers the TOML files, reads its own
-//! configuration, and validates what that configuration selects, so a run of
+//! [Taplo] does the work: it discovers the TOML files and reads its own
+//! configuration. It validates what that configuration selects, so a run of
 //! the action agrees with an editor and with a contributor that runs taplo
 //! bare. The action declares the version of taplo that it runs. It starts
 //! that version, which [mise] installed, and translates what taplo reported
@@ -27,7 +27,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [taplo]: https://taplo.tamasfe.dev
 
-/// Types for the action that validates the TOML files of a project
 mod lint_toml;
 
 pub use self::lint_toml::{LintToml, LintTomlError};

@@ -1,16 +1,31 @@
+//! Whether cargo can test the examples of a workspace
+
 /// Whether cargo can test the examples in the documentation of a workspace
 ///
 /// Cargo runs the examples in the documentation of a library, and a workspace
-/// can hold no library at all: the harness of a project is a binary, and a
+/// can hold no library at all. The harness of a project is a binary, and a
 /// library that builds a C library links no example. Cargo refuses a run that
-/// asks for the documentation examples of such a workspace, so a root states
-/// which of the two it is, and a caller runs its job where the examples can
-/// be tested. Whether they were is another question, which the run that
-/// tested them answers.
+/// asks for the documentation examples of such a workspace. So a root states
+/// which of the two it is, and a caller runs its job where the examples can be
+/// tested. Whether they were is another question, which the run that tested
+/// them answers.
 ///
 /// The `doctest` flag of a manifest decides something else. It selects
 /// whether a plain run of the tests includes the examples, and a run that
 /// names the documentation itself tests them either way.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoRoot, Documentation};
+///
+/// let root = CargoRoot::builder()
+///     .directory(std::env::temp_dir())
+///     .documentation(Documentation::Untestable)
+///     .build();
+///
+/// assert_eq!(root.documentation(), Documentation::Untestable);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Documentation {
     /// The workspace holds a library whose examples cargo can test
@@ -18,4 +33,16 @@ pub enum Documentation {
 
     /// The workspace holds no library whose examples cargo can test
     Untestable,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn documentation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Documentation>();
+    }
 }

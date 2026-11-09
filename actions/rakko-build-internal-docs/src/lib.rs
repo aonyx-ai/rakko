@@ -1,11 +1,11 @@
 //! The action that builds the internal documentation of a project
 //!
-//! [Rustdoc] does the work: cargo reads the manifests of the project and
+//! [Rustdoc] does the work. Cargo reads the manifests of the project and
 //! renders the documentation of every package, with the private items and
-//! with every feature, so a run of the action agrees with a contributor that
-//! runs `cargo doc` bare. The action starts the cargo that [mise] installed
-//! for the project, at the version that the project pinned, and translates
-//! what cargo reported into the outcome of the run.
+//! with every feature. So a run of the action agrees with a contributor that runs
+//! `cargo doc` bare. The action starts the cargo that [mise] installed for the
+//! project. It uses the version that the project pinned and translates what
+//! cargo reported into the outcome of the run.
 //!
 //! The internal documentation describes the code to whoever maintains it.
 //! The documentation that a project publishes for the people who use it is a
@@ -34,7 +34,6 @@
 //! [mise]: https://mise.jdx.dev
 //! [rustdoc]: https://doc.rust-lang.org/rustdoc/
 
-/// Types for the action that builds the internal documentation of a project
 mod build_internal_docs;
 
 pub use self::build_internal_docs::{BuildInternalDocs, BuildInternalDocsError};

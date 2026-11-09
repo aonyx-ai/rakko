@@ -1,15 +1,12 @@
 //! What nextest reported about a run
 //!
-//! Nextest writes its structured report as one JSON document per line on
-//! its standard output, next to the JSON of cargo, and this module reads the
-//! lines of nextest. The shape of the lines belongs to a version of nextest,
-//! and this module is the one place that knows it.
+//! Nextest writes its structured report as one JSON document per line on its
+//! standard output, next to the JSON of cargo. This module reads the lines of
+//! nextest. The shape of the lines belongs to a version of nextest, and this
+//! module is the one place that knows it.
 
-/// The error that stops the reading
 mod error;
-/// One test that failed
 mod failure;
-/// Where and why a test panicked
 mod panic;
 
 use getset::{CopyGetters, Getters};
@@ -54,9 +51,9 @@ impl NextestReport {
     /// output
     ///
     /// The reading keeps every test that failed and sums the tests of every
-    /// binary that finished. It ignores every other line: a test that
-    /// started or passed, the lines of cargo, and a line that is not a
-    /// record of nextest at all, so the two tools can share the stream.
+    /// binary that finished. It ignores every other line. These are a test that
+    /// started or passed, the lines of cargo, and a line that is not a record
+    /// of nextest at all. So the two tools can share the stream.
     ///
     /// # Errors
     ///
@@ -81,14 +78,21 @@ impl NextestReport {
 
             let record: Record = decode(line)?;
 
-            match (record.kind.as_str(), record.event.as_str()) {
+            let Record { kind, event, .. } = &record;
+            match (kind.as_str(), event.as_str()) {
                 (TEST, FAILED) => {
                     if let Some(name) = record.name {
-                        failures.push(TestFailure::new(name, record.stdout.unwrap_or_default()));
+                        failures.push(
+                            TestFailure::builder()
+                                .name(name)
+                                .output(record.stdout.unwrap_or_default())
+                                .build(),
+                        );
                     }
                 }
                 (SUITE, OK | FAILED) => {
-                    ran += record.passed.unwrap_or_default() + record.failed.unwrap_or_default();
+                    let Record { passed, failed, .. } = &record;
+                    ran += passed.unwrap_or_default() + failed.unwrap_or_default();
                 }
                 _ => {}
             }
@@ -154,11 +158,10 @@ fn decode<T: DeserializeOwned>(line: &str) -> Result<T, ReadNextestReportError> 
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a report
-    // which nextest could have written expects the reading to succeed. A
-    // `# Panics` section on every test would repeat that and give the reader
-    // no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a report which nextest could have written expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use super::*;
@@ -197,6 +200,20 @@ mod tests {
     fn read(lines: &[&str]) -> NextestReport {
         NextestReport::read(&output(lines))
             .expect("the test reads a report that nextest could write")
+    }
+
+    #[test]
+    fn nextest_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<NextestReport>();
+    }
+
+    #[test]
+    fn probe_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Probe>();
     }
 
     #[test]
@@ -262,5 +279,12 @@ mod tests {
         let report = read(&[PASSED_SUITE, FAILED_TEST, FAILED_SUITE]);
 
         assert_eq!(report.ran(), 4);
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
     }
 }

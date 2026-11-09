@@ -1,3 +1,5 @@
+//! One member of a group, bound to the values of one run
+
 use std::fmt;
 
 use rakko::{ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError};
@@ -5,10 +7,10 @@ use rakko::{ArgsValues, BoundAction, ErasedAction, Name, ReadArgsError};
 /// One member of a group, bound to the values of one run
 ///
 /// A group lists actions, its members. The command line binds every member to
-/// the values of the run before any member runs, and the scheduler receives
-/// one bound member for each member of the group. A bound member keeps the
-/// name of the action beside the [`BoundAction`], so that the scheduler can
-/// report what each member found under the name of the member.
+/// the values of the run before any member runs. The scheduler receives one
+/// bound member for each member of the group. A bound member keeps the name
+/// of the action beside the [`BoundAction`]. This lets the scheduler report
+/// what each member found under the name of the member.
 ///
 /// The values are bound once. The bound action declares how its run uses the
 /// project and then runs, and both see the same arguments. So the scheduler
@@ -20,6 +22,7 @@ pub(crate) struct BoundMember<'a> {
     action: Box<dyn BoundAction + 'a>,
 }
 
+#[bon::bon]
 impl<'a> BoundMember<'a> {
     /// Binds the values of a run to the arguments of an action
     ///
@@ -30,6 +33,7 @@ impl<'a> BoundMember<'a> {
     ///
     /// Returns a [`ReadArgsError`] when the values do not convert into the
     /// arguments of the action.
+    #[builder]
     pub(crate) fn bind(
         action: &'a dyn ErasedAction,
         values: &ArgsValues,
@@ -68,9 +72,10 @@ impl fmt::Debug for BoundMember<'_> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{
         Access, Action, Args, ArgsSchema, Argument, ArgumentShape, ArgumentValue, Context, Outcome,
@@ -79,10 +84,21 @@ mod tests {
 
     use super::*;
 
+    /// What a formatter does with the files that it examines
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+    enum Operation {
+        /// Report the files that a rewrite would change, and rewrite nothing
+        #[default]
+        Report,
+
+        /// Rewrite the files that the formatter can format
+        Rewrite,
+    }
+
     /// The arguments of the formatter: whether the run repairs what it finds
     struct Fix {
-        /// Whether the run rewrites the files that it can format
-        fix: bool,
+        /// What the run does with the files that it examines
+        fix: Operation,
     }
 
     impl Args for Fix {
@@ -96,12 +112,16 @@ mod tests {
 
         fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
             match values.get(&argument_name!("fix")) {
-                Some(value) if value.get() == "true" => Ok(Self { fix: true }),
+                Some(value) if value.get() == "true" => Ok(Self {
+                    fix: Operation::Rewrite,
+                }),
                 Some(value) => Err(ReadArgsError::UnreadableValue {
                     name: argument_name!("fix"),
                     value: value.clone(),
                 }),
-                None => Ok(Self { fix: false }),
+                None => Ok(Self {
+                    fix: Operation::Report,
+                }),
             }
         }
     }
@@ -117,10 +137,9 @@ mod tests {
         }
 
         fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-            if args.fix {
-                Access::Write
-            } else {
-                Access::Read
+            match args.fix {
+                Operation::Rewrite => Access::Write,
+                Operation::Report => Access::Read,
             }
         }
 
@@ -136,7 +155,11 @@ mod tests {
 
     #[test]
     fn action_declares_the_access_of_the_values_that_were_bound() {
-        let member = BoundMember::bind(&Formatter, &fix("true")).unwrap();
+        let member = BoundMember::bind()
+            .action(&Formatter)
+            .values(&fix("true"))
+            .call()
+            .unwrap();
         let context = Context::builder().root("/tmp/project").build();
 
         let access = member.action().access(&context);
@@ -146,7 +169,10 @@ mod tests {
 
     #[test]
     fn bind_reports_values_that_do_not_convert() {
-        let member = BoundMember::bind(&Formatter, &fix("maybe"));
+        let member = BoundMember::bind()
+            .action(&Formatter)
+            .values(&fix("maybe"))
+            .call();
 
         assert!(matches!(
             member,
@@ -155,11 +181,29 @@ mod tests {
     }
 
     #[test]
+    fn bound_member_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<BoundMember<'static>>();
+    }
+
+    #[test]
     fn name_returns_the_name_of_the_action() {
-        let member = BoundMember::bind(&Formatter, &ArgsValues::empty()).unwrap();
+        let member = BoundMember::bind()
+            .action(&Formatter)
+            .values(&ArgsValues::empty())
+            .call()
+            .unwrap();
 
         let name = member.name();
 
         assert_eq!(name.get(), "formatter");
+    }
+
+    #[test]
+    fn operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Operation>();
     }
 }

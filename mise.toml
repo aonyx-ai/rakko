@@ -63,6 +63,17 @@ jq = "1.8.2"
 # file to no Windows download, so the pin names the backend that installs
 # from the package index instead and works on every platform.
 "pipx:pre-commit" = "4.7.0"
+# Stiles tags a release with the name of the tool in front of the version, so
+# the pin names that prefix. Stiles publishes no build for Windows, so the pin
+# installs it only on the platforms that have one. The action `lint-stiles`
+# accepts exactly this version, because the lints that `.config/stiles.toml`
+# names are built against it and another stiles refuses them. The pin stays in
+# this file and not in the generated file, because the generated file cannot
+# limit the platforms that install a tool.
+"github:aonyx-ai/stiles" = { version = "0.6.0", version_prefix = "stiles@", os = [
+  "linux",
+  "macos",
+] }
 
 # TypeScript is a toolchain of this repository, like node. `check-typescript`
 # reads this pin, and it accepts TypeScript 5 and later.

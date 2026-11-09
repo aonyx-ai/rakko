@@ -1,14 +1,10 @@
-/// What `doctor` reports when it cannot check the tool pins
+//! The command that checks and repairs the tool pins of the project
+
 mod check_error;
-/// One tool that one mounted action declares
 mod declaration;
-/// The mise file that Rakko generates from the tools of the mounted actions
 mod generated;
-/// What `doctor --fix` reports when it cannot repair the tool pins
 mod repair_error;
-/// The pins of the project that override a declared tool
 mod shadow;
-/// The toolchains that the mounted actions require of the project
 mod toolchain;
 
 use std::collections::BTreeSet;
@@ -31,7 +27,7 @@ pub(crate) const DOCTOR: &str = "doctor";
 
 /// The name of the flag that asks for the repair
 ///
-/// An action that repairs what it finds takes a flag with this name, so a
+/// An action that repairs what it finds takes a flag with this name. So a
 /// user who knows the flag of an action knows the flag of `doctor`.
 const FIX: &str = "fix";
 
@@ -84,43 +80,53 @@ pub(crate) fn name() -> Name {
 ///
 /// The check has three parts. The generated file must match the tools that
 /// the mounted actions declare. No configuration file inside the project that
-/// mise ranks above the generated file can pin a declared tool, because mise
-/// would run that pin instead. Each
-/// toolchain that a mounted action requires must be pinned by the project in
-/// the range of the action. A project whose actions declare no tool needs no
-/// generated file, and the run reports a generated file that is left over.
+/// mise ranks above the generated file can pin a declared tool. Mise would run
+/// that pin instead. Each toolchain that a mounted action requires must be
+/// pinned by the project in the range of the action. A project whose actions
+/// declare no tool needs no generated file. The run reports a generated file
+/// that is left over.
 ///
 /// The check reads the project and asks mise about it, and it needs no
-/// network. The repair writes the generated file, removes each pin that
-/// overrides a declared tool, and then runs `mise lock`, which needs the
+/// network. The repair writes the generated file and removes each pin that
+/// overrides a declared tool. Then it runs `mise lock`, which needs the
 /// network. It locks every tool of the project, so it can also change the
-/// lockfile of the configuration of the project. In a project whose actions
-/// declare no tool, the repair removes a generated file that is left over.
-/// Mise keeps the entries of that file in its lockfile, unless another
-/// configuration file shares the lockfile. So the repair locks the tools
-/// when one does, and removes the lockfile when none does. It locks nothing
-/// in such a project otherwise. A toolchain stays as the
-/// project pins it, because its version is a decision of the project. Its
+/// lockfile of the configuration of the project.
+///
+/// In a project whose actions declare no tool, the repair removes a generated
+/// file that is left over. Mise keeps the entries of that file in its
+/// lockfile, unless another configuration file shares the lockfile. So the
+/// repair locks the tools when one does, and removes the lockfile when none
+/// does. It locks nothing in such a project otherwise. A toolchain stays as
+/// the project pins it, because its version is a decision of the project. Its
 /// finding says which pin to change.
 ///
 /// The outcome holds each problem as a finding, and each problem that the
 /// repair fixed as a repair. A failure that stops the check or the repair
 /// gives an outcome that stopped.
+#[bon::builder]
 pub(crate) async fn run(
     declarations: &BTreeSet<Declaration>,
     context: &Context,
     mode: Mode,
 ) -> Outcome {
     let result: Result<_, Box<dyn Error + Send + Sync>> = match mode {
-        Mode::Report => report(declarations, context)
+        Mode::Report => report()
+            .declarations(declarations)
+            .context(context)
+            .call()
             .await
             .map(|findings| (findings, Vec::new()))
             .map_err(Into::into),
-        Mode::Repair => repair(declarations, context).await.map_err(Into::into),
+        Mode::Repair => repair()
+            .declarations(declarations)
+            .context(context)
+            .call()
+            .await
+            .map_err(Into::into),
     };
 
     match result {
-        Ok((findings, repairs)) => outcome(findings, repairs),
+        Ok((findings, repairs)) => outcome().findings(findings).repairs(repairs).call(),
         Err(source) => Outcome::Errored { source },
     }
 }
@@ -130,23 +136,36 @@ pub(crate) async fn run(
 /// # Errors
 ///
 /// Returns the errors that [`CheckToolPinsError`] describes.
+#[bon::builder]
 async fn report(
     declarations: &BTreeSet<Declaration>,
     context: &Context,
 ) -> Result<Vec<Finding>, CheckToolPinsError> {
     let pins = pins(declarations);
 
-    let mut findings: Vec<Finding> = generated::check(&pins, context.root())?
+    let mut findings: Vec<Finding> = self::generated::check()
+        .pins(&pins)
+        .root(context.root())
+        .call()?
         .into_iter()
         .collect();
 
     findings.extend(
-        shadow::find(&pins, context)
+        self::shadow::find()
+            .pins(&pins)
+            .context(context)
+            .call()
             .await?
             .iter()
-            .map(shadow::Shadow::finding),
+            .map(self::shadow::Shadow::finding),
     );
-    findings.extend(toolchain::check(declarations, context).await?);
+    findings.extend(
+        self::toolchain::check()
+            .declarations(declarations)
+            .context(context)
+            .call()
+            .await?,
+    );
 
     Ok(findings)
 }
@@ -157,6 +176,7 @@ async fn report(
 /// # Errors
 ///
 /// Returns the errors that [`RepairToolPinsError`] describes.
+#[bon::builder]
 async fn repair(
     declarations: &BTreeSet<Declaration>,
     context: &Context,
@@ -169,18 +189,23 @@ async fn repair(
 
     let mut locks = !pins.is_empty();
 
-    if let Some(problem) = generated::check(&pins, root)? {
-        generated::write(&pins, root)?;
+    if let Some(problem) = self::generated::check().pins(&pins).root(root).call()? {
+        self::generated::write().pins(&pins).root(root).call()?;
 
         if pins.is_empty() {
-            locks = generated::retire_lockfile(root)?;
+            locks = self::generated::retire_lockfile(root)?;
         }
 
         repairs.push(problem);
     }
 
-    for shadow in shadow::find(&pins, context).await? {
-        if shadow::remove(&shadow, root)? {
+    for shadow in self::shadow::find()
+        .pins(&pins)
+        .context(context)
+        .call()
+        .await?
+    {
+        if self::shadow::remove().shadow(&shadow).root(root).call()? {
             repairs.push(shadow.finding());
         } else {
             findings.push(shadow.finding());
@@ -191,7 +216,13 @@ async fn repair(
         lock(context).await?;
     }
 
-    findings.extend(toolchain::check(declarations, context).await?);
+    findings.extend(
+        self::toolchain::check()
+            .declarations(declarations)
+            .context(context)
+            .call()
+            .await?,
+    );
 
     Ok((findings, repairs))
 }
@@ -233,6 +264,7 @@ fn pins(declarations: &BTreeSet<Declaration>) -> Pins {
 /// A run without a problem passed. A run that repaired every problem changed
 /// the project, and a run with a problem that remains failed, also when it
 /// repaired others.
+#[bon::builder]
 fn outcome(findings: Vec<Finding>, repairs: Vec<Finding>) -> Outcome {
     match (findings.is_empty(), repairs.is_empty()) {
         (true, true) => Outcome::Passed { summary: None },
@@ -256,15 +288,16 @@ fn diagnosis(execution: &Execution) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
     use rakko::{FilePath, Location, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-    use rakko_tool::pinned_version;
+    use rakko_tool::MiseFile;
     use tempfile::TempDir;
 
     use super::*;
@@ -292,38 +325,46 @@ mod tests {
 
     /// Returns the version that a mise file of this repository pins for a
     /// tool
+    #[bon::builder]
     fn pinned_in(file: &str, tool: &str) -> String {
         let pins = std::fs::read_to_string(repository().join(file))
             .expect("the test reads a mise file of the repository");
 
-        pinned_version(&pins, tool).to_owned()
+        MiseFile::new(&pins).pinned_version(tool).to_owned()
     }
 
     /// Returns the declaration of the tool at the version that the crate of
     /// the tool pins
     fn tool() -> Declaration {
-        let version = pinned_in("crates/rakko-taplo/mise.rakko.toml", TOOL);
+        let version = pinned_in()
+            .file("crates/rakko-taplo/mise.rakko.toml")
+            .tool(TOOL)
+            .call();
 
-        Declaration::new(
-            "format-toml".parse().expect("the test names an action"),
-            ToolRequirement::builder()
-                .tool(TOOL)
-                .executable(TOOL)
-                .version(RequiredVersion::Exact(ToolVersion::new(version)))
-                .build(),
-        )
+        Declaration::builder()
+            .action("format-toml".parse().expect("the test names an action"))
+            .requirement(
+                ToolRequirement::builder()
+                    .tool(TOOL)
+                    .executable(TOOL)
+                    .version(RequiredVersion::Exact(ToolVersion::new(version)))
+                    .build(),
+            )
+            .build()
     }
 
     /// Returns the declaration of the toolchain in a range
     fn toolchain(range: &str) -> Declaration {
-        Declaration::new(
-            "format-json".parse().expect("the test names an action"),
-            ToolRequirement::builder()
-                .tool(TOOLCHAIN)
-                .executable(TOOLCHAIN)
-                .version(RequiredVersion::Range(VersionRange::new(range)))
-                .build(),
-        )
+        Declaration::builder()
+            .action("format-json".parse().expect("the test names an action"))
+            .requirement(
+                ToolRequirement::builder()
+                    .tool(TOOLCHAIN)
+                    .executable(TOOLCHAIN)
+                    .version(RequiredVersion::Range(VersionRange::new(range)))
+                    .build(),
+            )
+            .build()
     }
 
     /// Returns the declarations of the tool and of a toolchain that no
@@ -362,7 +403,7 @@ mod tests {
         /// Creates a project that pins the toolchain at the version of this
         /// repository, and the tool at a version that no action declares
         fn shadowing() -> Self {
-            let toolchain = pinned_in("mise.toml", TOOLCHAIN);
+            let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
 
             Self::with(&format!(
                 "[tools]\n{TOOLCHAIN} = \"{toolchain}\"\n{TOOL} = \"0.9.0\"\n"
@@ -374,11 +415,15 @@ mod tests {
             Context::builder().root(self.directory.path()).build()
         }
 
-        /// Writes a generated file that pins the tool, and the lockfile
-        /// beside it, as a project holds them after it unmounted the last
-        /// action that declares a tool
+        /// Writes a generated file that pins the tool, and the lockfile beside it
+        ///
+        /// A project holds both after it unmounted the last action that
+        /// declares a tool.
         fn left_over(&self, lockfile: &str) {
-            generated::write(&pins(&BTreeSet::from([tool()])), self.context().root())
+            generated::write()
+                .pins(&pins(&BTreeSet::from([tool()])))
+                .root(self.context().root())
+                .call()
                 .expect("the test writes the generated file");
             std::fs::write(self.directory.path().join(LOCKFILE), lockfile)
                 .expect("the test writes the lockfile");
@@ -433,6 +478,13 @@ mod tests {
     }
 
     #[test]
+    fn mode_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Mode>();
+    }
+
+    #[test]
     fn mode_with_the_flag_asks_for_the_repair() {
         let matches = command().get_matches_from([DOCTOR, "--fix"]);
 
@@ -448,24 +500,27 @@ mod tests {
 
     #[test]
     fn outcome_with_findings_and_repairs_fails() {
-        let outcome = outcome(
-            vec![finding_at(Location::Project)],
-            vec![finding_at(file("mise.toml"))],
-        );
+        let outcome = outcome()
+            .findings(vec![finding_at(Location::Project)])
+            .repairs(vec![finding_at(file("mise.toml"))])
+            .call();
 
         assert!(matches!(outcome, Outcome::Failed { .. }), "got {outcome:?}");
     }
 
     #[test]
     fn outcome_with_nothing_passes() {
-        let outcome = outcome(Vec::new(), Vec::new());
+        let outcome = outcome().findings(Vec::new()).repairs(Vec::new()).call();
 
         assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
     }
 
     #[test]
     fn outcome_with_only_repairs_changed_the_project() {
-        let outcome = outcome(Vec::new(), vec![finding_at(file("mise.toml"))]);
+        let outcome = outcome()
+            .findings(Vec::new())
+            .repairs(vec![finding_at(file("mise.toml"))])
+            .call();
 
         assert!(
             matches!(outcome, Outcome::Changed { .. }),
@@ -476,9 +531,14 @@ mod tests {
     #[tokio::test]
     async fn run_in_repair_mode_keeps_the_pin_of_the_toolchain() {
         let project = Project::shadowing();
-        let toolchain = pinned_in("mise.toml", TOOLCHAIN);
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
 
-        let _outcome = run(&declarations(), &project.context(), Mode::Repair).await;
+        let _outcome = run()
+            .declarations(&declarations())
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
 
         assert_eq!(
             std::fs::read_to_string(project.directory.path().join("mise.toml"))
@@ -493,7 +553,12 @@ mod tests {
         let versions = project.directory.path().join(".tool-versions");
         std::fs::write(&versions, format!("{TOOL} 0.9.0\n")).expect("the test writes the file");
 
-        let outcome = run(&BTreeSet::from([tool()]), &project.context(), Mode::Repair).await;
+        let outcome = run()
+            .declarations(&BTreeSet::from([tool()]))
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
 
         let kept = std::fs::read_to_string(&versions).expect("the test reads the file");
         assert_eq!(
@@ -509,7 +574,12 @@ mod tests {
     async fn run_in_repair_mode_repairs_the_file_and_the_pin_and_keeps_the_toolchain() {
         let project = Project::shadowing();
 
-        let outcome = run(&declarations(), &project.context(), Mode::Repair).await;
+        let outcome = run()
+            .declarations(&declarations())
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
 
         assert_eq!(
             locations(&outcome),
@@ -524,7 +594,12 @@ mod tests {
     async fn run_in_repair_mode_reports_a_lock_that_mise_refuses() {
         let project = Project::with("[settings]\nlockfile_platforms = [\"bogus\"]\n");
 
-        let outcome = run(&BTreeSet::from([tool()]), &project.context(), Mode::Repair).await;
+        let outcome = run()
+            .declarations(&BTreeSet::from([tool()]))
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
 
         assert!(
             matches!(&outcome, Outcome::Errored { source } if source.to_string().contains("did not lock")),
@@ -535,7 +610,7 @@ mod tests {
     #[tokio::test]
     async fn run_in_repair_mode_with_a_left_over_file_beside_a_configuration_prunes_the_lockfile() {
         let project = Project::with("[tools]\n");
-        let toolchain = pinned_in("mise.toml", TOOLCHAIN);
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
         project.left_over(&format!(
             "lockfile_version = 3\n\n[[tools.{TOOL}]]\nversion = \"0.10.0\"\nbackend = \"aqua:tamasfe/taplo\"\n"
         ));
@@ -545,7 +620,12 @@ mod tests {
         )
         .expect("the test writes the configuration");
 
-        let _outcome = run(&BTreeSet::new(), &project.context(), Mode::Repair).await;
+        let _outcome = run()
+            .declarations(&BTreeSet::new())
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
 
         let lockfile = std::fs::read_to_string(project.directory.path().join(LOCKFILE))
             .expect("the test reads the lockfile");
@@ -557,7 +637,12 @@ mod tests {
         let project = Project::with("[tools]\n");
         project.left_over("lockfile_version = 3\n");
 
-        let outcome = run(&BTreeSet::new(), &project.context(), Mode::Repair).await;
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
 
         assert_eq!(
             (
@@ -571,10 +656,15 @@ mod tests {
 
     #[tokio::test]
     async fn run_in_repair_mode_without_a_declared_tool_locks_nothing() {
-        let toolchain = pinned_in("mise.toml", TOOLCHAIN);
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
         let project = Project::with(&format!("[tools]\n{TOOLCHAIN} = \"{toolchain}\"\n"));
 
-        let _outcome = run(&BTreeSet::new(), &project.context(), Mode::Repair).await;
+        let _outcome = run()
+            .declarations(&BTreeSet::new())
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
 
         assert!(!project.holds("mise.lock"));
     }
@@ -582,9 +672,19 @@ mod tests {
     #[tokio::test]
     async fn run_in_report_mode_after_the_repair_reports_only_the_toolchain() {
         let project = Project::shadowing();
-        let _repaired = run(&declarations(), &project.context(), Mode::Repair).await;
+        let _repaired = run()
+            .declarations(&declarations())
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
 
-        let outcome = run(&declarations(), &project.context(), Mode::Report).await;
+        let outcome = run()
+            .declarations(&declarations())
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
 
         assert_eq!(locations(&outcome), (vec![Location::Project], Vec::new()));
     }
@@ -596,7 +696,12 @@ mod tests {
         let pins = std::fs::read_to_string(project.directory.path().join("mise.toml"))
             .expect("the test reads the mise.toml of the project");
 
-        let _outcome = run(&declarations(), &project.context(), Mode::Report).await;
+        let _outcome = run()
+            .declarations(&declarations())
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
 
         let after = std::fs::read_to_string(project.directory.path().join("mise.toml"))
             .expect("the test reads the mise.toml of the project");
@@ -607,7 +712,10 @@ mod tests {
     async fn run_in_report_mode_leaves_out_a_pin_that_mise_ranks_below_the_file() {
         let project = Project::with("[tools]\n");
         let declarations = BTreeSet::from([tool()]);
-        generated::write(&pins(&declarations), project.context().root())
+        generated::write()
+            .pins(&pins(&declarations))
+            .root(project.context().root())
+            .call()
             .expect("the test writes the generated file");
         std::fs::write(
             project.directory.path().join(".tool-versions"),
@@ -615,7 +723,12 @@ mod tests {
         )
         .expect("the test writes the file");
 
-        let outcome = run(&declarations, &project.context(), Mode::Report).await;
+        let outcome = run()
+            .declarations(&declarations)
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
 
         assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
     }
@@ -624,7 +737,12 @@ mod tests {
     async fn run_in_report_mode_reports_the_file_the_pin_and_the_toolchain() {
         let project = Project::shadowing();
 
-        let outcome = run(&declarations(), &project.context(), Mode::Report).await;
+        let outcome = run()
+            .declarations(&declarations())
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
 
         assert_eq!(
             locations(&outcome),
@@ -645,7 +763,12 @@ mod tests {
         .expect("the test writes the mise.toml of the project");
         let context = Context::builder().root(directory.path()).build();
 
-        let outcome = run(&BTreeSet::from([tool()]), &context, Mode::Report).await;
+        let outcome = run()
+            .declarations(&BTreeSet::from([tool()]))
+            .context(&context)
+            .mode(Mode::Report)
+            .call()
+            .await;
 
         assert!(
             matches!(&outcome, Outcome::Errored { source } if source.to_string().contains("listed no configuration")),
@@ -657,12 +780,12 @@ mod tests {
     async fn run_with_a_toolchain_in_its_range_passes() {
         let project = Project::shadowing();
 
-        let outcome = run(
-            &BTreeSet::from([toolchain(">=1")]),
-            &project.context(),
-            Mode::Report,
-        )
-        .await;
+        let outcome = run()
+            .declarations(&BTreeSet::from([toolchain(">=1")]))
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
 
         assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
     }
@@ -673,7 +796,12 @@ mod tests {
         std::fs::create_dir_all(project.directory.path().join(generated::PATH))
             .expect("the test creates a directory in place of the file");
 
-        let outcome = run(&BTreeSet::from([tool()]), &project.context(), Mode::Report).await;
+        let outcome = run()
+            .declarations(&BTreeSet::from([tool()]))
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
 
         assert!(
             matches!(outcome, Outcome::Errored { .. }),
@@ -685,7 +813,12 @@ mod tests {
     async fn run_without_a_declared_tool_passes() {
         let project = Project::with("[tools]\n");
 
-        let outcome = run(&BTreeSet::new(), &project.context(), Mode::Report).await;
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
 
         assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
     }

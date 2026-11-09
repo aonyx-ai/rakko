@@ -1,13 +1,11 @@
 //! The node that a project runs
 //!
-//! This module holds the versions of Node that the crate accepts, the runtime
-//! that mise installed at the version that the project pins, and the run of
-//! its test runner. An action asks for a run, and everything between the
-//! action and the process lives here.
+//! This module holds the versions of Node that the crate accepts. It also
+//! holds the runtime that mise installed at the version that the project pins,
+//! and the run of its test runner. An action asks for a run, and everything
+//! between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
-/// The reading of the report that the test runner wrote
 pub(crate) mod report;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
@@ -23,22 +21,22 @@ const NODE: &str = "node";
 ///
 /// Node is a toolchain of the project, so the project pins its version, and a
 /// run stops when that version is outside the range. Node finds and runs a
-/// test file in TypeScript only in the releases that strip types by default:
-/// 22.18 and later releases of 22, and 23.6 and later. An older release leaves
-/// out every such test, and it says nothing about it.
+/// test file in TypeScript only in the releases that strip types by default.
+/// These are 22.18 and later releases of 22, and 23.6 and later. An older
+/// release leaves out every such test, and it says nothing about it.
 const NODE_RANGE: &str = "^22.18 || >=23.6";
 
 /// The option that starts the test runner of Node
 ///
 /// A run that names no file after it leaves the discovery of the test files to
-/// Node, which walks the directory that the run started in with the patterns
+/// Node. Node walks the directory that the run started in with the patterns
 /// that it carries.
 const TEST: &str = "--test";
 
 /// The option that decides how the runner reports a run
 ///
 /// The runner draws a run for a reader otherwise, with a summary that a person
-/// reads and a machine does not, and the drawing changes with the width of a
+/// reads and a machine does not. The drawing changes with the width of a
 /// terminal. This selects the presentation of the report and not the behavior
 /// of the runner.
 const REPORTER: &str = "--test-reporter=tap";
@@ -46,9 +44,9 @@ const REPORTER: &str = "--test-reporter=tap";
 /// The node that a project runs
 ///
 /// The value holds the runtime that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// terminal of a contributor. The version decides what the test runner does:
-/// it gained the discovery of its files, the reading of TypeScript, and the
+/// version that the project pinned. So a run reaches the same program as the
+/// terminal of a contributor. The version decides what the test runner does.
+/// It gained the discovery of its files, the reading of TypeScript, and the
 /// shape of its report over several releases of Node. Node is therefore a
 /// toolchain of the project, and the crate states only the range of versions
 /// that it accepts. Nothing here installs a tool: provisioning is the job of
@@ -73,10 +71,10 @@ impl Node {
     ///
     /// # Errors
     ///
-    /// Returns [`NodeUnavailable`][unavailable] when node does not run,
-    /// [`MissingFailure`][missing] when the runner reported no failure and
-    /// ended without success, and [`UnreadableReport`][unreadable] when it
-    /// wrote a report that this crate cannot read.
+    /// Returns [`NodeUnavailable`][unavailable] when node does not run.
+    /// Returns [`MissingFailure`][missing] when the runner reported no failure
+    /// and ended without success. Returns [`UnreadableReport`][unreadable] when
+    /// it wrote a report that this crate cannot read.
     ///
     /// [missing]: ObserveNodeError::MissingFailure
     /// [unavailable]: ObserveNodeError::NodeUnavailable
@@ -102,7 +100,10 @@ impl Node {
         if report.failures().is_empty() && !execution.status().success() {
             let stderr = execution.stderr().to_string_lossy();
 
-            return Err(ObserveNodeError::silent(&stdout, &stderr));
+            return Err(ObserveNodeError::silent()
+                .stdout(&stdout)
+                .stderr(&stderr)
+                .call());
         }
 
         Ok(report)
@@ -129,14 +130,33 @@ impl Node {
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
-    /// project pins no Node in the range, or when mise reports no node at the
-    /// pinned version, for example because nothing installed it.
+    /// Returns a [`ResolveRequirementError`] in these conditions:
+    ///
+    /// - Mise does not run.
+    /// - The project pins no Node in the range.
+    /// - Mise reports no node at the pinned version, for example because
+    ///   nothing installed it.
     ///
     /// [requirement]: Node::requirement
     pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
+            .await?;
 
         Ok(Self { tool })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn node_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Node>();
     }
 }

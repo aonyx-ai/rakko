@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
@@ -10,13 +12,27 @@ use crate::tsc::report::ReadReportError;
 /// code breaks travels as a finding in the outcome of the run. The variants of
 /// this error describe a run whose answer cannot be trusted, and such a run
 /// stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_typescript::CheckTypeScriptError;
+///
+/// let error = CheckTypeScriptError::MissingReport {
+///     details: "out of memory".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "tsc reported nothing and ended without success: out of memory"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckTypeScriptError {
     /// Tsc reported nothing and ended without success
     ///
-    /// Tsc reports a diagnostic for everything that it finds, including for a
-    /// configuration that it refuses and for a project that it finds no
+    /// Tsc reports a diagnostic for everything that it finds. That includes a
+    /// configuration that it refuses and a project that it finds no
     /// configuration of. A run that ended without success and said nothing
     /// therefore stopped for a reason that the action cannot name, and the
     /// project was never checked.
@@ -39,10 +55,10 @@ pub enum CheckTypeScriptError {
     /// Tsc wrote a report that the action cannot read
     ///
     /// The shape of the report belongs to a version of tsc. A report that does
-    /// not fit therefore points at a version that this crate does not know,
-    /// and the findings of such a run would be the diagnostics that the
-    /// reading happened to understand.
-    #[error("tsc wrote a report that the action cannot read: {report}")]
+    /// not fit therefore points at a version that this crate does not know.
+    /// The findings of such a run would be the diagnostics that the reading
+    /// happened to understand.
+    #[error("failed to read tsc's report: {report}")]
     UnreadableReport {
         /// What tsc wrote in place of a report that the action reads
         report: String,
@@ -86,9 +102,10 @@ impl From<ObserveTscError> for CheckTypeScriptError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -97,6 +114,26 @@ mod tests {
 
     /// What tsc wrote in a run whose report the action could not read
     const REPORT: &str = "tsc: The TypeScript Compiler - Version 7.0.2";
+
+    /// Shows that the error is send and sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. It does so because a field of a
+    /// later version could take them away without a word from the compiler.
+    #[test]
+    fn check_type_script_error_is_send_and_sync() {
+        fn assert_send_and_sync<T: Send + Sync>() {}
+
+        assert_send_and_sync::<CheckTypeScriptError>();
+    }
+
+    #[test]
+    fn check_type_script_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckTypeScriptError>();
+    }
 
     #[test]
     fn error_of_a_silent_run_holds_what_tsc_wrote() {
@@ -123,16 +160,5 @@ mod tests {
             matches!(&error, CheckTypeScriptError::UnreadableReport { report, .. } if report == REPORT),
             "expected the report of tsc, got {error:?}"
         );
-    }
-
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
-    #[test]
-    fn check_type_script_error_is_send_and_sync() {
-        fn assert_send_and_sync<T: Send + Sync>() {}
-
-        assert_send_and_sync::<CheckTypeScriptError>();
     }
 }

@@ -1,11 +1,10 @@
 //! The action that checks the Renovate configuration of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps the validator of Renovate as a subprocess: the validator finds the
-//! configurations, reads them, and reports what Renovate would refuse, and the
+//! wraps the validator of Renovate as a subprocess. The validator finds the
+//! configurations, reads them, and reports what Renovate would refuse. The
 //! action translates what the validator reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{
@@ -20,7 +19,7 @@ use crate::validator::Validator;
 /// The action that checks the Renovate configuration of a project
 ///
 /// The action wraps `renovate-config-validator`, the validator that [Renovate]
-/// ships: the validator finds the configurations of the project, reads each of
+/// ships. The validator finds the configurations of the project, reads each of
 /// them, and reports every option that Renovate would refuse. A run agrees with
 /// a contributor that runs `renovate-config-validator --strict`, and then
 /// `renovate-config-validator --strict --no-global default.json`. The validator
@@ -39,18 +38,17 @@ use crate::validator::Validator;
 /// preset that only fits inside a package rule fails the run, such as one
 /// that sets `matchPackageNames` at the top.
 ///
-/// A run only reports, and it takes no argument. A run asks for strict
-/// validation, so a configuration that needs a migration fails the run like an
-/// error and a warning do. Each error and each warning becomes a finding at
-/// the file that the validator named, with the topic and the message of the
-/// validator, and a configuration that needs a migration becomes one finding
-/// that names the options that the migration changes.
+/// A run only reports and takes no argument. A run asks for strict validation.
+/// So a configuration that needs a migration fails the run like an error or
+/// warning. Each error and warning becomes a finding at the file the validator
+/// named, with the validator's topic and message. A configuration that needs a
+/// migration becomes one finding that names the options the migration changes.
 ///
 /// The action applies to a project that holds a Renovate configuration or a
 /// preset, and it skips visibly otherwise. A run stops with an error when mise
 /// reports no validator at the declared version or no Node in the accepted
-/// range, when the validator stops before it has validated the project, and
-/// when the validator writes a log that the action cannot read.
+/// range. It also stops if the validator stops before validating the project.
+/// It stops if the validator writes a log that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -107,8 +105,8 @@ impl Action for CheckRenovateConfig {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of the
-/// tool, a run of the validator, or the reading of its log.
+/// Returns the error of the step that could not finish. The step is the
+/// resolution of the tool, a run of the validator, or the reading of its log.
 async fn drive(context: &Context) -> Result<Outcome, CheckRenovateConfigError> {
     let validator = Validator::resolve(context)
         .await
@@ -195,9 +193,10 @@ fn summary(validated: u32) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::PathBuf;
 
@@ -214,12 +213,11 @@ mod tests {
 
     /// Returns an error of the validator about the given path
     fn problem(path: PathBuf) -> RenovateProblem {
-        RenovateProblem::new(
-            path,
-            None,
-            "Configuration Error".to_owned(),
-            "Invalid configuration option: foo".to_owned(),
-        )
+        RenovateProblem::builder()
+            .path(path)
+            .topic("Configuration Error".to_owned())
+            .detail("Invalid configuration option: foo".to_owned())
+            .build()
     }
 
     /// The root that the problems of a test belong to
@@ -235,6 +233,13 @@ mod tests {
     }
 
     #[test]
+    fn check_renovate_config_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckRenovateConfig>();
+    }
+
+    #[test]
     fn finding_of_a_path_outside_the_project_reports_the_path() {
         let error = finding(&problem(path("/elsewhere/config.js")), &root()).unwrap_err();
 
@@ -247,12 +252,12 @@ mod tests {
     #[test]
     fn finding_of_a_problem_at_a_position_sits_at_the_position() {
         let position = Position::builder().line(2).column(1).build();
-        let problem = RenovateProblem::new(
-            path("renovate.json"),
-            Some(position),
-            "File could not be parsed".to_owned(),
-            "JSON5: invalid end of input at 2:1".to_owned(),
-        );
+        let problem = RenovateProblem::builder()
+            .path(path("renovate.json"))
+            .position(position)
+            .topic("File could not be parsed".to_owned())
+            .detail("JSON5: invalid end of input at 2:1".to_owned())
+            .build();
 
         let finding = finding(&problem, &root()).unwrap();
 

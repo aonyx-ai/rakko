@@ -1,3 +1,5 @@
+//! The table of a manifest that declares a dependency
+
 /// The word that names a dependency of the normal kind
 const DEPENDENCY: &str = "dependency";
 
@@ -13,9 +15,9 @@ const BUILD_DEPENDENCY: &str = "build-dependency";
 ///
 /// A manifest declares a dependency in one of three tables, and the table
 /// decides which targets of the package may reach the dependency. The kind
-/// therefore belongs to a report of an unused dependency: a reader needs it
-/// to find the entry, because one name can appear in more than one table of
-/// the same manifest.
+/// therefore belongs to a report of an unused dependency. A reader needs it to
+/// find the entry, because one name can appear in more than one table of the
+/// same manifest.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) enum DependencyKind {
     /// The package declares the dependency in `[dependencies]`
@@ -44,11 +46,19 @@ impl DependencyKind {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
+
+    #[test]
+    fn dependency_kind_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DependencyKind>();
+    }
 
     #[test]
     fn label_of_a_build_dependency_names_its_table() {

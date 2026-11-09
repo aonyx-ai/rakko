@@ -1,12 +1,10 @@
 //! One workspace root of a project
 //!
-//! This module holds the root that the discovery reports and what a root
-//! knows about the packages of its workspace, which is what a caller reads
-//! instead of asking cargo a second time.
+//! This module holds the root that the discovery reports and what a root knows
+//! about the packages of its workspace. A caller reads that instead of asking
+//! cargo a second time.
 
-/// Whether cargo can test the examples of a workspace
 mod documentation;
-/// One package of a workspace
 mod package;
 
 use std::path::{Component, Path, PathBuf};
@@ -26,26 +24,39 @@ pub(crate) const MANIFEST: &str = "Cargo.toml";
 /// One workspace root of a project
 ///
 /// Cargo works on one workspace at a time, and a project can hold more than
-/// one: the harness of a project is a package of its own, outside the
+/// one. The harness of a project is a package of its own, outside the
 /// workspace of the crates that it maintains. A root names the directory of
-/// one workspace, so that an action runs its job there and reads the paths
+/// one workspace. This lets an action run its job there and read the paths
 /// that cargo reports relative to it.
 ///
-/// The directory is absolute, because a run starts cargo in it. A caller
-/// that reports a problem asks for a path [relative][relative] to the
-/// project root, which is the name that a reader, a machine, and a code host
-/// all recognize.
+/// The directory is absolute, because a run starts cargo in it. A caller that
+/// reports a problem asks for a path [relative][relative] to the project root.
+/// This is the name that a reader, a machine, and a code host all recognize.
 ///
-/// A root also carries what cargo said about the packages of its workspace:
-/// their names, which of them share a crate name, whether cargo can test the
-/// examples in their documentation, and the oldest toolchain that they
-/// promise to compile on. The discovery of the roots asks cargo to describe
-/// every workspace anyway, and one description answers all of them, so a
-/// caller reads them here instead of asking cargo again.
+/// A root also carries what cargo said about the packages of its workspace. It
+/// carries their names and which of them share a crate name. It also carries
+/// whether cargo can test the examples in their documentation and the oldest
+/// toolchain that they promise to compile on. The discovery of the roots asks
+/// cargo to describe every workspace anyway, and one description answers all
+/// of them. So a caller reads them here instead of asking cargo again.
 ///
 /// The type has no order, because a version has none. A caller that wants
 /// the roots in a fixed order sorts them by their directory, which is how
 /// the discovery reports them.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoRoot, Documentation};
+///
+/// let root = CargoRoot::builder()
+///     .directory(std::env::temp_dir())
+///     .documentation(Documentation::Testable)
+///     .build();
+///
+/// assert_eq!(root.documentation(), Documentation::Testable);
+/// assert!(root.packages().is_empty());
+/// ```
 ///
 /// [relative]: CargoRoot::relative_path
 #[derive(Clone, Eq, PartialEq, Hash, Debug, CopyGetters, Getters)]
@@ -76,7 +87,20 @@ impl CargoRoot {
     ///
     /// A root whose packages declare no `rust-version` carries none. A root
     /// built without its packages names none, so no package of it shares a
-    /// crate name, and a caller treats the workspace as one whole.
+    /// crate name. A caller treats the workspace as one whole.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(std::env::temp_dir())
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// assert_eq!(root.directory(), &std::env::temp_dir());
+    /// ```
     #[builder]
     pub fn new(
         directory: PathBuf,
@@ -93,6 +117,19 @@ impl CargoRoot {
     }
 
     /// Returns the path of the manifest of the workspace
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(std::env::temp_dir())
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// assert_eq!(root.manifest(), std::env::temp_dir().join("Cargo.toml"));
+    /// ```
     pub fn manifest(&self) -> PathBuf {
         self.directory.join(MANIFEST)
     }
@@ -100,12 +137,27 @@ impl CargoRoot {
     /// Returns the directory of the root, relative to the project root
     ///
     /// Returns `None` when the project root does not contain the directory.
-    /// The discovery finds a root below the project root, so a directory
-    /// that does not fit points at a project that moved while the run was
-    /// on, and the caller decides what to do about that.
+    /// The discovery finds a root below the project root. So a directory that
+    /// does not fit points at a project that moved while the run was on. The
+    /// caller decides what to do about that.
     ///
     /// The directory of the project root itself has no name, and the empty
     /// path is that name: joining a file to it yields the file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::ProjectRoot;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    ///
+    /// let project = ProjectRoot::new(std::env::temp_dir());
+    /// let root = CargoRoot::builder()
+    ///     .directory(std::env::temp_dir().join("tools"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// assert_eq!(root.relative_directory(&project), Some(std::path::PathBuf::from("tools")));
+    /// ```
     pub fn relative_directory(&self, root: &ProjectRoot) -> Option<PathBuf> {
         strip(&self.directory, root)
     }
@@ -122,6 +174,23 @@ impl CargoRoot {
     /// happens for a diagnostic in a dependency that lives elsewhere on the
     /// machine. A path that climbs through its parents is resolved first, so
     /// a path that leaves the project that way gets no name either.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::ProjectRoot;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    ///
+    /// let project = ProjectRoot::new(std::env::temp_dir());
+    /// let root = CargoRoot::builder()
+    ///     .directory(std::env::temp_dir().join("tools"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// let file = root.relative_path(&std::path::PathBuf::from("src").join("main.rs"), &project);
+    ///
+    /// assert_eq!(file.as_ref().map(|file| file.get()), Some(std::path::PathBuf::from("tools").join("src").join("main.rs").as_path()));
+    /// ```
     pub fn relative_path(&self, path: &Path, root: &ProjectRoot) -> Option<FilePath> {
         let absolute = if path.is_absolute() {
             path.to_path_buf()
@@ -159,8 +228,9 @@ fn normalize(path: &Path) -> PathBuf {
 /// Returns the path without the project root that prefixes it
 ///
 /// The root of a context can name the same directory through a symbolic
-/// link, and cargo answers with the directory that it resolved, which is why
-/// the canonical root is tried as well.
+/// link.
+/// Cargo answers with the directory that it resolved, which is why the
+/// canonical root is tried as well.
 fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
     if let Ok(stripped) = path.strip_prefix(root.get()) {
         return Some(stripped.to_path_buf());
@@ -173,9 +243,10 @@ fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -190,6 +261,13 @@ mod tests {
             .directory(PathBuf::from("/home/otter/project/tools/harness"))
             .documentation(Documentation::Testable)
             .build()
+    }
+
+    #[test]
+    fn cargo_root_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CargoRoot>();
     }
 
     #[test]
@@ -285,10 +363,13 @@ mod tests {
         assert_eq!(path, None);
     }
 
-    // Cargo writes the directory that the file system resolved, and on some
-    // platforms the temporary directory differs from it as text: a symbolic
-    // link on macOS, and a short name on Windows. The resolved root must then
-    // carry the spelling that cargo writes, or no file gets a name.
+    /// Shows that the resolved root must use cargo's spelling
+    ///
+    /// Cargo writes the directory that the file system resolved.
+    /// On some platforms the temporary directory differs from it as text: a
+    /// symbolic link on macOS or a short name on Windows.
+    /// The resolved root must carry the spelling that cargo writes, or no file
+    /// gets a name.
     #[test]
     fn relative_path_of_an_absolute_path_under_the_resolved_root_drops_it() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");

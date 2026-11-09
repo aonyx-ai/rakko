@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -11,6 +13,23 @@ use thiserror::Error;
 /// A later release can add a variant for another reason why a run of prettier
 /// has no answer. So a match on this error outside this crate needs an arm for
 /// a variant that it does not know.
+///
+/// # Examples
+///
+/// A program that cannot start leaves the run without an answer:
+///
+/// ```
+/// use rakko_prettier::ObservePrettierError;
+/// use rakko_tool::Invocation;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() {
+/// let source = Invocation::new("rakko-no-such-program").run().await.unwrap_err();
+/// let error = ObservePrettierError::PrettierUnavailable { source };
+///
+/// assert_eq!(error.to_string(), "failed to run prettier");
+/// # }
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ObservePrettierError {
@@ -23,4 +42,16 @@ pub enum ObservePrettierError {
         /// The cause of the failure
         source: RunCommandError,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observe_prettier_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObservePrettierError>();
+    }
 }

@@ -1,3 +1,5 @@
+//! What `doctor --fix` reports when it cannot repair the tool pins
+
 use std::io;
 use std::path::PathBuf;
 
@@ -75,18 +77,21 @@ impl From<CheckToolPinsError> for RepairToolPinsError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // The run puts the error in an outcome, and that outcome holds an error
-    // that another thread can read.
+    /// The error of a run is readable across threads
+    ///
+    /// The run puts the error in an outcome, and that outcome holds an error
+    /// that another thread can read.
     #[test]
-    fn repair_tool_pins_error_is_send_and_sync() {
-        fn assert_send_and_sync<T: Send + Sync>() {}
+    fn repair_tool_pins_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert_send_and_sync::<RepairToolPinsError>();
+        assert_send_sync_and_unpin::<RepairToolPinsError>();
     }
 }

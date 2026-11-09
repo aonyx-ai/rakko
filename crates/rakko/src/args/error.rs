@@ -1,3 +1,5 @@
+//! The error type for reading the arguments of a run
+
 use thiserror::Error;
 
 use crate::args::schema::ArgumentName;
@@ -13,6 +15,18 @@ use crate::args::values::ArgumentValue;
 /// be read. So a match on this error outside this crate needs an arm for a
 /// variant that it does not know. An argument set can still construct every
 /// variant.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{ReadArgsError, argument_name};
+///
+/// let error = ReadArgsError::MissingValue {
+///     name: argument_name!("fix"),
+/// };
+///
+/// assert_eq!(error.to_string(), "no value for the required argument 'fix'");
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 #[non_exhaustive]
 pub enum ReadArgsError {
@@ -35,9 +49,10 @@ pub enum ReadArgsError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
     use crate::argument_name;
@@ -51,6 +66,13 @@ mod tests {
         let message = error.to_string();
 
         assert_eq!(message, "no value for the required argument 'fix'");
+    }
+
+    #[test]
+    fn read_args_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ReadArgsError>();
     }
 
     #[test]

@@ -1,3 +1,5 @@
+//! The JSON that a run emits for a machine
+
 use rakko::{Finding, Location, Outcome, Position, Summary};
 use serde::Serialize;
 
@@ -6,7 +8,7 @@ use crate::chain::Chain;
 
 /// The value that the schema field carries while the shape can still change
 ///
-/// The payload promises nothing yet: a consumer that reads this value knows
+/// The payload promises nothing yet. A consumer that reads this value knows
 /// that the shape can change in any release, and a stable schema replaces it
 /// later.
 pub(super) const UNSTABLE: &str = "unstable";
@@ -14,10 +16,9 @@ pub(super) const UNSTABLE: &str = "unstable";
 /// The JSON that a run emits for a machine
 ///
 /// The payload is a type of this crate, and it is not a serialization of the
-/// types that an action produces. The two therefore change on their own
-/// clocks: the contract crate can rearrange a finding without breaking a
-/// consumer, and this schema can promise a shape that no type in the contract
-/// crate has to hold.
+/// types that an action produces. The two therefore change on their own clocks:
+/// the contract crate can rearrange a finding without breaking a consumer. This
+/// schema can promise a shape that no type in the contract crate has to hold.
 #[derive(Serialize)]
 pub(super) struct Payload<'a> {
     /// Whether the shape of this payload is stable
@@ -47,6 +48,7 @@ pub(super) struct Payload<'a> {
     repairs: Vec<FindingPayload<'a>>,
 }
 
+#[bon::bon]
 impl<'a> Payload<'a> {
     /// Returns the payload that describes the given report
     pub(super) fn of(report: &'a Report) -> Self {
@@ -55,32 +57,33 @@ impl<'a> Payload<'a> {
         match &report.outcome {
             Outcome::Passed { summary } => Self {
                 summary: summary.as_ref().map(Summary::get),
-                ..Self::new(action, "passed")
+                ..Self::builder().action(action).outcome("passed").build()
             },
             Outcome::Skipped { reason } => Self {
                 reason: Some(reason.get()),
-                ..Self::new(action, "skipped")
+                ..Self::builder().action(action).outcome("skipped").build()
             },
             Outcome::Errored { source } => Self {
                 error: Some(Chain::new(source.as_ref()).to_string()),
-                ..Self::new(action, "errored")
+                ..Self::builder().action(action).outcome("errored").build()
             },
             Outcome::Changed { repairs } => Self {
                 repairs: repairs.iter().map(FindingPayload::of).collect(),
-                ..Self::new(action, "changed")
+                ..Self::builder().action(action).outcome("changed").build()
             },
             Outcome::Failed { findings, repairs } => Self {
                 findings: findings.iter().map(FindingPayload::of).collect(),
                 repairs: repairs.iter().map(FindingPayload::of).collect(),
-                ..Self::new(action, "failed")
+                ..Self::builder().action(action).outcome("failed").build()
             },
         }
     }
 
     /// Returns the payload of an action that reported the given state
     ///
-    /// The state decides which of the remaining fields carry a value, so this
-    /// constructor leaves all of them empty and each state fills in its own.
+    /// The state decides which of the remaining fields carry a value. So this
+    /// constructor leaves all of them empty, and each state fills in its own.
+    #[builder]
     fn new(action: &'a str, outcome: &'static str) -> Self {
         Self {
             schema: UNSTABLE,
@@ -134,26 +137,27 @@ struct FindingPayload<'a> {
     message: &'a str,
 }
 
+#[bon::bon]
 impl<'a> FindingPayload<'a> {
     /// Returns the payload that describes the given finding
     fn of(finding: &'a Finding) -> Self {
         let message = finding.message().get();
 
         match finding.location() {
-            Location::Project => Self::new("project", message),
+            Location::Project => Self::builder().level("project").message(message).build(),
             Location::Directory { path } => Self {
                 path: Some(path.to_string()),
-                ..Self::new("directory", message)
+                ..Self::builder().level("directory").message(message).build()
             },
             Location::File { path } => Self {
                 path: Some(path.to_string()),
-                ..Self::new("file", message)
+                ..Self::builder().level("file").message(message).build()
             },
             Location::Position { path, position } => Self {
                 path: Some(path.to_string()),
                 line: Some(position.line().get()),
                 column: column_of(position),
-                ..Self::new("position", message)
+                ..Self::builder().level("position").message(message).build()
             },
             Location::Span { path, span } => Self {
                 path: Some(path.to_string()),
@@ -161,15 +165,16 @@ impl<'a> FindingPayload<'a> {
                 column: column_of(span.start()),
                 end_line: Some(span.end().line().get()),
                 end_column: column_of(span.end()),
-                ..Self::new("span", message)
+                ..Self::builder().level("span").message(message).build()
             },
         }
     }
 
     /// Returns the payload of a finding at the given level
     ///
-    /// The level decides which of the remaining fields carry a value, so this
-    /// constructor leaves all of them empty and each level fills in its own.
+    /// The level decides which of the remaining fields carry a value. So this
+    /// constructor leaves all of them empty, and each level fills in its own.
+    #[builder]
     fn new(level: &'static str, message: &'a str) -> Self {
         Self {
             level,
@@ -190,9 +195,10 @@ fn column_of(position: &Position) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{DirectoryPath, FilePath, SkipReason, Span};
 
@@ -216,32 +222,26 @@ mod tests {
     /// The assertions compare the JSON as text, and not as a parsed value, so
     /// that they pin the bytes that a consumer reads.
     fn payload(outcome: Outcome) -> String {
-        let report = Report::new("probe".parse().expect("the test names an action"), outcome);
+        let report = Report::builder()
+            .action("probe".parse().expect("the test names an action"))
+            .outcome(outcome)
+            .build();
 
         serde_json::to_string(&report).expect("the report serializes")
     }
 
     #[test]
-    fn payload_of_errored_outcome_carries_every_cause_of_the_error() {
-        let json = payload(Outcome::Errored {
-            source: clawless::Error::msg("the file is not TOML")
-                .context("failed to parse Cargo.toml")
-                .into(),
-        });
+    fn finding_payload_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert!(json.contains(r#""error":"failed to parse Cargo.toml: the file is not TOML""#));
+        assert_send_sync_and_unpin::<FindingPayload<'static>>();
     }
 
     #[test]
-    fn payload_of_errored_outcome_carries_the_error() {
-        let json = payload(Outcome::Errored {
-            source: Box::new(std::io::Error::other("failed to read Cargo.toml")),
-        });
+    fn payload_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert_eq!(
-            json,
-            r#"{"schema":"unstable","action":"probe","outcome":"errored","error":"failed to read Cargo.toml","findings":[],"repairs":[]}"#
-        );
+        assert_send_sync_and_unpin::<Payload<'static>>();
     }
 
     #[test]
@@ -277,6 +277,29 @@ mod tests {
         assert!(json.contains(
             r#"{"level":"directory","path":"crates/rakko","message":"the directory has no README"}"#
         ));
+    }
+
+    #[test]
+    fn payload_of_errored_outcome_carries_every_cause_of_the_error() {
+        let json = payload(Outcome::Errored {
+            source: clawless::Error::msg("the file is not TOML")
+                .context("failed to parse Cargo.toml")
+                .into(),
+        });
+
+        assert!(json.contains(r#""error":"failed to parse Cargo.toml: the file is not TOML""#));
+    }
+
+    #[test]
+    fn payload_of_errored_outcome_carries_the_error() {
+        let json = payload(Outcome::Errored {
+            source: Box::new(std::io::Error::other("failed to read Cargo.toml")),
+        });
+
+        assert_eq!(
+            json,
+            r#"{"schema":"unstable","action":"probe","outcome":"errored","error":"failed to read Cargo.toml","findings":[],"repairs":[]}"#
+        );
     }
 
     #[test]
@@ -339,31 +362,6 @@ mod tests {
     }
 
     #[test]
-    fn payload_of_project_finding_carries_the_level_alone() {
-        let json = payload(failure(Location::Project, "the crate serde is banned"));
-
-        assert!(json.contains(r#"{"level":"project","message":"the crate serde is banned"}"#));
-    }
-
-    #[test]
-    fn payload_of_span_finding_carries_both_ends_of_the_range() {
-        let json = payload(failure(
-            Location::Span {
-                path: FilePath::try_from("src/lib.rs").expect("the test names a relative path"),
-                span: Span::builder()
-                    .start(Position::builder().line(1).column(1).build())
-                    .end(Position::builder().line(3).build())
-                    .build(),
-            },
-            "the block is not formatted",
-        ));
-
-        assert!(json.contains(
-            r#"{"level":"span","path":"src/lib.rs","line":1,"column":1,"end_line":3,"message":"the block is not formatted"}"#
-        ));
-    }
-
-    #[test]
     fn payload_of_passed_outcome_carries_the_state_alone() {
         let json = payload(Outcome::Passed { summary: None });
 
@@ -386,6 +384,13 @@ mod tests {
     }
 
     #[test]
+    fn payload_of_project_finding_carries_the_level_alone() {
+        let json = payload(failure(Location::Project, "the crate serde is banned"));
+
+        assert!(json.contains(r#"{"level":"project","message":"the crate serde is banned"}"#));
+    }
+
+    #[test]
     fn payload_of_skipped_outcome_carries_the_reason() {
         let json = payload(Outcome::Skipped {
             reason: SkipReason::new("this project has no TOML file"),
@@ -395,5 +400,23 @@ mod tests {
             json,
             r#"{"schema":"unstable","action":"probe","outcome":"skipped","reason":"this project has no TOML file","findings":[],"repairs":[]}"#
         );
+    }
+
+    #[test]
+    fn payload_of_span_finding_carries_both_ends_of_the_range() {
+        let json = payload(failure(
+            Location::Span {
+                path: FilePath::try_from("src/lib.rs").expect("the test names a relative path"),
+                span: Span::builder()
+                    .start(Position::builder().line(1).column(1).build())
+                    .end(Position::builder().line(3).build())
+                    .build(),
+            },
+            "the block is not formatted",
+        ));
+
+        assert!(json.contains(
+            r#"{"level":"span","path":"src/lib.rs","line":1,"column":1,"end_line":3,"message":"the block is not formatted"}"#
+        ));
     }
 }

@@ -1,13 +1,14 @@
 //! Tests of the action that need no installation of tracey
 //!
-//! The tests cover what the action declares and the run that stops when mise
-//! cannot read the configuration of the project, so that it reports no
-//! tracey. A test that needs files builds a project in a temporary
+//! The tests cover what the action declares. They also cover the run that
+//! stops when mise cannot read the configuration of the project, so that it
+//! reports no tracey. A test that needs files builds a project in a temporary
 //! directory, so no fixture sits in this repository.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use rakko::{Action, Args, Context, Outcome, ProjectRoot};
@@ -46,6 +47,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project whose mise configuration mise cannot read
     ///
@@ -56,10 +58,26 @@ impl Project {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let project = Self { directory };
 
-        project.write("mise.toml", "this is not a configuration\n");
-        project.write(".config/tracey/config.styx", CONFIGURATION);
-        project.write("SPECIFICATION.md", SPECIFICATION);
-        project.write("src/lib.rs", IMPLEMENTATION);
+        project
+            .write()
+            .path("mise.toml")
+            .content("this is not a configuration\n")
+            .call();
+        project
+            .write()
+            .path(".config/tracey/config.styx")
+            .content(CONFIGURATION)
+            .call();
+        project
+            .write()
+            .path("SPECIFICATION.md")
+            .content(SPECIFICATION)
+            .call();
+        project
+            .write()
+            .path("src/lib.rs")
+            .content(IMPLEMENTATION)
+            .call();
 
         project
     }
@@ -84,6 +102,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -117,8 +136,6 @@ fn action_identifies_itself_as_check_specs() {
 async fn run_with_an_unreadable_mise_configuration_leaves_the_project_unchanged() {
     let project = Project::with_an_unreadable_mise_configuration();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckSpecs, &project.context(), &()).await;
 }
 

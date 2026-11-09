@@ -8,13 +8,13 @@ use std::fmt;
 
 /// The level that yamllint gave a problem
 ///
-/// The level belongs to the rule and not to the file: a project that wants a
-/// rule to speak without stopping anyone sets that rule to a warning, and the
-/// rules that yamllint enables by default carry both levels.
+/// The level belongs to the rule and not to the file. A project that wants
+/// a rule to speak without stopping anyone sets it to a warning. The rules
+/// that yamllint enables by default carry both levels.
 ///
-/// A reader of a finding sees the level, because a rule that a project called
-/// a warning still points at a problem, and the level says how the project
-/// weighed it.
+/// A reader of a finding sees the level, because a rule that a project called a
+/// warning still points at a problem. The level says how the project weighed
+/// it.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) enum ProblemLevel {
     /// The problem breaks a rule that the project treats as an error
@@ -59,11 +59,19 @@ impl fmt::Display for ProblemLevel {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
+
+    #[test]
+    fn display_of_a_warning_writes_the_word_of_yamllint() {
+        let word = ProblemLevel::Warning.to_string();
+
+        assert_eq!(word, "warning");
+    }
 
     #[test]
     fn display_of_an_error_writes_the_word_of_yamllint() {
@@ -73,10 +81,10 @@ mod tests {
     }
 
     #[test]
-    fn display_of_a_warning_writes_the_word_of_yamllint() {
-        let word = ProblemLevel::Warning.to_string();
+    fn parse_of_a_warning_names_the_warning_level() {
+        let level = ProblemLevel::parse("warning");
 
-        assert_eq!(word, "warning");
+        assert_eq!(level, Some(ProblemLevel::Warning));
     }
 
     #[test]
@@ -94,9 +102,9 @@ mod tests {
     }
 
     #[test]
-    fn parse_of_a_warning_names_the_warning_level() {
-        let level = ProblemLevel::parse("warning");
+    fn problem_level_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert_eq!(level, Some(ProblemLevel::Warning));
+        assert_send_sync_and_unpin::<ProblemLevel>();
     }
 }

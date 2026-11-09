@@ -2,21 +2,20 @@
 //!
 //! An action declares a requirement of each tool that it runs, and this module
 //! turns that requirement into a program that a run can start. The tool holds
-//! what a run needs: the location that mise reported, the version that the
-//! requirement resolved to, and the root of the project that the tool works
+//! what a run needs. That is the location that mise reported, the version that
+//! the requirement resolved to, and the root of the project that the tool works
 //! on.
 //!
 //! Nothing starts a program until the caller runs a command. A tool describes
 //! the command, the action adds its arguments, and the run reports what the
 //! tool produced.
 
-/// What the crate reports when it cannot resolve the requirement of a tool
 mod requirement_error;
-/// The version of a toolchain that a project pins
 mod toolchain;
 
 use std::path::PathBuf;
 
+use bon::bon;
 use getset::Getters;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
@@ -46,8 +45,8 @@ const TOOL: &str = "--tool";
 /// programs that it starts
 ///
 /// A tool that runs on a toolchain, such as a package for Node, starts the
-/// program of the toolchain by its name, so this variable decides which
-/// version of the toolchain runs the tool.
+/// program of the toolchain by its name. So this variable decides which version
+/// of the toolchain runs the tool.
 const PATH: &str = "PATH";
 
 /// The details of a failure that mise did not explain
@@ -59,9 +58,9 @@ const NO_LOCATION: &str = "mise named no location";
 /// The extensions that Windows starts a program by
 ///
 /// The list holds the extensions of `PATHEXT` that carry a program of their
-/// own, in the order that Windows reads them. It leaves out the ones that
-/// name a script for an interpreter, such as `.ps1`, because starting one of
-/// those is a setting of a machine and not a property of the project.
+/// own, in the order that Windows reads them. It leaves out the ones that name
+/// a script for an interpreter, such as `.ps1`. It does so because starting one
+/// of those is a setting of a machine and not a property of the project.
 #[cfg(windows)]
 const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 
@@ -71,10 +70,32 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 /// asks mise for the version that an action declares, and
 /// [`invocation`][invocation] describes the command that runs the tool.
 ///
-/// The value carries the root of the project, because a tool behaves the same
-/// from every directory of a project only if every run of it starts in the
-/// same one. An action therefore resolves a tool once and runs it as often as
-/// it needs.
+/// The value carries the root of the project. That is because a tool behaves
+/// the same from every directory of a project only if every run of it starts in
+/// the same one. An action therefore resolves a tool once and runs it as often
+/// as it needs.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+/// use rakko_tool::Tool;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let requirement = ToolRequirement::builder()
+///     .tool("zizmor")
+///     .executable("zizmor")
+///     .version(RequiredVersion::Exact(ToolVersion::new("1.32.0")))
+///     .build();
+/// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
+/// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
+/// let execution = tool.invocation().arg("--version").run().await?;
+///
+/// assert!(execution.status().success());
+/// # Ok(())
+/// # }
+/// ```
 ///
 /// [declared]: Tool::resolve_requirement
 /// [invocation]: Tool::invocation
@@ -108,28 +129,33 @@ pub struct Tool {
     toolchains: Vec<PathBuf>,
 }
 
+#[bon]
 impl Tool {
     /// Returns the command that runs the tool
     ///
     /// The command starts the program that
     /// [`resolve_requirement`][resolve] found, in the root of the project,
     /// and it carries no argument yet. The caller adds the arguments of the
-    /// operation that it wants, and then runs the command with
+    /// operation that it wants. Then it runs the command with
     /// [`launch`][launch], which survives a launcher that Windows refused for
     /// a moment.
     ///
     /// No shell reads the command. Nothing splits an argument at a space,
-    /// removes a quotation mark, or expands a character such as `*`, so the
+    /// removes a quotation mark, or expands a character such as `*`. So the
     /// tool receives every argument as the caller wrote it.
     ///
     /// A command that ends without success is no failure of the run. The exit
-    /// status travels in the result, because a tool that reports a problem of
-    /// the project ends without success, and that is the answer that the
-    /// caller asked for.
+    /// status travels in the result. That is because a tool that reports a
+    /// problem of the project ends without success, and that is the answer that
+    /// the caller asked for.
     ///
     /// A tool that runs on a toolchain from [`with_toolchain`][toolchain]
     /// gets a command that puts the directory of that toolchain first on the
-    /// path.
+    /// path. The command then never fails to build. A toolchain directory
+    /// that cannot be an entry of `PATH` is refused when the caller adds the
+    /// toolchain. An entry of the inherited path holds no separator, so joining
+    /// the directories cannot fail. If it did, the command would keep the
+    /// inherited path.
     ///
     /// # Examples
     ///
@@ -146,7 +172,7 @@ impl Tool {
     ///     .build();
     /// let context = Context::builder().root("/home/otter/project").build();
     ///
-    /// let tool = Tool::resolve_requirement(&requirement, &context).await?;
+    /// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
     ///
     /// let execution = tool.invocation().arg("check").launch().await?;
     ///
@@ -172,9 +198,6 @@ impl Tool {
             .cloned()
             .chain(std::env::split_paths(&inherited));
 
-        // `with_toolchain` refuses a directory that cannot be an entry of
-        // `PATH`, and an entry of the inherited path holds no separator, so the join
-        // does not fail. A failure would keep the inherited path.
         match std::env::join_paths(directories) {
             Ok(path) => invocation.env(PATH, path),
             Err(_) => invocation,
@@ -186,11 +209,11 @@ impl Tool {
     /// Some tools start a toolchain by its name. For example, a package for
     /// Node starts the `node` program that it finds first on the path. The
     /// toolchain that the environment puts first can then be another version
-    /// than the one that the action resolved, or a version outside the range
-    /// of the action. A command of the returned tool puts the directory of
-    /// the program of the toolchain before the path that the process
-    /// inherited. So the tool runs on the toolchain that the caller resolved,
-    /// and the inherited path follows that directory.
+    /// than the one that the action resolved. That toolchain can also be a
+    /// version outside the range of the action. A command of the returned tool
+    /// puts the directory of the program of the toolchain before the path that
+    /// the process inherited. So the tool runs on the toolchain that the caller
+    /// resolved, and the inherited path follows that directory.
     ///
     /// A tool can run on several toolchains. A run searches their
     /// directories in the order that the caller added the toolchains.
@@ -198,10 +221,11 @@ impl Tool {
     /// # Errors
     ///
     /// Returns [`UnplaceableToolchain`][unplaceable] when the directory of the
-    /// program of the toolchain cannot be an entry of `PATH`, because it holds
-    /// the separator of the entries, such as `:` on Unix, or when the program
-    /// has no directory. A run then stops. Else the tool runs on a toolchain
-    /// that the environment chose.
+    /// program of the toolchain cannot be an entry of `PATH`. That happens
+    /// because the directory holds the separator of the entries, such as `:` on
+    /// Unix. It also returns that error when the program has no directory. A
+    /// run then stops. Else the tool runs on a toolchain that the environment
+    /// chose.
     ///
     /// # Examples
     ///
@@ -223,8 +247,11 @@ impl Tool {
     ///     .version(RequiredVersion::Exact(ToolVersion::new("3.9.10")))
     ///     .build();
     ///
-    /// let node = Tool::resolve_requirement(&node, &context).await?;
-    /// let prettier = Tool::resolve_requirement(&prettier, &context)
+    /// let node = Tool::resolve_requirement().requirement(&node).context(&context).call().await?;
+    /// let prettier = Tool::resolve_requirement()
+    ///     .requirement(&prettier)
+    ///     .context(&context)
+    ///     .call()
     ///     .await?
     ///     .with_toolchain(&node)?;
     ///
@@ -260,18 +287,21 @@ impl Tool {
     /// that the tests of the action cover.
     ///
     /// For a range, the tool is a toolchain, and the project pins its version.
-    /// The lookup asks mise which versions the configuration of the project
-    /// pins. It takes the first of them, in the order of the pins, that the
-    /// range accepts. Then it asks mise for the program at that version. A
-    /// range compares the versions of releases, such as `>=1.85`, or the dates
-    /// of one channel, such as `>=nightly-2025-02-20`, which reads only the
-    /// pins of that channel that the configuration writes with a date, such
-    /// as `nightly-2026-11-02`. A range can hold alternatives, joined by
-    /// `||`, such as `^22.18 || >=23.6`, and it accepts a pin that one of them
-    /// accepts. A pin in the global configuration of the user does not count,
-    /// and neither does a pin in a directory above the project. These files are different on each machine. A local mise file
-    /// inside the project, such as `mise.local.toml`, counts. So a developer
-    /// can override the pin of the project on their own machine.
+    /// The lookup asks mise which versions the project configuration pins.
+    /// It takes the first one that the range accepts, in the order of the pins.
+    /// Then it asks mise for the program at that version.
+    /// A range compares release versions such as `>=1.85`, or dates of one
+    /// channel such as `>=nightly-2025-02-20`.
+    /// A range of dates reads only the pins of that channel that the
+    /// configuration writes with a date, such as `nightly-2026-11-02`.
+    /// A range can hold alternatives joined by `||`, such as `^22.18 || >=23.6`.
+    /// It accepts a pin that one of them accepts.
+    /// A pin in the global user configuration does not count.
+    /// Neither does a pin in a directory above the project.
+    /// These files differ on each machine.
+    /// A local mise file inside the project, such as `mise.local.toml`,
+    /// counts. So a developer can override the pin of the project on their own
+    /// machine.
     ///
     /// The answer is an absolute path, and a command of the tool starts in
     /// the root of the context. The lookup starts up to three processes, so an
@@ -280,21 +310,24 @@ impl Tool {
     ///
     /// # Errors
     ///
-    /// Returns [`MiseUnavailable`][unavailable] when mise does not run, and
-    /// [`UnresolvedVersion`][unresolved] when mise reports no program of the
-    /// tool at the version, for example because nothing installed that
-    /// version. Rakko installs nothing, so a missing version is a failure and
-    /// not a step that this method takes.
+    /// Returns [`MiseUnavailable`][unavailable] when mise does not run.
+    /// Returns [`UnresolvedVersion`][unresolved] when mise reports no program
+    /// of the tool at the version, for example because nothing installed that
+    /// version.
+    /// Rakko installs nothing, so a missing version is a failure and not a
+    /// step this method takes.
     ///
     /// For a toolchain, returns [`InvalidRange`][invalid] when the range is
-    /// not a range, [`UnresolvedToolchain`][toolchain] when no configuration
-    /// inside the project pins the toolchain, or no dated version of the
-    /// channel of a range of dates, and [`UnrecognizedReport`][unrecognized]
-    /// when mise lists the pins in a form that the crate does not read. When
-    /// the range accepts no pin, returns [`VersionOutOfRange`][outside] for
-    /// the first pin with three numbers or a date to compare, or
-    /// [`UnreadableVersion`][unreadable] when a range of releases finds no
-    /// pin with three numbers.
+    /// not a range.
+    /// Returns [`UnresolvedToolchain`][toolchain] when no configuration inside
+    /// the project pins the toolchain, or no dated version of the channel of a
+    /// range of dates.
+    /// Returns [`UnrecognizedReport`][unrecognized] when mise lists pins in a
+    /// form the crate does not read.
+    /// When the range accepts no pin, returns [`VersionOutOfRange`][outside]
+    /// for the first pin with three numbers or a date to compare.
+    /// Returns [`UnreadableVersion`][unreadable] when a range of releases
+    /// finds no pin with three numbers.
     ///
     /// Returns [`UnknownRequirement`][unknown] for a kind of version that this
     /// release does not know.
@@ -319,7 +352,7 @@ impl Tool {
     ///     .build();
     /// let context = Context::builder().root("/home/otter/project").build();
     ///
-    /// let tool = Tool::resolve_requirement(&requirement, &context).await?;
+    /// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
     ///
     /// println!("{}", tool.program());
     /// # Ok(())
@@ -334,6 +367,7 @@ impl Tool {
     /// [unreadable]: ResolveRequirementError::UnreadableVersion
     /// [unrecognized]: ResolveRequirementError::UnrecognizedReport
     /// [unresolved]: ResolveRequirementError::UnresolvedVersion
+    #[builder]
     pub async fn resolve_requirement(
         requirement: &ToolRequirement,
         context: &Context,
@@ -398,7 +432,7 @@ fn diagnosis(execution: &Execution) -> String {
 ///
 /// Mise writes its diagnosis to the standard error stream, and that diagnosis
 /// names the step that installs a tool which nothing installed yet. The text
-/// travels into the message of the error, so whoever reads the failure reads
+/// travels into the message of the error. So whoever reads the failure reads
 /// the answer of mise instead of a sentence that Rakko wrote about it.
 ///
 /// A run that ended with success and named no location leaves that stream
@@ -420,7 +454,7 @@ fn details(execution: &Execution) -> String {
 /// character reaches a command.
 ///
 /// An unsuccessful run and an answer without a path mean the same thing to an
-/// action, so both answer `None` here, and the caller turns them into one
+/// action. So both answer `None` here, and the caller turns them into one
 /// error.
 fn program(execution: &Execution) -> Option<Program> {
     if !execution.status().success() {
@@ -449,14 +483,14 @@ fn executable(program: Program) -> Program {
 ///
 /// Windows decides what it can start from the extension of a file. A package
 /// manager for Node writes a script without an extension and a launcher with
-/// one, side by side under the same name, and mise names the script, which
-/// Windows refuses to start. The lookup therefore adds the extensions of the
-/// platform to the name and answers with the first file that exists.
+/// one, side by side under the same name. Mise names the script, which Windows
+/// refuses to start. The lookup therefore adds the extensions of the platform
+/// to the name and answers with the first file that exists.
 ///
 /// A file that already carries an extension is the answer, and so is one that
-/// no launcher sits beside, so that a tool which mise resolved and this
-/// platform cannot start fails where a run starts it, with the location that
-/// mise reported in the message.
+/// no launcher sits beside. So a tool which mise resolved and this platform
+/// cannot start fails where a run starts it. The message then names the
+/// location that mise reported.
 #[cfg(windows)]
 fn executable(program: Program) -> Program {
     let path = program.get();
@@ -474,9 +508,10 @@ fn executable(program: Program) -> Program {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
     use std::process::Command;
@@ -486,13 +521,13 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::pin::pinned_version;
+    use crate::pin::MiseFile;
 
     /// The tool that this repository pins and that the tests resolve
     ///
-    /// The tests need a tool that mise installs for this project, and one
-    /// that reads an argument and writes it back, so that a run can show what
-    /// reached the tool.
+    /// The tests need a tool that mise installs for this project. The tool
+    /// reads an argument and writes it back, so a run can show what reached the
+    /// tool.
     const PINNED: &str = "jq";
 
     /// A tool of this repository that a package manager for Node installed
@@ -553,7 +588,7 @@ mod tests {
         let pins = std::fs::read_to_string(root().get().join("mise.toml"))
             .expect("the test reads the mise.toml of the repository");
 
-        pinned_version(&pins, PINNED).to_owned()
+        MiseFile::new(&pins).pinned_version(PINNED).to_owned()
     }
 
     /// Returns whether a tool starts the program of a version
@@ -623,10 +658,9 @@ mod tests {
     impl Drop for Project {
         /// Withdraws the trust that the project received
         ///
-        /// Mise records the trust of a configuration in the state of the
-        /// user, and the temporary directory never comes back, so the record
-        /// would pile up there. A failure stays quiet, because the test
-        /// already reported what it was about.
+        /// Mise records configuration trust in the user state.
+        /// The temporary directory never returns, so the record would pile up.
+        /// A failure stays quiet, because the test already reported what it was about.
         fn drop(&mut self) {
             let _ = Command::new("mise")
                 .arg("trust")
@@ -639,21 +673,24 @@ mod tests {
 
     /// Returns the tool that this repository pins, resolved
     async fn pinned() -> Tool {
-        Tool::resolve_requirement(&exact(), &context())
+        Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&context())
+            .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins")
     }
 
     /// Returns the requirement of the tool of a package manager for Node
     ///
-    /// The version comes from the mise file of the crate that wraps the tool,
-    /// so that an update of the pin reaches the test without a change to it.
+    /// The version comes from the mise file of the crate that wraps the tool.
+    /// So an update of the pin reaches the test without a change to it.
     fn scripted() -> ToolRequirement {
         let pins =
             std::fs::read_to_string(root().get().join("crates/rakko-prettier/mise.rakko.toml"))
                 .expect("the test reads the mise file of the crate that wraps the tool");
         let tool = format!("npm:{SCRIPTED}");
-        let version = ToolVersion::new(pinned_version(&pins, &tool));
+        let version = ToolVersion::new(MiseFile::new(&pins).pinned_version(&tool));
 
         ToolRequirement::builder()
             .tool(tool)
@@ -780,6 +817,55 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn resolve_requirement_ignores_the_pin_of_the_project() {
+        let project = Project::pinning(&["0.0.1"]);
+
+        let tool = Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(tool.is_ok(), "expected the declared version, got {tool:?}");
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_runs_the_tool_in_the_root_of_the_context() {
+        let tool = Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&context())
+            .call()
+            .await
+            .expect("expected mise to report the version that this project pins");
+
+        let invocation = tool.invocation();
+
+        assert_eq!(
+            invocation.working_directory().map(WorkingDirectory::get),
+            Some(root().get())
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_pin_that_is_no_version_reports_it() {
+        let project = Project::pinning(&["ref:main"]);
+
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain(">=1"))
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::UnreadableVersion { .. })
+            ),
+            "expected an unreadable version, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_requirement_with_a_range_of_dates_of_an_unpinned_channel_reports_it_unresolved()
      {
         let beta = ToolRequirement::builder()
@@ -790,7 +876,11 @@ mod tests {
             )))
             .build();
 
-        let result = Tool::resolve_requirement(&beta, &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&beta)
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -811,7 +901,11 @@ mod tests {
             )))
             .build();
 
-        let result = Tool::resolve_requirement(&nightly, &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&nightly)
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             result
@@ -831,7 +925,11 @@ mod tests {
             )))
             .build();
 
-        let result = Tool::resolve_requirement(&nightly, &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&nightly)
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -842,60 +940,17 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn resolve_requirement_with_an_installed_version_reports_the_version() {
-        let tool = Tool::resolve_requirement(&exact(), &context())
-            .await
-            .expect("expected mise to report the version that this project pins");
-
-        assert_eq!(tool.version().get(), pinned_by_the_repository());
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_ignores_the_pin_of_the_project() {
-        let project = Project::pinning(&["0.0.1"]);
-
-        let tool = Tool::resolve_requirement(&exact(), &project.context()).await;
-
-        assert!(tool.is_ok(), "expected the declared version, got {tool:?}");
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_runs_the_tool_in_the_root_of_the_context() {
-        let tool = Tool::resolve_requirement(&exact(), &context())
-            .await
-            .expect("expected mise to report the version that this project pins");
-
-        let invocation = tool.invocation();
-
-        assert_eq!(
-            invocation.working_directory().map(WorkingDirectory::get),
-            Some(root().get())
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_pin_that_is_no_version_reports_it() {
-        let project = Project::pinning(&["ref:main"]);
-
-        let result = Tool::resolve_requirement(&toolchain(">=1"), &project.context()).await;
-
-        assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::UnreadableVersion { .. })
-            ),
-            "expected an unreadable version, got {result:?}"
-        );
-    }
-
-    // A file that mise names for a package of Node is a script on every
-    // platform, and Windows starts a program by the extension of its file, so
-    // this run reaches the tool only when resolution answered with the
-    // launcher beside the script.
+    /// Mise names a script for a package of Node on every platform
+    ///
+    /// Windows starts a program by the extension of its file. So this run
+    /// reaches the tool only when resolution answered with the launcher beside
+    /// the script.
     #[tokio::test]
     async fn resolve_requirement_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
-        let tool = Tool::resolve_requirement(&scripted(), &context())
+        let tool = Tool::resolve_requirement()
+            .requirement(&scripted())
+            .context(&context())
+            .call()
             .await
             .expect("expected mise to report the location of a tool that this project installs");
 
@@ -911,7 +966,11 @@ mod tests {
     async fn resolve_requirement_with_a_toolchain_in_its_range_reports_the_pinned_version() {
         let pinned = pinned_by_the_repository();
 
-        let result = Tool::resolve_requirement(&toolchain(">=1"), &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain(">=1"))
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             result
@@ -923,7 +982,11 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_requirement_with_a_toolchain_outside_its_range_stops() {
-        let result = Tool::resolve_requirement(&toolchain("<1"), &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain("<1"))
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -938,7 +1001,11 @@ mod tests {
     async fn resolve_requirement_with_a_toolchain_pinned_above_the_project_reports_it_unresolved() {
         let above = Project::pinning(&[&pinned_by_the_repository()]);
 
-        let result = Tool::resolve_requirement(&toolchain(">=1"), &above.context_below()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain(">=1"))
+            .context(&above.context_below())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -954,7 +1021,11 @@ mod tests {
         let pinned = pinned_by_the_repository();
         let project = Project::pinning(&[&pinned, "99.0.0", "0.0.1"]);
 
-        let result = Tool::resolve_requirement(&toolchain(">=0"), &project.context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain(">=0"))
+            .context(&project.context())
+            .call()
+            .await;
 
         assert!(
             result
@@ -970,7 +1041,11 @@ mod tests {
         let pinned = pinned_by_the_repository();
         let project = Project::pinning(&["99.0.0", &pinned]);
 
-        let result = Tool::resolve_requirement(&toolchain("<99"), &project.context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain("<99"))
+            .context(&project.context())
+            .call()
+            .await;
 
         assert!(
             result
@@ -988,7 +1063,11 @@ mod tests {
             .version(RequiredVersion::Range(VersionRange::new(">=1")))
             .build();
 
-        let result = Tool::resolve_requirement(&unknown, &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&unknown)
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -1003,7 +1082,12 @@ mod tests {
     async fn resolve_requirement_with_a_version_that_is_not_installed_carries_what_mise_said() {
         let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
 
-        let Err(error) = Tool::resolve_requirement(&missing, &context()).await else {
+        let Err(error) = Tool::resolve_requirement()
+            .requirement(&missing)
+            .context(&context())
+            .call()
+            .await
+        else {
             panic!("expected the lookup to report an error");
         };
 
@@ -1018,7 +1102,12 @@ mod tests {
      {
         let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
 
-        let Err(error) = Tool::resolve_requirement(&missing, &context()).await else {
+        let Err(error) = Tool::resolve_requirement()
+            .requirement(&missing)
+            .context(&context())
+            .call()
+            .await
+        else {
             panic!("expected the lookup to report an error");
         };
 
@@ -1030,7 +1119,10 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_requirement_with_an_installed_version_reports_its_program() {
-        let tool = Tool::resolve_requirement(&exact(), &context())
+        let tool = Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&context())
+            .call()
             .await
             .expect("expected mise to report the version that this project pins");
 
@@ -1038,8 +1130,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn resolve_requirement_with_an_installed_version_reports_the_version() {
+        let tool = Tool::resolve_requirement()
+            .requirement(&exact())
+            .context(&context())
+            .call()
+            .await
+            .expect("expected mise to report the version that this project pins");
+
+        assert_eq!(tool.version().get(), pinned_by_the_repository());
+    }
+
+    #[tokio::test]
     async fn resolve_requirement_with_an_invalid_range_reports_it() {
-        let result = Tool::resolve_requirement(&toolchain("not a range"), &context()).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&toolchain("not a range"))
+            .context(&context())
+            .call()
+            .await;
 
         assert!(
             matches!(result, Err(ResolveRequirementError::InvalidRange { .. })),
@@ -1056,7 +1164,11 @@ mod tests {
             .version(RequiredVersion::Range(VersionRange::new(">=1")))
             .build();
 
-        let result = Tool::resolve_requirement(&unpinned, &context_of(outside.path())).await;
+        let result = Tool::resolve_requirement()
+            .requirement(&unpinned)
+            .context(&context_of(outside.path()))
+            .call()
+            .await;
 
         assert!(
             matches!(
@@ -1121,16 +1233,25 @@ mod tests {
         assert_eq!(execution.stdout().to_string_lossy().trim(), "two words *");
     }
 
-    // A scheduler runs actions in parallel and can move a run to a different
-    // thread, so a tool that an action holds across a wait travels with it.
-    // This test holds the tool to the auto traits that make this possible,
-    // because a field of a later version could take them away without a word
-    // from the compiler.
+    /// Shows that the tool type satisfies Send and Sync
+    ///
+    /// A scheduler runs actions in parallel and can move a run to a different
+    /// thread. So a tool that an action holds across a wait travels with it.
+    /// This test holds the tool to the auto traits that make this possible. It
+    /// does so because a field of a later version could take them away without
+    /// a word from the compiler.
     #[test]
     fn tool_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<Tool>();
+    }
+
+    #[test]
+    fn tool_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Tool>();
     }
 
     #[test]

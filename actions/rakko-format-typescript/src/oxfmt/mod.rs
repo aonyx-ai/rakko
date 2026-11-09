@@ -1,16 +1,15 @@
 //! The oxfmt that a project runs
 //!
-//! This module holds the version of oxfmt that the crate declares, the program
-//! that mise installed at that version, and the two runs that an action asks
-//! for: the list of the files that a rewrite would change, and the rewrite
-//! itself. An action asks for a run, and everything between the action and the
-//! process lives here.
+//! This module holds the version of oxfmt that the crate declares and the
+//! program that mise installed at that version. It also holds the two runs
+//! that an action asks for. These are the list of the files that a rewrite
+//! would change and the rewrite itself. An action asks for a run, and
+//! everything between the action and the process lives here.
 
-/// The error that leaves a run without an answer
 mod error;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Launch, ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveOxfmtError;
 use crate::observation::Observation;
@@ -23,7 +22,7 @@ const OXFMT: &str = "oxfmt";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), OXFMT);
+const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(OXFMT);
 
 /// The name that mise knows Node by, which is also the name of its program
 const NODE: &str = "node";
@@ -39,30 +38,30 @@ const NODE_RANGE: &str = "^20.19.0 || >=22.12.0";
 /// The option that asks oxfmt to name the files that a rewrite would change
 ///
 /// Oxfmt writes one path per file and rewrites nothing. Its other reporting
-/// operation counts the files and draws a line per file with the time that it
-/// took, which says nothing more about what is wrong and costs a reading of
-/// the decoration that oxfmt puts around it. The option selects the
-/// presentation of the report and not the behavior of the tool.
+/// operation counts the files and draws a line per file with the time it took.
+/// This says nothing more about what is wrong. It costs a reading of the
+/// decoration that oxfmt puts around it. The option selects the presentation
+/// of the report and not the behavior of the tool.
 const LIST: &str = "--list-different";
 
 /// The option that asks oxfmt to rewrite the files that it can format
 ///
-/// Oxfmt rewrites a project when no operation is named at all, so a run that
+/// Oxfmt rewrites a project when no operation is named at all. So a run that
 /// only reports names its operation as deliberately as a run that rewrites.
 const WRITE: &str = "--write";
 
 /// The files that a run of the action names to oxfmt
 ///
-/// Oxfmt formats more languages than this action asks it about, and the
-/// actions that wrap prettier own those languages in a project that mounts
-/// them, so the pattern names the extensions of this one and oxfmt never sees
-/// the rest. The name of the action says TypeScript and the pattern holds
-/// JavaScript as well, because a TypeScript project carries configuration and
-/// scripts in that language and the tool reads both with one parser.
+/// Oxfmt formats more languages than this action asks it about. The actions
+/// that wrap prettier own those languages in a project that mounts them. So the
+/// pattern names the extensions of this one and oxfmt never sees the rest. The
+/// name of the action says TypeScript. The pattern holds JavaScript as well,
+/// because a TypeScript project carries configuration and scripts in that
+/// language. The tool reads both with one parser.
 ///
-/// Oxfmt skips the dependencies of a Node project and reads the ignore files
-/// of the project on its own, so the extensions are the whole of what the
-/// action decides about the selection.
+/// Oxfmt skips the dependencies of a Node project. It reads the ignore files of
+/// the project on its own. So the extensions are the whole of what the action
+/// decides about the selection.
 const PATTERN: &str = "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}";
 
 /// The oxfmt that a project runs
@@ -82,9 +81,9 @@ pub(crate) struct Oxfmt {
 impl Oxfmt {
     /// Names the files that a rewrite would change, and changes nothing
     ///
-    /// Oxfmt writes the paths on its standard output stream and everything
-    /// that it could not do on its standard error stream, and the observation
-    /// carries both.
+    /// Oxfmt writes the paths on its standard output stream. Everything that it
+    /// could not do goes to its standard error stream. The observation carries
+    /// both.
     ///
     /// # Errors
     ///
@@ -139,8 +138,15 @@ impl Oxfmt {
     /// [node]: Oxfmt::node_requirement
     /// [requirement]: Oxfmt::requirement
     pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement(&Self::node_requirement(), context).await?;
-        let tool = Tool::resolve_requirement(&Self::requirement(), context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Self::node_requirement())
+            .context(context)
+            .call()
+            .await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
             .await?
             .with_toolchain(&node)?;
 
@@ -185,10 +191,10 @@ impl Oxfmt {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::expect_used)]
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
 
@@ -209,10 +215,20 @@ mod tests {
         Context::builder().root(root).build()
     }
 
+    #[test]
+    fn oxfmt_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Oxfmt>();
+    }
+
     #[tokio::test]
     async fn resolve_runs_oxfmt_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_requirement(&Oxfmt::node_requirement(), &context)
+        let node = Tool::resolve_requirement()
+            .requirement(&Oxfmt::node_requirement())
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the Node that the repository pins");
 

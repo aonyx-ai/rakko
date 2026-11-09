@@ -1,11 +1,10 @@
 //! The action that lints the Rust code of a project
 //!
 //! This module holds the action and the error that stops a run. The action
-//! wraps cargo as a subprocess: cargo reads the manifests, selects the lints
-//! that the project configured, and runs clippy, and the action translates
-//! what cargo reported into an outcome.
+//! wraps cargo as a subprocess. Cargo reads the manifests, selects the lints
+//! that the project configured, and runs clippy. The action translates what
+//! cargo reported into an outcome.
 
-/// The error that stops a run of the action
 mod error;
 
 use rakko::{
@@ -26,10 +25,11 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// Cargo lints the versions that the lockfile holds and does not write the
 /// lockfile, because the action only examines the project.
 ///
-/// The report arrives as JSON, because the action reads it as data. The
-/// format selects the presentation of the report and not the behavior of the
-/// tool: which lints apply, and at which level, comes from the configuration
-/// of the project alone.
+/// The report arrives as JSON, because the action reads it as data.
+///
+/// The format selects the presentation of the report, not the behavior of the
+/// tool. Which lints apply and at which level comes from the configuration of
+/// the project alone.
 const CLIPPY: [&str; 5] = [
     "clippy",
     LOCKED,
@@ -40,34 +40,37 @@ const CLIPPY: [&str; 5] = [
 
 /// The action that lints the Rust code of a project
 ///
-/// The action wraps [clippy]: cargo reads the manifests of the project,
-/// selects the lints that the project configured, and examines every target
-/// with every feature, so a run agrees with an editor and with a contributor
-/// that runs clippy bare. The cargo that runs is the one that [mise]
-/// installed for the project, on the stable toolchain that the project pins,
-/// and the action installs nothing. The action accepts a range of stable
-/// toolchains, and the first pin in that range answers.
+/// The action wraps [clippy]. Cargo reads the manifests of the project, selects
+/// the lints that the project configured, and examines every target with every
+/// feature. So a run agrees with an editor and with a contributor that runs
+/// clippy bare. The cargo that runs is the one [mise] installed for the
+/// project, on the stable toolchain that the project pins. The action installs
+/// nothing. The action accepts a range of stable toolchains, and the first pin
+/// in that range answers.
 ///
 /// A run only reports, and it takes no argument. It lints every workspace of
 /// the project, because the harness of a project is a package of its own.
 /// It lints the versions that the lockfile of a workspace holds, and it
 /// leaves the lockfile as it is.
-/// Every diagnostic becomes a finding at the range that the compiler named,
-/// with the message of the compiler and the code of the lint, and a run with
-/// a finding fails, whether the project warns about the lint or denies it.
+/// Every diagnostic becomes a finding at the range that the compiler named.
+/// Each finding includes the message of the compiler and the code of the lint.
+/// A run with a finding fails, whether the project warns about the lint or
+/// denies it.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
 /// run stops with an error when the project pins no stable Rust toolchain that
-/// the action accepts, when the workspaces of the project cannot be discovered,
-/// when the lockfile of a workspace needs an update, and when cargo writes a
-/// report that the action does not recognize.
+/// the action accepts. It also stops when the workspaces of the project cannot
+/// be discovered. It also stops when the lockfile of a workspace needs an
+/// update, or when cargo writes a report that the action does not recognize.
 ///
-/// A run declares a read of the project. It holds cargo to the lockfile of each
-/// workspace, and cargo writes what it builds into the `target` directory,
-/// which cargo locks against parallel use itself. The declaration covers the
-/// action and cargo, and not the build scripts and procedural macros of the
-/// project, which can write files of their own. A caller that orders runs by
-/// their declarations runs it after the actions that write.
+/// A run declares a read of the project.
+///
+/// It holds cargo to the lockfile of each workspace. Cargo writes what it
+/// builds into the `target` directory, which cargo locks against parallel use
+/// itself. The declaration covers the action and cargo, and not the build
+/// scripts and procedural macros of the project, which can write files of
+/// their own. A caller that orders runs by their declarations runs it after
+/// the actions that write.
 ///
 /// # Examples
 ///
@@ -112,15 +115,16 @@ impl Action for LintRust {
 
 /// Runs the action against the project of the context
 ///
-/// The run examines the project, resolves cargo, discovers the workspaces,
-/// and lints each of them. An error that this function returns stops the
-/// run, and the caller reports it in the outcome.
+/// The run examines the project, resolves cargo, and discovers the
+/// workspaces, then lints each of them. An error this function returns stops
+/// the run, and the caller reports it in the outcome.
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of
-/// the tool, the discovery of the workspaces, a cargo run, or the reading
-/// of a report.
+/// Returns the error of the step that could not finish.
+///
+/// The step could be tool resolution, workspace discovery, a cargo run, or
+/// reading a report.
 async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
     let cargo = Cargo::resolve(context)
         .await
@@ -159,10 +163,10 @@ async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
 ///
 /// # Errors
 ///
-/// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
-/// [`StaleLockfile`][stale] when cargo refused to lint because the lockfile
-/// needs an update, and [`UnrecognizedReport`][unrecognized] when cargo
-/// writes a report that the action cannot answer from.
+/// Returns [`CargoUnavailable`][unavailable] when cargo does not run.
+/// Returns [`StaleLockfile`][stale] when cargo refused to lint because the
+/// lockfile needs an update. Returns [`UnrecognizedReport`][unrecognized]
+/// when cargo writes a report that the action cannot answer from.
 ///
 /// [stale]: LintRustError::StaleLockfile
 /// [unavailable]: LintRustError::CargoUnavailable
@@ -203,9 +207,9 @@ async fn lint(
 
 /// Returns whether the action can answer from a report
 ///
-/// A run that ended without success and named no diagnostic, and a run that
-/// ended with success without saying that the build finished, both wrote a
-/// report that the action cannot read, and an answer built on such a report
+/// A run that ended without success and named no diagnostic wrote a report
+/// the action cannot read. A run that ended with success without saying the
+/// build finished also wrote such a report. An answer built on such a report
 /// would hide problems behind a green result.
 fn recognized(report: &CargoReport, execution: &Execution) -> bool {
     if execution.status().success() {
@@ -219,10 +223,10 @@ fn recognized(report: &CargoReport, execution: &Execution) -> bool {
 ///
 /// # Errors
 ///
-/// Returns [`UnreadableReport`][unreadable] when the report holds a record
-/// of cargo that the action cannot read. The shape of a record belongs to a
-/// version of cargo, and an answer built on a report with such a record
-/// would hide problems behind a green result.
+/// Returns [`UnreadableReport`][unreadable] when the report holds a record of
+/// cargo that the action cannot read. The shape of a record belongs to a
+/// version of cargo. So an answer built on a report with such a record would
+/// hide problems behind a green result.
 ///
 /// [unreadable]: LintRustError::UnreadableReport
 fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, LintRustError> {
@@ -243,9 +247,10 @@ fn summary(roots: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::{Path, PathBuf};
 
@@ -264,6 +269,13 @@ mod tests {
         let access = LintRust.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn lint_rust_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintRust>();
     }
 
     #[test]

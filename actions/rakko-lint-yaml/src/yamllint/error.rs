@@ -1,3 +1,5 @@
+//! The error that leaves a run without an answer
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -14,9 +16,9 @@ pub(crate) enum ObserveYamllintError {
     ///
     /// The shape of a line belongs to a version of yamllint. A report that
     /// holds a line which names no problem therefore points at a version that
-    /// this crate does not know, and the findings of such a run would be the
-    /// lines that the reading happened to understand.
-    #[error("yamllint wrote a report that the action cannot read: {report}")]
+    /// this crate does not know. The findings of such a run would be the lines
+    /// that the reading happened to understand.
+    #[error("failed to read the report from yamllint: {report}")]
     UnreadableReport {
         /// What yamllint wrote in place of a report that the crate reads
         report: String,
@@ -38,20 +40,30 @@ pub(crate) enum ObserveYamllintError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read. This test holds the error
-    // to the auto traits that make this possible, because a field of a later
-    // version could take them away without a word from the compiler.
+    /// Shows that `ObserveYamllintError` is `Send` and `Sync`
+    ///
+    /// An action puts the error in the outcome of a run. That outcome holds an
+    /// error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without a word from the compiler.
     #[test]
     fn observe_yamllint_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<ObserveYamllintError>();
+    }
+
+    #[test]
+    fn observe_yamllint_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveYamllintError>();
     }
 }

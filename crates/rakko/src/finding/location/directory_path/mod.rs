@@ -1,16 +1,17 @@
+//! The path of a directory that a problem is in
+
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-/// The error type for directory path parsing
 mod error;
 pub use self::error::ParseDirectoryPathError;
 
 /// The path of a directory that a problem is in
 ///
 /// The path is relative to the project root. A reader, a machine, and a code
-/// host therefore see the same path for the same directory, and none of them
-/// has to know where the project lives on disk.
+/// host therefore see the same path for the same directory. None of them has to
+/// know where the project lives on disk.
 ///
 /// A tool that reports per directory rather than per file gives this path. A
 /// coverage report is one example: it names a directory and says nothing
@@ -20,11 +21,33 @@ pub use self::error::ParseDirectoryPathError;
 /// [`TryFrom<String>`], [`TryFrom<&Path>`], or [`TryFrom<PathBuf>`]. Every
 /// constructor refuses an absolute path and returns a
 /// [`ParseDirectoryPathError`].
+///
+/// # Examples
+///
+/// Parse a relative directory path.
+///
+/// ```
+/// use rakko::DirectoryPath;
+/// use std::str::FromStr;
+///
+/// assert!(DirectoryPath::from_str("src/module").is_ok());
+/// assert!(DirectoryPath::from_str(&std::env::temp_dir().to_string_lossy()).is_err());
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct DirectoryPath(PathBuf);
 
 impl DirectoryPath {
     /// Returns the path of the directory
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::DirectoryPath;
+    /// use std::str::FromStr;
+    ///
+    /// let path = DirectoryPath::from_str("src/module").unwrap();
+    /// assert_eq!(path.get().to_str(), Some("src/module"));
+    /// ```
     pub fn get(&self) -> &Path {
         &self.0
     }
@@ -95,19 +118,27 @@ impl fmt::Display for DirectoryPath {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     /// A path that the platform of the test reads as absolute
     ///
-    /// A path that starts with a separator is absolute on Unix and relative
-    /// on Windows, where a path is absolute only when it names a volume as
-    /// well. The tests below need a path that the platform they run on
-    /// refuses, so each platform names one of its own.
+    /// A path that starts with a separator is absolute on Unix and relative on
+    /// Windows. On Windows, a path is absolute only when it names a volume as
+    /// well. The tests below need a path that the platform they run on refuses,
+    /// so each platform names one of its own.
     const ABSOLUTE: &str = if cfg!(windows) { r"C:\Windows" } else { "/etc" };
+
+    #[test]
+    fn directory_path_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DirectoryPath>();
+    }
 
     #[test]
     fn display_shows_the_path_that_the_directory_path_was_made_from() {
@@ -150,6 +181,13 @@ mod tests {
     }
 
     #[test]
+    fn try_from_path_buf_accepts_relative_path() {
+        let path = DirectoryPath::try_from(PathBuf::from("crates/rakko")).unwrap();
+
+        assert_eq!(path.get(), Path::new("crates/rakko"));
+    }
+
+    #[test]
     fn try_from_path_buf_with_absolute_path_returns_error() {
         let error = DirectoryPath::try_from(PathBuf::from(ABSOLUTE)).unwrap_err();
 
@@ -159,13 +197,6 @@ mod tests {
                 path: PathBuf::from(ABSOLUTE),
             },
         );
-    }
-
-    #[test]
-    fn try_from_path_buf_accepts_relative_path() {
-        let path = DirectoryPath::try_from(PathBuf::from("crates/rakko")).unwrap();
-
-        assert_eq!(path.get(), Path::new("crates/rakko"));
     }
 
     #[test]

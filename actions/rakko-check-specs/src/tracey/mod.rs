@@ -8,15 +8,13 @@
 //! The module judges nothing. It reports what tracey said, and the action that
 //! asked decides what the answer means for its outcome.
 
-/// The error that leaves a question without an answer
 mod error;
-/// The reports that tracey writes as data
 mod report;
 
 use std::path::Path;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Execution, Invocation, Launch, ResolveRequirementError, Tool, pinned_version};
+use rakko_tool::{Execution, Invocation, Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub use self::error::ObserveTraceyError;
 pub(crate) use self::report::Coverage;
@@ -26,8 +24,8 @@ use crate::problem::TraceyProblem;
 
 /// The name that mise knows the tool by
 ///
-/// Tracey is in no registry of mise, so the name holds the backend that
-/// builds a crate from a Git repository and the address of that repository.
+/// Tracey is in no registry of mise. So the name holds the backend that
+/// builds a crate from a Git repository, and the address of that repository.
 const TOOL: &str = "cargo:https://github.com/bearcove/tracey";
 
 /// The program of the tool that a run starts
@@ -37,7 +35,7 @@ const TRACEY: &str = "tracey";
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), TOOL);
+const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(TOOL);
 
 /// The subcommand of tracey that stops the daemon of a workspace
 const KILL: &str = "kill";
@@ -120,17 +118,21 @@ impl Tracey {
     ///
     /// [requirement]: Tracey::requirement
     pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
+            .await?;
 
         Ok(Self { tool })
     }
 
     /// Stops the daemon that answers the questions of a workspace
     ///
-    /// Tracey answers from a daemon that serves what it scanned, and that scan
-    /// can be seconds old. A caller that stops the daemon first gets an answer
-    /// about the tree as it is now, because the next question starts a daemon
-    /// that scans the workspace before it answers.
+    /// Tracey answers from a daemon that serves what it scanned. That scan can
+    /// be seconds old. A caller that stops the daemon first gets an answer
+    /// about the tree as it is now. This works because the next question starts
+    /// a daemon that scans the workspace before it answers.
     ///
     /// A workspace without a daemon is not a failure. Tracey says so and ends
     /// with success, and the caller wanted no daemon running either way.
@@ -204,9 +206,9 @@ impl Tracey {
 
     /// Returns the command that runs tracey
     ///
-    /// Tracey reads a repository for the question about a staged change, and
-    /// it starts git to do so. A run inside a git hook would hand it the
-    /// repository of the hook, whatever directory the command names, so the
+    /// Tracey reads a repository for the question about a staged change and
+    /// starts git to do so. A run inside a git hook would hand it the
+    /// repository of the hook, whatever directory the command names. So the
     /// variables that git reads for itself leave the command.
     fn invocation(&self) -> Invocation {
         inherited().fold(self.tool.invocation(), Invocation::env_remove)
@@ -230,9 +232,9 @@ impl Tracey {
 
 /// A question that an action asks tracey about a project
 ///
-/// One place holds the command line of every question, so an action states
-/// what it wants to know and never a flag, and a change to how tracey is
-/// called reaches every action at once.
+/// One place holds the command line of every question. So an action states what
+/// it wants to know and never a flag. A change to how tracey is called reaches
+/// every action at once.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 enum Question {
     /// How much of the specifications the code answers for
@@ -276,7 +278,7 @@ fn diagnosis(execution: &Execution) -> String {
 
 /// Returns the report of tracey, read into the shape of the crate
 ///
-/// The diagnosis is built only for a report that the crate cannot read, so a
+/// The diagnosis is built only for a report that the crate cannot read. So a
 /// run that tracey answered pays nothing for the text that a failure needs.
 ///
 /// # Errors
@@ -297,21 +299,18 @@ fn parse<T: serde::de::DeserializeOwned>(
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
     #[test]
-    fn arguments_of_every_report_ask_for_data() {
-        let reports = [Question::Coverage, Question::References];
+    fn arguments_of_a_daemon_question_stop_it() {
+        let selected = arguments(Question::Daemon);
 
-        let structured = reports
-            .into_iter()
-            .all(|question| arguments(question).contains(&JSON));
-
-        assert!(structured, "expected every report to be asked for as data");
+        assert_eq!(selected, ["kill"]);
     }
 
     #[test]
@@ -325,10 +324,14 @@ mod tests {
     }
 
     #[test]
-    fn arguments_of_a_daemon_question_stop_it() {
-        let selected = arguments(Question::Daemon);
+    fn arguments_of_every_report_ask_for_data() {
+        let reports = [Question::Coverage, Question::References];
 
-        assert_eq!(selected, ["kill"]);
+        let structured = reports
+            .into_iter()
+            .all(|question| arguments(question).contains(&JSON));
+
+        assert!(structured, "expected every report to be asked for as data");
     }
 
     #[test]
@@ -343,12 +346,28 @@ mod tests {
         );
     }
 
-    // A scheduler runs actions in parallel and can move a run to a different
-    // thread, so a tracey that an action holds across a wait travels with it.
+    #[test]
+    fn question_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Question>();
+    }
+
+    /// Shows that tracey is send and sync
+    ///
+    /// A scheduler runs actions in parallel and can move a run to a different
+    /// thread. So a tracey that an action holds across a wait travels with it.
     #[test]
     fn tracey_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<Tracey>();
+    }
+
+    #[test]
+    fn tracey_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Tracey>();
     }
 }

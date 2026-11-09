@@ -39,11 +39,12 @@ const SHARING_VIOLATION: i32 = 32;
 
 /// The run of an invocation that starts a refused launcher again
 ///
-/// [`launch`][launch] runs the invocation as [`Invocation::run`] does. When
-/// the program is a batch file and `cmd.exe` reported only that another
-/// process holds a file, the run starts again after a short pause, a few
-/// times at most. Every other result is the answer, whatever its exit status,
-/// so a tool that reports a problem of the project never runs twice.
+/// [`launch`][launch] runs the invocation as [`Invocation::run`] does. When the
+/// program is a batch file and `cmd.exe` reported only that another process
+/// holds a file, the run starts again. The run waits a short pause before each
+/// new start, and it starts again a few times at most. Every other result is
+/// the answer, whatever its exit status. So a tool that reports a problem of
+/// the project never runs twice.
 ///
 /// Every operating system but Windows starts a tool directly, so there a
 /// launch is one run.
@@ -70,7 +71,7 @@ const SHARING_VIOLATION: i32 = 32;
 ///     .build();
 /// let context = Context::builder().root("/home/otter/project").build();
 ///
-/// let tool = Tool::resolve_requirement(&requirement, &context).await?;
+/// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
 ///
 /// let execution = tool.invocation().arg("--check").arg(".").launch().await?;
 ///
@@ -96,12 +97,11 @@ pub trait Launch: Sealed {
     /// Runs the invocation, and starts it again when Windows refused its
     /// launcher
     ///
-    /// A refused launcher wrote the message of the operating system for a
-    /// file that another process holds, and nothing of its tool. Every
-    /// attempt asks the tool the same question, so another attempt changes
-    /// no answer. When the last attempt is refused as well, the result is
-    /// that attempt, and the caller reports it as a run that said nothing
-    /// about the project.
+    /// A refused launcher wrote the message of the operating system for a file
+    /// that another process holds, and nothing of its tool. Every attempt asks
+    /// the tool the same question, so another attempt changes no answer. When
+    /// the last attempt is refused as well, the result is that attempt. The
+    /// caller reports it as a run that said nothing about the project.
     ///
     /// The message arrives in the language of the system. A launcher that
     /// writes it in a code page that this crate does not read is not
@@ -140,10 +140,10 @@ impl Launch for Invocation {
 
 /// Returns whether Windows refused the launcher of a run
 ///
-/// A launcher is a batch file, so the extension of the program decides
-/// whether `cmd.exe` ran it. A refused one ended without success, wrote
-/// nothing on its standard output stream, and wrote only the message of the
-/// operating system on its standard error stream.
+/// A launcher is a batch file, so the extension of the program decides whether
+/// `cmd.exe` ran it. A refused launcher ended without success. It wrote nothing
+/// on its standard output stream and only the message of the operating system
+/// on its standard error stream.
 #[cfg(windows)]
 fn refused(execution: &Execution) -> bool {
     let batch = execution
@@ -189,9 +189,10 @@ fn sharing_violation() -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::path::Path;
     #[cfg(windows)]
@@ -204,7 +205,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{Tool, pinned_version};
+    use crate::{MiseFile, Tool};
 
     /// A launcher that the operating system refuses once and then runs
     #[cfg(windows)]
@@ -282,10 +283,12 @@ mod tests {
         ProjectRoot::from(root)
     }
 
-    // A scheduler runs actions in parallel and can move a run to a different
-    // thread while it waits. This test holds the launch to the auto trait
-    // that makes this possible, because a change to the future could take it
-    // away without a word from the compiler.
+    /// Shows that the launch type satisfies Send
+    ///
+    /// A scheduler runs actions in parallel and can move a run to a different
+    /// thread while it waits. This test holds the launch to the auto trait that
+    /// makes this possible. It does so because a change to the future could
+    /// take it away without a word from the compiler.
     #[test]
     fn launch_is_send() {
         fn assert_send<T: Send>(_: &T) {}
@@ -336,13 +339,16 @@ mod tests {
         let requirement = ToolRequirement::builder()
             .tool("jq")
             .executable("jq")
-            .version(RequiredVersion::Exact(ToolVersion::new(pinned_version(
-                &pins, "jq",
-            ))))
+            .version(RequiredVersion::Exact(ToolVersion::new(
+                MiseFile::new(&pins).pinned_version("jq"),
+            )))
             .build();
         let context = Context::builder().root(root()).build();
 
-        let tool = Tool::resolve_requirement(&requirement, &context)
+        let tool = Tool::resolve_requirement()
+            .requirement(&requirement)
+            .context(&context)
+            .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins");
 

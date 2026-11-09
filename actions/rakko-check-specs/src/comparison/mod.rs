@@ -1,31 +1,30 @@
 //! The comparison that a pull request needs
 //!
 //! Tracey asks whether a staged change to the text of a requirement carries a
-//! new version of that requirement, and it answers by comparing the index of a
+//! new version of that requirement. It answers by comparing the index of a
 //! repository with its HEAD. In the checkout of a contributor that comparison
 //! is the right one. On a pull request it is not: a code host checks out a
-//! merge commit of the branch and its base and stages nothing, so the index
-//! and HEAD hold the same tree and the comparison finds no change at all.
+//! merge commit of the branch and its base and stages nothing. So the index and
+//! HEAD hold the same tree and the comparison finds no change.
 //!
-//! This module builds the comparison that such a run needs, in a copy of the
-//! repository instead of in the checkout. The copy is a worktree at the first
-//! parent of the merge commit, which is the base branch, and its index holds
-//! the tree of the merge commit, which is the content of the pull request.
-//! Tracey then compares the pull request with its base.
+//! This module builds the comparison that such a run needs in a copy of the
+//! repository instead of in the checkout. The copy is a worktree at the base
+//! branch (the first parent of the merge commit). Its index holds the tree of
+//! the merge commit, the content of the pull request. Tracey then compares
+//! the pull request with its base.
 //!
 //! Nothing in the checkout of the run changes. Moving the HEAD of the checkout
-//! would build the same comparison in one command, and an action runs in
-//! projects that this one never sees, where an environment that looks like a
-//! pull request and a checkout that is not one would cost a contributor a
-//! commit.
+//! would build the same comparison in one command. An action runs in projects
+//! that this one never sees. There an environment that looks like a pull
+//! request
+//! and a checkout that is not one would cost a contributor a commit.
 //!
-//! Git is infrastructure of a machine and not a tool that an action wraps, so
-//! the operating system finds it with the rules of the platform. A run inside
-//! a git hook inherits variables that name the repository of the run above it,
-//! and those variables beat the working directory of a command, so every
-//! command here runs without them.
+//! Git is infrastructure of a machine and not a tool that an action wraps.
+//! So the operating system finds it with the rules of the platform. A run inside
+//! a git hook inherits variables that name the repository of the run above it.
+//! Those variables beat the working directory of a command, so every command
+//! here runs without them.
 
-/// The error that leaves a run without the comparison it asked for
 mod error;
 
 use std::ffi::OsString;
@@ -38,6 +37,17 @@ use tempfile::TempDir;
 
 pub use self::error::PrepareComparisonError;
 use crate::environment::inherited;
+
+/// What a run compares
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Scope {
+    /// The run compares the index of the checkout with its HEAD
+    #[default]
+    Checkout,
+
+    /// The run compares a pull request with its base branch
+    PullRequest,
+}
 
 /// The program that manages the repository of a project
 const GIT: &str = "git";
@@ -54,9 +64,9 @@ const SECOND_PARENT: &str = "HEAD^2";
 /// A copy of the repository that compares a pull request with its base
 ///
 /// The value owns the copy. A drop removes the worktree and its directory, so
-/// an error and a panic leave nothing behind, and an interrupt that no
-/// destructor survives leaves a directory that the operating system removes
-/// and an entry that `git worktree prune` forgets.
+/// an error and a panic leave nothing behind. An interrupt that no destructor
+/// survives leaves a directory that the operating system removes and an entry
+/// that `git worktree prune` forgets.
 #[derive(Debug)]
 pub(crate) struct Comparison {
     /// The directory that holds the worktree
@@ -74,15 +84,15 @@ impl Comparison {
 
     /// Returns the comparison of a pull request with its base branch
     ///
-    /// The caller states whether the environment of the run names the base
-    /// branch of a pull request, and this method asks whether the checkout is
-    /// a merge commit. Both have to hold: an environment variable alone
-    /// describes a job and not a checkout, and a project that this action
-    /// never saw could carry either one on its own.
+    /// The caller states whether the environment names the pull request base
+    /// branch. This method asks whether the checkout is a merge commit. Both
+    /// must hold: an environment variable alone describes a job, not a
+    /// checkout. A project that this action never saw could carry either one on
+    /// its own.
     ///
-    /// A run that is not a pull request answers `None`, and its caller
-    /// compares the index of the checkout with its HEAD, which is what a
-    /// contributor staged against what they last committed.
+    /// A run that is not a pull request answers `None`. Its caller compares
+    /// the index of the checkout with its HEAD. This is what a contributor
+    /// staged against what they last committed.
     ///
     /// # Errors
     ///
@@ -90,10 +100,11 @@ impl Comparison {
     /// refuses to build the copy.
     pub(crate) async fn prepare(
         root: &ProjectRoot,
-        requested: bool,
+        scope: Scope,
     ) -> Result<Option<Self>, PrepareComparisonError> {
-        if !requested {
-            return Ok(None);
+        match scope {
+            Scope::Checkout => return Ok(None),
+            Scope::PullRequest => {}
         }
 
         let repository = root.get().to_path_buf();
@@ -102,16 +113,12 @@ impl Comparison {
             return Ok(None);
         }
 
-        // The revisions are read before the copy exists, because HEAD names
-        // the merge commit in the checkout and the base branch in the copy.
         let merge = capture(&repository, HEAD).await?;
         let base = capture(&repository, FIRST_PARENT).await?;
 
         let directory = tempfile::tempdir()
             .map_err(|source| PrepareComparisonError::UnavailableDirectory { source })?;
 
-        // `worktree add` refuses a directory that exists, and the temporary
-        // directory does. Git creates the last segment itself.
         let worktree = directory.path().join(WORKTREE);
 
         run(
@@ -121,8 +128,6 @@ impl Comparison {
         )
         .await?;
 
-        // The copy holds the base branch, and its index takes the tree of the
-        // merge commit, which is what the pull request proposes.
         run(&worktree, ["read-tree"], [merge.as_ref()]).await?;
 
         Ok(Some(Self {
@@ -242,9 +247,10 @@ fn command(directory: &Path) -> Invocation {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -310,9 +316,18 @@ mod tests {
     }
 
     /// Runs one command of git in the directory
+    ///
+    /// The helper turns off the signing of commits, because the commits of a
+    /// fixture are thrown away with its directory. The signing key of a
+    /// contributor is not the test's to ask for.
+    ///
+    /// The helper removes every variable that starts with `GIT_` before it
+    /// runs. A test that runs inside a git hook inherits the variables that
+    /// name the repository of the hook, and those beat the working directory.
+    /// The fixture would then act on the checkout of the contributor. The
+    /// helper sets the identity afterwards, because the identity variables
+    /// carry the same prefix.
     fn git(directory: &Path, arguments: &[&str]) -> String {
-        // The commits of a fixture are thrown away with its directory, and
-        // the signing key of a contributor is not the test's to ask for.
         let mut command = Command::new(GIT);
         command
             .arg("-c")
@@ -320,10 +335,6 @@ mod tests {
             .args(arguments)
             .current_dir(directory);
 
-        // A test that runs inside a git hook inherits the variables that name
-        // the repository of the hook, and those beat the working directory, so
-        // the fixture would act on the checkout of the contributor. The
-        // identity below is set afterwards, because it carries the prefix too.
         for (name, _) in std::env::vars_os() {
             if name.as_encoded_bytes().starts_with(b"GIT_") {
                 command.env_remove(name);
@@ -359,12 +370,21 @@ mod tests {
         );
     }
 
+    #[test]
+    fn comparison_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Comparison>();
+    }
+
     #[tokio::test]
     async fn comparison_leaves_the_commit_of_the_checkout_alone() {
         let project = Project::merged();
         let before = project.git(&["rev-parse", "HEAD"]);
 
-        let comparison = Comparison::prepare(&project.root(), true).await.unwrap();
+        let comparison = Comparison::prepare(&project.root(), Scope::PullRequest)
+            .await
+            .unwrap();
         drop(comparison);
 
         assert_eq!(project.git(&["rev-parse", "HEAD"]), before);
@@ -374,20 +394,24 @@ mod tests {
     async fn comparison_leaves_the_index_of_the_checkout_alone() {
         let project = Project::merged();
 
-        let comparison = Comparison::prepare(&project.root(), true).await.unwrap();
+        let comparison = Comparison::prepare(&project.root(), Scope::PullRequest)
+            .await
+            .unwrap();
         drop(comparison);
 
         assert_eq!(project.git(&["diff", "--cached", "--name-only"]), "");
     }
 
-    // A code host checks out a merge commit of the branch and its base, and
-    // stages nothing, so a comparison of that index with that HEAD finds no
-    // change at all.
+    /// Shows that a merge commit stages the pull request
+    ///
+    /// A code host checks out a merge commit of the branch and its base, and
+    /// stages nothing. So a comparison of that index with that HEAD finds no
+    /// change at all.
     #[tokio::test]
     async fn comparison_of_a_merge_commit_stages_the_pull_request() {
         let project = Project::merged();
 
-        let comparison = Comparison::prepare(&project.root(), true)
+        let comparison = Comparison::prepare(&project.root(), Scope::PullRequest)
             .await
             .unwrap()
             .unwrap();
@@ -399,14 +423,25 @@ mod tests {
         assert_eq!(staged, "SPECIFICATION.md");
     }
 
-    // A run that no environment calls a pull request compares the checkout
-    // itself.
+    /// Shows that an unrequested comparison is none
+    ///
+    /// A run that no environment calls a pull request compares the checkout
+    /// itself.
     #[tokio::test]
     async fn comparison_that_nothing_asked_for_is_none() {
         let project = Project::merged();
 
-        let comparison = Comparison::prepare(&project.root(), false).await.unwrap();
+        let comparison = Comparison::prepare(&project.root(), Scope::Checkout)
+            .await
+            .unwrap();
 
         assert!(comparison.is_none(), "expected no comparison");
+    }
+
+    #[test]
+    fn scope_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Scope>();
     }
 }

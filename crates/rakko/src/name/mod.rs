@@ -1,6 +1,6 @@
-/// The error type for name parsing
+//! Types for the identifier of an action
+
 mod error;
-/// What kebab case holds, and the names that hold only that
 pub(crate) mod kebab_case;
 
 pub use self::error::ParseNameError;
@@ -57,9 +57,10 @@ kebab_case_name! {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -190,6 +191,13 @@ mod tests {
     }
 
     #[test]
+    fn from_str_with_leading_consecutive_hyphens_returns_invalid_start() {
+        let err = "--name".parse::<Name>().unwrap_err();
+
+        assert_eq!(err, ParseNameError::InvalidStart { character: '-' });
+    }
+
+    #[test]
     fn from_str_with_leading_digit_returns_error() {
         let err = "1check".parse::<Name>().unwrap_err();
 
@@ -199,13 +207,6 @@ mod tests {
     #[test]
     fn from_str_with_leading_hyphen_returns_error() {
         let err = "-check".parse::<Name>().unwrap_err();
-
-        assert_eq!(err, ParseNameError::InvalidStart { character: '-' });
-    }
-
-    #[test]
-    fn from_str_with_leading_consecutive_hyphens_returns_invalid_start() {
-        let err = "--name".parse::<Name>().unwrap_err();
 
         assert_eq!(err, ParseNameError::InvalidStart { character: '-' });
     }

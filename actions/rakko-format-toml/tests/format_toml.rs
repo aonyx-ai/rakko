@@ -1,17 +1,17 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately broken TOML file sits in
-//! this repository, where the formatting of the repository itself would
-//! fight it.
+//! against it. So no fixture with a deliberately broken TOML file sits in this
+//! repository, where the formatting of the repository itself would fight it.
 //!
 //! The tests run the taplo that the action declares. Each project pins
 //! another taplo that nothing installs, so a test passes only when the run
 //! ignores the pin of the project.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -21,7 +21,7 @@ use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, Position,
     ProjectRoot, Summary, argument_name,
 };
-use rakko_format_toml::{FormatToml, FormatTomlArgs, FormatTomlError};
+use rakko_format_toml::{FormatMode, FormatToml, FormatTomlArgs, FormatTomlError};
 use rakko_taplo::Taplo;
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
@@ -37,8 +37,8 @@ const INVALID: &str = "broken = [1,\n";
 
 /// A taplo configuration that taplo rejects
 ///
-/// The file is valid TOML, and the value of the option has the wrong type,
-/// so taplo warns and falls back to its defaults instead of failing.
+/// The file is valid TOML, and the value of the option has the wrong type. So
+/// taplo warns and falls back to its defaults instead of failing.
 const REJECTED_CONFIGURATION: &str = "[formatting]\nalign_entries = \"banana\"\n";
 
 /// A taplo configuration that excludes every file of the project
@@ -53,6 +53,7 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project that pins a taplo that nothing installed
     ///
@@ -90,11 +91,12 @@ impl Project {
     }
 
     /// Runs the action against this project
-    async fn run(&self, fix: bool) -> Outcome {
-        let values = if fix {
-            ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
-        } else {
-            ArgsValues::empty()
+    async fn run(&self, format_mode: FormatMode) -> Outcome {
+        let values = match format_mode {
+            FormatMode::Rewrite => {
+                ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
+            }
+            FormatMode::Report => ArgsValues::empty(),
         };
         let args = FormatTomlArgs::from_values(&values)
             .expect("the test builds the arguments from values that the action reads");
@@ -103,6 +105,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -144,8 +147,8 @@ fn trust(configuration: &Path) {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record
     /// would pile up there forever. A failure stays quiet, because the test
     /// already reported what it was about.
     fn drop(&mut self) {
@@ -173,155 +176,11 @@ fn action_identifies_itself_as_format_toml() {
 }
 
 #[tokio::test]
-async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
-    let project = Project::new();
-    project.write("broken.toml", INVALID);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings[0].message().get().contains("invalid TOML"),
-        "expected the message of taplo, got {:?}",
-        findings[0].message()
-    );
-}
-
-#[tokio::test]
-async fn run_with_an_invalid_file_reports_the_position() {
-    let project = Project::new();
-    project.write("broken.toml", INVALID);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    let Location::Position { path, position } = findings[0].location() else {
-        panic!("expected a finding at a position, got {:?}", findings[0]);
-    };
-    assert_eq!(
-        (path.to_string(), *position),
-        (
-            "broken.toml".to_owned(),
-            Position::builder().line(2).column(1).build()
-        )
-    );
-}
-
-#[tokio::test]
-async fn run_with_an_unformatted_file_names_the_file() {
-    let project = Project::new();
-    project.write("sub/messy.toml", UNFORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(
-        findings[0].location(),
-        &Location::File {
-            path: "sub/messy.toml"
-                .parse()
-                .expect("the test names a relative path"),
-        }
-    );
-}
-
-#[tokio::test]
-async fn run_without_fix_leaves_the_file_unchanged() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-
-    project.run(false).await;
-
-    assert_eq!(project.read("messy.toml"), UNFORMATTED);
-}
-
-#[tokio::test]
-async fn run_without_fix_leaves_the_project_unchanged() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&FormatToml, &project.context(), &FormatTomlArgs::default()).await;
-}
-
-#[tokio::test]
-async fn run_with_a_rejected_configuration_stops() {
-    let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
-    let project = Project::new();
-    project.write(".taplo.toml", REJECTED_CONFIGURATION);
-    project.write("clean.toml", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Errored { source } = &outcome else {
-        panic!("expected the run to stop, got {outcome:?}");
-    };
-    assert!(
-        source.to_string().contains("TOML parse error"),
-        "expected the diagnosis of taplo, got {source}"
-    );
-}
-
-#[cfg(unix)]
-#[tokio::test]
-async fn run_with_an_unreadable_file_stops() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let project = Project::new();
-    project.write("secret.toml", FORMATTED);
-    let path = project.directory.path().join("secret.toml");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
-        .expect("the test removes the permissions of a file");
-
-    let outcome = project.run(false).await;
-
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
-        .expect("the test restores the permissions of a file");
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_in_a_formatted_project_passes() {
-    let project = Project::new();
-    project.write("clean.toml", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_in_a_formatted_project_counts_the_files() {
     let project = Project::new();
-    project.write("clean.toml", FORMATTED);
+    project.write().path("clean.toml").content(FORMATTED).call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     let Outcome::Passed { summary } = &outcome else {
         panic!("expected the run to pass, got {outcome:?}");
@@ -330,6 +189,19 @@ async fn run_in_a_formatted_project_counts_the_files() {
         summary.as_ref().map(Summary::get),
         Some("checked 2 files"),
         "the project holds the clean file and its mise.toml"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_formatted_project_passes() {
+    let project = Project::new();
+    project.write().path("clean.toml").content(FORMATTED).call();
+
+    let outcome = project.run(FormatMode::Report).await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
     );
 }
 
@@ -356,11 +228,19 @@ async fn run_in_a_missing_directory_stops_without_a_taplo() {
 #[tokio::test]
 async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
     let project = Project::new();
-    project.write(".taplo.toml", EXCLUDE_ONE);
-    project.write("clean.toml", FORMATTED);
-    project.write("skipped.toml", UNFORMATTED);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(EXCLUDE_ONE)
+        .call();
+    project.write().path("clean.toml").content(FORMATTED).call();
+    project
+        .write()
+        .path("skipped.toml")
+        .content(UNFORMATTED)
+        .call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     let Outcome::Passed { summary } = &outcome else {
         panic!("expected the run to pass, got {outcome:?}");
@@ -375,10 +255,18 @@ async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
 #[tokio::test]
 async fn run_whose_configuration_excludes_every_file_passes() {
     let project = Project::new();
-    project.write(".taplo.toml", EXCLUDE_EVERYTHING);
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(EXCLUDE_EVERYTHING)
+        .call();
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
@@ -387,12 +275,201 @@ async fn run_whose_configuration_excludes_every_file_passes() {
 }
 
 #[tokio::test]
+async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(FORMATTED).call();
+
+    let outcome = project.run(FormatMode::Report).await;
+
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains("TOML parse error"),
+        "expected the diagnosis of taplo, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_rejected_configuration_stops() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(FORMATTED).call();
+
+    let outcome = project.run(FormatMode::Report).await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
+    let project = Project::new();
+    project.write().path("broken.toml").content(INVALID).call();
+
+    let outcome = project.run(FormatMode::Report).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings[0].message().get().contains("invalid TOML"),
+        "expected the message of taplo, got {:?}",
+        findings[0].message()
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_invalid_file_reports_the_position() {
+    let project = Project::new();
+    project.write().path("broken.toml").content(INVALID).call();
+
+    let outcome = project.run(FormatMode::Report).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    let Location::Position { path, position } = findings[0].location() else {
+        panic!("expected a finding at a position, got {:?}", findings[0]);
+    };
+    assert_eq!(
+        (path.to_string(), *position),
+        (
+            "broken.toml".to_owned(),
+            Position::builder().line(2).column(1).build()
+        )
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_unformatted_file_names_the_file() {
+    let project = Project::new();
+    project
+        .write()
+        .path("sub/messy.toml")
+        .content(UNFORMATTED)
+        .call();
+
+    let outcome = project.run(FormatMode::Report).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        findings[0].location(),
+        &Location::File {
+            path: "sub/messy.toml"
+                .parse()
+                .expect("the test names a relative path"),
+        }
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn run_with_an_unreadable_file_stops() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    project
+        .write()
+        .path("secret.toml")
+        .content(FORMATTED)
+        .call();
+    let path = project.directory.path().join("secret.toml");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a file");
+
+    let outcome = project.run(FormatMode::Report).await;
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+        .expect("the test restores the permissions of a file");
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_fix_and_an_invalid_file_fails() {
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("broken.toml").content(INVALID).call();
+
+    let outcome = project.run(FormatMode::Rewrite).await;
+
+    assert!(
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_fix_and_an_invalid_file_holds_the_repairs() {
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("broken.toml").content(INVALID).call();
+
+    let outcome = project.run(FormatMode::Rewrite).await;
+
+    let Outcome::Failed { repairs, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(repairs), ["messy.toml"]);
+}
+
+#[tokio::test]
+async fn run_with_fix_and_an_invalid_file_keeps_the_problem() {
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+    project.write().path("broken.toml").content(INVALID).call();
+
+    let outcome = project.run(FormatMode::Rewrite).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), ["broken.toml"]);
+}
+
+#[tokio::test]
 async fn run_with_fix_holds_one_repair_for_each_file() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("sub/other.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+    project
+        .write()
+        .path("sub/other.toml")
+        .content(UNFORMATTED)
+        .call();
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(FormatMode::Rewrite).await;
 
     let Outcome::Changed { repairs } = &outcome else {
         panic!("expected the run to change the project, got {outcome:?}");
@@ -408,9 +485,13 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
 #[tokio::test]
 async fn run_with_fix_reports_the_change() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(FormatMode::Rewrite).await;
 
     assert!(
         matches!(outcome, Outcome::Changed { .. }),
@@ -421,51 +502,42 @@ async fn run_with_fix_reports_the_change() {
 #[tokio::test]
 async fn run_with_fix_rewrites_the_file() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
-    project.run(true).await;
+    project.run(FormatMode::Rewrite).await;
 
     assert_eq!(project.read("messy.toml"), FORMATTED);
 }
 
 #[tokio::test]
-async fn run_with_fix_and_an_invalid_file_fails() {
+async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("broken.toml", INVALID);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
-    let outcome = project.run(true).await;
+    project.run(FormatMode::Report).await;
 
-    assert!(
-        matches!(outcome, Outcome::Failed { .. }),
-        "expected the run to fail, got {outcome:?}"
-    );
+    assert_eq!(project.read("messy.toml"), UNFORMATTED);
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
-async fn run_with_fix_and_an_invalid_file_holds_the_repairs() {
+async fn run_without_fix_leaves_the_project_unchanged() {
     let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("broken.toml", INVALID);
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
 
-    let outcome = project.run(true).await;
-
-    let Outcome::Failed { repairs, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(locations(repairs), ["messy.toml"]);
-}
-
-#[tokio::test]
-async fn run_with_fix_and_an_invalid_file_keeps_the_problem() {
-    let project = Project::new();
-    project.write("messy.toml", UNFORMATTED);
-    project.write("broken.toml", INVALID);
-
-    let outcome = project.run(true).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(locations(findings), ["broken.toml"]);
+    run_checking_access(&FormatToml, &project.context(), &FormatTomlArgs::default()).await;
 }

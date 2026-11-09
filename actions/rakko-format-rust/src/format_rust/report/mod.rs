@@ -8,10 +8,9 @@
 //! with `\\?\`. A root of the project holds the plain spelling, so this
 //! module turns every path that it reads into the plain spelling. A path
 //! that the plain spelling cannot describe, such as one that is longer than
-//! Windows allows in it, keeps the verbatim spelling, as the root of a
-//! project does.
+//! Windows allows, keeps the verbatim spelling. The root of a project does
+//! the same.
 
-/// One problem that rustfmt reported about a file
 mod problem;
 
 use std::collections::HashSet;
@@ -22,6 +21,16 @@ use rakko::path::plain;
 use rakko_tool::Execution;
 
 pub(crate) use self::problem::{RustfmtProblem, RustfmtProblemDetail};
+
+/// How a run of rustfmt ended
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub(crate) enum Exit {
+    /// Rustfmt ended the run with success
+    Succeeded,
+
+    /// Rustfmt ended the run without success
+    Failed,
+}
 
 /// The start of a line that names a diagnostic of rustfmt
 ///
@@ -37,17 +46,18 @@ const LOCATION_ARROW: &str = "-->";
 
 /// The start of a line that warns about the configuration of rustfmt
 ///
-/// Rustfmt warns about an option that it does not know, and about an option
-/// that its channel does not support, and then formats without the option.
+/// Rustfmt warns about an option that it does not know. It also warns about
+/// an option that its channel does not support. It then formats without the
+/// option.
 const WARNING: &str = "Warning:";
 
 /// What rustfmt reported about one run
 ///
-/// A run lists files on its standard output: in a check, the files that
-/// rustfmt would rewrite, and in a rewrite, the files that it rewrote. It
+/// A run lists files on its standard output. In a check, it lists files that
+/// rustfmt would rewrite. In a rewrite, it lists files that it rewrote. It
 /// writes its diagnostics and its warnings to its standard error stream. The
-/// report keeps the lines that carry an answer and ignores everything else,
-/// so a line that a new version adds does not break the reading.
+/// report keeps the lines that carry an answer and ignores everything else. So
+/// a line that a new version adds does not break the reading.
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub(crate) struct RustfmtReport {
     /// The files that rustfmt listed, once each, in the order of the output
@@ -67,9 +77,9 @@ pub(crate) struct RustfmtReport {
     #[getset(get = "pub(crate)")]
     stderr: String,
 
-    /// Whether the run ended with success
+    /// How the run ended
     #[getset(get_copy = "pub(crate)")]
-    succeeded: bool,
+    exit: Exit,
 }
 
 impl RustfmtReport {
@@ -81,7 +91,12 @@ impl RustfmtReport {
         let mut problems: Vec<RustfmtProblem> = self
             .listed
             .iter()
-            .map(|path| RustfmtProblem::new(path.clone(), RustfmtProblemDetail::Unformatted))
+            .map(|path| {
+                RustfmtProblem::builder()
+                    .path(path.clone())
+                    .detail(RustfmtProblemDetail::Unformatted)
+                    .build()
+            })
             .collect();
         problems.extend(self.invalid.iter().cloned());
 
@@ -90,11 +105,17 @@ impl RustfmtReport {
 
     /// Reads the report of a run from what rustfmt wrote
     pub(crate) fn read(execution: &Execution) -> Self {
-        read(
-            &execution.stdout().to_string_lossy(),
-            &execution.stderr().to_string_lossy(),
-            execution.status().success(),
-        )
+        let exit = if execution.status().success() {
+            Exit::Succeeded
+        } else {
+            Exit::Failed
+        };
+
+        read()
+            .stdout(&execution.stdout().to_string_lossy())
+            .stderr(&execution.stderr().to_string_lossy())
+            .exit(exit)
+            .call()
     }
 }
 
@@ -123,14 +144,16 @@ fn diagnostic(message: &str, following: &[&str]) -> Option<RustfmtProblem> {
         .find_map(|line| line.trim_start().strip_prefix(LOCATION_ARROW))?;
     let (path, line, column) = coordinates(arrow.trim())?;
 
-    Some(RustfmtProblem::new(
-        path,
-        RustfmtProblemDetail::Invalid {
-            line,
-            column,
-            message: message.to_owned(),
-        },
-    ))
+    Some(
+        RustfmtProblem::builder()
+            .path(path)
+            .detail(RustfmtProblemDetail::Invalid {
+                line,
+                column,
+                message: message.to_owned(),
+            })
+            .build(),
+    )
 }
 
 /// Returns the message of a line that starts a diagnostic
@@ -144,7 +167,8 @@ fn header(line: &str) -> Option<&str> {
 }
 
 /// Reads a report from the two streams of a run
-fn read(stdout: &str, stderr: &str, succeeded: bool) -> RustfmtReport {
+#[bon::builder]
+fn read(stdout: &str, stderr: &str, exit: Exit) -> RustfmtReport {
     let mut listed = Vec::new();
     let mut seen = HashSet::new();
 
@@ -182,15 +206,16 @@ fn read(stdout: &str, stderr: &str, succeeded: bool) -> RustfmtReport {
         invalid,
         warning,
         stderr: stderr.to_owned(),
-        succeeded,
+        exit,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -205,18 +230,45 @@ mod tests {
     const UNKNOWN_OPTION: &str = "Warning: Unknown configuration option `no_such_option`\nWarning: Unknown configuration option `no_such_option`\n";
 
     #[test]
-    fn read_a_warning_keeps_the_first_one() {
-        let report = read("", UNKNOWN_OPTION, false);
+    fn exit_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Exit>();
+    }
+
+    #[test]
+    fn problems_of_a_check_hold_the_invalid_files_after_the_listed_ones() {
+        let report = read()
+            .stdout(LISTED)
+            .stderr(INVALID)
+            .exit(Exit::Failed)
+            .call();
+
+        let problems = report.problems();
+
+        assert_eq!(problems.len(), 3);
+    }
+
+    #[test]
+    fn problems_of_a_check_name_the_listed_files() {
+        let report = read().stdout(LISTED).stderr("").exit(Exit::Failed).call();
+
+        let problems = report.problems();
 
         assert_eq!(
-            report.warning().as_deref(),
-            Some("Warning: Unknown configuration option `no_such_option`")
+            problems.first(),
+            Some(
+                &RustfmtProblem::builder()
+                    .path(PathBuf::from("/home/otter/project/src/lib.rs"))
+                    .detail(RustfmtProblemDetail::Unformatted)
+                    .build()
+            )
         );
     }
 
     #[test]
     fn read_a_diagnostic_reads_the_message() {
-        let report = read("", INVALID, false);
+        let report = read().stdout("").stderr(INVALID).exit(Exit::Failed).call();
 
         assert_eq!(
             report.invalid().first().map(RustfmtProblem::detail),
@@ -230,7 +282,7 @@ mod tests {
 
     #[test]
     fn read_a_diagnostic_reads_the_path() {
-        let report = read("", INVALID, false);
+        let report = read().stdout("").stderr(INVALID).exit(Exit::Failed).call();
 
         assert_eq!(
             report.invalid().first().map(RustfmtProblem::path),
@@ -240,7 +292,7 @@ mod tests {
 
     #[test]
     fn read_a_file_listed_twice_keeps_one() {
-        let report = read(LISTED, "", false);
+        let report = read().stdout(LISTED).stderr("").exit(Exit::Failed).call();
 
         assert_eq!(
             report.listed(),
@@ -252,8 +304,22 @@ mod tests {
     }
 
     #[test]
+    fn read_a_warning_keeps_the_first_one() {
+        let report = read()
+            .stdout("")
+            .stderr(UNKNOWN_OPTION)
+            .exit(Exit::Failed)
+            .call();
+
+        assert_eq!(
+            report.warning().as_deref(),
+            Some("Warning: Unknown configuration option `no_such_option`")
+        );
+    }
+
+    #[test]
     fn read_an_empty_report_finds_nothing() {
-        let report = read("", "", true);
+        let report = read().stdout("").stderr("").exit(Exit::Succeeded).call();
 
         assert_eq!(
             report,
@@ -262,32 +328,15 @@ mod tests {
                 invalid: Vec::new(),
                 warning: None,
                 stderr: String::new(),
-                succeeded: true,
+                exit: Exit::Succeeded,
             }
         );
     }
 
     #[test]
-    fn problems_of_a_check_name_the_listed_files() {
-        let report = read(LISTED, "", false);
+    fn rustfmt_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        let problems = report.problems();
-
-        assert_eq!(
-            problems.first(),
-            Some(&RustfmtProblem::new(
-                PathBuf::from("/home/otter/project/src/lib.rs"),
-                RustfmtProblemDetail::Unformatted,
-            ))
-        );
-    }
-
-    #[test]
-    fn problems_of_a_check_hold_the_invalid_files_after_the_listed_ones() {
-        let report = read(LISTED, INVALID, false);
-
-        let problems = report.problems();
-
-        assert_eq!(problems.len(), 3);
+        assert_send_sync_and_unpin::<RustfmtReport>();
     }
 }

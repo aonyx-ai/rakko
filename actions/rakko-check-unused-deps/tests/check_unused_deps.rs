@@ -1,25 +1,25 @@
 //! Tests that drive the action against real projects
 //!
 //! Each test builds a project in a temporary directory and runs the action
-//! against it, so no fixture with a deliberately unused dependency sits in
-//! this repository, where the checks of the repository itself would fight
-//! it.
+//! against it. So no fixture with a deliberately unused dependency sits in this
+//! repository, where the checks of the repository itself would fight it.
 //!
-//! A project depends on a package that it carries, and never on a package of
-//! a registry. The dependency that a test declares is therefore the one that
-//! the action reports, the build reaches no network, and it compiles two
-//! small libraries and nothing else.
+//! A project depends on a package that it carries, and never on a package of a
+//! registry. The dependency that a test declares is therefore the one that the
+//! action reports. The build reaches no network. It compiles two small
+//! libraries and nothing else.
 //!
-//! The tests run the cargo-udeps that the action declares, with the cargo
-//! that this repository pins. A project copies the `mise.toml` of the
-//! repository and trusts it, so the Rust toolchains that answer are ones that
-//! the repository installs, the nightly that cargo-udeps needs among them.
-//! The copy pins another cargo-udeps that nothing installs, so a test passes
-//! only when the run ignores the pin of the project.
+//! The tests run the cargo-udeps that the action declares, with the cargo that
+//! this repository pins. A project copies the `mise.toml` of the repository and
+//! trusts it. So the Rust toolchains that answer are ones that the repository
+//! installs, including the nightly that cargo-udeps needs. The copy pins
+//! another cargo-udeps that nothing installs, so a test passes only when the
+//! run ignores the pin of the project.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -44,7 +44,7 @@ const DEVELOPMENT: &str = "\n[dev-dependencies]\nhelper = { path = \"helper\" }\
 /// A build script that fails
 ///
 /// Cargo reports the failure on its standard error stream and not as a
-/// diagnostic of the compiler, so the run holds nothing that the action
+/// diagnostic of the compiler. So the run holds nothing that the action
 /// recognizes.
 const FAILING_SCRIPT: &str = "fn main() {\n    std::process::exit(1);\n}\n";
 
@@ -88,12 +88,12 @@ struct Project {
     directory: TempDir,
 }
 
+#[bon::bon]
 impl Project {
     /// Creates a project without a cargo to resolve
     ///
     /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when the run must end before the tool
-    /// runs.
+    /// tool. A test uses this shape when the run must end before the tool runs.
     fn bare() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
 
@@ -103,12 +103,12 @@ impl Project {
     /// Creates a project with the cargo and the toolchains of this
     /// repository
     ///
-    /// The project copies the `mise.toml` of this repository, so the cargo
-    /// that mise resolves for it is the cargo that the repository pins and
-    /// installs, and the nightly channel that cargo-udeps needs is the one
-    /// that the repository pins. The copy pins a cargo-udeps that nothing
-    /// installs. Mise ignores a configuration that nobody trusts, so the copy
-    /// is trusted right away.
+    /// The project copies the `mise.toml` of this repository. So the cargo that
+    /// mise resolves for it is the cargo that the repository pins and installs.
+    /// The nightly channel that cargo-udeps needs is also the one that the
+    /// repository pins. The copy pins a cargo-udeps that nothing installs. Mise
+    /// ignores a configuration that nobody trusts, so the copy is trusted right
+    /// away.
     fn new() -> Self {
         let project = Self::bare();
 
@@ -122,12 +122,25 @@ impl Project {
 
     /// Creates a project that declares the helper in the given tables and
     /// holds the given source in its library
+    #[builder]
     fn with_dependency(tables: &str, source: &str) -> Self {
         let project = Self::new();
-        project.write("Cargo.toml", &workspace(tables));
-        project.write("src/lib.rs", source);
-        project.write("helper/Cargo.toml", HELPER);
-        project.write("helper/src/lib.rs", HELPER_LIBRARY);
+        project
+            .write()
+            .path("Cargo.toml")
+            .content(&workspace(tables))
+            .call();
+        project.write().path("src/lib.rs").content(source).call();
+        project
+            .write()
+            .path("helper/Cargo.toml")
+            .content(HELPER)
+            .call();
+        project
+            .write()
+            .path("helper/src/lib.rs")
+            .content(HELPER_LIBRARY)
+            .call();
 
         project
     }
@@ -135,8 +148,11 @@ impl Project {
     /// Creates a project whose lockfile does not record the helper that the
     /// manifest declares
     fn stale() -> Self {
-        let project = Self::with_dependency(NORMAL, USES_HELPER);
-        project.write("Cargo.lock", LOCKFILE);
+        let project = Self::with_dependency()
+            .tables(NORMAL)
+            .source(USES_HELPER)
+            .call();
+        project.write().path("Cargo.lock").content(LOCKFILE).call();
 
         project
     }
@@ -155,7 +171,7 @@ impl Project {
 
     /// Creates a project that pins a Rust toolchain that nothing installed
     ///
-    /// The pin names a version that no machine installs, so mise reports no
+    /// The pin names a version that no machine installs. So mise reports no
     /// location for cargo, whatever the global configuration of the machine
     /// says about Rust.
     fn without_cargo() -> Self {
@@ -185,12 +201,11 @@ impl Project {
 
     /// Writes the lockfile of every workspace of the project that has none
     ///
-    /// The action holds cargo to the lockfile of a workspace, and cargo
-    /// refuses a workspace without one, as a project that commits its
-    /// lockfile never is. A test that writes a workspace therefore gets the
-    /// lockfile that a first build would write. A project in which cargo
-    /// cannot find its workspaces stays as it is, so that the run reports
-    /// what stops it.
+    /// The action holds cargo to the lockfile of a workspace. Cargo refuses a
+    /// workspace without one, as a project that commits its lockfile never is.
+    /// A test that writes a workspace therefore gets the lockfile that a first
+    /// build would write. A project in which cargo cannot find its workspaces
+    /// stays as it is, so that the run reports what stops it.
     async fn lock(&self) {
         let Ok(cargo) = Cargo::resolve(&self.context()).await else {
             return;
@@ -221,6 +236,7 @@ impl Project {
     }
 
     /// Writes a file of the project, with the directories that lead to it
+    #[builder]
     fn write(&self, path: &str, content: &str) {
         let path = self.directory.path().join(path);
 
@@ -235,10 +251,10 @@ impl Project {
 impl Drop for Project {
     /// Withdraws the trust that the project received
     ///
-    /// Mise records the trust of a configuration in the state of the user,
-    /// and the temporary directory of a test never comes back, so the record
-    /// would pile up there forever. A failure stays quiet, because the test
-    /// already reported what it was about.
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
+    /// pile up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
     fn drop(&mut self) {
         let _ = Command::new("mise")
             .arg("trust")
@@ -333,8 +349,8 @@ fn summary(outcome: &Outcome) -> Option<&str> {
 /// Returns the manifest of a workspace whose package declares the helper in
 /// the given tables
 ///
-/// The workspace lists the helper as a member, so that cargo describes both
-/// packages as one workspace and the discovery of the roots finds one root.
+/// The workspace lists the helper as a member. That way cargo describes both
+/// packages as one workspace. So the discovery of the roots finds one root.
 fn workspace(tables: &str) -> String {
     format!(
         "[workspace]\nmembers = [\"helper\"]\n\n[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n{tables}"
@@ -372,19 +388,27 @@ fn action_identifies_itself_as_check_unused_deps() {
 
 #[tokio::test]
 async fn run_in_a_project_that_uses_every_dependency_counts_the_workspaces() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
 
     let outcome = project.run().await;
 
     assert_eq!(summary(&outcome), Some("examined 1 workspace"));
 }
 
-// A run of cargo-udeps needs an unstable option of the compiler, and a
-// stable toolchain refuses it and reports nothing, so a run that answers at
-// all ran on the nightly toolchain that mise pins for the project.
+/// Shows that runs pass when all dependencies are used
+///
+/// A run of cargo-udeps needs an unstable option of the compiler. A stable
+/// toolchain refuses it and reports nothing. So a run that answers at all ran
+/// on the nightly toolchain that mise pins for the project.
 #[tokio::test]
 async fn run_in_a_project_that_uses_every_dependency_passes() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
 
     let outcome = project.run().await;
 
@@ -394,24 +418,36 @@ async fn run_in_a_project_that_uses_every_dependency_passes() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
-    let project = Project::with_dependency(NORMAL, CLEAN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(CLEAN)
+        .call();
     project.lock().await;
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckUnusedDeps, &project.context(), &()).await;
 }
 
 #[tokio::test]
 async fn run_with_a_build_script_that_fails_stops() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
-    project.write(
-        "Cargo.toml",
-        &workspace(&format!("build = \"build.rs\"\n{NORMAL}")),
-    );
-    project.write("build.rs", FAILING_SCRIPT);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&workspace(&format!("build = \"build.rs\"\n{NORMAL}")))
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
 
     let outcome = project.run().await;
 
@@ -423,7 +459,10 @@ async fn run_with_a_build_script_that_fails_stops() {
 
 #[tokio::test]
 async fn run_with_a_compiler_error_names_the_file() {
-    let project = Project::with_dependency(NORMAL, BROKEN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(BROKEN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -432,7 +471,10 @@ async fn run_with_a_compiler_error_names_the_file() {
 
 #[tokio::test]
 async fn run_with_a_compiler_error_reports_the_diagnostic() {
-    let project = Project::with_dependency(NORMAL, BROKEN);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(BROKEN)
+        .call();
 
     let outcome = project.run().await;
 
@@ -446,11 +488,15 @@ async fn run_with_a_compiler_error_reports_the_diagnostic() {
 
 #[tokio::test]
 async fn run_with_a_development_dependency_that_a_test_uses_passes() {
-    let project = Project::with_dependency(DEVELOPMENT, CLEAN);
-    project.write(
-        "tests/probe.rs",
-        "#[test]\nfn uses() {\n    helper::help();\n}\n",
-    );
+    let project = Project::with_dependency()
+        .tables(DEVELOPMENT)
+        .source(CLEAN)
+        .call();
+    project
+        .write()
+        .path("tests/probe.rs")
+        .content("#[test]\nfn uses() {\n    helper::help();\n}\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -463,7 +509,11 @@ async fn run_with_a_development_dependency_that_a_test_uses_passes() {
 #[tokio::test]
 async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -471,111 +521,6 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
-}
-
-// A warning of the compiler belongs to the action that lints the code. The
-// build finished, so the answer of this run is the report of cargo-udeps.
-#[tokio::test]
-async fn run_with_a_warning_reports_no_diagnostic() {
-    let project = Project::with_dependency(NORMAL, &format!("{USES_HELPER}{WARNED}"));
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_an_unused_dependency_fails() {
-    let project = Project::with_dependency(NORMAL, CLEAN);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Failed { .. }),
-        "expected the run to fail, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_an_unused_dependency_in_a_second_workspace_names_its_manifest() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
-    project.write(
-        "tools/harness/Cargo.toml",
-        "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nhelper = { path = \"../../helper\" }\n",
-    );
-    project.write("tools/harness/src/lib.rs", CLEAN);
-
-    let outcome = project.run().await;
-
-    assert_eq!(paths(&outcome), vec![path_text("tools/harness/Cargo.toml")]);
-}
-
-#[tokio::test]
-async fn run_with_an_unused_dependency_names_the_dependency() {
-    let project = Project::with_dependency(NORMAL, CLEAN);
-
-    let outcome = project.run().await;
-
-    assert_eq!(
-        messages(&outcome),
-        vec!["unused dependency: helper".to_owned()]
-    );
-}
-
-#[tokio::test]
-async fn run_with_an_unused_dependency_names_the_manifest() {
-    let project = Project::with_dependency(NORMAL, CLEAN);
-
-    let outcome = project.run().await;
-
-    assert_eq!(paths(&outcome), vec!["Cargo.toml".to_owned()]);
-}
-
-// The bare cargo-udeps that this action replaces examines the default
-// targets, which leaves a dependency of the tests uncompiled and therefore
-// unexamined.
-#[tokio::test]
-async fn run_with_an_unused_development_dependency_names_its_kind() {
-    let project = Project::with_dependency(DEVELOPMENT, CLEAN);
-
-    let outcome = project.run().await;
-
-    assert_eq!(
-        messages(&outcome),
-        vec!["unused dev-dependency: helper".to_owned()]
-    );
-}
-
-// The bare cargo-udeps that this action replaces examines the default
-// features, which leaves a dependency behind a feature uncompiled and
-// therefore unexamined.
-#[tokio::test]
-async fn run_with_an_unused_optional_dependency_names_it() {
-    let project = Project::with_dependency(OPTIONAL, CLEAN);
-
-    let outcome = project.run().await;
-
-    assert_eq!(
-        messages(&outcome),
-        vec!["unused dependency: helper".to_owned()]
-    );
-}
-
-#[tokio::test]
-async fn run_with_two_workspaces_counts_both() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
-    project.write(
-        "tools/harness/Cargo.toml",
-        "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
-    );
-    project.write("tools/harness/src/lib.rs", CLEAN);
-
-    let outcome = project.run().await;
-
-    assert_eq!(summary(&outcome), Some("examined 2 workspaces"));
 }
 
 #[tokio::test]
@@ -605,13 +550,168 @@ async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
     );
 }
 
+/// Shows that compiler warnings are ignored
+///
+/// A warning of the compiler belongs to the action that lints the code. The
+/// build finished, so the answer of this run is the report of cargo-udeps.
+#[tokio::test]
+async fn run_with_a_warning_reports_no_diagnostic() {
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(&format!("{USES_HELPER}{WARNED}"))
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_unused_dependency_fails() {
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_unused_dependency_in_a_second_workspace_names_its_manifest() {
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
+    project.write()
+        .path("tools/harness/Cargo.toml")
+        .content("[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nhelper = { path = \"../../helper\" }\n")
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert_eq!(paths(&outcome), vec![path_text("tools/harness/Cargo.toml")]);
+}
+
+#[tokio::test]
+async fn run_with_an_unused_dependency_names_the_dependency() {
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert_eq!(
+        messages(&outcome),
+        vec!["unused dependency: helper".to_owned()]
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_unused_dependency_names_the_manifest() {
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert_eq!(paths(&outcome), vec!["Cargo.toml".to_owned()]);
+}
+
+/// Shows that unused development dependencies are named
+///
+/// The bare cargo-udeps that this action replaces examines the default
+/// targets, which leaves a dependency of the tests uncompiled and therefore
+/// unexamined.
+#[tokio::test]
+async fn run_with_an_unused_development_dependency_names_its_kind() {
+    let project = Project::with_dependency()
+        .tables(DEVELOPMENT)
+        .source(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert_eq!(
+        messages(&outcome),
+        vec!["unused dev-dependency: helper".to_owned()]
+    );
+}
+
+/// Shows that unused optional dependencies are named
+///
+/// The bare cargo-udeps that this action replaces examines the default
+/// features, which leaves a dependency behind a feature uncompiled and
+/// therefore unexamined.
+#[tokio::test]
+async fn run_with_an_unused_optional_dependency_names_it() {
+    let project = Project::with_dependency()
+        .tables(OPTIONAL)
+        .source(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert_eq!(
+        messages(&outcome),
+        vec!["unused dependency: helper".to_owned()]
+    );
+}
+
+#[tokio::test]
+async fn run_with_two_workspaces_counts_both() {
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
+    project.write()
+        .path("tools/harness/Cargo.toml")
+        .content("[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n")
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert_eq!(summary(&outcome), Some("examined 2 workspaces"));
+}
+
 #[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
-    project.write("Cargo.toml", &workspace(NORMAL));
-    project.write("src/lib.rs", CLEAN);
-    project.write("helper/Cargo.toml", HELPER);
-    project.write("helper/src/lib.rs", HELPER_LIBRARY);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&workspace(NORMAL))
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
+    project
+        .write()
+        .path("helper/Cargo.toml")
+        .content(HELPER)
+        .call();
+    project
+        .write()
+        .path("helper/src/lib.rs")
+        .content(HELPER_LIBRARY)
+        .call();
 
     let outcome = project.run().await;
 
@@ -625,12 +725,17 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// A workspace that never ran a build has no lockfile, and the action holds
-// cargo to one, so the run stops. The test runs the action directly, because
-// the helper that runs it writes the lockfile first.
+/// Shows that a run without a lockfile stops
+///
+/// A workspace that never ran a build has no lockfile, and the action holds
+/// cargo to one, so the run stops. The test runs the action directly, because
+/// the helper that runs it writes the lockfile first.
 #[tokio::test]
 async fn run_without_a_lockfile_says_that_it_needs_an_update() {
-    let project = Project::with_dependency(NORMAL, USES_HELPER);
+    let project = Project::with_dependency()
+        .tables(NORMAL)
+        .source(USES_HELPER)
+        .call();
 
     let outcome = CheckUnusedDeps.run(&project.context(), &()).await;
 
@@ -649,7 +754,11 @@ async fn run_without_a_lockfile_says_that_it_needs_an_update() {
 #[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
-    project.write("README.md", "# Project\n");
+    project
+        .write()
+        .path("README.md")
+        .content("# Project\n")
+        .call();
 
     let outcome = project.run().await;
 
@@ -662,10 +771,22 @@ async fn run_without_a_manifest_skips() {
 #[tokio::test]
 async fn run_without_a_pinned_nightly_stops() {
     let project = Project::without_nightly();
-    project.write("Cargo.toml", &workspace(NORMAL));
-    project.write("src/lib.rs", CLEAN);
-    project.write("helper/Cargo.toml", HELPER);
-    project.write("helper/src/lib.rs", HELPER_LIBRARY);
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&workspace(NORMAL))
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
+    project
+        .write()
+        .path("helper/Cargo.toml")
+        .content(HELPER)
+        .call();
+    project
+        .write()
+        .path("helper/src/lib.rs")
+        .content(HELPER_LIBRARY)
+        .call();
 
     let outcome = project.run().await;
 

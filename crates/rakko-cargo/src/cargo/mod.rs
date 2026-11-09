@@ -1,12 +1,10 @@
 //! The cargo that a project runs
 //!
-//! This module holds the program that mise installed for a project, the
-//! discovery of the workspace roots, and the command that runs one job at a
-//! root. An action
-//! writes the arguments of its job, and everything between the action and
-//! the process lives here.
+//! This module holds the program that mise installed for a project. It also
+//! contains the discovery of the workspace roots and the command that runs one
+//! job at a root. An action writes the arguments of its job, and everything
+//! between the action and the process lives here.
 
-/// The error that stops the discovery of the roots
 mod error;
 
 use std::collections::{HashMap, HashSet};
@@ -57,9 +55,9 @@ const NODE_MODULES_DIRECTORY: &str = "node_modules";
 /// The entry that marks the root of a project
 ///
 /// A directory below the project root that holds the entry is the root of a
-/// project of its own, such as a second checkout inside the project, and the
-/// discovery does not read it. The presence of the entry is the whole test,
-/// so its content does not matter.
+/// project of its own. An example is a second checkout inside the project.
+/// The discovery does not read it. The presence of the entry is the whole
+/// test, so its content does not matter.
 const MARKER: &str = ".config/rakko.toml";
 
 /// The table of a manifest that configures a workspace
@@ -107,18 +105,18 @@ const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::Context;
+/// use rakko::{Context, ProjectRoot};
 /// use rakko_cargo::Cargo;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let context = Context::builder().root("/home/otter/project").build();
+/// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
 /// let cargo = Cargo::resolve(&context).await?;
 ///
 /// for root in cargo.roots().await? {
 ///     let execution = cargo.invocation(&root).arg("check").run().await?;
 ///
-///     println!("{}: {}", root.directory().display(), execution.status());
+///     assert!(execution.status().success());
 /// }
 /// # Ok(())
 /// # }
@@ -151,6 +149,25 @@ impl Cargo {
     ///
     /// [`invocation_with_toolchain`][with] selects another toolchain.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo.invocation(&root).arg("check").run().await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// [resolve]: Cargo::resolve
     /// [toolchain]: Cargo::toolchain
     /// [with]: Cargo::invocation_with_toolchain
@@ -161,9 +178,34 @@ impl Cargo {
     /// Returns the command that runs cargo at a root, on a toolchain
     ///
     /// The command is the one that [`invocation`][invocation] returns, with
-    /// the given toolchain in front of every other argument, in the form
-    /// that the proxy of rustup reads. The argument selects which cargo
-    /// answers, and it changes nothing about what that cargo does.
+    /// the given toolchain in front of every other argument. The proxy of
+    /// rustup reads the toolchain in that form. The argument selects which
+    /// cargo answers and changes nothing about what that cargo does.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::{Cargo, Toolchain};
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    /// let toolchain = Toolchain::resolve_requirement()
+    ///     .requirement(&Toolchain::nightly())
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// for cargo_root in cargo.roots().await? {
+    ///     let execution = cargo.invocation_with_toolchain(&cargo_root, &toolchain)
+    ///         .arg("check").run().await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [invocation]: Cargo::invocation
     pub fn invocation_with_toolchain(&self, root: &CargoRoot, toolchain: &Toolchain) -> Invocation {
@@ -177,15 +219,49 @@ impl Cargo {
     ///
     /// A plugin of cargo is a program of its own, such as `cargo-nextest`,
     /// that cargo starts for a subcommand. An action resolves the plugin at
-    /// the version that it declares, so the command starts that program and
-    /// not the one that cargo would find on the path. The caller gives the
+    /// the version that it declares. The command therefore starts that program
+    /// and not the one that cargo would find on the path. The caller gives the
     /// subcommand as the first argument, as cargo does, such as `nextest`.
     ///
     /// The command runs in the directory of the root. It tells the plugin to
-    /// start this cargo for its builds, on the stable toolchain that
-    /// [`toolchain`][toolchain] gives, so a build of the plugin uses the same
+    /// start this cargo for its builds on the stable toolchain that
+    /// [`toolchain`][toolchain] gives. So a build of the plugin uses the same
     /// compiler as a job of [`invocation`][invocation].
     /// [`plugin_invocation_with_toolchain`][with] selects another toolchain.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_tool::Tool;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("cargo:cargo-nextest")
+    ///     .executable("cargo-nextest")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.9.100")))
+    ///     .build();
+    /// let nextest = Tool::resolve_requirement()
+    ///     .requirement(&requirement)
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo
+    ///         .plugin_invocation(&root, &nextest)
+    ///         .arg("nextest")
+    ///         .run()
+    ///         .await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [invocation]: Cargo::invocation
     /// [toolchain]: Cargo::toolchain
@@ -199,6 +275,45 @@ impl Cargo {
     ///
     /// The command is the one that [`plugin_invocation`][plugin] returns, and
     /// the builds of the plugin use the given toolchain.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko_cargo::{Cargo, Toolchain};
+    /// use rakko_tool::Tool;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    /// let toolchain = Toolchain::resolve_requirement()
+    ///     .requirement(&Toolchain::nightly())
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("cargo:cargo-nextest")
+    ///     .executable("cargo-nextest")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.9.100")))
+    ///     .build();
+    /// let nextest = Tool::resolve_requirement()
+    ///     .requirement(&requirement)
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo
+    ///         .plugin_invocation_with_toolchain(&root, &nextest, &toolchain)
+    ///         .arg("nextest")
+    ///         .run()
+    ///         .await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [plugin]: Cargo::plugin_invocation
     pub fn plugin_invocation_with_toolchain(
@@ -217,9 +332,19 @@ impl Cargo {
     /// Returns the requirement of the stable toolchain that the crate runs
     ///
     /// A Rust toolchain is a decision of the project, so the requirement
-    /// holds the range of the stable toolchains that the crate accepts, and
-    /// not one version. An action that runs cargo returns it from its
-    /// declaration of tools.
+    /// holds the range of the stable toolchains that the crate accepts. This
+    /// range is not one specific version. An action that runs cargo returns
+    /// it from its declaration of tools.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::Cargo;
+    ///
+    /// let requirement = Cargo::requirement();
+    ///
+    /// assert_eq!(requirement.executable().get(), "cargo");
+    /// ```
     pub fn requirement() -> ToolRequirement {
         ToolRequirement::builder()
             .tool(RUST)
@@ -238,14 +363,34 @@ impl Cargo {
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, when the
-    /// project pins no toolchain in the range, or when nothing installed the
-    /// toolchain that it pins.
+    /// Returns a [`ResolveRequirementError`] when mise does not run or when
+    /// the project pins no toolchain in the range. It returns the same error
+    /// when nothing installed the toolchain that it pins.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    ///
+    /// assert!(cargo.toolchain().get().starts_with("1."));
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [requirement]: Cargo::requirement
     pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
         let requirement = Self::requirement();
-        let tool = Tool::resolve_requirement(&requirement, context).await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&requirement)
+            .context(context)
+            .call()
+            .await?;
         let toolchain = Toolchain::of(&tool);
 
         Ok(Self {
@@ -260,34 +405,53 @@ impl Cargo {
     ///
     /// The discovery walks the project for manifests with the rules of the
     /// walk, and it asks cargo which workspace each manifest belongs to.
-    /// Cargo names the root of that workspace and its members, so the
+    /// Cargo names the root of that workspace and its members. So the
     /// members need no question of their own, and a root counts once
     /// however many members it has.
     ///
     /// A workspace can exclude paths below its root with the `exclude` list
     /// of its manifest, such as the fixtures of its tests. The discovery
-    /// asks cargo about no manifest at or below such a path, so a fixture
-    /// that cargo cannot read does not stop the discovery, and a fixture
-    /// that is a workspace of its own does not become a root. A directory
-    /// below the project root that holds `.config/rakko.toml` is a project
-    /// of its own, such as a second checkout inside the project, and the walk
-    /// does not read it.
+    /// asks cargo about no manifest at or below such a path. So a fixture that
+    /// cargo cannot read does not stop the discovery. A fixture that is a
+    /// workspace of its own does not become a root. A directory below the
+    /// project root that holds `.config/rakko.toml` is a project of its own,
+    /// such as a second checkout inside the project. The walk does not read
+    /// it.
     ///
-    /// The discovery starts a process per workspace, so a caller that needs
-    /// the roots more than once keeps the answer for the length of the run.
+    /// The discovery starts a process per workspace. So a caller that needs the
+    /// roots more than once keeps the answer for the length of the run.
     ///
     /// # Errors
     ///
     /// Returns [`UnreadableDirectory`][directory] when a directory of the
     /// project cannot be read, [`CargoUnavailable`][unavailable] when cargo
-    /// does not run, [`UnreadableManifest`][manifest] when cargo refuses a
-    /// manifest, [`UnrecognizedMetadata`][metadata] when cargo describes a
-    /// workspace in a shape that the crate cannot read,
+    /// does not run, or [`UnreadableManifest`][manifest] when cargo refuses a
+    /// manifest. Returns [`UnrecognizedMetadata`][metadata] when cargo
+    /// describes a workspace in a shape that the crate cannot read. Returns
     /// [`ForeignWorkspace`][foreign] when a manifest belongs to a workspace
-    /// whose root lies outside the project, and
+    /// whose root lies outside the project. Returns
     /// [`UnreadableExclusions`][exclusions] or
     /// [`UnrecognizedExclusions`][unrecognized] when the crate cannot read
     /// the paths that a workspace root excludes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let project = std::env::temp_dir();
+    /// let context = Context::builder().root(ProjectRoot::new(project.clone())).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     assert!(root.directory().starts_with(&project));
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [directory]: DiscoverRootsError::UnreadableDirectory
     /// [exclusions]: DiscoverRootsError::UnreadableExclusions
@@ -347,17 +511,17 @@ impl Cargo {
 
     /// Asks cargo to describe the workspace of a manifest
     ///
-    /// The question runs in the directory of the manifest, because cargo
-    /// reads the configuration in `.cargo` from the directory it runs in
+    /// The question runs in the directory of the manifest. This is because
+    /// cargo reads the configuration in `.cargo` from the directory it runs in
     /// and not from the manifest it is given. The job that follows runs in
     /// the directory of the root, so the answer and the job see the same
     /// configuration.
     ///
     /// # Errors
     ///
-    /// Returns what went wrong, without the manifest: every caller knows
-    /// which manifest it asked about, and each of them reports the failure
-    /// in the error of its own question.
+    /// Returns what went wrong, without the manifest. This is because every
+    /// caller knows which manifest it asked about, and each of them reports
+    /// the failure in the error of its own question.
     async fn describe(&self, manifest: &Path) -> Result<Metadata, MetadataFailure> {
         let directory = manifest.parent().unwrap_or(self.root.get());
         let execution = self
@@ -379,7 +543,7 @@ impl Cargo {
         }
 
         serde_json::from_slice(execution.stdout().get())
-            .map_err(|source| MetadataFailure::Unrecognized { source })
+            .map_err(|source| MetadataFailure::InvalidMetadata { source })
     }
 
     /// Asks cargo which workspace a manifest belongs to
@@ -387,9 +551,9 @@ impl Cargo {
     /// # Errors
     ///
     /// Returns [`CargoUnavailable`][unavailable] when cargo does not run,
-    /// [`UnreadableManifest`][manifest] when cargo ends without success, and
-    /// [`UnrecognizedMetadata`][metadata] when its answer has a shape that
-    /// the crate cannot read.
+    /// [`UnreadableManifest`][manifest] when it ends without success, and
+    /// [`UnrecognizedMetadata`][metadata] when its answer has a shape the
+    /// crate cannot read.
     ///
     /// [manifest]: DiscoverRootsError::UnreadableManifest
     /// [metadata]: DiscoverRootsError::UnrecognizedMetadata
@@ -405,7 +569,7 @@ impl Cargo {
                     manifest: manifest.to_path_buf(),
                     details,
                 },
-                MetadataFailure::Unrecognized { source } => {
+                MetadataFailure::InvalidMetadata { source } => {
                     DiscoverRootsError::UnrecognizedMetadata {
                         manifest: manifest.to_path_buf(),
                         source,
@@ -435,7 +599,7 @@ enum MetadataFailure {
     },
 
     /// Cargo answered in a shape that the crate does not recognize
-    Unrecognized {
+    InvalidMetadata {
         /// The cause of the failure
         source: serde_json::Error,
     },
@@ -461,9 +625,9 @@ impl Metadata {
     /// the crate name of a documented target of another package. Cargo then
     /// documents both targets into one directory at once, and one of the runs
     /// of rustdoc can fail. A target that cargo does not document writes no
-    /// directory, so it does not count. Two targets of one package count
-    /// once, because the common case, a binary that carries the name of the
-    /// library of its own package, is one that cargo skips.
+    /// directory, so it does not count. Two targets of one package count once.
+    /// This is because the common case is one that cargo skips: a binary that
+    /// carries the name of the library of its own package.
     fn cargo_packages(&self) -> Vec<CargoPackage> {
         let mut owners: HashMap<String, HashSet<&str>> = HashMap::new();
 
@@ -492,7 +656,10 @@ impl Metadata {
                     DocumentedNames::Unique
                 };
 
-                CargoPackage::new(PackageName::new(&package.name), documented_names)
+                CargoPackage::builder()
+                    .name(PackageName::new(&package.name))
+                    .documented_names(documented_names)
+                    .build()
             })
             .collect();
         packages.sort_by(|left, right| left.name().cmp(right.name()));
@@ -590,11 +757,11 @@ impl Target {
 /// Returns the path with every symbolic link resolved
 ///
 /// Cargo resolves the links of a path that it reports, and a temporary
-/// directory on macOS sits behind one, so a path of the walk and a path of
+/// directory on macOS sits behind one. So a path of the walk and a path of
 /// cargo can name one file in two ways. Both go through this function before
 /// they meet. A path that cannot be resolved stays as it is.
 ///
-/// The answer carries the spelling that a program writes, because the
+/// The answer carries the spelling that a program writes. This is because the
 /// resolution of Windows produces a second spelling that a root of the
 /// project never holds.
 async fn canonical(path: &Path) -> PathBuf {
@@ -606,9 +773,9 @@ async fn canonical(path: &Path) -> PathBuf {
 
 /// Returns what cargo said about a manifest that it refused
 ///
-/// Cargo writes its diagnosis to the standard error stream, and the text
-/// travels into the error, so whoever reads the failure reads the answer of
-/// cargo instead of a sentence that Rakko wrote about it.
+/// Cargo writes its diagnosis to the standard error stream. The text travels
+/// into the error, so whoever reads the failure reads the answer of cargo
+/// instead of a sentence that Rakko wrote about it.
 fn details(execution: &Execution) -> String {
     let diagnosis = execution.stderr().to_string_lossy();
     let text = diagnosis.trim();
@@ -623,11 +790,11 @@ fn details(execution: &Execution) -> String {
 /// Returns the manifests below a directory
 ///
 /// The walk does not read the `.git` entry, a directory named `target` or
-/// `node_modules`, a symbolic link, or a directory below the start that holds
-/// `.config/rakko.toml`. The start holds that entry itself when it is the
-/// root of a project, so the test applies only below it. An entry that the
-/// file system does not report on counts as absent, as it does for the
-/// search that finds the project root.
+/// `node_modules`, or a symbolic link. It also does not read a directory
+/// below the start that holds `.config/rakko.toml`. The start holds that
+/// entry itself when it is the root of a project, so the test applies only
+/// below it. An entry that the file system does not report on counts as
+/// absent, as it does for the search that finds the project root.
 ///
 /// # Errors
 ///
@@ -677,17 +844,16 @@ async fn manifests(root: &Path) -> Result<Vec<PathBuf>, DiscoverRootsError> {
 
 /// The paths that one workspace root keeps out of its workspace
 ///
-/// Cargo does not report the `exclude` list of a workspace, so the crate
+/// Cargo does not report the `exclude` list of a workspace. So the crate
 /// reads it from the manifest of the root, together with the `members` list.
 /// Cargo excludes a manifest whose path starts with an entry of `exclude`,
-/// unless the path also starts with an entry of `members`, because an
-/// explicit member wins over the exclusion, for the member and for every
-/// manifest below it. An entry of either list is a path relative to the
-/// directory of the root. When cargo decides an exclusion, it compares an
-/// entry with the path of a manifest component by component, without
-/// expanding a pattern: `examples/*` names a directory called `*`. This type
-/// compares in the same way, so that it never skips a manifest that cargo
-/// still reads.
+/// unless the path also starts with an entry of `members`. An explicit member
+/// wins over the exclusion, for the member and for every manifest below it.
+/// An entry of either list is a path relative to the directory of the root.
+/// When cargo decides an exclusion, it compares an entry with the path of a
+/// manifest component by component, without expanding a pattern. An example
+/// is that `examples/*` names a directory called `*`. This type compares in
+/// the same way, so that it never skips a manifest that cargo still reads.
 struct Exclusions {
     /// The paths of the `exclude` list, joined to the directory of the root
     excluded: Vec<PathBuf>,
@@ -765,9 +931,10 @@ fn unreadable(directory: &Path, source: std::io::Error) -> DiscoverRootsError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::error::Error;
 
@@ -775,6 +942,41 @@ mod tests {
 
     /// The content of a manifest that is no TOML document
     const NO_TOML: &str = "[workspace\n";
+
+    #[test]
+    fn cargo_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Cargo>();
+    }
+
+    #[test]
+    fn exclusions_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Exclusions>();
+    }
+
+    #[test]
+    fn metadata_failure_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<MetadataFailure>();
+    }
+
+    #[test]
+    fn metadata_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Metadata>();
+    }
+
+    #[test]
+    fn package_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Package>();
+    }
 
     #[tokio::test]
     async fn read_of_a_manifest_that_is_no_toml_document_carries_what_the_parser_said() {
@@ -791,5 +993,12 @@ mod tests {
         };
 
         assert_eq!(error.source().map(ToString::to_string), Some(said));
+    }
+
+    #[test]
+    fn target_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Target>();
     }
 }

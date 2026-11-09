@@ -1,3 +1,5 @@
+//! The JSON that a run of a group emits for a machine
+
 use rakko::Outcome;
 use serde::Serialize;
 
@@ -26,11 +28,12 @@ pub(super) struct Payload<'a> {
 impl<'a> Payload<'a> {
     /// Returns the payload that describes the given summary
     pub(super) fn of(summary: &'a GroupSummary) -> Self {
+        let GroupSummary { group, members } = summary;
         Self {
             schema: UNSTABLE,
-            group: summary.group.get(),
-            counts: Counts::of(&summary.members),
-            members: &summary.members,
+            group: group.get(),
+            counts: Counts::of(members),
+            members,
         }
     }
 }
@@ -75,9 +78,10 @@ impl Counts {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{SkipReason, action_name};
 
@@ -88,22 +92,35 @@ mod tests {
     /// The assertions compare the JSON as text, and not as a parsed value, so
     /// that they pin the bytes that a consumer reads.
     fn payload(members: Vec<Report>) -> String {
-        let summary = GroupSummary::new(action_name!("check"), members);
+        let summary = GroupSummary::builder()
+            .group(action_name!("check"))
+            .members(members)
+            .build();
 
         serde_json::to_string(&summary).expect("the summary serializes")
     }
 
     #[test]
+    fn counts_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Counts>();
+    }
+
+    #[test]
     fn payload_carries_the_group_and_the_report_of_every_member() {
         let json = payload(vec![
-            Report::new(action_name!("lint-toml"), Outcome::Passed { summary: None }),
-            Report::new(
-                action_name!("lint-yaml"),
-                Outcome::Failed {
+            Report::builder()
+                .action(action_name!("lint-toml"))
+                .outcome(Outcome::Passed { summary: None })
+                .build(),
+            Report::builder()
+                .action(action_name!("lint-yaml"))
+                .outcome(Outcome::Failed {
                     findings: Vec::new(),
                     repairs: Vec::new(),
-                },
-            ),
+                })
+                .build(),
         ]);
 
         assert_eq!(
@@ -115,38 +132,41 @@ mod tests {
     #[test]
     fn payload_counts_the_members_in_each_state() {
         let json = payload(vec![
-            Report::new(action_name!("lint-toml"), Outcome::Passed { summary: None }),
-            Report::new(
-                action_name!("format-toml"),
-                Outcome::Changed {
+            Report::builder()
+                .action(action_name!("lint-toml"))
+                .outcome(Outcome::Passed { summary: None })
+                .build(),
+            Report::builder()
+                .action(action_name!("format-toml"))
+                .outcome(Outcome::Changed {
                     repairs: Vec::new(),
-                },
-            ),
-            Report::new(
-                action_name!("format-yaml"),
-                Outcome::Changed {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("format-yaml"))
+                .outcome(Outcome::Changed {
                     repairs: Vec::new(),
-                },
-            ),
-            Report::new(
-                action_name!("lint-yaml"),
-                Outcome::Failed {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("lint-yaml"))
+                .outcome(Outcome::Failed {
                     findings: Vec::new(),
                     repairs: Vec::new(),
-                },
-            ),
-            Report::new(
-                action_name!("lint-json"),
-                Outcome::Skipped {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("lint-json"))
+                .outcome(Outcome::Skipped {
                     reason: SkipReason::new("the project has no JSON file"),
-                },
-            ),
-            Report::new(
-                action_name!("test-rust"),
-                Outcome::Errored {
+                })
+                .build(),
+            Report::builder()
+                .action(action_name!("test-rust"))
+                .outcome(Outcome::Errored {
                     source: Box::new(std::io::Error::other("the tool is missing")),
-                },
-            ),
+                })
+                .build(),
         ]);
 
         assert!(
@@ -154,6 +174,13 @@ mod tests {
                 r#""counts":{"passed":1,"changed":2,"failed":1,"skipped":1,"errored":1}"#
             )
         );
+    }
+
+    #[test]
+    fn payload_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Payload<'static>>();
     }
 
     #[test]

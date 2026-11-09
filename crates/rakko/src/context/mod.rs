@@ -1,4 +1,5 @@
-/// The directory where the run of an action happens
+//! Types for the data that an action reads when it runs
+
 mod project_root;
 
 use bon::bon;
@@ -12,6 +13,17 @@ pub use self::project_root::ProjectRoot;
 /// Every action receives a context, so the type stays small by design. A later
 /// release can add data to it, and the builder then takes that data as an
 /// optional member.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Context, ProjectRoot};
+///
+/// let root = ProjectRoot::new(std::env::temp_dir());
+/// let context = Context::builder().root(root.clone()).build();
+///
+/// assert_eq!(context.root(), &root);
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Context {
     /// The directory where the run of the action happens
@@ -27,6 +39,16 @@ pub struct Context {
 #[bon]
 impl Context {
     /// Creates a context from a project root
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Context;
+    ///
+    /// let context = Context::builder().root("project").build();
+    ///
+    /// assert_eq!(context.root().get(), std::path::Path::new("project"));
+    /// ```
     #[builder]
     pub fn new(#[builder(into)] root: ProjectRoot) -> Self {
         Self { root }
@@ -35,9 +57,10 @@ impl Context {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -47,6 +70,13 @@ mod tests {
     #[test]
     fn context_is_send() {
         assert_send::<Context>();
+    }
+
+    #[test]
+    fn context_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Context>();
     }
 
     #[test]

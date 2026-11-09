@@ -1,3 +1,5 @@
+//! The error that stops a run of the action
+
 use std::path::PathBuf;
 
 use rakko_tool::{ResolveRequirementError, RunCommandError};
@@ -12,6 +14,21 @@ use crate::oxlint::report::ReadReportError;
 /// a finding in the outcome of the run, even one about the project itself. The
 /// variants of this error describe a run whose answer cannot be trusted, and
 /// such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_typescript::LintTypeScriptError;
+/// use std::path::PathBuf;
+///
+/// let error = LintTypeScriptError::ForeignPath {
+///     path: PathBuf::from("../outside/root"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "oxlint reported a path outside the project: ../outside/root"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum LintTypeScriptError {
@@ -28,8 +45,8 @@ pub enum LintTypeScriptError {
 
     /// Oxlint wrote no report
     ///
-    /// Oxlint reports whenever it linted the project, and it writes no report
-    /// when it refuses the configuration of the project, because it reads that
+    /// Oxlint reports whenever it lints the project. It writes no report when
+    /// it refuses the project's configuration, because it reads that
     /// configuration before it collects a single file. The project asked for
     /// rules that never applied, so the run stops here.
     #[error("oxlint wrote no report: {details}")]
@@ -52,9 +69,9 @@ pub enum LintTypeScriptError {
     ///
     /// The shape of the report belongs to a version of oxlint. A report that
     /// does not fit therefore points at a version that this crate does not
-    /// know, and the findings of such a run would be the diagnostics that the
+    /// know. The findings of such a run would be the diagnostics that the
     /// reading happened to understand.
-    #[error("oxlint wrote a report that the action cannot read: {report}")]
+    #[error("failed to read the report from oxlint: {report}")]
     UnreadableReport {
         /// What oxlint wrote in place of a report that the action reads
         report: String,
@@ -92,9 +109,10 @@ impl From<ObserveOxlintError> for LintTypeScriptError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -129,14 +147,23 @@ mod tests {
         );
     }
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Shows that error is Send and Sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without compiler warning.
     #[test]
     fn lint_type_script_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<LintTypeScriptError>();
+    }
+
+    #[test]
+    fn lint_type_script_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintTypeScriptError>();
     }
 }

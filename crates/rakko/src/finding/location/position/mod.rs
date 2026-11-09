@@ -1,6 +1,6 @@
-/// The column in a line that a problem is at
+//! The position of a problem in a file
+
 mod column;
-/// The line in a file that a problem is on
 mod line;
 
 use bon::bon;
@@ -14,6 +14,17 @@ pub use self::line::Line;
 /// A position tells where in a file a problem is. It always has a line, and it
 /// can have a column. The first line of a file is line 1, and the first column
 /// of a line is column 1.
+///
+/// # Examples
+///
+/// Create a position at a specific line and column.
+///
+/// ```
+/// use rakko::{Column, Position};
+///
+/// let position = Position::builder().line(10).column(5).build();
+/// assert_eq!(position.column(), &Some(Column::new(5)));
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Position {
     /// The line that the problem is on
@@ -28,6 +39,16 @@ pub struct Position {
 #[bon]
 impl Position {
     /// Creates a position from a line and an optional column
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Position;
+    ///
+    /// let position = Position::builder().line(10).build();
+    /// assert_eq!(position.line().get(), 10);
+    /// assert!(position.column().is_none());
+    /// ```
     #[builder]
     pub fn new(#[builder(into)] line: Line, #[builder(into)] column: Option<Column>) -> Self {
         Self { line, column }
@@ -36,9 +57,10 @@ impl Position {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -61,5 +83,12 @@ mod tests {
         let position = Position::builder().line(1).build();
 
         assert_eq!(position.line().get(), 1);
+    }
+
+    #[test]
+    fn position_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Position>();
     }
 }
