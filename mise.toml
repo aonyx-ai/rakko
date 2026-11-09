@@ -1,5 +1,9 @@
-# Mise provisions every external tool that this repository needs, at the
-# versions that this file pins. ADR-003 records the decision.
+# Mise provisions every external tool that this repository needs. This file
+# pins the toolchains and the tools that no action declares. The actions pin
+# their own tools, and `mise run rakko -- doctor --fix` writes those pins into
+# `.config/mise/conf.d/rakko.toml` and locks them in `.config/mise/mise.lock`.
+# Mise merges that file with this one. ADR-003 and ADR-021 record the
+# decision.
 
 [tools]
 # Mise builds a tool of the cargo backend from source, unless cargo-binstall is
@@ -54,30 +58,15 @@ rust = [
   { version = "1.88.0" },
 ]
 
-"cargo:cargo-deny" = "0.20.2"
-"cargo:cargo-nextest" = "0.9.151"
-"cargo:cargo-udeps" = "0.1.61"
 jq = "1.8.2"
-"npm:markdownlint-cli" = "0.50.0"
-oxfmt = "0.75.0"
-oxlint = "1.93.0"
 # The release of pre-commit is a Python zipapp, and the registry maps that
 # file to no Windows download, so the pin names the backend that installs
 # from the package index instead and works on every platform.
 "pipx:pre-commit" = "4.7.0"
-"npm:prettier" = "3.9.10"
-# Renovate publishes several releases a day. The shared preset of Renovate that
-# this repository extends moves the pin once a week, so that the releases
-# arrive as one pull request per week and not as several per day.
-"npm:renovate" = "44.222.5"
-taplo = "0.10.0"
 
 # TypeScript is a toolchain of this repository, like node. `check-typescript`
 # reads this pin, and it accepts TypeScript 5 and later.
 "npm:typescript" = "7.0.2"
-
-yamllint = "1.38.0"
-zizmor = "1.32.0"
 
 [settings]
 # The lockfile records the version that each pin resolved to, and for a tool

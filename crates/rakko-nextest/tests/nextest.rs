@@ -55,8 +55,8 @@ const BROKEN: &str = "pub fn broken() -> i32 {\n    \"no\"\n}\n";
 /// The variable that gives consent to the experimental report of nextest
 const CONSENT_VARIABLE: &str = "NEXTEST_EXPERIMENTAL_LIBTEST_JSON";
 
-/// The start of the line of a mise file that pins nextest
-const NEXTEST_PIN: &str = "\"cargo:cargo-nextest\" =";
+/// The header of the table of tools in a mise configuration
+const TOOLS_TABLE: &str = "[tools]\n";
 
 /// The pin of a nextest that no machine installs
 const UNINSTALLED_NEXTEST: &str = "\"cargo:cargo-nextest\" = \"0.0.1\"";
@@ -83,11 +83,10 @@ impl Project {
 
         let pins = std::fs::read_to_string(repository().join("mise.toml"))
             .expect("the test reads the mise.toml of the repository");
-        let pin = pins
-            .lines()
-            .find(|line| line.starts_with(NEXTEST_PIN))
-            .expect("the mise.toml of the repository pins nextest");
-        let pins = pins.replace(pin, UNINSTALLED_NEXTEST);
+        let (head, tail) = pins
+            .split_once(TOOLS_TABLE)
+            .expect("the mise.toml of the repository holds a table of tools");
+        let pins = format!("{head}{TOOLS_TABLE}{UNINSTALLED_NEXTEST}\n{tail}");
 
         let copy = project.directory.path().join("mise.toml");
         std::fs::write(&copy, pins).expect("the test writes the mise.toml of the project");
