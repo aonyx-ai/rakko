@@ -106,27 +106,27 @@ backend = "npm:oxfmt"
 specifiers = ["0.75.0"]
 
 [[tools.oxlint]]
-version = "1.92.0"
+version = "1.93.0"
 backend = "aqua:oxc-project/oxc/oxlint"
-specifiers = ["1.92.0"]
+specifiers = ["1.93.0"]
 
 [tools.oxlint."platforms.linux-x64"]
-checksum = "sha256:ba3a4d581ff73af83b2e11432fa4abeff1c6c3fc24c3ddca9990246cee8b9a92"
+checksum = "sha256:6d0d37cb51d01449714f04e2dff0d87dca66c39a72544f667b29808899d2db39"
 checksum_source = "mise-versions"
-url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.92.0/oxlint-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/717101135"
+url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.93.0/oxlint-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/727292090"
 
 [tools.oxlint."platforms.macos-arm64"]
-checksum = "sha256:c71cd2dbfb4c5289634c9c3b0688adb8fd2d65413d1ce7e4ca7e7feac85a5a8b"
+checksum = "sha256:a622a29b36262b9d05683d28dbc5d8fb61601a6901ab371c9930c31c377b79b5"
 checksum_source = "mise-versions"
-url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.92.0/oxlint-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/717101035"
+url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.93.0/oxlint-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/727291968"
 
 [tools.oxlint."platforms.windows-x64"]
-checksum = "sha256:eb821008cc1f593c27215088f926966ac5356ff621e612cdd0744cd19a410722"
+checksum = "sha256:075ce1f3baae778da2a37a0bae8c31040f31f9ca3e1b89c60775f82f09661724"
 checksum_source = "mise-versions"
-url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.92.0/oxlint-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/717101127"
+url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.93.0/oxlint-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/727292073"
 
 [[tools."pipx:pre-commit"]]
 version = "4.7.0"
