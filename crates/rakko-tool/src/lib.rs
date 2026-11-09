@@ -15,8 +15,10 @@
 //! the action pins. The pin of the project does not change it, so a run
 //! starts the version that the tests of the action cover. A toolchain
 //! resolves at the version that the project pins, when the range of the
-//! action accepts it. A crate that wraps a tool keeps its pin in a mise file.
-//! It reads the pin with [`pinned_version`] when it compiles.
+//! action accepts it. A tool that starts its toolchain by name, such as a
+//! package for Node, runs on the toolchain that [`Tool::with_toolchain`]
+//! gives it. A crate that wraps a tool keeps its pin in a mise file. It reads
+//! the pin with [`pinned_version`] when it compiles.
 //!
 //! [`Tool::resolve`] still finds a tool at the version that the project pins,
 //! for an action that declares no tools yet.

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::validator::ObserveValidatorError;
@@ -66,14 +66,17 @@ pub enum CheckRenovateConfigError {
         source: ReadReportError,
     },
 
-    /// Mise reported no validator for the project
+    /// Mise reported no validator at the version that the action declares, or
+    /// no Node that the action accepts
     ///
-    /// The project pins no Renovate, or nothing installed the pin yet. The
-    /// action installs nothing, so the run stops here.
+    /// Mise did not run, the project pins no Node in the range of the action,
+    /// nothing installed the declared Renovate or the pinned Node yet, or the
+    /// directory of that Node cannot be an entry of `PATH`. The action
+    /// installs nothing, so the run stops here.
     #[error("failed to resolve renovate-config-validator")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 
     /// The validator did not run

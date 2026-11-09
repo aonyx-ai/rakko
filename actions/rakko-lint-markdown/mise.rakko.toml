@@ -1,0 +1,6 @@
+# This file pins the version of markdownlint-cli that the action of this
+# crate runs. The crate embeds the file when it compiles, so the pin and the
+# code that reads the reports of markdownlint change together. Mise reads the
+# file only with `MISE_ENV=rakko`.
+[tools]
+"npm:markdownlint-cli" = "0.50.0"

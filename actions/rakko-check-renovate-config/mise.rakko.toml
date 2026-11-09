@@ -1,0 +1,6 @@
+# This file pins the version of Renovate that the action of this crate
+# runs. The crate embeds the file when it compiles, so the pin and the code
+# that reads the log of its validator change together. Mise reads the file
+# only with `MISE_ENV=rakko`.
+[tools]
+"npm:renovate" = "44.222.5"

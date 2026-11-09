@@ -10,7 +10,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    action_name,
+    ToolRequirement, action_name,
 };
 
 pub use self::error::LintMarkdownError;
@@ -29,11 +29,12 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 /// The action that lints the Markdown files of a project
 ///
 /// The action wraps [markdownlint]: markdownlint discovers the Markdown files
-/// of the project, reads its own configuration, and applies the rules that
-/// the project turned on, so a run agrees with an editor and with a
-/// contributor that runs markdownlint bare. The markdownlint that runs is the
-/// one that [mise] installed for the project, at the version that the project
-/// pinned, and the action installs nothing.
+/// of the project, reads its own configuration, and applies the rules that the
+/// project turned on, so a run agrees with an editor and with a contributor
+/// that runs markdownlint bare. The markdownlint that runs is the version that
+/// the action declares, which [mise] installed, whatever version the project
+/// pins. It runs on the Node that the project pins, when the action accepts
+/// that version. The action installs nothing.
 ///
 /// A run examines the files and directories whose name starts with a dot,
 /// such as `.github`, which markdownlint skips by default. It leaves out every
@@ -47,8 +48,8 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 ///
 /// The action applies to a project that holds Markdown files, and it skips
 /// visibly otherwise. A run stops with an error when mise reports no
-/// markdownlint, and when markdownlint writes a report that the action cannot
-/// read.
+/// markdownlint at the declared version or no Node in the accepted range, and
+/// when markdownlint writes a report that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -80,6 +81,13 @@ impl Action for LintMarkdown {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![
+            Markdownlint::requirement(),
+            Markdownlint::node_requirement(),
+        ]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -101,7 +109,7 @@ impl Action for LintMarkdown {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the markdownlint run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintMarkdownError> {
-    let markdownlint = Markdownlint::resolve(context.root().clone())
+    let markdownlint = Markdownlint::resolve(context)
         .await
         .map_err(|source| LintMarkdownError::UnresolvedTool { source })?;
 
@@ -339,6 +347,19 @@ mod tests {
         assert!(
             matches!(outcome, Some(Outcome::Skipped { .. })),
             "expected the run to skip, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn tools_declare_the_markdownlint_and_its_node() {
+        let tools = LintMarkdown.tools();
+
+        assert_eq!(
+            tools,
+            vec![
+                Markdownlint::requirement(),
+                Markdownlint::node_requirement()
+            ]
         );
     }
 }
