@@ -217,6 +217,10 @@ async fn observe(invocation: Invocation) -> Result<Observation, ObserveValidator
 /// stops as well. A run that ended without success and reported no problem
 /// failed for a reason that the validator did not name, so it stops too.
 ///
+/// A run that gets a file that is not there ends without success. It reports
+/// no problem, only that it found no configuration, so the run counts as
+/// explained and does not stop.
+///
 /// # Errors
 ///
 /// Returns [`AbortedValidation`][aborted] for a run that the validator did not
@@ -251,8 +255,6 @@ fn answer(
         }
     };
 
-    // A run that gets a file that is not there ends without success. It
-    // reports no problem, only that it found no configuration.
     let unexplained = observation.problems().is_empty() && observation.unconfigured().is_none();
 
     if status == Status::Invalid && unexplained {
@@ -308,11 +310,10 @@ fn diagnosis(stderr: &str, stdout: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that resolves the
-    // validator of this repository expects mise to report it. A `# Panics`
-    // section on every test would repeat that and give the reader no
-    // information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that resolves the validator of this repository expects mise to report it. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use std::path::Path;

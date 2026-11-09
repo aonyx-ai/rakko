@@ -5,9 +5,10 @@
 //! builds a project in a temporary directory, so no fixture sits in this
 //! repository.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -130,11 +131,13 @@ impl Drop for Project {
     /// Mise records the trust of a configuration in the state of the user, and
     /// the temporary directory of a test never comes back, so the record would
     /// pile up there forever.
+    ///
+    /// A project that never pinned a tool trusted nothing, and mise reads a
+    /// path that is not there as its parent directory. The method skips such a
+    /// project.
     fn drop(&mut self) {
         let configuration = self.directory.path().join("mise.toml");
 
-        // A project that never pinned a tool trusted nothing, and mise reads a
-        // path that is not there as its parent directory.
         if !configuration.is_file() {
             return;
         }
@@ -185,8 +188,6 @@ fn action_identifies_itself_as_check_specs() {
 async fn run_without_a_tracey_leaves_the_project_unchanged() {
     let project = Project::without_tracey();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckSpecs, &project.context(), &()).await;
 }
 

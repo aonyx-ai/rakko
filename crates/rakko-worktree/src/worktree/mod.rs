@@ -143,6 +143,9 @@ impl Worktree {
     /// The project must be a git repository, and its root must be the top
     /// level of that repository.
     ///
+    /// Once the worktree exists, the value owns it. A failure of the sync then
+    /// drops the value, and git takes the worktree away.
+    ///
     /// # Errors
     ///
     /// Returns [`MissingRepository`][missing] when the project is in no
@@ -198,8 +201,6 @@ impl Worktree {
 
         add(&project, &root).await?;
 
-        // From here on the value owns the worktree, so a failure of the sync
-        // drops it and git takes the worktree away.
         let worktree = Self {
             project,
             root,
@@ -350,9 +351,6 @@ impl Worktree {
             fs::create_dir_all(parent)?;
         }
 
-        // The copy can hold a file where the project holds a link, and a
-        // write through a link would reach the file that the link names, so
-        // the path goes first and the write creates what the project has.
         remove(&target)?;
 
         write(&source, &target, &metadata)
@@ -412,6 +410,10 @@ impl Worktree {
 /// still goes with the value, and `git worktree prune` forgets the entry that
 /// it leaves.
 impl Drop for Worktree {
+    /// Takes the checkout and then its directory away
+    ///
+    /// Git takes the checkout away, and the method removes the directory that
+    /// held it, with whatever a git that failed left behind.
     fn drop(&mut self) {
         let _ = self::git::blocking_command(self.project.get())
             .arg(WORKTREE)
@@ -422,8 +424,6 @@ impl Drop for Worktree {
             .stderr(Stdio::null())
             .status();
 
-        // Git takes the checkout away, and the directory that held it goes
-        // here, with whatever a git that failed left behind.
         let _ = fs::remove_dir_all(self.directory.path());
     }
 }
@@ -619,9 +619,10 @@ async fn top_level(project: &ProjectRoot) -> Result<PathBuf, CreateWorktreeError
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::env;
     use std::process::Output;
@@ -824,9 +825,11 @@ mod tests {
         assert_eq!(content(&worktree, "staged.txt").as_deref(), Some("staged"));
     }
 
-    // The copy holds what the project holds, and a link is not the file that
-    // it names. A write through the link would reach that file instead, which
-    // is the failure that this test rules out.
+    /// Preserves symbolic links when copying a worktree
+    ///
+    /// The copy holds what the project holds, and a link is not the file that
+    /// it names. A write through the link would reach that file instead, which
+    /// is the failure that this test rules out.
     #[cfg(unix)]
     #[tokio::test]
     async fn create_copies_a_symbolic_link_as_a_link() {
@@ -906,9 +909,11 @@ mod tests {
         assert!(Repository::is_modified(worktree.root().get()));
     }
 
-    // The checkout still holds the directory, empty, and the copy holds what
-    // the checkout holds. A workspace glob that matches the directory then
-    // fails in the copy as it fails in the checkout.
+    /// Shows that the copy keeps a directory the project still holds
+    ///
+    /// The checkout still holds the directory, empty, and the copy holds what
+    /// the checkout holds. A workspace glob that matches the directory then
+    /// fails in the copy as it fails in the checkout.
     #[tokio::test]
     async fn create_keeps_a_directory_that_the_project_still_holds() {
         let repository = Repository::new();
@@ -963,11 +968,13 @@ mod tests {
         assert!(worktree.root().get().starts_with(env::temp_dir()));
     }
 
-    // A workspace glob such as `crates/*` matches every directory, so a
-    // member that the contributor removed must not stay in the copy as an
-    // empty directory without its manifest. The directory holds two files,
-    // so the walk after the first removal meets a directory that is not empty
-    // yet, and the removal must not fail on it.
+    /// Shows that the copy removes a directory the project deleted
+    ///
+    /// A workspace glob such as `crates/*` matches every directory, so a
+    /// member that the contributor removed must not stay in the copy as an
+    /// empty directory without its manifest. The directory holds two files,
+    /// so the walk after the first removal meets a directory that is not empty
+    /// yet, and the removal must not fail on it.
     #[tokio::test]
     async fn create_removes_a_directory_that_the_project_deleted() {
         let repository = Repository::new();
@@ -999,9 +1006,11 @@ mod tests {
         assert_eq!(content(&worktree, "tracked.txt"), None);
     }
 
-    // A staged file in a new directory that the contributor then deleted is
-    // reported as removed, and the copy never held its directory. The walk
-    // must stop there without an error.
+    /// Shows that the copy removes a staged file whose directory is gone
+    ///
+    /// A staged file in a new directory that the contributor then deleted is
+    /// reported as removed, and the copy never held its directory. The walk
+    /// must stop there without an error.
     #[tokio::test]
     async fn create_removes_a_staged_file_whose_directory_the_project_deleted() {
         let repository = Repository::new();
@@ -1145,11 +1154,13 @@ mod tests {
         assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
     }
 
-    // A caller can hold the directory that the file system resolved, and on
-    // some platforms the temporary directory differs from it as text: a
-    // symbolic link on macOS, and a short name on Windows. The resolved root
-    // must then carry the spelling that the caller holds, or no path gets a
-    // name inside the copy.
+    /// Returns the same path when resolved on different platforms
+    ///
+    /// A caller can hold the directory that the file system resolved, and on
+    /// some platforms the temporary directory differs from it as text: a
+    /// symbolic link on macOS, and a short name on Windows. The resolved root
+    /// must then carry the spelling that the caller holds, or no path gets a
+    /// name inside the copy.
     #[tokio::test]
     async fn path_of_an_absolute_path_under_the_resolved_root_names_the_same_path() {
         let repository = Repository::new();
@@ -1163,11 +1174,13 @@ mod tests {
         assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
     }
 
-    // A scheduler runs actions in parallel and can move a run to a different
-    // thread, so a copy that an action holds across a wait travels with it.
-    // This test holds the copy to the auto traits that make this possible,
-    // because a field of a later version could take them away without a word
-    // from the compiler.
+    /// Shows that a `Worktree` holds auto traits
+    ///
+    /// A scheduler runs actions in parallel and can move a run to a different
+    /// thread, so a copy that an action holds across a wait travels with it.
+    /// This test holds the copy to the auto traits that make this possible,
+    /// because a field of a later version could take them away without a word
+    /// from the compiler.
     #[test]
     fn worktree_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

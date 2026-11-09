@@ -5,9 +5,10 @@
 //! tests therefore live beside the crate instead of inside it: a report that
 //! only the crate itself can build would fail them.
 
-// An assertion in a test panics by design. A `# Panics` section on every test
-// would repeat that and give the reader no information.
-#![allow(clippy::missing_panics_doc)]
+#![allow(
+    clippy::missing_panics_doc,
+    reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+)]
 
 use rakko::{FilePath, Finding, Location, Outcome, Summary, action_name};
 use rakko_cli::Report;

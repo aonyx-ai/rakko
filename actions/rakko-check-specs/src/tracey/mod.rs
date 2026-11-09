@@ -273,9 +273,10 @@ fn parse<T: serde::de::DeserializeOwned>(
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -326,8 +327,10 @@ mod tests {
         assert_send_sync_and_unpin::<Question>();
     }
 
-    // A scheduler runs actions in parallel and can move a run to a different
-    // thread, so a tracey that an action holds across a wait travels with it.
+    /// Shows that tracey is send and sync
+    ///
+    /// A scheduler runs actions in parallel and can move a run to a different
+    /// thread, so a tracey that an action holds across a wait travels with it.
     #[test]
     fn tracey_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

@@ -165,9 +165,10 @@ impl fmt::Display for FilePath {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::fs;
 
@@ -344,9 +345,11 @@ mod tests {
         assert_eq!(within, None);
     }
 
-    // A path that names a drive or a root directory is relative only on
-    // Windows. Every other platform reads the first as a name and the second
-    // as an absolute path.
+    /// Shows that a drive path is relative on Windows
+    ///
+    /// A path that names a drive or a root directory is relative only on
+    /// Windows. Every other platform reads the first as a name and the second
+    /// as an absolute path.
     #[cfg(windows)]
     #[test]
     fn within_of_a_path_that_names_a_drive_is_none() {
@@ -389,10 +392,12 @@ mod tests {
         assert_eq!(within, Some(FilePath(path("src/main.rs"))));
     }
 
-    // The root names the temporary directory through `sub/..`, so it never
-    // starts the path that the file system resolves. Without that, the
-    // temporary directory of Linux is already resolved, and the test passes
-    // without the resolution that it is about.
+    /// Shows that the resolved root must drop from absolute paths
+    ///
+    /// The root names the temporary directory through `sub/..`, so it never
+    /// starts the path that the file system resolves. Without that, the
+    /// temporary directory of Linux is already resolved, and the test passes
+    /// without the resolution that it is about.
     #[test]
     fn within_of_an_absolute_path_below_the_resolved_root_drops_the_root() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");

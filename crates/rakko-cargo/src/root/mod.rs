@@ -171,9 +171,10 @@ fn strip(path: &Path, root: &ProjectRoot) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -290,10 +291,12 @@ mod tests {
         assert_eq!(path, None);
     }
 
-    // Cargo writes the directory that the file system resolved, and on some
-    // platforms the temporary directory differs from it as text: a symbolic
-    // link on macOS, and a short name on Windows. The resolved root must then
-    // carry the spelling that cargo writes, or no file gets a name.
+    /// Shows that the resolved root must use cargo's spelling
+    ///
+    /// Cargo writes the directory that the file system resolved, and on some
+    /// platforms the temporary directory differs from it as text: a symbolic
+    /// link on macOS, and a short name on Windows. The resolved root must then
+    /// carry the spelling that cargo writes, or no file gets a name.
     #[test]
     fn relative_path_of_an_absolute_path_under_the_resolved_root_drops_it() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");

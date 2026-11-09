@@ -131,6 +131,10 @@ impl Action for CheckUnusedDeps {
 /// that this function returns stops the run, and the caller reports it in the
 /// outcome.
 ///
+/// The run asks for the nightly toolchain, because the record that names the
+/// crates a target loaded comes from an unstable option of the compiler. A
+/// stable toolchain refuses that option.
+///
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of
@@ -141,8 +145,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
         .await
         .map_err(|source| CheckUnusedDepsError::UnresolvedCargo { source })?;
 
-    // The record that names the crates a target loaded comes from an unstable
-    // option of the compiler, and a stable toolchain refuses it.
     let toolchain = Toolchain::resolve_requirement()
         .requirement(&Toolchain::nightly())
         .context(context)
@@ -287,9 +289,10 @@ fn summary(roots: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 

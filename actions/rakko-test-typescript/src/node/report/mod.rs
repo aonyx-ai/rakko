@@ -306,6 +306,9 @@ fn split<'a>(lines: &'a [&'a str]) -> Result<(&'a [&'a str], &'a [&'a str]), Rea
 /// Returns the result that the given line starts
 ///
 /// Returns `None` when the line states no result at all.
+///
+/// A directive excuses whatever the test did, and the runner counts such a test
+/// as neither passed nor failed.
 fn start(line: &str) -> Option<Pending> {
     let failed = match line.strip_prefix(NOT_OK) {
         Some(_) => true,
@@ -320,8 +323,6 @@ fn start(line: &str) -> Option<Pending> {
 
     Some(Pending {
         name: unescape(name),
-        // A directive excuses whatever the test did, and the runner counts
-        // such a test as neither passed nor failed.
         outcome: if failed && directive.is_none() {
             TestOutcome::Failed
         } else {
@@ -428,9 +429,10 @@ impl Pending {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::unwrap_used)]
 
     use std::path::PathBuf;
@@ -573,8 +575,11 @@ mod tests {
         );
     }
 
-    // The report escapes the character that opens a directive inside a name,
-    // so a name that holds one is no directive and the test still counts.
+    /// Shows that a read of a report of a test whose name holds a hash reports
+    /// the failure
+    ///
+    /// The report escapes the character that opens a directive inside a name,
+    /// so a name that holds one is no directive and the test still counts.
     #[test]
     fn read_of_a_report_of_a_test_whose_name_holds_a_hash_reports_the_failure() {
         let report = read(
@@ -601,9 +606,11 @@ mod tests {
         assert_eq!(report.failures()[0].origin(), &None);
     }
 
-    // A test writes its own output into the report as a comment, and a line of
-    // it can read exactly like a result. The reading takes it for a comment,
-    // because that is what the runner wrote.
+    /// Shows that a read of a report whose test wrote a result reports no failure
+    ///
+    /// A test writes its own output into the report as a comment, and a line of
+    /// it can read exactly like a result. The reading takes it for a comment,
+    /// because that is what the runner wrote.
     #[test]
     fn read_of_a_report_whose_test_wrote_a_result_reports_no_failure() {
         let report =

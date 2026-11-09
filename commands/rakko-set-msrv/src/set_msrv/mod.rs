@@ -201,15 +201,16 @@ async fn set(root: &Path, args: &SetMsrvArgs) -> Result<(), SetMsrvError> {
 /// A project that keeps no lock is left without one. The version and the
 /// check name the steps that a failed lock leaves for the user.
 ///
+/// A project that keeps no lock has chosen not to, and mise would create one. A
+/// lock whose presence is unknown is locked, because a stale lock makes `mise
+/// install --locked` fail.
+///
 /// # Errors
 ///
 /// Returns [`SetMsrvError::MiseUnavailable`] when mise does not start, and
 /// [`SetMsrvError::UnlockedPin`] with what mise reported when it ends
 /// without success.
 async fn lock(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvError> {
-    // A project that keeps no lock has chosen not to, and mise would create
-    // one. A lock whose presence is unknown is locked, because a stale lock
-    // makes `mise install --locked` fail.
     if matches!(tokio::fs::try_exists(root.join(LOCK)).await, Ok(false)) {
         return Ok(());
     }
@@ -256,6 +257,9 @@ async fn install(root: &Path, msrv: &Msrv, check: Name) -> Result<(), SetMsrvErr
 /// The report says what the check found, so the error of a check that did not
 /// pass only names it.
 ///
+/// A check that skipped did not compile the code on the new version, so it
+/// cannot confirm the version.
+///
 /// # Errors
 ///
 /// Returns [`SetMsrvError::UnreportedOutcome`] when the report does not reach
@@ -270,8 +274,6 @@ async fn check(
     let name = check.name();
     let outcome = check.run(project, &ArgsValues::empty()).await;
 
-    // A check that skipped did not compile the code on the new version, so it
-    // cannot confirm the version.
     let confirmed = match outcome {
         Outcome::Passed { .. } | Outcome::Changed { .. } => true,
         Outcome::Failed { .. } | Outcome::Errored { .. } | Outcome::Skipped { .. } => false,
@@ -395,9 +397,10 @@ fn replace(value: &mut Value, msrv: &Msrv) {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::error::Error as _;
 
@@ -461,7 +464,9 @@ mod tests {
         assert_send_sync_and_unpin::<SetMsrv>();
     }
 
-    // A directory that does not exist keeps any program from starting in it.
+    /// Shows that starting in a missing directory names the step
+    ///
+    /// A directory that does not exist keeps any program from starting in it.
     #[tokio::test]
     async fn start_where_mise_cannot_start_names_the_step() {
         let root = Path::new("/rakko/a directory that does not exist");

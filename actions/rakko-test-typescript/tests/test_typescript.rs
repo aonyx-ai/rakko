@@ -13,9 +13,10 @@
 //! state: Node carries the patterns that select the test files, and a test
 //! file needs nothing but an import of `node:test`.
 
-// An assertion in a test panics by design, and the helpers of this file exist
-// only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -251,10 +252,12 @@ async fn run_leaves_a_file_with_a_failing_test_unchanged() {
     assert_eq!(project.read("src/add.test.ts"), FAILING);
 }
 
-// A test that writes a file writes it, because the project asked for that, and
-// the file shows that the run reached the test at all. Everything else that
-// the project holds afterwards is what it held before, so the action left no
-// report, no cache, and no installed package behind.
+/// Shows that a run of a project adds no file of its own
+///
+/// A test that writes a file writes it, because the project asked for that, and
+/// the file shows that the run reached the test at all. Everything else that
+/// the project holds afterwards is what it held before, so the action left no
+/// report, no cache, and no installed package behind.
 #[tokio::test]
 async fn run_of_a_project_adds_no_file_of_its_own() {
     let project = Project::new();
@@ -286,8 +289,11 @@ async fn run_of_a_project_whose_failing_test_is_still_to_do_passes() {
     );
 }
 
-// Node reports the suite as failed as well as the test inside it, and the test
-// inside it is the one that a reader repairs.
+/// Shows that a run of a project whose suite holds a failing test reports one
+/// finding
+///
+/// Node reports the suite as failed as well as the test inside it, and the test
+/// inside it is the one that a reader repairs.
 #[tokio::test]
 async fn run_of_a_project_whose_suite_holds_a_failing_test_reports_one_finding() {
     let project = Project::new();
@@ -385,6 +391,9 @@ async fn run_of_a_project_with_a_failing_test_fails() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_of_a_project_with_a_failing_test_leaves_the_project_unchanged() {
     let project = Project::new();
@@ -394,8 +403,6 @@ async fn run_of_a_project_with_a_failing_test_leaves_the_project_unchanged() {
         .content(FAILING)
         .call();
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&TestTypeScript, &project.context(), &()).await;
 }
 
@@ -481,9 +488,11 @@ async fn run_reaches_a_test_below_a_directory_of_the_project() {
     );
 }
 
-// The report reads as TAP only because the run asks for it. The drawing that
-// Node makes for a reader carries a summary that no parse answers, so this
-// test also fails wherever the environment would make Node draw.
+/// Shows that a run reads the report of node rather than its drawing
+///
+/// The report reads as TAP only because the run asks for it. The drawing that
+/// Node makes for a reader carries a summary that no parse answers, so this
+/// test also fails wherever the environment would make Node draw.
 #[tokio::test]
 async fn run_reads_the_report_of_node_rather_than_its_drawing() {
     let project = Project::new();

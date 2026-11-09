@@ -138,9 +138,10 @@ fn summary(tests: u64) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -226,7 +227,9 @@ mod tests {
         assert_eq!(summary.as_ref().map(Summary::get), Some("ran 3 tests"));
     }
 
-    // A summary that reads "ran 1 tests" tells a reader that nobody read it.
+    /// Shows that a summary of a run that ran one test names it in the singular
+    ///
+    /// A summary that reads "ran 1 tests" tells a reader that nobody read it.
     #[test]
     fn summary_of_a_run_that_ran_one_test_names_it_in_the_singular() {
         let summary = summary(1);

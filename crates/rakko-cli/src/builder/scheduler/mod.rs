@@ -215,9 +215,10 @@ async fn report(
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::future::{pending, poll_fn};
     use std::path::Path;
@@ -593,9 +594,11 @@ mod tests {
     ///
     /// The run has ended or was dropped, so nothing writes through the context
     /// anymore.
+    ///
+    /// The function drops the context first. The context holds the sender of
+    /// the output, and without the sender the receiver ends after the last
+    /// event that the run wrote.
     fn received(clawless: ClawlessContext, mut receiver: EventReceiver) -> Sent {
-        // The context holds the sender of the output. Without the sender, the
-        // receiver ends after the last event that the run wrote.
         drop(clawless);
 
         let mut sent = Sent {

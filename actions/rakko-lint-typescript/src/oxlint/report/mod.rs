@@ -176,11 +176,10 @@ pub(crate) fn read(output: &str) -> Result<Observation, ReadReportError> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design, and a test that reads a report
-    // which oxlint could have written expects the reading to succeed. A
-    // `# Panics` section on every test would repeat that and give the reader
-    // no information.
-    #![allow(clippy::expect_used)]
+    #![allow(
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that reads a report which oxlint could have written expects the reading to succeed. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
     #![allow(clippy::missing_panics_doc)]
 
     use std::path::PathBuf;

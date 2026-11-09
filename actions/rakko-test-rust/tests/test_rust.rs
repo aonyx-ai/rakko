@@ -10,9 +10,10 @@
 //! repository installs. The copy pins another nextest that nothing installs,
 //! so a test passes only when the run ignores the pin of the project.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -362,13 +363,14 @@ async fn run_in_a_workspace_without_tests_passes() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_library(FAILING);
     project.lock().await;
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&TestRust, &project.context(), &()).await;
 }
 

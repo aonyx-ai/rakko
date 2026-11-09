@@ -125,6 +125,10 @@ impl Action for FormatRust {
 /// arguments ask for it. An error that this function returns stops the run,
 /// and the caller reports it in the outcome.
 ///
+/// The run asks for the nightly toolchain, because rustfmt honors the unstable
+/// options of a configuration only on the nightly channel. A stable rustfmt
+/// formats without them.
+///
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of
@@ -135,8 +139,6 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
         .await
         .map_err(|source| FormatRustError::UnresolvedTool { source })?;
 
-    // Rustfmt honors the unstable options of a configuration only on the
-    // nightly channel, and a stable rustfmt formats without them.
     let toolchain = Toolchain::resolve_requirement()
         .requirement(&Toolchain::nightly())
         .context(context)
@@ -352,9 +354,10 @@ fn summary(roots: usize) -> Summary {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
 

@@ -68,14 +68,17 @@ impl From<PrepareComparisonError> for CheckSpecsError {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
-    // An action puts the error in the outcome of a run, and that outcome
-    // holds an error that another thread can read.
+    /// Shows that the error is send and sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome
+    /// holds an error that another thread can read.
     #[test]
     fn check_specs_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

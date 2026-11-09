@@ -113,16 +113,12 @@ impl Comparison {
             return Ok(None);
         }
 
-        // The revisions are read before the copy exists, because HEAD names
-        // the merge commit in the checkout and the base branch in the copy.
         let merge = capture(&repository, HEAD).await?;
         let base = capture(&repository, FIRST_PARENT).await?;
 
         let directory = tempfile::tempdir()
             .map_err(|source| PrepareComparisonError::UnavailableDirectory { source })?;
 
-        // `worktree add` refuses a directory that exists, and the temporary
-        // directory does. Git creates the last segment itself.
         let worktree = directory.path().join(WORKTREE);
 
         run(
@@ -132,8 +128,6 @@ impl Comparison {
         )
         .await?;
 
-        // The copy holds the base branch, and its index takes the tree of the
-        // merge commit, which is what the pull request proposes.
         run(&worktree, ["read-tree"], [merge.as_ref()]).await?;
 
         Ok(Some(Self {
@@ -253,9 +247,10 @@ fn command(directory: &Path) -> Invocation {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -321,9 +316,18 @@ mod tests {
     }
 
     /// Runs one command of git in the directory
+    ///
+    /// The helper turns off the signing of commits, because the commits of a
+    /// fixture are thrown away with its directory. The signing key of a
+    /// contributor is not the test's to ask for.
+    ///
+    /// The helper removes every variable that starts with `GIT_` before it
+    /// runs. A test that runs inside a git hook inherits the variables that
+    /// name the repository of the hook, and those beat the working directory.
+    /// The fixture would then act on the checkout of the contributor. The
+    /// helper sets the identity afterwards, because the identity variables
+    /// carry the same prefix.
     fn git(directory: &Path, arguments: &[&str]) -> String {
-        // The commits of a fixture are thrown away with its directory, and
-        // the signing key of a contributor is not the test's to ask for.
         let mut command = Command::new(GIT);
         command
             .arg("-c")
@@ -331,10 +335,6 @@ mod tests {
             .args(arguments)
             .current_dir(directory);
 
-        // A test that runs inside a git hook inherits the variables that name
-        // the repository of the hook, and those beat the working directory, so
-        // the fixture would act on the checkout of the contributor. The
-        // identity below is set afterwards, because it carries the prefix too.
         for (name, _) in std::env::vars_os() {
             if name.as_encoded_bytes().starts_with(b"GIT_") {
                 command.env_remove(name);
@@ -402,9 +402,11 @@ mod tests {
         assert_eq!(project.git(&["diff", "--cached", "--name-only"]), "");
     }
 
-    // A code host checks out a merge commit of the branch and its base, and
-    // stages nothing, so a comparison of that index with that HEAD finds no
-    // change at all.
+    /// Shows that a merge commit stages the pull request
+    ///
+    /// A code host checks out a merge commit of the branch and its base, and
+    /// stages nothing, so a comparison of that index with that HEAD finds no
+    /// change at all.
     #[tokio::test]
     async fn comparison_of_a_merge_commit_stages_the_pull_request() {
         let project = Project::merged();
@@ -421,8 +423,10 @@ mod tests {
         assert_eq!(staged, "SPECIFICATION.md");
     }
 
-    // A run that no environment calls a pull request compares the checkout
-    // itself.
+    /// Shows that an unrequested comparison is none
+    ///
+    /// A run that no environment calls a pull request compares the checkout
+    /// itself.
     #[tokio::test]
     async fn comparison_that_nothing_asked_for_is_none() {
         let project = Project::merged();

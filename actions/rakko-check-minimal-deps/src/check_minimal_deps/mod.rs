@@ -136,6 +136,10 @@ impl Action for CheckMinimalDeps {
 /// update succeeded. An error that this function returns stops the run, and
 /// the caller reports it in the outcome.
 ///
+/// The run asks for the nightly toolchain, because the option that asks cargo
+/// for the floors is unstable. A stable cargo refuses that option and resolves
+/// nothing at all.
+///
 /// The copy lives until this function returns, and the drop takes it with it,
 /// so a run that ends with an answer and a run that stops with an error clear
 /// it alike.
@@ -150,8 +154,6 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMinimalDepsError> {
         .await
         .map_err(|source| CheckMinimalDepsError::UnresolvedCargo { source })?;
 
-    // The option that asks cargo for the floors is unstable, and a stable
-    // cargo refuses it and resolves nothing at all.
     let toolchain = Toolchain::resolve_requirement()
         .requirement(&Toolchain::nightly())
         .context(context)
@@ -342,9 +344,10 @@ async fn update(
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 

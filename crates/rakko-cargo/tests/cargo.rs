@@ -9,9 +9,10 @@
 //! answers is a toolchain that the repository installs, and a new pin
 //! reaches the tests without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
@@ -545,9 +546,11 @@ async fn lockfile_refused_by_a_locked_check_without_a_lockfile_answers_yes() {
     );
 }
 
-// The pins of the project name two toolchains that no machine installs, so
-// the choice among them surfaces as the toolchain that the failure names.
-// That keeps the test free of whichever versions this repository installs.
+/// Shows that the newest toolchain names the highest pinned version
+///
+/// The pins of the project name two toolchains that no machine installs, so
+/// the choice among them surfaces as the toolchain that the failure names.
+/// That keeps the test free of whichever versions this repository installs.
 #[tokio::test]
 async fn newest_in_a_project_that_pins_several_versions_names_the_highest() {
     let project = Project::with_rust("[\"1.71.0\", \"1.70.0\"]");
@@ -907,8 +910,10 @@ async fn roots_ignore_a_nested_project() {
     );
 }
 
-// A marker that is a directory cannot be read as a file, so the test fails
-// when the discovery decides by reading the marker instead of by its presence.
+/// Shows that roots ignore a directory marker
+///
+/// A marker that is a directory cannot be read as a file, so the test fails
+/// when the discovery decides by reading the marker instead of by its presence.
 #[tokio::test]
 async fn roots_ignore_a_nested_project_whose_marker_is_a_directory() {
     let project = Project::workspace();
@@ -1524,8 +1529,10 @@ async fn toolchain_resolve_requirement_of_the_nightly_answers_the_dated_pin() {
     );
 }
 
-// A machine that holds a dated nightly resolves a bare `nightly` to it, so
-// the pin would count on that machine and on no other.
+/// Shows that a bare nightly channel is reported
+///
+/// A machine that holds a dated nightly resolves a bare `nightly` to it, so
+/// the pin would count on that machine and on no other.
 #[tokio::test]
 async fn toolchain_resolve_requirement_of_the_nightly_with_a_bare_channel_reports_it() {
     let pin = pinned_rust().await;

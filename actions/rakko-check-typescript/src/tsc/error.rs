@@ -85,9 +85,10 @@ fn diagnosis(stdout: &str, stderr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use super::*;
 
@@ -114,10 +115,12 @@ mod tests {
         );
     }
 
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
+    /// Shows that the error is send and sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible, because a field of a later version
+    /// could take them away without a word from the compiler.
     #[test]
     fn observe_tsc_error_is_send_and_sync() {
         fn assert_send_and_sync<T: Send + Sync>() {}

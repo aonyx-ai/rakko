@@ -84,9 +84,10 @@ impl Failure {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -140,8 +141,11 @@ mod tests {
         );
     }
 
-    // Node writes an empty reason for a failure that it has nothing to say
-    // about, and a message that ends in a colon tells a reader nothing.
+    /// Shows that a finding of a failure with an empty reason names the test
+    /// alone
+    ///
+    /// Node writes an empty reason for a failure that it has nothing to say
+    /// about, and a message that ends in a colon tells a reader nothing.
     #[test]
     fn finding_of_a_failure_with_an_empty_reason_names_the_test_alone() {
         let failure = Failure::builder()

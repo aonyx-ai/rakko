@@ -213,9 +213,10 @@ fn unexamined(diagnostic: &Diagnostic) -> Option<SkipReason> {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use rakko_test_utils::path;
 
@@ -395,8 +396,11 @@ mod tests {
         assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 
-    // A project that tsc checked can break a rule about its own configuration
-    // beside a rule of the language, and such a run examined the project.
+    /// Shows that guard of a run that reported more than one diagnostic reports
+    /// nothing
+    ///
+    /// A project that tsc checked can break a rule about its own configuration
+    /// beside a rule of the language, and such a run examined the project.
     #[test]
     fn guard_of_a_run_that_reported_more_than_one_diagnostic_reports_nothing() {
         let diagnostics = [

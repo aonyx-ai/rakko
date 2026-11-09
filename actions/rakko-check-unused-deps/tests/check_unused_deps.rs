@@ -17,9 +17,10 @@
 //! The copy pins another cargo-udeps that nothing installs, so a test passes
 //! only when the run ignores the pin of the project.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -398,9 +399,11 @@ async fn run_in_a_project_that_uses_every_dependency_counts_the_workspaces() {
     assert_eq!(summary(&outcome), Some("examined 1 workspace"));
 }
 
-// A run of cargo-udeps needs an unstable option of the compiler, and a
-// stable toolchain refuses it and reports nothing, so a run that answers at
-// all ran on the nightly toolchain that mise pins for the project.
+/// Shows that runs pass when all dependencies are used
+///
+/// A run of cargo-udeps needs an unstable option of the compiler, and a
+/// stable toolchain refuses it and reports nothing, so a run that answers at
+/// all ran on the nightly toolchain that mise pins for the project.
 #[tokio::test]
 async fn run_in_a_project_that_uses_every_dependency_passes() {
     let project = Project::with_dependency()
@@ -416,6 +419,9 @@ async fn run_in_a_project_that_uses_every_dependency_passes() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_leaves_the_project_unchanged() {
     let project = Project::with_dependency()
@@ -424,8 +430,6 @@ async fn run_leaves_the_project_unchanged() {
         .call();
     project.lock().await;
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&CheckUnusedDeps, &project.context(), &()).await;
 }
 
@@ -547,8 +551,10 @@ async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
     );
 }
 
-// A warning of the compiler belongs to the action that lints the code. The
-// build finished, so the answer of this run is the report of cargo-udeps.
+/// Shows that compiler warnings are ignored
+///
+/// A warning of the compiler belongs to the action that lints the code. The
+/// build finished, so the answer of this run is the report of cargo-udeps.
 #[tokio::test]
 async fn run_with_a_warning_reports_no_diagnostic() {
     let project = Project::with_dependency()
@@ -627,9 +633,11 @@ async fn run_with_an_unused_dependency_names_the_manifest() {
     assert_eq!(paths(&outcome), vec!["Cargo.toml".to_owned()]);
 }
 
-// The bare cargo-udeps that this action replaces examines the default
-// targets, which leaves a dependency of the tests uncompiled and therefore
-// unexamined.
+/// Shows that unused development dependencies are named
+///
+/// The bare cargo-udeps that this action replaces examines the default
+/// targets, which leaves a dependency of the tests uncompiled and therefore
+/// unexamined.
 #[tokio::test]
 async fn run_with_an_unused_development_dependency_names_its_kind() {
     let project = Project::with_dependency()
@@ -645,9 +653,11 @@ async fn run_with_an_unused_development_dependency_names_its_kind() {
     );
 }
 
-// The bare cargo-udeps that this action replaces examines the default
-// features, which leaves a dependency behind a feature uncompiled and
-// therefore unexamined.
+/// Shows that unused optional dependencies are named
+///
+/// The bare cargo-udeps that this action replaces examines the default
+/// features, which leaves a dependency behind a feature uncompiled and
+/// therefore unexamined.
 #[tokio::test]
 async fn run_with_an_unused_optional_dependency_names_it() {
     let project = Project::with_dependency()
@@ -716,9 +726,11 @@ async fn run_without_a_cargo_stops() {
     );
 }
 
-// A workspace that never ran a build has no lockfile, and the action holds
-// cargo to one, so the run stops. The test runs the action directly, because
-// the helper that runs it writes the lockfile first.
+/// Shows that a run without a lockfile stops
+///
+/// A workspace that never ran a build has no lockfile, and the action holds
+/// cargo to one, so the run stops. The test runs the action directly, because
+/// the helper that runs it writes the lockfile first.
 #[tokio::test]
 async fn run_without_a_lockfile_says_that_it_needs_an_update() {
     let project = Project::with_dependency()

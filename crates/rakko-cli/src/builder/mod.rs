@@ -349,6 +349,10 @@ impl Builder {
     /// The method takes the arguments as a parameter, so that a test drives
     /// the command line without the arguments of the test process.
     ///
+    /// The parser reports `ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand`
+    /// for a run that gives no argument at all, and for no other run. That kind
+    /// is the whole test for a run that names nothing.
+    ///
     /// # Errors
     ///
     /// Returns the error of the parser when the arguments do not describe a
@@ -364,9 +368,6 @@ impl Builder {
 
         let matches = match command.try_get_matches_from_mut(arguments) {
             Ok(matches) => matches,
-            // The parser reports this kind for a run that gives no argument
-            // at all, and for no other run, so it is the whole test for a run
-            // that names nothing.
             Err(error) if error.kind() == ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
                 return Ok(Resolution::Commands(Box::new(command)));
             }
@@ -761,9 +762,10 @@ fn exit_code(outcome: &Outcome) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use std::marker::PhantomData;
     use std::path::Path;

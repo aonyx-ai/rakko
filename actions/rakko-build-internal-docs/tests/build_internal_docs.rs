@@ -9,9 +9,10 @@
 //! is the version that the repository installs, and a new pin reaches the
 //! tests without a change to them.
 
-// An assertion in a test panics by design, and the helpers of this file
-// exist only for tests. The lints that guard production code do not apply.
-#![allow(clippy::expect_used)]
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
 #![allow(clippy::missing_panics_doc)]
 
 use std::path::Path;
@@ -406,9 +407,11 @@ async fn run_leaves_the_sources_unchanged() {
     assert_eq!(project.read("src/lib.rs"), BROKEN_LINK);
 }
 
-// The race that the split prevents depends on timing, so this test cannot
-// show the split itself. It shows that both packages are still documented,
-// and that the warning of the library which two runs compile counts once.
+/// Shows that a binary that shares a library's name documents both packages
+///
+/// The race that the split prevents depends on timing, so this test cannot
+/// show the split itself. It shows that both packages are still documented,
+/// and that the warning of the library which two runs compile counts once.
 #[tokio::test]
 async fn run_with_a_binary_that_shares_the_name_of_a_library_documents_both_packages() {
     let project = Project::new();
@@ -552,13 +555,14 @@ async fn run_with_a_broken_link_in_a_second_workspace_names_its_path() {
     );
 }
 
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
 #[tokio::test]
 async fn run_with_a_broken_link_leaves_the_project_unchanged() {
     let project = Project::with_library(BROKEN_LINK);
     project.lock().await;
 
-    // The helper asserts that the run left every file of the project as it
-    // was.
     run_checking_access(&BuildInternalDocs, &project.context(), &()).await;
 }
 
@@ -666,9 +670,12 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
-// A single run turns every feature of the library on, and the link resolves.
-// The run of the other packages leaves the library out and builds it with the
-// features that those packages ask for, so only a split breaks the link.
+/// Shows that a shared name documents the rest without the sharing packages'
+/// features
+///
+/// A single run turns every feature of the library on, and the link resolves.
+/// The run of the other packages leaves the library out and builds it with the
+/// features that those packages ask for, so only a split breaks the link.
 #[tokio::test]
 async fn run_with_a_shared_name_documents_the_rest_without_the_features_of_the_sharing_packages() {
     let project = Project::new();

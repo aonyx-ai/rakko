@@ -82,9 +82,10 @@ fn reserved(names: impl Iterator<Item = OsString>) -> impl Iterator<Item = OsStr
 
 #[cfg(test)]
 mod tests {
-    // An assertion in a test panics by design. A `# Panics` section on every
-    // test would repeat that and give the reader no information.
-    #![allow(clippy::missing_panics_doc)]
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
 
     use kawauso_process::invocation::WorkingDirectory;
 
@@ -117,8 +118,10 @@ mod tests {
         );
     }
 
-    // The underscore of the prefix keeps the variables of other programs, and
-    // this is the name that a prefix without it would take away.
+    /// Preserves a variable used by another program
+    ///
+    /// The underscore of the prefix keeps the variables of other programs, and
+    /// this is the name that a prefix without it would take away.
     #[test]
     fn reserved_keeps_a_variable_of_another_program() {
         assert_eq!(
@@ -127,15 +130,19 @@ mod tests {
         );
     }
 
-    // The variable that a hook exports is the one that would send every
-    // command of the crate at the repository of the hook.
+    /// Names a variable exported by git itself
+    ///
+    /// The variable that a hook exports is the one that would send every
+    /// command of the crate at the repository of the hook.
     #[test]
     fn reserved_names_a_variable_of_git() {
         assert_eq!(dropped(&["GIT_DIR"]), vec!["GIT_DIR"]);
     }
 
-    // A name that nobody has heard of yet is what the prefix is for: it goes
-    // without anybody adding it to a list.
+    /// Reserves a variable before git adds it to the spec
+    ///
+    /// A name that nobody has heard of yet is what the prefix is for: it goes
+    /// without anybody adding it to a list.
     #[test]
     fn reserved_names_a_variable_that_git_has_yet_to_add() {
         assert_eq!(dropped(&["GIT_SOMETHING_NEW"]), vec!["GIT_SOMETHING_NEW"]);
