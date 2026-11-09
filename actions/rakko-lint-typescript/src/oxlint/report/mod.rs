@@ -333,6 +333,20 @@ mod tests {
     }
 
     #[test]
+    fn diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Diagnostic>();
+    }
+
+    #[test]
+    fn label_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Label>();
+    }
+
+    #[test]
     fn read_of_a_clean_report_counts_the_files_of_the_run() {
         let observation = read(CLEAN).expect("the test reads the report of a run that passed");
 
@@ -511,5 +525,19 @@ mod tests {
                 Place::Project,
             ]
         );
+    }
+
+    #[test]
+    fn report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Report>();
+    }
+
+    #[test]
+    fn span_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Span>();
     }
 }

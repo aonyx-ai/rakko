@@ -62,4 +62,11 @@ mod tests {
 
         assert_eq!(position.line().get(), 1);
     }
+
+    #[test]
+    fn position_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Position>();
+    }
 }

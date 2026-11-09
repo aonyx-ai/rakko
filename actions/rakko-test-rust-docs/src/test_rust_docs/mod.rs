@@ -322,6 +322,13 @@ mod tests {
     }
 
     #[test]
+    fn examined_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Examined>();
+    }
+
+    #[test]
     fn summary_of_many_examples_counts_them() {
         let summary = summary(42, 2);
 
@@ -340,5 +347,12 @@ mod tests {
         let summary = summary(1, 1);
 
         assert_eq!(summary.get(), "ran 1 example in 1 workspace");
+    }
+
+    #[test]
+    fn test_rust_docs_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TestRustDocs>();
     }
 }

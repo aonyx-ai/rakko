@@ -320,6 +320,48 @@ mod tests {
     }
 
     #[test]
+    fn build_finished_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<BuildFinished>();
+    }
+
+    #[test]
+    fn cargo_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CargoReport>();
+    }
+
+    #[test]
+    fn code_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Code>();
+    }
+
+    #[test]
+    fn compiler_message_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CompilerMessage>();
+    }
+
+    #[test]
+    fn message_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Message>();
+    }
+
+    #[test]
+    fn probe_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Probe>();
+    }
+
+    #[test]
     fn read_a_build_that_failed_reports_no_success() {
         let report = read(&[ERROR, FAILED]);
 
@@ -449,5 +491,12 @@ mod tests {
         let report = read(&[WARNING]);
 
         assert_eq!(report.finished(), None);
+    }
+
+    #[test]
+    fn source_span_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<SourceSpan>();
     }
 }

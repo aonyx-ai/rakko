@@ -1471,6 +1471,13 @@ mod tests {
     }
 
     #[test]
+    fn builder_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Builder>();
+    }
+
+    #[test]
     fn builder_returns_a_builder_of_a_command_line() {
         let builder = builder();
 
@@ -2185,6 +2192,13 @@ mod tests {
             .filter_map(|flag| flag.get_help().map(ToString::to_string))
             .collect();
         assert_eq!(help, [format!("first: {FIX}\nthird: {FIX}")]);
+    }
+
+    #[test]
+    fn resolution_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Resolution>();
     }
 
     #[test]

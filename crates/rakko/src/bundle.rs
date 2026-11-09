@@ -337,6 +337,13 @@ mod tests {
     }
 
     #[test]
+    fn bundle_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Bundle>();
+    }
+
+    #[test]
     fn bundle_passes_to_a_mount_as_it_is() {
         let bundle = Bundle::new(vec![Box::new(FormatJson), Box::new(LintYaml)]);
 

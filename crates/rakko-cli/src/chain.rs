@@ -62,6 +62,13 @@ mod tests {
     }
 
     #[test]
+    fn chain_is_unpin() {
+        fn assert_unpin<T: Unpin>() {}
+
+        assert_unpin::<Chain<'static>>();
+    }
+
+    #[test]
     fn display_with_a_field_source_writes_the_source() {
         let error = ReadManifestError {
             source: io::Error::other("the disk is gone"),
@@ -94,4 +101,14 @@ mod tests {
             "failed to load the workspace: failed to parse Cargo.toml: the file is not TOML"
         );
     }
+
+    /// `Chain` borrows a `dyn Error`, which a source need not make `Sync`, so
+    /// the chain cannot cross a thread
+    #[test]
+    fn trait_not_send_chain() {}
+
+    /// `Chain` borrows a `dyn Error`, which a source need not make `Sync`, so
+    /// no other thread can share the chain
+    #[test]
+    fn trait_not_sync_chain() {}
 }

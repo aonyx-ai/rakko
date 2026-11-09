@@ -80,6 +80,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn oxfmt_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<OxfmtProblem>();
+    }
+
+    #[test]
     fn path_of_a_failure_without_a_place_names_no_file() {
         let problem = OxfmtProblem::Unplaced {
             message: String::from("Failed to read file: /home/otter/project/src/index.ts"),

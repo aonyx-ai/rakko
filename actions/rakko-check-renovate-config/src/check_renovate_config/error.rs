@@ -136,6 +136,13 @@ mod tests {
     }
 
     #[test]
+    fn check_renovate_config_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckRenovateConfigError>();
+    }
+
+    #[test]
     fn error_of_a_run_that_stopped_holds_what_the_validator_wrote() {
         let error = CheckRenovateConfigError::from(ObserveValidatorError::AbortedValidation {
             details: DETAILS.to_owned(),

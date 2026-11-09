@@ -55,6 +55,13 @@ mod tests {
     }
 
     #[test]
+    fn span_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Span>();
+    }
+
+    #[test]
     fn start_returns_given_start() {
         let start = Position::builder().line(7).column(4).build();
 

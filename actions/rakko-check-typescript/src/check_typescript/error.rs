@@ -106,6 +106,13 @@ mod tests {
     }
 
     #[test]
+    fn check_type_script_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckTypeScriptError>();
+    }
+
+    #[test]
     fn error_of_a_silent_run_holds_what_tsc_wrote() {
         let error = CheckTypeScriptError::from(ObserveTscError::MissingReport {
             details: DETAILS.to_owned(),

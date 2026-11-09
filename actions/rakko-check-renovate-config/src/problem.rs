@@ -214,4 +214,11 @@ mod tests {
 
         assert_eq!(relative, FilePath::try_from(path("config.js")).ok());
     }
+
+    #[test]
+    fn renovate_problem_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<RenovateProblem>();
+    }
 }

@@ -99,6 +99,13 @@ mod tests {
     }
 
     #[test]
+    fn tool_requirement_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ToolRequirement>();
+    }
+
+    #[test]
     fn tool_returns_the_given_tool() {
         let requirement = requirement();
 

@@ -59,6 +59,13 @@ mod tests {
     }
 
     #[test]
+    fn args_schema_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ArgsSchema>();
+    }
+
+    #[test]
     fn empty_returns_schema_without_arguments() {
         let schema = ArgsSchema::empty();
 

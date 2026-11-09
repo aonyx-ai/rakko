@@ -304,6 +304,13 @@ mod tests {
     }
 
     #[test]
+    fn check_unused_deps_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckUnusedDeps>();
+    }
+
+    #[test]
     fn summary_of_one_workspace_says_so() {
         let summary = summary(1);
 

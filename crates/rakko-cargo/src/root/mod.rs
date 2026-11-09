@@ -191,6 +191,13 @@ mod tests {
     }
 
     #[test]
+    fn cargo_root_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CargoRoot>();
+    }
+
+    #[test]
     fn manifest_names_the_file_in_the_directory() {
         let root = nested();
 

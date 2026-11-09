@@ -358,6 +358,13 @@ mod tests {
         );
     }
 
+    #[test]
+    fn comparison_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Comparison>();
+    }
+
     #[tokio::test]
     async fn comparison_leaves_the_commit_of_the_checkout_alone() {
         let project = Project::merged();

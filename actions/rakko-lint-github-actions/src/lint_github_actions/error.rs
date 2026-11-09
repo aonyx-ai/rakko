@@ -137,6 +137,13 @@ mod tests {
         );
     }
 
+    #[test]
+    fn lint_git_hub_actions_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintGitHubActionsError>();
+    }
+
     // An action puts the error in the outcome of a run, and that outcome
     // holds an error that another thread can read. This test holds the error
     // to the auto traits that make this possible, because a field of a later

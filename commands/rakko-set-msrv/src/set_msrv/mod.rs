@@ -419,6 +419,13 @@ mod tests {
     }
 
     #[test]
+    fn line_ending_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LineEnding>();
+    }
+
+    #[test]
     fn name_is_set_msrv() {
         let command = SetMsrv::new(Stub);
 
@@ -440,6 +447,13 @@ mod tests {
         };
 
         assert_eq!(error.source().map(ToString::to_string), Some(said));
+    }
+
+    #[test]
+    fn set_msrv_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<SetMsrv>();
     }
 
     // A directory that does not exist keeps any program from starting in it.

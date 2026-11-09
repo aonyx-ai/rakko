@@ -172,6 +172,13 @@ mod tests {
     const RECORD: &str = r#"{"reason":"build-finished","success":true}"#;
 
     #[test]
+    fn package_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Package>();
+    }
+
+    #[test]
     fn read_a_report_beside_the_records_of_cargo_names_every_dependency() {
         let stdout = format!("{RECORD}\n{FOUND}\n");
 
@@ -249,5 +256,19 @@ mod tests {
         let report = UdepsReport::read(RECORD);
 
         assert_eq!(report.ok(), Some(None));
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
+    }
+
+    #[test]
+    fn udeps_report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<UdepsReport>();
     }
 }

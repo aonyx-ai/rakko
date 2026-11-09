@@ -50,4 +50,11 @@ mod tests {
 
         assert_send_and_sync::<ReadNextestReportError>();
     }
+
+    #[test]
+    fn read_nextest_report_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ReadNextestReportError>();
+    }
 }

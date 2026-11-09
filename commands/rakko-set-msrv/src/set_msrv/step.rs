@@ -66,4 +66,11 @@ mod tests {
 
         assert_eq!(step.to_string(), "mise lock rust");
     }
+
+    #[test]
+    fn mise_step_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<MiseStep>();
+    }
 }

@@ -514,6 +514,13 @@ mod tests {
     }
 
     #[test]
+    fn status_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Status>();
+    }
+
+    #[test]
     fn status_of_a_crash_reports_nothing() {
         let status = status(Some(99));
 
@@ -539,5 +546,12 @@ mod tests {
         let status = status(Some(VALID));
 
         assert_eq!(status, Some(Status::Valid));
+    }
+
+    #[test]
+    fn validator_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Validator>();
     }
 }

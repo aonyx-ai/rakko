@@ -430,6 +430,13 @@ mod tests {
     }
 
     #[test]
+    fn accepted_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Accepted>();
+    }
+
+    #[test]
     fn dated_with_a_channel_that_holds_a_digit_is_no_range_of_dates() {
         let range = dated(">=n1ghtly-2025-02-20");
 
@@ -465,6 +472,13 @@ mod tests {
         let range = Accepted::parse(&VersionRange::new("nightly"));
 
         assert!(range.is_err(), "expected an invalid range, got {range:?}");
+    }
+
+    #[test]
+    fn pin_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Pin>();
     }
 
     #[test]
@@ -545,6 +559,20 @@ mod tests {
         let reading = read(">=1.85", "1.84.1");
 
         assert!(matches!(reading, Reading::Outside), "got {reading:?}");
+    }
+
+    #[test]
+    fn reading_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Reading>();
+    }
+
+    #[test]
+    fn source_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Source>();
     }
 
     #[test]

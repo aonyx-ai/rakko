@@ -201,6 +201,27 @@ mod tests {
     }"#;
 
     #[test]
+    fn coverage_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Coverage>();
+    }
+
+    #[test]
+    fn diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Diagnostic>();
+    }
+
+    #[test]
+    fn impl_coverage_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ImplCoverage>();
+    }
+
+    #[test]
     fn status_adds_every_specification_together() {
         let status: Status =
             serde_json::from_str(STATUS).expect("the test reads a report of tracey");
@@ -215,6 +236,20 @@ mod tests {
                 .verified(12)
                 .build()
         );
+    }
+
+    #[test]
+    fn status_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Status>();
+    }
+
+    #[test]
+    fn validation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Validation>();
     }
 
     #[test]

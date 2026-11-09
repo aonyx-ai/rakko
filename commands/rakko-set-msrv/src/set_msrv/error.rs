@@ -153,3 +153,15 @@ pub enum SetMsrvError {
         source: SendError,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn set_msrv_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<SetMsrvError>();
+    }
+}

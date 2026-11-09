@@ -157,6 +157,13 @@ mod tests {
     }
 
     #[test]
+    fn cargo_diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CargoDiagnostic>();
+    }
+
+    #[test]
     fn finding_covers_the_range_of_the_span() {
         let diagnostic = warning("src/main.rs");
 

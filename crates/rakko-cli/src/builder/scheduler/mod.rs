@@ -688,6 +688,13 @@ mod tests {
     }
 
     #[test]
+    fn finished_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Finished>();
+    }
+
+    #[test]
     fn run_drives_a_writer_that_follows_a_reader_in_the_list_first() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [

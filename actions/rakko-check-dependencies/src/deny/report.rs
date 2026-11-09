@@ -160,6 +160,34 @@ mod tests {
     }
 
     #[test]
+    fn diagnostic_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Diagnostic>();
+    }
+
+    #[test]
+    fn entry_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Entry>();
+    }
+
+    #[test]
+    fn graph_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Graph>();
+    }
+
+    #[test]
+    fn krate_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Krate>();
+    }
+
+    #[test]
     fn read_a_diagnostic_carries_the_weight_of_the_project() {
         let problem = problem(DUPLICATE);
 
@@ -239,5 +267,12 @@ mod tests {
             matches!(entry, Entry::Summary),
             "expected the summary of the checks"
         );
+    }
+
+    #[test]
+    fn record_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Record>();
     }
 }

@@ -382,6 +382,13 @@ mod tests {
     }
 
     #[test]
+    fn stiles_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Stiles>();
+    }
+
+    #[test]
     fn stopped_of_a_broken_configuration_is_true() {
         assert!(stopped(BROKEN_CONFIGURATION));
     }

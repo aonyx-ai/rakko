@@ -375,6 +375,13 @@ mod tests {
     }
 
     #[test]
+    fn check_mise_lock_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckMiseLock>();
+    }
+
+    #[test]
     fn differences_with_a_lockfile_that_only_the_project_held_name_its_parts() {
         let before = lockfiles(&[("mise.lock", LOCKFILE)]);
         let after = lockfiles(&[]);

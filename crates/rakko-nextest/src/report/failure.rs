@@ -184,4 +184,11 @@ mod tests {
 
         assert_eq!(panic.and_then(|panic| panic.message().clone()), None);
     }
+
+    #[test]
+    fn test_failure_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TestFailure>();
+    }
 }

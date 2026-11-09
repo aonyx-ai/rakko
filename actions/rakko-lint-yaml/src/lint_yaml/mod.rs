@@ -346,6 +346,13 @@ mod tests {
     }
 
     #[test]
+    fn lint_yaml_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintYaml>();
+    }
+
+    #[test]
     fn summary_of_a_single_file_names_it_in_the_singular() {
         let summary = summary(1);
 

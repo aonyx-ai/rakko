@@ -462,6 +462,13 @@ mod tests {
     }
 
     #[test]
+    fn pending_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Pending>();
+    }
+
+    #[test]
     fn read_of_a_report_of_a_run_that_passed_counts_its_tests() {
         let report = read(PASSED).unwrap();
 
@@ -608,5 +615,12 @@ mod tests {
         let error = read("node: bad option: --test-reporter=tap\n").unwrap_err();
 
         assert_eq!(error, ReadReportError::MissingHeader);
+    }
+
+    #[test]
+    fn report_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Report>();
     }
 }

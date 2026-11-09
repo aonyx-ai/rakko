@@ -168,6 +168,13 @@ mod tests {
     }
 
     #[test]
+    fn doctest_failure_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DoctestFailure>();
+    }
+
+    #[test]
     fn finding_of_a_refused_example_carries_what_the_compiler_wrote() {
         let failure = DoctestFailure::new("probe/src/lib.rs - sub (line 14)", REFUSED);
 

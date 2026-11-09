@@ -775,6 +775,41 @@ mod tests {
     /// The content of a manifest that is no TOML document
     const NO_TOML: &str = "[workspace\n";
 
+    #[test]
+    fn cargo_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Cargo>();
+    }
+
+    #[test]
+    fn exclusions_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Exclusions>();
+    }
+
+    #[test]
+    fn metadata_failure_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<MetadataFailure>();
+    }
+
+    #[test]
+    fn metadata_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Metadata>();
+    }
+
+    #[test]
+    fn package_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Package>();
+    }
+
     #[tokio::test]
     async fn read_of_a_manifest_that_is_no_toml_document_carries_what_the_parser_said() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
@@ -790,5 +825,12 @@ mod tests {
         };
 
         assert_eq!(error.source().map(ToString::to_string), Some(said));
+    }
+
+    #[test]
+    fn target_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Target>();
     }
 }

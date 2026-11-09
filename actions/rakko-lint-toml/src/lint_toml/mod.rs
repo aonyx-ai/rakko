@@ -220,6 +220,13 @@ mod tests {
     }
 
     #[test]
+    fn lint_toml_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintToml>();
+    }
+
+    #[test]
     fn passed_of_a_run_that_counted_one_file_says_so() {
         let observation = Observation::builder().checked(1).build();
 

@@ -393,6 +393,13 @@ mod tests {
     }
 
     #[test]
+    fn format_rust_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatRust>();
+    }
+
+    #[test]
     fn outcome_with_a_finding_and_a_repair_fails() {
         let outcome = outcome(vec![problem()], vec![problem()], 1);
 

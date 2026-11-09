@@ -214,6 +214,13 @@ mod tests {
                                 directory: /home/otter/project/tsconfig.json.\n";
 
     #[test]
+    fn pending_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Pending>();
+    }
+
+    #[test]
     fn read_of_a_diagnostic_that_names_a_file_reports_its_place() {
         let diagnostics = read(TWO).unwrap();
 

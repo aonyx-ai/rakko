@@ -259,6 +259,13 @@ mod tests {
     }
 
     #[test]
+    fn observation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Observation>();
+    }
+
+    #[test]
     fn passing_run_without_a_count_is_complete() {
         let observation = observation(true, Vec::new());
 

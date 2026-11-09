@@ -284,4 +284,11 @@ mod tests {
 
         assert_eq!(findings.len(), 2);
     }
+
+    #[test]
+    fn lint_git_hub_actions_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintGitHubActions>();
+    }
 }

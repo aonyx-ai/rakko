@@ -81,6 +81,13 @@ mod tests {
     }
 
     #[test]
+    fn difference_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Difference>();
+    }
+
+    #[test]
     fn finding_of_a_changed_part_says_that_mise_changes_it() {
         let difference = Difference::new(part(), Change::Changed);
 

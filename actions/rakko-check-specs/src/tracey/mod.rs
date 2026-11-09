@@ -315,6 +315,13 @@ mod tests {
         );
     }
 
+    #[test]
+    fn question_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Question>();
+    }
+
     // A scheduler runs actions in parallel and can move a run to a different
     // thread, so a tracey that an action holds across a wait travels with it.
     #[test]
@@ -322,5 +329,12 @@ mod tests {
         fn assert_send_and_sync<T: Send + Sync>() {}
 
         assert_send_and_sync::<Tracey>();
+    }
+
+    #[test]
+    fn tracey_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Tracey>();
     }
 }

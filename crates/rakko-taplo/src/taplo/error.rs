@@ -38,3 +38,15 @@ pub enum ObserveTaploError {
         source: RunCommandError,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observe_taplo_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<ObserveTaploError>();
+    }
+}

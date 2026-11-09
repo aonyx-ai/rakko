@@ -313,6 +313,13 @@ mod tests {
         assert!(!block.open(), "expected the block to be closed");
     }
 
+    #[test]
+    fn block_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Block>();
+    }
+
     // A value written over several lines ends where the next entry starts, and
     // that entry belongs to the block like any other.
     #[test]
@@ -386,6 +393,13 @@ mod tests {
             matches!(error, ReadReportError::UnreadableLine { .. }),
             "expected the line that the reading could not place, got {error:?}"
         );
+    }
+
+    #[test]
+    fn scalar_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Scalar>();
     }
 
     #[test]

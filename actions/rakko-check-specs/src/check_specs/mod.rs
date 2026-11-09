@@ -233,6 +233,13 @@ mod tests {
     }
 
     #[test]
+    fn check_specs_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckSpecs>();
+    }
+
+    #[test]
     fn summary_of_one_requirement_says_so() {
         let summary = summary(Coverage::builder().total(1).covered(1).verified(1).build());
 

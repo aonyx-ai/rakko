@@ -355,6 +355,13 @@ mod tests {
     }
 
     #[test]
+    fn check_minimal_deps_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckMinimalDeps>();
+    }
+
+    #[test]
     fn summary_of_many_tests_counts_them() {
         let summary = summary(2, 354);
 
