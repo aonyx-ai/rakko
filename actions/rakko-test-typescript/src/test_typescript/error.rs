@@ -1,4 +1,4 @@
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::node::ObserveNodeError;
@@ -50,14 +50,15 @@ pub enum TestTypeScriptError {
         source: ReadReportError,
     },
 
-    /// Mise reported no node for the project
+    /// Mise reported no node that the action accepts
     ///
-    /// The project pins no Node, or nothing installed the pin yet. The action
-    /// installs nothing, so the run stops here.
+    /// Mise did not run, the project pins no Node in the range of the action,
+    /// or nothing installed the pinned Node yet. The action installs nothing,
+    /// so the run stops here.
     #[error("failed to resolve node")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

@@ -12,7 +12,7 @@ use std::path::Path;
 
 use rakko::{
     Access, Action, Context, FilePath, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    Summary, action_name,
+    Summary, ToolRequirement, action_name,
 };
 
 pub use self::error::LintTypeScriptError;
@@ -32,8 +32,8 @@ const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 /// The action wraps [oxlint]: oxlint discovers the files of the project, reads
 /// its own configuration, and applies the rules that the project turned on, so
 /// a run agrees with an editor and with a contributor that runs oxlint bare.
-/// The oxlint that runs is the one that [mise] installed for the project, at
-/// the version that the project pinned, and the action installs nothing.
+/// The oxlint that runs is the version that the action declares, which [mise]
+/// installed, whatever version the project pins. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. Every diagnostic that oxlint
 /// writes becomes a finding, and the message of the finding is the sentence
@@ -45,9 +45,11 @@ const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 /// that wants a rule to stay quiet turns that rule off.
 ///
 /// The action applies to a project that holds files which oxlint lints, and it
-/// skips visibly otherwise. A run stops with an error when mise reports no
-/// oxlint, when oxlint writes no report at all, and when oxlint writes a report
-/// that the action cannot read.
+/// skips visibly otherwise. A run stops with an error in these conditions:
+///
+/// - Mise reports no oxlint at the declared version.
+/// - Oxlint writes no report at all.
+/// - Oxlint writes a report that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -79,6 +81,10 @@ impl Action for LintTypeScript {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Oxlint::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -100,7 +106,7 @@ impl Action for LintTypeScript {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the oxlint run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintTypeScriptError> {
-    let oxlint = Oxlint::resolve(context.root().clone())
+    let oxlint = Oxlint::resolve(context)
         .await
         .map_err(|source| LintTypeScriptError::UnresolvedTool { source })?;
 
@@ -443,5 +449,12 @@ mod tests {
         let summary = summary(1);
 
         assert_eq!(summary.get(), "checked 1 file");
+    }
+
+    #[test]
+    fn tools_declare_the_oxlint_of_the_crate() {
+        let tools = LintTypeScript.tools();
+
+        assert_eq!(tools, vec![Oxlint::requirement()]);
     }
 }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::oxfmt::ObserveOxfmtError;
@@ -58,14 +58,21 @@ pub enum FormatTypeScriptError {
         stderr: String,
     },
 
-    /// Mise reported no oxfmt for the project
+    /// Mise reported no oxfmt at the version that the action declares, or no
+    /// Node that the action accepts
     ///
-    /// The project pins no oxfmt, or nothing installed the pin yet. The action
-    /// installs nothing, so the run stops here.
+    /// The cause is one of these conditions:
+    ///
+    /// - Mise did not run.
+    /// - The project pins no Node in the range of the action.
+    /// - Nothing installed the declared oxfmt or the pinned Node yet.
+    /// - The directory of that Node cannot be an entry of `PATH`.
+    ///
+    /// The action installs nothing, so the run stops here.
     #[error("failed to resolve oxfmt")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

@@ -12,6 +12,11 @@ typed_fields::name! {
     /// and the range accepts only the versions of that channel that a
     /// configuration writes with their date.
     ///
+    /// A range can hold alternatives, joined by `||`, such as
+    /// `^22.18 || >=23.6`. The range accepts a version that one of the
+    /// alternatives accepts. The alternatives of a range of dated versions
+    /// give the same channel.
+    ///
     /// Nothing reads the text when the range is created. The resolution of a
     /// requirement reads it, and a text that is not a range stops the
     /// resolution with an error.

@@ -3,9 +3,11 @@
 //! [Tsc] does the work: it reads the `tsconfig.json` of the project, collects
 //! the files that the configuration selects, and reports every rule of the
 //! language that the code breaks, so a run of the action agrees with an editor
-//! and with a contributor that runs tsc bare. The action starts the tsc that
-//! [mise] installed for the project, at the version that the project pinned,
-//! and translates what tsc reported into the outcome of the run.
+//! and with a contributor that runs tsc bare. TypeScript and Node are
+//! toolchains of the project, so the action declares the range of versions of
+//! each that it accepts. It starts the tsc that [mise] installed for the
+//! project, at the version that the project pinned, on the Node that the
+//! project pins, and translates what tsc reported into the outcome of the run.
 //!
 //! A run only reports, so the action takes no argument. It emits nothing
 //! either: tsc builds a project as well as it checks one, and a check that

@@ -23,9 +23,9 @@ use thiserror::Error;
 pub enum ResolveRequirementError {
     /// The range of versions that the action accepts is not a range
     ///
-    /// The range uses the syntax of a version requirement of Cargo. A text in
-    /// another syntax is a mistake of the action, and no change of the
-    /// project repairs it.
+    /// The range uses the syntax of a version requirement of Cargo, with
+    /// alternatives joined by `||`. A text in another syntax is a mistake of
+    /// the action, and no change of the project repairs it.
     #[error("failed to read the range `{range}` that the action accepts for `{tool}`")]
     InvalidRange {
         /// The tool that the requirement is for
