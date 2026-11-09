@@ -1,20 +1,40 @@
 //! The markdownlint that a project runs
 //!
-//! This module holds the program that mise installed for a project and the
-//! run that produces a report. An action asks for a run, and everything
-//! between the action and the process lives here.
+//! This module holds the version of markdownlint that the crate declares, the
+//! program that mise installed at that version, and the run that produces a
+//! report. An action asks for a run, and everything between the action and
+//! the process lives here.
 
 mod error;
 mod report;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
+use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveMarkdownlintError;
 use crate::observation::{Examination, Exit, Observation};
 
 /// The name that mise knows the tool by
+const MARKDOWNLINT_CLI: &str = "npm:markdownlint-cli";
+
+/// The program of the tool
 const MARKDOWNLINT: &str = "markdownlint";
+
+/// The version of markdownlint-cli that the crate runs
+///
+/// The version comes from the mise file of the crate, which the build
+/// embeds, so a file without the pin fails the build.
+const VERSION: &str =
+    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(MARKDOWNLINT_CLI);
+
+/// The name that mise knows Node by, which is also the name of its program
+const NODE: &str = "node";
+
+/// The versions of Node that markdownlint runs on
+///
+/// Node is a toolchain of the project, so the project pins its version, and
+/// a run stops when that version is outside the range.
+const NODE_RANGE: &str = ">=22";
 
 /// The flag that asks markdownlint for its report as data
 ///
@@ -66,14 +86,15 @@ const NO_MATCHING_FILES: &str = "No matching files found";
 
 /// The markdownlint that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned. A run reaches the same program as the
-/// editor and the terminal of a contributor. Nothing here installs a tool:
-/// provisioning is the job of mise, and a markdownlint that mise does not
-/// report stops the caller.
+/// The value holds the program that mise installed at the version that the
+/// crate declares. The pin of the project does not change it. So a run reaches
+/// the version that the tests of the crate cover. The program runs on the Node
+/// that the project pins, when the range of the crate accepts it. Nothing here
+/// installs a tool: provisioning is the job of mise, and a markdownlint that
+/// mise does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Markdownlint {
-    /// The program that mise installed for the project
+    /// The program that mise installed at the declared version
     tool: Tool,
 }
 
@@ -147,22 +168,60 @@ impl Markdownlint {
             .build())
     }
 
-    /// Returns the markdownlint that mise installed for the project
+    /// Returns the requirement of the Node that markdownlint runs on
     ///
-    /// The lookup asks mise about the project whose root the caller names. The
-    /// version that the project pinned answers, whatever the shell that started
-    /// the process carries on its path.
+    /// Node is a toolchain, so the requirement holds the range of versions
+    /// that markdownlint accepts, and the project pins the version.
+    pub(crate) fn node_requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(NODE)
+            .executable(NODE)
+            .version(RequiredVersion::Range(VersionRange::new(NODE_RANGE)))
+            .build()
+    }
+
+    /// Returns the requirement of the markdownlint that the crate runs
+    ///
+    /// The requirement holds the exact version that the crate pins.
+    pub(crate) fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(MARKDOWNLINT_CLI)
+            .executable(MARKDOWNLINT)
+            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
+            .build()
+    }
+
+    /// Returns the markdownlint that mise installed at the version of the crate
+    ///
+    /// The lookup asks mise for the version that [`requirement`][requirement]
+    /// holds, so a pin of the tool in the project does not change the answer.
+    /// It also asks mise for the Node that the project pins and that
+    /// [`node_requirement`][node] accepts. A run starts in the root of the
+    /// context, with that Node first on its path.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no markdownlint for
-    /// the project.
-    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve()
-            .name(ToolName::new(MARKDOWNLINT))
-            .root(root)
+    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
+    /// returns one when the project pins no Node in the range. It also returns
+    /// one when mise reports no markdownlint at the declared version or no Node
+    /// at the pinned one, for example because nothing installed it. It also
+    /// returns one when the directory of that Node cannot be an entry of
+    /// `PATH`.
+    ///
+    /// [node]: Markdownlint::node_requirement
+    /// [requirement]: Markdownlint::requirement
+    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let node = Tool::resolve_requirement()
+            .requirement(&Self::node_requirement())
+            .context(context)
             .call()
             .await?;
+        let tool = Tool::resolve_requirement()
+            .requirement(&Self::requirement())
+            .context(context)
+            .call()
+            .await?
+            .with_toolchain(&node)?;
 
         Ok(Self { tool })
     }
@@ -185,9 +244,12 @@ fn examined(stdout: &str, stderr: &str) -> bool {
 #[cfg(test)]
 mod tests {
     #![allow(
-        clippy::missing_panics_doc,
-        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+        clippy::expect_used,
+        reason = "An assertion in a test panics by design, and a test that resolves a tool expects mise to find it. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
+    #![allow(clippy::missing_panics_doc)]
+
+    use std::path::Path;
 
     use super::*;
 
@@ -196,6 +258,21 @@ mod tests {
 
     /// A report of a run that found a problem
     const REPORT: &str = r#"[{"fileName":"notes.md","lineNumber":1}]"#;
+
+    /// Returns the context of a run in the root of this repository
+    ///
+    /// The repository pins a Node that the range of the crate accepts, and
+    /// it installs the markdownlint that the crate declares. The crate lives
+    /// two directories below the root.
+    fn context() -> Context {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let root = manifest
+            .parent()
+            .and_then(Path::parent)
+            .expect("the crate lives two directories below the root of the repository");
+
+        Context::builder().root(root).build()
+    }
 
     #[test]
     fn examined_of_a_run_with_a_report_is_true() {
@@ -233,5 +310,32 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Markdownlint>();
+    }
+
+    #[tokio::test]
+    async fn resolve_runs_markdownlint_on_the_node_of_the_project() {
+        let context = context();
+        let node = Tool::resolve_requirement()
+            .requirement(&Markdownlint::node_requirement())
+            .context(&context)
+            .call()
+            .await
+            .expect("the test resolves the Node that the repository pins");
+
+        let markdownlint = Markdownlint::resolve(&context)
+            .await
+            .expect("the test resolves the markdownlint that the crate declares");
+
+        let invocation = markdownlint.tool.invocation();
+        let path = invocation
+            .environment()
+            .iter()
+            .find(|variable| variable.name().get() == "PATH")
+            .map(|variable| variable.value().get().to_owned())
+            .expect("expected the command of markdownlint to set the path");
+        assert_eq!(
+            std::env::split_paths(&path).next().as_deref(),
+            node.program().get().parent()
+        );
     }
 }

@@ -3,9 +3,10 @@
 //! [Markdownlint] does the work: it discovers the Markdown files, reads its own
 //! configuration, and applies the rules that the project turned on. So a run of
 //! the action agrees with an editor and with a contributor that runs
-//! markdownlint bare. The action starts the markdownlint that [mise] installed
-//! for the project, at the version that the project pinned. It translates what
-//! markdownlint reported into the outcome of the run.
+//! markdownlint bare. The action declares the version of markdownlint that it
+//! runs. It also declares the range of Node that markdownlint runs on. It
+//! starts that version, which [mise] installed, on the Node that the project
+//! pins. It translates what markdownlint reported into the outcome of the run.
 //!
 //! A run only reports, so the action takes no argument. Markdownlint can repair
 //! a part of what it finds. It names none of the files that it rewrote, so a

@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use rakko_prettier::ObservePrettierError;
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -87,14 +87,17 @@ pub enum FormatMarkdownError {
         stderr: String,
     },
 
-    /// Mise reported no prettier for the project
+    /// Mise reported no prettier at the version that the action declares, or
+    /// no Node that the action accepts
     ///
-    /// The project pins no prettier, or nothing installed the pin yet. The
-    /// action installs nothing, so the run stops here.
+    /// Mise did not run, the project pins no Node in the range of the action,
+    /// nothing installed the declared prettier or the pinned Node yet, or the
+    /// directory of that Node cannot be an entry of `PATH`. The action
+    /// installs nothing, so the run stops here.
     #[error("failed to resolve prettier")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

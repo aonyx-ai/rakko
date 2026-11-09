@@ -5,9 +5,10 @@
 //! reports every option that Renovate would refuse. A run of the action agrees
 //! with a contributor that runs `renovate-config-validator --strict`, and then
 //! `renovate-config-validator --strict --no-global default.json`. The action
-//! starts the validator that [mise] installed for the project, at the version
-//! that the project pinned. It translates what the validator reported into the
-//! outcome of the run.
+//! declares the version of Renovate that it runs. It also declares the range of
+//! Node that the validator runs on. It starts the validator of that version,
+//! which [mise] installed, on the Node that the project pins. It translates
+//! what the validator reported into the outcome of the run.
 //!
 //! A configuration that Renovate refuses on the default branch stops Renovate
 //! from opening pull requests until someone fixes it. The action asks whether

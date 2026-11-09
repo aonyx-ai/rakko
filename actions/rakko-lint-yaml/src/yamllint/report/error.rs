@@ -5,9 +5,9 @@ use thiserror::Error;
 /// An error that stops the reading of a report of yamllint
 ///
 /// A rule that a file broke is no failure of the reading. The variant here
-/// describes a report whose shape this crate does not know. Such a report belongs to
-/// a version of yamllint that the project pinned after this crate was
-/// written.
+/// describes a report whose shape this crate does not know. The crate runs
+/// the version of yamllint that it declares. So such a report holds a line of
+/// that version that the reading does not cover.
 ///
 /// # Examples
 ///

@@ -17,6 +17,13 @@
 //! keeps the version surface in one place as well. A prettier that reports
 //! differently breaks one crate, and not one crate per group of files.
 //!
+//! For the same reason, the crate pins the version of prettier that every
+//! such action runs, in the file `mise.rakko.toml` that the build embeds.
+//! Prettier runs on Node, which is a toolchain of the project. An action
+//! declares the version of prettier with [`Prettier::requirement`] and the
+//! range of Node with [`Prettier::node_requirement`]. The version of
+//! prettier that the project pins does not change what runs.
+//!
 //! # Asynchronous Runtime
 //!
 //! A run starts a program and waits for it. A [Tokio] runtime drives that,
@@ -27,15 +34,15 @@
 //! An action resolves prettier and reads what one operation reported:
 //!
 //! ```no_run
-//! use rakko::ProjectRoot;
+//! use rakko::Context;
 //! use rakko_prettier::{FileExtension, Filter, Matching, Operation, Prettier};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let root = ProjectRoot::new("/home/otter/project".into());
+//! let context = Context::builder().root("/home/otter/project").build();
 //! let filter = Filter::new([FileExtension::new("yaml"), FileExtension::new("yml")]);
 //!
-//! let prettier = Prettier::resolve(root).await?;
+//! let prettier = Prettier::resolve(&context).await?;
 //! let observation = prettier.observe(Operation::Report, &filter).await?;
 //!
 //! match observation.unmatched_pattern() {

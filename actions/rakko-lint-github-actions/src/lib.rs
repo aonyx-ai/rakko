@@ -3,9 +3,9 @@
 //! [Zizmor] does the work: it collects the workflows, reads its own
 //! configuration, and applies the audits that it knows. So a run of the action
 //! agrees with an editor and with a contributor that runs zizmor bare. The
-//! action starts the zizmor that [mise] installed for the project, at the
-//! version that the project pinned. The action translates what zizmor reported
-//! into the outcome of the run.
+//! action declares the version of zizmor that it runs. It starts that version,
+//! which [mise] installed. The action translates what zizmor reported into the
+//! outcome of the run.
 //!
 //! Zizmor looks for patterns that turn a workflow into a way into the
 //! repository. Examples are templates that expand attacker-controlled text into

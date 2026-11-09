@@ -3,9 +3,9 @@
 //! [Yamllint] does the work: it discovers the YAML files and reads its own
 //! configuration. It applies the rules that the project turned on. So a run of
 //! the action agrees with an editor and with a contributor that runs yamllint
-//! bare. The action starts the yamllint that [mise] installed for the project.
-//! It uses the version that the project pinned and translates what yamllint
-//! reported into the outcome of the run.
+//! bare. The action declares the version of yamllint that it runs. It starts
+//! that version, which [mise] installed. It translates what yamllint reported
+//! into the outcome of the run.
 //!
 //! A run only reports, so the action takes no argument, and yamllint repairs
 //! nothing that it finds. The action applies to a project that holds YAML

@@ -2,9 +2,10 @@
 //!
 //! The action wraps [prettier] as a subprocess. Prettier reads its own
 //! configuration and formats the files that the action names. So a run agrees
-//! with an editor and with a contributor that runs prettier bare. The prettier
-//! that runs is the one that [mise] installed for the project, at the version
-//! that the project pinned.
+//! with an editor and with a contributor that runs prettier bare. The action
+//! declares the version of prettier that it runs. It also declares the range of
+//! Node that prettier runs on. It starts that version, which [mise] installed,
+//! on the Node that the project pins.
 //!
 //! Prettier formats more than JSON, and this action wraps the JSON
 //! files alone, so that a check names the language that needs attention. The

@@ -4,10 +4,9 @@
 //! against it. So no fixture with a deliberately unsafe workflow sits in this
 //! repository, where the checks of the repository itself would fight it.
 //!
-//! The tests run the zizmor that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it, so the version that answers is
-//! the version that the repository installs. A new pin reaches the tests
-//! without a change to them.
+//! The tests run the zizmor that the action declares. Each project pins
+//! another zizmor that nothing installs. So a test passes only when the run
+//! ignores the pin of the project.
 //!
 //! A project writes no configuration of zizmor. Zizmor needs none, and the
 //! audits that it applies without one are the audits that these tests are
@@ -23,7 +22,7 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Span};
-use rakko_lint_github_actions::LintGitHubActions;
+use rakko_lint_github_actions::{LintGitHubActions, LintGitHubActionsError};
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
@@ -113,41 +112,15 @@ struct Project {
 
 #[bon::bon]
 impl Project {
-    /// Creates a project without a zizmor to resolve
-    ///
-    /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when the run must end before the tool
-    /// runs.
-    fn bare() -> Self {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        Self { directory }
-    }
-
-    /// Creates a project with the zizmor of this repository
-    ///
-    /// The project copies the `mise.toml` of this repository, so the zizmor
-    /// that mise resolves for it is the zizmor that the repository pins and
-    /// installs. Mise ignores a configuration that nobody trusts, so the copy
-    /// is trusted right away.
-    fn new() -> Self {
-        let project = Self::bare();
-
-        let pins = repository().join("mise.toml");
-        let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
-        trust(&copy);
-
-        project
-    }
-
     /// Creates a project that pins a zizmor that nothing installed
     ///
-    /// The pin names a version that no machine installs. So mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about zizmor.
-    fn without_zizmor() -> Self {
-        let project = Self::bare();
+    /// The pin holds a version that no machine installs. The run resolves the
+    /// zizmor that the action declares, so the pin of the project must not
+    /// change what runs. Mise ignores a configuration that nobody trusts, so
+    /// the file is trusted right away.
+    fn new() -> Self {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = Self { directory };
 
         let pins = project.directory.path().join("mise.toml");
         std::fs::write(&pins, "[tools]\nzizmor = \"0.0.1\"\n")
@@ -220,16 +193,6 @@ fn paths(findings: &[Finding]) -> Vec<String> {
         .collect()
 }
 
-/// Returns the root of the repository that the tests run in
-fn repository() -> &'static Path {
-    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
-
-    manifest
-        .parent()
-        .and_then(Path::parent)
-        .expect("the crate lives two directories below the root of the repository")
-}
-
 /// Trusts a mise configuration, so that mise reads it
 fn trust(configuration: &Path) {
     let trusted = Command::new("mise")
@@ -298,6 +261,24 @@ async fn run_in_a_clean_project_passes() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_missing_directory_stops_without_a_zizmor() {
+    let parent = tempfile::tempdir().expect("the test creates a temporary directory");
+    let missing = parent.path().join("missing");
+    let context = Context::builder().root(missing.as_path()).build();
+
+    let outcome = LintGitHubActions.run(&context, &()).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(LintGitHubActionsError::UnresolvedTool { .. }))
+        ),
+        "expected the run to stop without a zizmor, got {outcome:?}"
     );
 }
 
@@ -522,19 +503,6 @@ async fn run_with_a_workflow_that_zizmor_cannot_read_stops() {
         .name("unreadable.yml")
         .content(UNREADABLE)
         .call();
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_without_a_zizmor_stops() {
-    let project = Project::without_zizmor();
-    project.workflow().name("clean.yml").content(CLEAN).call();
 
     let outcome = project.run().await;
 

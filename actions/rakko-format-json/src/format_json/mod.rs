@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    action_name,
+    ToolRequirement, action_name,
 };
 use rakko_prettier::{
     Exit, FileExtension, Filter, Matching, Observation, Operation, Prettier, PrettierProblem,
@@ -47,8 +47,10 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// The action wraps [prettier]. The action names the JSON files. Prettier reads
 /// its own configuration and formats what its ignore files leave. So a run
 /// agrees with an editor and with a contributor that runs prettier bare. The
-/// prettier that runs is the one that [mise] installed for the project, at the
-/// version that the project pinned. The action installs nothing.
+/// prettier that runs is the version that the action declares, which [mise]
+/// installed, whatever version the project pins. It runs on the Node that the
+/// project pins, when the action accepts that version. The action installs
+/// nothing.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
 /// that names the file. A file that prettier cannot parse becomes a finding at
@@ -61,8 +63,9 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// then run a rewrite before the actions that read.
 ///
 /// A run whose prettier found no JSON file to examine skips visibly and says
-/// so. A run stops with an error when mise reports no prettier. It also stops
-/// when a configuration of the project did not reach the run. It stops when
+/// so. A run stops with an error when mise reports no prettier at the declared
+/// version or no Node in the accepted range. It also stops when a
+/// configuration of the project did not reach the run. It stops when
 /// prettier writes a report that the action does not recognize.
 ///
 /// # Examples
@@ -95,6 +98,10 @@ impl Action for FormatJson {
         }
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Prettier::requirement(), Prettier::node_requirement()]
+    }
+
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         match drive(context, args).await {
             Ok(outcome) => outcome,
@@ -118,7 +125,7 @@ impl Action for FormatJson {
 async fn drive(context: &Context, args: &FormatJsonArgs) -> Result<Outcome, FormatJsonError> {
     let filter = filter();
 
-    let prettier = Prettier::resolve(context.root().clone())
+    let prettier = Prettier::resolve(context)
         .await
         .map_err(|source| FormatJsonError::UnresolvedTool { source })?;
 

@@ -4,14 +4,11 @@
 //! deliberately broken file sits in this repository, where the formatting of
 //! the repository itself would fight it.
 //!
-//! The tests run the prettier that this repository pins. A project copies the
-//! `mise.toml` of the repository and trusts it. So the version that answers is
-//! the version that the repository installs, and a new pin reaches the tests
-//! without a change to them.
-//!
-//! Prettier runs on Node, and the program that mise reports starts Node from
-//! the environment of the process. The tests therefore run inside the
-//! environment of mise, which the task that starts the harness enters.
+//! The tests run the prettier that the crate declares. A project copies the
+//! `mise.toml` of the repository and trusts it, so the Node that answers is
+//! the one that the repository installs. The copy pins another prettier that
+//! nothing installs, so a test passes only when the run ignores the pin of
+//! the project.
 
 #![allow(
     clippy::expect_used,
@@ -22,7 +19,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use rakko::ProjectRoot;
+use rakko::{Context, ProjectRoot};
 use rakko_prettier::{
     Exit, FileExtension, Filter, Observation, Operation, Prettier, ProblemDetail,
 };
@@ -36,6 +33,9 @@ const UNFORMATTED: &str = "#  Project\n";
 
 /// A file of a language that prettier does not know
 const FOREIGN: &str = "fn main() {}\n";
+
+/// The start of the line of the repository's `mise.toml` that pins prettier
+const PRETTIER_PIN: &str = "\"npm:prettier\"";
 
 /// A prettier configuration that names an option prettier does not know
 ///
@@ -51,45 +51,41 @@ struct Project {
 
 #[bon::bon]
 impl Project {
-    /// Creates a project without a prettier to resolve
+    /// Creates a project without a mise configuration
     ///
-    /// The project holds no mise configuration, so nothing in it reaches a
-    /// tool. A test uses this shape when it only looks at the project.
+    /// The project pins nothing, so it pins no Node either, and nothing in it
+    /// reaches a tool.
     fn bare() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
 
         Self { directory }
     }
 
-    /// Creates a project with the prettier of this repository
+    /// Creates a project with the Node of this repository and a prettier that
+    /// nothing installed
     ///
-    /// The project copies the `mise.toml` of this repository, so the prettier
-    /// that mise resolves for it is the prettier that the repository pins and
-    /// installs. Mise ignores a configuration that nobody trusts, so the copy
-    /// is trusted right away.
+    /// The project copies the `mise.toml` of this repository, so the Node that
+    /// mise resolves for it is the Node that the repository pins and installs.
+    /// The copy pins prettier at a version that no machine installs, and the
+    /// run resolves the prettier that the crate declares, so the pin of the
+    /// project must not change what runs. Mise ignores a configuration that
+    /// nobody trusts, so the copy is trusted right away.
     fn new() -> Self {
         let project = Self::bare();
 
-        let pins = repository().join("mise.toml");
+        let pins = std::fs::read_to_string(repository().join("mise.toml"))
+            .expect("the test reads the mise.toml of the repository");
+        let pin = pins
+            .lines()
+            .find(|line| line.starts_with(PRETTIER_PIN))
+            .expect("the mise.toml of the repository pins prettier");
         let copy = project.directory.path().join("mise.toml");
-        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
+        std::fs::write(
+            &copy,
+            pins.replace(pin, &format!("{PRETTIER_PIN} = \"0.0.1\"")),
+        )
+        .expect("the test writes the mise.toml of the project");
         trust(&copy);
-
-        project
-    }
-
-    /// Creates a project that pins a prettier that nothing installed
-    ///
-    /// The pin names a version that no machine installs. So mise reports no
-    /// location for it, whatever the global configuration of the machine says
-    /// about prettier.
-    fn without_prettier() -> Self {
-        let project = Self::bare();
-
-        let pins = project.directory.path().join("mise.toml");
-        std::fs::write(&pins, "[tools]\n\"npm:prettier\" = \"0.0.1\"\n")
-            .expect("the test writes the mise.toml of the project");
-        trust(&pins);
 
         project
     }
@@ -102,14 +98,19 @@ impl Project {
 
     /// Runs one operation of prettier against this project
     async fn observe(&self, operation: Operation, filter: &Filter) -> Observation {
-        let prettier = Prettier::resolve(self.root())
+        let prettier = Prettier::resolve(&self.context())
             .await
-            .expect("the test resolves the prettier that the repository pins");
+            .expect("the test resolves the prettier that the crate declares");
 
         prettier
             .observe(operation, filter)
             .await
             .expect("the test reads a report of prettier")
+    }
+
+    /// Returns the context of a run against this project
+    fn context(&self) -> Context {
+        Context::builder().root(self.root()).build()
     }
 
     /// Returns the root of this project
@@ -271,25 +272,42 @@ async fn observe_with_a_filter_for_every_extension_skips_an_unknown_language() {
 }
 
 #[tokio::test]
-async fn resolve_in_a_project_that_pins_prettier_finds_the_program() {
-    let project = Project::new();
+async fn resolve_in_a_missing_directory_reports_an_error() {
+    let parent = tempfile::tempdir().expect("the test creates a temporary directory");
+    let missing = parent.path().join("missing");
+    let context = Context::builder().root(missing.as_path()).build();
 
-    let prettier = Prettier::resolve(project.root()).await;
+    let prettier = Prettier::resolve(&context).await;
 
-    assert!(prettier.is_ok(), "expected a prettier, got {prettier:?}");
+    assert!(
+        prettier.is_err(),
+        "expected the resolution to fail, got {prettier:?}"
+    );
 }
 
 #[tokio::test]
-async fn resolve_without_a_prettier_reports_the_tool() {
-    let project = Project::without_prettier();
+async fn resolve_in_a_project_that_pins_another_prettier_finds_the_declared_one() {
+    let project = Project::new();
 
-    let prettier = Prettier::resolve(project.root()).await;
+    let prettier = Prettier::resolve(&project.context()).await;
+
+    assert!(
+        prettier.is_ok(),
+        "expected the declared prettier, got {prettier:?}"
+    );
+}
+
+#[tokio::test]
+async fn resolve_in_a_project_without_node_reports_node() {
+    let project = Project::bare();
+
+    let prettier = Prettier::resolve(&project.context()).await;
 
     let Err(error) = prettier else {
         panic!("expected the resolution to fail, got {prettier:?}");
     };
     assert!(
-        error.to_string().contains("prettier"),
-        "expected the error to name the tool, got {error}"
+        error.to_string().contains("`node`"),
+        "expected the error to name node, got {error}"
     );
 }

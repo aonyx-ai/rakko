@@ -8,7 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, action_name,
+    Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
+    ToolRequirement, action_name,
 };
 
 pub use self::error::LintGitHubActionsError;
@@ -28,8 +29,8 @@ const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 /// The action wraps [zizmor]: zizmor collects the workflows of the project,
 /// reads its own configuration, and applies the audits that it knows. So a run
 /// agrees with an editor and with a contributor that runs zizmor bare. The
-/// zizmor that runs is the one that [mise] installed for the project, at the
-/// version that the project pinned, and the action installs nothing.
+/// zizmor that runs is the version that the action declares, which [mise]
+/// installed, whatever version the project pins. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. A finding of zizmor names one
 /// or more places of a workflow. Each of those places becomes a finding of the
@@ -47,8 +48,9 @@ const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 ///
 /// The action applies to a project that holds GitHub Actions workflows, and it
 /// skips visibly otherwise. A run stops with an error when mise reports no
-/// zizmor or when zizmor stops before auditing the project. An error also
-/// occurs when zizmor writes a report that the action cannot read.
+/// zizmor at the declared version or when zizmor stops before auditing the
+/// project. An error also occurs when zizmor writes a report that the action
+/// cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -80,6 +82,10 @@ impl Action for LintGitHubActions {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Zizmor::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -105,7 +111,7 @@ impl Action for LintGitHubActions {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the zizmor run, or the reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintGitHubActionsError> {
-    let zizmor = Zizmor::resolve(context.root().clone())
+    let zizmor = Zizmor::resolve(context)
         .await
         .map_err(|source| LintGitHubActionsError::UnresolvedTool { source })?;
 
@@ -295,5 +301,12 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<LintGitHubActions>();
+    }
+
+    #[test]
+    fn tools_declare_the_zizmor_of_the_crate() {
+        let tools = LintGitHubActions.tools();
+
+        assert_eq!(tools, vec![Zizmor::requirement()]);
     }
 }
