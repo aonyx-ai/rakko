@@ -22,7 +22,9 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko::ProjectRoot;
-use rakko_prettier::{FileExtension, Filter, Observation, Operation, Prettier, ProblemDetail};
+use rakko_prettier::{
+    Exit, FileExtension, Filter, Observation, Operation, Prettier, ProblemDetail,
+};
 use tempfile::TempDir;
 
 /// A Markdown document that prettier leaves alone
@@ -249,8 +251,9 @@ async fn observe_with_a_filter_for_every_extension_skips_an_unknown_language() {
 
     let observation = project.observe(Operation::Report, &Filter::default()).await;
 
-    assert!(
+    assert_eq!(
         observation.succeeded(),
+        Exit::Succeeded,
         "expected a run that ended with success, got {:?}",
         observation.stderr()
     );

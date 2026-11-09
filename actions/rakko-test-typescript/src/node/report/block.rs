@@ -32,6 +32,17 @@ const ESCAPE: char = '\\';
 /// The character that separates the parts of a place
 const PLACE_SEPARATOR: char = ':';
 
+/// Whether the report has closed a block
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+enum BlockState {
+    /// The report has not closed the block, which accepts more lines
+    #[default]
+    Open,
+
+    /// The report has closed the block, which accepts no more lines
+    Closed,
+}
+
 /// One indented block of a report
 ///
 /// The report writes a block below every line that states a result, and the
@@ -49,7 +60,7 @@ pub(crate) struct Block {
     indent: usize,
 
     /// Whether the report has closed the block
-    closed: bool,
+    state: BlockState,
 
     /// The entries of the block, in the order that the report wrote them
     entries: Vec<(String, Scalar)>,
@@ -63,7 +74,7 @@ impl Block {
     pub(crate) fn new(indent: usize) -> Self {
         Self {
             indent,
-            closed: false,
+            state: BlockState::Open,
             entries: Vec::new(),
             collecting: None,
         }
@@ -74,7 +85,10 @@ impl Block {
     /// A block takes every line until the report closes it, so that a caller
     /// hands it the lines of a value that reads like anything else.
     pub(crate) fn open(&self) -> bool {
-        !self.closed
+        match self.state {
+            BlockState::Open => true,
+            BlockState::Closed => false,
+        }
     }
 
     /// Adds a line of the report to the block
@@ -106,7 +120,7 @@ impl Block {
         let stated = line.trim();
 
         if stated == CLOSE {
-            self.closed = true;
+            self.state = BlockState::Closed;
             return Ok(());
         }
 
@@ -317,6 +331,13 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Block>();
+    }
+
+    #[test]
+    fn block_state_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<BlockState>();
     }
 
     // A value written over several lines ends where the next entry starts, and

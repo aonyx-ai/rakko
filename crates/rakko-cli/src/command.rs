@@ -150,22 +150,34 @@ mod tests {
         }
     }
 
+    /// Whether a future has returned control already
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+    enum YieldState {
+        /// The future has not returned control yet
+        #[default]
+        Pending,
+
+        /// The future has returned control already
+        Yielded,
+    }
+
     /// A future that returns control once before it resolves
     #[derive(Default)]
     struct YieldOnce {
         /// Whether the future has returned control already
-        yielded: bool,
+        yielded: YieldState,
     }
 
     impl Future for YieldOnce {
         type Output = ();
 
         fn poll(mut self: Pin<&mut Self>, _cx: &mut TaskContext<'_>) -> Poll<()> {
-            if self.yielded {
-                Poll::Ready(())
-            } else {
-                self.yielded = true;
-                Poll::Pending
+            match self.yielded {
+                YieldState::Yielded => Poll::Ready(()),
+                YieldState::Pending => {
+                    self.yielded = YieldState::Yielded;
+                    Poll::Pending
+                }
             }
         }
     }
@@ -289,5 +301,12 @@ mod tests {
         let state = future.as_mut().poll(&mut task_context);
 
         assert!(matches!(state, Poll::Pending));
+    }
+
+    #[test]
+    fn yield_state_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<YieldState>();
     }
 }

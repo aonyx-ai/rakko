@@ -12,7 +12,7 @@ mod error;
 use bon::bon;
 use rakko::{Context, MiseTool, ProjectRoot, RequiredVersion, ToolRequirement, VersionRange};
 use rakko_tool::{Execution, Invocation, ResolveRequirementError, RunCommandError, Tool};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 pub use self::channel::Channel;
 pub use self::error::{ResolveNewestToolchainError, ResolveToolchainError};
@@ -333,6 +333,25 @@ enum PinsFailure {
     },
 }
 
+/// The availability of a toolchain on the machine
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+enum Availability {
+    /// The toolchain is present on the machine
+    Present,
+
+    /// The toolchain is absent from the machine
+    Missing,
+}
+
+impl<'de> Deserialize<'de> for Availability {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        match bool::deserialize(deserializer)? {
+            true => Ok(Self::Present),
+            false => Ok(Self::Missing),
+        }
+    }
+}
+
 /// One Rust toolchain that mise lists for a project
 ///
 /// Mise writes more than these fields, and the reading ignores the rest, so a
@@ -345,8 +364,8 @@ struct Pin {
     /// The pin as the project wrote it, such as `nightly`
     requested_version: String,
 
-    /// Whether the toolchain is present on the machine
-    installed: bool,
+    /// The availability of the toolchain on the machine
+    installed: Availability,
 }
 
 impl Pin {
@@ -447,7 +466,7 @@ fn newest_of(pins: &[Pin]) -> Result<Toolchain, ResolveNewestToolchainError> {
 
     if !versioned
         .iter()
-        .any(|(pin, version)| version == &newest && pin.installed)
+        .any(|(pin, version)| version == &newest && matches!(pin.installed, Availability::Present))
     {
         return Err(ResolveNewestToolchainError::UninstalledToolchain { toolchain });
     }
@@ -472,11 +491,12 @@ fn select(pins: &[Pin], channel: Channel) -> Result<Toolchain, ResolveToolchainE
 
     let toolchain = Toolchain::new(pin.version.clone());
 
-    if !pin.installed {
-        return Err(ResolveToolchainError::UninstalledToolchain { channel, toolchain });
+    match pin.installed {
+        Availability::Present => Ok(toolchain),
+        Availability::Missing => {
+            Err(ResolveToolchainError::UninstalledToolchain { channel, toolchain })
+        }
     }
-
-    Ok(toolchain)
 }
 
 #[cfg(test)]
@@ -488,19 +508,19 @@ mod tests {
     use super::*;
 
     /// Returns a pin that the tests select from
-    fn pin(version: &str, requested: &str, installed: bool) -> Pin {
+    fn pin(version: &str, requested: &str, available: Availability) -> Pin {
         Pin {
             version: version.to_owned(),
             requested_version: requested.to_owned(),
-            installed,
+            installed: available,
         }
     }
 
     /// Returns the pins of a project with a default and a nightly toolchain
     fn pins() -> Vec<Pin> {
         vec![
-            pin("1.98.0", "1.98.0", true),
-            pin("nightly-2026-08-11", "nightly", true),
+            pin("1.98.0", "1.98.0", Availability::Present),
+            pin("nightly-2026-08-11", "nightly", Availability::Present),
         ]
     }
 
@@ -514,8 +534,15 @@ mod tests {
     }
 
     #[test]
+    fn availability_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Availability>();
+    }
+
+    #[test]
     fn newest_of_a_pin_that_mise_completed_names_the_toolchain_it_resolved_to() {
-        let pins = vec![pin("1.85.1", "1.85", true)];
+        let pins = vec![pin("1.85.1", "1.85", Availability::Present)];
 
         let toolchain = newest_of(&pins);
 
@@ -524,7 +551,7 @@ mod tests {
 
     #[test]
     fn newest_of_a_pin_that_nothing_installed_names_the_toolchain() {
-        let pins = vec![pin("1.98.0", "1.98.0", false)];
+        let pins = vec![pin("1.98.0", "1.98.0", Availability::Missing)];
 
         let toolchain = newest_of(&pins);
 
@@ -547,7 +574,10 @@ mod tests {
 
     #[test]
     fn newest_of_pins_in_ascending_order_answers_the_highest() {
-        let pins = vec![pin("1.88.0", "1.88.0", true), pin("1.98.0", "1.98.0", true)];
+        let pins = vec![
+            pin("1.88.0", "1.88.0", Availability::Present),
+            pin("1.98.0", "1.98.0", Availability::Present),
+        ];
 
         let toolchain = newest_of(&pins);
 
@@ -556,7 +586,10 @@ mod tests {
 
     #[test]
     fn newest_of_pins_in_descending_order_answers_the_highest() {
-        let pins = vec![pin("1.98.0", "1.98.0", true), pin("1.88.0", "1.88.0", true)];
+        let pins = vec![
+            pin("1.98.0", "1.98.0", Availability::Present),
+            pin("1.88.0", "1.88.0", Availability::Present),
+        ];
 
         let toolchain = newest_of(&pins);
 
@@ -565,7 +598,10 @@ mod tests {
 
     #[test]
     fn newest_of_pins_reads_a_part_as_a_number_and_not_as_text() {
-        let pins = vec![pin("1.9.0", "1.9.0", true), pin("1.88.0", "1.88.0", true)];
+        let pins = vec![
+            pin("1.9.0", "1.9.0", Availability::Present),
+            pin("1.88.0", "1.88.0", Availability::Present),
+        ];
 
         let toolchain = newest_of(&pins);
 
@@ -574,7 +610,7 @@ mod tests {
 
     #[test]
     fn newest_of_pins_that_only_name_channels_reports_no_pin() {
-        let pins = vec![pin("nightly-2026-08-11", "nightly", true)];
+        let pins = vec![pin("nightly-2026-08-11", "nightly", Availability::Present)];
 
         let toolchain = newest_of(&pins);
 
@@ -613,7 +649,11 @@ mod tests {
 
     #[test]
     fn select_a_channel_that_a_dated_pin_names_answers_that_toolchain() {
-        let pins = vec![pin("nightly-2026-08-11", "nightly-2026-08-11", true)];
+        let pins = vec![pin(
+            "nightly-2026-08-11",
+            "nightly-2026-08-11",
+            Availability::Present,
+        )];
 
         let toolchain = select(&pins, Channel::new("nightly"));
 
@@ -635,7 +675,7 @@ mod tests {
 
     #[test]
     fn select_a_pin_that_nothing_installed_names_the_toolchain() {
-        let pins = vec![pin("nightly-2026-08-11", "nightly", false)];
+        let pins = vec![pin("nightly-2026-08-11", "nightly", Availability::Missing)];
 
         let toolchain = select(&pins, Channel::new("nightly"));
 

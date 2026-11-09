@@ -3,6 +3,8 @@
 use getset::CopyGetters;
 use rakko::{Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name};
 
+use super::format_mode::FormatMode;
+
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Rewrite the files that taplo can format";
 
@@ -14,9 +16,9 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that taplo can format";
 /// the tree that its caller holds.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatTomlArgs {
-    /// Whether the run rewrites the files that are not formatted
+    /// What the run does with the files that are not formatted
     #[getset(get_copy = "pub")]
-    fix: bool,
+    format_mode: FormatMode,
 }
 
 impl Args for FormatTomlArgs {
@@ -41,7 +43,13 @@ impl Args for FormatTomlArgs {
             None => false,
         };
 
-        Ok(Self { fix })
+        let format_mode = if fix {
+            FormatMode::Rewrite
+        } else {
+            FormatMode::Report
+        };
+
+        Ok(Self { format_mode })
     }
 }
 
@@ -81,14 +89,14 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = FormatTomlArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.format_mode(), FormatMode::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = FormatTomlArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.format_mode(), FormatMode::Report);
     }
 
     #[test]

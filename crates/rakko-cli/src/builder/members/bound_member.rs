@@ -83,10 +83,21 @@ mod tests {
 
     use super::*;
 
+    /// What a formatter does with the files that it examines
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+    enum Operation {
+        /// Report the files that a rewrite would change, and rewrite nothing
+        #[default]
+        Report,
+
+        /// Rewrite the files that the formatter can format
+        Rewrite,
+    }
+
     /// The arguments of the formatter: whether the run repairs what it finds
     struct Fix {
-        /// Whether the run rewrites the files that it can format
-        fix: bool,
+        /// What the run does with the files that it examines
+        fix: Operation,
     }
 
     impl Args for Fix {
@@ -100,12 +111,16 @@ mod tests {
 
         fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
             match values.get(&argument_name!("fix")) {
-                Some(value) if value.get() == "true" => Ok(Self { fix: true }),
+                Some(value) if value.get() == "true" => Ok(Self {
+                    fix: Operation::Rewrite,
+                }),
                 Some(value) => Err(ReadArgsError::UnreadableValue {
                     name: argument_name!("fix"),
                     value: value.clone(),
                 }),
-                None => Ok(Self { fix: false }),
+                None => Ok(Self {
+                    fix: Operation::Report,
+                }),
             }
         }
     }
@@ -121,10 +136,9 @@ mod tests {
         }
 
         fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-            if args.fix {
-                Access::Write
-            } else {
-                Access::Read
+            match args.fix {
+                Operation::Rewrite => Access::Write,
+                Operation::Report => Access::Read,
             }
         }
 
@@ -183,5 +197,12 @@ mod tests {
         let name = member.name();
 
         assert_eq!(name.get(), "formatter");
+    }
+
+    #[test]
+    fn operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Operation>();
     }
 }

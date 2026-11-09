@@ -12,6 +12,7 @@ use rakko::{
 };
 
 pub use self::error::LintGitHubActionsError;
+use crate::observation::Examination;
 use crate::problem::ZizmorProblem;
 use crate::zizmor::Zizmor;
 
@@ -110,10 +111,13 @@ async fn drive(context: &Context) -> Result<Outcome, LintGitHubActionsError> {
 
     let observation = zizmor.observe().await?;
 
-    if !observation.collected() {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NOTHING_TO_AUDIT),
-        });
+    match observation.collected() {
+        Examination::Skipped => {
+            return Ok(Outcome::Skipped {
+                reason: SkipReason::new(NOTHING_TO_AUDIT),
+            });
+        }
+        Examination::Examined => {}
     }
 
     if observation.problems().is_empty() {

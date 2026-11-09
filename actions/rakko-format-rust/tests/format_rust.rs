@@ -24,7 +24,7 @@ use rakko::{
     ProjectRoot, Summary, argument_name,
 };
 use rakko_cargo::Toolchain;
-use rakko_format_rust::{FormatRust, FormatRustArgs};
+use rakko_format_rust::{FormatRust, FormatRustArgs, Operation};
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
 
@@ -145,11 +145,12 @@ impl Project {
     }
 
     /// Runs the action against this project
-    async fn run(&self, fix: bool) -> Outcome {
-        let values = if fix {
-            ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
-        } else {
-            ArgsValues::empty()
+    async fn run(&self, operation: Operation) -> Outcome {
+        let values = match operation {
+            Operation::Rewrite => {
+                ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
+            }
+            Operation::Report => ArgsValues::empty(),
         };
         let args = FormatRustArgs::from_values(&values)
             .expect("the test builds the arguments from values that the action reads");
@@ -248,7 +249,7 @@ fn action_identifies_itself_as_format_rust() {
 async fn run_in_a_formatted_project_counts_the_workspaces() {
     let project = Project::with_library(FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Passed { summary } = &outcome else {
         panic!("expected the run to pass, got {outcome:?}");
@@ -263,7 +264,7 @@ async fn run_in_a_formatted_project_counts_the_workspaces() {
 async fn run_in_a_formatted_project_passes() {
     let project = Project::with_library(FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
@@ -276,7 +277,7 @@ async fn run_with_a_configuration_that_rustfmt_cannot_parse_reports_what_it_wrot
     let project = Project::with_library(FORMATTED);
     project.write(".rustfmt.toml", UNPARSABLE_CONFIGURATION);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Errored { source } = &outcome else {
         panic!("expected the run to stop, got {outcome:?}");
@@ -292,7 +293,7 @@ async fn run_with_a_configuration_that_rustfmt_cannot_parse_stops() {
     let project = Project::with_library(FORMATTED);
     project.write(".rustfmt.toml", UNPARSABLE_CONFIGURATION);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -305,7 +306,7 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     let project = Project::new();
     project.write("Cargo.toml", "this is not a manifest\n");
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -317,7 +318,7 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
 async fn run_with_an_invalid_file_carries_the_message_of_rustfmt() {
     let project = Project::with_library(INVALID);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -333,7 +334,7 @@ async fn run_with_an_invalid_file_carries_the_message_of_rustfmt() {
 async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::with_library(INVALID);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -356,7 +357,7 @@ async fn run_with_an_unformatted_file_in_a_second_workspace_names_its_path() {
     project.write("tools/harness/Cargo.toml", STANDALONE);
     project.write("tools/harness/src/lib.rs", UNFORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -368,7 +369,7 @@ async fn run_with_an_unformatted_file_in_a_second_workspace_names_its_path() {
 async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::with_library(UNFORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -388,7 +389,7 @@ async fn run_with_an_unknown_option_reports_what_rustfmt_said() {
     let project = Project::with_library(FORMATTED);
     project.write(".rustfmt.toml", UNKNOWN_OPTION);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Errored { source } = &outcome else {
         panic!("expected the run to stop, got {outcome:?}");
@@ -404,7 +405,7 @@ async fn run_with_an_unknown_option_stops() {
     let project = Project::with_library(FORMATTED);
     project.write(".rustfmt.toml", UNKNOWN_OPTION);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -418,7 +419,7 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_fails() {
     project.write("tools/harness/Cargo.toml", STANDALONE);
     project.write("tools/harness/src/lib.rs", INVALID);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     assert!(
         matches!(outcome, Outcome::Failed { .. }),
@@ -432,7 +433,7 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_holds_the_repairs() {
     project.write("tools/harness/Cargo.toml", STANDALONE);
     project.write("tools/harness/src/lib.rs", INVALID);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     let Outcome::Failed { repairs, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -446,7 +447,7 @@ async fn run_with_fix_and_an_invalid_file_elsewhere_keeps_the_problem() {
     project.write("tools/harness/Cargo.toml", STANDALONE);
     project.write("tools/harness/src/lib.rs", INVALID);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -459,7 +460,7 @@ async fn run_with_fix_and_an_invalid_module_keeps_the_package_as_it_is() {
     let project = Project::with_library("pub mod broken;\npub fn messy( ) {}\n");
     project.write("src/broken.rs", INVALID);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     let Outcome::Failed { repairs, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -475,7 +476,7 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
     let project = Project::with_library(UNFORMATTED);
     project.write("src/main.rs", UNFORMATTED_MAIN);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     let Outcome::Changed { repairs } = &outcome else {
         panic!("expected the run to change the project, got {outcome:?}");
@@ -492,7 +493,7 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
 async fn run_with_fix_reports_the_change() {
     let project = Project::with_library(UNFORMATTED);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     assert!(
         matches!(outcome, Outcome::Changed { .. }),
@@ -504,7 +505,7 @@ async fn run_with_fix_reports_the_change() {
 async fn run_with_fix_rewrites_the_file() {
     let project = Project::with_library(UNFORMATTED);
 
-    project.run(true).await;
+    project.run(Operation::Rewrite).await;
 
     assert_eq!(project.read("src/lib.rs"), REWRITTEN);
 }
@@ -515,7 +516,7 @@ async fn run_with_two_workspaces_counts_both() {
     project.write("tools/harness/Cargo.toml", STANDALONE);
     project.write("tools/harness/src/lib.rs", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Passed { summary } = &outcome else {
         panic!("expected the run to pass, got {outcome:?}");
@@ -530,7 +531,7 @@ async fn run_with_two_workspaces_counts_both() {
 async fn run_without_a_cargo_stops() {
     let project = Project::with_rust("\"0.0.1\"");
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -543,7 +544,7 @@ async fn run_without_a_manifest_skips() {
     let project = Project::new();
     project.write("README.md", "# Project\n");
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Skipped { .. }),
@@ -555,7 +556,7 @@ async fn run_without_a_manifest_skips() {
 async fn run_without_a_nightly_toolchain_names_the_channel() {
     let project = Project::with_rust(&format!("\"{}\"", pinned_rust().await));
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Errored { source } = &outcome else {
         panic!("expected the run to stop, got {outcome:?}");
@@ -576,7 +577,7 @@ async fn run_without_a_nightly_toolchain_names_the_channel() {
 async fn run_without_a_nightly_toolchain_stops() {
     let project = Project::with_rust(&format!("\"{}\"", pinned_rust().await));
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -588,7 +589,7 @@ async fn run_without_a_nightly_toolchain_stops() {
 async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::with_library(UNFORMATTED);
 
-    project.run(false).await;
+    project.run(Operation::Report).await;
 
     assert_eq!(project.read("src/lib.rs"), UNFORMATTED);
 }

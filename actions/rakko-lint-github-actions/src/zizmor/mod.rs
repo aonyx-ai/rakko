@@ -11,7 +11,7 @@ use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub(crate) use self::error::ObserveZizmorError;
-use crate::observation::Observation;
+use crate::observation::{Examination, Observation};
 
 /// The name that mise knows the tool by
 const ZIZMOR: &str = "zizmor";
@@ -133,7 +133,11 @@ impl Zizmor {
         };
 
         match status {
-            Collection::Empty => return Ok(Observation::builder().collected(false).build()),
+            Collection::Empty => {
+                return Ok(Observation::builder()
+                    .collected(Examination::Skipped)
+                    .build());
+            }
             Collection::Audited => {}
         }
 

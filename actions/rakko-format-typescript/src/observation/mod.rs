@@ -14,6 +14,28 @@ use rakko_tool::Execution;
 
 use crate::problem::OxfmtProblem;
 
+/// How a run of oxfmt ended
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Exit {
+    /// Oxfmt ended the run with success
+    Succeeded,
+
+    /// Oxfmt ended the run without success
+    #[default]
+    Failed,
+}
+
+/// Whether the pattern of a run matched a file
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Matching {
+    /// The pattern matched at least one file
+    #[default]
+    Matched,
+
+    /// Oxfmt refused the pattern because nothing matched it
+    Unmatched,
+}
+
 /// What one run of oxfmt produced
 ///
 /// The value holds the answer of one run: whether oxfmt ended with success,
@@ -42,17 +64,17 @@ pub(crate) struct Observation {
     #[getset(get = "pub(crate)")]
     stderr: String,
 
-    /// Whether oxfmt ended with success
+    /// How the run ended
     #[getset(get_copy = "pub(crate)")]
-    succeeded: bool,
+    exit: Exit,
 
-    /// Whether oxfmt refused the pattern of the run because nothing matched it
+    /// Whether the pattern of the run matched a file
     ///
     /// Oxfmt treats a pattern that matches nothing as an error, so this is how
     /// a run reports that the project holds no file of the language. A caller
     /// answers it as a run that had nothing to examine, not as a failure.
     #[getset(get_copy = "pub(crate)")]
-    unmatched_pattern: bool,
+    matching: Matching,
 }
 
 impl Observation {
@@ -60,10 +82,15 @@ impl Observation {
     ///
     /// The reading takes both streams of the run and its exit status.
     pub(crate) fn read(execution: &Execution) -> Self {
+        let exit = if execution.status().success() {
+            Exit::Succeeded
+        } else {
+            Exit::Failed
+        };
         self::report::read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),
-            execution.status().success(),
+            exit,
         )
     }
 }
@@ -84,15 +111,15 @@ impl Observation {
         #[builder(default)] problems: Vec<OxfmtProblem>,
         rejected_configuration: Option<String>,
         #[builder(into, default)] stderr: String,
-        #[builder(default)] succeeded: bool,
-        #[builder(default)] unmatched_pattern: bool,
+        #[builder(default)] exit: Exit,
+        #[builder(default)] matching: Matching,
     ) -> Self {
         Self {
             problems,
             rejected_configuration,
             stderr,
-            succeeded,
-            unmatched_pattern,
+            exit,
+            matching,
         }
     }
 }
@@ -100,6 +127,20 @@ impl Observation {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exit_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Exit>();
+    }
+
+    #[test]
+    fn matching_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Matching>();
+    }
 
     #[test]
     fn observation_is_send_sync_and_unpin() {

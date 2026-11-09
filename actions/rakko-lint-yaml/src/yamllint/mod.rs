@@ -15,7 +15,7 @@ use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub(crate) use self::error::ObserveYamllintError;
 pub(crate) use self::listing::ListFilesError;
-use crate::observation::Observation;
+use crate::observation::{Completion, Observation};
 
 /// The name that mise knows the tool by
 const YAMLLINT: &str = "yamllint";
@@ -120,7 +120,13 @@ impl Yamllint {
 
         Ok(Observation::builder()
             .problems(problems)
-            .finished(status.success() || status.code() == Some(PROBLEMS_FOUND))
+            .finished(
+                if status.success() || status.code() == Some(PROBLEMS_FOUND) {
+                    Completion::Finished
+                } else {
+                    Completion::Interrupted
+                },
+            )
             .stderr(stderr.trim().to_owned())
             .build())
     }

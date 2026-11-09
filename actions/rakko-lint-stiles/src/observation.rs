@@ -11,6 +11,17 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::StilesProblem;
 
+/// Whether stiles found a file to check
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Examination {
+    /// Stiles found a file to check
+    #[default]
+    Examined,
+
+    /// Stiles found no file to check
+    Skipped,
+}
+
 /// What one check of stiles produced
 ///
 /// The value holds the answer of one check: the diagnostics that stiles
@@ -28,7 +39,7 @@ pub(crate) struct Observation {
 
     /// Whether stiles found a file to check
     #[getset(get_copy = "pub(crate)")]
-    examined: bool,
+    examined: Examination,
 }
 
 #[bon]
@@ -45,7 +56,7 @@ impl Observation {
     #[builder]
     pub(crate) fn new(
         #[builder(default)] problems: Vec<StilesProblem>,
-        #[builder(default = true)] examined: bool,
+        #[builder(default)] examined: Examination,
     ) -> Self {
         Self { problems, examined }
     }
@@ -54,6 +65,13 @@ impl Observation {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn examination_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Examination>();
+    }
 
     #[test]
     fn observation_is_send_sync_and_unpin() {

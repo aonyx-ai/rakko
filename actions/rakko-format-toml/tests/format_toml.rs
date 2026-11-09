@@ -21,7 +21,7 @@ use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, Position,
     ProjectRoot, Summary, argument_name,
 };
-use rakko_format_toml::{FormatToml, FormatTomlArgs, FormatTomlError};
+use rakko_format_toml::{FormatMode, FormatToml, FormatTomlArgs, FormatTomlError};
 use rakko_taplo::Taplo;
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
@@ -90,11 +90,12 @@ impl Project {
     }
 
     /// Runs the action against this project
-    async fn run(&self, fix: bool) -> Outcome {
-        let values = if fix {
-            ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
-        } else {
-            ArgsValues::empty()
+    async fn run(&self, format_mode: FormatMode) -> Outcome {
+        let values = match format_mode {
+            FormatMode::Rewrite => {
+                ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
+            }
+            FormatMode::Report => ArgsValues::empty(),
         };
         let args = FormatTomlArgs::from_values(&values)
             .expect("the test builds the arguments from values that the action reads");
@@ -177,7 +178,7 @@ async fn run_in_a_formatted_project_counts_the_files() {
     let project = Project::new();
     project.write("clean.toml", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     let Outcome::Passed { summary } = &outcome else {
         panic!("expected the run to pass, got {outcome:?}");
@@ -194,7 +195,7 @@ async fn run_in_a_formatted_project_passes() {
     let project = Project::new();
     project.write("clean.toml", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
@@ -229,7 +230,7 @@ async fn run_whose_configuration_excludes_a_file_leaves_it_out_of_the_count() {
     project.write("clean.toml", FORMATTED);
     project.write("skipped.toml", UNFORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     let Outcome::Passed { summary } = &outcome else {
         panic!("expected the run to pass, got {outcome:?}");
@@ -247,7 +248,7 @@ async fn run_whose_configuration_excludes_every_file_passes() {
     project.write(".taplo.toml", EXCLUDE_EVERYTHING);
     project.write("messy.toml", UNFORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
@@ -261,7 +262,7 @@ async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
     project.write(".taplo.toml", REJECTED_CONFIGURATION);
     project.write("clean.toml", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     let Outcome::Errored { source } = &outcome else {
         panic!("expected the run to stop, got {outcome:?}");
@@ -278,7 +279,7 @@ async fn run_with_a_rejected_configuration_stops() {
     project.write(".taplo.toml", REJECTED_CONFIGURATION);
     project.write("clean.toml", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -291,7 +292,7 @@ async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
     let project = Project::new();
     project.write("broken.toml", INVALID);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -308,7 +309,7 @@ async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
     project.write("broken.toml", INVALID);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -330,7 +331,7 @@ async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::new();
     project.write("sub/messy.toml", UNFORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -356,7 +357,7 @@ async fn run_with_an_unreadable_file_stops() {
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(FormatMode::Report).await;
 
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
         .expect("the test restores the permissions of a file");
@@ -372,7 +373,7 @@ async fn run_with_fix_and_an_invalid_file_fails() {
     project.write("messy.toml", UNFORMATTED);
     project.write("broken.toml", INVALID);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(FormatMode::Rewrite).await;
 
     assert!(
         matches!(outcome, Outcome::Failed { .. }),
@@ -386,7 +387,7 @@ async fn run_with_fix_and_an_invalid_file_holds_the_repairs() {
     project.write("messy.toml", UNFORMATTED);
     project.write("broken.toml", INVALID);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(FormatMode::Rewrite).await;
 
     let Outcome::Failed { repairs, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -400,7 +401,7 @@ async fn run_with_fix_and_an_invalid_file_keeps_the_problem() {
     project.write("messy.toml", UNFORMATTED);
     project.write("broken.toml", INVALID);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(FormatMode::Rewrite).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -414,7 +415,7 @@ async fn run_with_fix_holds_one_repair_for_each_file() {
     project.write("messy.toml", UNFORMATTED);
     project.write("sub/other.toml", UNFORMATTED);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(FormatMode::Rewrite).await;
 
     let Outcome::Changed { repairs } = &outcome else {
         panic!("expected the run to change the project, got {outcome:?}");
@@ -432,7 +433,7 @@ async fn run_with_fix_reports_the_change() {
     let project = Project::new();
     project.write("messy.toml", UNFORMATTED);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(FormatMode::Rewrite).await;
 
     assert!(
         matches!(outcome, Outcome::Changed { .. }),
@@ -445,7 +446,7 @@ async fn run_with_fix_rewrites_the_file() {
     let project = Project::new();
     project.write("messy.toml", UNFORMATTED);
 
-    project.run(true).await;
+    project.run(FormatMode::Rewrite).await;
 
     assert_eq!(project.read("messy.toml"), FORMATTED);
 }
@@ -455,7 +456,7 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
     project.write("messy.toml", UNFORMATTED);
 
-    project.run(false).await;
+    project.run(FormatMode::Report).await;
 
     assert_eq!(project.read("messy.toml"), UNFORMATTED);
 }

@@ -14,7 +14,7 @@ use rakko::{
 
 pub use self::error::LintMarkdownError;
 use crate::markdownlint::Markdownlint;
-use crate::observation::Observation;
+use crate::observation::{Examination, Exit, Observation};
 use crate::problem::MarkdownlintProblem;
 
 /// The reason of a run whose markdownlint examined nothing
@@ -186,23 +186,25 @@ fn findings(
 ///
 /// [unrecognized]: LintMarkdownError::UnrecognizedReport
 fn guard(observation: &Observation) -> Result<Option<Outcome>, LintMarkdownError> {
-    if !observation.examined() {
-        return Ok(Some(Outcome::Skipped {
-            reason: SkipReason::new(NOTHING_TO_EXAMINE),
-        }));
+    match observation.examined() {
+        Examination::Skipped => {
+            return Ok(Some(Outcome::Skipped {
+                reason: SkipReason::new(NOTHING_TO_EXAMINE),
+            }));
+        }
+        Examination::Examined => {}
     }
 
     if !observation.problems().is_empty() {
         return Ok(None);
     }
 
-    if !observation.succeeded() {
-        return Err(LintMarkdownError::UnrecognizedReport {
+    match observation.succeeded() {
+        Exit::Failed => Err(LintMarkdownError::UnrecognizedReport {
             stderr: observation.stderr().clone(),
-        });
+        }),
+        Exit::Succeeded => Ok(Some(Outcome::Passed { summary: None })),
     }
-
-    Ok(Some(Outcome::Passed { summary: None }))
 }
 
 #[cfg(test)]
@@ -306,7 +308,7 @@ mod tests {
 
     #[test]
     fn guard_of_a_failed_run_without_a_problem_stops() {
-        let observation = Observation::builder().succeeded(false).build();
+        let observation = Observation::builder().succeeded(Exit::Failed).build();
 
         let error = guard(&observation).unwrap_err();
 
@@ -318,7 +320,9 @@ mod tests {
 
     #[test]
     fn guard_of_a_run_that_examined_nothing_skips() {
-        let observation = Observation::builder().examined(false).build();
+        let observation = Observation::builder()
+            .examined(Examination::Skipped)
+            .build();
 
         let outcome = guard(&observation).unwrap();
 
@@ -332,7 +336,7 @@ mod tests {
     fn guard_of_a_run_that_reported_a_problem_reports_nothing() {
         let observation = Observation::builder()
             .problems(vec![problem(4, None)])
-            .succeeded(false)
+            .succeeded(Exit::Failed)
             .build();
 
         let outcome = guard(&observation).unwrap();

@@ -11,7 +11,7 @@ use rakko::ProjectRoot;
 use rakko_tool::{Launch, ResolveToolError, Tool, ToolName};
 
 pub(crate) use self::error::ObserveMarkdownlintError;
-use crate::observation::Observation;
+use crate::observation::{Examination, Exit, Observation};
 
 /// The name that mise knows the tool by
 const MARKDOWNLINT: &str = "markdownlint";
@@ -129,11 +129,23 @@ impl Markdownlint {
             Vec::new()
         };
 
+        let examination = if examined {
+            Examination::Examined
+        } else {
+            Examination::Skipped
+        };
+
+        let exit = if execution.status().success() {
+            Exit::Succeeded
+        } else {
+            Exit::Failed
+        };
+
         Ok(Observation::builder()
             .problems(problems)
-            .examined(examined)
+            .examined(examination)
             .stderr(stderr.into_owned())
-            .succeeded(execution.status().success())
+            .succeeded(exit)
             .build())
     }
 

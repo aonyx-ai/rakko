@@ -26,6 +26,7 @@ use rakko::{
     argument_name,
 };
 use rakko_format_json::{FormatJson, FormatJsonArgs};
+use rakko_prettier::Operation;
 use rakko_test_utils::run_checking_access;
 use tempfile::TempDir;
 
@@ -119,11 +120,12 @@ impl Project {
     }
 
     /// Runs the action against this project
-    async fn run(&self, fix: bool) -> Outcome {
-        let values = if fix {
-            ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
-        } else {
-            ArgsValues::empty()
+    async fn run(&self, fix: Operation) -> Outcome {
+        let values = match fix {
+            Operation::Rewrite => {
+                ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
+            }
+            _ => ArgsValues::empty(),
         };
         let args = FormatJsonArgs::from_values(&values)
             .expect("the test builds the arguments from values that the action reads");
@@ -197,7 +199,7 @@ async fn run_in_a_formatted_project_passes() {
     let project = Project::new();
     project.write("clean.json", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
@@ -210,7 +212,7 @@ async fn run_in_a_project_without_json_skips() {
     let project = Project::new();
     project.write("notes.txt", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Skipped { .. }),
@@ -224,7 +226,7 @@ async fn run_with_a_broken_configuration_stops() {
     project.write(".prettierrc.json", BROKEN_CONFIGURATION);
     project.write("clean.json", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -238,7 +240,7 @@ async fn run_with_an_ignored_option_reports_what_prettier_said() {
     project.write(".prettierrc.json", IGNORED_CONFIGURATION);
     project.write("clean.json", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Errored { source } = &outcome else {
         panic!("expected the run to stop, got {outcome:?}");
@@ -254,7 +256,7 @@ async fn run_with_an_invalid_file_carries_the_message_of_prettier() {
     let project = Project::new();
     project.write("broken.json", INVALID);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -271,7 +273,7 @@ async fn run_with_an_invalid_file_reports_the_position() {
     let project = Project::new();
     project.write("broken.json", INVALID);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -293,7 +295,7 @@ async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::new();
     project.write("sub/messy.json", UNFORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     let Outcome::Failed { findings, .. } = &outcome else {
         panic!("expected the run to fail, got {outcome:?}");
@@ -320,7 +322,7 @@ async fn run_with_an_unreadable_file_and_fix_keeps_the_problem() {
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
         .expect("the test restores the permissions of a file");
@@ -342,7 +344,7 @@ async fn run_with_an_unreadable_file_and_fix_reports_the_repair() {
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
         .expect("the test restores the permissions of a file");
@@ -363,7 +365,7 @@ async fn run_with_an_unreadable_file_carries_the_reason_of_prettier() {
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
         .expect("the test restores the permissions of a file");
@@ -388,7 +390,7 @@ async fn run_with_an_unreadable_file_names_the_file() {
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
         .expect("the test removes the permissions of a file");
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
         .expect("the test restores the permissions of a file");
@@ -411,7 +413,7 @@ async fn run_with_fix_leaves_the_other_languages_alone() {
     project.write("messy.json", UNFORMATTED);
     project.write("notes.md", UNFORMATTED_MARKDOWN);
 
-    project.run(true).await;
+    project.run(Operation::Rewrite).await;
 
     assert_eq!(project.read("notes.md"), UNFORMATTED_MARKDOWN);
 }
@@ -421,7 +423,7 @@ async fn run_with_fix_names_the_file_that_it_repaired() {
     let project = Project::new();
     project.write("sub/messy.json", UNFORMATTED);
 
-    let outcome = project.run(true).await;
+    let outcome = project.run(Operation::Rewrite).await;
 
     let Outcome::Changed { repairs } = &outcome else {
         panic!("expected the run to report a change, got {outcome:?}");
@@ -441,7 +443,7 @@ async fn run_with_fix_rewrites_the_file() {
     let project = Project::new();
     project.write("messy.json", UNFORMATTED);
 
-    project.run(true).await;
+    project.run(Operation::Rewrite).await;
 
     assert_eq!(project.read("messy.json"), FORMATTED);
 }
@@ -451,7 +453,7 @@ async fn run_without_a_prettier_stops() {
     let project = Project::without_prettier();
     project.write("clean.json", FORMATTED);
 
-    let outcome = project.run(false).await;
+    let outcome = project.run(Operation::Report).await;
 
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
@@ -464,7 +466,7 @@ async fn run_without_fix_leaves_the_file_unchanged() {
     let project = Project::new();
     project.write("messy.json", UNFORMATTED);
 
-    project.run(false).await;
+    project.run(Operation::Report).await;
 
     assert_eq!(project.read("messy.json"), UNFORMATTED);
 }

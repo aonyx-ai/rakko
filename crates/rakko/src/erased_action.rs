@@ -208,10 +208,21 @@ mod tests {
     use crate::tool::{RequiredVersion, ToolVersion};
     use crate::{action_name, argument_name};
 
+    /// What a formatter does with the files that it examines
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+    enum Operation {
+        /// Rewrite the files that the formatter can format
+        Rewrite,
+
+        /// Report the files that a rewrite would change, and rewrite nothing
+        #[default]
+        Report,
+    }
+
     /// The arguments of the formatter: whether the run repairs what it finds
     struct Fix {
-        /// Whether the run rewrites the files that it can format
-        fix: bool,
+        /// What the run does with the files that it examines
+        fix: Operation,
     }
 
     impl Args for Fix {
@@ -224,9 +235,12 @@ mod tests {
         }
 
         fn from_values(values: &ArgsValues) -> Result<Self, ReadArgsError> {
-            Ok(Self {
-                fix: values.get(&argument_name!("fix")).is_some(),
-            })
+            let fix = if values.get(&argument_name!("fix")).is_some() {
+                Operation::Rewrite
+            } else {
+                Operation::Report
+            };
+            Ok(Self { fix })
         }
     }
 
@@ -241,10 +255,9 @@ mod tests {
         }
 
         fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-            if args.fix {
-                Access::Write
-            } else {
-                Access::Read
+            match args.fix {
+                Operation::Rewrite => Access::Write,
+                Operation::Report => Access::Read,
             }
         }
 
@@ -477,6 +490,13 @@ mod tests {
         let name = ErasedAction::name(&action);
 
         assert_eq!(name.get(), "probe");
+    }
+
+    #[test]
+    fn operation_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Operation>();
     }
 
     #[test]

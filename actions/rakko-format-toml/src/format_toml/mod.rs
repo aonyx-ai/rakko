@@ -8,6 +8,7 @@
 
 mod args;
 mod error;
+mod format_mode;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -20,6 +21,7 @@ use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
 pub use self::args::FormatTomlArgs;
 pub use self::error::FormatTomlError;
+pub use self::format_mode::FormatMode;
 
 /// The message of a finding about a file that is not formatted
 const UNFORMATTED_FINDING: &str = "the file is not properly formatted";
@@ -75,10 +77,9 @@ impl Action for FormatToml {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
-            Access::Write
-        } else {
-            Access::Read
+        match args.format_mode() {
+            FormatMode::Rewrite => Access::Write,
+            FormatMode::Report => Access::Read,
         }
     }
 
@@ -119,13 +120,12 @@ async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, Form
         return Ok(passed(&observation));
     }
 
-    if args.fix() {
-        fix(&taplo, observation.problems(), context.root()).await
-    } else {
-        Ok(Outcome::Failed {
+    match args.format_mode() {
+        FormatMode::Rewrite => fix(&taplo, observation.problems(), context.root()).await,
+        FormatMode::Report => Ok(Outcome::Failed {
             findings: findings(observation.problems(), context.root())?,
             repairs: Vec::new(),
-        })
+        }),
     }
 }
 

@@ -3,6 +3,8 @@
 use std::path::PathBuf;
 
 use super::Observation;
+use crate::exit::Exit;
+use crate::matching::Matching;
 use crate::operation::Operation;
 use crate::problem::{PrettierProblem, ProblemDetail};
 
@@ -48,7 +50,7 @@ const SECONDS: &str = "s";
 pub(super) fn read(
     stdout: &str,
     stderr: &str,
-    succeeded: bool,
+    succeeded: Exit,
     operation: Operation,
 ) -> Observation {
     let mut observation = Observation {
@@ -57,7 +59,7 @@ pub(super) fn read(
         rewritten: Vec::new(),
         stderr: stderr.to_owned(),
         succeeded,
-        unmatched_pattern: false,
+        unmatched_pattern: Matching::Matched,
     };
 
     for line in stdout.lines().filter(|line| !line.trim().is_empty()) {
@@ -96,7 +98,7 @@ pub(super) fn read(
                 observation.rejected_configuration = Some(rejection(report, &lines[index + 1..]));
             }
         } else if report.starts_with(UNMATCHED_PATTERN) {
-            observation.unmatched_pattern = true;
+            observation.unmatched_pattern = Matching::Unmatched;
         } else if let Some(path) = quoted_path(report, UNREADABLE) {
             let detail = ProblemDetail::Unreadable {
                 reason: reason(&lines[index + 1..]),
@@ -251,7 +253,7 @@ mod tests {
 
     /// Returns the detail of the only problem of a report
     fn detail(stderr: &str) -> ProblemDetail {
-        let observation = read("", stderr, false, Operation::Report);
+        let observation = read("", stderr, Exit::Failed, Operation::Report);
 
         let [problem] = observation.problems.as_slice() else {
             panic!("expected one problem, got {:?}", observation.problems);
@@ -262,7 +264,7 @@ mod tests {
 
     #[test]
     fn read_a_clean_report_finds_no_problem() {
-        let observation = read("", "", true, Operation::Report);
+        let observation = read("", "", Exit::Succeeded, Operation::Report);
 
         assert!(observation.problems.is_empty());
     }
@@ -283,21 +285,21 @@ mod tests {
 
     #[test]
     fn read_a_failed_run_reports_the_failure() {
-        let observation = read("", INVALID, false, Operation::Report);
+        let observation = read("", INVALID, Exit::Failed, Operation::Report);
 
-        assert!(!observation.succeeded);
+        assert_eq!(observation.succeeded(), Exit::Failed);
     }
 
     #[test]
     fn read_a_pattern_without_a_match_reports_it() {
-        let observation = read("", UNMATCHED, false, Operation::Report);
+        let observation = read("", UNMATCHED, Exit::Failed, Operation::Report);
 
-        assert!(observation.unmatched_pattern);
+        assert_eq!(observation.unmatched_pattern(), Matching::Unmatched);
     }
 
     #[test]
     fn read_a_rejected_configuration_reports_what_prettier_said() {
-        let observation = read("", REJECTED, false, Operation::Report);
+        let observation = read("", REJECTED, Exit::Failed, Operation::Report);
 
         assert_eq!(
             observation.rejected_configuration.as_deref(),
@@ -309,7 +311,7 @@ mod tests {
 
     #[test]
     fn read_a_report_names_the_files_that_differ() {
-        let observation = read(DIFFERENT, "", false, Operation::Report);
+        let observation = read(DIFFERENT, "", Exit::Failed, Operation::Report);
 
         let paths: Vec<&PathBuf> = observation
             .problems
@@ -325,21 +327,21 @@ mod tests {
 
     #[test]
     fn read_a_rewrite_names_the_files_that_changed() {
-        let observation = read(WRITTEN, "", true, Operation::Rewrite);
+        let observation = read(WRITTEN, "", Exit::Succeeded, Operation::Rewrite);
 
         assert_eq!(observation.rewritten, [PathBuf::from("sub/messy.md")]);
     }
 
     #[test]
     fn read_a_rewrite_reports_no_problem_of_its_own() {
-        let observation = read(WRITTEN, "", true, Operation::Rewrite);
+        let observation = read(WRITTEN, "", Exit::Succeeded, Operation::Rewrite);
 
         assert!(observation.problems.is_empty());
     }
 
     #[test]
     fn read_an_ignored_option_reports_what_prettier_said() {
-        let observation = read("", IGNORED, true, Operation::Report);
+        let observation = read("", IGNORED, Exit::Succeeded, Operation::Report);
 
         assert_eq!(
             observation.rejected_configuration.as_deref(),

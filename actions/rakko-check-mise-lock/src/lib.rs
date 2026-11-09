@@ -71,5 +71,5 @@ mod lockfile;
 mod mise;
 mod part;
 
-pub use self::check_mise_lock::{CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError};
+pub use self::check_mise_lock::{CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError, Operation};
 pub use self::lockfile::ReadLockfileError;

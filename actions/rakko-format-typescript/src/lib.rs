@@ -5,4 +5,6 @@ mod observation;
 mod oxfmt;
 mod problem;
 
-pub use self::format_typescript::{FormatTypeScript, FormatTypeScriptArgs, FormatTypeScriptError};
+pub use self::format_typescript::{
+    FormatTypeScript, FormatTypeScriptArgs, FormatTypeScriptError, Operation,
+};

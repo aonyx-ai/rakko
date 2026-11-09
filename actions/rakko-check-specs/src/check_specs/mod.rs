@@ -13,7 +13,7 @@ use rakko::{
 };
 
 pub use self::error::CheckSpecsError;
-use crate::comparison::Comparison;
+use crate::comparison::{Comparison, Scope};
 use crate::problem::TraceyProblem;
 use crate::tracey::{Coverage, Tracey};
 
@@ -120,8 +120,12 @@ async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
     let problems = tracey.validate().await?;
     let mut findings = findings(&problems)?;
 
-    let pull_request = std::env::var_os(BASE_REF).is_some();
-    let comparison = Comparison::prepare(context.root(), pull_request).await?;
+    let scope = if std::env::var_os(BASE_REF).is_some() {
+        Scope::PullRequest
+    } else {
+        Scope::Checkout
+    };
+    let comparison = Comparison::prepare(context.root(), scope).await?;
     let directory = comparison
         .as_ref()
         .map_or(context.root().get(), Comparison::directory);

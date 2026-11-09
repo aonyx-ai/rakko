@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::Chars;
 
-use super::Observation;
+use super::{Exit, Observation};
 use crate::problem::{ProblemDetail, TaploProblem};
 
 /// The marker of the line that reports a rejected configuration file
@@ -66,7 +66,7 @@ const DIFF_TARGET: &str = "+++ b/";
 /// not parse stand before the files that it would rewrite. The two streams
 /// name different files: taplo offers no difference for a file that it never
 /// parsed.
-pub(super) fn read(stdout: &str, stderr: &str, succeeded: bool) -> Observation {
+pub(super) fn read(stdout: &str, stderr: &str, succeeded: Exit) -> Observation {
     let mut observation = Observation {
         checked: None,
         examined: Vec::new(),
@@ -367,7 +367,7 @@ mod tests {
 
     /// Returns the detail of the only problem of a report
     fn detail(stderr: &str) -> ProblemDetail {
-        let observation = read("", stderr, false);
+        let observation = read("", stderr, Exit::Failed);
 
         let [problem] = observation.problems().as_slice() else {
             panic!("expected one problem, got {:?}", observation.problems());
@@ -408,21 +408,21 @@ mod tests {
 
     #[test]
     fn read_clean_report_counts_the_examined_files() {
-        let observation = read("", CLEAN, true);
+        let observation = read("", CLEAN, Exit::Succeeded);
 
         assert_eq!(observation.checked(), Some(2));
     }
 
     #[test]
     fn read_clean_report_finds_no_problem() {
-        let observation = read("", CLEAN, true);
+        let observation = read("", CLEAN, Exit::Succeeded);
 
         assert!(observation.problems().is_empty());
     }
 
     #[test]
     fn read_clean_report_lists_the_examined_files() {
-        let observation = read("", CLEAN, true);
+        let observation = read("", CLEAN, Exit::Succeeded);
 
         assert_eq!(
             observation.examined,
@@ -435,7 +435,7 @@ mod tests {
 
     #[test]
     fn read_diagnostic_reads_the_path() {
-        let observation = read("", INVALID, false);
+        let observation = read("", INVALID, Exit::Failed);
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::path),
@@ -445,7 +445,7 @@ mod tests {
 
     #[test]
     fn read_diagnostic_reads_the_position() {
-        let observation = read("", INVALID, false);
+        let observation = read("", INVALID, Exit::Failed);
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::detail),
@@ -469,7 +469,7 @@ mod tests {
 
     #[test]
     fn read_difference_names_the_file_that_it_would_rewrite() {
-        let observation = read(DIFFERENCE, "", false);
+        let observation = read(DIFFERENCE, "", Exit::Failed);
 
         assert_eq!(
             observation.problems(),
@@ -484,7 +484,7 @@ mod tests {
 
     #[test]
     fn read_empty_report_finds_nothing() {
-        let observation = read("", "", true);
+        let observation = read("", "", Exit::Succeeded);
 
         assert_eq!(
             observation,
@@ -494,7 +494,7 @@ mod tests {
                 problems: Vec::new(),
                 rejected_configuration: None,
                 stderr: String::new(),
-                succeeded: true,
+                succeeded: Exit::Succeeded,
             }
         );
     }
@@ -513,7 +513,7 @@ mod tests {
 
     #[test]
     fn read_refused_file_reads_the_path() {
-        let observation = read("", REFUSED, false);
+        let observation = read("", REFUSED, Exit::Failed);
 
         assert_eq!(
             observation.problems().first().map(TaploProblem::path),
@@ -523,7 +523,7 @@ mod tests {
 
     #[test]
     fn read_rejected_configuration_keeps_the_diagnosis() {
-        let observation = read("", REJECTED, true);
+        let observation = read("", REJECTED, Exit::Succeeded);
 
         assert_eq!(
             observation.rejected_configuration().as_deref(),
@@ -533,7 +533,7 @@ mod tests {
 
     #[test]
     fn read_summary_of_a_file_with_a_diagnostic_drops_out() {
-        let observation = read("", INVALID, false);
+        let observation = read("", INVALID, Exit::Failed);
 
         assert_eq!(observation.problems().len(), 1);
     }
@@ -543,7 +543,7 @@ mod tests {
         let observation = read(
             "",
             " INFO taplo:format_files:collect_files: found files total=1 excluded=0 files=[] cwd=\"/p\"\nERROR operation failed error=Permission denied (os error 13)\n",
-            false,
+            Exit::Failed,
         );
 
         assert!(observation.problems().is_empty());

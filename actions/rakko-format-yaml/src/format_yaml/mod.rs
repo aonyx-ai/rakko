@@ -16,7 +16,8 @@ use rakko::{
     action_name,
 };
 use rakko_prettier::{
-    FileExtension, Filter, Observation, Operation, Prettier, PrettierProblem, ProblemDetail,
+    Exit, FileExtension, Filter, Matching, Observation, Operation, Prettier, PrettierProblem,
+    ProblemDetail,
 };
 
 pub use self::args::FormatYamlArgs;
@@ -88,10 +89,9 @@ impl Action for FormatYaml {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
-            Access::Write
-        } else {
-            Access::Read
+        match args.operation() {
+            Operation::Rewrite => Access::Write,
+            _ => Access::Read,
         }
     }
 
@@ -122,10 +122,9 @@ async fn drive(context: &Context, args: &FormatYamlArgs) -> Result<Outcome, Form
         .await
         .map_err(|source| FormatYamlError::UnresolvedTool { source })?;
 
-    if args.fix() {
-        fix(&prettier, &filter, context.root()).await
-    } else {
-        report(&prettier, &filter, context.root()).await
+    match args.operation() {
+        Operation::Rewrite => fix(&prettier, &filter, context.root()).await,
+        _ => report(&prettier, &filter, context.root()).await,
     }
 }
 
@@ -271,19 +270,23 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatYamlError> 
         });
     }
 
-    if observation.unmatched_pattern() {
-        return Ok(Some(Outcome::Skipped {
-            reason: SkipReason::new(NOTHING_TO_EXAMINE),
-        }));
+    match observation.unmatched_pattern() {
+        Matching::Unmatched => {
+            return Ok(Some(Outcome::Skipped {
+                reason: SkipReason::new(NOTHING_TO_EXAMINE),
+            }));
+        }
+        Matching::Matched => {}
     }
 
-    if observation.problems().is_empty() && !observation.succeeded() {
-        return Err(FormatYamlError::UnrecognizedReport {
-            stderr: observation.stderr().clone(),
-        });
+    match observation.succeeded() {
+        Exit::Failed if observation.problems().is_empty() => {
+            Err(FormatYamlError::UnrecognizedReport {
+                stderr: observation.stderr().clone(),
+            })
+        }
+        Exit::Failed | Exit::Succeeded => Ok(None),
     }
-
-    Ok(None)
 }
 
 /// Asks prettier what it would change and reports the answer
@@ -459,8 +462,8 @@ mod tests {
     #[test]
     fn guard_of_a_run_that_matched_no_file_skips() {
         let observation = Observation::builder()
-            .succeeded(true)
-            .unmatched_pattern(true)
+            .succeeded(Exit::Succeeded)
+            .unmatched_pattern(Matching::Unmatched)
             .build();
 
         let outcome = guard(&observation).unwrap();
@@ -473,7 +476,7 @@ mod tests {
 
     #[test]
     fn guard_of_a_run_that_reported_normally_reports_nothing() {
-        let observation = Observation::builder().succeeded(true).build();
+        let observation = Observation::builder().succeeded(Exit::Succeeded).build();
 
         let outcome = guard(&observation).unwrap();
 
@@ -483,7 +486,7 @@ mod tests {
     #[test]
     fn guard_of_a_run_without_its_configuration_stops() {
         let observation = Observation::builder()
-            .succeeded(true)
+            .succeeded(Exit::Succeeded)
             .rejected_configuration("Ignored unknown option { notAnOption: 5 }.".to_owned())
             .build();
 

@@ -322,7 +322,11 @@ fn start(line: &str) -> Option<Pending> {
         name: unescape(name),
         // A directive excuses whatever the test did, and the runner counts
         // such a test as neither passed nor failed.
-        failed: failed && directive.is_none(),
+        outcome: if failed && directive.is_none() {
+            TestOutcome::Failed
+        } else {
+            TestOutcome::Passed
+        },
         origin: None,
         reason: None,
         kind: None,
@@ -361,6 +365,17 @@ fn unreadable(line: &str) -> ReadReportError {
     }
 }
 
+/// Whether a test counts as failed
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+enum TestOutcome {
+    /// The test did not fail
+    #[default]
+    Passed,
+
+    /// The test counts as failed
+    Failed,
+}
+
 /// One result of a report whose block the reading has yet to see
 ///
 /// The report writes the block of a result below the line that states it, so a
@@ -371,7 +386,7 @@ struct Pending {
     name: String,
 
     /// Whether the test counts as failed
-    failed: bool,
+    outcome: TestOutcome,
 
     /// The place where the project declares the test
     origin: Option<Origin>,
@@ -390,17 +405,17 @@ impl Pending {
     /// because a test below it failed, because that test is in the list
     /// already, at the place where a reader repairs it.
     fn collect(self, failures: &mut Vec<Failure>) {
-        if !self.failed || self.kind.as_deref() == Some(SUBTESTS_FAILED) {
-            return;
+        match self.outcome {
+            TestOutcome::Passed => {}
+            TestOutcome::Failed if self.kind.as_deref() == Some(SUBTESTS_FAILED) => {}
+            TestOutcome::Failed => failures.push(
+                Failure::builder()
+                    .name(self.name)
+                    .maybe_origin(self.origin)
+                    .maybe_reason(self.reason)
+                    .build(),
+            ),
         }
-
-        failures.push(
-            Failure::builder()
-                .name(self.name)
-                .maybe_origin(self.origin)
-                .maybe_reason(self.reason)
-                .build(),
-        );
     }
 
     /// Takes the place, the reason, and the kind out of the block of a result
@@ -622,5 +637,12 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Report>();
+    }
+
+    #[test]
+    fn test_outcome_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<TestOutcome>();
     }
 }

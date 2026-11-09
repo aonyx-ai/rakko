@@ -27,4 +27,4 @@
 
 mod format_rust;
 
-pub use self::format_rust::{FormatRust, FormatRustArgs, FormatRustError};
+pub use self::format_rust::{FormatRust, FormatRustArgs, FormatRustError, Operation};

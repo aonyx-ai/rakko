@@ -38,6 +38,17 @@ use tempfile::TempDir;
 pub use self::error::PrepareComparisonError;
 use crate::environment::inherited;
 
+/// What a run compares
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Scope {
+    /// The run compares the index of the checkout with its HEAD
+    #[default]
+    Checkout,
+
+    /// The run compares a pull request with its base branch
+    PullRequest,
+}
+
 /// The program that manages the repository of a project
 const GIT: &str = "git";
 
@@ -89,10 +100,11 @@ impl Comparison {
     /// refuses to build the copy.
     pub(crate) async fn prepare(
         root: &ProjectRoot,
-        requested: bool,
+        scope: Scope,
     ) -> Result<Option<Self>, PrepareComparisonError> {
-        if !requested {
-            return Ok(None);
+        match scope {
+            Scope::Checkout => return Ok(None),
+            Scope::PullRequest => {}
         }
 
         let repository = root.get().to_path_buf();
@@ -370,7 +382,9 @@ mod tests {
         let project = Project::merged();
         let before = project.git(&["rev-parse", "HEAD"]);
 
-        let comparison = Comparison::prepare(&project.root(), true).await.unwrap();
+        let comparison = Comparison::prepare(&project.root(), Scope::PullRequest)
+            .await
+            .unwrap();
         drop(comparison);
 
         assert_eq!(project.git(&["rev-parse", "HEAD"]), before);
@@ -380,7 +394,9 @@ mod tests {
     async fn comparison_leaves_the_index_of_the_checkout_alone() {
         let project = Project::merged();
 
-        let comparison = Comparison::prepare(&project.root(), true).await.unwrap();
+        let comparison = Comparison::prepare(&project.root(), Scope::PullRequest)
+            .await
+            .unwrap();
         drop(comparison);
 
         assert_eq!(project.git(&["diff", "--cached", "--name-only"]), "");
@@ -393,7 +409,7 @@ mod tests {
     async fn comparison_of_a_merge_commit_stages_the_pull_request() {
         let project = Project::merged();
 
-        let comparison = Comparison::prepare(&project.root(), true)
+        let comparison = Comparison::prepare(&project.root(), Scope::PullRequest)
             .await
             .unwrap()
             .unwrap();
@@ -411,8 +427,17 @@ mod tests {
     async fn comparison_that_nothing_asked_for_is_none() {
         let project = Project::merged();
 
-        let comparison = Comparison::prepare(&project.root(), false).await.unwrap();
+        let comparison = Comparison::prepare(&project.root(), Scope::Checkout)
+            .await
+            .unwrap();
 
         assert!(comparison.is_none(), "expected no comparison");
+    }
+
+    #[test]
+    fn scope_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Scope>();
     }
 }

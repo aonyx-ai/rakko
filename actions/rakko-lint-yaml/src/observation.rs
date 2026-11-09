@@ -11,6 +11,17 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::YamllintProblem;
 
+/// Whether a run of yamllint examined every file that it collected
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Completion {
+    /// Yamllint examined every file that it had collected
+    #[default]
+    Finished,
+
+    /// Yamllint stopped before examining all files
+    Interrupted,
+}
+
 /// What one run of yamllint produced
 ///
 /// The value holds the answer of one run: the rules that yamllint reported,
@@ -29,7 +40,7 @@ pub(crate) struct Observation {
 
     /// Whether yamllint examined every file that it had collected
     #[getset(get_copy = "pub(crate)")]
-    finished: bool,
+    finished: Completion,
 
     /// What yamllint wrote to its standard error stream
     ///
@@ -53,7 +64,7 @@ impl Observation {
     #[builder]
     pub(crate) fn new(
         #[builder(default)] problems: Vec<YamllintProblem>,
-        #[builder(default = true)] finished: bool,
+        #[builder(default)] finished: Completion,
         #[builder(into, default)] stderr: String,
     ) -> Self {
         Self {
@@ -67,6 +78,13 @@ impl Observation {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn completion_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Completion>();
+    }
 
     #[test]
     fn observation_is_send_sync_and_unpin() {

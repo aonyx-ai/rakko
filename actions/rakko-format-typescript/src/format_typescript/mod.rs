@@ -7,6 +7,7 @@
 
 mod args;
 mod error;
+mod operation;
 
 use std::path::Path;
 
@@ -17,7 +18,8 @@ use rakko::{
 
 pub use self::args::FormatTypeScriptArgs;
 pub use self::error::FormatTypeScriptError;
-use crate::observation::Observation;
+pub use self::operation::Operation;
+use crate::observation::{Exit, Matching, Observation};
 use crate::oxfmt::Oxfmt;
 use crate::problem::OxfmtProblem;
 
@@ -87,10 +89,9 @@ impl Action for FormatTypeScript {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
-            Access::Write
-        } else {
-            Access::Read
+        match args.operation() {
+            Operation::Rewrite => Access::Write,
+            Operation::Report => Access::Read,
         }
     }
 
@@ -122,10 +123,9 @@ async fn drive(
         .await
         .map_err(|source| FormatTypeScriptError::UnresolvedTool { source })?;
 
-    if args.fix() {
-        fix(&oxfmt, context.root()).await
-    } else {
-        report(&oxfmt, context.root()).await
+    match args.operation() {
+        Operation::Rewrite => fix(&oxfmt, context.root()).await,
+        Operation::Report => report(&oxfmt, context.root()).await,
     }
 }
 
@@ -320,19 +320,23 @@ fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatTypeScriptE
         });
     }
 
-    if observation.unmatched_pattern() {
-        return Ok(Some(Outcome::Skipped {
-            reason: SkipReason::new(NOTHING_TO_EXAMINE),
-        }));
+    match observation.matching() {
+        Matching::Unmatched => {
+            return Ok(Some(Outcome::Skipped {
+                reason: SkipReason::new(NOTHING_TO_EXAMINE),
+            }));
+        }
+        Matching::Matched => {}
     }
 
-    if observation.problems().is_empty() && !observation.succeeded() {
-        return Err(FormatTypeScriptError::UnrecognizedReport {
-            stderr: observation.stderr().clone(),
-        });
+    match observation.exit() {
+        Exit::Failed if observation.problems().is_empty() => {
+            Err(FormatTypeScriptError::UnrecognizedReport {
+                stderr: observation.stderr().clone(),
+            })
+        }
+        Exit::Failed | Exit::Succeeded => Ok(None),
     }
-
-    Ok(None)
 }
 
 /// Asks oxfmt what it would change and reports the answer

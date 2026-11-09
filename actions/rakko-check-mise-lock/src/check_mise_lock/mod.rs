@@ -8,6 +8,7 @@
 
 mod args;
 mod error;
+mod operation;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -18,6 +19,7 @@ use rakko_worktree::Worktree;
 
 pub use self::args::CheckMiseLockArgs;
 pub use self::error::CheckMiseLockError;
+pub use self::operation::Operation;
 use crate::difference::Difference;
 use crate::lockfile::Lockfile;
 use crate::mise::{Lock, Mise, Trust};
@@ -96,10 +98,9 @@ impl Action for CheckMiseLock {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
-            Access::Write
-        } else {
-            Access::Read
+        match args.operation() {
+            Operation::Rewrite => Access::Write,
+            Operation::Report => Access::Read,
         }
     }
 
@@ -142,25 +143,28 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
         .trust(Trust::Inherited)
         .build();
 
-    let (mise, before, _worktree) = if args.fix() {
-        let before = project.lockfiles().await?;
+    let (mise, before, _worktree) = match args.operation() {
+        Operation::Rewrite => {
+            let before = project.lockfiles().await?;
 
-        (project, before, None)
-    } else {
-        project.list().await?;
+            (project, before, None)
+        }
+        Operation::Report => {
+            project.list().await?;
 
-        let worktree = Worktree::create(context.root().clone())
-            .await
-            .map_err(|source| CheckMiseLockError::CopyUnavailable { source })?;
+            let worktree = Worktree::create(context.root().clone())
+                .await
+                .map_err(|source| CheckMiseLockError::CopyUnavailable { source })?;
 
-        let copy = Mise::builder()
-            .root(worktree.root().clone())
-            .trust(Trust::Granted)
-            .build();
+            let copy = Mise::builder()
+                .root(worktree.root().clone())
+                .trust(Trust::Granted)
+                .build();
 
-        let before = copy.lockfiles().await?;
+            let before = copy.lockfiles().await?;
 
-        (copy, before, Some(worktree))
+            (copy, before, Some(worktree))
+        }
     };
 
     let targets = match mise.lock().await? {
@@ -189,15 +193,14 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
         });
     }
 
-    if args.fix() {
-        Ok(Outcome::Changed {
+    match args.operation() {
+        Operation::Rewrite => Ok(Outcome::Changed {
             repairs: findings(&differences, Difference::repair),
-        })
-    } else {
-        Ok(Outcome::Failed {
+        }),
+        Operation::Report => Ok(Outcome::Failed {
             findings: findings(&differences, Difference::finding),
             repairs: Vec::new(),
-        })
+        }),
     }
 }
 

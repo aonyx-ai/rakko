@@ -12,7 +12,7 @@ use rakko::ProjectRoot;
 use rakko_tool::{Execution, ResolveToolError, Tool, ToolName};
 
 pub(crate) use self::error::ObserveStilesError;
-use crate::observation::Observation;
+use crate::observation::{Examination, Observation};
 use crate::problem::{Severity, StilesProblem};
 
 /// The name that mise knows the tool by
@@ -144,7 +144,9 @@ impl Stiles {
         let stderr = execution.stderr().to_string_lossy();
 
         if found_nothing(&stderr) {
-            return Ok(Observation::builder().examined(false).build());
+            return Ok(Observation::builder()
+                .examined(Examination::Skipped)
+                .build());
         }
 
         if stopped(&stderr) {

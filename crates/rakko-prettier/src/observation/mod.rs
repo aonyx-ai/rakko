@@ -16,6 +16,8 @@ use bon::bon;
 use getset::{CopyGetters, Getters};
 use rakko_tool::Execution;
 
+use crate::exit::Exit;
+use crate::matching::Matching;
 use crate::operation::Operation;
 use crate::problem::PrettierProblem;
 
@@ -54,19 +56,18 @@ pub struct Observation {
     #[getset(get = "pub")]
     stderr: String,
 
-    /// Whether prettier ended with success
+    /// How the run of prettier ended
     #[getset(get_copy = "pub")]
-    succeeded: bool,
+    succeeded: Exit,
 
-    /// Whether prettier refused the pattern of the run because nothing
-    /// matched it
+    /// Whether the pattern of the run matched a file
     ///
     /// Prettier treats a pattern that matches nothing as an error, so this
     /// is how a run reports that the project holds no file of the group. A
     /// caller answers it as a run that had nothing to examine, not as a
     /// failure.
     #[getset(get_copy = "pub")]
-    unmatched_pattern: bool,
+    unmatched_pattern: Matching,
 }
 
 #[bon]
@@ -83,8 +84,8 @@ impl Observation {
         rejected_configuration: Option<String>,
         #[builder(default)] rewritten: Vec<PathBuf>,
         #[builder(into, default)] stderr: String,
-        #[builder(default)] succeeded: bool,
-        #[builder(default)] unmatched_pattern: bool,
+        #[builder(default)] succeeded: Exit,
+        #[builder(default)] unmatched_pattern: Matching,
     ) -> Self {
         Self {
             problems,
@@ -104,10 +105,16 @@ impl Observation {
     /// nothing else.
     #[builder]
     pub(crate) fn read(execution: &Execution, operation: Operation) -> Self {
+        let exit = if execution.status().success() {
+            Exit::Succeeded
+        } else {
+            Exit::Failed
+        };
+
         self::report::read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),
-            execution.status().success(),
+            exit,
             operation,
         )
     }

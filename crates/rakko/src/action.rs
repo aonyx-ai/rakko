@@ -129,6 +129,17 @@ mod tests {
     use super::*;
     use crate::tool::{RequiredVersion, ToolVersion};
 
+    /// Whether a future has returned control already
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+    enum PollState {
+        /// The future has returned control and is ready
+        Ready,
+
+        /// The future has not returned control yet
+        #[default]
+        Pending,
+    }
+
     /// A minimal action that yields once and then passes
     struct Probe;
 
@@ -177,18 +188,19 @@ mod tests {
     #[derive(Default)]
     struct YieldOnce {
         /// Whether the future has returned control already
-        yielded: bool,
+        state: PollState,
     }
 
     impl Future for YieldOnce {
         type Output = ();
 
         fn poll(mut self: Pin<&mut Self>, _cx: &mut TaskContext<'_>) -> Poll<()> {
-            if self.yielded {
-                Poll::Ready(())
-            } else {
-                self.yielded = true;
-                Poll::Pending
+            match self.state {
+                PollState::Ready => Poll::Ready(()),
+                PollState::Pending => {
+                    self.state = PollState::Ready;
+                    Poll::Pending
+                }
             }
         }
     }
@@ -257,6 +269,13 @@ mod tests {
         let action = Probe;
 
         assert_eq!(action.name().get(), "probe");
+    }
+
+    #[test]
+    fn poll_state_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<PollState>();
     }
 
     #[test]

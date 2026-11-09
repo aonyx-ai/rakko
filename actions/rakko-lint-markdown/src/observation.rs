@@ -11,6 +11,28 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::MarkdownlintProblem;
 
+/// Whether markdownlint examined a file of the project
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Examination {
+    /// Markdownlint examined a file of the project
+    #[default]
+    Examined,
+
+    /// Markdownlint did not examine a file of the project
+    Skipped,
+}
+
+/// How a run of markdownlint ended
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Exit {
+    /// Markdownlint ended the run with success
+    #[default]
+    Succeeded,
+
+    /// Markdownlint ended the run with failure
+    Failed,
+}
+
 /// What one run of markdownlint produced
 ///
 /// The value holds the answer of one run: the rules that markdownlint
@@ -30,7 +52,7 @@ pub(crate) struct Observation {
 
     /// Whether markdownlint examined a file of the project
     #[getset(get_copy = "pub(crate)")]
-    examined: bool,
+    examined: Examination,
 
     /// What markdownlint wrote to its standard error stream
     ///
@@ -39,9 +61,9 @@ pub(crate) struct Observation {
     #[getset(get = "pub(crate)")]
     stderr: String,
 
-    /// Whether markdownlint ended with success
+    /// How the run of markdownlint ended
     #[getset(get_copy = "pub(crate)")]
-    succeeded: bool,
+    succeeded: Exit,
 }
 
 #[bon]
@@ -58,9 +80,9 @@ impl Observation {
     #[builder]
     pub(crate) fn new(
         #[builder(default)] problems: Vec<MarkdownlintProblem>,
-        #[builder(default = true)] examined: bool,
+        #[builder(default)] examined: Examination,
         #[builder(into, default)] stderr: String,
-        #[builder(default = true)] succeeded: bool,
+        #[builder(default)] succeeded: Exit,
     ) -> Self {
         Self {
             problems,
@@ -74,6 +96,20 @@ impl Observation {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn examination_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Examination>();
+    }
+
+    #[test]
+    fn exit_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Exit>();
+    }
 
     #[test]
     fn observation_is_send_sync_and_unpin() {

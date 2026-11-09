@@ -14,10 +14,11 @@
 /// A later release can add an operation for another job of prettier. So a
 /// match on an operation outside this crate needs an arm for an operation
 /// that it does not know.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 #[non_exhaustive]
 pub enum Operation {
     /// Report the files that prettier would change, and rewrite nothing
+    #[default]
     Report,
 
     /// Rewrite the files that prettier can format

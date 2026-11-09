@@ -11,6 +11,17 @@ use getset::{CopyGetters, Getters};
 
 use crate::problem::ZizmorProblem;
 
+/// Whether zizmor collected a file to audit
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub(crate) enum Examination {
+    /// Zizmor collected a file to audit
+    #[default]
+    Examined,
+
+    /// Zizmor collected no file to audit
+    Skipped,
+}
+
 /// What one run of zizmor produced
 ///
 /// The value holds the answer of one run: the places that zizmor reported,
@@ -28,7 +39,7 @@ pub(crate) struct Observation {
 
     /// Whether zizmor collected a file to audit
     #[getset(get_copy = "pub(crate)")]
-    collected: bool,
+    collected: Examination,
 }
 
 #[bon]
@@ -45,7 +56,7 @@ impl Observation {
     #[builder]
     pub(crate) fn new(
         #[builder(default)] problems: Vec<ZizmorProblem>,
-        #[builder(default = true)] collected: bool,
+        #[builder(default)] collected: Examination,
     ) -> Self {
         Self {
             problems,
@@ -57,6 +68,13 @@ impl Observation {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn examination_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Examination>();
+    }
 
     #[test]
     fn observation_is_send_sync_and_unpin() {

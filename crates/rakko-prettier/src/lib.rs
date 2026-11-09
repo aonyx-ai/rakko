@@ -30,7 +30,7 @@
 //!
 //! ```no_run
 //! use rakko::ProjectRoot;
-//! use rakko_prettier::{FileExtension, Filter, Operation, Prettier};
+//! use rakko_prettier::{FileExtension, Filter, Matching, Operation, Prettier};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -40,10 +40,9 @@
 //! let prettier = Prettier::resolve(root).await?;
 //! let observation = prettier.observe(Operation::Report, &filter).await?;
 //!
-//! if observation.unmatched_pattern() {
-//!     println!("nothing to examine");
-//! } else {
-//!     println!("{} problems", observation.problems().len());
+//! match observation.unmatched_pattern() {
+//!     Matching::Unmatched => println!("nothing to examine"),
+//!     Matching::Matched => println!("{} problems", observation.problems().len()),
 //! }
 //! # Ok(())
 //! # }
@@ -52,13 +51,17 @@
 //! [prettier]: https://prettier.io
 //! [tokio]: https://tokio.rs
 
+mod exit;
 mod filter;
+mod matching;
 mod observation;
 mod operation;
 mod prettier;
 mod problem;
 
+pub use self::exit::Exit;
 pub use self::filter::{FileExtension, Filter};
+pub use self::matching::Matching;
 pub use self::observation::Observation;
 pub use self::operation::Operation;
 pub use self::prettier::{ObservePrettierError, Prettier};

@@ -22,6 +22,16 @@ use rakko_tool::Execution;
 
 pub(crate) use self::problem::{RustfmtProblem, RustfmtProblemDetail};
 
+/// How a run of rustfmt ended
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub(crate) enum Exit {
+    /// Rustfmt ended the run with success
+    Succeeded,
+
+    /// Rustfmt ended the run without success
+    Failed,
+}
+
 /// The start of a line that names a diagnostic of rustfmt
 ///
 /// Rustfmt writes a diagnostic the way the compiler does: a line that starts
@@ -66,9 +76,9 @@ pub(crate) struct RustfmtReport {
     #[getset(get = "pub(crate)")]
     stderr: String,
 
-    /// Whether the run ended with success
+    /// How the run ended
     #[getset(get_copy = "pub(crate)")]
-    succeeded: bool,
+    exit: Exit,
 }
 
 impl RustfmtReport {
@@ -94,10 +104,16 @@ impl RustfmtReport {
 
     /// Reads the report of a run from what rustfmt wrote
     pub(crate) fn read(execution: &Execution) -> Self {
+        let exit = if execution.status().success() {
+            Exit::Succeeded
+        } else {
+            Exit::Failed
+        };
+
         read(
             &execution.stdout().to_string_lossy(),
             &execution.stderr().to_string_lossy(),
-            execution.status().success(),
+            exit,
         )
     }
 }
@@ -150,7 +166,7 @@ fn header(line: &str) -> Option<&str> {
 }
 
 /// Reads a report from the two streams of a run
-fn read(stdout: &str, stderr: &str, succeeded: bool) -> RustfmtReport {
+fn read(stdout: &str, stderr: &str, exit: Exit) -> RustfmtReport {
     let mut listed = Vec::new();
     let mut seen = HashSet::new();
 
@@ -188,7 +204,7 @@ fn read(stdout: &str, stderr: &str, succeeded: bool) -> RustfmtReport {
         invalid,
         warning,
         stderr: stderr.to_owned(),
-        succeeded,
+        exit,
     }
 }
 
@@ -211,8 +227,15 @@ mod tests {
     const UNKNOWN_OPTION: &str = "Warning: Unknown configuration option `no_such_option`\nWarning: Unknown configuration option `no_such_option`\n";
 
     #[test]
+    fn exit_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Exit>();
+    }
+
+    #[test]
     fn problems_of_a_check_hold_the_invalid_files_after_the_listed_ones() {
-        let report = read(LISTED, INVALID, false);
+        let report = read(LISTED, INVALID, Exit::Failed);
 
         let problems = report.problems();
 
@@ -221,7 +244,7 @@ mod tests {
 
     #[test]
     fn problems_of_a_check_name_the_listed_files() {
-        let report = read(LISTED, "", false);
+        let report = read(LISTED, "", Exit::Failed);
 
         let problems = report.problems();
 
@@ -238,7 +261,7 @@ mod tests {
 
     #[test]
     fn read_a_diagnostic_reads_the_message() {
-        let report = read("", INVALID, false);
+        let report = read("", INVALID, Exit::Failed);
 
         assert_eq!(
             report.invalid().first().map(RustfmtProblem::detail),
@@ -252,7 +275,7 @@ mod tests {
 
     #[test]
     fn read_a_diagnostic_reads_the_path() {
-        let report = read("", INVALID, false);
+        let report = read("", INVALID, Exit::Failed);
 
         assert_eq!(
             report.invalid().first().map(RustfmtProblem::path),
@@ -262,7 +285,7 @@ mod tests {
 
     #[test]
     fn read_a_file_listed_twice_keeps_one() {
-        let report = read(LISTED, "", false);
+        let report = read(LISTED, "", Exit::Failed);
 
         assert_eq!(
             report.listed(),
@@ -275,7 +298,7 @@ mod tests {
 
     #[test]
     fn read_a_warning_keeps_the_first_one() {
-        let report = read("", UNKNOWN_OPTION, false);
+        let report = read("", UNKNOWN_OPTION, Exit::Failed);
 
         assert_eq!(
             report.warning().as_deref(),
@@ -285,7 +308,7 @@ mod tests {
 
     #[test]
     fn read_an_empty_report_finds_nothing() {
-        let report = read("", "", true);
+        let report = read("", "", Exit::Succeeded);
 
         assert_eq!(
             report,
@@ -294,7 +317,7 @@ mod tests {
                 invalid: Vec::new(),
                 warning: None,
                 stderr: String::new(),
-                succeeded: true,
+                exit: Exit::Succeeded,
             }
         );
     }

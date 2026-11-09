@@ -3,6 +3,8 @@
 use getset::CopyGetters;
 use rakko::{Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ReadArgsError, argument_name};
 
+use super::operation::Operation;
+
 /// The documentation of the fix argument
 const FIX_DOCUMENTATION: &str = "Write the lockfiles that mise lock would change";
 
@@ -14,9 +16,9 @@ const FIX_DOCUMENTATION: &str = "Write the lockfiles that mise lock would change
 /// change the tree that its caller holds.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct CheckMiseLockArgs {
-    /// Whether the run writes the lockfiles of the project
+    /// What the run does with the lockfiles of the project
     #[getset(get_copy = "pub")]
-    fix: bool,
+    operation: Operation,
 }
 
 impl Args for CheckMiseLockArgs {
@@ -41,7 +43,13 @@ impl Args for CheckMiseLockArgs {
             None => false,
         };
 
-        Ok(Self { fix })
+        let operation = if fix {
+            Operation::Rewrite
+        } else {
+            Operation::Report
+        };
+
+        Ok(Self { operation })
     }
 }
 
@@ -81,14 +89,14 @@ mod tests {
     fn from_values_with_true_asks_for_a_rewrite() {
         let args = CheckMiseLockArgs::from_values(&values("true")).unwrap();
 
-        assert!(args.fix());
+        assert_eq!(args.operation(), Operation::Rewrite);
     }
 
     #[test]
     fn from_values_without_a_value_asks_for_a_report() {
         let args = CheckMiseLockArgs::from_values(&ArgsValues::empty()).unwrap();
 
-        assert!(!args.fix());
+        assert_eq!(args.operation(), Operation::Report);
     }
 
     #[test]

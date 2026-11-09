@@ -8,6 +8,7 @@
 
 mod args;
 mod error;
+mod operation;
 mod report;
 
 use std::collections::HashSet;
@@ -21,7 +22,8 @@ use rakko_cargo::{Cargo, CargoRoot, Toolchain};
 
 pub use self::args::FormatRustArgs;
 pub use self::error::FormatRustError;
-pub(crate) use self::report::{RustfmtProblem, RustfmtProblemDetail, RustfmtReport};
+pub use self::operation::Operation;
+pub(crate) use self::report::{Exit, RustfmtProblem, RustfmtProblemDetail, RustfmtReport};
 
 /// The reason of a run whose cargo discovered no workspace
 const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
@@ -96,10 +98,9 @@ impl Action for FormatRust {
     }
 
     fn access(&self, _context: &Context, args: &Self::Args) -> Access {
-        if args.fix() {
-            Access::Write
-        } else {
-            Access::Read
+        match args.operation() {
+            Operation::Rewrite => Access::Write,
+            Operation::Report => Access::Read,
         }
     }
 
@@ -164,17 +165,20 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
             continue;
         }
 
-        if args.fix() {
-            let (repaired, remaining) = fix(&cargo, &toolchain, root, &checked).await?;
-            repairs.extend(
-                repaired
-                    .iter()
-                    .map(|problem| finding(problem, root, context, UNFORMATTED_REPAIR))
-                    .collect::<Result<Vec<Finding>, FormatRustError>>()?,
-            );
-            findings.extend(findings_of(&remaining, root, context)?);
-        } else {
-            findings.extend(findings_of(&checked.problems(), root, context)?);
+        match args.operation() {
+            Operation::Rewrite => {
+                let (repaired, remaining) = fix(&cargo, &toolchain, root, &checked).await?;
+                repairs.extend(
+                    repaired
+                        .iter()
+                        .map(|problem| finding(problem, root, context, UNFORMATTED_REPAIR))
+                        .collect::<Result<Vec<Finding>, FormatRustError>>()?,
+                );
+                findings.extend(findings_of(&remaining, root, context)?);
+            }
+            Operation::Report => {
+                findings.extend(findings_of(&checked.problems(), root, context)?);
+            }
         }
     }
 
@@ -309,14 +313,15 @@ async fn observe(
         });
     }
 
-    if !report.succeeded() && report.listed().is_empty() && report.invalid().is_empty() {
-        return Err(FormatRustError::UnrecognizedReport {
-            root: root.directory().clone(),
-            stderr: report.stderr().clone(),
-        });
+    match report.exit() {
+        Exit::Failed if report.listed().is_empty() && report.invalid().is_empty() => {
+            Err(FormatRustError::UnrecognizedReport {
+                root: root.directory().clone(),
+                stderr: report.stderr().clone(),
+            })
+        }
+        Exit::Failed | Exit::Succeeded => Ok(report),
     }
-
-    Ok(report)
 }
 
 /// Returns the outcome of a run from what it found and what it repaired
