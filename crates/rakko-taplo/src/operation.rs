@@ -13,6 +13,16 @@
 /// A later release can add an operation for another job of taplo. So a
 /// match on an operation outside this crate needs an arm for an operation
 /// that it does not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_taplo::Operation;
+///
+/// let operation = Operation::CheckFormat;
+///
+/// assert_ne!(operation, Operation::Format);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[non_exhaustive]
 pub enum Operation {

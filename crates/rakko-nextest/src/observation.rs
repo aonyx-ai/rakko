@@ -30,6 +30,36 @@ const NO_TESTS: i32 = 4;
 /// An observation describes the run and judges nothing. A run without a
 /// finding says nothing about whether the caller passes, because a caller
 /// that tests several workspaces sums the answers of all of them.
+///
+/// # Examples
+///
+/// ```no_run
+/// use rakko::{Context, ProjectRoot};
+/// use rakko_cargo::Cargo;
+/// use rakko_nextest::{Lockfile, Nextest};
+/// use rakko_test_utils::path;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+/// let cargo = Cargo::resolve(&context).await?;
+/// let roots = cargo.roots().await?;
+/// let nextest = Nextest::resolve()
+///     .cargo(cargo)
+///     .lockfile(Lockfile::Locked)
+///     .context(&context)
+///     .call()
+///     .await?;
+///
+/// for root in &roots {
+///     let observation = nextest.observe(root, context.root()).await?;
+///
+///     assert!(observation.findings().is_empty());
+///     assert!(observation.ran() > 0);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The findings of the run: the tests that failed, and the diagnostics

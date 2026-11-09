@@ -78,6 +78,17 @@ impl CargoReport {
     /// is not a record of cargo at all, so the output of a tool that cargo
     /// runs can share the stream.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::CargoReport;
+    ///
+    /// let report = CargoReport::read(r#"{"reason":"build-finished","success":false}"#)?;
+    ///
+    /// assert_eq!(report.finished(), Some(false));
+    /// # Ok::<(), rakko_cargo::ReadReportError>(())
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`UnrecognizedRecord`][unrecognized] when a line names a

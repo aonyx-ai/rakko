@@ -26,6 +26,22 @@ pub use self::shape::ArgumentShape;
 /// required. The argument set of an action decides what an absent value
 /// means, so a run from a command line and a run from a test read the same
 /// rules.
+///
+/// # Examples
+///
+/// Create an argument that the action reads.
+///
+/// ```
+/// use rakko::{Argument, ArgumentShape, argument_name};
+///
+/// let argument = Argument::builder()
+///     .name(argument_name!("fix"))
+///     .shape(ArgumentShape::Boolean)
+///     .documentation("Rewrite files that need repairs")
+///     .build();
+///
+/// assert_eq!(argument.name().get(), "fix");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Argument {
     /// The name that identifies the argument

@@ -13,6 +13,21 @@ use crate::stiles::ObserveStilesError;
 /// reported travels as a finding in the outcome of the run. The variants of
 /// this error describe a run whose answer cannot be trusted, and such a run
 /// stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_stiles::LintStilesError;
+///
+/// let error = LintStilesError::IncompleteCheck {
+///     details: "stiles failed to build a lint".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "stiles stopped before it had checked the project: stiles failed to build a lint"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum LintStilesError {

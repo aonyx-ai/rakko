@@ -54,6 +54,20 @@ pub struct ToolRequirement {
 #[bon]
 impl ToolRequirement {
     /// Creates a requirement from a tool, its program, and its versions
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{RequiredVersion, ToolRequirement, ToolVersion};
+    ///
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("npm:prettier")
+    ///     .executable("prettier")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("3.3.0")))
+    ///     .build();
+    ///
+    /// assert_eq!(requirement.tool().get(), "npm:prettier");
+    /// ```
     #[builder]
     pub fn new(
         #[builder(into)] tool: MiseTool,

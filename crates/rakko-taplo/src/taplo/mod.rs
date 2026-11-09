@@ -91,17 +91,18 @@ const PLAIN: &str = "never";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::Context;
+/// use rakko::{Context, ProjectRoot};
 /// use rakko_taplo::{Operation, Taplo};
+/// use rakko_test_utils::path;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let context = Context::builder().root("/home/otter/project").build();
+/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 /// let taplo = Taplo::resolve(&context).await?;
 ///
 /// let observation = taplo.observe(Operation::CheckFormat).await?;
 ///
-/// println!("{:?} files", observation.checked());
+/// assert!(observation.problems().is_empty());
 /// # Ok(())
 /// # }
 /// ```
@@ -134,6 +135,24 @@ impl Taplo {
     /// Repeating is safe for every operation, because a report reads the
     /// project again, and a rewrite formats files that a previous attempt
     /// already formatted.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_taplo::{Operation, Taplo};
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let taplo = Taplo::resolve(&context).await?;
+    /// let observation = taplo.observe(Operation::CheckFormat).await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -176,6 +195,16 @@ impl Taplo {
     ///
     /// The requirement holds the exact version that the crate pins. An action
     /// that runs taplo returns it from its declaration of tools.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_taplo::Taplo;
+    ///
+    /// let requirement = Taplo::requirement();
+    ///
+    /// assert_eq!(requirement.executable().get(), "taplo");
+    /// ```
     pub fn requirement() -> ToolRequirement {
         ToolRequirement::builder()
             .tool(TAPLO)
@@ -189,6 +218,23 @@ impl Taplo {
     /// The lookup asks mise for the version that [`requirement`][requirement]
     /// holds, so a pin of taplo in the project does not change the answer.
     /// A run of taplo starts in the root of the context.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_taplo::Taplo;
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let taplo = Taplo::resolve(&context).await?;
+    ///
+    /// assert_eq!(taplo, Taplo::resolve(&context).await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

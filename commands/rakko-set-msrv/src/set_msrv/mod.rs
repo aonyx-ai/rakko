@@ -56,6 +56,23 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 /// reviewer reads a diff of a few lines. Mise locks every Rust pin again, so
 /// in a project whose pins name exact versions, only the entry of the moved
 /// pin changes in the lock.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::action_name;
+/// use rakko_cli::Command;
+/// use rakko_set_msrv::SetMsrv;
+///
+/// # struct CheckMsrv;
+/// # impl rakko::Action for CheckMsrv {
+/// #     type Args = ();
+/// #     fn name(&self) -> rakko::Name { action_name!("check-msrv") }
+/// #     async fn run(&self, _: &rakko::Context, _: &Self::Args) -> rakko::Outcome { rakko::Outcome::Passed { summary: None } }
+/// # }
+/// let command = SetMsrv::new(CheckMsrv);
+/// assert_eq!(command.name().get(), "set-msrv");
+/// ```
 pub struct SetMsrv {
     /// The action that runs the compiler on the toolchain at the new version
     check: Box<dyn ErasedAction>,

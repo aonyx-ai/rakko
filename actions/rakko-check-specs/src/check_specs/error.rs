@@ -12,6 +12,21 @@ use crate::tracey::ObserveTraceyError;
 /// A broken link between a specification and the code is no error: it travels
 /// as a finding, and the outcome of the run reports it. The variants here
 /// describe a run that reached no answer about the project at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::{CheckSpecsError, PrepareComparisonError};
+///
+/// let source = PrepareComparisonError::RefusedCopy {
+///     details: "not a git repository".to_owned(),
+/// };
+/// let error = CheckSpecsError::from(source);
+/// assert_eq!(
+///     error.to_string(),
+///     "failed to compare the pull request with its base branch"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckSpecsError {

@@ -19,6 +19,24 @@ use crate::tool::ToolName;
 /// A later release can add a variant for another reason why a tool cannot be
 /// found. So a match on this error outside this crate needs an arm for a
 /// variant that it does not know.
+///
+/// # Examples
+///
+/// A tool that nobody installed leaves the sentence of mise in the error:
+///
+/// ```
+/// use rakko_tool::{ResolveToolError, ToolName};
+///
+/// let error = ResolveToolError::UnresolvedTool {
+///     tool: ToolName::new("zizmor"),
+///     details: "zizmor is not installed".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "mise reports no location for `zizmor`: zizmor is not installed"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ResolveToolError {

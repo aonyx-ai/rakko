@@ -11,6 +11,16 @@ use thiserror::Error;
 /// A later release can add a variant, such as for a rule that it adds. So a
 /// match on this error outside this crate needs an arm for a variant that it
 /// does not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Name, ParseNameError};
+///
+/// let error = "".parse::<Name>().unwrap_err();
+///
+/// assert_eq!(error, ParseNameError::Empty);
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 #[non_exhaustive]
 pub enum ParseNameError {

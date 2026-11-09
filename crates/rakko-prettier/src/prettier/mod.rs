@@ -78,6 +78,23 @@ pub struct Prettier {
 impl Prettier {
     /// Runs one operation over the files that the filter selects
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::ProjectRoot;
+    /// use rakko_prettier::{FileExtension, Filter, Operation, Prettier};
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let prettier = Prettier::resolve(ProjectRoot::new("/home/otter/project".into())).await?;
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    /// let observation = prettier.observe(Operation::Report, &filter).await?;
+    ///
+    /// assert!(observation.problems().is_empty());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`PrettierUnavailable`][unavailable] when prettier does not
@@ -116,6 +133,22 @@ impl Prettier {
     /// The lookup asks mise about the project whose root the caller names, so
     /// the version that the project pinned answers, whatever the shell that
     /// started the process carries on its path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::ProjectRoot;
+    /// use rakko_prettier::Prettier;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let prettier = Prettier::resolve(root.clone()).await?;
+    ///
+    /// assert_eq!(prettier, Prettier::resolve(root).await?);
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

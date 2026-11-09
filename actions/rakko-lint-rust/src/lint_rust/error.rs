@@ -12,6 +12,26 @@ use thiserror::Error;
 /// a warning or an error of the compiler, travels as a finding in the
 /// outcome of the run. The variants of this error describe a run whose
 /// answer cannot be trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// A workspace whose lockfile needs an update stops the run and names the
+/// workspace:
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// use rakko_lint_rust::LintRustError;
+///
+/// let error = LintRustError::StaleLockfile {
+///     root: PathBuf::from("/project"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "the lockfile of the workspace in /project needs an update"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum LintRustError {

@@ -13,6 +13,20 @@
 /// The `doctest` flag of a manifest decides something else. It selects
 /// whether a plain run of the tests includes the examples, and a run that
 /// names the documentation itself tests them either way.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoRoot, Documentation};
+/// use rakko_test_utils::path;
+///
+/// let root = CargoRoot::builder()
+///     .directory(path("/home/otter/project"))
+///     .documentation(Documentation::Untestable)
+///     .build();
+///
+/// assert_eq!(root.documentation(), Documentation::Untestable);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Documentation {
     /// The workspace holds a library whose examples cargo can test

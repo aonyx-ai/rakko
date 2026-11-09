@@ -15,6 +15,21 @@ use crate::report::ReadUdepsReportError;
 /// findings in the outcome of the run. The variants of this error describe a
 /// run whose answer cannot be trusted, and such a run stops instead of
 /// reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_check_unused_deps::CheckUnusedDepsError;
+///
+/// let error = CheckUnusedDepsError::StaleLockfile {
+///     root: PathBuf::from("/home/otter/project"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the lockfile of the workspace in /home/otter/project needs an update"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckUnusedDepsError {

@@ -16,6 +16,20 @@ use thiserror::Error;
 /// A later release can add a variant for another reason why the discovery of
 /// the roots can stop. So a match on this error outside this crate needs an arm
 /// for a variant that it does not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::DiscoverRootsError;
+/// use rakko_test_utils::path;
+///
+/// let error = DiscoverRootsError::ForeignWorkspace {
+///     manifest: path("/home/otter/project/Cargo.toml"),
+///     workspace: path("/home/otter"),
+/// };
+///
+/// assert!(error.to_string().contains("outside the project"));
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum DiscoverRootsError {

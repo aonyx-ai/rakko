@@ -14,6 +14,22 @@ use crate::yamllint::{ListFilesError, ObserveYamllintError};
 /// as a finding in the outcome of the run. The variants of this error
 /// describe a run whose answer cannot be trusted, and such a run stops
 /// instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::LintYamlError;
+/// use std::path::PathBuf;
+///
+/// let error = LintYamlError::ForeignPath {
+///     path: PathBuf::from("/outside/project"),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "yamllint reported a path outside the project: /outside/project"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum LintYamlError {

@@ -8,6 +8,21 @@ use thiserror::Error;
 /// describes a report whose shape this crate does not know, which belongs to
 /// a version of yamllint that the project pinned after this crate was
 /// written.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_lint_yaml::ReadReportError;
+///
+/// let error = ReadReportError::UnreadableLine {
+///     line: "not a yamllint report".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "yamllint wrote a line that does not report a problem: not a yamllint report"
+/// );
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 #[non_exhaustive]
 pub enum ReadReportError {

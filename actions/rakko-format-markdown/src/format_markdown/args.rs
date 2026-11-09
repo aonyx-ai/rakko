@@ -13,6 +13,21 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that prettier can format";
 /// prettier rewrite the files that it can format. Reporting is the safe
 /// default, because a run that was started in order to look must not change
 /// the tree that its caller holds.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_format_markdown::FormatMarkdownArgs;
+/// use rakko_prettier::Operation;
+///
+/// assert_eq!(FormatMarkdownArgs::default().operation(), Operation::Report);
+///
+/// let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+/// let args = FormatMarkdownArgs::from_values(&values).unwrap();
+///
+/// assert_eq!(args.operation(), Operation::Rewrite);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatMarkdownArgs {
     /// The operation that prettier runs

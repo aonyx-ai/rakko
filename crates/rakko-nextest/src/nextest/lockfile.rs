@@ -19,6 +19,20 @@
 /// A run that may change the project can let cargo resolve the dependencies
 /// and write the lockfile instead.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::lockfile;
+/// use rakko_nextest::Lockfile;
+///
+/// let flag = match Lockfile::Locked {
+///     Lockfile::Locked => Some(lockfile::LOCKED),
+///     Lockfile::Writable => None,
+/// };
+///
+/// assert_eq!(flag, Some("--locked"));
+/// ```
+///
 /// [refused]: rakko_cargo::lockfile::refused
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Lockfile {

@@ -16,6 +16,22 @@
 /// The shapes cover the input that actions read today. An argument that the
 /// user repeats, and an argument that takes one of a fixed set of values,
 /// have no shape yet.
+///
+/// # Examples
+///
+/// Distinguish the kind of value an argument holds.
+///
+/// ```
+/// use rakko::{Argument, ArgumentShape, argument_name};
+///
+/// let argument = Argument::builder()
+///     .name(argument_name!("jobs"))
+///     .shape(ArgumentShape::Integer)
+///     .documentation("Run this many jobs at once")
+///     .build();
+///
+/// assert_eq!(argument.shape(), &ArgumentShape::Integer);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum ArgumentShape {
     /// A value that is true or false

@@ -30,7 +30,7 @@ use crate::seal::SealedBound;
 /// # Examples
 ///
 /// ```
-/// use rakko::{Access, Action, ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
+/// use rakko::{Access, Action, ArgsValues, Context, ErasedAction, Name, Outcome, ProjectRoot, action_name};
 ///
 /// struct LineCount;
 ///
@@ -51,7 +51,7 @@ use crate::seal::SealedBound;
 /// }
 ///
 /// let action: Box<dyn ErasedAction> = Box::new(LineCount);
-/// let context = Context::builder().root("/tmp/project").build();
+/// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
 /// let values = ArgsValues::empty();
 ///
 /// let bound = action.bind(&values).expect("the action reads no arguments");

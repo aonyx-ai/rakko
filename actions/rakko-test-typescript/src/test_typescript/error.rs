@@ -12,6 +12,18 @@ use crate::node::report::ReadReportError;
 /// finding in the outcome of the run. The variants of this error describe a
 /// run whose answer cannot be trusted, and such a run stops instead of
 /// reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_test_typescript::TestTypeScriptError;
+///
+/// let error = TestTypeScriptError::MissingFailure {
+///     details: "out of memory".to_owned(),
+/// };
+///
+/// assert!(error.to_string().contains("out of memory"));
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum TestTypeScriptError {

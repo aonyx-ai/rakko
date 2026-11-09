@@ -49,6 +49,17 @@ enum Exit {
 /// formatted and a file that taplo refused are both problems of the project,
 /// and the action that asked for the run decides what they mean for its
 /// outcome.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_taplo::Observation;
+///
+/// let observation = Observation::builder().checked(3).build();
+///
+/// assert_eq!(observation.checked(), Some(3));
+/// assert!(observation.problems().is_empty());
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// How many files the run examined, after its configuration excluded
@@ -101,6 +112,24 @@ impl Observation {
     /// one where a test stands in for a taplo that nobody started. Every
     /// part is optional, so a test names what its case is about and leaves
     /// the rest at the answer of a run that reported nothing.
+    ///
+    /// # Examples
+    ///
+    /// A test names the one part that its case is about:
+    ///
+    /// ```
+    /// use rakko_taplo::Observation;
+    ///
+    /// let observation = Observation::builder()
+    ///     .rejected_configuration("invalid taplo.toml".to_owned())
+    ///     .build();
+    ///
+    /// assert_eq!(observation.checked(), None);
+    /// assert_eq!(
+    ///     observation.rejected_configuration().as_deref(),
+    ///     Some("invalid taplo.toml")
+    /// );
+    /// ```
     #[builder]
     pub fn new(
         checked: Option<u64>,

@@ -15,6 +15,19 @@ pub use self::name::PackageName;
 /// documents the workspace also needs to know which packages it must
 /// document apart from the others. A package carries both, so a caller reads
 /// them from the root instead of asking cargo again.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoPackage, DocumentedNames, PackageName};
+///
+/// let package = CargoPackage::builder()
+///     .name(PackageName::new("otter"))
+///     .documented_names(DocumentedNames::Unique)
+///     .build();
+///
+/// assert_eq!(package.name().get(), "otter");
+/// ```
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Builder, CopyGetters, Getters)]
 pub struct CargoPackage {
     /// The name that the manifest of the package states

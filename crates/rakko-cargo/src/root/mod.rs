@@ -45,6 +45,21 @@ pub(crate) const MANIFEST: &str = "Cargo.toml";
 /// the roots in a fixed order sorts them by their directory, which is how
 /// the discovery reports them.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoRoot, Documentation};
+/// use rakko_test_utils::path;
+///
+/// let root = CargoRoot::builder()
+///     .directory(path("/home/otter/project"))
+///     .documentation(Documentation::Testable)
+///     .build();
+///
+/// assert_eq!(root.documentation(), Documentation::Testable);
+/// assert!(root.packages().is_empty());
+/// ```
+///
 /// [relative]: CargoRoot::relative_path
 #[derive(Clone, Eq, PartialEq, Hash, Debug, CopyGetters, Getters)]
 pub struct CargoRoot {
@@ -75,6 +90,20 @@ impl CargoRoot {
     /// A root whose packages declare no `rust-version` carries none. A root
     /// built without its packages names none, so no package of it shares a
     /// crate name, and a caller treats the workspace as one whole.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_test_utils::path;
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(path("/home/otter/project"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// assert_eq!(root.directory(), &path("/home/otter/project"));
+    /// ```
     #[builder]
     pub fn new(
         directory: PathBuf,
@@ -91,6 +120,20 @@ impl CargoRoot {
     }
 
     /// Returns the path of the manifest of the workspace
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_test_utils::path;
+    ///
+    /// let root = CargoRoot::builder()
+    ///     .directory(path("/home/otter/project"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// assert_eq!(root.manifest(), path("/home/otter/project/Cargo.toml"));
+    /// ```
     pub fn manifest(&self) -> PathBuf {
         self.directory.join(MANIFEST)
     }
@@ -104,6 +147,22 @@ impl CargoRoot {
     ///
     /// The directory of the project root itself has no name, and the empty
     /// path is that name: joining a file to it yields the file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::ProjectRoot;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_test_utils::path;
+    ///
+    /// let project = ProjectRoot::new(path("/home/otter/project"));
+    /// let root = CargoRoot::builder()
+    ///     .directory(path("/home/otter/project/tools"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// assert_eq!(root.relative_directory(&project), Some(path("tools")));
+    /// ```
     pub fn relative_directory(&self, root: &ProjectRoot) -> Option<PathBuf> {
         strip(&self.directory, root)
     }
@@ -120,6 +179,24 @@ impl CargoRoot {
     /// happens for a diagnostic in a dependency that lives elsewhere on the
     /// machine. A path that climbs through its parents is resolved first, so
     /// a path that leaves the project that way gets no name either.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::ProjectRoot;
+    /// use rakko_cargo::{CargoRoot, Documentation};
+    /// use rakko_test_utils::path;
+    ///
+    /// let project = ProjectRoot::new(path("/home/otter/project"));
+    /// let root = CargoRoot::builder()
+    ///     .directory(path("/home/otter/project/tools"))
+    ///     .documentation(Documentation::Testable)
+    ///     .build();
+    ///
+    /// let file = root.relative_path(&path("src/main.rs"), &project);
+    ///
+    /// assert_eq!(file.as_ref().map(|file| file.get()), Some(path("tools/src/main.rs").as_path()));
+    /// ```
     pub fn relative_path(&self, path: &Path, root: &ProjectRoot) -> Option<FilePath> {
         let absolute = if path.is_absolute() {
             path.to_path_buf()

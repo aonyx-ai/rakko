@@ -23,6 +23,16 @@ use crate::toolchain::Toolchain;
 /// A later release can add a variant for another reason why the toolchain of a
 /// project cannot be found. So a match on this error outside this crate needs
 /// an arm for a variant that it does not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::ResolveNewestToolchainError;
+///
+/// let error = ResolveNewestToolchainError::UnpinnedToolchain;
+///
+/// assert_eq!(error.to_string(), "the project pins no Rust toolchain by an exact version");
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ResolveNewestToolchainError {

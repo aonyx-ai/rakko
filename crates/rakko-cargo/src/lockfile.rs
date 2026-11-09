@@ -47,6 +47,16 @@
 /// missing. Cargo does not give a flag of its own command line to a
 /// subcommand that another program supplies, such as clippy or nextest, so
 /// the flag goes after the name of the subcommand.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::lockfile::LOCKED;
+///
+/// let arguments = ["clippy", LOCKED];
+///
+/// assert_eq!(arguments, ["clippy", "--locked"]);
+/// ```
 pub const LOCKED: &str = "--locked";
 
 /// The words that cargo writes when the flag stops it
@@ -65,6 +75,17 @@ const REFUSAL: &str = "--locked was passed to prevent this";
 /// cargo-deny, writes the words of cargo into its own log on that stream.
 /// The answer is `false` for every other failure, and for a run without
 /// [`LOCKED`].
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::lockfile::refused;
+///
+/// let stderr = "error: cannot update the lock file /project/Cargo.lock \
+///               because --locked was passed to prevent this\n";
+///
+/// assert!(refused(stderr));
+/// ```
 pub fn refused(stderr: &str) -> bool {
     stderr.contains(REFUSAL)
 }

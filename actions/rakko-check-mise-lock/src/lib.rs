@@ -60,6 +60,8 @@
 //! use rakko_check_mise_lock::CheckMiseLock;
 //!
 //! let actions = Bundle::default().with(CheckMiseLock);
+//!
+//! assert_eq!(actions.actions().len(), 1);
 //! ```
 //!
 //! [mise]: https://mise.jdx.dev

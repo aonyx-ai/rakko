@@ -55,6 +55,16 @@ impl Filter {
     /// returns the default filter, which examines every file with an
     /// extension. Prettier skips what it cannot assign to a language, so a
     /// run with that filter covers every language that prettier understands.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_prettier::{FileExtension, Filter};
+    ///
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    ///
+    /// assert_ne!(filter, Filter::default());
+    /// ```
     pub fn new(extensions: impl IntoIterator<Item = FileExtension>) -> Self {
         Self {
             extensions: extensions.into_iter().collect(),

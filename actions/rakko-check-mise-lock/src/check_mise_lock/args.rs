@@ -14,6 +14,19 @@ const FIX_DOCUMENTATION: &str = "Write the lockfiles that mise lock would change
 /// `mise lock` in the project, so that its result stays there. Reporting is
 /// the safe default, because a run that was started in order to look must not
 /// change the tree that its caller holds.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_check_mise_lock::{CheckMiseLockArgs, Operation};
+///
+/// let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+/// let args = CheckMiseLockArgs::from_values(&values).unwrap();
+///
+/// assert_eq!(args.operation(), Operation::Rewrite);
+/// assert_eq!(CheckMiseLockArgs::default().operation(), Operation::Report);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct CheckMiseLockArgs {
     /// What the run does with the lockfiles of the project

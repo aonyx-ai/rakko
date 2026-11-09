@@ -14,6 +14,26 @@ use thiserror::Error;
 /// A later release can add a variant for another reason why a report of nextest
 /// cannot be read. So a match on this error outside this crate needs an arm for
 /// a variant that it does not know.
+///
+/// # Examples
+///
+/// A record that the crate cannot read keeps the line as nextest wrote it:
+///
+/// ```
+/// use rakko_nextest::ReadNextestReportError;
+///
+/// let line = r#"{"type":"suite"}"#;
+/// let source = serde_json::from_str::<u8>(line).unwrap_err();
+/// let error = ReadNextestReportError::UnrecognizedRecord {
+///     line: line.to_owned(),
+///     source,
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     r#"failed to read the record from nextest: {"type":"suite"}"#
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ReadNextestReportError {

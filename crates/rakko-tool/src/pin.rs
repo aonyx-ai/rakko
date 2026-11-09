@@ -20,6 +20,17 @@ const TOOLS: &[u8] = b"[tools]";
 ///
 /// A crate that wraps a tool wraps the embedded text of its mise file in this
 /// type to read the pin of the tool in a constant context.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_tool::MiseFile;
+///
+/// const FILE: MiseFile = MiseFile::new("[tools]\ntaplo = \"0.10.0\"\n");
+/// const VERSION: &str = FILE.pinned_version("taplo");
+///
+/// assert_eq!(VERSION, "0.10.0");
+/// ```
 #[derive(Copy, Clone, Debug)]
 pub struct MiseFile<'a>(&'a str);
 

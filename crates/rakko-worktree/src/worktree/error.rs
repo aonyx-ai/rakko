@@ -23,6 +23,21 @@ use thiserror::Error;
 /// A later release can add a variant for another reason why a copy of a project
 /// cannot be made. So a match on this error outside this crate needs an arm for
 /// a variant that it does not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::ProjectRoot;
+/// use rakko_test_utils::path;
+/// use rakko_worktree::CreateWorktreeError;
+///
+/// let error = CreateWorktreeError::MissingRepository {
+///     project: ProjectRoot::new(path("/home/otter/project")),
+///     details: "no repository".to_owned(),
+/// };
+///
+/// assert!(error.to_string().ends_with("is not in a git repository: no repository"));
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CreateWorktreeError {

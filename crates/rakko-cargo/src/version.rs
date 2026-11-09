@@ -35,17 +35,18 @@ const SEPARATOR: char = '.';
 /// A caller reads the version that a workspace declares:
 ///
 /// ```no_run
-/// use rakko::Context;
+/// use rakko::{Context, ProjectRoot};
 /// use rakko_cargo::Cargo;
+/// use rakko_test_utils::path;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let context = Context::builder().root("/home/otter/project").build();
+/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 /// let cargo = Cargo::resolve(&context).await?;
 ///
 /// for root in cargo.roots().await? {
 ///     if let Some(version) = root.rust_version() {
-///         println!("{}", version.get());
+///         assert!(version.get().starts_with("1."));
 ///     }
 /// }
 /// # Ok(())
@@ -61,6 +62,27 @@ impl RustVersion {
     }
 
     /// Returns the version as it was written
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     if let Some(version) = root.rust_version() {
+    ///         assert_eq!(version.get(), "1.88");
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn get(&self) -> &str {
         &self.0
     }

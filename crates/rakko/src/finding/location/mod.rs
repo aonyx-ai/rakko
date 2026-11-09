@@ -27,6 +27,26 @@ pub use self::span::Span;
 ///
 /// Every path in a location is relative to the project root. A reader, a
 /// machine, and a code host therefore see the same path for the same file.
+///
+/// # Examples
+///
+/// Report a problem in a specific file.
+///
+/// ```
+/// use rakko::{FilePath, Finding, Location};
+/// use std::str::FromStr;
+///
+/// let path = FilePath::from_str("src/main.rs").unwrap();
+/// let finding = Finding::builder()
+///     .message("missing semicolon")
+///     .location(Location::File { path })
+///     .build();
+///
+/// let Location::File { path } = finding.location() else {
+///     panic!("expected a file location");
+/// };
+/// assert_eq!(path.get().to_str(), Some("src/main.rs"));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum Location {
     /// The problem belongs to the project, and to no path in it

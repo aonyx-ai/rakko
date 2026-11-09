@@ -13,6 +13,17 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that prettier can format";
 /// prettier rewrite the files that it can format. Reporting is the safe
 /// default, because a run that was started in order to look must not change
 /// the tree that its caller holds.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_format_yaml::FormatYamlArgs;
+/// use rakko_prettier::Operation;
+///
+/// let args = FormatYamlArgs::default();
+///
+/// assert_eq!(args.operation(), Operation::Report);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatYamlArgs {
     /// The operation that prettier runs

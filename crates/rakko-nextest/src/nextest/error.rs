@@ -19,6 +19,23 @@ use crate::report::ReadNextestReportError;
 /// A later release can add a variant for another reason why a run of nextest
 /// has no answer. So a match on this error outside this crate needs an arm for
 /// a variant that it does not know.
+///
+/// # Examples
+///
+/// A program that cannot start leaves the run without an answer:
+///
+/// ```
+/// use rakko_nextest::ObserveNextestError;
+/// use rakko_tool::Invocation;
+///
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() {
+/// let source = Invocation::new("rakko-no-such-program").run().await.unwrap_err();
+/// let error = ObserveNextestError::NextestUnavailable { source };
+///
+/// assert_eq!(error.to_string(), "failed to run nextest");
+/// # }
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ObserveNextestError {

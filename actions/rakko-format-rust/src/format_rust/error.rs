@@ -12,6 +12,21 @@ use thiserror::Error;
 /// and a file that rustfmt cannot parse travel as findings in the outcome
 /// of the run. The variants of this error describe a run whose answer cannot
 /// be trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_format_rust::FormatRustError;
+///
+/// let error = FormatRustError::ForeignPath {
+///     path: PathBuf::from("/etc/hosts"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "rustfmt reported a path outside the project: /etc/hosts"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum FormatRustError {

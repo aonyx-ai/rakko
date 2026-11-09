@@ -15,6 +15,18 @@ use crate::args::values::ArgumentValue;
 /// be read. So a match on this error outside this crate needs an arm for a
 /// variant that it does not know. An argument set can still construct every
 /// variant.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{ReadArgsError, argument_name};
+///
+/// let error = ReadArgsError::MissingValue {
+///     name: argument_name!("fix"),
+/// };
+///
+/// assert_eq!(error.to_string(), "no value for the required argument 'fix'");
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 #[non_exhaustive]
 pub enum ReadArgsError {

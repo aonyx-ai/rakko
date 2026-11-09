@@ -165,6 +165,25 @@ impl Bundle {
     ///
     /// The answer is a slice and not a vector. So a caller does not depend on
     /// the methods of a vector, such as its capacity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # struct Example;
+    /// # impl Action for Example {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("example") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    ///
+    /// let bundle = Bundle::default().with(Example);
+    ///
+    /// assert_eq!(bundle.actions()[0].name().get(), "example");
+    /// ```
     #[must_use]
     pub fn actions(&self) -> &[Box<dyn ErasedAction>] {
         &self.actions
@@ -174,6 +193,15 @@ impl Bundle {
     ///
     /// The bundle keeps the order of the actions, and a mount receives them
     /// in that order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    ///
+    /// let bundle = Bundle::new(vec![]);
+    /// assert_eq!(bundle.actions().len(), 0);
+    /// ```
     pub fn new(actions: Vec<Box<dyn ErasedAction>>) -> Self {
         Self { actions }
     }
@@ -184,6 +212,25 @@ impl Bundle {
     /// The method takes the action as it is. A harness that builds a list of
     /// its own, such as the list of a group, starts from an empty bundle. It
     /// adds each action with this method and writes no erased type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # struct Example;
+    /// # impl Action for Example {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("example") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    ///
+    /// let bundle = Bundle::default().with(Example).with(Example);
+    ///
+    /// assert_eq!(bundle.actions().len(), 2);
+    /// ```
     #[must_use]
     pub fn with(mut self, action: impl Action + 'static) -> Self {
         self.actions.push(Box::new(action));
@@ -191,6 +238,25 @@ impl Bundle {
     }
 
     /// Adds an action after the actions that the bundle holds
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Bundle;
+    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # struct Example;
+    /// # impl Action for Example {
+    /// #     type Args = ();
+    /// #     fn name(&self) -> Name { action_name!("example") }
+    /// #     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    /// #         Outcome::Passed { summary: None }
+    /// #     }
+    /// # }
+    ///
+    /// let mut bundle = Bundle::new(vec![]);
+    /// bundle.push(Box::new(Example));
+    /// assert_eq!(bundle.actions().len(), 1);
+    /// ```
     pub fn push(&mut self, action: Box<dyn ErasedAction>) {
         self.actions.push(action);
     }

@@ -90,21 +90,27 @@ const CONSENT_VALUE: &str = "1";
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::Context;
+/// use rakko::{Context, ProjectRoot};
 /// use rakko_cargo::Cargo;
 /// use rakko_nextest::{Lockfile, Nextest};
+/// use rakko_test_utils::path;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let context = Context::builder().root("/home/otter/project").build();
+/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 /// let cargo = Cargo::resolve(&context).await?;
 /// let roots = cargo.roots().await?;
-/// let nextest = Nextest::resolve().cargo(cargo).lockfile(Lockfile::Locked).context(&context).call().await?;
+/// let nextest = Nextest::resolve()
+///     .cargo(cargo)
+///     .lockfile(Lockfile::Locked)
+///     .context(&context)
+///     .call()
+///     .await?;
 ///
 /// for workspace in &roots {
 ///     let observation = nextest.observe(workspace, context.root()).await?;
 ///
-///     println!("{} tests ran", observation.ran());
+///     assert!(observation.ran() > 0);
 /// }
 /// # Ok(())
 /// # }
@@ -129,6 +135,16 @@ impl Nextest {
     ///
     /// The requirement holds the exact version that the crate pins. An action
     /// that runs nextest returns it from its declaration of tools.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_nextest::Nextest;
+    ///
+    /// let requirement = Nextest::requirement();
+    ///
+    /// assert_eq!(requirement.executable().get(), "cargo-nextest");
+    /// ```
     pub fn requirement() -> ToolRequirement {
         ToolRequirement::builder()
             .tool(CARGO_NEXTEST)
@@ -145,6 +161,28 @@ impl Nextest {
     /// does not change the answer. The lockfile tells a run whether cargo may
     /// resolve the dependencies of the build, or whether it builds the
     /// versions that the lockfile holds and refuses every other one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_nextest::{Lockfile, Nextest};
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    /// let nextest = Nextest::resolve()
+    ///     .cargo(cargo)
+    ///     .lockfile(Lockfile::Writable)
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -183,6 +221,34 @@ impl Nextest {
     /// Nothing outside the workspace of the root changes, whatever the run
     /// finds. Cargo builds in the target directory of that workspace, and it
     /// writes the lockfile of the workspace unless the value forbids it.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_nextest::{Lockfile, Nextest};
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    /// let roots = cargo.roots().await?;
+    /// let nextest = Nextest::resolve()
+    ///     .cargo(cargo)
+    ///     .lockfile(Lockfile::Locked)
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// for workspace in &roots {
+    ///     let observation = nextest.observe(workspace, context.root()).await?;
+    ///     assert!(observation.ran() > 0);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///

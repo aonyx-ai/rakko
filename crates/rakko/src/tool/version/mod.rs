@@ -17,6 +17,16 @@ pub use self::version_range::VersionRange;
 /// A later release can add a kind of requirement. So a match on
 /// `RequiredVersion` outside this crate needs an arm for a kind that it does
 /// not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{RequiredVersion, VersionRange};
+///
+/// let version = RequiredVersion::Range(VersionRange::new(">=1.85"));
+///
+/// assert!(matches!(version, RequiredVersion::Range(_)));
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[non_exhaustive]
 pub enum RequiredVersion {

@@ -14,6 +14,21 @@ use crate::deny::CheckWorkspaceError;
 /// recognized in the dependencies of a workspace travels as a finding in the
 /// outcome of the run. The variants of this error describe a run whose answer
 /// cannot be trusted, and such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_check_dependencies::CheckDependenciesError;
+///
+/// let error = CheckDependenciesError::ForeignWorkspace {
+///     path: PathBuf::from("/elsewhere"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "a workspace of the project lies outside it: /elsewhere"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckDependenciesError {

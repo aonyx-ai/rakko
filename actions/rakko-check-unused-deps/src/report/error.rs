@@ -10,6 +10,27 @@ use thiserror::Error;
 /// skipped a report it did not understand would let a workspace pass with
 /// its unused dependencies unread. The reading therefore stops, and the
 /// action that asked for it reports the error.
+///
+/// # Examples
+///
+/// A report in a shape that the crate does not know keeps the line as
+/// cargo-udeps wrote it:
+///
+/// ```
+/// use rakko_check_unused_deps::ReadUdepsReportError;
+///
+/// let line = r#"{"unused_deps":"none"}"#;
+/// let source = serde_json::from_str::<u8>(line).unwrap_err();
+/// let error = ReadUdepsReportError::UnrecognizedReport {
+///     line: line.to_owned(),
+///     source,
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     r#"failed to read cargo-udeps's report: {"unused_deps":"none"}"#
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ReadUdepsReportError {

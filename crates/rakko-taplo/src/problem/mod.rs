@@ -16,6 +16,20 @@ pub use self::detail::ProblemDetail;
 /// the path [relative][relative] to that root, which is the name that a
 /// reader, a machine, and a code host all recognize.
 ///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+/// use rakko_taplo::{TaploProblem, ProblemDetail};
+///
+/// let problem = TaploProblem::builder()
+///     .path(PathBuf::from("/home/otter/project/a.toml"))
+///     .detail(ProblemDetail::Unformatted)
+///     .build();
+///
+/// assert_eq!(problem.detail(), &ProblemDetail::Unformatted);
+/// ```
+///
 /// [relative]: TaploProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Debug, bon::Builder, Getters)]
 pub struct TaploProblem {
@@ -35,6 +49,23 @@ impl TaploProblem {
     /// in the root and reports what it found below it, so a path that does
     /// not fit points at a report that the caller misread, and the caller
     /// decides what to do about that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use rakko::ProjectRoot;
+    /// use rakko_taplo::{TaploProblem, ProblemDetail};
+    ///
+    /// let problem = TaploProblem::builder()
+    ///     .path(PathBuf::from("/home/otter/project/a.toml"))
+    ///     .detail(ProblemDetail::Unformatted)
+    ///     .build();
+    /// let root = ProjectRoot::new(PathBuf::from("/home/otter/project"));
+    ///
+    /// let relative = problem.relative_path(&root).unwrap();
+    /// assert_eq!(relative.get().to_str(), Some("a.toml"));
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

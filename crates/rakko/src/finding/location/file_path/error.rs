@@ -14,6 +14,21 @@ use thiserror::Error;
 /// does not know.
 ///
 /// [`FilePath`]: super::FilePath
+///
+/// # Examples
+///
+/// Handle an error when parsing an absolute path.
+///
+/// ```
+/// use rakko::ParseFilePathError;
+///
+/// let absolute = std::env::temp_dir().join("file.txt");
+/// let error = ParseFilePathError::AbsolutePath {
+///     path: absolute.clone(),
+/// };
+///
+/// assert_eq!(error.to_string(), format!("path is absolute: {}", absolute.display()));
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, Error)]
 #[non_exhaustive]
 pub enum ParseFilePathError {

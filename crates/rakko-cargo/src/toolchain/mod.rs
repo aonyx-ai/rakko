@@ -72,6 +72,16 @@ impl Toolchain {
     /// `nightly-2026-11-02`, and the requirement holds the range of the dates
     /// that the crate accepts. An action that runs a job on the nightly
     /// returns it from its declaration of tools.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::Toolchain;
+    ///
+    /// let requirement = Toolchain::nightly();
+    ///
+    /// assert_eq!(requirement.tool().get(), "rust");
+    /// ```
     pub fn nightly() -> ToolRequirement {
         Self::requirement(VersionRange::new(NIGHTLY))
     }
@@ -83,6 +93,29 @@ impl Toolchain {
     /// `1.88.0` accepts the pin `1.88.0` alone. The version comes from the
     /// project, such as the `rust-version` of a manifest, so an action
     /// builds this requirement during a run and cannot declare it.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::{Cargo, Toolchain};
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     if let Some(version) = root.rust_version() {
+    ///         let requirement = Toolchain::release(version);
+    ///
+    ///         assert_eq!(requirement.tool().get(), "rust");
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn release(version: &RustVersion) -> ToolRequirement {
         Self::requirement(VersionRange::new(format!("={}", version.get())))
     }
@@ -113,12 +146,13 @@ impl Toolchain {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::Context;
+    /// use rakko::{Context, ProjectRoot};
     /// use rakko_cargo::Toolchain;
+    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root("/home/otter/project").build();
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
     ///
     /// let toolchain = Toolchain::resolve_requirement()
     ///     .requirement(&Toolchain::nightly())
@@ -126,7 +160,7 @@ impl Toolchain {
     ///     .call()
     ///     .await?;
     ///
-    /// println!("{toolchain}");
+    /// assert!(toolchain.get().starts_with("nightly-"));
     /// # Ok(())
     /// # }
     /// ```
@@ -207,10 +241,11 @@ impl Toolchain {
     /// ```no_run
     /// use rakko::ProjectRoot;
     /// use rakko_cargo::{Channel, Toolchain};
+    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     ///
     /// let toolchain = Toolchain::resolve()
     ///     .channel(Channel::new("nightly"))
@@ -218,7 +253,7 @@ impl Toolchain {
     ///     .call()
     ///     .await?;
     ///
-    /// println!("{toolchain}");
+    /// assert!(toolchain.get().starts_with("nightly-"));
     /// # Ok(())
     /// # }
     /// ```
@@ -282,14 +317,15 @@ impl Toolchain {
     /// ```no_run
     /// use rakko::ProjectRoot;
     /// use rakko_cargo::Toolchain;
+    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let root = ProjectRoot::new("/home/otter/project".into());
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
     ///
     /// let toolchain = Toolchain::newest(&root).await?;
     ///
-    /// println!("{toolchain}");
+    /// assert!(toolchain.get().starts_with("1."));
     /// # Ok(())
     /// # }
     /// ```

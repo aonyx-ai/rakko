@@ -14,6 +14,15 @@ use rakko_test_typescript::TestTypeScript;
 ///
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_typescript::bundle;
+///
+/// let actions = bundle();
+/// assert!(!actions.actions().is_empty());
+/// ```
 #[must_use]
 pub fn bundle() -> Bundle {
     Bundle::new(vec![

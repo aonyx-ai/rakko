@@ -13,6 +13,20 @@ use thiserror::Error;
 /// not fit therefore points at a version that this crate does not know, and
 /// the findings of such a run would be the problems that the reading happened
 /// to understand.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::ReadReportError;
+///
+/// let error = ReadReportError::UnrecognizedRecord {
+///     line: r#"{"level":30}"#.to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     r#"the validator wrote a record that the action does not know: {"level":30}"#
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ReadReportError {

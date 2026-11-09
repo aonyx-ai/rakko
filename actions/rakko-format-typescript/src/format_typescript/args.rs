@@ -15,6 +15,20 @@ const FIX_DOCUMENTATION: &str = "Rewrite the files that oxfmt can format";
 /// because a run that was started in order to look must not change the tree
 /// that its caller holds. It is also the safe default against the tool, which
 /// rewrites a project when nobody names an operation at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
+/// use rakko_format_typescript::{FormatTypeScriptArgs, Operation};
+///
+/// assert_eq!(FormatTypeScriptArgs::default().operation(), Operation::Report);
+///
+/// let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+/// let args = FormatTypeScriptArgs::from_values(&values).unwrap();
+///
+/// assert_eq!(args.operation(), Operation::Rewrite);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default, CopyGetters)]
 pub struct FormatTypeScriptArgs {
     /// What the run does with the files that are not formatted

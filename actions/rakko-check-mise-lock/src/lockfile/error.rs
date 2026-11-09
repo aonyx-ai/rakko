@@ -10,6 +10,16 @@ use crate::part::{Platform, ToolName, Version};
 /// that it reads only in part would hide gaps behind a green result. Each
 /// variant names what in the lockfile has a shape that the action does not
 /// know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::ReadLockfileError;
+///
+/// let error = ReadLockfileError::MisshapenTools;
+///
+/// assert_eq!(error.to_string(), "the tools of the lockfile are not a table");
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ReadLockfileError {

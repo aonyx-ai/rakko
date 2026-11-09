@@ -32,6 +32,21 @@ use crate::problem::PrettierProblem;
 /// formatted and a file that prettier refused are both problems of the
 /// project, and the action that asked for the run decides what they mean for
 /// its outcome.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_prettier::{Exit, Observation};
+///
+/// let observation = Observation::builder()
+///     .succeeded(Exit::Succeeded)
+///     .stderr("[warn] Ignored unknown option")
+///     .build();
+///
+/// assert!(observation.problems().is_empty());
+/// assert!(observation.rewritten().is_empty());
+/// assert_eq!(observation.stderr(), "[warn] Ignored unknown option");
+/// ```
 #[derive(Clone, Eq, PartialEq, Debug, CopyGetters, Getters)]
 pub struct Observation {
     /// The problems that prettier reported, in the order of the report
@@ -78,6 +93,19 @@ impl Observation {
     /// builds one where a test stands in for a prettier that nobody started.
     /// Every part is optional, so a test names what its case is about and
     /// leaves the rest at the answer of a run that reported nothing.
+    ///
+    /// # Examples
+    ///
+    /// A test names the one part that its case is about:
+    ///
+    /// ```
+    /// use rakko_prettier::{Exit, Observation};
+    ///
+    /// let observation = Observation::builder().succeeded(Exit::Failed).build();
+    ///
+    /// assert_eq!(observation.succeeded(), Exit::Failed);
+    /// assert!(observation.problems().is_empty());
+    /// ```
     #[builder]
     pub fn new(
         #[builder(default)] problems: Vec<PrettierProblem>,

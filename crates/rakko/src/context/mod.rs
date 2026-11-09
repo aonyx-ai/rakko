@@ -13,6 +13,17 @@ pub use self::project_root::ProjectRoot;
 /// Every action receives a context, so the type stays small by design. A later
 /// release can add data to it, and the builder then takes that data as an
 /// optional member.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::{Context, ProjectRoot};
+///
+/// let root = ProjectRoot::new(std::env::temp_dir());
+/// let context = Context::builder().root(root.clone()).build();
+///
+/// assert_eq!(context.root(), &root);
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Context {
     /// The directory where the run of the action happens
@@ -28,6 +39,16 @@ pub struct Context {
 #[bon]
 impl Context {
     /// Creates a context from a project root
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::Context;
+    ///
+    /// let context = Context::builder().root("project").build();
+    ///
+    /// assert_eq!(context.root().get(), std::path::Path::new("project"));
+    /// ```
     #[builder]
     pub fn new(#[builder(into)] root: ProjectRoot) -> Self {
         Self { root }

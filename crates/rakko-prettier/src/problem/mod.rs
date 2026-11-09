@@ -19,6 +19,20 @@ pub use self::detail::ProblemDetail;
 /// asks for the [relative][relative] path, which strips a root that arrived
 /// in front of it anyway.
 ///
+/// # Examples
+///
+/// ```
+/// use rakko_prettier::{PrettierProblem, ProblemDetail};
+/// use rakko_test_utils::path;
+///
+/// let problem = PrettierProblem::builder()
+///     .path(path("src/main.rs"))
+///     .detail(ProblemDetail::Unformatted)
+///     .build();
+///
+/// assert_eq!(problem.path(), &path("src/main.rs"));
+/// ```
+///
 /// [relative]: PrettierProblem::relative_path
 #[derive(Clone, Eq, PartialEq, Debug, bon::Builder, Getters)]
 pub struct PrettierProblem {
@@ -38,6 +52,24 @@ impl PrettierProblem {
     /// starts in the root and reports what it found below it, so a path that
     /// does not fit points at a report that the caller misread, and the
     /// caller decides what to do about that.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::ProjectRoot;
+    /// use rakko_prettier::{PrettierProblem, ProblemDetail};
+    /// use rakko_test_utils::path;
+    ///
+    /// let problem = PrettierProblem::builder()
+    ///     .path(path("/home/otter/project/src/main.rs"))
+    ///     .detail(ProblemDetail::Unformatted)
+    ///     .build();
+    ///
+    /// let root = ProjectRoot::new(path("/home/otter/project"));
+    /// let relative = problem.relative_path(&root).unwrap();
+    ///
+    /// assert_eq!(relative.get(), &path("src/main.rs"));
+    /// ```
     pub fn relative_path(&self, root: &ProjectRoot) -> Option<FilePath> {
         FilePath::within().path(&self.path).root(root).call()
     }

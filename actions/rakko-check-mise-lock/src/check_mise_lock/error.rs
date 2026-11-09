@@ -15,6 +15,22 @@ use crate::lockfile::ReadLockfileError;
 /// changes, or removes travels as a finding in the outcome of the run. The
 /// variants of this error describe a run whose answer cannot be trusted, and
 /// such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_mise_lock::CheckMiseLockError;
+/// use rakko_test_utils::path;
+///
+/// let lockfile = path("/home/otter/outside/mise.lock");
+/// let error = CheckMiseLockError::ForeignLockfile {
+///     path: lockfile.clone(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     format!("mise named a lockfile outside the project: {}", lockfile.display())
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckMiseLockError {

@@ -16,6 +16,23 @@ pub use self::argument::{Argument, ArgumentName, ArgumentShape, Documentation};
 /// The schema describes what an action reads, not how a user writes it. It
 /// carries no flag syntax and no position in a command tree, because those
 /// decisions belong to the projection and are the same for every action.
+///
+/// # Examples
+///
+/// Create a schema for an action that reads arguments.
+///
+/// ```
+/// use rakko::{ArgsSchema, Argument, ArgumentShape, argument_name};
+///
+/// let argument = Argument::builder()
+///     .name(argument_name!("fix"))
+///     .shape(ArgumentShape::Boolean)
+///     .documentation("Rewrite files that need repairs")
+///     .build();
+///
+/// let schema = ArgsSchema::new([argument]);
+/// assert_eq!(schema.arguments()[0].name().get(), "fix");
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Getters)]
 pub struct ArgsSchema {
     /// The arguments, in the order that the action declares them
@@ -25,6 +42,15 @@ pub struct ArgsSchema {
 
 impl ArgsSchema {
     /// Returns the schema of an action that reads no arguments
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::ArgsSchema;
+    ///
+    /// let schema = ArgsSchema::empty();
+    /// assert!(schema.arguments().is_empty());
+    /// ```
     #[must_use]
     pub fn empty() -> Self {
         Self::default()
@@ -34,6 +60,21 @@ impl ArgsSchema {
     ///
     /// The order of the arguments is preserved, because a projection may show
     /// them in the order that the action declares them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{ArgsSchema, Argument, ArgumentShape, argument_name};
+    ///
+    /// let argument = Argument::builder()
+    ///     .name(argument_name!("fix"))
+    ///     .shape(ArgumentShape::Boolean)
+    ///     .documentation("Rewrite files that need repairs")
+    ///     .build();
+    ///
+    /// let schema = ArgsSchema::new([argument]);
+    /// assert_eq!(schema.arguments().len(), 1);
+    /// ```
     pub fn new(arguments: impl IntoIterator<Item = Argument>) -> Self {
         Self {
             arguments: arguments.into_iter().collect(),

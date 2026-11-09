@@ -14,6 +14,16 @@ use thiserror::Error;
 /// A later release can add a variant for another reason why a report of cargo
 /// cannot be read. So a match on this error outside this crate needs an arm for
 /// a variant that it does not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{CargoReport, ReadReportError};
+///
+/// let error = CargoReport::read(r#"{"reason":"build-finished"}"#).unwrap_err();
+///
+/// assert!(matches!(error, ReadReportError::UnrecognizedRecord { .. }));
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ReadReportError {

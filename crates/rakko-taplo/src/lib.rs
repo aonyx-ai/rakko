@@ -27,17 +27,18 @@
 //! An action resolves taplo and reads what one operation reported:
 //!
 //! ```no_run
-//! use rakko::Context;
+//! use rakko::{Context, ProjectRoot};
 //! use rakko_taplo::{Operation, Taplo};
+//! use rakko_test_utils::path;
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let context = Context::builder().root("/home/otter/project").build();
+//! let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 //!
 //! let taplo = Taplo::resolve(&context).await?;
 //! let observation = taplo.observe(Operation::Lint).await?;
 //!
-//! println!("{} problems", observation.problems().len());
+//! assert!(observation.problems().is_empty());
 //! # Ok(())
 //! # }
 //! ```

@@ -20,6 +20,27 @@ use crate::finding::Finding;
 /// it found, and it failed when a problem remains. Both states hold the
 /// repairs, so that whoever started the run learns what it rewrote instead of
 /// finding it in a diff.
+///
+/// # Examples
+///
+/// Report the result of an action run.
+///
+/// ```
+/// use rakko::Outcome;
+/// use rakko::{Finding, Location};
+///
+/// let finding = Finding::builder()
+///     .message("missing semicolon")
+///     .location(Location::Project)
+///     .build();
+/// let outcome = Outcome::Failed { findings: vec![finding], repairs: vec![] };
+///
+/// let Outcome::Failed { findings, repairs } = outcome else {
+///     panic!("expected a failed outcome");
+/// };
+/// assert_eq!(findings.len(), 1);
+/// assert!(repairs.is_empty());
+/// ```
 #[derive(Debug)]
 pub enum Outcome {
     /// The action examined the project and found no problem

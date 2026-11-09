@@ -14,6 +14,20 @@ use crate::validator::report::ReadReportError;
 /// refuse travels as a finding in the outcome of the run. The variants of this
 /// error describe a run whose answer cannot be trusted, and such a run stops
 /// instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_renovate_config::CheckRenovateConfigError;
+///
+/// let error = CheckRenovateConfigError::AbortedValidation {
+///     details: "no global configuration".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "the validator stopped before it had validated the project: no global configuration"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckRenovateConfigError {

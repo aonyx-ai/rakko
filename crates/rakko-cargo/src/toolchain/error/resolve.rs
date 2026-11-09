@@ -19,6 +19,18 @@ use crate::toolchain::{Channel, Toolchain};
 /// A later release can add a variant for another reason why a toolchain cannot
 /// be found. So a match on this error outside this crate needs an arm for a
 /// variant that it does not know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_cargo::{Channel, ResolveToolchainError};
+///
+/// let error = ResolveToolchainError::UnpinnedToolchain {
+///     channel: Channel::new("nightly"),
+/// };
+///
+/// assert_eq!(error.to_string(), "the project pins no `nightly` toolchain");
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ResolveToolchainError {

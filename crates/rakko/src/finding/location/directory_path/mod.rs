@@ -21,11 +21,33 @@ pub use self::error::ParseDirectoryPathError;
 /// [`TryFrom<String>`], [`TryFrom<&Path>`], or [`TryFrom<PathBuf>`]. Every
 /// constructor refuses an absolute path and returns a
 /// [`ParseDirectoryPathError`].
+///
+/// # Examples
+///
+/// Parse a relative directory path.
+///
+/// ```
+/// use rakko::DirectoryPath;
+/// use std::str::FromStr;
+///
+/// assert!(DirectoryPath::from_str("src/module").is_ok());
+/// assert!(DirectoryPath::from_str(&std::env::temp_dir().to_string_lossy()).is_err());
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct DirectoryPath(PathBuf);
 
 impl DirectoryPath {
     /// Returns the path of the directory
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::DirectoryPath;
+    /// use std::str::FromStr;
+    ///
+    /// let path = DirectoryPath::from_str("src/module").unwrap();
+    /// assert_eq!(path.get().to_str(), Some("src/module"));
+    /// ```
     pub fn get(&self) -> &Path {
         &self.0
     }

@@ -19,6 +19,26 @@ use thiserror::Error;
 /// A later release can add a variant for another reason why a requirement
 /// cannot be resolved. So a match on this error outside this crate needs an
 /// arm for a variant that it does not know.
+///
+/// # Examples
+///
+/// A toolchain that the project does not pin leaves the sentence of mise in
+/// the error:
+///
+/// ```
+/// use rakko::MiseTool;
+/// use rakko_tool::ResolveRequirementError;
+///
+/// let error = ResolveRequirementError::UnresolvedToolchain {
+///     tool: MiseTool::new("rust"),
+///     details: "no version is set".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "mise reports no version of `rust` that the project pins: no version is set"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ResolveRequirementError {

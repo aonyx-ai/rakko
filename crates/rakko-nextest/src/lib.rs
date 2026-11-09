@@ -43,21 +43,27 @@
 //! them:
 //!
 //! ```no_run
-//! use rakko::Context;
+//! use rakko::{Context, ProjectRoot};
 //! use rakko_cargo::Cargo;
 //! use rakko_nextest::{Lockfile, Nextest};
+//! use rakko_test_utils::path;
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let context = Context::builder().root("/home/otter/project").build();
+//! let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 //! let cargo = Cargo::resolve(&context).await?;
 //! let roots = cargo.roots().await?;
-//! let nextest = Nextest::resolve().cargo(cargo).lockfile(Lockfile::Locked).context(&context).call().await?;
+//! let nextest = Nextest::resolve()
+//!     .cargo(cargo)
+//!     .lockfile(Lockfile::Locked)
+//!     .context(&context)
+//!     .call()
+//!     .await?;
 //!
 //! for workspace in &roots {
 //!     let observation = nextest.observe(workspace, context.root()).await?;
 //!
-//!     println!("{} tests, {} findings", observation.ran(), observation.findings().len());
+//!     assert!(observation.findings().is_empty());
 //! }
 //! # Ok(())
 //! # }

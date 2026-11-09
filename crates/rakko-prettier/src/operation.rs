@@ -14,6 +14,17 @@
 /// A later release can add an operation for another job of prettier. So a
 /// match on an operation outside this crate needs an arm for an operation
 /// that it does not know.
+///
+/// # Examples
+///
+/// An action that only looks asks for the report, which is the default:
+///
+/// ```
+/// use rakko_prettier::Operation;
+///
+/// assert_eq!(Operation::default(), Operation::Report);
+/// assert_ne!(Operation::Report, Operation::Rewrite);
+/// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 #[non_exhaustive]
 pub enum Operation {

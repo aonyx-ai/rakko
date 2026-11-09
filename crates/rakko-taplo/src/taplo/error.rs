@@ -13,6 +13,23 @@ use thiserror::Error;
 /// A later release can add a variant for another reason why a run of taplo has
 /// no answer. So a match on this error outside this crate needs an arm for a
 /// variant that it does not know.
+///
+/// # Examples
+///
+/// A report that lost its last line keeps what taplo wrote:
+///
+/// ```
+/// use rakko_taplo::ObserveTaploError;
+///
+/// let error = ObserveTaploError::IncompleteReport {
+///     stderr: "error: invalid TOML".to_owned(),
+/// };
+///
+/// assert_eq!(
+///     error.to_string(),
+///     "taplo wrote a report that ends before its last line: error: invalid TOML"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ObserveTaploError {

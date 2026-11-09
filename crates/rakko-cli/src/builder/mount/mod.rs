@@ -31,6 +31,34 @@ use crate::erased_command::ErasedCommand;
 /// The builder alone implements this trait. A harness that needs another kind
 /// of value turns it into one of these four.
 ///
+/// # Examples
+///
+/// A harness needs no kind in its code. The builder takes an action as it is,
+/// and the bound infers the kind:
+///
+/// ```
+/// use rakko::{Action, Context, Name, Outcome, action_name};
+/// use rakko_cli::Mount;
+///
+/// struct LineCount;
+///
+/// impl Action for LineCount {
+///     type Args = ();
+///
+///     fn name(&self) -> Name {
+///         action_name!("line-count")
+///     }
+///
+///     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+///         Outcome::Passed { summary: None }
+///     }
+/// }
+///
+/// fn mountable<K: ?Sized>(_value: impl Mount<K>) {}
+///
+/// mountable(LineCount);
+/// ```
+///
 /// [`Bundle`]: rakko::Bundle
 /// [`mount`]: crate::Builder::mount
 #[diagnostic::on_unimplemented(

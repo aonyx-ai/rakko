@@ -22,12 +22,34 @@ pub use self::error::ParseFilePathError;
 /// [`ParseFilePathError`]. A path that a tool reported can start with the
 /// project root or with `./`, and [`FilePath::within`] makes a file path from
 /// it.
+///
+/// # Examples
+///
+/// Parse a relative file path.
+///
+/// ```
+/// use rakko::FilePath;
+/// use std::str::FromStr;
+///
+/// assert!(FilePath::from_str("src/main.rs").is_ok());
+/// assert!(FilePath::from_str(&std::env::temp_dir().join("main.rs").to_string_lossy()).is_err());
+/// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct FilePath(PathBuf);
 
 #[bon::bon]
 impl FilePath {
     /// Returns the path of the file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::FilePath;
+    /// use std::str::FromStr;
+    ///
+    /// let path = FilePath::from_str("src/main.rs").unwrap();
+    /// assert_eq!(path.get().to_str(), Some("src/main.rs"));
+    /// ```
     pub fn get(&self) -> &Path {
         &self.0
     }

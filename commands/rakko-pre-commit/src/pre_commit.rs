@@ -23,6 +23,16 @@ use rakko::{ErasedAction, Group, Name, action_name};
 /// that the members declare, so the group defines no flag of its own. A flag
 /// such as `--fix` reaches every member that declares its argument, and no
 /// other member.
+///
+/// # Examples
+///
+/// ```
+/// use rakko::Group;
+/// use rakko_pre_commit::PreCommit;
+///
+/// let group = PreCommit::new([]);
+/// assert_eq!(group.name().get(), "pre-commit");
+/// ```
 pub struct PreCommit {
     /// The actions that guard a commit, in the order of the list that the
     /// harness gave

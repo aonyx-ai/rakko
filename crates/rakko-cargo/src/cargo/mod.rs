@@ -106,18 +106,19 @@ const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::Context;
+/// use rakko::{Context, ProjectRoot};
 /// use rakko_cargo::Cargo;
+/// use rakko_test_utils::path;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let context = Context::builder().root("/home/otter/project").build();
+/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 /// let cargo = Cargo::resolve(&context).await?;
 ///
 /// for root in cargo.roots().await? {
 ///     let execution = cargo.invocation(&root).arg("check").run().await?;
 ///
-///     println!("{}: {}", root.directory().display(), execution.status());
+///     assert!(execution.status().success());
 /// }
 /// # Ok(())
 /// # }
@@ -150,6 +151,26 @@ impl Cargo {
     ///
     /// [`invocation_with_toolchain`][with] selects another toolchain.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo.invocation(&root).arg("check").run().await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// [resolve]: Cargo::resolve
     /// [toolchain]: Cargo::toolchain
     /// [with]: Cargo::invocation_with_toolchain
@@ -163,6 +184,32 @@ impl Cargo {
     /// the given toolchain in front of every other argument, in the form
     /// that the proxy of rustup reads. The argument selects which cargo
     /// answers, and it changes nothing about what that cargo does.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::{Cargo, Channel, Toolchain};
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    /// let toolchain = Toolchain::resolve()
+    ///     .channel(Channel::new("nightly"))
+    ///     .root(context.root())
+    ///     .call()
+    ///     .await?;
+    ///
+    /// for cargo_root in cargo.roots().await? {
+    ///     let execution = cargo.invocation_with_toolchain(&cargo_root, &toolchain)
+    ///         .arg("check").run().await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [invocation]: Cargo::invocation
     pub fn invocation_with_toolchain(&self, root: &CargoRoot, toolchain: &Toolchain) -> Invocation {
@@ -186,6 +233,41 @@ impl Cargo {
     /// compiler as a job of [`invocation`][invocation].
     /// [`plugin_invocation_with_toolchain`][with] selects another toolchain.
     ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_test_utils::path;
+    /// use rakko_tool::Tool;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("cargo:cargo-nextest")
+    ///     .executable("cargo-nextest")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.9.100")))
+    ///     .build();
+    /// let nextest = Tool::resolve_requirement()
+    ///     .requirement(&requirement)
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo
+    ///         .plugin_invocation(&root, &nextest)
+    ///         .arg("nextest")
+    ///         .run()
+    ///         .await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// [invocation]: Cargo::invocation
     /// [toolchain]: Cargo::toolchain
     /// [with]: Cargo::plugin_invocation_with_toolchain
@@ -198,6 +280,46 @@ impl Cargo {
     ///
     /// The command is the one that [`plugin_invocation`][plugin] returns, and
     /// the builds of the plugin use the given toolchain.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko_cargo::{Cargo, Channel, Toolchain};
+    /// use rakko_test_utils::path;
+    /// use rakko_tool::Tool;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    /// let toolchain = Toolchain::resolve()
+    ///     .channel(Channel::new("nightly"))
+    ///     .root(context.root())
+    ///     .call()
+    ///     .await?;
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("cargo:cargo-nextest")
+    ///     .executable("cargo-nextest")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.9.100")))
+    ///     .build();
+    /// let nextest = Tool::resolve_requirement()
+    ///     .requirement(&requirement)
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     let execution = cargo
+    ///         .plugin_invocation_with_toolchain(&root, &nextest, &toolchain)
+    ///         .arg("nextest")
+    ///         .run()
+    ///         .await?;
+    ///     assert!(execution.status().success());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [plugin]: Cargo::plugin_invocation
     pub fn plugin_invocation_with_toolchain(
@@ -219,6 +341,16 @@ impl Cargo {
     /// holds the range of the stable toolchains that the crate accepts, and
     /// not one version. An action that runs cargo returns it from its
     /// declaration of tools.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_cargo::Cargo;
+    ///
+    /// let requirement = Cargo::requirement();
+    ///
+    /// assert_eq!(requirement.executable().get(), "cargo");
+    /// ```
     pub fn requirement() -> ToolRequirement {
         ToolRequirement::builder()
             .tool(RUST)
@@ -240,6 +372,23 @@ impl Cargo {
     /// Returns a [`ResolveRequirementError`] when mise does not run, when the
     /// project pins no toolchain in the range, or when nothing installed the
     /// toolchain that it pins.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    ///
+    /// assert!(cargo.toolchain().get().starts_with("1."));
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [requirement]: Cargo::requirement
     pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
@@ -294,6 +443,26 @@ impl Cargo {
     /// [`UnreadableExclusions`][exclusions] or
     /// [`UnrecognizedExclusions`][unrecognized] when the crate cannot read
     /// the paths that a workspace root excludes.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, ProjectRoot};
+    /// use rakko_cargo::Cargo;
+    /// use rakko_test_utils::path;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let project = path("/home/otter/project");
+    /// let context = Context::builder().root(ProjectRoot::new(project.clone())).build();
+    /// let cargo = Cargo::resolve(&context).await?;
+    ///
+    /// for root in cargo.roots().await? {
+    ///     assert!(root.directory().starts_with(&project));
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     ///
     /// [directory]: DiscoverRootsError::UnreadableDirectory
     /// [exclusions]: DiscoverRootsError::UnreadableExclusions

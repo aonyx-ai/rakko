@@ -8,6 +8,19 @@ use thiserror::Error;
 /// A broken link between a specification and the code is no failure of a run:
 /// it travels in the answer, and the caller decides what it means. The
 /// variants here describe a question that produced no answer at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::ObserveTraceyError;
+///
+/// let source = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+/// let error = ObserveTraceyError::UnreadableReport {
+///     report: "{".to_owned(),
+///     source,
+/// };
+/// assert_eq!(error.to_string(), "failed to read tracey's report: {");
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ObserveTraceyError {

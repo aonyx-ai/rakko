@@ -8,6 +8,20 @@ use thiserror::Error;
 /// A run that finds no pull request to compare is no failure: it answers that
 /// there is none, and the caller compares the checkout itself. The variants
 /// here describe a comparison that could not be built at all.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_check_specs::PrepareComparisonError;
+///
+/// let error = PrepareComparisonError::RefusedCopy {
+///     details: "not a git repository".to_owned(),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "git refused to copy the repository: not a git repository"
+/// );
+/// ```
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum PrepareComparisonError {

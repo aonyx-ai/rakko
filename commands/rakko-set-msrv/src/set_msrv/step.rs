@@ -13,6 +13,17 @@ use super::args::Msrv;
 /// A later release can add a step that the run hands to mise. So a match on
 /// this enum outside this crate needs an arm for a step that it does not
 /// know.
+///
+/// # Examples
+///
+/// ```
+/// use rakko_set_msrv::{MiseStep, Msrv};
+///
+/// let step = MiseStep::Install {
+///     msrv: Msrv::new("1.89.0"),
+/// };
+/// assert_eq!(step.to_string(), "mise install rust@1.89.0");
+/// ```
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 #[non_exhaustive]
 pub enum MiseStep {
@@ -28,6 +39,19 @@ pub enum MiseStep {
 
 impl MiseStep {
     /// Returns the arguments that ask mise for the step
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko_set_msrv::{MiseStep, Msrv};
+    ///
+    /// assert_eq!(MiseStep::Lock.arguments(), ["lock", "rust"]);
+    ///
+    /// let install = MiseStep::Install {
+    ///     msrv: Msrv::new("1.89.0"),
+    /// };
+    /// assert_eq!(install.arguments(), ["install", "rust@1.89.0"]);
+    /// ```
     pub fn arguments(&self) -> Vec<String> {
         match self {
             Self::Lock => vec!["lock".to_owned(), "rust".to_owned()],
