@@ -30,7 +30,7 @@ use std::path::Path;
 use std::process::Command;
 
 use rakko::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
-use rakko_cargo::Toolchain;
+use rakko_cargo::Cargo;
 use rakko_check_minimal_deps::{CheckMinimalDeps, CheckMinimalDepsError};
 use rakko_test_utils::{path_text, run_checking_access};
 use tempfile::TempDir;
@@ -210,9 +210,11 @@ impl Project {
     /// the global configuration adds no nightly to it.
     async fn without_nightly() -> Self {
         let project = Self::bare();
-        let toolchain = Toolchain::newest(&ProjectRoot::new(repository().to_path_buf()))
+        let context = Context::builder().root(repository()).build();
+        let cargo = Cargo::resolve(&context)
             .await
-            .expect("the repository pins a Rust toolchain by version");
+            .expect("the repository pins a stable Rust toolchain");
+        let toolchain = cargo.toolchain();
 
         let pins = project.directory.path().join("mise.toml");
         std::fs::write(&pins, format!("[tools]\nrust = \"{}\"\n", toolchain.get()))

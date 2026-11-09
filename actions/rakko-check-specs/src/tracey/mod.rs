@@ -1,8 +1,9 @@
 //! The tracey that a project runs
 //!
-//! This module holds the program that mise installed for a project and the
-//! questions that an action asks it. An action states which question it
-//! wants, and everything between the action and the process lives here.
+//! This module holds the version that the crate declares, the program that
+//! mise installed at that version, and the questions that an action asks
+//! it. An action states which question it wants, and everything between the
+//! action and the process lives here.
 //!
 //! The module judges nothing. It reports what tracey said, and the action that
 //! asked decides what the answer means for its outcome.
@@ -14,8 +15,8 @@ mod report;
 
 use std::path::Path;
 
-use rakko::ProjectRoot;
-use rakko_tool::{Execution, Invocation, Launch, ResolveToolError, Tool, ToolName};
+use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+use rakko_tool::{Execution, Invocation, Launch, ResolveRequirementError, Tool, pinned_version};
 
 pub use self::error::ObserveTraceyError;
 pub(crate) use self::report::Coverage;
@@ -24,7 +25,19 @@ use crate::environment::inherited;
 use crate::problem::TraceyProblem;
 
 /// The name that mise knows the tool by
+///
+/// Tracey is in no registry of mise, so the name holds the backend that
+/// builds a crate from a Git repository and the address of that repository.
+const TOOL: &str = "cargo:https://github.com/bearcove/tracey";
+
+/// The program of the tool that a run starts
 const TRACEY: &str = "tracey";
+
+/// The version of tracey that the crate runs
+///
+/// The version comes from the mise file of the crate, which the build
+/// embeds, so a file without the pin fails the build.
+const VERSION: &str = pinned_version(include_str!("../../mise.rakko.toml"), TOOL);
 
 /// The subcommand of tracey that stops the daemon of a workspace
 const KILL: &str = "kill";
@@ -52,14 +65,13 @@ const WARNINGS: &str = "warnings";
 
 /// The tracey that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned, so a run reaches the same program as the
-/// editor and the terminal of a contributor. Nothing here installs a tool:
-/// provisioning is the job of mise, and a tracey that mise does not report
-/// stops the caller.
+/// The value holds the program that mise installed at the version that the
+/// crate declares. The pin of the project does not change it. Nothing here
+/// installs a tool: provisioning is the job of mise, and a tracey that mise
+/// does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Tracey {
-    /// The program that mise installed for the project
+    /// The program that mise installed at the declared version
     tool: Tool,
 }
 
@@ -83,18 +95,32 @@ impl Tracey {
         Ok(status.coverage())
     }
 
-    /// Returns the tracey that mise installed for the project
+    /// Returns the requirement of the tracey that the crate runs
     ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path.
+    /// The requirement holds the exact version that the crate pins.
+    pub(crate) fn requirement() -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(TOOL)
+            .executable(TRACEY)
+            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
+            .build()
+    }
+
+    /// Returns the tracey that mise installed at the version of the crate
+    ///
+    /// The lookup asks mise for the version that [`requirement`][requirement]
+    /// holds, so a pin of tracey in the project does not change the answer.
+    /// A run of tracey starts in the root of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolError`] when mise reports no tracey for the
-    /// project.
-    pub(crate) async fn resolve(root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let tool = Tool::resolve(ToolName::new(TRACEY), root).await?;
+    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
+    /// it reports no tracey at that version, for example because nothing
+    /// installed it.
+    ///
+    /// [requirement]: Tracey::requirement
+    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
+        let tool = Tool::resolve_requirement(&Self::requirement(), context).await?;
 
         Ok(Self { tool })
     }

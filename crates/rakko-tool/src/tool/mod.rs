@@ -1,19 +1,15 @@
 //! The external program that an action runs
 //!
-//! An action gives the name of the tool that it wraps, or declares a
-//! requirement of it, and this module turns that into a program that a run
-//! can start. The tool holds what a run needs: the
-//! name that the action asked for, the location that mise reported, and the
-//! root of the project that the tool works on.
+//! An action declares a requirement of each tool that it runs, and this module
+//! turns that requirement into a program that a run can start. The tool holds
+//! what a run needs: the location that mise reported, the version that the
+//! requirement resolved to, and the root of the project that the tool works
+//! on.
 //!
 //! Nothing starts a program until the caller runs a command. A tool describes
 //! the command, the action adds its arguments, and the run reports what the
 //! tool produced.
 
-/// What the crate reports when it cannot find a tool by its name
-mod error;
-/// The identifier of an external tool
-mod name;
 /// What the crate reports when it cannot resolve the requirement of a tool
 mod requirement_error;
 /// The version of a toolchain that a project pins
@@ -26,8 +22,6 @@ use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
 use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
 
-pub use self::error::ResolveToolError;
-pub use self::name::ToolName;
 pub use self::requirement_error::ResolveRequirementError;
 use self::toolchain::pinned_toolchain;
 
@@ -75,7 +69,6 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 ///
 /// A tool is a program that mise installed. [`resolve_requirement`][declared]
 /// asks mise for the version that an action declares, and
-/// [`resolve`][resolve] asks mise for the version that the project pins.
 /// [`invocation`][invocation] describes the command that runs the tool.
 ///
 /// The value carries the root of the project, because a tool behaves the same
@@ -85,12 +78,8 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 ///
 /// [declared]: Tool::resolve_requirement
 /// [invocation]: Tool::invocation
-/// [resolve]: Tool::resolve
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Tool {
-    /// The name that mise knows the tool by
-    name: ToolName,
-
     /// The location of the program that mise installed
     ///
     /// The path is absolute, so a command that starts the program searches no
@@ -101,14 +90,12 @@ pub struct Tool {
     /// The root of the project that the tool works on
     root: ProjectRoot,
 
-    /// The version of the tool that a requirement resolved to
+    /// The version of the tool that the requirement resolved to
     ///
-    /// A tool that [`resolve`][resolve] found carries no version, because
-    /// the pin of the project chose it and the lookup did not read the pin.
-    ///
-    /// [resolve]: Tool::resolve
+    /// For an exact version, the requirement gives it. For a range, it is the
+    /// version that the project pins and that the range accepts.
     #[getset(get = "pub")]
-    version: Option<ToolVersion>,
+    version: ToolVersion,
 
     /// The directories of the toolchains that the tool runs on, in the order
     /// that a run searches them
@@ -124,11 +111,12 @@ pub struct Tool {
 impl Tool {
     /// Returns the command that runs the tool
     ///
-    /// The command starts the program that [`resolve`][resolve] found, in the
-    /// root of the project, and it carries no argument yet. The caller adds
-    /// the arguments of the operation that it wants, and then runs the
-    /// command with [`launch`][launch], which survives a launcher that
-    /// Windows refused for a moment.
+    /// The command starts the program that
+    /// [`resolve_requirement`][resolve] found, in the root of the project,
+    /// and it carries no argument yet. The caller adds the arguments of the
+    /// operation that it wants, and then runs the command with
+    /// [`launch`][launch], which survives a launcher that Windows refused for
+    /// a moment.
     ///
     /// No shell reads the command. Nothing splits an argument at a space,
     /// removes a quotation mark, or expands a character such as `*`, so the
@@ -146,11 +134,19 @@ impl Tool {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko_tool::{Launch, Tool, ToolName};
+    /// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko_tool::{Launch, Tool};
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let tool = Tool::resolve(ToolName::new("taplo"), "/home/otter/project".into()).await?;
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("taplo")
+    ///     .executable("taplo")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
+    ///     .build();
+    /// let context = Context::builder().root("/home/otter/project").build();
+    ///
+    /// let tool = Tool::resolve_requirement(&requirement, &context).await?;
     ///
     /// let execution = tool.invocation().arg("check").launch().await?;
     ///
@@ -160,7 +156,7 @@ impl Tool {
     /// ```
     ///
     /// [launch]: crate::Launch::launch
-    /// [resolve]: Tool::resolve
+    /// [resolve]: Tool::resolve_requirement
     /// [toolchain]: Tool::with_toolchain
     pub fn invocation(&self) -> Invocation {
         let invocation = Invocation::new(self.program.clone()).in_directory(self.root.get());
@@ -253,73 +249,6 @@ impl Tool {
         self.toolchains.push(directory.to_path_buf());
 
         Ok(self)
-    }
-
-    /// Returns the tool of a project, at the location that mise reports
-    ///
-    /// The lookup asks mise about the project whose root the caller names, so
-    /// the version that the project pinned answers, whatever the shell that
-    /// started the process carries on its path. The answer is an absolute
-    /// path, and a run of the tool therefore searches nothing.
-    ///
-    /// The lookup starts a process, so a caller that resolves several tools
-    /// pays for each of them. An action resolves the tool that it wraps once
-    /// and keeps the result for the length of the run.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`MiseUnavailable`][unavailable] when mise does not run, and
-    /// [`UnresolvedTool`][unresolved] when mise runs and reports no location
-    /// for the tool. Rakko installs nothing, so a tool that no one installed
-    /// is a failure and not a step that this method takes.
-    ///
-    /// # Panics
-    ///
-    /// Panics when no Tokio runtime drives the future. The runtime waits for
-    /// mise, and the method has no way to ask without one.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rakko_tool::{Tool, ToolName};
-    ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let tool = Tool::resolve(ToolName::new("zizmor"), "/home/otter/project".into()).await?;
-    ///
-    /// println!("{}", tool.program());
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// [unavailable]: ResolveToolError::MiseUnavailable
-    /// [unresolved]: ResolveToolError::UnresolvedTool
-    pub async fn resolve(name: ToolName, root: ProjectRoot) -> Result<Self, ResolveToolError> {
-        let execution = Invocation::new(MISE)
-            .arg(WHICH)
-            .arg(name.get())
-            .in_directory(root.get())
-            .run()
-            .await
-            .map_err(|source| ResolveToolError::MiseUnavailable {
-                tool: name.clone(),
-                source,
-            })?;
-
-        let named = program(&execution).ok_or_else(|| ResolveToolError::UnresolvedTool {
-            tool: name.clone(),
-            details: details(&execution),
-        })?;
-
-        let program = executable(named);
-
-        Ok(Self {
-            name,
-            program,
-            root,
-            version: None,
-            toolchains: Vec::new(),
-        })
     }
 
     /// Returns the tool that a requirement accepts, at the location that mise
@@ -444,10 +373,9 @@ impl Tool {
             })?;
 
         Ok(Self {
-            name: ToolName::new(bin.get()),
             program: executable(named),
             root: root.clone(),
-            version: Some(version),
+            version,
             toolchains: Vec::new(),
         })
     }
@@ -711,9 +639,27 @@ mod tests {
 
     /// Returns the tool that this repository pins, resolved
     async fn pinned() -> Tool {
-        Tool::resolve(ToolName::new(PINNED), root())
+        Tool::resolve_requirement(&exact(), &context())
             .await
             .expect("expected mise to report the location of a tool that this project pins")
+    }
+
+    /// Returns the requirement of the tool of a package manager for Node
+    ///
+    /// The version comes from the mise file of the crate that wraps the tool,
+    /// so that an update of the pin reaches the test without a change to it.
+    fn scripted() -> ToolRequirement {
+        let pins =
+            std::fs::read_to_string(root().get().join("crates/rakko-prettier/mise.rakko.toml"))
+                .expect("the test reads the mise file of the crate that wraps the tool");
+        let tool = format!("npm:{SCRIPTED}");
+        let version = ToolVersion::new(pinned_version(&pins, &tool));
+
+        ToolRequirement::builder()
+            .tool(tool)
+            .executable(SCRIPTED)
+            .version(RequiredVersion::Exact(version))
+            .build()
     }
 
     /// A program in a directory that cannot be an entry of `PATH`
@@ -735,10 +681,9 @@ mod tests {
     /// Returns a tool at a program, without a lookup through mise
     fn tool_at(program: &str) -> Tool {
         Tool {
-            name: ToolName::new(PINNED),
             program: Program::from(program),
             root: root(),
-            version: None,
+            version: ToolVersion::new("1.0.0"),
             toolchains: Vec::new(),
         }
     }
@@ -869,10 +814,9 @@ mod tests {
         let result = Tool::resolve_requirement(&nightly, &context()).await;
 
         assert!(
-            result.as_ref().is_ok_and(|tool| tool
-                .version()
+            result
                 .as_ref()
-                .is_some_and(|version| version.get().starts_with("nightly-"))),
+                .is_ok_and(|tool| tool.version().get().starts_with("nightly-")),
             "expected the dated nightly that this repository pins, got {result:?}"
         );
     }
@@ -904,55 +848,7 @@ mod tests {
             .await
             .expect("expected mise to report the version that this project pins");
 
-        assert_eq!(
-            tool.version().as_ref().map(ToolVersion::get),
-            Some(pinned_by_the_repository().as_str())
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_with_a_pinned_tool_reports_an_installed_program() {
-        let tool = pinned().await;
-
-        assert!(tool.program().get().is_file());
-    }
-
-    // A file that mise names for a package of Node is a script on every
-    // platform, and Windows starts a program by the extension of its file, so
-    // this run reaches the tool only when resolution answered with the
-    // launcher beside the script.
-    #[tokio::test]
-    async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
-        let tool = Tool::resolve(ToolName::new(SCRIPTED), root())
-            .await
-            .expect("expected mise to report the location of a tool that this project pins");
-
-        let execution = tool.invocation().arg("--version").run().await;
-
-        assert!(
-            execution.is_ok(),
-            "expected the tool to run, got {execution:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_with_an_unknown_tool_names_it() {
-        let name = ToolName::new("rakko-pins-no-such-tool");
-
-        let Err(error) = Tool::resolve(name, root()).await else {
-            panic!("expected the lookup to report an error");
-        };
-
-        assert!(error.to_string().contains("rakko-pins-no-such-tool"));
-    }
-
-    #[tokio::test]
-    async fn resolve_outside_the_project_reports_no_location() {
-        let outside = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        let result = Tool::resolve(ToolName::new(PINNED), ProjectRoot::from(outside.path())).await;
-
-        assert!(result.is_err());
+        assert_eq!(tool.version().get(), pinned_by_the_repository());
     }
 
     #[tokio::test]
@@ -990,6 +886,24 @@ mod tests {
                 Err(ResolveRequirementError::UnreadableVersion { .. })
             ),
             "expected an unreadable version, got {result:?}"
+        );
+    }
+
+    // A file that mise names for a package of Node is a script on every
+    // platform, and Windows starts a program by the extension of its file, so
+    // this run reaches the tool only when resolution answered with the
+    // launcher beside the script.
+    #[tokio::test]
+    async fn resolve_requirement_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
+        let tool = Tool::resolve_requirement(&scripted(), &context())
+            .await
+            .expect("expected mise to report the location of a tool that this project installs");
+
+        let execution = tool.invocation().arg("--version").run().await;
+
+        assert!(
+            execution.is_ok(),
+            "expected the tool to run, got {execution:?}"
         );
     }
 
