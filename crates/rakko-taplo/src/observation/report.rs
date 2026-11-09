@@ -304,9 +304,10 @@ fn unescaped(characters: &mut Chars<'_>) -> Option<char> {
         'r' => Some('\r'),
         't' => Some('\t'),
         'u' => {
-            let Some('{') = characters.next() else {
-                return None;
-            };
+            match characters.next() {
+                Some('{') => {}
+                Some(_) | None => return None,
+            }
             let digits: String = characters
                 .by_ref()
                 .take_while(|character| *character != '}')

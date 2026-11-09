@@ -269,8 +269,9 @@ mod tests {
         let mut future = pin!(future);
         let mut task_context = TaskContext::from_waker(Waker::noop());
         loop {
-            if let Poll::Ready(output) = future.as_mut().poll(&mut task_context) {
-                return output;
+            match future.as_mut().poll(&mut task_context) {
+                Poll::Ready(output) => return output,
+                Poll::Pending => {}
             }
         }
     }

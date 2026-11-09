@@ -42,7 +42,10 @@ impl Severity {
     /// quiet turns that rule off. A note and a help never fail a run, which is
     /// how stiles treats them in its strictest mode as well.
     pub(crate) fn fails(self) -> bool {
-        matches!(self, Self::Error | Self::Warning)
+        match self {
+            Self::Error | Self::Warning => true,
+            Self::Note | Self::Help => false,
+        }
     }
 }
 

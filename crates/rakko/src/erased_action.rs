@@ -340,8 +340,9 @@ mod tests {
         let mut future = pin!(action.run(&context, values));
         let mut task_context = TaskContext::from_waker(Waker::noop());
         loop {
-            if let Poll::Ready(outcome) = future.as_mut().poll(&mut task_context) {
-                return outcome;
+            match future.as_mut().poll(&mut task_context) {
+                Poll::Ready(outcome) => return outcome,
+                Poll::Pending => {}
             }
         }
     }
@@ -352,8 +353,9 @@ mod tests {
         let mut future = pin!(bound.run(&context));
         let mut task_context = TaskContext::from_waker(Waker::noop());
         loop {
-            if let Poll::Ready(outcome) = future.as_mut().poll(&mut task_context) {
-                return outcome;
+            match future.as_mut().poll(&mut task_context) {
+                Poll::Ready(outcome) => return outcome,
+                Poll::Pending => {}
             }
         }
     }

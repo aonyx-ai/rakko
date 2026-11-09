@@ -228,12 +228,19 @@ impl Lockfile {
         platforms
             .into_iter()
             .map(|(platform, table)| {
-                if !table.is_object() {
-                    return Err(ReadLockfileError::MisshapenPlatform {
-                        tool: tool.clone(),
-                        version: version.clone(),
-                        platform,
-                    });
+                match table {
+                    Value::Object(_) => {}
+                    Value::Null
+                    | Value::Bool(_)
+                    | Value::Number(_)
+                    | Value::String(_)
+                    | Value::Array(_) => {
+                        return Err(ReadLockfileError::MisshapenPlatform {
+                            tool: tool.clone(),
+                            version: version.clone(),
+                            platform,
+                        });
+                    }
                 }
 
                 let mut content = Map::new();

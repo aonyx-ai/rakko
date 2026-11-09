@@ -132,8 +132,9 @@ impl Zizmor {
             });
         };
 
-        if status == Collection::Empty {
-            return Ok(Observation::builder().collected(false).build());
+        match status {
+            Collection::Empty => return Ok(Observation::builder().collected(false).build()),
+            Collection::Audited => {}
         }
 
         let stdout = execution.stdout().to_string_lossy();

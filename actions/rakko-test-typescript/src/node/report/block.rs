@@ -136,11 +136,10 @@ impl Block {
 
     /// Adds a line to the value that the block collects
     fn extend(&mut self, line: &str) {
-        let Some((_, Scalar::Lines(lines))) = self.entries.last_mut() else {
-            return;
-        };
-
-        lines.push(line.trim().to_owned());
+        match self.entries.last_mut() {
+            Some((_, Scalar::Lines(lines))) => lines.push(line.trim().to_owned()),
+            Some((_, Scalar::Text(_))) | None => {}
+        }
     }
 }
 
