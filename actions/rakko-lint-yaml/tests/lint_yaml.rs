@@ -297,6 +297,23 @@ async fn run_reads_the_configuration_of_the_project() {
 }
 
 #[tokio::test]
+async fn run_whose_yamllint_examined_nothing_skips() {
+    let project = Project::new();
+    project.write(".yamllint", IGNORE_EVERYTHING);
+    project.write("notes.yaml", TRAILING_SPACES);
+
+    let outcome = project.run().await;
+
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
+    };
+    assert!(
+        reason.get().contains("yamllint"),
+        "expected the reason to name the tool, got {reason:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_a_broken_rule_carries_the_message_of_yamllint() {
     let project = Project::new();
     project.write("notes.yaml", TRAILING_SPACES);
@@ -404,23 +421,6 @@ async fn run_with_an_unreadable_file_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_whose_yamllint_examined_nothing_skips() {
-    let project = Project::new();
-    project.write(".yamllint", IGNORE_EVERYTHING);
-    project.write("notes.yaml", TRAILING_SPACES);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains("yamllint"),
-        "expected the reason to name the tool, got {reason:?}"
     );
 }
 

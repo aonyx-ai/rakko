@@ -801,6 +801,19 @@ mod tests {
         assert_eq!(content(&worktree, "tracked.txt").as_deref(), Some("two"));
     }
 
+    #[tokio::test]
+    async fn create_copies_a_staged_file() {
+        let repository = Repository::new();
+        repository.write("staged.txt", "staged");
+        repository.git(&["add", "staged.txt"]);
+
+        let worktree = Worktree::create(repository.root())
+            .await
+            .expect("expected git to create the copy");
+
+        assert_eq!(content(&worktree, "staged.txt").as_deref(), Some("staged"));
+    }
+
     // The copy holds what the project holds, and a link is not the file that
     // it names. A write through the link would reach that file instead, which
     // is the failure that this test rules out.
@@ -816,19 +829,6 @@ mod tests {
             .expect("expected git to create the copy");
 
         assert!(worktree.root().get().join("link.txt").is_symlink());
-    }
-
-    #[tokio::test]
-    async fn create_copies_a_staged_file() {
-        let repository = Repository::new();
-        repository.write("staged.txt", "staged");
-        repository.git(&["add", "staged.txt"]);
-
-        let worktree = Worktree::create(repository.root())
-            .await
-            .expect("expected git to create the copy");
-
-        assert_eq!(content(&worktree, "staged.txt").as_deref(), Some("staged"));
     }
 
     #[tokio::test]
@@ -1088,6 +1088,18 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn path_of_a_relative_path_of_the_project_names_the_same_path() {
+        let repository = Repository::new();
+        let worktree = Worktree::create(repository.root())
+            .await
+            .expect("expected git to create the copy");
+
+        let inside = worktree.path_of(Path::new("crates/example"));
+
+        assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
+    }
+
+    #[tokio::test]
     async fn path_of_an_absolute_path_of_the_project_names_the_same_path() {
         let repository = Repository::new();
         let worktree = Worktree::create(repository.root())
@@ -1113,18 +1125,6 @@ mod tests {
         let resolved = canonical(repository.root().get()).expect("the directory exists");
 
         let inside = worktree.path_of(&resolved.join("crates/example"));
-
-        assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
-    }
-
-    #[tokio::test]
-    async fn path_of_a_relative_path_of_the_project_names_the_same_path() {
-        let repository = Repository::new();
-        let worktree = Worktree::create(repository.root())
-            .await
-            .expect("expected git to create the copy");
-
-        let inside = worktree.path_of(Path::new("crates/example"));
 
         assert_eq!(inside, Some(worktree.root().get().join("crates/example")));
     }

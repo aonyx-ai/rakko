@@ -276,14 +276,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn arguments_of_every_report_ask_for_data() {
-        let reports = [Question::Coverage, Question::References];
+    fn arguments_of_a_daemon_question_stop_it() {
+        let selected = arguments(Question::Daemon);
 
-        let structured = reports
-            .into_iter()
-            .all(|question| arguments(question).contains(&JSON));
-
-        assert!(structured, "expected every report to be asked for as data");
+        assert_eq!(selected, ["kill"]);
     }
 
     #[test]
@@ -297,10 +293,14 @@ mod tests {
     }
 
     #[test]
-    fn arguments_of_a_daemon_question_stop_it() {
-        let selected = arguments(Question::Daemon);
+    fn arguments_of_every_report_ask_for_data() {
+        let reports = [Question::Coverage, Question::References];
 
-        assert_eq!(selected, ["kill"]);
+        let structured = reports
+            .into_iter()
+            .all(|question| arguments(question).contains(&JSON));
+
+        assert!(structured, "expected every report to be asked for as data");
     }
 
     #[test]

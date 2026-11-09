@@ -300,6 +300,20 @@ async fn run_leaves_a_file_with_a_type_error_unchanged() {
 }
 
 #[tokio::test]
+async fn run_of_a_project_that_builds_writes_no_output() {
+    let project = Project::new();
+    project.write("tsconfig.json", EMITTING);
+    project.write("src/index.ts", VALID);
+
+    project.run().await;
+
+    assert!(
+        !project.holds("dist"),
+        "expected the run to write no output directory"
+    );
+}
+
+#[tokio::test]
 async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
     project.write("tsconfig.json", CONFIGURATION);
@@ -329,41 +343,16 @@ async fn run_reads_the_configuration_of_the_project() {
 }
 
 #[tokio::test]
-async fn run_with_a_type_error_leaves_the_project_unchanged() {
+async fn run_whose_configuration_selected_nothing_skips() {
     let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
+    project.write("tsconfig.json", ELSEWHERE);
     project.write("src/index.ts", WRONG_TYPE);
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&CheckTypeScript, &project.context(), &()).await;
-}
-
-#[tokio::test]
-async fn run_without_the_option_of_the_project_passes_the_same_file() {
-    let project = Project::new();
-    project.write("tsconfig.json", CONFIGURATION);
-    project.write("src/index.ts", UNUSED_PARAMETER);
 
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the defaults of tsc to answer, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_of_a_project_that_builds_writes_no_output() {
-    let project = Project::new();
-    project.write("tsconfig.json", EMITTING);
-    project.write("src/index.ts", VALID);
-
-    project.run().await;
-
-    assert!(
-        !project.holds("dist"),
-        "expected the run to write no output directory"
+        matches!(outcome, Outcome::Skipped { .. }),
+        "expected the run to skip, got {outcome:?}"
     );
 }
 
@@ -422,6 +411,17 @@ async fn run_with_a_type_error_carries_the_message_of_tsc() {
         findings[0].message().get(),
         "error TS2322: Type 'string' is not assignable to type 'number'."
     );
+}
+
+#[tokio::test]
+async fn run_with_a_type_error_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write("tsconfig.json", CONFIGURATION);
+    project.write("src/index.ts", WRONG_TYPE);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&CheckTypeScript, &project.context(), &()).await;
 }
 
 // Tsc draws its diagnostics in color when it writes to a terminal, and an
@@ -522,20 +522,6 @@ async fn run_without_a_configuration_file_skips() {
 }
 
 #[tokio::test]
-async fn run_whose_configuration_selected_nothing_skips() {
-    let project = Project::new();
-    project.write("tsconfig.json", ELSEWHERE);
-    project.write("src/index.ts", WRONG_TYPE);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_without_a_tsc_stops() {
     let project = Project::without_tsc();
     project.write("tsconfig.json", CONFIGURATION);
@@ -546,5 +532,19 @@ async fn run_without_a_tsc_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_the_option_of_the_project_passes_the_same_file() {
+    let project = Project::new();
+    project.write("tsconfig.json", CONFIGURATION);
+    project.write("src/index.ts", UNUSED_PARAMETER);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the defaults of tsc to answer, got {outcome:?}"
     );
 }

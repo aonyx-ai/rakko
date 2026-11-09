@@ -497,13 +497,12 @@ mod tests {
     }
 
     #[test]
-    fn release_accepts_the_patches_of_the_version() {
-        let requirement = Toolchain::release(&RustVersion::new("1.88"));
+    fn newest_of_a_pin_that_mise_completed_names_the_toolchain_it_resolved_to() {
+        let pins = vec![pin("1.85.1", "1.85", true)];
 
-        assert_eq!(
-            requirement.version(),
-            &RequiredVersion::Range(VersionRange::new("=1.88"))
-        );
+        let toolchain = newest_of(&pins);
+
+        assert_eq!(toolchain.ok(), Some(Toolchain::new("1.85.1")));
     }
 
     #[test]
@@ -527,15 +526,6 @@ mod tests {
         let toolchain = newest_of(&pins());
 
         assert_eq!(toolchain.ok(), Some(Toolchain::new("1.98.0")));
-    }
-
-    #[test]
-    fn newest_of_a_pin_that_mise_completed_names_the_toolchain_it_resolved_to() {
-        let pins = vec![pin("1.85.1", "1.85", true)];
-
-        let toolchain = newest_of(&pins);
-
-        assert_eq!(toolchain.ok(), Some(Toolchain::new("1.85.1")));
     }
 
     #[test]
@@ -577,6 +567,16 @@ mod tests {
                 Err(ResolveNewestToolchainError::UnpinnedToolchain)
             ),
             "expected no pin by a version, got {toolchain:?}"
+        );
+    }
+
+    #[test]
+    fn release_accepts_the_patches_of_the_version() {
+        let requirement = Toolchain::release(&RustVersion::new("1.88"));
+
+        assert_eq!(
+            requirement.version(),
+            &RequiredVersion::Range(VersionRange::new("=1.88"))
         );
     }
 

@@ -145,6 +145,16 @@ mod tests {
     }
 
     #[test]
+    fn problems_of_a_report_that_is_not_a_report_stop_the_reading() {
+        let problems = problems(STACK_TRACE);
+
+        assert!(
+            problems.is_err(),
+            "expected the reading to stop, got {problems:?}"
+        );
+    }
+
+    #[test]
     fn problems_of_a_result_name_the_file() {
         let problem = problem(RANGED);
 
@@ -159,16 +169,6 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_result_with_a_detail_read_like_markdownlint() {
-        let problem = problem(RANGED);
-
-        assert_eq!(
-            problem.message(),
-            "MD030/list-marker-space Spaces after list markers [Expected: 1; Actual: 2]"
-        );
-    }
-
-    #[test]
     fn problems_of_a_result_with_a_context_quote_it_like_markdownlint() {
         let problem = problem(UNRANGED);
 
@@ -179,10 +179,13 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_an_unranged_result_name_no_column() {
-        let problem = problem(UNRANGED);
+    fn problems_of_a_result_with_a_detail_read_like_markdownlint() {
+        let problem = problem(RANGED);
 
-        assert_eq!(problem.column(), None);
+        assert_eq!(
+            problem.message(),
+            "MD030/list-marker-space Spaces after list markers [Expected: 1; Actual: 2]"
+        );
     }
 
     #[test]
@@ -193,12 +196,9 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_report_that_is_not_a_report_stop_the_reading() {
-        let problems = problems(STACK_TRACE);
+    fn problems_of_an_unranged_result_name_no_column() {
+        let problem = problem(UNRANGED);
 
-        assert!(
-            problems.is_err(),
-            "expected the reading to stop, got {problems:?}"
-        );
+        assert_eq!(problem.column(), None);
     }
 }

@@ -54,13 +54,6 @@ mod tests {
     }
 
     #[test]
-    fn severity_of_an_error_reads_the_word_of_cargo_deny() {
-        let severity = severity("error");
-
-        assert_eq!(severity, Severity::Error);
-    }
-
-    #[test]
     fn severity_of_a_help_reads_the_word_of_cargo_deny() {
         let severity = severity("help");
 
@@ -79,6 +72,13 @@ mod tests {
         let severity = severity("warning");
 
         assert_eq!(severity, Severity::Warning);
+    }
+
+    #[test]
+    fn severity_of_an_error_reads_the_word_of_cargo_deny() {
+        let severity = severity("error");
+
+        assert_eq!(severity, Severity::Error);
     }
 
     // The severity arrives from the report of cargo-deny. A weight that this

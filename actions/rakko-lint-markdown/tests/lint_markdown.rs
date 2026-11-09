@@ -213,6 +213,19 @@ fn action_identifies_itself_as_lint_markdown() {
 }
 
 #[tokio::test]
+async fn run_in_a_valid_project_passes() {
+    let project = Project::new();
+    project.write("notes.md", VALID);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_leaves_a_file_that_breaks_a_rule_unchanged() {
     let project = Project::new();
     project.write("notes.md", UNSPACED_HEADING);
@@ -255,16 +268,33 @@ async fn run_leaves_out_the_directories_of_git() {
 }
 
 #[tokio::test]
-async fn run_in_a_valid_project_passes() {
+async fn run_reaches_a_file_below_a_directory_of_the_project() {
     let project = Project::new();
+    project.write(".markdownlint.yaml", "MD041: false\n");
     project.write("notes.md", VALID);
+    project.write("deep/sub/notes.md", UNSPACED_HEADING);
 
     let outcome = project.run().await;
 
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [path_text("deep/sub/notes.md")]);
+}
+
+#[tokio::test]
+async fn run_reaches_a_file_in_a_directory_with_a_dot() {
+    let project = Project::new();
+    project.write(".markdownlint.yaml", "MD041: false\n");
+    project.write("notes.md", VALID);
+    project.write(".changeset/notes.md", UNSPACED_HEADING);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [path_text(".changeset/notes.md")]);
 }
 
 #[tokio::test]
@@ -278,6 +308,23 @@ async fn run_reads_the_configuration_of_the_project() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the rules of the project to answer, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_whose_markdownlint_examined_nothing_skips() {
+    let project = Project::new();
+    project.write(".markdownlintignore", IGNORE_EVERYTHING);
+    project.write("notes.md", UNSPACED_HEADING);
+
+    let outcome = project.run().await;
+
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
+    };
+    assert!(
+        reason.get().contains("markdownlint"),
+        "expected the reason to name the tool, got {reason:?}"
     );
 }
 
@@ -385,23 +432,6 @@ async fn run_with_an_unreadable_file_stops() {
 }
 
 #[tokio::test]
-async fn run_whose_markdownlint_examined_nothing_skips() {
-    let project = Project::new();
-    project.write(".markdownlintignore", IGNORE_EVERYTHING);
-    project.write("notes.md", UNSPACED_HEADING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains("markdownlint"),
-        "expected the reason to name the tool, got {reason:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_without_a_markdownlint_stops() {
     let project = Project::without_markdownlint();
     project.write("notes.md", VALID);
@@ -425,34 +455,4 @@ async fn run_without_markdown_files_skips() {
         matches!(outcome, Outcome::Skipped { .. }),
         "expected the run to skip, got {outcome:?}"
     );
-}
-
-#[tokio::test]
-async fn run_reaches_a_file_below_a_directory_of_the_project() {
-    let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", VALID);
-    project.write("deep/sub/notes.md", UNSPACED_HEADING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(locations(findings), [path_text("deep/sub/notes.md")]);
-}
-
-#[tokio::test]
-async fn run_reaches_a_file_in_a_directory_with_a_dot() {
-    let project = Project::new();
-    project.write(".markdownlint.yaml", "MD041: false\n");
-    project.write("notes.md", VALID);
-    project.write(".changeset/notes.md", UNSPACED_HEADING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(locations(findings), [path_text(".changeset/notes.md")]);
 }

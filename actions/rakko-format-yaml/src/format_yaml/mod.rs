@@ -436,6 +436,15 @@ mod tests {
     }
 
     #[test]
+    fn guard_of_a_failed_run_without_a_problem_stops() {
+        let observation = Observation::builder().stderr("something new").build();
+
+        let error = guard(&observation).unwrap_err();
+
+        assert!(matches!(error, FormatYamlError::UnrecognizedReport { .. }));
+    }
+
+    #[test]
     fn guard_of_a_run_that_matched_no_file_skips() {
         let observation = Observation::builder()
             .succeeded(true)
@@ -451,12 +460,12 @@ mod tests {
     }
 
     #[test]
-    fn guard_of_a_failed_run_without_a_problem_stops() {
-        let observation = Observation::builder().stderr("something new").build();
+    fn guard_of_a_run_that_reported_normally_reports_nothing() {
+        let observation = Observation::builder().succeeded(true).build();
 
-        let error = guard(&observation).unwrap_err();
+        let outcome = guard(&observation).unwrap();
 
-        assert!(matches!(error, FormatYamlError::UnrecognizedReport { .. }));
+        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 
     #[test]
@@ -472,14 +481,5 @@ mod tests {
             error,
             FormatYamlError::RejectedConfiguration { .. }
         ));
-    }
-
-    #[test]
-    fn guard_of_a_run_that_reported_normally_reports_nothing() {
-        let observation = Observation::builder().succeeded(true).build();
-
-        let outcome = guard(&observation).unwrap();
-
-        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
     }
 }

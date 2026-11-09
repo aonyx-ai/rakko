@@ -172,29 +172,6 @@ mod tests {
     const RECORD: &str = r#"{"reason":"build-finished","success":true}"#;
 
     #[test]
-    fn read_a_report_in_a_shape_the_crate_does_not_know_holds_the_line() {
-        let line = r#"{"unused_deps":{"probe":{"manifest_path":5}}}"#;
-
-        let report = UdepsReport::read(line);
-
-        assert!(
-            matches!(
-                &report,
-                Err(ReadUdepsReportError::UnrecognizedReport { line: held, .. })
-                    if held == line
-            ),
-            "expected an unrecognized report, got {report:?}"
-        );
-    }
-
-    #[test]
-    fn read_a_stream_without_a_report_answers_nothing() {
-        let report = UdepsReport::read(RECORD);
-
-        assert_eq!(report.ok(), Some(None));
-    }
-
-    #[test]
     fn read_a_report_beside_the_records_of_cargo_names_every_dependency() {
         let stdout = format!("{RECORD}\n{FOUND}\n");
 
@@ -226,15 +203,18 @@ mod tests {
     }
 
     #[test]
-    fn read_a_report_of_a_clean_run_names_no_dependency() {
-        let report = UdepsReport::read(r#"{"success":true,"unused_deps":{},"note":null}"#);
+    fn read_a_report_in_a_shape_the_crate_does_not_know_holds_the_line() {
+        let line = r#"{"unused_deps":{"probe":{"manifest_path":5}}}"#;
 
-        assert_eq!(
-            report
-                .ok()
-                .flatten()
-                .map(|report| report.dependencies().len()),
-            Some(0)
+        let report = UdepsReport::read(line);
+
+        assert!(
+            matches!(
+                &report,
+                Err(ReadUdepsReportError::UnrecognizedReport { line: held, .. })
+                    if held == line
+            ),
+            "expected an unrecognized report, got {report:?}"
         );
     }
 
@@ -249,5 +229,25 @@ mod tests {
                 .map(|report| report.dependencies()[0].manifest().clone()),
             Some(Path::new("/project/Cargo.toml").to_path_buf())
         );
+    }
+
+    #[test]
+    fn read_a_report_of_a_clean_run_names_no_dependency() {
+        let report = UdepsReport::read(r#"{"success":true,"unused_deps":{},"note":null}"#);
+
+        assert_eq!(
+            report
+                .ok()
+                .flatten()
+                .map(|report| report.dependencies().len()),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn read_a_stream_without_a_report_answers_nothing() {
+        let report = UdepsReport::read(RECORD);
+
+        assert_eq!(report.ok(), Some(None));
     }
 }

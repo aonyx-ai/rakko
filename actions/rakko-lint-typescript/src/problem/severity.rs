@@ -60,17 +60,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn display_of_an_error_writes_the_word_of_oxlint() {
-        let word = Severity::Error.to_string();
-
-        assert_eq!(word, "error");
-    }
-
-    #[test]
     fn display_of_a_warning_writes_the_word_of_oxlint() {
         let word = Severity::Warning.to_string();
 
         assert_eq!(word, "warning");
+    }
+
+    #[test]
+    fn display_of_an_error_writes_the_word_of_oxlint() {
+        let word = Severity::Error.to_string();
+
+        assert_eq!(word, "error");
     }
 
     // The severity arrives from the report of oxlint, which writes it in lower

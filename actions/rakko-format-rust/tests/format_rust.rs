@@ -245,6 +245,75 @@ fn action_identifies_itself_as_format_rust() {
 }
 
 #[tokio::test]
+async fn run_in_a_formatted_project_counts_the_workspaces() {
+    let project = Project::with_library(FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("checked 1 workspace")
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_formatted_project_passes() {
+    let project = Project::with_library(FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_configuration_that_rustfmt_cannot_parse_reports_what_it_wrote() {
+    let project = Project::with_library(FORMATTED);
+    project.write(".rustfmt.toml", UNPARSABLE_CONFIGURATION);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains("Could not parse TOML"),
+        "expected the diagnosis of rustfmt, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_configuration_that_rustfmt_cannot_parse_stops() {
+    let project = Project::with_library(FORMATTED);
+    project.write(".rustfmt.toml", UNPARSABLE_CONFIGURATION);
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
+    let project = Project::new();
+    project.write("Cargo.toml", "this is not a manifest\n");
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_an_invalid_file_carries_the_message_of_rustfmt() {
     let project = Project::with_library(INVALID);
 
@@ -282,6 +351,20 @@ async fn run_with_an_invalid_file_reports_the_position() {
 }
 
 #[tokio::test]
+async fn run_with_an_unformatted_file_in_a_second_workspace_names_its_path() {
+    let project = Project::with_library(FORMATTED);
+    project.write("tools/harness/Cargo.toml", STANDALONE);
+    project.write("tools/harness/src/lib.rs", UNFORMATTED);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
+}
+
+#[tokio::test]
 async fn run_with_an_unformatted_file_names_the_file() {
     let project = Project::with_library(UNFORMATTED);
 
@@ -297,37 +380,6 @@ async fn run_with_an_unformatted_file_names_the_file() {
                 .parse()
                 .expect("the test names a relative path"),
         }
-    );
-}
-
-#[tokio::test]
-async fn run_without_fix_leaves_the_file_unchanged() {
-    let project = Project::with_library(UNFORMATTED);
-
-    project.run(false).await;
-
-    assert_eq!(project.read("src/lib.rs"), UNFORMATTED);
-}
-
-#[tokio::test]
-async fn run_without_fix_leaves_the_project_unchanged() {
-    let project = Project::with_library(UNFORMATTED);
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&FormatRust, &project.context(), &FormatRustArgs::default()).await;
-}
-
-#[tokio::test]
-async fn run_with_an_unknown_option_stops() {
-    let project = Project::with_library(FORMATTED);
-    project.write(".rustfmt.toml", UNKNOWN_OPTION);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
     );
 }
 
@@ -348,9 +400,9 @@ async fn run_with_an_unknown_option_reports_what_rustfmt_said() {
 }
 
 #[tokio::test]
-async fn run_with_a_configuration_that_rustfmt_cannot_parse_stops() {
+async fn run_with_an_unknown_option_stops() {
     let project = Project::with_library(FORMATTED);
-    project.write(".rustfmt.toml", UNPARSABLE_CONFIGURATION);
+    project.write(".rustfmt.toml", UNKNOWN_OPTION);
 
     let outcome = project.run(false).await;
 
@@ -358,132 +410,6 @@ async fn run_with_a_configuration_that_rustfmt_cannot_parse_stops() {
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
     );
-}
-
-#[tokio::test]
-async fn run_with_a_configuration_that_rustfmt_cannot_parse_reports_what_it_wrote() {
-    let project = Project::with_library(FORMATTED);
-    project.write(".rustfmt.toml", UNPARSABLE_CONFIGURATION);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Errored { source } = &outcome else {
-        panic!("expected the run to stop, got {outcome:?}");
-    };
-    assert!(
-        source.to_string().contains("Could not parse TOML"),
-        "expected the diagnosis of rustfmt, got {source}"
-    );
-}
-
-#[tokio::test]
-async fn run_in_a_formatted_project_passes() {
-    let project = Project::with_library(FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_in_a_formatted_project_counts_the_workspaces() {
-    let project = Project::with_library(FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("checked 1 workspace")
-    );
-}
-
-#[tokio::test]
-async fn run_with_an_unformatted_file_in_a_second_workspace_names_its_path() {
-    let project = Project::with_library(FORMATTED);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", UNFORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
-}
-
-#[tokio::test]
-async fn run_with_two_workspaces_counts_both() {
-    let project = Project::with_library(FORMATTED);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", FORMATTED);
-
-    let outcome = project.run(false).await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("checked 2 workspaces")
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
-    let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
-
-    let outcome = project.run(false).await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_fix_holds_one_repair_for_each_file() {
-    let project = Project::with_library(UNFORMATTED);
-    project.write("src/main.rs", UNFORMATTED_MAIN);
-
-    let outcome = project.run(true).await;
-
-    let Outcome::Changed { repairs } = &outcome else {
-        panic!("expected the run to change the project, got {outcome:?}");
-    };
-    let mut repaired = locations(repairs);
-    repaired.sort();
-    assert_eq!(
-        repaired,
-        [path_text("src/lib.rs"), path_text("src/main.rs")]
-    );
-}
-
-#[tokio::test]
-async fn run_with_fix_reports_the_change() {
-    let project = Project::with_library(UNFORMATTED);
-
-    let outcome = project.run(true).await;
-
-    assert!(
-        matches!(outcome, Outcome::Changed { .. }),
-        "expected the run to change the project, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_fix_rewrites_the_file() {
-    let project = Project::with_library(UNFORMATTED);
-
-    project.run(true).await;
-
-    assert_eq!(project.read("src/lib.rs"), REWRITTEN);
 }
 
 #[tokio::test]
@@ -545,6 +471,62 @@ async fn run_with_fix_and_an_invalid_module_keeps_the_package_as_it_is() {
 }
 
 #[tokio::test]
+async fn run_with_fix_holds_one_repair_for_each_file() {
+    let project = Project::with_library(UNFORMATTED);
+    project.write("src/main.rs", UNFORMATTED_MAIN);
+
+    let outcome = project.run(true).await;
+
+    let Outcome::Changed { repairs } = &outcome else {
+        panic!("expected the run to change the project, got {outcome:?}");
+    };
+    let mut repaired = locations(repairs);
+    repaired.sort();
+    assert_eq!(
+        repaired,
+        [path_text("src/lib.rs"), path_text("src/main.rs")]
+    );
+}
+
+#[tokio::test]
+async fn run_with_fix_reports_the_change() {
+    let project = Project::with_library(UNFORMATTED);
+
+    let outcome = project.run(true).await;
+
+    assert!(
+        matches!(outcome, Outcome::Changed { .. }),
+        "expected the run to change the project, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_fix_rewrites_the_file() {
+    let project = Project::with_library(UNFORMATTED);
+
+    project.run(true).await;
+
+    assert_eq!(project.read("src/lib.rs"), REWRITTEN);
+}
+
+#[tokio::test]
+async fn run_with_two_workspaces_counts_both() {
+    let project = Project::with_library(FORMATTED);
+    project.write("tools/harness/Cargo.toml", STANDALONE);
+    project.write("tools/harness/src/lib.rs", FORMATTED);
+
+    let outcome = project.run(false).await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("checked 2 workspaces")
+    );
+}
+
+#[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::with_rust("\"0.0.1\"");
 
@@ -553,6 +535,19 @@ async fn run_without_a_cargo_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_a_manifest_skips() {
+    let project = Project::new();
+    project.write("README.md", "# Project\n");
+
+    let outcome = project.run(false).await;
+
+    assert!(
+        matches!(outcome, Outcome::Skipped { .. }),
+        "expected the run to skip, got {outcome:?}"
     );
 }
 
@@ -590,16 +585,21 @@ async fn run_without_a_nightly_toolchain_stops() {
 }
 
 #[tokio::test]
-async fn run_without_a_manifest_skips() {
-    let project = Project::new();
-    project.write("README.md", "# Project\n");
+async fn run_without_fix_leaves_the_file_unchanged() {
+    let project = Project::with_library(UNFORMATTED);
 
-    let outcome = project.run(false).await;
+    project.run(false).await;
 
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
-    );
+    assert_eq!(project.read("src/lib.rs"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn run_without_fix_leaves_the_project_unchanged() {
+    let project = Project::with_library(UNFORMATTED);
+
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&FormatRust, &project.context(), &FormatRustArgs::default()).await;
 }
 
 #[test]

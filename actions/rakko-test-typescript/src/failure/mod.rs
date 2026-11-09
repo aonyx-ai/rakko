@@ -113,17 +113,6 @@ mod tests {
     }
 
     #[test]
-    fn finding_names_the_test() {
-        let finding = located().finding(&root());
-
-        assert!(
-            finding.message().get().contains("`counts`"),
-            "expected the name of the test, got {:?}",
-            finding.message()
-        );
-    }
-
-    #[test]
     fn finding_carries_what_node_said() {
         let finding = located().finding(&root());
 
@@ -134,16 +123,14 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_a_failure_without_a_reason_names_the_test_alone() {
-        let failure = Failure::builder()
-            .name("counts")
-            .maybe_origin(None)
-            .maybe_reason(None::<String>)
-            .build();
+    fn finding_names_the_test() {
+        let finding = located().finding(&root());
 
-        let finding = failure.finding(&root());
-
-        assert_eq!(finding.message().get(), "test `counts` failed");
+        assert!(
+            finding.message().get().contains("`counts`"),
+            "expected the name of the test, got {:?}",
+            finding.message()
+        );
     }
 
     // Node writes an empty reason for a failure that it has nothing to say
@@ -162,19 +149,6 @@ mod tests {
     }
 
     #[test]
-    fn finding_sits_where_the_project_declares_the_test() {
-        let finding = located().finding(&root());
-
-        assert_eq!(
-            finding.location(),
-            &Location::Position {
-                path: "src/add.test.ts".parse().unwrap(),
-                position: Position::builder().line(5).column(1).build(),
-            }
-        );
-    }
-
-    #[test]
     fn finding_of_a_failure_without_a_place_belongs_to_the_project() {
         let failure = Failure::builder()
             .name("counts")
@@ -185,6 +159,19 @@ mod tests {
         let finding = failure.finding(&root());
 
         assert_eq!(finding.location(), &Location::Project);
+    }
+
+    #[test]
+    fn finding_of_a_failure_without_a_reason_names_the_test_alone() {
+        let failure = Failure::builder()
+            .name("counts")
+            .maybe_origin(None)
+            .maybe_reason(None::<String>)
+            .build();
+
+        let finding = failure.finding(&root());
+
+        assert_eq!(finding.message().get(), "test `counts` failed");
     }
 
     #[test]
@@ -204,5 +191,18 @@ mod tests {
         let finding = failure.finding(&root());
 
         assert_eq!(finding.location(), &Location::Project);
+    }
+
+    #[test]
+    fn finding_sits_where_the_project_declares_the_test() {
+        let finding = located().finding(&root());
+
+        assert_eq!(
+            finding.location(),
+            &Location::Position {
+                path: "src/add.test.ts".parse().unwrap(),
+                position: Position::builder().line(5).column(1).build(),
+            }
+        );
     }
 }

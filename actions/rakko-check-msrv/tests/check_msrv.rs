@@ -316,14 +316,15 @@ fn action_identifies_itself_as_check_msrv() {
 }
 
 #[tokio::test]
-async fn run_in_a_clean_project_passes() {
+async fn run_examines_the_tests_of_a_package() {
     let project = Project::with_library(CLEAN);
+    project.write("tests/probe.rs", WARNED);
 
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
     );
 }
 
@@ -343,15 +344,14 @@ async fn run_in_a_clean_project_counts_the_workspaces() {
 }
 
 #[tokio::test]
-async fn run_examines_the_tests_of_a_package() {
+async fn run_in_a_clean_project_passes() {
     let project = Project::with_library(CLEAN);
-    project.write("tests/probe.rs", WARNED);
 
     let outcome = project.run().await;
 
     assert!(
-        matches!(outcome, Outcome::Failed { .. }),
-        "expected the run to fail, got {outcome:?}"
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
     );
 }
 
@@ -383,142 +383,26 @@ async fn run_reports_what_the_declared_toolchain_refuses() {
 }
 
 #[tokio::test]
-async fn run_with_a_warning_carries_the_code_in_the_message() {
-    let project = Project::with_library(WARNED);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings
-            .iter()
-            .any(|finding| finding.message().get().ends_with("[unused_variables]")),
-        "expected the code of the lint, got {findings:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_warning_reports_the_range() {
-    let project = Project::with_library(WARNED);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    let Location::Span { span, .. } = findings[0].location() else {
-        panic!("expected a finding with a range, got {:?}", findings[0]);
-    };
-    assert_eq!(
-        (
-            span.start().line().get(),
-            span.start().column().map(|column| column.get())
-        ),
-        (2, Some(9))
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_warning_fails() {
-    let project = Project::with_library(WARNED);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Failed { .. }),
-        "expected the run to fail, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_compiler_error_fails_with_a_finding() {
-    let project = Project::with_library(BROKEN);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings
-            .iter()
-            .any(|finding| finding.message().get().contains("mismatched types")),
-        "expected the error of the compiler, got {findings:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_warning_in_a_second_workspace_names_its_path() {
-    let project = Project::with_library(CLEAN);
-    project.write(
-        "tools/harness/Cargo.toml",
-        &standalone("harness", &declared_rust()),
-    );
-    project.write("tools/harness/src/lib.rs", WARNED);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(
-        locations(findings)[0],
-        path_text("tools/harness/src/lib.rs")
-    );
-}
-
-#[tokio::test]
-async fn run_with_two_declaring_workspaces_counts_both() {
-    let project = Project::with_library(CLEAN);
-    project.write(
-        "tools/harness/Cargo.toml",
-        &standalone("harness", &declared_rust()),
-    );
-    project.write("tools/harness/src/lib.rs", CLEAN);
-
-    let outcome = project.run().await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("checked 2 workspaces")
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_workspace_that_declares_nothing_passes_over_it() {
-    let project = Project::with_library(CLEAN);
-    project.write(
-        "tools/harness/Cargo.toml",
-        &format!("[workspace]\n\n{UNDECLARED}"),
-    );
-    project.write("tools/harness/src/lib.rs", BROKEN);
-
-    let outcome = project.run().await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("checked 1 workspace")
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
+async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project.write(
+        "Cargo.toml",
+        &format!(
+            "{}build = \"build.rs\"\n",
+            package("probe", &declared_rust())
+        ),
+    );
+    project.write("build.rs", FAILING_SCRIPT);
+    project.write("src/lib.rs", CLEAN);
 
     let outcome = project.run().await;
 
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
     assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
+        source.to_string().contains("custom build command"),
+        "expected the diagnosis of cargo, got {source}"
     );
 }
 
@@ -544,26 +428,32 @@ async fn run_with_a_build_script_that_fails_stops() {
 }
 
 #[tokio::test]
-async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
-    let project = Project::new();
-    project.write(
-        "Cargo.toml",
-        &format!(
-            "{}build = \"build.rs\"\n",
-            package("probe", &declared_rust())
-        ),
-    );
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", CLEAN);
+async fn run_with_a_compiler_error_fails_with_a_finding() {
+    let project = Project::with_library(BROKEN);
 
     let outcome = project.run().await;
 
-    let Outcome::Errored { source } = &outcome else {
-        panic!("expected the run to stop, got {outcome:?}");
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
     };
     assert!(
-        source.to_string().contains("custom build command"),
-        "expected the diagnosis of cargo, got {source}"
+        findings
+            .iter()
+            .any(|finding| finding.message().get().contains("mismatched types")),
+        "expected the error of the compiler, got {findings:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
+    let project = Project::new();
+    project.write("Cargo.toml", "this is not a manifest\n");
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
     );
 }
 
@@ -595,6 +485,116 @@ async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
 }
 
 #[tokio::test]
+async fn run_with_a_warning_carries_the_code_in_the_message() {
+    let project = Project::with_library(WARNED);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.message().get().ends_with("[unused_variables]")),
+        "expected the code of the lint, got {findings:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_warning_fails() {
+    let project = Project::with_library(WARNED);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_warning_in_a_second_workspace_names_its_path() {
+    let project = Project::with_library(CLEAN);
+    project.write(
+        "tools/harness/Cargo.toml",
+        &standalone("harness", &declared_rust()),
+    );
+    project.write("tools/harness/src/lib.rs", WARNED);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        locations(findings)[0],
+        path_text("tools/harness/src/lib.rs")
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_warning_reports_the_range() {
+    let project = Project::with_library(WARNED);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    let Location::Span { span, .. } = findings[0].location() else {
+        panic!("expected a finding with a range, got {:?}", findings[0]);
+    };
+    assert_eq!(
+        (
+            span.start().line().get(),
+            span.start().column().map(|column| column.get())
+        ),
+        (2, Some(9))
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_workspace_that_declares_nothing_passes_over_it() {
+    let project = Project::with_library(CLEAN);
+    project.write(
+        "tools/harness/Cargo.toml",
+        &format!("[workspace]\n\n{UNDECLARED}"),
+    );
+    project.write("tools/harness/src/lib.rs", BROKEN);
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("checked 1 workspace")
+    );
+}
+
+#[tokio::test]
+async fn run_with_two_declaring_workspaces_counts_both() {
+    let project = Project::with_library(CLEAN);
+    project.write(
+        "tools/harness/Cargo.toml",
+        &standalone("harness", &declared_rust()),
+    );
+    project.write("tools/harness/src/lib.rs", CLEAN);
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("checked 2 workspaces")
+    );
+}
+
+#[tokio::test]
 async fn run_without_a_cargo_stops() {
     let project = Project::without_cargo();
     project.write("Cargo.toml", &package("probe", &declared_rust()));
@@ -605,51 +605,6 @@ async fn run_without_a_cargo_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_without_a_pinned_toolchain_stops() {
-    let project = Project::new();
-    project.write("Cargo.toml", &package("probe", UNPINNED));
-    project.write("src/lib.rs", CLEAN);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_without_a_pinned_toolchain_names_the_version() {
-    let project = Project::new();
-    project.write("Cargo.toml", &package("probe", UNPINNED));
-    project.write("src/lib.rs", CLEAN);
-
-    let outcome = project.run().await;
-
-    let Outcome::Errored { source } = &outcome else {
-        panic!("expected the run to stop, got {outcome:?}");
-    };
-    assert!(
-        source.to_string().contains(UNPINNED),
-        "expected the error to name the version, got {source}"
-    );
-}
-
-#[tokio::test]
-async fn run_without_a_declaration_skips() {
-    let project = Project::new();
-    project.write("Cargo.toml", UNDECLARED);
-    project.write("src/lib.rs", CLEAN);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Skipped { .. }),
-        "expected the run to skip, got {outcome:?}"
     );
 }
 
@@ -671,6 +626,20 @@ async fn run_without_a_declaration_names_what_it_looked_for() {
 }
 
 #[tokio::test]
+async fn run_without_a_declaration_skips() {
+    let project = Project::new();
+    project.write("Cargo.toml", UNDECLARED);
+    project.write("src/lib.rs", CLEAN);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Skipped { .. }),
+        "expected the run to skip, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_without_a_manifest_skips() {
     let project = Project::new();
     project.write("README.md", "# Project\n");
@@ -680,6 +649,37 @@ async fn run_without_a_manifest_skips() {
     assert!(
         matches!(outcome, Outcome::Skipped { .. }),
         "expected the run to skip, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_a_pinned_toolchain_names_the_version() {
+    let project = Project::new();
+    project.write("Cargo.toml", &package("probe", UNPINNED));
+    project.write("src/lib.rs", CLEAN);
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains(UNPINNED),
+        "expected the error to name the version, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_a_pinned_toolchain_stops() {
+    let project = Project::new();
+    project.write("Cargo.toml", &package("probe", UNPINNED));
+    project.write("src/lib.rs", CLEAN);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
     );
 }
 

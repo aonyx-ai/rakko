@@ -187,6 +187,16 @@ mod tests {
     }
 
     #[test]
+    fn outcome_of_a_run_that_ran_no_test_skips() {
+        let outcome = outcome(&report(0, Vec::new()), &root());
+
+        let Outcome::Skipped { reason } = &outcome else {
+            panic!("expected the run to skip, got {outcome:?}");
+        };
+        assert_eq!(reason.get(), "node found no test in the project");
+    }
+
+    #[test]
     fn outcome_of_a_run_with_a_failure_fails() {
         let outcome = outcome(&report(3, vec![failure("counts")]), &root());
 
@@ -222,15 +232,5 @@ mod tests {
         let summary = summary(1);
 
         assert_eq!(summary.get(), "ran 1 test");
-    }
-
-    #[test]
-    fn outcome_of_a_run_that_ran_no_test_skips() {
-        let outcome = outcome(&report(0, Vec::new()), &root());
-
-        let Outcome::Skipped { reason } = &outcome else {
-            panic!("expected the run to skip, got {outcome:?}");
-        };
-        assert_eq!(reason.get(), "node found no test in the project");
     }
 }

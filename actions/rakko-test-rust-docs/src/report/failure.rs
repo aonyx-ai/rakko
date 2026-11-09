@@ -180,30 +180,6 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_an_example_that_panicked_carries_the_message() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
-
-        let finding = failure.finding(&root(), &project());
-
-        assert_eq!(
-            finding.message().get(),
-            "example `probe/src/lib.rs - add (line 5)` failed: assertion `left == right` failed left: 3 right: 4"
-        );
-    }
-
-    #[test]
-    fn finding_of_an_example_that_wrote_nothing_names_it() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", "");
-
-        let finding = failure.finding(&root(), &project());
-
-        assert_eq!(
-            finding.message().get(),
-            "example `probe/src/lib.rs - add (line 5)` failed"
-        );
-    }
-
-    #[test]
     fn finding_of_an_example_is_at_the_line_that_documents_it() {
         let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
 
@@ -234,8 +210,8 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_an_example_whose_name_carries_no_line_is_at_the_project() {
-        let failure = DoctestFailure::new("probe/src/lib.rs - add", PANICKED);
+    fn finding_of_an_example_outside_the_project_is_at_the_project() {
+        let failure = DoctestFailure::new("/elsewhere/src/lib.rs - add (line 5)", PANICKED);
 
         let finding = failure.finding(&root(), &project());
 
@@ -243,8 +219,32 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_an_example_outside_the_project_is_at_the_project() {
-        let failure = DoctestFailure::new("/elsewhere/src/lib.rs - add (line 5)", PANICKED);
+    fn finding_of_an_example_that_panicked_carries_the_message() {
+        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", PANICKED);
+
+        let finding = failure.finding(&root(), &project());
+
+        assert_eq!(
+            finding.message().get(),
+            "example `probe/src/lib.rs - add (line 5)` failed: assertion `left == right` failed left: 3 right: 4"
+        );
+    }
+
+    #[test]
+    fn finding_of_an_example_that_wrote_nothing_names_it() {
+        let failure = DoctestFailure::new("probe/src/lib.rs - add (line 5)", "");
+
+        let finding = failure.finding(&root(), &project());
+
+        assert_eq!(
+            finding.message().get(),
+            "example `probe/src/lib.rs - add (line 5)` failed"
+        );
+    }
+
+    #[test]
+    fn finding_of_an_example_whose_name_carries_no_line_is_at_the_project() {
+        let failure = DoctestFailure::new("probe/src/lib.rs - add", PANICKED);
 
         let finding = failure.finding(&root(), &project());
 

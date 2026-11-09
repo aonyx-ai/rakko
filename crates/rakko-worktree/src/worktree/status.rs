@@ -132,6 +132,15 @@ mod tests {
     }
 
     #[test]
+    fn changed_paths_of_a_path_with_a_space_keeps_the_path_whole() {
+        let report = b"?? two words.txt\0";
+
+        let paths = changed_paths(report);
+
+        assert_eq!(paths, Ok(vec![PathBuf::from("two words.txt")]));
+    }
+
+    #[test]
     fn changed_paths_of_a_rename_names_both_paths() {
         let report = b"R  src/new.rs\0src/old.rs\0";
 
@@ -180,15 +189,6 @@ mod tests {
         let paths = changed_paths(report);
 
         assert!(paths.is_err());
-    }
-
-    #[test]
-    fn changed_paths_of_a_path_with_a_space_keeps_the_path_whole() {
-        let report = b"?? two words.txt\0";
-
-        let paths = changed_paths(report);
-
-        assert_eq!(paths, Ok(vec![PathBuf::from("two words.txt")]));
     }
 
     #[test]

@@ -617,6 +617,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn resolve_outside_the_project_reports_no_location() {
+        let outside = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let result = Tool::resolve(ToolName::new(PINNED), ProjectRoot::from(outside.path())).await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_ignores_the_pin_of_the_project() {
+        let project = Project::pinning(&["0.0.1"]);
+
+        let tool = Tool::resolve_requirement(&exact(), &project.context()).await;
+
+        assert!(tool.is_ok(), "expected the declared version, got {tool:?}");
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_runs_the_tool_in_the_root_of_the_context() {
+        let tool = Tool::resolve_requirement(&exact(), &context())
+            .await
+            .expect("expected mise to report the version that this project pins");
+
+        let invocation = tool.invocation();
+
+        assert_eq!(
+            invocation.working_directory().map(WorkingDirectory::get),
+            Some(root().get())
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_requirement_with_a_pin_that_is_no_version_reports_it() {
+        let project = Project::pinning(&["ref:main"]);
+
+        let result = Tool::resolve_requirement(&toolchain(">=1"), &project.context()).await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveRequirementError::UnreadableVersion { .. })
+            ),
+            "expected an unreadable version, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_requirement_with_a_range_of_dates_of_an_unpinned_channel_reports_it_unresolved()
      {
         let beta = ToolRequirement::builder()
@@ -677,101 +724,6 @@ mod tests {
                 Err(ResolveRequirementError::VersionOutOfRange { .. })
             ),
             "expected a nightly outside the range, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_an_installed_version_reports_the_version() {
-        let tool = Tool::resolve_requirement(&exact(), &context())
-            .await
-            .expect("expected mise to report the version that this project pins");
-
-        assert_eq!(
-            tool.version().as_ref().map(ToolVersion::get),
-            Some(pinned_by_the_repository().as_str())
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_with_a_pinned_tool_reports_an_installed_program() {
-        let tool = pinned().await;
-
-        assert!(tool.program().get().is_file());
-    }
-
-    // A file that mise names for a package of Node is a script on every
-    // platform, and Windows starts a program by the extension of its file, so
-    // this run reaches the tool only when resolution answered with the
-    // launcher beside the script.
-    #[tokio::test]
-    async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
-        let tool = Tool::resolve(ToolName::new(SCRIPTED), root())
-            .await
-            .expect("expected mise to report the location of a tool that this project pins");
-
-        let execution = tool.invocation().arg("--version").run().await;
-
-        assert!(
-            execution.is_ok(),
-            "expected the tool to run, got {execution:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_with_an_unknown_tool_names_it() {
-        let name = ToolName::new("rakko-pins-no-such-tool");
-
-        let Err(error) = Tool::resolve(name, root()).await else {
-            panic!("expected the lookup to report an error");
-        };
-
-        assert!(error.to_string().contains("rakko-pins-no-such-tool"));
-    }
-
-    #[tokio::test]
-    async fn resolve_outside_the_project_reports_no_location() {
-        let outside = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        let result = Tool::resolve(ToolName::new(PINNED), ProjectRoot::from(outside.path())).await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_ignores_the_pin_of_the_project() {
-        let project = Project::pinning(&["0.0.1"]);
-
-        let tool = Tool::resolve_requirement(&exact(), &project.context()).await;
-
-        assert!(tool.is_ok(), "expected the declared version, got {tool:?}");
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_runs_the_tool_in_the_root_of_the_context() {
-        let tool = Tool::resolve_requirement(&exact(), &context())
-            .await
-            .expect("expected mise to report the version that this project pins");
-
-        let invocation = tool.invocation();
-
-        assert_eq!(
-            invocation.working_directory().map(WorkingDirectory::get),
-            Some(root().get())
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_pin_that_is_no_version_reports_it() {
-        let project = Project::pinning(&["ref:main"]);
-
-        let result = Tool::resolve_requirement(&toolchain(">=1"), &project.context()).await;
-
-        assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::UnreadableVersion { .. })
-            ),
-            "expected an unreadable version, got {result:?}"
         );
     }
 
@@ -906,6 +858,18 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn resolve_requirement_with_an_installed_version_reports_the_version() {
+        let tool = Tool::resolve_requirement(&exact(), &context())
+            .await
+            .expect("expected mise to report the version that this project pins");
+
+        assert_eq!(
+            tool.version().as_ref().map(ToolVersion::get),
+            Some(pinned_by_the_repository().as_str())
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_requirement_with_an_invalid_range_reports_it() {
         let result = Tool::resolve_requirement(&toolchain("not a range"), &context()).await;
 
@@ -933,6 +897,42 @@ mod tests {
             ),
             "expected an unpinned toolchain, got {result:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn resolve_with_a_pinned_tool_reports_an_installed_program() {
+        let tool = pinned().await;
+
+        assert!(tool.program().get().is_file());
+    }
+
+    // A file that mise names for a package of Node is a script on every
+    // platform, and Windows starts a program by the extension of its file, so
+    // this run reaches the tool only when resolution answered with the
+    // launcher beside the script.
+    #[tokio::test]
+    async fn resolve_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
+        let tool = Tool::resolve(ToolName::new(SCRIPTED), root())
+            .await
+            .expect("expected mise to report the location of a tool that this project pins");
+
+        let execution = tool.invocation().arg("--version").run().await;
+
+        assert!(
+            execution.is_ok(),
+            "expected the tool to run, got {execution:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_with_an_unknown_tool_names_it() {
+        let name = ToolName::new("rakko-pins-no-such-tool");
+
+        let Err(error) = Tool::resolve(name, root()).await else {
+            panic!("expected the lookup to report an error");
+        };
+
+        assert!(error.to_string().contains("rakko-pins-no-such-tool"));
     }
 
     #[tokio::test]

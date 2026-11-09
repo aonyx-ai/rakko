@@ -258,6 +258,21 @@ mod tests {
     }
 
     #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = YamllintProblem::new(
+            path("/elsewhere/notes.yaml"),
+            1,
+            1,
+            ProblemLevel::Error,
+            "trailing spaces (trailing-spaces)".to_owned(),
+        );
+
+        let error = finding(&problem, &root()).unwrap_err();
+
+        assert!(matches!(error, LintYamlError::ForeignPath { .. }));
+    }
+
+    #[test]
     fn finding_of_a_problem_carries_the_message_of_yamllint() {
         let finding = finding(&problem(ProblemLevel::Error), &root()).unwrap();
 
@@ -291,21 +306,6 @@ mod tests {
     }
 
     #[test]
-    fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = YamllintProblem::new(
-            path("/elsewhere/notes.yaml"),
-            1,
-            1,
-            ProblemLevel::Error,
-            "trailing spaces (trailing-spaces)".to_owned(),
-        );
-
-        let error = finding(&problem, &root()).unwrap_err();
-
-        assert!(matches!(error, LintYamlError::ForeignPath { .. }));
-    }
-
-    #[test]
     fn guard_of_a_clean_run_passes() {
         let outcome = guard(&Observation::builder().build(), 3).unwrap();
 
@@ -326,15 +326,6 @@ mod tests {
     }
 
     #[test]
-    fn guard_of_a_run_that_stopped_early_stops() {
-        let observation = Observation::builder().finished(false).build();
-
-        let error = guard(&observation, 3).unwrap_err();
-
-        assert!(matches!(error, LintYamlError::IncompleteExamination { .. }));
-    }
-
-    #[test]
     fn guard_of_a_run_that_reported_a_warning_reports_nothing() {
         let observation = Observation::builder()
             .problems(vec![problem(ProblemLevel::Warning)])
@@ -343,6 +334,15 @@ mod tests {
         let outcome = guard(&observation, 3).unwrap();
 
         assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+    }
+
+    #[test]
+    fn guard_of_a_run_that_stopped_early_stops() {
+        let observation = Observation::builder().finished(false).build();
+
+        let error = guard(&observation, 3).unwrap_err();
+
+        assert!(matches!(error, LintYamlError::IncompleteExamination { .. }));
     }
 
     #[test]

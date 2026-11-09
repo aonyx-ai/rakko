@@ -226,6 +226,22 @@ mod tests {
     }
 
     #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = ZizmorProblem::new(
+            path("/elsewhere/ci.yml"),
+            span(),
+            Severity::High,
+            "unpinned-uses".to_owned(),
+            "unpinned action reference".to_owned(),
+            "action is not pinned to a hash".to_owned(),
+        );
+
+        let error = finding(&problem, &root()).unwrap_err();
+
+        assert!(matches!(error, LintGitHubActionsError::ForeignPath { .. }));
+    }
+
+    #[test]
     fn finding_of_a_problem_carries_the_message_of_zizmor() {
         let finding = finding(&problem(Severity::High), &root()).unwrap();
 
@@ -247,22 +263,6 @@ mod tests {
                 span: span(),
             }
         );
-    }
-
-    #[test]
-    fn finding_of_a_path_outside_the_project_reports_the_path() {
-        let problem = ZizmorProblem::new(
-            path("/elsewhere/ci.yml"),
-            span(),
-            Severity::High,
-            "unpinned-uses".to_owned(),
-            "unpinned action reference".to_owned(),
-            "action is not pinned to a hash".to_owned(),
-        );
-
-        let error = finding(&problem, &root()).unwrap_err();
-
-        assert!(matches!(error, LintGitHubActionsError::ForeignPath { .. }));
     }
 
     #[test]

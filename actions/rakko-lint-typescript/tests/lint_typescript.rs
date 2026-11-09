@@ -292,6 +292,23 @@ async fn run_reads_the_configuration_of_the_project() {
 }
 
 #[tokio::test]
+async fn run_whose_oxlint_examined_nothing_skips() {
+    let project = Project::new();
+    project.write(".oxlintrc.json", IGNORE_EVERYTHING);
+    project.write("index.ts", DEBUGGER);
+
+    let outcome = project.run().await;
+
+    let Outcome::Skipped { reason } = &outcome else {
+        panic!("expected the run to skip, got {outcome:?}");
+    };
+    assert!(
+        reason.get().contains("oxlint"),
+        "expected the reason to name the tool, got {reason:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_with_a_broken_rule_at_the_error_severity_reports_it() {
     let project = Project::new();
     project.write(".oxlintrc.json", STRICT_CONFIGURATION);
@@ -445,23 +462,6 @@ async fn run_with_an_uncovered_violation_keeps_the_findings_of_the_file() {
             },
             &Location::Project,
         ]
-    );
-}
-
-#[tokio::test]
-async fn run_whose_oxlint_examined_nothing_skips() {
-    let project = Project::new();
-    project.write(".oxlintrc.json", IGNORE_EVERYTHING);
-    project.write("index.ts", DEBUGGER);
-
-    let outcome = project.run().await;
-
-    let Outcome::Skipped { reason } = &outcome else {
-        panic!("expected the run to skip, got {outcome:?}");
-    };
-    assert!(
-        reason.get().contains("oxlint"),
-        "expected the reason to name the tool, got {reason:?}"
     );
 }
 

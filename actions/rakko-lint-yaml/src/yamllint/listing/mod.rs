@@ -81,13 +81,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn paths_of_an_empty_listing_hold_nothing() {
-        let paths = paths("\n");
-
-        assert!(paths.is_empty(), "expected no path, got {paths:?}");
-    }
-
-    #[test]
     fn paths_of_a_listing_hold_one_path_per_line() {
         let paths = paths("./a.yaml\n./sub/b.yml\n");
 
@@ -95,5 +88,12 @@ mod tests {
             paths,
             [PathBuf::from("./a.yaml"), PathBuf::from("./sub/b.yml")]
         );
+    }
+
+    #[test]
+    fn paths_of_an_empty_listing_hold_nothing() {
+        let paths = paths("\n");
+
+        assert!(paths.is_empty(), "expected no path, got {paths:?}");
     }
 }

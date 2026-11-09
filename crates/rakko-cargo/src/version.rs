@@ -145,17 +145,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_a_name_that_is_not_a_version_answers_nothing() {
-        let version = RustVersion::parse("nightly-2026-08-11");
+    fn highest_counts_a_part_that_a_version_leaves_out_as_zero() {
+        let versions = [RustVersion::new("1.88"), RustVersion::new("1.88.1")];
 
-        assert_eq!(version, None);
-    }
+        let highest = RustVersion::highest(versions);
 
-    #[test]
-    fn parse_a_version_answers_it() {
-        let version = RustVersion::parse("1.88.0");
-
-        assert_eq!(version, Some(RustVersion::new("1.88.0")));
+        assert_eq!(highest, Some(RustVersion::new("1.88.1")));
     }
 
     #[test]
@@ -188,11 +183,16 @@ mod tests {
     }
 
     #[test]
-    fn highest_counts_a_part_that_a_version_leaves_out_as_zero() {
-        let versions = [RustVersion::new("1.88"), RustVersion::new("1.88.1")];
+    fn parse_a_name_that_is_not_a_version_answers_nothing() {
+        let version = RustVersion::parse("nightly-2026-08-11");
 
-        let highest = RustVersion::highest(versions);
+        assert_eq!(version, None);
+    }
 
-        assert_eq!(highest, Some(RustVersion::new("1.88.1")));
+    #[test]
+    fn parse_a_version_answers_it() {
+        let version = RustVersion::parse("1.88.0");
+
+        assert_eq!(version, Some(RustVersion::new("1.88.0")));
     }
 }

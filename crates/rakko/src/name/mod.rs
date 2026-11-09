@@ -190,6 +190,13 @@ mod tests {
     }
 
     #[test]
+    fn from_str_with_leading_consecutive_hyphens_returns_invalid_start() {
+        let err = "--name".parse::<Name>().unwrap_err();
+
+        assert_eq!(err, ParseNameError::InvalidStart { character: '-' });
+    }
+
+    #[test]
     fn from_str_with_leading_digit_returns_error() {
         let err = "1check".parse::<Name>().unwrap_err();
 
@@ -199,13 +206,6 @@ mod tests {
     #[test]
     fn from_str_with_leading_hyphen_returns_error() {
         let err = "-check".parse::<Name>().unwrap_err();
-
-        assert_eq!(err, ParseNameError::InvalidStart { character: '-' });
-    }
-
-    #[test]
-    fn from_str_with_leading_consecutive_hyphens_returns_invalid_start() {
-        let err = "--name".parse::<Name>().unwrap_err();
 
         assert_eq!(err, ParseNameError::InvalidStart { character: '-' });
     }

@@ -168,20 +168,20 @@ mod tests {
     }
 
     #[test]
-    fn panic_without_a_message_has_none() {
-        let failure = TestFailure::new("probe::probe$tests::fails", BARE);
-
-        let panic = failure.panic();
-
-        assert_eq!(panic.and_then(|panic| panic.message().clone()), None);
-    }
-
-    #[test]
     fn panic_without_a_location_is_none() {
         let failure = TestFailure::new("probe::suite$killed", "the process was killed\n");
 
         let panic = failure.panic();
 
         assert_eq!(panic, None);
+    }
+
+    #[test]
+    fn panic_without_a_message_has_none() {
+        let failure = TestFailure::new("probe::probe$tests::fails", BARE);
+
+        let panic = failure.panic();
+
+        assert_eq!(panic.and_then(|panic| panic.message().clone()), None);
     }
 }

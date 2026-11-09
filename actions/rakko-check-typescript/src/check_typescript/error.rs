@@ -94,6 +94,17 @@ mod tests {
     /// What tsc wrote in a run whose report the action could not read
     const REPORT: &str = "tsc: The TypeScript Compiler - Version 7.0.2";
 
+    // An action puts the error in the outcome of a run, and that outcome holds
+    // an error that another thread can read. This test holds the error to the
+    // auto traits that make this possible, because a field of a later version
+    // could take them away without a word from the compiler.
+    #[test]
+    fn check_type_script_error_is_send_and_sync() {
+        fn assert_send_and_sync<T: Send + Sync>() {}
+
+        assert_send_and_sync::<CheckTypeScriptError>();
+    }
+
     #[test]
     fn error_of_a_silent_run_holds_what_tsc_wrote() {
         let error = CheckTypeScriptError::from(ObserveTscError::MissingReport {
@@ -119,16 +130,5 @@ mod tests {
             matches!(&error, CheckTypeScriptError::UnreadableReport { report, .. } if report == REPORT),
             "expected the report of tsc, got {error:?}"
         );
-    }
-
-    // An action puts the error in the outcome of a run, and that outcome holds
-    // an error that another thread can read. This test holds the error to the
-    // auto traits that make this possible, because a field of a later version
-    // could take them away without a word from the compiler.
-    #[test]
-    fn check_type_script_error_is_send_and_sync() {
-        fn assert_send_and_sync<T: Send + Sync>() {}
-
-        assert_send_and_sync::<CheckTypeScriptError>();
     }
 }

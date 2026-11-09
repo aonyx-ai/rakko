@@ -299,74 +299,6 @@ fn action_identifies_itself_as_test_rust() {
 }
 
 #[tokio::test]
-async fn run_with_a_failing_test_fails() {
-    let project = Project::with_library(FAILING);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Failed { .. }),
-        "expected the run to fail, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_failing_test_holds_its_finding() {
-    let project = Project::with_library(FAILING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings
-            .iter()
-            .any(|finding| finding.message().get().contains("tests::fails")),
-        "expected the finding of the test, got {findings:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_compiler_error_fails_with_a_finding() {
-    let project = Project::with_library(BROKEN);
-
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert!(
-        findings
-            .iter()
-            .any(|finding| finding.message().get().contains("mismatched types")),
-        "expected the error of the compiler, got {findings:?}"
-    );
-}
-
-#[tokio::test]
-async fn run_leaves_the_project_unchanged() {
-    let project = Project::with_library(FAILING);
-    project.lock().await;
-
-    // The helper asserts that the run left every file of the project as it
-    // was.
-    run_checking_access(&TestRust, &project.context(), &()).await;
-}
-
-#[tokio::test]
-async fn run_in_a_project_with_a_passing_test_passes() {
-    let project = Project::with_library(PASSING);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_in_a_project_with_a_passing_test_counts_it() {
     let project = Project::with_library(PASSING);
 
@@ -378,6 +310,18 @@ async fn run_in_a_project_with_a_passing_test_counts_it() {
     assert_eq!(
         summary.as_ref().map(Summary::get),
         Some("ran 1 test in 1 workspace")
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_project_with_a_passing_test_passes() {
+    let project = Project::with_library(PASSING);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
     );
 }
 
@@ -409,46 +353,30 @@ async fn run_in_a_workspace_without_tests_passes() {
 }
 
 #[tokio::test]
-async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
-    let project = Project::with_library(PASSING);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", FAILING);
+async fn run_leaves_the_project_unchanged() {
+    let project = Project::with_library(FAILING);
+    project.lock().await;
 
-    let outcome = project.run().await;
-
-    let Outcome::Failed { findings, .. } = &outcome else {
-        panic!("expected the run to fail, got {outcome:?}");
-    };
-    assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
+    // The helper asserts that the run left every file of the project as it
+    // was.
+    run_checking_access(&TestRust, &project.context(), &()).await;
 }
 
 #[tokio::test]
-async fn run_with_two_workspaces_sums_the_tests() {
-    let project = Project::with_library(PASSING);
-    project.write("tools/harness/Cargo.toml", STANDALONE);
-    project.write("tools/harness/src/lib.rs", PASSING);
-
-    let outcome = project.run().await;
-
-    let Outcome::Passed { summary } = &outcome else {
-        panic!("expected the run to pass, got {outcome:?}");
-    };
-    assert_eq!(
-        summary.as_ref().map(Summary::get),
-        Some("ran 2 tests in 2 workspaces")
-    );
-}
-
-#[tokio::test]
-async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
+async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
     let project = Project::new();
-    project.write("Cargo.toml", "this is not a manifest\n");
+    project.write("Cargo.toml", FAILING_BUILD);
+    project.write("build.rs", FAILING_SCRIPT);
+    project.write("src/lib.rs", PASSING);
 
     let outcome = project.run().await;
 
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
     assert!(
-        matches!(outcome, Outcome::Errored { .. }),
-        "expected the run to stop, got {outcome:?}"
+        source.to_string().contains("build"),
+        "expected the diagnosis of the build, got {source}"
     );
 }
 
@@ -468,20 +396,75 @@ async fn run_with_a_build_script_that_fails_stops() {
 }
 
 #[tokio::test]
-async fn run_with_a_build_script_that_fails_reports_what_nextest_said() {
-    let project = Project::new();
-    project.write("Cargo.toml", FAILING_BUILD);
-    project.write("build.rs", FAILING_SCRIPT);
-    project.write("src/lib.rs", PASSING);
+async fn run_with_a_compiler_error_fails_with_a_finding() {
+    let project = Project::with_library(BROKEN);
 
     let outcome = project.run().await;
 
-    let Outcome::Errored { source } = &outcome else {
-        panic!("expected the run to stop, got {outcome:?}");
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
     };
     assert!(
-        source.to_string().contains("build"),
-        "expected the diagnosis of the build, got {source}"
+        findings
+            .iter()
+            .any(|finding| finding.message().get().contains("mismatched types")),
+        "expected the error of the compiler, got {findings:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_failing_test_fails() {
+    let project = Project::with_library(FAILING);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_failing_test_holds_its_finding() {
+    let project = Project::with_library(FAILING);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.message().get().contains("tests::fails")),
+        "expected the finding of the test, got {findings:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_failing_test_in_a_second_workspace_names_its_path() {
+    let project = Project::with_library(PASSING);
+    project.write("tools/harness/Cargo.toml", STANDALONE);
+    project.write("tools/harness/src/lib.rs", FAILING);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [path_text("tools/harness/src/lib.rs")]);
+}
+
+#[tokio::test]
+async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
+    let project = Project::new();
+    project.write("Cargo.toml", "this is not a manifest\n");
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
     );
 }
 
@@ -509,6 +492,23 @@ async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
             Some(TestRustError::StaleLockfile { .. })
         ),
         "expected a lockfile that needs an update, got {source:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_two_workspaces_sums_the_tests() {
+    let project = Project::with_library(PASSING);
+    project.write("tools/harness/Cargo.toml", STANDALONE);
+    project.write("tools/harness/src/lib.rs", PASSING);
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("ran 2 tests in 2 workspaces")
     );
 }
 

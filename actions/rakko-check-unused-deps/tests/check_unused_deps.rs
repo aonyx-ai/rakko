@@ -471,6 +471,33 @@ async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
     );
 }
 
+#[tokio::test]
+async fn run_with_a_stale_lockfile_leaves_it_unchanged() {
+    let project = Project::stale();
+
+    project.run().await;
+
+    assert_eq!(project.read("Cargo.lock"), LOCKFILE);
+}
+
+#[tokio::test]
+async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
+    let project = Project::stale();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        matches!(
+            source.downcast_ref::<CheckUnusedDepsError>(),
+            Some(CheckUnusedDepsError::StaleLockfile { .. })
+        ),
+        "expected a lockfile that needs an update, got {source:?}"
+    );
+}
+
 // A warning of the compiler belongs to the action that lints the code. The
 // build finished, so the answer of this run is the report of cargo-udeps.
 #[tokio::test]
@@ -574,33 +601,6 @@ async fn run_with_two_workspaces_counts_both() {
     let outcome = project.run().await;
 
     assert_eq!(summary(&outcome), Some("examined 2 workspaces"));
-}
-
-#[tokio::test]
-async fn run_with_a_stale_lockfile_leaves_it_unchanged() {
-    let project = Project::stale();
-
-    project.run().await;
-
-    assert_eq!(project.read("Cargo.lock"), LOCKFILE);
-}
-
-#[tokio::test]
-async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
-    let project = Project::stale();
-
-    let outcome = project.run().await;
-
-    let Outcome::Errored { source } = outcome else {
-        panic!("expected the run to stop, got {outcome:?}");
-    };
-    assert!(
-        matches!(
-            source.downcast_ref::<CheckUnusedDepsError>(),
-            Some(CheckUnusedDepsError::StaleLockfile { .. })
-        ),
-        "expected a lockfile that needs an update, got {source:?}"
-    );
 }
 
 #[tokio::test]

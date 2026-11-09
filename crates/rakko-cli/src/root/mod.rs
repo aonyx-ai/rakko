@@ -150,6 +150,31 @@ mod tests {
     }
 
     #[test]
+    fn discover_from_a_subdirectory_reports_the_marked_directory() {
+        let project = project();
+        let subdirectory = project.path().join("crates").join("example");
+        std::fs::create_dir_all(&subdirectory).expect("the test creates a subdirectory");
+
+        let root = discover(&subdirectory).expect("expected the search to find the project");
+
+        assert_eq!(
+            root.get().canonicalize().ok(),
+            project.path().canonicalize().ok()
+        );
+    }
+
+    #[test]
+    fn discover_without_a_marker_reports_the_file_that_marks_a_root() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let Err(error) = discover(directory.path()) else {
+            panic!("expected the search to report an error");
+        };
+
+        assert!(error.to_string().contains(MARKER));
+    }
+
+    #[test]
     fn resolve_with_a_named_root_reports_it_without_a_relative_component() {
         let project = project();
         let named = project.path().join("crates").join("..");
@@ -173,30 +198,5 @@ mod tests {
         };
 
         assert!(error.to_string().contains("/rakko/does/not/live/here"));
-    }
-
-    #[test]
-    fn discover_from_a_subdirectory_reports_the_marked_directory() {
-        let project = project();
-        let subdirectory = project.path().join("crates").join("example");
-        std::fs::create_dir_all(&subdirectory).expect("the test creates a subdirectory");
-
-        let root = discover(&subdirectory).expect("expected the search to find the project");
-
-        assert_eq!(
-            root.get().canonicalize().ok(),
-            project.path().canonicalize().ok()
-        );
-    }
-
-    #[test]
-    fn discover_without_a_marker_reports_the_file_that_marks_a_root() {
-        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-
-        let Err(error) = discover(directory.path()) else {
-            panic!("expected the search to report an error");
-        };
-
-        assert!(error.to_string().contains(MARKER));
     }
 }

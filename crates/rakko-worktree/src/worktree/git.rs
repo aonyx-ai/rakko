@@ -117,6 +117,16 @@ mod tests {
         );
     }
 
+    // The underscore of the prefix keeps the variables of other programs, and
+    // this is the name that a prefix without it would take away.
+    #[test]
+    fn reserved_keeps_a_variable_of_another_program() {
+        assert_eq!(
+            dropped(&["GITHUB_TOKEN", "PATH", "HOME"]),
+            Vec::<String>::new()
+        );
+    }
+
     // The variable that a hook exports is the one that would send every
     // command of the crate at the repository of the hook.
     #[test]
@@ -129,15 +139,5 @@ mod tests {
     #[test]
     fn reserved_names_a_variable_that_git_has_yet_to_add() {
         assert_eq!(dropped(&["GIT_SOMETHING_NEW"]), vec!["GIT_SOMETHING_NEW"]);
-    }
-
-    // The underscore of the prefix keeps the variables of other programs, and
-    // this is the name that a prefix without it would take away.
-    #[test]
-    fn reserved_keeps_a_variable_of_another_program() {
-        assert_eq!(
-            dropped(&["GITHUB_TOKEN", "PATH", "HOME"]),
-            Vec::<String>::new()
-        );
     }
 }

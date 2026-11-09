@@ -235,6 +235,16 @@ mod tests {
     }
 
     #[test]
+    fn problems_of_a_finding_in_a_remote_repository_stop_the_reading() {
+        let problems = problems(REMOTE);
+
+        assert!(
+            problems.is_err(),
+            "expected the reading to stop, got {problems:?}"
+        );
+    }
+
+    #[test]
     fn problems_of_a_finding_name_the_file() {
         let problem = problem(SINGLE);
 
@@ -255,13 +265,6 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_an_empty_report_hold_nothing() {
-        let problems = problems("[]").expect("the test reads the report of a run that passed");
-
-        assert!(problems.is_empty(), "expected no problem, got {problems:?}");
-    }
-
-    #[test]
     fn problems_of_a_report_that_is_not_a_report_stop_the_reading() {
         let problems = problems(DIAGNOSIS);
 
@@ -272,12 +275,9 @@ mod tests {
     }
 
     #[test]
-    fn problems_of_a_finding_in_a_remote_repository_stop_the_reading() {
-        let problems = problems(REMOTE);
+    fn problems_of_an_empty_report_hold_nothing() {
+        let problems = problems("[]").expect("the test reads the report of a run that passed");
 
-        assert!(
-            problems.is_err(),
-            "expected the reading to stop, got {problems:?}"
-        );
+        assert!(problems.is_empty(), "expected no problem, got {problems:?}");
     }
 }

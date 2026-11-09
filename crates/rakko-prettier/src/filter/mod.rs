@@ -104,13 +104,6 @@ mod tests {
     }
 
     #[test]
-    fn pattern_without_an_extension_matches_every_extension() {
-        let pattern = Filter::default().pattern();
-
-        assert_eq!(pattern, "**/*.*");
-    }
-
-    #[test]
     fn pattern_with_one_extension_names_it_alone() {
         let pattern = filter(&["md"]).pattern();
 
@@ -122,5 +115,12 @@ mod tests {
         let pattern = filter(&["yaml", "yml"]).pattern();
 
         assert_eq!(pattern, "**/*.{yaml,yml}");
+    }
+
+    #[test]
+    fn pattern_without_an_extension_matches_every_extension() {
+        let pattern = Filter::default().pattern();
+
+        assert_eq!(pattern, "**/*.*");
     }
 }

@@ -175,6 +175,23 @@ mod tests {
     }"#;
 
     #[test]
+    fn status_adds_every_specification_together() {
+        let status: Status =
+            serde_json::from_str(STATUS).expect("the test reads a report of tracey");
+
+        let coverage = status.coverage();
+
+        assert_eq!(
+            coverage,
+            Coverage {
+                total: 15,
+                covered: 14,
+                verified: 12
+            }
+        );
+    }
+
+    #[test]
     fn validation_reports_the_message_of_tracey() {
         let validations: Vec<Validation> =
             serde_json::from_str(VALIDATION).expect("the test reads a report of tracey");
@@ -201,23 +218,6 @@ mod tests {
                 *problems[0].column()
             ),
             ("src/lib.rs", 4, 3)
-        );
-    }
-
-    #[test]
-    fn status_adds_every_specification_together() {
-        let status: Status =
-            serde_json::from_str(STATUS).expect("the test reads a report of tracey");
-
-        let coverage = status.coverage();
-
-        assert_eq!(
-            coverage,
-            Coverage {
-                total: 15,
-                covered: 14,
-                verified: 12
-            }
         );
     }
 }

@@ -337,18 +337,6 @@ fn action_identifies_itself_as_check_latest_deps() {
 }
 
 #[tokio::test]
-async fn run_in_a_project_with_a_passing_test_passes() {
-    let project = Project::with_library(PASSING);
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(outcome, Outcome::Passed { .. }),
-        "expected the run to pass, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_in_a_project_with_a_passing_test_counts_it() {
     let project = Project::with_library(PASSING);
 
@@ -360,6 +348,18 @@ async fn run_in_a_project_with_a_passing_test_counts_it() {
     assert_eq!(
         summary.as_ref().map(Summary::get),
         Some("updated 1 workspace and ran 1 test")
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_project_with_a_passing_test_passes() {
+    let project = Project::with_library(PASSING);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
     );
 }
 

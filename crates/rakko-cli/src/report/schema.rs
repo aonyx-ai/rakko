@@ -224,29 +224,6 @@ mod tests {
     }
 
     #[test]
-    fn payload_of_errored_outcome_carries_every_cause_of_the_error() {
-        let json = payload(Outcome::Errored {
-            source: clawless::Error::msg("the file is not TOML")
-                .context("failed to parse Cargo.toml")
-                .into(),
-        });
-
-        assert!(json.contains(r#""error":"failed to parse Cargo.toml: the file is not TOML""#));
-    }
-
-    #[test]
-    fn payload_of_errored_outcome_carries_the_error() {
-        let json = payload(Outcome::Errored {
-            source: Box::new(std::io::Error::other("failed to read Cargo.toml")),
-        });
-
-        assert_eq!(
-            json,
-            r#"{"schema":"unstable","action":"probe","outcome":"errored","error":"failed to read Cargo.toml","findings":[],"repairs":[]}"#
-        );
-    }
-
-    #[test]
     fn payload_of_changed_outcome_carries_every_repair() {
         let json = payload(Outcome::Changed {
             repairs: vec![
@@ -279,6 +256,29 @@ mod tests {
         assert!(json.contains(
             r#"{"level":"directory","path":"crates/rakko","message":"the directory has no README"}"#
         ));
+    }
+
+    #[test]
+    fn payload_of_errored_outcome_carries_every_cause_of_the_error() {
+        let json = payload(Outcome::Errored {
+            source: clawless::Error::msg("the file is not TOML")
+                .context("failed to parse Cargo.toml")
+                .into(),
+        });
+
+        assert!(json.contains(r#""error":"failed to parse Cargo.toml: the file is not TOML""#));
+    }
+
+    #[test]
+    fn payload_of_errored_outcome_carries_the_error() {
+        let json = payload(Outcome::Errored {
+            source: Box::new(std::io::Error::other("failed to read Cargo.toml")),
+        });
+
+        assert_eq!(
+            json,
+            r#"{"schema":"unstable","action":"probe","outcome":"errored","error":"failed to read Cargo.toml","findings":[],"repairs":[]}"#
+        );
     }
 
     #[test]
@@ -341,31 +341,6 @@ mod tests {
     }
 
     #[test]
-    fn payload_of_project_finding_carries_the_level_alone() {
-        let json = payload(failure(Location::Project, "the crate serde is banned"));
-
-        assert!(json.contains(r#"{"level":"project","message":"the crate serde is banned"}"#));
-    }
-
-    #[test]
-    fn payload_of_span_finding_carries_both_ends_of_the_range() {
-        let json = payload(failure(
-            Location::Span {
-                path: FilePath::try_from("src/lib.rs").expect("the test names a relative path"),
-                span: Span::builder()
-                    .start(Position::builder().line(1).column(1).build())
-                    .end(Position::builder().line(3).build())
-                    .build(),
-            },
-            "the block is not formatted",
-        ));
-
-        assert!(json.contains(
-            r#"{"level":"span","path":"src/lib.rs","line":1,"column":1,"end_line":3,"message":"the block is not formatted"}"#
-        ));
-    }
-
-    #[test]
     fn payload_of_passed_outcome_carries_the_state_alone() {
         let json = payload(Outcome::Passed { summary: None });
 
@@ -388,6 +363,13 @@ mod tests {
     }
 
     #[test]
+    fn payload_of_project_finding_carries_the_level_alone() {
+        let json = payload(failure(Location::Project, "the crate serde is banned"));
+
+        assert!(json.contains(r#"{"level":"project","message":"the crate serde is banned"}"#));
+    }
+
+    #[test]
     fn payload_of_skipped_outcome_carries_the_reason() {
         let json = payload(Outcome::Skipped {
             reason: SkipReason::new("this project has no TOML file"),
@@ -397,5 +379,23 @@ mod tests {
             json,
             r#"{"schema":"unstable","action":"probe","outcome":"skipped","reason":"this project has no TOML file","findings":[],"repairs":[]}"#
         );
+    }
+
+    #[test]
+    fn payload_of_span_finding_carries_both_ends_of_the_range() {
+        let json = payload(failure(
+            Location::Span {
+                path: FilePath::try_from("src/lib.rs").expect("the test names a relative path"),
+                span: Span::builder()
+                    .start(Position::builder().line(1).column(1).build())
+                    .end(Position::builder().line(3).build())
+                    .build(),
+            },
+            "the block is not formatted",
+        ));
+
+        assert!(json.contains(
+            r#"{"level":"span","path":"src/lib.rs","line":1,"column":1,"end_line":3,"message":"the block is not formatted"}"#
+        ));
     }
 }
