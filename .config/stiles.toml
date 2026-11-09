@@ -1,0 +1,11 @@
+# Stiles reads this file when `stiles check` runs against this repository. The
+# patterns below anchor at the repository root, not at `.config`.
+# `/tools/rakko/` holds the harness, a workspace of its own that the toolchain
+# of the root workspace does not load, so stiles cannot analyze its types.
+ignore = ["/tools/rakko/"]
+
+# The rules of Aonyx live in their own repository, pinned to one commit that
+# builds against the stiles that `mise.toml` pins. Both pins move together.
+[[lints]]
+git = "https://github.com/aonyx-ai/stiles-aonyx-rules"
+rev = "afd774320ef26ca52df9fbff6347ef0199b59fc4"

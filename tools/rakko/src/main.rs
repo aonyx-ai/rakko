@@ -30,6 +30,7 @@ use rakko_format_yaml::FormatYaml;
 use rakko_lint_github_actions::LintGitHubActions;
 use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
+use rakko_lint_stiles::LintStiles;
 use rakko_lint_yaml::LintYaml;
 use rakko_pre_commit::PreCommit;
 use rakko_set_msrv::SetMsrv;
@@ -46,6 +47,7 @@ fn main() {
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
+        .mount(LintStiles)
         .mount(SetMsrv::new(CheckMsrv))
         .mount(pre_commit)
         .run();
@@ -75,6 +77,7 @@ fn actions_that_guard_a_commit() -> Bundle {
         .with(LintGitHubActions)
         .with(LintMarkdown)
         .with(LintRust)
+        .with(LintStiles)
         .with(LintYaml)
         .with(TestRust)
         .with(TestRustDocs)

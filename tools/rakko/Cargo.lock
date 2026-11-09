@@ -404,6 +404,7 @@ dependencies = [
  "rakko-lint-github-actions",
  "rakko-lint-markdown",
  "rakko-lint-rust",
+ "rakko-lint-stiles",
  "rakko-lint-yaml",
  "rakko-pre-commit",
  "rakko-rust-library",
@@ -847,6 +848,19 @@ dependencies = [
  "rakko",
  "rakko-cargo",
  "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "rakko-lint-stiles"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
