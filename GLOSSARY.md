@@ -161,8 +161,8 @@ from the design discussions to the terms that replaced them.
   declaration takes no arguments and no context, because the machinery
   reads it before any run starts.
 - **Toolchain** — A tool that the code of the project builds or runs with,
-  such as Rust, Node.js, or TypeScript. The project pins its toolchains.
-  (Planned.) An action pins every other tool that it runs, and it accepts a
+  such as Rust, Node.js, or TypeScript. The project pins its toolchains. An
+  action pins every other tool that it runs through mise, and it accepts a
   range of versions for each toolchain that it needs.
 - **Wrapping** — The execution of an external tool as a subprocess of an
   action. Wrapping is the normal integration path, and Rakko makes it a

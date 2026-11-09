@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveToolError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, RunCommandError};
 use thiserror::Error;
 
 use crate::stiles::ObserveStilesError;
@@ -63,14 +63,16 @@ pub enum LintStilesError {
         source: serde_json::Error,
     },
 
-    /// Mise reported no stiles for the project
+    /// Mise reported no stiles at the version that the action declares
     ///
-    /// The project pins no stiles, or nothing installed the pin yet. The
-    /// action installs nothing, so the run stops here.
+    /// Mise did not run, or it reports no stiles at that version. For example,
+    /// nothing installed that version yet, or mise cannot read the
+    /// configuration of the project. The action installs nothing, so the
+    /// run stops here.
     #[error("failed to resolve stiles")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
+        source: ResolveRequirementError,
     },
 }
 

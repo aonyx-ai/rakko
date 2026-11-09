@@ -1,0 +1,9 @@
+# This file pins the version of tracey that the action of this crate runs.
+# The crate embeds the file when it compiles, so the pin and the code that
+# reads the reports of tracey change together. Mise reads the file only with
+# `MISE_ENV=rakko`. The releases of tracey lag behind its main branch, so the
+# pin names a Git revision. Mise finds a tracey that it installed at this
+# revision. An install from this entry alone can fail, because the entry
+# cannot hold the `crate` option that the cargo backend needs for tracey.
+[tools]
+"cargo:https://github.com/bearcove/tracey" = "rev:7494469c454ea3e93203f2cc860adbf153fe64b9"

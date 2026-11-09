@@ -10,7 +10,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary,
-    action_name,
+    ToolRequirement, action_name,
 };
 
 pub use self::error::CheckSpecsError;
@@ -32,8 +32,8 @@ const BASE_REF: &str = "GITHUB_BASE_REF";
 /// The action wraps [tracey]. A specification states what a crate does as a
 /// list of requirements, each with an identifier, and the code that implements
 /// or verifies a requirement names that identifier in a comment. Tracey holds
-/// the two together, and the tracey that runs is the one that [mise] installed
-/// for the project, at the version that the project pinned.
+/// the two together. The tracey that runs is the version that the action
+/// declares, which [mise] installed, whatever version the project pins.
 ///
 /// A run asks three questions. Does every reference point at a requirement
 /// that exists, at the version it carries now? Does a change to the text of a
@@ -82,6 +82,10 @@ impl Action for CheckSpecs {
         Access::Read
     }
 
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Tracey::requirement()]
+    }
+
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(context).await {
             Ok(outcome) => outcome,
@@ -104,7 +108,7 @@ impl Action for CheckSpecs {
 /// tool, a question that tracey left unanswered, or the comparison that a pull
 /// request needs.
 async fn drive(context: &Context) -> Result<Outcome, CheckSpecsError> {
-    let tracey = Tracey::resolve(context.root().clone())
+    let tracey = Tracey::resolve(context)
         .await
         .map_err(|source| CheckSpecsError::UnresolvedTool { source })?;
 
@@ -258,5 +262,12 @@ mod tests {
             summary.get(),
             "checked 15 requirements, 14 implemented and 12 verified"
         );
+    }
+
+    #[test]
+    fn tools_declare_the_tracey_of_the_crate() {
+        let tools = CheckSpecs.tools();
+
+        assert_eq!(tools, vec![Tracey::requirement()]);
     }
 }

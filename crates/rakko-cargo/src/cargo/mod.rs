@@ -246,7 +246,7 @@ impl Cargo {
     pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
         let requirement = Self::requirement();
         let tool = Tool::resolve_requirement(&requirement, context).await?;
-        let toolchain = Toolchain::of(&requirement, &tool)?;
+        let toolchain = Toolchain::of(&tool);
 
         Ok(Self {
             root: context.root().clone(),

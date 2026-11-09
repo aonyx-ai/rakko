@@ -20,9 +20,8 @@ use std::process::Command;
 
 use rakko::{Context, ProjectRoot};
 use rakko_cargo::{
-    Cargo, CargoPackage, CargoReport, CargoRoot, Channel, DiscoverRootsError, Documentation,
-    DocumentedNames, PackageName, ResolveNewestToolchainError, ResolveToolchainError, RustVersion,
-    Toolchain, lockfile,
+    Cargo, CargoPackage, CargoReport, CargoRoot, DiscoverRootsError, Documentation,
+    DocumentedNames, PackageName, RustVersion, Toolchain, lockfile,
 };
 use rakko_tool::{Invocation, ResolveRequirementError, Tool};
 use tempfile::TempDir;
@@ -325,9 +324,12 @@ fn package(name: &str, documented_names: DocumentedNames) -> CargoPackage {
 /// job of the repository would. Asking the crate keeps the version out of
 /// the tests, and the rule that picks it in one place with its own tests.
 async fn pinned_rust() -> String {
-    Toolchain::newest(&ProjectRoot::new(repository().to_path_buf()))
+    let context = Context::builder().root(repository()).build();
+
+    Cargo::resolve(&context)
         .await
-        .expect("the repository pins a Rust toolchain by a version")
+        .expect("the repository pins a stable Rust toolchain")
+        .toolchain()
         .get()
         .to_owned()
 }
@@ -336,7 +338,7 @@ async fn pinned_rust() -> String {
 ///
 /// Mise names the toolchain of the default pin in `RUSTUP_TOOLCHAIN`, and it
 /// reports that through another interface than the list of pins that
-/// [`pinned_rust`] reads. The test below holds the two answers against each
+/// [`Cargo::resolve`] reads. The test below holds the two answers against each
 /// other, so a pin that moves which toolchain the helper picks fails a test
 /// instead of sending every test that needs a cargo to another toolchain.
 fn selected_rust() -> String {
@@ -421,34 +423,6 @@ async fn invocation_names_the_stable_toolchain_first() {
         arguments,
         [format!("+{}", cargo.toolchain().get()), "check".to_owned()]
     );
-}
-
-// The pins of the project name two toolchains that no machine installs, so
-// the choice among them surfaces as the toolchain that the failure names.
-// That keeps the test free of whichever versions this repository installs.
-#[tokio::test]
-async fn newest_in_a_project_that_pins_several_versions_names_the_highest() {
-    let project = Project::with_rust("[\"1.71.0\", \"1.70.0\"]");
-
-    let toolchain = Toolchain::newest(&project.root()).await;
-
-    assert!(
-        matches!(
-            &toolchain,
-            Err(ResolveNewestToolchainError::UninstalledToolchain { toolchain })
-                if toolchain.get() == "1.71.0"
-        ),
-        "expected the highest pin, got {toolchain:?}"
-    );
-}
-
-#[tokio::test]
-async fn newest_in_this_repository_names_the_toolchain_it_builds_with() {
-    let selected = selected_rust();
-
-    let toolchain = Toolchain::newest(&ProjectRoot::new(repository().to_path_buf())).await;
-
-    assert_eq!(toolchain.ok(), Some(Toolchain::new(selected)));
 }
 
 #[tokio::test]
@@ -1213,67 +1187,6 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
                 if directory.ends_with("closed")
         ),
         "expected the unreadable directory, got {roots:?}"
-    );
-}
-
-#[tokio::test]
-async fn toolchain_resolve_a_pin_that_nothing_installed_names_the_toolchain() {
-    let pin = pinned_rust().await;
-    let project = Project::with_rust(&format!("[\"{pin}\", \"nightly-2020-01-01\"]"));
-
-    let toolchain = Toolchain::resolve(Channel::new("nightly"), &project.root()).await;
-
-    assert!(
-        matches!(
-            &toolchain,
-            Err(ResolveToolchainError::UninstalledToolchain { toolchain, .. })
-                if toolchain.get() == "nightly-2020-01-01"
-        ),
-        "expected an uninstalled toolchain, got {toolchain:?}"
-    );
-}
-
-#[tokio::test]
-async fn toolchain_resolve_a_pinned_channel_answers_the_toolchain() {
-    let pin = pinned_rust().await;
-    let project = Project::with_rust(&format!("\"{pin}\""));
-
-    let toolchain = Toolchain::resolve(Channel::new(pin.clone()), &project.root()).await;
-
-    assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
-}
-
-#[tokio::test]
-async fn toolchain_resolve_an_unpinned_channel_names_the_channel() {
-    let project = Project::new();
-
-    let toolchain =
-        Toolchain::resolve(Channel::new("rakko-pins-no-such-channel"), &project.root()).await;
-
-    assert!(
-        matches!(
-            &toolchain,
-            Err(ResolveToolchainError::UnpinnedToolchain { channel })
-                if channel.get() == "rakko-pins-no-such-channel"
-        ),
-        "expected an unpinned channel, got {toolchain:?}"
-    );
-}
-
-#[tokio::test]
-async fn toolchain_resolve_outside_a_project_reports_what_mise_wrote() {
-    let project = Project::bare();
-    project.write("mise.toml", "this is not a configuration\n");
-
-    let toolchain = Toolchain::resolve(Channel::new("nightly"), &project.root()).await;
-
-    assert!(
-        matches!(
-            &toolchain,
-            Err(ResolveToolchainError::UnreadableReport { details, .. })
-                if details.contains("mise.toml")
-        ),
-        "expected what mise wrote about mise.toml, got {toolchain:?}"
     );
 }
 

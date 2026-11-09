@@ -1141,7 +1141,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
- "typed-fields",
 ]
 
 [[package]]

@@ -3,10 +3,9 @@
 //! [Stiles] does the work: it reads its own configuration, loads the lints
 //! that the configuration names, discovers the Rust and TypeScript files, and
 //! applies the rules that the configuration turns on, so a run of the action
-//! agrees with a contributor that runs stiles bare. The action starts the
-//! stiles that [mise] installed for the project, at the version that the
-//! project pinned, and translates what stiles reported into the outcome of the
-//! run.
+//! agrees with a contributor that runs stiles bare. The action declares the
+//! version of stiles that it runs. It starts that version, which [mise]
+//! installed, and translates what stiles reported into the outcome of the run.
 //!
 //! Stiles ships no rule of its own. A project names the lints that it runs in
 //! `.config/stiles.toml`, and those rules are all that a check applies. The
@@ -28,17 +27,10 @@
 //!
 //! # Provisioning
 //!
-//! A project pins stiles in its `mise.toml` with the GitHub backend of mise,
-//! which downloads the archive of a release:
-//!
-//! ```toml
-//! [tools]
-//! "github:aonyx-ai/stiles" = "0.1.0"
-//! ```
-//!
-//! The action asks mise for the program named `stiles`, so a release whose
-//! archive holds a program of another name needs the `bin` option of the
-//! backend to rename it.
+//! The action declares stiles with the GitHub backend of mise, which downloads
+//! the archive of a release. The declaration names the tag of the release,
+//! such as `stiles@0.4.0`. The action asks mise for the program named `stiles`
+//! at that version, whatever version the project pins.
 //!
 //! # Asynchronous Runtime
 //!
