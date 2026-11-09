@@ -90,13 +90,12 @@ impl CargoDiagnostic {
     /// ```
     /// use rakko::ProjectRoot;
     /// use rakko_cargo::{CargoReport, CargoRoot, Documentation};
-    /// use rakko_test_utils::path;
     ///
     /// let line = r#"{"reason":"compiler-message","message":{"level":"warning","code":{"code":"unused_variables"},"message":"unused variable: `x`","spans":[{"file_name":"src/lib.rs","line_start":3,"column_start":9,"line_end":3,"column_end":10,"is_primary":true}]}}"#;
     /// let report = CargoReport::read(line)?;
-    /// let project = ProjectRoot::new(path("/home/otter/project"));
+    /// let project = ProjectRoot::new(std::env::temp_dir());
     /// let root = CargoRoot::builder()
-    ///     .directory(path("/home/otter/project"))
+    ///     .directory(std::env::temp_dir())
     ///     .documentation(Documentation::Testable)
     ///     .build();
     ///

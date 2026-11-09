@@ -28,11 +28,10 @@ use thiserror::Error;
 ///
 /// ```
 /// use rakko::ProjectRoot;
-/// use rakko_test_utils::path;
 /// use rakko_worktree::CreateWorktreeError;
 ///
 /// let error = CreateWorktreeError::MissingRepository {
-///     project: ProjectRoot::new(path("/home/otter/project")),
+///     project: ProjectRoot::new(std::env::temp_dir()),
 ///     details: "no repository".to_owned(),
 /// };
 ///

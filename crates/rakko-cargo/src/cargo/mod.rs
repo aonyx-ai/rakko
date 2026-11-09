@@ -107,11 +107,10 @@ const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 /// ```no_run
 /// use rakko::{Context, ProjectRoot};
 /// use rakko_cargo::Cargo;
-/// use rakko_test_utils::path;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+/// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
 /// let cargo = Cargo::resolve(&context).await?;
 ///
 /// for root in cargo.roots().await? {
@@ -155,11 +154,10 @@ impl Cargo {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot};
     /// use rakko_cargo::Cargo;
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
     ///
     /// for root in cargo.roots().await? {
@@ -189,11 +187,10 @@ impl Cargo {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot};
     /// use rakko_cargo::{Cargo, Channel, Toolchain};
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
     /// let toolchain = Toolchain::resolve()
     ///     .channel(Channel::new("nightly"))
@@ -237,12 +234,11 @@ impl Cargo {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
     /// use rakko_cargo::Cargo;
-    /// use rakko_test_utils::path;
     /// use rakko_tool::Tool;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
     /// let requirement = ToolRequirement::builder()
     ///     .tool("cargo:cargo-nextest")
@@ -285,12 +281,11 @@ impl Cargo {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
     /// use rakko_cargo::{Cargo, Channel, Toolchain};
-    /// use rakko_test_utils::path;
     /// use rakko_tool::Tool;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
     /// let toolchain = Toolchain::resolve()
     ///     .channel(Channel::new("nightly"))
@@ -377,11 +372,10 @@ impl Cargo {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot};
     /// use rakko_cargo::Cargo;
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
     ///
     /// assert!(cargo.toolchain().get().starts_with("1."));
@@ -448,11 +442,10 @@ impl Cargo {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot};
     /// use rakko_cargo::Cargo;
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let project = path("/home/otter/project");
+    /// let project = std::env::temp_dir();
     /// let context = Context::builder().root(ProjectRoot::new(project.clone())).build();
     /// let cargo = Cargo::resolve(&context).await?;
     ///

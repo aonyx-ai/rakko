@@ -8,7 +8,7 @@
 //! project.
 //!
 //! The flag of this module forbids that rewrite, and cargo refuses the job
-//! instead. [`refused`][refused] tells such a refusal apart from every other
+//! instead. [`refused`] tells such a refusal apart from every other
 //! failure of a run. A caller can then say that the lockfile needs an
 //! update instead of reporting an output that it cannot read.
 //!
@@ -37,8 +37,6 @@
 //! # Ok(())
 //! # }
 //! ```
-//!
-//! [refused]: crate::lockfile::refused
 
 /// The flag that forbids cargo to write the lockfile of a workspace
 ///

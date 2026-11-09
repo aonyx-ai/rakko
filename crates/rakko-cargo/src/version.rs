@@ -37,11 +37,10 @@ const SEPARATOR: char = '.';
 /// ```no_run
 /// use rakko::{Context, ProjectRoot};
 /// use rakko_cargo::Cargo;
-/// use rakko_test_utils::path;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+/// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
 /// let cargo = Cargo::resolve(&context).await?;
 ///
 /// for root in cargo.roots().await? {
@@ -68,11 +67,10 @@ impl RustVersion {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot};
     /// use rakko_cargo::Cargo;
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
     ///
     /// for root in cargo.roots().await? {

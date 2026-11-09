@@ -100,11 +100,10 @@ impl Toolchain {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot};
     /// use rakko_cargo::{Cargo, Toolchain};
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     /// let cargo = Cargo::resolve(&context).await?;
     ///
     /// for root in cargo.roots().await? {
@@ -149,11 +148,10 @@ impl Toolchain {
     /// ```no_run
     /// use rakko::{Context, ProjectRoot};
     /// use rakko_cargo::Toolchain;
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
+    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
     ///
     /// let toolchain = Toolchain::resolve_requirement()
     ///     .requirement(&Toolchain::nightly())
@@ -242,11 +240,10 @@ impl Toolchain {
     /// ```no_run
     /// use rakko::ProjectRoot;
     /// use rakko_cargo::{Channel, Toolchain};
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let root = ProjectRoot::new(path("/home/otter/project"));
+    /// let root = ProjectRoot::new(std::env::temp_dir());
     ///
     /// let toolchain = Toolchain::resolve()
     ///     .channel(Channel::new("nightly"))
@@ -318,11 +315,10 @@ impl Toolchain {
     /// ```no_run
     /// use rakko::ProjectRoot;
     /// use rakko_cargo::Toolchain;
-    /// use rakko_test_utils::path;
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let root = ProjectRoot::new(path("/home/otter/project"));
+    /// let root = ProjectRoot::new(std::env::temp_dir());
     ///
     /// let toolchain = Toolchain::newest(&root).await?;
     ///

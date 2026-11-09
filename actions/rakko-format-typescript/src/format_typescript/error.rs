@@ -18,10 +18,9 @@ use crate::oxfmt::ObserveOxfmtError;
 ///
 /// ```
 /// use rakko_format_typescript::FormatTypeScriptError;
-/// use rakko_test_utils::path;
 ///
 /// let error = FormatTypeScriptError::ForeignPath {
-///     path: path("../outside/project"),
+///     path: std::path::PathBuf::from("../outside/project"),
 /// };
 ///
 /// assert_eq!(

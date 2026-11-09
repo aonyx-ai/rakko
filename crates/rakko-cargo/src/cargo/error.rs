@@ -24,11 +24,10 @@ use thiserror::Error;
 ///
 /// ```
 /// use rakko_cargo::DiscoverRootsError;
-/// use rakko_test_utils::path;
 ///
 /// let error = DiscoverRootsError::ForeignWorkspace {
-///     manifest: path("/home/otter/project/Cargo.toml"),
-///     workspace: path("/home/otter"),
+///     manifest: std::env::temp_dir().join("Cargo.toml"),
+///     workspace: std::env::temp_dir(),
 /// };
 ///
 /// assert!(error.to_string().contains("outside the project"));

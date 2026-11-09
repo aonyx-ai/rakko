@@ -48,10 +48,9 @@ pub(crate) const MANIFEST: &str = "Cargo.toml";
 ///
 /// ```
 /// use rakko_cargo::{CargoRoot, Documentation};
-/// use rakko_test_utils::path;
 ///
 /// let root = CargoRoot::builder()
-///     .directory(path("/home/otter/project"))
+///     .directory(std::env::temp_dir())
 ///     .documentation(Documentation::Testable)
 ///     .build();
 ///
@@ -94,14 +93,13 @@ impl CargoRoot {
     ///
     /// ```
     /// use rakko_cargo::{CargoRoot, Documentation};
-    /// use rakko_test_utils::path;
     ///
     /// let root = CargoRoot::builder()
-    ///     .directory(path("/home/otter/project"))
+    ///     .directory(std::env::temp_dir())
     ///     .documentation(Documentation::Testable)
     ///     .build();
     ///
-    /// assert_eq!(root.directory(), &path("/home/otter/project"));
+    /// assert_eq!(root.directory(), &std::env::temp_dir());
     /// ```
     #[builder]
     pub fn new(
@@ -124,14 +122,13 @@ impl CargoRoot {
     ///
     /// ```
     /// use rakko_cargo::{CargoRoot, Documentation};
-    /// use rakko_test_utils::path;
     ///
     /// let root = CargoRoot::builder()
-    ///     .directory(path("/home/otter/project"))
+    ///     .directory(std::env::temp_dir())
     ///     .documentation(Documentation::Testable)
     ///     .build();
     ///
-    /// assert_eq!(root.manifest(), path("/home/otter/project/Cargo.toml"));
+    /// assert_eq!(root.manifest(), std::env::temp_dir().join("Cargo.toml"));
     /// ```
     pub fn manifest(&self) -> PathBuf {
         self.directory.join(MANIFEST)
@@ -152,15 +149,14 @@ impl CargoRoot {
     /// ```
     /// use rakko::ProjectRoot;
     /// use rakko_cargo::{CargoRoot, Documentation};
-    /// use rakko_test_utils::path;
     ///
-    /// let project = ProjectRoot::new(path("/home/otter/project"));
+    /// let project = ProjectRoot::new(std::env::temp_dir());
     /// let root = CargoRoot::builder()
-    ///     .directory(path("/home/otter/project/tools"))
+    ///     .directory(std::env::temp_dir().join("tools"))
     ///     .documentation(Documentation::Testable)
     ///     .build();
     ///
-    /// assert_eq!(root.relative_directory(&project), Some(path("tools")));
+    /// assert_eq!(root.relative_directory(&project), Some(std::path::PathBuf::from("tools")));
     /// ```
     pub fn relative_directory(&self, root: &ProjectRoot) -> Option<PathBuf> {
         strip(&self.directory, root)
@@ -184,17 +180,16 @@ impl CargoRoot {
     /// ```
     /// use rakko::ProjectRoot;
     /// use rakko_cargo::{CargoRoot, Documentation};
-    /// use rakko_test_utils::path;
     ///
-    /// let project = ProjectRoot::new(path("/home/otter/project"));
+    /// let project = ProjectRoot::new(std::env::temp_dir());
     /// let root = CargoRoot::builder()
-    ///     .directory(path("/home/otter/project/tools"))
+    ///     .directory(std::env::temp_dir().join("tools"))
     ///     .documentation(Documentation::Testable)
     ///     .build();
     ///
-    /// let file = root.relative_path(&path("src/main.rs"), &project);
+    /// let file = root.relative_path(&std::path::PathBuf::from("src").join("main.rs"), &project);
     ///
-    /// assert_eq!(file.as_ref().map(|file| file.get()), Some(path("tools/src/main.rs").as_path()));
+    /// assert_eq!(file.as_ref().map(|file| file.get()), Some(std::path::PathBuf::from("tools").join("src").join("main.rs").as_path()));
     /// ```
     pub fn relative_path(&self, path: &Path, root: &ProjectRoot) -> Option<FilePath> {
         let absolute = if path.is_absolute() {

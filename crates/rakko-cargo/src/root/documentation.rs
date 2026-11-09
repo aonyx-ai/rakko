@@ -18,10 +18,9 @@
 ///
 /// ```
 /// use rakko_cargo::{CargoRoot, Documentation};
-/// use rakko_test_utils::path;
 ///
 /// let root = CargoRoot::builder()
-///     .directory(path("/home/otter/project"))
+///     .directory(std::env::temp_dir())
 ///     .documentation(Documentation::Untestable)
 ///     .build();
 ///

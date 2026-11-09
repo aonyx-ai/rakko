@@ -84,12 +84,11 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 ///
 /// ```no_run
 /// use rakko::ProjectRoot;
-/// use rakko_test_utils::path;
 /// use rakko_tool::{Tool, ToolName};
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = ProjectRoot::new(path("/home/otter/project"));
+/// let root = ProjectRoot::new(std::env::temp_dir());
 /// let tool = Tool::resolve().name(ToolName::new("zizmor")).root(root).call().await?;
 /// let execution = tool.invocation().arg("--version").run().await?;
 ///

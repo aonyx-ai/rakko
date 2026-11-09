@@ -110,12 +110,11 @@ const NO_TOP_LEVEL: &str = "git named no top level";
 ///
 /// ```no_run
 /// use rakko::ProjectRoot;
-/// use rakko_test_utils::path;
 /// use rakko_worktree::Worktree;
 ///
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let project = ProjectRoot::new(path("/home/otter/project"));
+/// let project = ProjectRoot::new(std::env::temp_dir());
 /// let worktree = Worktree::create(project.clone()).await?;
 ///
 /// assert_ne!(worktree.root(), &project);
