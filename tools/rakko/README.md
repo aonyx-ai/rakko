@@ -28,6 +28,11 @@ installs it only on the platforms that have one, and the generated file cannot
 carry that limit. So `doctor` writes no pin of stiles into it, and
 `check-mise-lock` finds no Windows entry to complain about.
 
+On Windows, the harness does not mount `lint-stiles`, and pre-commit does not
+run it. Otherwise `doctor` finds no pin of stiles there, and the check of the
+tool pins stops every run. Rakko cannot yet declare that a tool exists only on
+some platforms.
+
 It also mounts commands, for a maintenance activity that no single action
 describes. A command comes from a crate, as an action does, and `src/main.rs`
 names it. When a command runs actions, `src/main.rs` names those actions as

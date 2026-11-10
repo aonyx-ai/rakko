@@ -29,6 +29,11 @@
 //! cannot carry that limit. So `doctor` writes no pin of stiles into it, and
 //! `check-mise-lock` finds no Windows entry to complain about.
 //!
+//! On Windows, the harness does not mount `lint-stiles`, and pre-commit does
+//! not run it. Otherwise `doctor` finds no pin of stiles there, and the check
+//! of the tool pins stops every run. Rakko cannot yet declare that a tool
+//! exists only on some platforms.
+//!
 //! It also mounts commands, for a maintenance activity that no single action
 //! describes. A command comes from a crate, as an action does, and this file
 //! names it. When a command runs actions, this file names those actions as
@@ -52,6 +57,7 @@ use rakko_format_yaml::FormatYaml;
 use rakko_lint_github_actions::LintGitHubActions;
 use rakko_lint_markdown::LintMarkdown;
 use rakko_lint_rust::LintRust;
+#[cfg(not(windows))]
 use rakko_lint_stiles::LintStiles;
 use rakko_lint_yaml::LintYaml;
 use rakko_pre_commit::PreCommit;
@@ -63,11 +69,14 @@ use rakko_test_rust_docs::TestRustDocs;
 fn main() -> std::process::ExitCode {
     let pre_commit = PreCommit::new(actions_that_guard_a_commit());
 
-    rakko_cli::builder()
+    let builder = rakko_cli::builder()
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
-        .mount(rakko_typescript::bundle())
-        .mount(LintStiles)
+        .mount(rakko_typescript::bundle());
+    #[cfg(not(windows))]
+    let builder = builder.mount(LintStiles);
+
+    builder
         .mount(SetMsrv::new(CheckMsrv))
         .mount(pre_commit)
         .run()
@@ -86,9 +95,10 @@ fn main() -> std::process::ExitCode {
 /// write, so the last formatter that writes a file decides its content.
 ///
 /// The command takes its flags from these actions. The formatters declare
-/// `fix`, so `pre-commit --fix` reaches them and no other action.
+/// `fix`, so `pre-commit --fix` reaches them and no other action. On Windows,
+/// the list leaves out `lint-stiles`, because stiles has no release there.
 fn actions_that_guard_a_commit() -> Bundle {
-    Bundle::default()
+    let bundle = Bundle::default()
         .with(FormatJson)
         .with(FormatMarkdown)
         .with(FormatYaml)
@@ -96,9 +106,9 @@ fn actions_that_guard_a_commit() -> Bundle {
         .with(FormatRust)
         .with(LintGitHubActions)
         .with(LintMarkdown)
-        .with(LintRust)
-        .with(LintStiles)
-        .with(LintYaml)
-        .with(TestRust)
-        .with(TestRustDocs)
+        .with(LintRust);
+    #[cfg(not(windows))]
+    let bundle = bundle.with(LintStiles);
+
+    bundle.with(LintYaml).with(TestRust).with(TestRustDocs)
 }
