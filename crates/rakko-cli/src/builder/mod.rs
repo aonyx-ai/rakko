@@ -948,8 +948,9 @@ mod tests {
     use clap::builder::{Str, ValueRange};
     use clawless::CommandResult;
     use rakko::{
-        Action, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name, ReadArgsError,
-        RequiredVersion, SkipReason, ToolRequirement, ToolVersion, argument_name,
+        Action, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name, OperatingSystem,
+        Platform, ReadArgsError, RequiredVersion, SkipReason, ToolRequirement, ToolVersion,
+        argument_name,
     };
 
     use super::*;
@@ -1620,6 +1621,119 @@ mod tests {
         }
     }
 
+    /// Returns one erased action that declares taplo at the version of the
+    /// other tests, with a build only on the platform
+    fn limited_to(platform: Platform) -> Box<dyn ErasedAction> {
+        Box::new(Tooled {
+            name: action_name("format-toml"),
+            tool: ToolRequirement::builder()
+                .tool("taplo")
+                .executable("taplo")
+                .exact_version_on(ToolVersion::new("0.10.0"), [platform])
+                .build(),
+        })
+    }
+
+    /// Returns the platform of the run of the test, on every architecture
+    fn this_platform() -> Platform {
+        let system = if cfg!(target_os = "windows") {
+            OperatingSystem::Windows
+        } else if cfg!(target_os = "macos") {
+            OperatingSystem::Macos
+        } else {
+            OperatingSystem::Linux
+        };
+
+        Platform::new(system)
+    }
+
+    /// Returns a platform that is not the platform of the run of the test
+    fn another_platform() -> Platform {
+        let system = if cfg!(target_os = "windows") {
+            OperatingSystem::Linux
+        } else {
+            OperatingSystem::Windows
+        };
+
+        Platform::new(system)
+    }
+
+    /// Returns the code of a run of `doctor` with the arguments, in the
+    /// project at the root, for the harness of the builder
+    #[bon::builder]
+    fn doctor_in(root: &Path, builder: Builder, arguments: &[&str]) -> u8 {
+        let mut line: Vec<OsString> = vec!["rakko".into(), "--project-root".into(), root.into()];
+        line.extend(arguments.iter().map(OsString::from));
+
+        let Ok(Resolution::Doctor(matches, declarations)) = builder.resolve(line) else {
+            panic!("expected the run to ask for doctor");
+        };
+
+        drive_doctor(matches, declarations).expect("expected doctor to run")
+    }
+
+    /// A project in a temporary directory that mise trusts
+    ///
+    /// Mise refuses a configuration file that nobody trusts when a pin in it
+    /// has options, such as the platforms of a tool. So the project holds a
+    /// `mise.toml` that mise trusts, which covers the generated file too.
+    struct Trusted {
+        /// The directory that holds the project
+        directory: tempfile::TempDir,
+    }
+
+    impl Trusted {
+        /// Creates the project and trusts its configuration
+        fn new() -> Self {
+            let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+            let pins = directory.path().join("mise.toml");
+            std::fs::write(&pins, "[tools]\n").expect("the test writes the mise.toml");
+
+            let trusted = std::process::Command::new("mise")
+                .arg("trust")
+                .arg("--quiet")
+                .arg(&pins)
+                .status()
+                .expect("the test runs mise");
+            assert!(trusted.success(), "expected mise to trust the project");
+
+            Self { directory }
+        }
+
+        /// Returns the root of the project
+        fn path(&self) -> &Path {
+            self.directory.path()
+        }
+    }
+
+    impl Drop for Trusted {
+        /// Withdraws the trust that the project received
+        ///
+        /// A failure stays quiet, because the test already reported what it
+        /// was about.
+        fn drop(&mut self) {
+            let _ = std::process::Command::new("mise")
+                .arg("trust")
+                .arg("--quiet")
+                .arg("--untrust")
+                .arg(self.directory.path().join("mise.toml"))
+                .status();
+        }
+    }
+
+    /// Writes the generated file of the tool pins with the text, in the
+    /// project at the root
+    fn write_generated(root: &Path, text: &str) {
+        let generated = root.join(".config/mise/conf.d/rakko.toml");
+        std::fs::create_dir_all(
+            generated
+                .parent()
+                .expect("the generated file sits in a directory"),
+        )
+        .expect("the test creates the directory of the generated file");
+        std::fs::write(&generated, text).expect("the test writes the generated file");
+    }
+
     /// Returns one erased action that declares a tool at a version
     #[bon::builder]
     fn tooled(name: &str, tool: &str, version: &str) -> Box<dyn ErasedAction> {
@@ -2178,6 +2292,50 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_runs_an_action_beside_a_tool_on_another_platform() {
+        let directory = Trusted::new();
+        let limited = || builder().mount([limited_to(another_platform())]);
+        let (probe, ran) = Probe::new("probe");
+        let line: Vec<OsString> = vec![
+            "rakko".into(),
+            "--project-root".into(),
+            directory.path().into(),
+            "probe".into(),
+        ];
+        let Ok(Resolution::Entry(matches, mounted, declarations)) =
+            limited().mount(probe).resolve(line)
+        else {
+            panic!("expected the command line to read the run that the test names");
+        };
+        doctor::write_pins()
+            .declarations(&declarations)
+            .root(directory.path())
+            .call()
+            .expect("the test writes the generated file");
+        let checked = doctor_in()
+            .root(directory.path())
+            .builder(limited())
+            .arguments(&["doctor"])
+            .call();
+        let generated =
+            std::fs::read_to_string(directory.path().join(".config/mise/conf.d/rakko.toml"))
+                .expect("the test reads the generated file");
+
+        dispatch(matches, mounted, declarations)
+            .expect("expected the command line to drive the action");
+
+        assert_eq!(
+            (
+                checked,
+                generated.contains(&format!("os = [\"{}\"]", another_platform())),
+                ran.load(Ordering::SeqCst)
+            ),
+            (0, true, true),
+            "got {generated}"
+        );
+    }
+
+    #[test]
     fn dispatch_runs_an_action_that_declares_a_read() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let (reading, ran, _asked) = Reading::new("probe");
@@ -2305,6 +2463,46 @@ mod tests {
     #[test]
     fn drive_doctor_reports_a_problem_as_findings() {
         let (_project, code) = run_doctor(&["doctor"]);
+
+        assert_eq!(code, EXIT_FINDINGS);
+    }
+
+    #[test]
+    fn drive_doctor_with_a_tool_on_another_platform_reports_a_stale_pin() {
+        let directory = Trusted::new();
+        write_generated(
+            directory.path(),
+            &format!(
+                "[tools]\ntaplo = {{ version = \"0.9.0\", os = [\"{}\"] }}\n",
+                another_platform()
+            ),
+        );
+
+        let code = doctor_in()
+            .root(directory.path())
+            .builder(builder().mount([limited_to(another_platform())]))
+            .arguments(&["doctor"])
+            .call();
+
+        assert_eq!(code, EXIT_FINDINGS);
+    }
+
+    #[test]
+    fn drive_doctor_with_a_tool_on_the_platform_of_the_run_reports_a_stale_pin() {
+        let directory = Trusted::new();
+        write_generated(
+            directory.path(),
+            &format!(
+                "[tools]\ntaplo = {{ version = \"0.9.0\", os = [\"{}\"] }}\n",
+                this_platform()
+            ),
+        );
+
+        let code = doctor_in()
+            .root(directory.path())
+            .builder(builder().mount([limited_to(this_platform())]))
+            .arguments(&["doctor"])
+            .call();
 
         assert_eq!(code, EXIT_FINDINGS);
     }

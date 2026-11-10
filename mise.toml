@@ -68,8 +68,8 @@ jq = "1.8.2"
 # installs it only on the platforms that have one. The action `lint-stiles`
 # accepts exactly this version, because the lints that `.config/stiles.toml`
 # names are built against it and another stiles refuses them. The pin stays in
-# this file and not in the generated file, because the generated file cannot
-# limit the platforms that install a tool.
+# this file and not in the generated file, because the generated file holds
+# only the version and the platforms of a pin, and not the prefix.
 "github:aonyx-ai/stiles" = { version = "0.6.0", version_prefix = "stiles@", os = [
   "linux",
   "macos",

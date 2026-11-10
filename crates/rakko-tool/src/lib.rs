@@ -19,7 +19,9 @@
 //! action accepts it. A tool that starts its toolchain by name, such as a
 //! package for Node, runs on the toolchain that [`Tool::with_toolchain`]
 //! gives it. A crate that wraps a tool keeps its pin in a mise file.
-//! It reads the pin with [`MiseFile::pinned_version`] when it compiles.
+//! It reads the pin with [`MiseFile::pinned_version`] when it compiles, and
+//! the platforms where the tool has a build with
+//! [`MiseFile::pinned_platforms`].
 //!
 //! Every lookup of this crate takes a requirement, and no lookup takes the
 //! name of a tool alone. An action resolves the requirements that it
@@ -82,5 +84,5 @@ pub use kawauso_process::invocation::Program;
 pub use kawauso_process::{Execution, Invocation};
 
 pub use self::launch::Launch;
-pub use self::pin::MiseFile;
+pub use self::pin::{MiseFile, PinnedPlatforms};
 pub use self::tool::{ResolveRequirementError, Tool};

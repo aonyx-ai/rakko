@@ -111,6 +111,12 @@ from the design discussions to the terms that replaced them.
   action passed, changed the project by repairing everything that it found,
   failed with findings, skipped because there was nothing to examine, or
   stopped with an error.
+- **Platform** — An operating system, or an operating system with an
+  architecture, such as Linux, or macOS on ARM. The pin of a tool can list
+  the platforms where the tool has a build. The list uses the form of the
+  `os` option of mise, such as `linux` or `macos/arm64`. Mise then installs
+  the tool only on those platforms. A pin without such a list needs the
+  tool on every platform.
 - **Precondition** — A condition about the environment of the project that a
   correct run needs, such as a current file of tool pins. The projection
   checks the preconditions before it runs an action, a command, or a group,
@@ -166,9 +172,10 @@ from the design discussions to the terms that replaced them.
 - **Tool requirement** — What an action declares for each tool that it
   runs. A requirement holds the identifier of the tool in the configuration
   of mise and the program that the action starts. It also holds the exact
-  version of a tool, or the range of versions of a toolchain. The
-  declaration takes no arguments and no context, because the machinery
-  reads it before any run starts.
+  version of a tool, or the range of versions of a toolchain. A requirement
+  of an exact version can also list the platforms where the tool has a
+  build. The declaration takes no arguments and no context, because the
+  machinery reads it before any run starts.
 - **Toolchain** — A tool that the code of the project builds or runs with,
   such as Rust, Node.js, or TypeScript. The project pins its toolchains. An
   action pins every other tool that it runs through mise, and it accepts a
