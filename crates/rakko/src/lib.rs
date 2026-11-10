@@ -68,5 +68,6 @@ pub use self::group::Group;
 pub use self::name::{Name, ParseNameError};
 pub use self::outcome::{Outcome, SkipReason, Summary};
 pub use self::tool::{
-    Executable, MiseTool, RequiredVersion, ToolRequirement, ToolVersion, VersionRange,
+    Architecture, Executable, MiseTool, OperatingSystem, Platform, RequiredVersion,
+    ToolRequirement, ToolVersion, VersionRange,
 };

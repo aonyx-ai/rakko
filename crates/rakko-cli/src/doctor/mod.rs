@@ -90,7 +90,10 @@ pub(crate) fn name() -> Name {
 /// that is left over.
 ///
 /// The check reads the project and asks mise about it, and it needs no
-/// network. The repair writes the generated file and removes each pin that
+/// network. Mise reads a pin with options, such as the platforms of a tool,
+/// only from a configuration that the user trusts. So when the generated file
+/// holds such a pin, the check stops with an error until the user trusts the
+/// project, for example with `mise trust`. The repair writes the generated file and removes each pin that
 /// overrides a declared tool. Then it runs `mise lock`, which needs the
 /// network. It locks every tool of the project, so it can also change the
 /// lockfile of the configuration of the project.
@@ -139,7 +142,8 @@ pub(crate) async fn run(
 ///
 /// The check is the check of a run of `doctor` without `--fix`. It reads the
 /// project and asks mise about it, so it needs no network, and it changes
-/// nothing. A project whose tool pins have no problem lets the run start.
+/// nothing. Like that check, it stops with an error in a project that mise does not
+/// trust, when the generated file holds a pin with options. A project whose tool pins have no problem lets the run start.
 ///
 /// # Errors
 ///

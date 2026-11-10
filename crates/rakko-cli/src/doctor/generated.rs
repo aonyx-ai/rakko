@@ -5,10 +5,10 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use rakko::{
-    FilePath, Finding, Location, MiseTool, ProjectRoot, RequiredVersion, ToolRequirement,
+    FilePath, Finding, Location, MiseTool, Platform, ProjectRoot, RequiredVersion, ToolRequirement,
     ToolVersion,
 };
-use toml_edit::{Array, DocumentMut, Item, Table, Value};
+use toml_edit::{Array, DocumentMut, InlineTable, Item, Table, Value};
 
 use super::check_error::CheckToolPinsError;
 use super::repair_error::RepairToolPinsError;
@@ -37,6 +37,13 @@ const MERGED: &str = "conf.d";
 /// The extension of a configuration file of mise
 const TOML: &str = "toml";
 
+/// The key of the version in the table of a pin with platforms
+const VERSION: &str = "version";
+
+/// The key of the platforms in the table of a pin, which mise calls the `os`
+/// option
+const OS: &str = "os";
+
 /// The comment at the top of the generated file
 ///
 /// A reader of the project finds the file beside its own configuration, so
@@ -59,24 +66,40 @@ const UNNEEDED: &str = "the generated file of the tool pins is left over, becaus
 const STALE: &str = "the generated file of the tool pins does not match the tools that the mounted \
                      actions declare, and `doctor --fix` writes it again";
 
-/// The exact versions of the tools that the mounted actions declare
+/// The exact versions of the tools that the mounted actions declare, each
+/// with the platforms where the tool has a build
 ///
 /// A toolchain is a decision of the project, so its range does not reach the
 /// generated file. Two actions can pin two versions of one tool. The file then
 /// pins both, and each action finds its own version.
+///
+/// A version without a list of platforms is needed on every platform. A
+/// version with a list is needed only there, and mise installs and locks it
+/// only on those platforms. When two actions pin the same version, the file
+/// needs the version wherever one of them needs it. So the lists merge, and a
+/// version that one action needs on every platform gets no list.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
-pub(crate) struct Pins(BTreeMap<MiseTool, BTreeSet<ToolVersion>>);
+pub(crate) struct Pins(BTreeMap<MiseTool, BTreeMap<ToolVersion, Option<BTreeSet<Platform>>>>);
 
 impl Pins {
-    /// Returns the exact versions of the requirements
+    /// Returns the exact versions of the requirements, with their platforms
     pub(crate) fn of<'a>(requirements: impl IntoIterator<Item = &'a ToolRequirement>) -> Self {
-        let mut pins: BTreeMap<MiseTool, BTreeSet<ToolVersion>> = BTreeMap::new();
+        let mut pins: BTreeMap<MiseTool, BTreeMap<ToolVersion, Option<BTreeSet<Platform>>>> =
+            BTreeMap::new();
 
         for requirement in requirements {
-            if let RequiredVersion::Exact(version) = requirement.version() {
-                pins.entry(requirement.tool().clone())
-                    .or_default()
-                    .insert(version.clone());
+            let RequiredVersion::Exact(version) = requirement.version() else {
+                continue;
+            };
+
+            let platforms = requirement.platforms().cloned();
+            let versions = pins.entry(requirement.tool().clone()).or_default();
+
+            match versions.get_mut(version) {
+                Some(merged) => *merged = merge(merged.take(), platforms),
+                None => {
+                    versions.insert(version.clone(), platforms);
+                }
             }
         }
 
@@ -96,8 +119,10 @@ impl Pins {
     /// Returns the content of the generated file, or `None` when the project
     /// needs no file
     ///
-    /// The tools are in alphabetical order, so the same declarations give the
-    /// same file on every machine.
+    /// The tools, their versions, and their platforms are in a fixed order, so
+    /// the same declarations give the same file on every machine. A version
+    /// with platforms is a table with the `version` and the `os` keys, the
+    /// form that mise reads for a tool with options.
     fn render(&self) -> Option<String> {
         if self.is_empty() {
             return None;
@@ -106,11 +131,13 @@ impl Pins {
         let mut tools = Table::new();
 
         for (tool, versions) in &self.0 {
-            let value = match versions.first() {
-                Some(version) if versions.len() == 1 => Value::from(version.get()),
-                Some(_) | None => {
-                    Value::Array(versions.iter().map(ToolVersion::get).collect::<Array>())
-                }
+            let mut values = versions
+                .iter()
+                .map(|(version, platforms)| pin(version, platforms.as_ref()));
+
+            let value = match (values.next(), versions.len()) {
+                (Some(value), 1) => value,
+                (first, _) => Value::Array(first.into_iter().chain(values).collect::<Array>()),
             };
 
             tools.insert(tool.get(), Item::Value(value));
@@ -121,6 +148,42 @@ impl Pins {
 
         Some(format!("{HEADER}\n{document}"))
     }
+}
+
+/// Returns the platforms of a version that two actions pin
+///
+/// The version is needed wherever one of the actions needs it, so a version
+/// without a list on either side gets no list.
+fn merge(
+    first: Option<BTreeSet<Platform>>,
+    second: Option<BTreeSet<Platform>>,
+) -> Option<BTreeSet<Platform>> {
+    match (first, second) {
+        (Some(mut first), Some(second)) => {
+            first.extend(second);
+            Some(first)
+        }
+        (None, _) | (_, None) => None,
+    }
+}
+
+/// Returns the value of one pinned version in the generated file
+///
+/// A version without platforms is a plain string. A version with platforms
+/// is a table that also holds the `os` option of mise.
+fn pin(version: &ToolVersion, platforms: Option<&BTreeSet<Platform>>) -> Value {
+    let Some(platforms) = platforms else {
+        return Value::from(version.get());
+    };
+
+    let mut table = InlineTable::new();
+    table.insert(VERSION, Value::from(version.get()));
+    table.insert(
+        OS,
+        Value::Array(platforms.iter().map(ToString::to_string).collect::<Array>()),
+    );
+
+    Value::InlineTable(table)
 }
 
 /// Returns the problem of the generated file, or `None` when the file
@@ -276,10 +339,41 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
-    use rakko::VersionRange;
+    use rakko::{Architecture, OperatingSystem, VersionRange};
     use tempfile::TempDir;
 
     use super::*;
+
+    /// Returns the requirement of a tool at an exact version on the platforms
+    #[bon::builder]
+    fn limited(tool: &str, version: &str, platforms: &[Platform]) -> ToolRequirement {
+        ToolRequirement::builder()
+            .tool(tool)
+            .executable(tool)
+            .exact_version_on(
+                ToolVersion::new(version),
+                platforms.iter().copied().collect::<BTreeSet<_>>(),
+            )
+            .build()
+    }
+
+    /// Returns the last line of the generated file of the requirements
+    fn rendered(requirements: &[ToolRequirement]) -> String {
+        Pins::of(requirements)
+            .render()
+            .expect("the pins give a file")
+            .lines()
+            .last()
+            .expect("the file has lines")
+            .to_owned()
+    }
+
+    /// The platform of Linux, on every architecture
+    const LINUX: Platform = Platform::new(OperatingSystem::Linux);
+
+    /// The platform of macOS on ARM
+    const MACOS_ARM64: Platform =
+        Platform::new(OperatingSystem::Macos).with_architecture(Architecture::Arm64);
 
     /// Returns the requirement of a tool at an exact version
     #[bon::builder]
@@ -433,6 +527,69 @@ mod tests {
     }
 
     #[test]
+    fn render_merges_the_platforms_of_one_version() {
+        let line = rendered(&[
+            limited()
+                .tool("stiles")
+                .version("0.6.0")
+                .platforms(&[MACOS_ARM64])
+                .call(),
+            limited()
+                .tool("stiles")
+                .version("0.6.0")
+                .platforms(&[LINUX])
+                .call(),
+        ]);
+
+        assert_eq!(
+            line,
+            "stiles = { version = \"0.6.0\", os = [\"linux\", \"macos/arm64\"] }"
+        );
+    }
+
+    #[test]
+    fn render_of_one_version_on_every_platform_and_on_some_lists_none() {
+        let line = rendered(&[
+            limited()
+                .tool("stiles")
+                .version("0.6.0")
+                .platforms(&[LINUX])
+                .call(),
+            exact().tool("stiles").version("0.6.0").call(),
+        ]);
+
+        assert_eq!(line, "stiles = \"0.6.0\"");
+    }
+
+    #[test]
+    fn render_of_one_version_on_some_platforms_and_on_every_platform_lists_none() {
+        let line = rendered(&[
+            exact().tool("stiles").version("0.6.0").call(),
+            limited()
+                .tool("stiles")
+                .version("0.6.0")
+                .platforms(&[LINUX])
+                .call(),
+        ]);
+
+        assert_eq!(line, "stiles = \"0.6.0\"");
+    }
+
+    #[test]
+    fn render_pins_a_tool_on_its_platforms_as_a_table() {
+        let line = rendered(&[limited()
+            .tool("stiles")
+            .version("0.6.0")
+            .platforms(&[MACOS_ARM64, LINUX])
+            .call()]);
+
+        assert_eq!(
+            line,
+            "stiles = { version = \"0.6.0\", os = [\"linux\", \"macos/arm64\"] }"
+        );
+    }
+
+    #[test]
     fn render_pins_each_tool_in_alphabetical_order() {
         let pins = Pins::of(&[
             exact().tool("taplo").version("0.10.0").call(),
@@ -462,6 +619,23 @@ mod tests {
         assert!(
             text.ends_with("taplo = [\"0.10.0\", \"0.9.0\"]\n"),
             "got {text}"
+        );
+    }
+
+    #[test]
+    fn render_pins_two_versions_with_and_without_platforms_as_an_array() {
+        let line = rendered(&[
+            limited()
+                .tool("taplo")
+                .version("0.9.0")
+                .platforms(&[LINUX])
+                .call(),
+            exact().tool("taplo").version("0.10.0").call(),
+        ]);
+
+        assert_eq!(
+            line,
+            "taplo = [\"0.10.0\", { version = \"0.9.0\", os = [\"linux\"] }]"
         );
     }
 
