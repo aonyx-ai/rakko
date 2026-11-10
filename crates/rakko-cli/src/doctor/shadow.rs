@@ -76,7 +76,8 @@ impl Shadow {
 /// so the project cannot repair them. Only a file that mise ranks above the
 /// generated file counts, because a pin in a file below it does not win. The
 /// generated file does not count either, because its pins are the declared
-/// ones.
+/// ones. Without a declared pin, no pin of the project can override one, so
+/// the function asks mise nothing.
 ///
 /// # Errors
 ///
@@ -93,6 +94,10 @@ pub(crate) async fn find(
     pins: &Pins,
     context: &Context,
 ) -> Result<Vec<Shadow>, CheckToolPinsError> {
+    if pins.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let root = context.root();
 
     let execution = Invocation::new(MISE)

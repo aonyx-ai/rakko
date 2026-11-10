@@ -43,6 +43,15 @@
 //! report says which pin to change. A project runs `doctor --fix` once when
 //! it adopts Rakko, and again when an update of Rakko changes a tool.
 //!
+//! The command line runs the same check before it runs an action, a command
+//! that the harness wrote, or a group. A problem stops the run, also in CI.
+//! The error gives each problem and how to repair it: `doctor --fix`, or a
+//! change to the pin of a toolchain. Only the help, the list of the commands,
+//! and `doctor` run without the check. So a stale file cannot pass a pull
+//! request without a sign. Each run of an action, a command, or a group
+//! waits for the check before it starts. A harness whose actions declare no
+//! tool reads one file and asks mise nothing.
+//!
 //! `doctor` sees the actions that the harness mounts and the members of its
 //! groups. It does not see the actions that the harness gives to a command
 //! that it mounts, such as the list of a pre-commit command. A harness that
