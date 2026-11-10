@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-027]
 
 ## Context
 
@@ -92,4 +92,5 @@ practice that we stopped.
 
 [adr-002]: 002-specifications.md
 [adr-012]: 012-repository-layout.md
+[adr-027]: 027-specification-check.md
 [tracey]: https://tracey.bearcove.eu/

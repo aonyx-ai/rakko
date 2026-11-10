@@ -733,23 +733,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-check-specs"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "kawauso-process",
- "rakko",
- "rakko-test-utils",
- "rakko-tool",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "rakko-check-typescript"
 version = "0.1.0"
 dependencies = [

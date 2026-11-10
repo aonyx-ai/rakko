@@ -9,11 +9,11 @@ use rakko::{Access, Action, Context, Outcome};
 /// The directories whose changes do not count as a write of the project
 ///
 /// Git guards `.git` with locks of its own. Cargo locks `target` against
-/// parallel use. Only tracey reads `.tracey`. The helper leaves out a
-/// directory with one of these names at every depth, so it also leaves out
-/// the `target` of a nested crate. It cannot know which tool wrote into a
-/// `target`, so it leaves that directory out for every tool.
-const UNCOUNTED_DIRECTORIES: [&str; 3] = [".git", ".tracey", "target"];
+/// parallel use. The helper leaves out a directory with one of these names at
+/// every depth, so it also leaves out the `target` of a nested crate. It
+/// cannot know which tool wrote into a `target`, so it leaves that directory
+/// out for every tool.
+const UNCOUNTED_DIRECTORIES: [&str; 2] = [".git", "target"];
 
 /// The end of the name of a file whose changes do not count as a write
 ///
@@ -52,8 +52,7 @@ enum Entry {
 /// - a change in a directory named `.git`, which Git guards with locks of
 ///   its own,
 /// - a change in a directory named `target`, which cargo locks itself, and
-///   the helper leaves it out for every tool,
-/// - a change in a directory named `.tracey`, which only tracey reads, and
+///   the helper leaves it out for every tool, and
 /// - a change to a file whose name ends in `.tsbuildinfo`, which only the
 ///   TypeScript compiler reads.
 ///
@@ -401,16 +400,6 @@ mod tests {
         let outcome = run(Access::Read, |root| {
             fs::create_dir_all(root.join("tools").join("target")).unwrap();
             fs::write(root.join("tools").join("target").join("build"), "built").unwrap();
-        });
-
-        assert!(matches!(outcome, Outcome::Passed { .. }));
-    }
-
-    #[test]
-    fn run_checking_access_passes_a_reader_that_writes_into_tracey() {
-        let outcome = run(Access::Read, |root| {
-            fs::create_dir(root.join(".tracey")).unwrap();
-            fs::write(root.join(".tracey").join("state"), "traced").unwrap();
         });
 
         assert!(matches!(outcome, Outcome::Passed { .. }));

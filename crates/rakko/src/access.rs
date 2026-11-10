@@ -13,7 +13,7 @@
 /// count as a write:
 ///
 /// - a change that only the tool of the action reads, such as a
-///   `.tsbuildinfo` file or a `.tracey/` directory,
+///   `.tsbuildinfo` file,
 /// - a change inside `.git/`, and
 /// - a change in a directory that the tool locks against parallel use
 ///   itself, such as the `target/` directory of cargo.
