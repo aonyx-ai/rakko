@@ -1,1 +1,10 @@
 exclude = [".claude/worktrees/**", ".delta/**", "target/**"]
+
+# Rakko reads the pin of an action from its `mise.rakko.toml` line by line,
+# when the action compiles. So taplo keeps a long list of platforms on the
+# line of its pin.
+[[rule]]
+include = ["**/mise.rakko.toml"]
+
+[rule.formatting]
+array_auto_expand = false

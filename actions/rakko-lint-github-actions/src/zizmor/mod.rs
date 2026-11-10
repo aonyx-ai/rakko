@@ -9,7 +9,7 @@ mod error;
 mod report;
 
 use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko_tool::{Launch, MiseFile, PinnedPlatforms, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveZizmorError;
 use crate::observation::{Examination, Observation};
@@ -18,11 +18,21 @@ use crate::observation::{Examination, Observation};
 /// program
 const ZIZMOR: &str = "zizmor";
 
+/// The mise file of the crate, which pins the zizmor that the crate runs
+const PINS: MiseFile = MiseFile::new(include_str!("../../mise.rakko.toml"));
+
 /// The version of zizmor that the crate runs
 ///
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
-const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(ZIZMOR);
+const VERSION: &str = PINS.pinned_version(ZIZMOR);
+
+/// The platforms where zizmor has a build, or `None` for every platform
+///
+/// The list comes from the same pin as the version. A platform that the
+/// list leaves out gets no zizmor from mise, and a run of the action skips
+/// there.
+const PLATFORMS: Option<PinnedPlatforms> = PINS.pinned_platforms(ZIZMOR);
 
 /// The option that asks zizmor for its report as data
 ///
@@ -163,13 +173,16 @@ impl Zizmor {
 
     /// Returns the requirement of the zizmor that the crate runs
     ///
-    /// The requirement holds the exact version that the crate pins.
+    /// The requirement holds the exact version that the crate pins, and the
+    /// platforms that the pin lists.
     pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(ZIZMOR)
-            .executable(ZIZMOR)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
+        let version = ToolVersion::new(VERSION);
+        let builder = ToolRequirement::builder().tool(ZIZMOR).executable(ZIZMOR);
+
+        match PLATFORMS {
+            Some(platforms) => builder.exact_version_on(version, platforms).build(),
+            None => builder.version(RequiredVersion::Exact(version)).build(),
+        }
     }
 
     /// Returns the zizmor that mise installed at the version of the crate
@@ -233,6 +246,10 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use std::collections::BTreeSet;
+
+    use rakko::{Architecture, OperatingSystem, Platform};
+
     use super::*;
 
     #[test]
@@ -275,6 +292,20 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Collection>();
+    }
+
+    #[test]
+    fn requirement_leaves_out_windows_on_arm() {
+        let requirement = Zizmor::requirement();
+
+        assert_eq!(
+            requirement.platforms(),
+            Some(&BTreeSet::from([
+                Platform::new(OperatingSystem::Linux),
+                Platform::new(OperatingSystem::Macos),
+                Platform::new(OperatingSystem::Windows).with_architecture(Architecture::X64),
+            ]))
+        );
     }
 
     #[test]

@@ -1,6 +1,7 @@
 # This file pins the version of zizmor that the action of this crate runs.
 # The crate embeds the file when it compiles, so the pin and the code that
 # reads the reports of zizmor change together. Mise reads the file only with
-# `MISE_ENV=rakko`.
+# `MISE_ENV=rakko`. Zizmor publishes no build for Windows on ARM, so the pin
+# lists the platforms that have one.
 [tools]
-zizmor = "1.32.0"
+zizmor = { version = "1.32.0", os = ["linux", "macos", "windows/x64"] }

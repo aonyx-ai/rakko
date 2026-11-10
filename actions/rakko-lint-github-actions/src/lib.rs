@@ -7,6 +7,9 @@
 //! which [mise] installed. The action translates what zizmor reported into the
 //! outcome of the run.
 //!
+//! Zizmor publishes no build for Windows on ARM. So the declaration leaves
+//! that platform out, and a run of the action skips there.
+//!
 //! Zizmor looks for patterns that turn a workflow into a way into the
 //! repository. Examples are templates that expand attacker-controlled text into
 //! shells, jobs that carry more permissions than needed, and actions with no

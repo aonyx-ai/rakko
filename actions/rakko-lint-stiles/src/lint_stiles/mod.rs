@@ -40,10 +40,13 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 /// loads the lints that it names, and discovers the Rust and TypeScript files.
 /// It applies the rules that the configuration turns on, so a run agrees with a
 /// contributor that runs stiles bare.
-/// The stiles that runs is the one that [mise] installed for the project, at
-/// the version that the project pinned, and the action installs nothing.
-/// The action accepts one version of stiles, because the lints that a project
-/// loads are built against it.
+/// The action declares the version of stiles that runs, because the lints that
+/// a project loads are built against one version.
+/// The stiles that runs is the one that [mise] installed at that version, and
+/// the action installs nothing.
+/// Stiles has builds only for Linux and for macOS on ARM. On every other
+/// platform, the machinery skips a run of the action and gives the tool and
+/// the platform as its reason.
 ///
 /// A run only reports, and it takes no argument.
 /// Stiles repairs nothing that a rule finds.
@@ -61,7 +64,7 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 /// It skips when that list is empty, because stiles checks such a project with
 /// no rule at all.
 /// It also skips when stiles finds no file to check.
-/// A run stops with an error when mise reports no stiles at an accepted
+/// A run stops with an error when mise reports no stiles at the declared
 /// version.
 /// It stops when stiles stops before checking the whole project.
 /// It stops when stiles writes a report that the action cannot read.

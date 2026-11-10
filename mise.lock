@@ -25,24 +25,6 @@ url = "https://github.com/cargo-bins/cargo-binstall/releases/download/v1.26.2/ca
 url_api = "https://api.github.com/repos/cargo-bins/cargo-binstall/releases/assets/695464456"
 provenance = "github-attestations"
 
-[[tools."github:aonyx-ai/stiles"]]
-version = "0.6.0"
-backend = "github:aonyx-ai/stiles"
-specifiers = ["0.6.0"]
-
-[tools."github:aonyx-ai/stiles".options]
-version_prefix = "stiles@"
-
-[tools."github:aonyx-ai/stiles"."platforms.linux-x64"]
-checksum = "sha256:176761f8fa5d103fd4df3624a0ce2dc907eeaa7045a83ddb364ad8723b9c9ed5"
-url = "https://github.com/aonyx-ai/stiles/releases/download/stiles%400.6.0/stiles-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/aonyx-ai/stiles/releases/assets/729111182"
-
-[tools."github:aonyx-ai/stiles"."platforms.macos-arm64"]
-checksum = "sha256:13e2aa588bb048638b1326ae6c403770749b694e7feb5f5f1ed2b0f921ad0a7e"
-url = "https://github.com/aonyx-ai/stiles/releases/download/stiles%400.6.0/stiles-0.6.0-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/aonyx-ai/stiles/releases/assets/729133712"
-
 [[tools.jq]]
 version = "1.8.2"
 backend = "aqua:jqlang/jq"

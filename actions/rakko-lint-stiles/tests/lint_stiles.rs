@@ -36,7 +36,7 @@ impl Project {
     ///
     /// The mise configuration of the project is no TOML, and mise stops on a
     /// configuration that it cannot read. So mise reports no stiles at the
-    /// accepted version, whatever versions the machine installed.
+    /// declared version, whatever versions the machine installed.
     fn with_an_unreadable_mise_configuration() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let project = Self { directory };
@@ -101,6 +101,33 @@ fn action_identifies_itself_as_lint_stiles() {
     let name = LintStiles.name();
 
     assert_eq!(name.get(), "lint-stiles");
+}
+
+/// Shows that the machinery skips the action where stiles has no build
+///
+/// Stiles has no build for Windows, so the test runs only there. A run
+/// through [`ErasedAction`] is the path that the command line, a group, and a
+/// written command take.
+#[cfg(windows)]
+#[tokio::test]
+async fn run_through_the_machinery_on_windows_skips_for_the_missing_build() {
+    let project = Project::with_an_unreadable_mise_configuration();
+
+    let outcome = rakko::ErasedAction::run(
+        &LintStiles,
+        &project.context(),
+        &rakko::ArgsValues::default(),
+    )
+    .await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Skipped { reason }
+                if reason.get().starts_with("the tool github:aonyx-ai/stiles has no build for windows/")
+        ),
+        "expected the run to skip for the missing build of stiles, got {outcome:?}"
+    );
 }
 
 /// Shows that the run leaves every file of the project as it was
