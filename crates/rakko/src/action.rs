@@ -101,7 +101,19 @@ pub trait Action: Send + Sync {
     /// a tool embeds the version that it pins when it compiles, and it
     /// answers from that.
     ///
+    /// A requirement can give the platforms where its tool has a build. On
+    /// every other platform, the machinery does not start the run, and the
+    /// run ends as skipped. So the action needs no check of the platform. The
+    /// skip happens in [`ErasedAction`] and [`BoundAction`], the views of the
+    /// action that hide its type. The command line and a group run the action
+    /// through these views. A command gets the skip when it runs the action
+    /// through them too. A caller that calls [`run`][Action::run] itself gets
+    /// no skip.
+    ///
     /// An action that does not implement the method runs no external tool.
+    ///
+    /// [`BoundAction`]: crate::BoundAction
+    /// [`ErasedAction`]: crate::ErasedAction
     fn tools(&self) -> Vec<ToolRequirement> {
         Vec::new()
     }
@@ -113,6 +125,13 @@ pub trait Action: Send + Sync {
     /// as findings in [`Outcome::Failed`]. Problems that the action repaired
     /// travel as repairs in [`Outcome::Changed`]. An error that stops the run
     /// travels in [`Outcome::Errored`]. The method itself has no error type.
+    ///
+    /// The method does not check the platforms of the tools of the action.
+    /// The run of [`ErasedAction`] and of [`BoundAction`] checks them first,
+    /// and it skips a run where a tool has no build.
+    ///
+    /// [`BoundAction`]: crate::BoundAction
+    /// [`ErasedAction`]: crate::ErasedAction
     fn run(&self, context: &Context, args: &Self::Args) -> impl Future<Output = Outcome> + Send;
 }
 

@@ -109,14 +109,16 @@ from the design discussions to the terms that replaced them.
   the CLI of a harness. The harness names what it mounts, in code.
 - **Outcome** — The result of one action run. An outcome tells whether the
   action passed, changed the project by repairing everything that it found,
-  failed with findings, skipped because there was nothing to examine, or
-  stopped with an error.
+  failed with findings, skipped, or stopped with an error. An action skips
+  when there was nothing to examine, or when a tool of the action has no
+  build for the platform of the run.
 - **Platform** — An operating system, or an operating system with an
   architecture, such as Linux, or macOS on ARM. The pin of a tool can list
   the platforms where the tool has a build. The list uses the form of the
   `os` option of mise, such as `linux` or `macos/arm64`. Mise then installs
-  the tool only on those platforms. A pin without such a list needs the
-  tool on every platform.
+  the tool only on those platforms. On another platform, the machinery
+  skips a run of an action that pins the tool. A pin without such a list
+  needs the tool on every platform.
 - **Precondition** — A condition about the environment of the project that a
   correct run needs, such as a current file of tool pins. The projection
   checks the preconditions before it runs an action, a command, or a group,

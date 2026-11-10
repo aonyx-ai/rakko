@@ -229,7 +229,8 @@ mod tests {
     use clawless::output::Output;
     use rakko::{
         Access, Action, Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue,
-        ErasedAction, Name, Outcome, ReadArgsError, SkipReason, action_name, argument_name,
+        ErasedAction, Name, OperatingSystem, Outcome, Platform, ReadArgsError, SkipReason,
+        ToolRequirement, ToolVersion, action_name, argument_name,
     };
 
     use super::*;
@@ -430,6 +431,45 @@ mod tests {
         }
     }
 
+    /// An action whose tool has no build on the platform of the test, and that
+    /// otherwise runs as the recorder that it wraps
+    struct Limited {
+        /// The recorder that gives the action its name and runs it
+        recorder: Recorder,
+    }
+
+    impl Action for Limited {
+        type Args = Received;
+
+        fn name(&self) -> Name {
+            Action::name(&self.recorder)
+        }
+
+        fn access(&self, context: &Context, args: &Self::Args) -> Access {
+            Action::access(&self.recorder, context, args)
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            let elsewhere = if cfg!(target_os = "windows") {
+                OperatingSystem::Linux
+            } else {
+                OperatingSystem::Windows
+            };
+
+            vec![
+                ToolRequirement::builder()
+                    .tool("zizmor")
+                    .executable("zizmor")
+                    .exact_version_on(ToolVersion::new("1.32.0"), [Platform::new(elsewhere)])
+                    .build(),
+            ]
+        }
+
+        async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
+            Action::run(&self.recorder, context, args).await
+        }
+    }
+
     /// An action that declares nothing about how a run uses the project, and
     /// otherwise runs as the recorder that it wraps
     struct Undeclared {
@@ -578,6 +618,37 @@ mod tests {
     /// Returns the name of the group that a test runs
     fn group() -> Name {
         action_name!("check")
+    }
+
+    /// Returns the platform of the run of the test, as mise writes it
+    fn host() -> String {
+        let system = if cfg!(target_os = "windows") {
+            "windows"
+        } else if cfg!(target_os = "macos") {
+            "macos"
+        } else {
+            "linux"
+        };
+        let architecture = if cfg!(target_arch = "aarch64") {
+            "arm64"
+        } else {
+            "x64"
+        };
+
+        format!("{system}/{architecture}")
+    }
+
+    /// Returns a reader with the given name and log, whose tool has no build
+    /// on the platform of the test
+    fn limited(name: Name, log: &Arc<Mutex<Vec<String>>>) -> Box<dyn ErasedAction> {
+        Box::new(Limited {
+            recorder: Recorder {
+                name,
+                declaration: Declaration::Read,
+                answer: Answer::Pass,
+                log: Arc::clone(log),
+            },
+        })
     }
 
     /// Returns the context of the project that a run maintains
@@ -851,6 +922,41 @@ mod tests {
         started.sort();
 
         assert_eq!(started, ["lint-toml", "lint-yaml", "test-rust"]);
+    }
+
+    #[test]
+    fn run_with_a_member_whose_tool_has_no_build_here_reports_it_as_skipped() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            writer(action_name!("format-yaml"), &log),
+            limited(action_name!("lint-github-actions"), &log),
+        ];
+
+        let sent = sent_by(&actions);
+
+        assert_eq!(
+            sent.artifacts,
+            [format!(
+                r#"{{"schema":"unstable","group":"check","counts":{{"passed":1,"changed":0,"failed":0,"skipped":1,"errored":0}},"members":[{{"schema":"unstable","action":"format-yaml","outcome":"passed","findings":[],"repairs":[]}},{{"schema":"unstable","action":"lint-github-actions","outcome":"skipped","reason":"the tool zizmor has no build for {}","findings":[],"repairs":[]}}]}}"#,
+                host()
+            )]
+        );
+    }
+
+    #[test]
+    fn run_with_a_member_whose_tool_has_no_build_here_runs_only_the_other_members() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let actions = [
+            writer(action_name!("format-yaml"), &log),
+            limited(action_name!("lint-github-actions"), &log),
+        ];
+
+        let code = complete(&actions, &ArgsValues::empty());
+
+        assert_eq!(
+            (code.ok(), log.lock().expect("the run has ended").clone()),
+            (Some(EXIT_CLEAN), vec!["format-yaml".to_owned()])
+        );
     }
 
     #[test]

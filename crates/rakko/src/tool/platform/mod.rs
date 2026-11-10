@@ -1,11 +1,13 @@
 //! The platforms where a tool exists
 
 mod architecture;
+mod host;
 mod operating_system;
 
 use std::fmt::{self, Display, Formatter};
 
 pub use self::architecture::Architecture;
+pub(crate) use self::host::Host;
 pub use self::operating_system::OperatingSystem;
 
 /// A platform where a tool has a build

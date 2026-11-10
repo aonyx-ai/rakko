@@ -9,9 +9,9 @@ use crate::args::{Args, ArgsSchema, ArgsValues, ReadArgsError};
 use crate::bound_action::BoundAction;
 use crate::context::Context;
 use crate::name::Name;
-use crate::outcome::Outcome;
+use crate::outcome::{Outcome, SkipReason};
 use crate::seal::{Sealed, SealedBound};
-use crate::tool::ToolRequirement;
+use crate::tool::{Host, ToolRequirement};
 
 /// One action behind an interface that hides its type
 ///
@@ -132,6 +132,9 @@ pub trait ErasedAction: Send + Sync + Sealed {
     /// binds the action and asks the bound action instead. A conversion of the
     /// values that fails travels in [`Outcome::Errored`], so this method has
     /// no error type of its own.
+    ///
+    /// A run where a tool of the action has no build skips, as the run of
+    /// [`BoundAction`] does.
     fn run<'a>(
         &'a self,
         context: &'a Context,
@@ -190,8 +193,28 @@ impl<A: Action> BoundAction for Bound<'_, A> {
         &'a self,
         context: &'a Context,
     ) -> Pin<Box<dyn Future<Output = Outcome> + Send + 'a>> {
+        if let Some(reason) = missing_build(&Action::tools(self.action), Host::current()) {
+            return Box::pin(async move { Outcome::Skipped { reason } });
+        }
+
         Box::pin(Action::run(self.action, context, &self.args))
     }
+}
+
+/// Returns the reason to skip a run on the host, or `None` when every tool
+/// has a build there
+///
+/// A tool without a list of platforms has a build on every platform. A tool
+/// with a list has a build only on the platforms of the list. The reason gives
+/// the first tool without a build on the host, and the host.
+fn missing_build(tools: &[ToolRequirement], host: Host) -> Option<SkipReason> {
+    tools
+        .iter()
+        .find(|tool| {
+            tool.platforms()
+                .is_some_and(|platforms| !platforms.iter().any(|platform| host.is_on(platform)))
+        })
+        .map(|tool| SkipReason::new(format!("the tool {} has no build for {host}", tool.tool())))
 }
 
 #[cfg(test)]
@@ -202,11 +225,12 @@ mod tests {
     )]
 
     use std::pin::pin;
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::task::{Context as TaskContext, Poll, Waker};
 
     use super::*;
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
-    use crate::tool::{RequiredVersion, ToolVersion};
+    use crate::tool::{OperatingSystem, Platform, RequiredVersion, ToolVersion};
     use crate::{action_name, argument_name};
 
     /// What a formatter does with the files that it examines
@@ -293,6 +317,82 @@ mod tests {
             .executable("taplo")
             .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
             .build()
+    }
+
+    /// An action that declares taplo and a tool with a build only on some
+    /// platforms, and records whether it ran
+    struct Limited {
+        /// The tool with a build only on some platforms
+        tool: ToolRequirement,
+        /// Whether a run of the action started
+        ran: AtomicBool,
+    }
+
+    impl Limited {
+        /// Creates an action whose second tool has a build only on the
+        /// platform
+        fn on(platform: Platform) -> Self {
+            Self {
+                tool: ToolRequirement::builder()
+                    .tool("github:aonyx-ai/stiles")
+                    .executable("stiles")
+                    .exact_version_on(ToolVersion::new("0.6.0"), [platform])
+                    .build(),
+                ran: AtomicBool::new(false),
+            }
+        }
+    }
+
+    impl Action for Limited {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("limited")
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            vec![taplo(), self.tool.clone()]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            self.ran.store(true, Ordering::SeqCst);
+
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// Returns the operating system of the run of the test
+    fn this_system() -> OperatingSystem {
+        if cfg!(target_os = "windows") {
+            OperatingSystem::Windows
+        } else if cfg!(target_os = "macos") {
+            OperatingSystem::Macos
+        } else {
+            OperatingSystem::Linux
+        }
+    }
+
+    /// Returns a platform with an operating system that is not the one of the
+    /// run of the test
+    fn another_platform() -> Platform {
+        let system = if cfg!(target_os = "windows") {
+            OperatingSystem::Linux
+        } else {
+            OperatingSystem::Windows
+        };
+
+        Platform::new(system)
+    }
+
+    /// Returns the platform of the run of the test, as mise writes it
+    fn this_host() -> String {
+        let architecture = if cfg!(target_arch = "aarch64") {
+            "arm64"
+        } else {
+            "x64"
+        };
+
+        format!("{}/{architecture}", this_system())
     }
 
     /// An action that reads no arguments and passes
@@ -453,6 +553,17 @@ mod tests {
     }
 
     #[test]
+    fn bound_run_of_an_action_whose_tool_has_no_build_here_skips() {
+        let action = Limited::on(another_platform());
+        let values = ArgsValues::empty();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        let outcome = drive_bound(bound.as_ref());
+
+        assert!(matches!(outcome, Outcome::Skipped { .. }));
+    }
+
+    #[test]
     fn bound_run_produces_the_outcome_of_the_action() {
         let action = Probe;
         let values = ArgsValues::empty();
@@ -498,6 +609,42 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Operation>();
+    }
+
+    #[test]
+    fn run_of_an_action_whose_tool_has_a_build_here_runs_the_action() {
+        let action = Limited::on(Platform::new(this_system()));
+
+        let _outcome = drive(&action, &ArgsValues::empty());
+
+        assert!(action.ran.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn run_of_an_action_whose_tool_has_no_build_here_gives_the_tool_and_the_platform() {
+        let action = Limited::on(another_platform());
+
+        let outcome = drive(&action, &ArgsValues::empty());
+
+        let Outcome::Skipped { reason } = outcome else {
+            panic!("expected the run to skip, got {outcome:?}");
+        };
+        assert_eq!(
+            reason.get(),
+            format!(
+                "the tool github:aonyx-ai/stiles has no build for {}",
+                this_host()
+            )
+        );
+    }
+
+    #[test]
+    fn run_of_an_action_whose_tool_has_no_build_here_starts_no_run() {
+        let action = Limited::on(another_platform());
+
+        let _outcome = drive(&action, &ArgsValues::empty());
+
+        assert!(!action.ran.load(Ordering::SeqCst));
     }
 
     #[test]
