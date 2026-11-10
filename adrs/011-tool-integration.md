@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted. [ADR-028] supersedes point 2 for a tool outside its declared
+platforms.
 
 ## Context
 
@@ -191,4 +192,5 @@ configuration, where the tool can see the same file.
 [adr-008]: 008-renderers.md
 [adr-009]: 009-harness-entry-point.md
 [adr-010]: 010-project-root.md
+[adr-028]: 028-tool-platforms.md
 [vision]: ../VISION.md
