@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted. [ADR-028] supersedes point 6 for a tool outside its declared
+platforms.
 
 ## Context
 
@@ -181,3 +182,4 @@ format that the mise manager of Renovate already reads.
 [adr-003]: 003-mise.md
 [adr-011]: 011-tool-integration.md
 [adr-017]: 017-access-declarations.md
+[adr-028]: 028-tool-platforms.md
