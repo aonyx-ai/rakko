@@ -14,8 +14,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    Summary, ToolRequirement, action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
@@ -29,7 +29,7 @@ const UNFORMATTED_FINDING: &str = "the file is not properly formatted";
 /// The message of a repair of a file that was not formatted
 const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 
-/// The action that formats the TOML files of a project
+/// Checks the format of the TOML files of a project, or repairs it
 ///
 /// The action wraps [taplo]. Taplo discovers the TOML files of the project. It
 /// reads its own configuration and formats what its configuration selects. So a
@@ -65,7 +65,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [taplo]: https://taplo.tamasfe.dev
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct FormatToml;
 
 impl Action for FormatToml {

@@ -10,8 +10,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
+    Summary, ToolRequirement, action_name,
 };
 
 pub use self::error::LintStilesError;
@@ -33,7 +33,7 @@ const NO_RULES: &str = "stiles lists no rule that the project runs";
 /// well.
 const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 
-/// The action that applies the stiles rules of a project
+/// Applies the stiles rules of a project
 ///
 /// The action wraps [stiles].
 /// Stiles reads the configuration of the project in `.config/stiles.toml`,
@@ -89,7 +89,7 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [stiles]: https://github.com/aonyx-ai/stiles
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct LintStiles;
 
 impl Action for LintStiles {

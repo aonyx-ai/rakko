@@ -6,7 +6,8 @@
 //! the arguments that a run reads. It holds the context that an action reads
 //! when it runs, the finding that an action produces, and the outcome that the
 //! run returns. It also holds the requirement of each external tool that an
-//! action runs.
+//! action runs. It holds the trait that gives the sentence that describes an
+//! action, and the derive that takes that sentence from a doc comment.
 //! It also holds the view of an action that hides its type, which is how a
 //! registry holds many actions at once. It also holds the list of such views
 //! that a bundle exports.
@@ -35,12 +36,20 @@
 //! [`ErasedAction::run`]: ErasedAction::run
 //! [rakko-cli]: https://docs.rs/rakko-cli
 
+/// The name that the derives of this crate use for it
+///
+/// A derive writes paths that start with `::rakko`. This name lets the same
+/// derives work on the types of this crate.
+extern crate self as rakko;
+
 mod access;
 mod action;
 mod args;
 mod bound_action;
 mod bundle;
 mod context;
+mod description;
+mod documented;
 mod erased_action;
 mod finding;
 mod group;
@@ -49,6 +58,8 @@ mod outcome;
 pub mod path;
 mod seal;
 mod tool;
+
+pub use rakko_macros::Documented;
 
 pub use self::access::Access;
 pub use self::action::Action;
@@ -59,6 +70,8 @@ pub use self::args::{
 pub use self::bound_action::BoundAction;
 pub use self::bundle::Bundle;
 pub use self::context::{Context, ProjectRoot};
+pub use self::description::Description;
+pub use self::documented::Documented;
 pub use self::erased_action::ErasedAction;
 pub use self::finding::{
     Column, DirectoryPath, FilePath, Finding, FindingMessage, Line, Location,

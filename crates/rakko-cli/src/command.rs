@@ -5,7 +5,7 @@ use std::future::Future;
 
 use clawless::CommandResult;
 use clawless::context::Context as ClawlessContext;
-use rakko::{Args, Context, Name};
+use rakko::{Args, Context, Documented, Name};
 
 /// A command that a harness writes for an activity that does not fit an action
 ///
@@ -22,6 +22,12 @@ use rakko::{Args, Context, Name};
 /// command from that data before a run exists. So a command names no flag and
 /// no syntax. Its arguments render under the rules that the arguments of an
 /// action follow.
+///
+/// The data also holds one sentence that describes the command, which the
+/// help of the command line shows. The trait requires [`Documented`] for it.
+/// The derive of that trait takes the sentence from the first paragraph of the
+/// doc comment of the command. So a command must have a doc comment and derive
+/// [`Documented`].
 ///
 /// The run is arbitrary code. It receives the context of the project and the
 /// context of Clawless. It writes its output through Clawless. It returns what
@@ -48,11 +54,13 @@ use rakko::{Args, Context, Name};
 /// implementation writes a plain `async fn`:
 ///
 /// ```
-/// use rakko::{Context, Name, action_name};
+/// use rakko::{Context, Documented, Name, action_name};
 /// use rakko_cli::Command;
 /// use rakko_cli::clawless::CommandResult;
 /// use rakko_cli::clawless::context::Context as ClawlessContext;
 ///
+/// /// Serves the files of the project
+/// #[derive(Documented)]
 /// struct Serve;
 ///
 /// impl Command for Serve {
@@ -78,11 +86,12 @@ use rakko::{Args, Context, Name};
 ///
 /// [`Action`]: rakko::Action
 /// [`Action::run`]: rakko::Action::run
+/// [`Documented`]: rakko::Documented
 /// [`ErasedAction::bind`]: rakko::ErasedAction::bind
 /// [`ErasedAction::run`]: rakko::ErasedAction::run
 /// [`Group`]: rakko::Group
 /// [`run`]: Command::run
-pub trait Command: Send + Sync {
+pub trait Command: Documented + Send + Sync {
     /// The arguments that a run of the command reads
     ///
     /// The type implements [`Args`], the vocabulary of the contract crate. So
@@ -132,7 +141,7 @@ mod tests {
     use super::*;
 
     /// A command that yields once, records the root it received, and succeeds
-    #[derive(Default)]
+    #[derive(Default, Documented)]
     struct Probe {
         /// The root of the project that a run received
         root: Mutex<Option<PathBuf>>,

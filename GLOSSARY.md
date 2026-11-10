@@ -45,7 +45,11 @@ from the design discussions to the terms that replaced them.
 - **Contract crate** — The `rakko` crate. It contains the `Action` trait,
   the access types, and the other shared types. The contract crate stays
   small, because every action and every harness depends on it. The contract
-  crate also contains the trait of a group, which uses only its types.
+  crate also contains the trait of a group, which uses only its types. The
+  `rakko-macros` crate holds its derive macros. Rakko publishes that crate
+  together with the contract crate, because the contract crate depends on
+  it. The contract crate exports the macros again, so no other crate depends
+  on `rakko-macros`.
 - **`doctor`** — The command that every harness has. The harness writes no
   code for it. It checks the precondition on the tools. The generated mise
   file `.config/mise/conf.d/rakko.toml` must match the tools that the mounted

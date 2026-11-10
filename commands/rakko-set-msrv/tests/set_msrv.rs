@@ -27,8 +27,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rakko::{
-    Action, Args, ArgsValues, ArgumentValue, Context, Name, Outcome, SkipReason, action_name,
-    argument_name,
+    Action, Args, ArgsValues, ArgumentValue, Context, Documented, Name, Outcome, SkipReason,
+    action_name, argument_name,
 };
 use rakko_cli::Command;
 use rakko_cli::clawless::CommandResult;
@@ -148,6 +148,7 @@ enum Answer {
 }
 
 /// A check that counts its runs and answers as the test asks
+#[derive(Documented)]
 struct Check {
     /// What the check answers
     answer: Answer,

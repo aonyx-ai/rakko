@@ -34,7 +34,10 @@ use crate::erased_action::ErasedAction;
 ///
 /// ```
 /// use rakko::Bundle;
+/// # use rakko::Documented;
 /// # use rakko::{Action, Context, Name, Outcome, action_name};
+/// # /// Formats the JSON files of a project
+/// # #[derive(Documented)]
 /// # struct FormatJson;
 /// # impl Action for FormatJson {
 /// #     type Args = ();
@@ -43,6 +46,8 @@ use crate::erased_action::ErasedAction;
 /// #         Outcome::Passed { summary: None }
 /// #     }
 /// # }
+/// # /// Lints the YAML files of a project
+/// # #[derive(Documented)]
 /// # struct LintYaml;
 /// # impl Action for LintYaml {
 /// #     type Args = ();
@@ -68,7 +73,9 @@ use crate::erased_action::ErasedAction;
 /// # use rakko::Bundle;
 /// mod rakko_rust {
 ///     use rakko::Bundle;
-/// #   use rakko::{Action, Context, Name, Outcome, action_name};
+/// #   use rakko::{Action, Context, Documented, Name, Outcome, action_name};
+/// #   /// Lints the Rust code of a project
+/// #   #[derive(Documented)]
 /// #   struct LintRust;
 /// #   impl Action for LintRust {
 /// #       type Args = ();
@@ -86,8 +93,10 @@ use crate::erased_action::ErasedAction;
 ///
 /// mod rakko_rust_library {
 ///     use rakko::Bundle;
-/// #   use rakko::{Action, Context, Name, Outcome, action_name};
+/// #   use rakko::{Action, Context, Documented, Name, Outcome, action_name};
 /// #   use super::rakko_rust;
+/// #   /// Checks a project against the Rust version it promises
+/// #   #[derive(Documented)]
 /// #   struct CheckMsrv;
 /// #   impl Action for CheckMsrv {
 /// #       type Args = ();
@@ -115,7 +124,10 @@ use crate::erased_action::ErasedAction;
 ///
 /// ```
 /// use rakko::Bundle;
+/// # use rakko::Documented;
 /// # use rakko::{Action, Context, Name, Outcome, action_name};
+/// # /// Formats the JSON files of a project
+/// # #[derive(Documented)]
 /// # struct FormatJson;
 /// # impl Action for FormatJson {
 /// #     type Args = ();
@@ -124,6 +136,8 @@ use crate::erased_action::ErasedAction;
 /// #         Outcome::Passed { summary: None }
 /// #     }
 /// # }
+/// # /// Lints the YAML files of a project
+/// # #[derive(Documented)]
 /// # struct LintYaml;
 /// # impl Action for LintYaml {
 /// #     type Args = ();
@@ -133,7 +147,9 @@ use crate::erased_action::ErasedAction;
 /// #     }
 /// # }
 /// # mod rakko_rust {
-/// #     use rakko::{Action, Bundle, Context, Name, Outcome, action_name};
+/// #     use rakko::{Action, Bundle, Context, Documented, Name, Outcome, action_name};
+/// #     /// Lints the Rust code of a project
+/// #     #[derive(Documented)]
 /// #     struct LintRust;
 /// #     impl Action for LintRust {
 /// #         type Args = ();
@@ -170,7 +186,10 @@ impl Bundle {
     ///
     /// ```
     /// use rakko::Bundle;
+    /// # use rakko::Documented;
     /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # /// Shows how a list takes an action
+    /// # #[derive(Documented)]
     /// # struct Example;
     /// # impl Action for Example {
     /// #     type Args = ();
@@ -217,7 +236,10 @@ impl Bundle {
     ///
     /// ```
     /// use rakko::Bundle;
+    /// # use rakko::Documented;
     /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # /// Shows how a list takes an action
+    /// # #[derive(Documented)]
     /// # struct Example;
     /// # impl Action for Example {
     /// #     type Args = ();
@@ -243,7 +265,10 @@ impl Bundle {
     ///
     /// ```
     /// use rakko::Bundle;
+    /// # use rakko::Documented;
     /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # /// Shows how a list takes an action
+    /// # #[derive(Documented)]
     /// # struct Example;
     /// # impl Action for Example {
     /// #     type Args = ();
@@ -315,12 +340,14 @@ mod tests {
     )]
 
     use super::*;
+    use crate::Documented;
     use crate::action_name;
     use crate::context::Context;
     use crate::name::Name;
     use crate::outcome::Outcome;
 
     /// An action that stands in for a formatter of a bundle
+    #[derive(Documented)]
     struct FormatJson;
 
     impl Action for FormatJson {
@@ -336,6 +363,7 @@ mod tests {
     }
 
     /// An action that stands in for a linter of a bundle
+    #[derive(Documented)]
     struct LintYaml;
 
     impl Action for LintYaml {

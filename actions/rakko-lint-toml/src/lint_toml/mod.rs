@@ -8,8 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    Summary, ToolRequirement, action_name,
 };
 use rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 
@@ -22,7 +22,7 @@ pub use self::error::LintTomlError;
 /// says what taplo meant is better than one that guesses.
 const UNFORMATTED: &str = "the file is not properly formatted";
 
-/// The action that validates the TOML files of a project
+/// Validates the TOML files of a project
 ///
 /// The action wraps [taplo]. Taplo discovers the TOML files of the project,
 /// reads its own configuration, and validates what its configuration selects.
@@ -57,7 +57,7 @@ const UNFORMATTED: &str = "the file is not properly formatted";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [taplo]: https://taplo.tamasfe.dev
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct LintToml;
 
 impl Action for LintToml {

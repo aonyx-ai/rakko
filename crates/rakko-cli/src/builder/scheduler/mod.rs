@@ -227,6 +227,7 @@ mod tests {
 
     use clawless::event::{Event, EventReceiver, event_channel};
     use clawless::output::Output;
+    use rakko::Documented;
     use rakko::{
         Access, Action, Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue,
         ErasedAction, Name, OperatingSystem, Outcome, Platform, ReadArgsError, SkipReason,
@@ -333,6 +334,7 @@ mod tests {
     /// The action returns control to the driver of the run once before it
     /// answers. A run that drives two actions at once therefore starts the next
     /// action while this one waits.
+    #[derive(Documented)]
     struct Recorder {
         /// The name that the action reports and writes into the log
         name: Name,
@@ -407,6 +409,7 @@ mod tests {
     ///
     /// It writes only when a run gives it `fix`. Otherwise it runs as the
     /// recorder that it wraps.
+    #[derive(Documented)]
     struct Formatter {
         /// The recorder that gives the action its name and runs it
         recorder: Recorder,
@@ -433,6 +436,7 @@ mod tests {
 
     /// An action whose tool has no build on the platform of the test, and that
     /// otherwise runs as the recorder that it wraps
+    #[derive(Documented)]
     struct Limited {
         /// The recorder that gives the action its name and runs it
         recorder: Recorder,
@@ -472,6 +476,7 @@ mod tests {
 
     /// An action that declares nothing about how a run uses the project, and
     /// otherwise runs as the recorder that it wraps
+    #[derive(Documented)]
     struct Undeclared {
         /// The recorder that gives the action its name and runs it
         recorder: Recorder,

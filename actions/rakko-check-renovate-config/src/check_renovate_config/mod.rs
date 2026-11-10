@@ -8,7 +8,7 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
+    Access, Action, Context, Documented, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
     ToolRequirement, action_name,
 };
 
@@ -16,7 +16,7 @@ pub use self::error::CheckRenovateConfigError;
 use crate::problem::RenovateProblem;
 use crate::validator::Validator;
 
-/// The action that checks the Renovate configuration of a project
+/// Checks the Renovate configuration of a project
 ///
 /// The action wraps `renovate-config-validator`, the validator that [Renovate]
 /// ships. The validator finds the configurations of the project, reads each of
@@ -66,7 +66,7 @@ use crate::validator::Validator;
 ///
 /// [mise]: https://mise.jdx.dev
 /// [renovate]: https://docs.renovatebot.com
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct CheckRenovateConfig;
 
 impl Action for CheckRenovateConfig {

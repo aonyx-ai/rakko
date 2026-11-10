@@ -30,8 +30,10 @@ use crate::seal::SealedBound;
 /// # Examples
 ///
 /// ```
-/// use rakko::{Access, Action, ArgsValues, Context, ErasedAction, Name, Outcome, ProjectRoot, action_name};
+/// use rakko::{Access, Action, ArgsValues, Context, Documented, ErasedAction, Name, Outcome, ProjectRoot, action_name};
 ///
+/// /// Counts the lines of the project
+/// #[derive(Documented)]
 /// struct LineCount;
 ///
 /// impl Action for LineCount {
@@ -66,8 +68,10 @@ use crate::seal::SealedBound;
 /// use std::future::Future;
 /// use std::pin::Pin;
 ///
-/// use rakko::{Access, Action, BoundAction, Context, Name, Outcome, action_name};
+/// use rakko::{Access, Action, BoundAction, Context, Documented, Name, Outcome, action_name};
 ///
+/// /// Counts the lines of the project
+/// #[derive(Documented)]
 /// struct LineCount;
 ///
 /// impl Action for LineCount {

@@ -12,8 +12,8 @@ mod operation;
 use std::path::Path;
 
 use rakko::{
-    Access, Action, Context, FilePath, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    SkipReason, ToolRequirement, action_name,
+    Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, Position,
+    ProjectRoot, SkipReason, ToolRequirement, action_name,
 };
 
 pub use self::args::FormatTypeScriptArgs;
@@ -36,7 +36,7 @@ const UNFORMATTED_FINDING: &str = "the file is not formatted";
 /// The message of a repair of a file that was not formatted
 const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 
-/// The action that formats the TypeScript of a project
+/// Checks the format of the TypeScript of a project, or repairs it
 ///
 /// The action wraps [oxfmt]. The action names the files of the language, and
 /// oxfmt reads its own configuration. Oxfmt formats what its ignore files
@@ -83,7 +83,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [oxfmt]: https://oxc.rs/docs/guide/usage/formatter.html
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct FormatTypeScript;
 
 impl Action for FormatTypeScript {

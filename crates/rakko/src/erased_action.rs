@@ -8,6 +8,8 @@ use crate::action::Action;
 use crate::args::{Args, ArgsSchema, ArgsValues, ReadArgsError};
 use crate::bound_action::BoundAction;
 use crate::context::Context;
+use crate::description::Description;
+use crate::documented::Documented;
 use crate::name::Name;
 use crate::outcome::{Outcome, SkipReason};
 use crate::seal::{Sealed, SealedBound};
@@ -21,11 +23,12 @@ use crate::tool::{Host, ToolRequirement};
 /// holds erased actions instead.
 ///
 /// An erased action answers everything that the machinery needs without
-/// naming the type of the action. It gives the name that identifies it and
-/// the external tools that it runs. It gives the description of the arguments
-/// that a projection turns into a command. It also gives a bind that takes the
-/// values of that command. The conversion from those values into the
-/// arguments of the action happens inside, where the type is still known.
+/// naming the type of the action. It gives the name that identifies it, the
+/// sentence that describes it, and the external tools that it runs. It gives
+/// the schema of the arguments that a projection turns into a command. It also
+/// gives a bind that takes the values of that command. The conversion from
+/// those values into the arguments of the action happens inside, where the
+/// type is still known.
 /// The bind returns a [`BoundAction`], which declares how the run uses the
 /// project and then runs with the same arguments.
 ///
@@ -45,8 +48,10 @@ use crate::tool::{Host, ToolRequirement};
 /// # Examples
 ///
 /// ```
-/// use rakko::{Action, Context, ErasedAction, Name, Outcome, action_name};
+/// use rakko::{Action, Context, Documented, ErasedAction, Name, Outcome, action_name};
 ///
+/// /// Counts the lines of the project
+/// #[derive(Documented)]
 /// struct LineCount;
 ///
 /// impl Action for LineCount {
@@ -96,9 +101,18 @@ pub trait ErasedAction: Send + Sync + Sealed {
     /// Returns the name that identifies the action
     fn name(&self) -> Name;
 
-    /// Returns the description of the arguments that the action reads
+    /// Returns the sentence that describes the action
     ///
-    /// A projection reads the description to build a command before a run
+    /// The answer is the one that [`Documented::description`] gives, which
+    /// is the first paragraph of the doc comment of the action. A projection
+    /// shows it where a user looks for help.
+    ///
+    /// [`Documented::description`]: crate::Documented::description
+    fn description(&self) -> Description;
+
+    /// Returns the schema of the arguments that the action reads
+    ///
+    /// A projection reads the schema to build a command before a run
     /// exists.
     fn arguments(&self) -> ArgsSchema;
 
@@ -156,6 +170,10 @@ impl<A: Action> Sealed for A {}
 impl<A: Action> ErasedAction for A {
     fn name(&self) -> Name {
         Action::name(self)
+    }
+
+    fn description(&self) -> Description {
+        Documented::description(self)
     }
 
     fn arguments(&self) -> ArgsSchema {
@@ -229,6 +247,7 @@ mod tests {
     use std::task::{Context as TaskContext, Poll, Waker};
 
     use super::*;
+    use crate::Documented;
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
     use crate::tool::{OperatingSystem, Platform, RequiredVersion, ToolVersion};
     use crate::{action_name, argument_name};
@@ -270,6 +289,7 @@ mod tests {
     }
 
     /// An action that writes only when its arguments ask for a repair
+    #[derive(Documented)]
     struct Formatter;
 
     impl Action for Formatter {
@@ -292,6 +312,7 @@ mod tests {
     }
 
     /// An action that declares the one tool that it runs
+    #[derive(Documented)]
     struct Wrapper;
 
     impl Action for Wrapper {
@@ -321,6 +342,7 @@ mod tests {
 
     /// An action that declares taplo and a tool with a build only on some
     /// platforms, and records whether it ran
+    #[derive(Documented)]
     struct Limited {
         /// The tool with a build only on some platforms
         tool: ToolRequirement,
@@ -396,6 +418,7 @@ mod tests {
     }
 
     /// An action that reads no arguments and passes
+    #[derive(Documented)]
     struct Probe;
 
     impl Action for Probe {
@@ -430,6 +453,7 @@ mod tests {
     }
 
     /// An action whose arguments never build from the values of a run
+    #[derive(Documented)]
     struct Unbuildable;
 
     impl Action for Unbuildable {
@@ -586,6 +610,18 @@ mod tests {
         fn assert_sync<T: Sync + ?Sized>() {}
 
         assert_sync::<dyn BoundAction>();
+    }
+
+    #[test]
+    fn description_returns_the_description_of_the_action() {
+        let action: &dyn ErasedAction = &Probe;
+
+        let description = action.description();
+
+        assert_eq!(
+            description.get(),
+            "An action that reads no arguments and passes"
+        );
     }
 
     #[test]

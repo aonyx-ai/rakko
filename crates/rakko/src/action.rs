@@ -5,6 +5,7 @@ use std::future::Future;
 use crate::access::Access;
 use crate::args::Args;
 use crate::context::Context;
+use crate::documented::Documented;
 use crate::name::Name;
 use crate::outcome::Outcome;
 use crate::tool::ToolRequirement;
@@ -15,6 +16,11 @@ use crate::tool::ToolRequirement;
 /// The trait describes the action as data: the name that identifies it and
 /// the type of the arguments that a run reads. The machinery reads this data
 /// without running the action, for example to show the action in a list.
+///
+/// The data also holds one sentence that describes the action. The trait
+/// requires [`Documented`] for it. The derive of that trait takes the sentence
+/// from the first paragraph of the doc comment of the action. So an action
+/// must have a doc comment and derive [`Documented`].
 ///
 /// The machinery can also ask the action which external tools it runs. The
 /// answer depends on no run, because a project installs the tools before
@@ -36,8 +42,10 @@ use crate::tool::ToolRequirement;
 /// implementation writes a plain `async fn`:
 ///
 /// ```
-/// use rakko::{Action, Context, Name, Outcome, action_name};
+/// use rakko::{Action, Context, Documented, Name, Outcome, action_name};
 ///
+/// /// Counts the lines of the project
+/// #[derive(Documented)]
 /// struct LineCount;
 ///
 /// impl Action for LineCount {
@@ -55,7 +63,7 @@ use crate::tool::ToolRequirement;
 /// ```
 ///
 /// [`run`]: Action::run
-pub trait Action: Send + Sync {
+pub trait Action: Documented + Send + Sync {
     /// The arguments that a run of the action reads
     ///
     /// Each action defines its own type that implements [`Args`]. That type
@@ -146,6 +154,7 @@ mod tests {
     use std::task::{Context as TaskContext, Poll, Waker};
 
     use super::*;
+    use crate::Documented;
     use crate::tool::{RequiredVersion, ToolVersion};
 
     /// Whether a future has returned control already
@@ -160,6 +169,7 @@ mod tests {
     }
 
     /// A minimal action that yields once and then passes
+    #[derive(Documented)]
     struct Probe;
 
     impl Action for Probe {
@@ -176,6 +186,7 @@ mod tests {
     }
 
     /// An action that declares the one tool that it runs
+    #[derive(Documented)]
     struct Wrapper;
 
     impl Action for Wrapper {

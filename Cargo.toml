@@ -25,9 +25,12 @@ futures-util = { version = "0.3", default-features = false, features = [
 getset = ">=0.1,<1"
 kawauso-process = "0.2.1"
 kawauso-project = "0.3.0"
+proc-macro2 = "1.0.91"
+quote = "1.0.35"
 rakko = { path = "crates/rakko", version = "0.1.0" }
 rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-cli = { path = "crates/rakko-cli", version = "0.1.0" }
+rakko-macros = { path = "crates/rakko-macros", version = "0.1.0" }
 rakko-nextest = { path = "crates/rakko-nextest", version = "0.1.0" }
 rakko-prettier = { path = "crates/rakko-prettier", version = "0.1.0" }
 rakko-rust = { path = "bundles/rakko-rust", version = "0.1.0" }
@@ -38,6 +41,7 @@ rakko-worktree = { path = "crates/rakko-worktree", version = "0.1.0" }
 semver = "1.0.0"
 serde = { version = "1.0.225", features = ["derive"] }
 serde_json = "1.0.0"
+syn = "2.0.87"
 tempfile = "3"
 thiserror = "2"
 tokio = { version = "1.27.0", features = ["fs", "macros", "rt", "time"] }

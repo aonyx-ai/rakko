@@ -8,8 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    SkipReason, ToolRequirement, action_name,
 };
 
 pub use self::error::LintMarkdownError;
@@ -24,7 +24,7 @@ use crate::problem::MarkdownlintProblem;
 /// A project whose ignore file excludes every one of them reports the same way.
 const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine";
 
-/// The action that lints the Markdown files of a project
+/// Lints the Markdown files of a project
 ///
 /// The action wraps [markdownlint]. Markdownlint discovers the Markdown files
 /// of the project, reads its configuration, and applies the rules that the
@@ -66,7 +66,7 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 ///
 /// [markdownlint]: https://github.com/DavidAnson/markdownlint
 /// [mise]: https://mise.jdx.dev
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct LintMarkdown;
 
 impl Action for LintMarkdown {

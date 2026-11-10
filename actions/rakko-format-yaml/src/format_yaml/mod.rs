@@ -11,8 +11,8 @@ mod error;
 use std::path::PathBuf;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    SkipReason, ToolRequirement, action_name,
 };
 use rakko_prettier::{
     Exit, FileExtension, Filter, Matching, Observation, Operation, Prettier, PrettierProblem,
@@ -41,7 +41,7 @@ const UNFORMATTED_FINDING: &str = "the file is not formatted";
 /// The message of a repair of a file that was not formatted
 const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 
-/// The action that formats the YAML files of a project
+/// Checks the format of the YAML files of a project, or repairs it
 ///
 /// The action wraps [prettier]. The action names the YAML files. Prettier reads
 /// its own configuration and formats what its ignore files leave. So a run
@@ -80,7 +80,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [prettier]: https://prettier.io
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct FormatYaml;
 
 impl Action for FormatYaml {

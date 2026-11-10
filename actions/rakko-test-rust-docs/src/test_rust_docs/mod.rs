@@ -8,8 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
-    action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
+    ToolRequirement, action_name,
 };
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Documentation};
@@ -47,7 +47,7 @@ const TEST: [&str; 7] = [
     "--message-format=json",
 ];
 
-/// The action that runs the examples in the documentation of a project
+/// Runs the examples in the documentation of a project
 ///
 /// The action wraps cargo. It builds the examples of every package of a
 /// workspace with every feature, against the library that documents them.
@@ -98,7 +98,7 @@ const TEST: [&str; 7] = [
 ///
 /// [mise]: https://mise.jdx.dev
 /// [nextest]: https://nexte.st
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct TestRustDocs;
 
 impl Action for TestRustDocs {

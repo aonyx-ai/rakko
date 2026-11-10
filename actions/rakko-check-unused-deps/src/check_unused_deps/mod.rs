@@ -8,8 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
-    action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
+    ToolRequirement, action_name,
 };
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, Toolchain};
@@ -48,7 +48,7 @@ const UDEPS: [&str; 7] = [
     "--message-format=json",
 ];
 
-/// The action that finds the dependencies a project declares and never uses
+/// Finds the dependencies a project declares and never uses
 ///
 /// The action wraps [cargo-udeps]. Cargo builds every target of every package
 /// with every feature. Cargo-udeps holds the crates that those targets loaded
@@ -93,7 +93,7 @@ const UDEPS: [&str; 7] = [
 ///
 /// [cargo-udeps]: https://github.com/est31/cargo-udeps
 /// [mise]: https://mise.jdx.dev
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct CheckUnusedDeps;
 
 impl Action for CheckUnusedDeps {

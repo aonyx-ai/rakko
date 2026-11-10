@@ -216,7 +216,9 @@ impl Builder {
     /// A harness mounts an action as it is:
     ///
     /// ```
-    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # use rakko::{Action, Context, Documented, Name, Outcome, action_name};
+    /// # /// Counts the lines of the project
+    /// # #[derive(Documented)]
     /// # struct LineCount;
     /// # impl Action for LineCount {
     /// #     type Args = ();
@@ -235,12 +237,16 @@ impl Builder {
     /// the actions as they are:
     ///
     /// ```
-    /// # use rakko::{Action, Bundle, Context, ErasedAction, Group, Name, Outcome, action_name};
+    /// # use rakko::{
+    /// #     Action, Bundle, Context, Documented, ErasedAction, Group, Name, Outcome, action_name,
+    /// # };
     /// # use rakko_cli::Command;
     /// # use rakko_cli::clawless::CommandResult;
     /// # use rakko_cli::clawless::context::Context as ClawlessContext;
     /// # mod rakko_baseline {
-    /// #     use rakko::{Action, Bundle, Context, Name, Outcome, action_name};
+    /// #     use rakko::{Action, Bundle, Context, Documented, Name, Outcome, action_name};
+    /// #     /// Formats the JSON files of a project
+    /// #     #[derive(Documented)]
     /// #     struct FormatJson;
     /// #     impl Action for FormatJson {
     /// #         type Args = ();
@@ -253,6 +259,8 @@ impl Builder {
     /// #         Bundle::new(vec![Box::new(FormatJson)])
     /// #     }
     /// # }
+    /// # /// Checks a project against the Rust version it promises
+    /// # #[derive(Documented)]
     /// # struct CheckMsrv;
     /// # impl Action for CheckMsrv {
     /// #     type Args = ();
@@ -261,6 +269,8 @@ impl Builder {
     /// #         Outcome::Passed { summary: None }
     /// #     }
     /// # }
+    /// # /// Lints the Rust code of a project
+    /// # #[derive(Documented)]
     /// # struct LintRust;
     /// # impl Action for LintRust {
     /// #     type Args = ();
@@ -269,6 +279,8 @@ impl Builder {
     /// #         Outcome::Passed { summary: None }
     /// #     }
     /// # }
+    /// # /// Serves the files of the project
+    /// # #[derive(Documented)]
     /// # struct Serve;
     /// # impl Command for Serve {
     /// #     type Args = ();
@@ -282,6 +294,8 @@ impl Builder {
     /// #         Ok(())
     /// #     }
     /// # }
+    /// # /// Runs the actions that guard a commit
+    /// # #[derive(Documented)]
     /// # struct PreCommit(Bundle);
     /// # impl PreCommit {
     /// #     fn new(actions: impl IntoIterator<Item = Box<dyn ErasedAction>>) -> Self {
@@ -450,13 +464,15 @@ impl Builder {
     ///
     /// The command of an action, a command that a harness wrote, and a group
     /// take the same shape here. The shape has a name, the flags of the
-    /// arguments, and a place directly under the command line.
+    /// arguments, and a place directly under the command line. Each of them
+    /// also shows the sentence that describes it.
     fn command(&self) -> Command {
         let mut command = shell();
 
         for mounted in self.registry.entries() {
             command = command.subcommand(
                 Command::new(mounted.name().get().to_owned())
+                    .about(mounted.description().get().to_owned())
                     .args(self::arguments::render(mounted)),
             );
         }
@@ -947,6 +963,7 @@ mod tests {
 
     use clap::builder::{Str, ValueRange};
     use clawless::CommandResult;
+    use rakko::Documented;
     use rakko::{
         Action, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name, OperatingSystem,
         Platform, ReadArgsError, RequiredVersion, SkipReason, ToolRequirement, ToolVersion,
@@ -1019,6 +1036,7 @@ mod tests {
 
     /// A command that runs one action through its erased view, as a command
     /// that a harness writes runs an action, and keeps the outcome
+    #[derive(Documented)]
     struct Calling {
         /// The action that the command runs
         action: Box<dyn ErasedAction>,
@@ -1049,6 +1067,7 @@ mod tests {
     }
 
     /// An action that declares an argument that the command line carries
+    #[derive(Documented)]
     struct Colliding;
 
     impl Action for Colliding {
@@ -1102,6 +1121,7 @@ mod tests {
 
     /// An action that declares one tool and otherwise runs as the probe that
     /// it wraps
+    #[derive(Documented)]
     struct Gated {
         /// The probe that gives the action its name and runs it
         probe: Probe,
@@ -1165,6 +1185,7 @@ mod tests {
     }
 
     /// A member of a group that writes the values of its run into a log
+    #[derive(Documented)]
     struct Member<D> {
         /// The name that identifies this action
         name: Name,
@@ -1201,6 +1222,7 @@ mod tests {
     }
 
     /// An action that records that it ran and reports what a test asked for
+    #[derive(Documented)]
     struct Probe {
         /// The name that identifies this action
         name: Name,
@@ -1248,6 +1270,7 @@ mod tests {
 
     /// An action that declares a read, and otherwise runs as the probe that it
     /// wraps
+    #[derive(Documented)]
     struct Reading {
         /// The probe that gives the action its name and runs it
         probe: Probe,
@@ -1289,6 +1312,7 @@ mod tests {
     }
 
     /// An action that records the values that its run received
+    #[derive(Documented)]
     struct Reader {
         /// Where a run stores the values that it received
         seen: Arc<Mutex<Option<ArgsValues>>>,
@@ -1310,6 +1334,7 @@ mod tests {
     }
 
     /// An action that records the project root that its run received
+    #[derive(Documented)]
     struct Recorder {
         /// Where a run stores the root that it received
         seen: Arc<Mutex<Option<PathBuf>>>,
@@ -1363,6 +1388,7 @@ mod tests {
     }
 
     /// A command that declares an argument that the command line carries
+    #[derive(Documented)]
     struct Reserving;
 
     impl WrittenCommand for Reserving {
@@ -1385,6 +1411,7 @@ mod tests {
     }
 
     /// A group that the tests mount, with the members that a test gives it
+    #[derive(Documented)]
     struct Sequence {
         /// The name of the group
         name: Name,
@@ -1403,6 +1430,7 @@ mod tests {
     }
 
     /// An action that declares one tool at an exact version
+    #[derive(Documented)]
     struct Tooled {
         /// The name that identifies this action
         name: Name,
@@ -1427,6 +1455,7 @@ mod tests {
     }
 
     /// An action whose arguments never convert from the values of a run
+    #[derive(Documented)]
     struct Unbuildable;
 
     impl Action for Unbuildable {
@@ -1470,6 +1499,7 @@ mod tests {
     }
 
     /// A command that records its run and returns what a test asked for
+    #[derive(Documented)]
     struct Written {
         /// The name that identifies this command
         name: Name,
@@ -2033,6 +2063,53 @@ mod tests {
         let values = flag.get_num_args();
 
         assert_eq!(values, Some(ValueRange::EMPTY));
+    }
+
+    /// Returns the sentence that the help shows for an entry of the command
+    /// line
+    fn about_of(command: &Command, name: &str) -> Option<String> {
+        command
+            .get_subcommands()
+            .find(|leaf| leaf.get_name() == name)
+            .expect("the test mounts the entry")
+            .get_about()
+            .map(ToString::to_string)
+    }
+
+    #[test]
+    fn command_gives_a_command_the_description_of_its_doc_comment() {
+        let command = builder().mount(written("serve")).command();
+
+        let about = about_of(&command, "serve");
+
+        assert_eq!(
+            about.as_deref(),
+            Some("A command that records its run and returns what a test asked for")
+        );
+    }
+
+    #[test]
+    fn command_gives_a_group_the_description_of_its_doc_comment() {
+        let command = builder().mount(sequence(Vec::new())).command();
+
+        let about = about_of(&command, GROUP);
+
+        assert_eq!(
+            about.as_deref(),
+            Some("A group that the tests mount, with the members that a test gives it")
+        );
+    }
+
+    #[test]
+    fn command_gives_an_action_the_description_of_its_doc_comment() {
+        let command = builder().mount([reader()]).command();
+
+        let about = about_of(&command, READER);
+
+        assert_eq!(
+            about.as_deref(),
+            Some("An action that records the values that its run received")
+        );
     }
 
     #[test]

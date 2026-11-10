@@ -13,7 +13,8 @@ mod operation;
 use std::collections::{BTreeMap, BTreeSet};
 
 use rakko::{
-    Access, Action, Context, FilePath, Finding, Location, Name, Outcome, Summary, action_name,
+    Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, Summary,
+    action_name,
 };
 use rakko_worktree::Worktree;
 
@@ -25,7 +26,7 @@ use crate::lockfile::Lockfile;
 use crate::mise::{Lock, Mise, Trust};
 use crate::part::Platform;
 
-/// The action that checks whether the lockfile of mise is complete
+/// Checks whether the lockfile of mise is complete
 ///
 /// A lockfile of [mise] records, for each tool that mise downloads, the
 /// address and the checksum of the file for each platform. An install in
@@ -90,7 +91,7 @@ use crate::part::Platform;
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct CheckMiseLock;
 
 impl Action for CheckMiseLock {

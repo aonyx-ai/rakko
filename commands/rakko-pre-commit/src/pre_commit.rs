@@ -2,9 +2,9 @@
 
 use std::fmt;
 
-use rakko::{ErasedAction, Group, Name, action_name};
+use rakko::{Documented, ErasedAction, Group, Name, action_name};
 
-/// The group of the actions that guard a commit
+/// Runs the actions that guard a commit
 ///
 /// A commit of a project has to pass a list of actions, and no action
 /// describes that list. The list repairs the tree first and then examines what
@@ -32,6 +32,7 @@ use rakko::{ErasedAction, Group, Name, action_name};
 /// let group = PreCommit::new([]);
 /// assert_eq!(group.name().get(), "pre-commit");
 /// ```
+#[derive(Documented)]
 pub struct PreCommit {
     /// The actions that guard a commit, in the order of the list that the
     /// harness gave
@@ -62,8 +63,11 @@ impl PreCommit {
     ///
     /// ```
     /// use rakko::Bundle;
+    /// # use rakko::Documented;
     /// use rakko_pre_commit::PreCommit;
     /// # use rakko::{Action, Context, Group, Name, Outcome, action_name};
+    /// # /// Formats the TOML files of a project
+    /// # #[derive(Documented)]
     /// # struct FormatToml;
     /// # impl Action for FormatToml {
     /// #     type Args = ();
@@ -72,6 +76,8 @@ impl PreCommit {
     /// #         Outcome::Passed { summary: None }
     /// #     }
     /// # }
+    /// # /// Validates the TOML files of a project
+    /// # #[derive(Documented)]
     /// # struct LintToml;
     /// # impl Action for LintToml {
     /// #     type Args = ();
@@ -128,11 +134,13 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use rakko::Documented;
     use rakko::{Action, Context, Outcome};
 
     use super::*;
 
     /// An action that passes
+    #[derive(Documented)]
     struct Probe {
         /// The name that the action reports
         name: Name,
