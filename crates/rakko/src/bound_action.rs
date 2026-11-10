@@ -112,6 +112,13 @@ pub trait BoundAction: Send + Sync + SealedBound {
     /// The run reports every result in the outcome, as [`Action::run`] does,
     /// so this method has no error type.
     ///
+    /// A tool of the action can have a build only on some platforms. When a
+    /// tool has no build on the platform of the run, the action does not
+    /// start. The run then ends as [`Outcome::Skipped`], and the reason gives
+    /// the tool and the platform, such as
+    /// `the tool github:aonyx-ai/stiles has no build for windows/x64`. The
+    /// platform of the run is the platform that the harness was compiled for.
+    ///
     /// [`Action::run`]: crate::Action::run
     fn run<'a>(
         &'a self,

@@ -12,6 +12,7 @@ use getset::Getters;
 
 pub use self::executable::Executable;
 pub use self::mise_tool::MiseTool;
+pub(crate) use self::platform::Host;
 pub use self::platform::{Architecture, OperatingSystem, Platform};
 pub use self::version::{RequiredVersion, ToolVersion, VersionRange};
 
@@ -28,10 +29,18 @@ pub use self::version::{RequiredVersion, ToolVersion, VersionRange};
 /// that the requirement accepts.
 ///
 /// A requirement of an exact version can also give the platforms where the
-/// tool has a build. Mise then installs the tool only on those platforms. A
+/// tool has a build. Mise then installs the tool only on those platforms. On
+/// every other platform, a run of the action through
+/// [`ErasedAction`][erased] or [`BoundAction`][bound] skips before it starts.
+/// The reason gives the tool and the platform. A call of
+/// [`Action::run`][run] on the type of the action does not skip. A
 /// requirement without such a list needs the tool on every platform. A
 /// toolchain gets no list, because the project pins its toolchains. So the
 /// builder does not let a requirement of a range carry platforms.
+///
+/// [bound]: crate::BoundAction
+/// [erased]: crate::ErasedAction
+/// [run]: crate::Action::run
 ///
 /// # Examples
 ///

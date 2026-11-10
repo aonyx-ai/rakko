@@ -31,6 +31,12 @@ use rakko::{Args, Context, Name};
 /// activity that runs a list of actions and takes its flags from their
 /// arguments is a [`Group`] instead. The command line runs that list.
 ///
+/// Run each action through [`ErasedAction::run`], or through the bound
+/// action that [`ErasedAction::bind`] returns. A tool of the action can have
+/// no build on the platform of the run. Then this run skips with a reason, as
+/// the run of a mounted action does. A call of [`Action::run`] on the type of
+/// the action gets no such skip, so the action stops with an error there.
+///
 /// The framework drives a command on a runtime of its own and can move the
 /// run to a different thread. The trait therefore requires [`Send`] and
 /// [`Sync`] of the command and of its arguments, and [`run`] returns a future
@@ -71,6 +77,9 @@ use rakko::{Args, Context, Name};
 /// ```
 ///
 /// [`Action`]: rakko::Action
+/// [`Action::run`]: rakko::Action::run
+/// [`ErasedAction::bind`]: rakko::ErasedAction::bind
+/// [`ErasedAction::run`]: rakko::ErasedAction::run
 /// [`Group`]: rakko::Group
 /// [`run`]: Command::run
 pub trait Command: Send + Sync {

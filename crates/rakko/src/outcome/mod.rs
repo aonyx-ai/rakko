@@ -75,11 +75,14 @@ pub enum Outcome {
         /// An action that repairs nothing leaves this list empty.
         repairs: Vec<Finding>,
     },
-    /// The action does not apply to the project
+    /// The action did not examine the project
     ///
-    /// This state holds the reason why the action does not apply.
+    /// This state holds the reason why the action did not examine the
+    /// project. One case is a tool of the action that had nothing to
+    /// examine. Another case is a tool without a build for the platform of
+    /// the run, so that the action did not start.
     Skipped {
-        /// The reason why the action does not apply
+        /// The reason why the action did not examine the project
         reason: SkipReason,
     },
     /// The action stopped before it got a result

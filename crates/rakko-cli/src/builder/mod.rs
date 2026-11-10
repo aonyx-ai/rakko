@@ -1017,6 +1017,37 @@ mod tests {
         }
     }
 
+    /// A command that runs one action through its erased view, as a command
+    /// that a harness writes runs an action, and keeps the outcome
+    struct Calling {
+        /// The action that the command runs
+        action: Box<dyn ErasedAction>,
+        /// The outcome of the run of the action, once the command ran
+        outcome: Arc<Mutex<Option<Outcome>>>,
+    }
+
+    impl WrittenCommand for Calling {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name("calling")
+        }
+
+        async fn run(
+            &self,
+            project: &Context,
+            _clawless: &ClawlessContext,
+            _args: &Self::Args,
+        ) -> CommandResult {
+            let outcome = self.action.run(project, &ArgsValues::empty()).await;
+
+            let mut kept = self.outcome.lock().expect("the test holds the lock alone");
+            *kept = Some(outcome);
+
+            Ok(())
+        }
+    }
+
     /// An action that declares an argument that the command line carries
     struct Colliding;
 
@@ -1066,6 +1097,49 @@ mod tests {
                 .shape(ArgumentShape::Text)
                 .documentation("Repair the files that match this pattern")
                 .call()])
+        }
+    }
+
+    /// An action that declares one tool and otherwise runs as the probe that
+    /// it wraps
+    struct Gated {
+        /// The probe that gives the action its name and runs it
+        probe: Probe,
+        /// The tool that the action declares
+        tool: ToolRequirement,
+    }
+
+    impl Gated {
+        /// Creates an action whose tool has a build only on the platform, and
+        /// the flag that its run sets
+        fn on(platform: Platform) -> (Self, Arc<AtomicBool>) {
+            let (probe, ran) = Probe::new("lint-stiles");
+            let gated = Self {
+                probe,
+                tool: ToolRequirement::builder()
+                    .tool("github:aonyx-ai/stiles")
+                    .executable("stiles")
+                    .exact_version_on(ToolVersion::new("0.6.0"), [platform])
+                    .build(),
+            };
+
+            (gated, ran)
+        }
+    }
+
+    impl Action for Gated {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            Action::name(&self.probe)
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            vec![self.tool.clone()]
+        }
+
+        async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
+            Action::run(&self.probe, context, args).await
         }
     }
 
@@ -1658,6 +1732,17 @@ mod tests {
         Platform::new(system)
     }
 
+    /// Returns the platform of the run of the test, as mise writes it
+    fn this_host() -> String {
+        let architecture = if cfg!(target_arch = "aarch64") {
+            "arm64"
+        } else {
+            "x64"
+        };
+
+        format!("{}/{architecture}", this_platform())
+    }
+
     /// Returns the code of a run of `doctor` with the arguments, in the
     /// project at the root, for the harness of the builder
     #[bon::builder]
@@ -2057,6 +2142,39 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_gives_a_command_the_skip_of_an_action_whose_tool_has_no_build_here() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let (gated, _ran) = Gated::on(another_platform());
+        let outcome = Arc::new(Mutex::new(None));
+        let calling = Calling {
+            action: Box::new(gated),
+            outcome: Arc::clone(&outcome),
+        };
+
+        dispatch(
+            naming(directory.path()),
+            Mounted::Command(Box::new(calling)),
+            BTreeSet::new(),
+        )
+        .expect("expected the command line to drive the command");
+
+        let kept = outcome
+            .lock()
+            .expect("the test holds the lock alone")
+            .take();
+        let Some(Outcome::Skipped { reason }) = kept else {
+            panic!("expected the action to skip, got {kept:?}");
+        };
+        assert_eq!(
+            reason.get(),
+            format!(
+                "the tool github:aonyx-ai/stiles has no build for {}",
+                this_host()
+            )
+        );
+    }
+
+    #[test]
     fn dispatch_gives_the_action_the_project_root_that_the_user_names() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let seen = Arc::new(Mutex::new(None));
@@ -2351,6 +2469,21 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_runs_an_action_whose_tool_has_a_build_here() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let (gated, ran) = Gated::on(this_platform());
+
+        let code = dispatch(
+            naming(directory.path()),
+            Mounted::Action(Box::new(gated)),
+            BTreeSet::new(),
+        )
+        .expect("expected the command line to drive the action");
+
+        assert_eq!((code, ran.load(Ordering::SeqCst)), (0, true));
+    }
+
+    #[test]
     fn dispatch_runs_an_action_whose_tool_pins_are_current() {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let (probe, ran) = Probe::new("probe");
@@ -2419,6 +2552,33 @@ mod tests {
         .expect("expected the command line to drive the command");
 
         assert!(witness.ran.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn dispatch_skips_an_action_whose_tool_has_no_build_here() {
+        let directory = Trusted::new();
+        let (gated, ran) = Gated::on(another_platform());
+        let line: Vec<OsString> = vec![
+            "rakko".into(),
+            "--project-root".into(),
+            directory.path().into(),
+            "lint-stiles".into(),
+        ];
+        let Ok(Resolution::Entry(matches, mounted, declarations)) =
+            builder().mount(gated).resolve(line)
+        else {
+            panic!("expected the command line to read the run that the test names");
+        };
+        doctor::write_pins()
+            .declarations(&declarations)
+            .root(directory.path())
+            .call()
+            .expect("the test writes the generated file");
+
+        let code = dispatch(matches, mounted, declarations)
+            .expect("expected the command line to drive the action");
+
+        assert_eq!((code, ran.load(Ordering::SeqCst)), (0, false));
     }
 
     #[test]
