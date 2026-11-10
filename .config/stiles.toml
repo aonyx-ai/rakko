@@ -5,7 +5,8 @@
 ignore = ["/tools/rakko/"]
 
 # The rules of Aonyx live in their own repository, pinned to one commit that
-# builds against the stiles that `mise.toml` pins. Both pins move together.
+# builds against the stiles that the action `lint-stiles` pins. Both pins move
+# together.
 [[lints]]
 git = "https://github.com/aonyx-ai/stiles-aonyx-rules"
 rev = "764333ada2cdbfe1391dc9a9389718ade61181f2"

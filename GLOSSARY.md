@@ -49,7 +49,8 @@ from the design discussions to the terms that replaced them.
 - **`doctor`** — The command that every harness has. The harness writes no
   code for it. It checks the precondition on the tools. The generated mise
   file `.config/mise/conf.d/rakko.toml` must match the tools that the mounted
-  actions declare. No pin of the project can override a declared tool. The
+  actions declare. The check compares the values of the file, so a formatter
+  can change its layout. No pin of the project can override a declared tool. The
   project must pin each toolchain that an action requires in its range. The
   check needs no network. `doctor --fix` writes the generated file, removes
   each pin that overrides a declared tool, and locks the tools with mise. It

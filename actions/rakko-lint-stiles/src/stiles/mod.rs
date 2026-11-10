@@ -1,6 +1,6 @@
 //! The stiles that a project runs
 //!
-//! This module holds the version that the crate accepts and the program that
+//! This module holds the version that the crate pins and the program that
 //! mise installed at that version. It also holds the two runs that the action
 //! asks of stiles. These runs are the listing of the rules the project runs and
 //! the check of the project. An action asks for a run, and everything between
@@ -9,8 +9,8 @@
 mod error;
 mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
-use rakko_tool::{Execution, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+use rakko_tool::{Execution, MiseFile, PinnedPlatforms, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveStilesError;
 use crate::observation::{Examination, Observation};
@@ -25,11 +25,22 @@ const TOOL: &str = "github:aonyx-ai/stiles";
 /// The program of the tool that a run starts
 const STILES: &str = "stiles";
 
-/// The versions of stiles that the crate accepts
+/// The mise file of the crate, which pins the stiles that the crate runs
+const PINS: MiseFile = MiseFile::new(include_str!("../../mise.rakko.toml"));
+
+/// The version of stiles that the crate runs
 ///
-/// A project loads lints that are built against one version of stiles, and
-/// another version refuses them. So the range names that version alone.
-const ACCEPTED: &str = "=0.6.0";
+/// The version comes from the mise file of the crate, which the build
+/// embeds, so a file without the pin fails the build. It is the tag of the
+/// release, such as `stiles@0.6.0`.
+const VERSION: &str = PINS.pinned_version(TOOL);
+
+/// The platforms where stiles has a build, or `None` for every platform
+///
+/// The list comes from the same pin as the version. A platform that the
+/// list leaves out gets no stiles from mise, and a run of the action skips
+/// there.
+const PLATFORMS: Option<PinnedPlatforms> = PINS.pinned_platforms(TOOL);
 
 /// The command of stiles that lists the rules of the project
 const RULES: &str = "rules";
@@ -81,11 +92,11 @@ const FAILED: i32 = 1;
 
 /// The stiles that a project runs
 ///
-/// The value holds the program that mise installed for the project, at the
-/// version that the project pinned. The crate accepts one version only. So a
-/// run reaches the same program as the editor and the terminal of a
-/// contributor. Nothing here installs a tool: provisioning is the job of mise,
-/// and a stiles that mise does not report stops the caller.
+/// The value holds the program that mise installed at the version that the
+/// crate pins. The lints that a project loads are built against one version
+/// of stiles, and another version refuses them, so the crate runs that
+/// version alone. Nothing here installs a tool: provisioning is the job of
+/// mise, and a stiles that mise does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Stiles {
     /// The program that mise installed at the declared version
@@ -184,28 +195,30 @@ impl Stiles {
 
     /// Returns the requirement of the stiles that the crate runs
     ///
-    /// The requirement accepts exactly one version. The project pins it in its
-    /// `mise.toml`. Stiles publishes no build for Windows, and only the pin of
-    /// the project can limit the platforms that install it.
+    /// The requirement holds the exact version that the crate pins, and the
+    /// platforms that the pin lists.
     pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(TOOL)
-            .executable(STILES)
-            .version(RequiredVersion::Range(VersionRange::new(ACCEPTED)))
-            .build()
+        let version = ToolVersion::new(VERSION);
+        let builder = ToolRequirement::builder().tool(TOOL).executable(STILES);
+
+        match PLATFORMS {
+            Some(platforms) => builder.exact_version_on(version, platforms).build(),
+            None => builder.version(RequiredVersion::Exact(version)).build(),
+        }
     }
 
     /// Returns the stiles that mise installed at the version of the crate
     ///
-    /// The lookup asks mise for the version that the project pins and that
-    /// [`requirement`][requirement] accepts. A run of stiles starts in the root
-    /// of the context.
+    /// The lookup asks mise for the version that
+    /// [`requirement`][requirement] holds, so a pin of stiles in the project
+    /// does not change the answer. A run of stiles starts in the root of the
+    /// context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run. It returns
-    /// the same error when the project pins no stiles at the accepted version,
-    /// or when nothing installed that version.
+    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
+    /// returns one when mise reports no stiles at that version, for example
+    /// because nothing installed it.
     ///
     /// [requirement]: Stiles::requirement
     pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
@@ -323,9 +336,10 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use std::collections::BTreeSet;
     use std::path::PathBuf;
 
-    use rakko::Position;
+    use rakko::{Architecture, OperatingSystem, Platform, Position};
 
     use super::*;
 
@@ -415,6 +429,26 @@ mod tests {
     #[test]
     fn found_nothing_of_a_run_without_a_file_is_true() {
         assert!(found_nothing(NOTHING));
+    }
+
+    #[test]
+    fn requirement_accepts_an_exact_version() {
+        let requirement = Stiles::requirement();
+
+        assert!(matches!(requirement.version(), RequiredVersion::Exact(_)));
+    }
+
+    #[test]
+    fn requirement_limits_stiles_to_linux_and_macos_on_arm() {
+        let requirement = Stiles::requirement();
+
+        assert_eq!(
+            requirement.platforms(),
+            Some(&BTreeSet::from([
+                Platform::new(OperatingSystem::Linux),
+                Platform::new(OperatingSystem::Macos).with_architecture(Architecture::Arm64),
+            ]))
+        );
     }
 
     #[test]

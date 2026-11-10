@@ -191,8 +191,14 @@ fn pin(version: &ToolVersion, platforms: Option<&BTreeSet<Platform>>) -> Value {
 ///
 /// A project whose actions declare no tool needs no file. So the check finds
 /// nothing there when the file does not exist, and it reports a file that is
-/// left over. The comparison ignores the line endings, because Git can check
-/// the file out with the line endings of Windows.
+/// left over.
+///
+/// The check compares the values that the file holds, and not its text. A
+/// formatter of the project can change the layout of the file. For example,
+/// it can put each platform of a long pin on a line of its own. Git can check
+/// the file out with the line endings of Windows. Neither change makes the
+/// file stale, so `doctor --fix` and the formatter do not undo each other. A
+/// file that is not TOML is stale.
 ///
 /// # Errors
 ///
@@ -208,7 +214,9 @@ pub(crate) fn check(
 
     let message = match (std::fs::read_to_string(&path), expected) {
         (Ok(_), None) => UNNEEDED,
-        (Ok(actual), Some(expected)) if actual.replace("\r\n", "\n") == expected => {
+        (Ok(actual), Some(expected))
+            if values(&actual).is_some_and(|actual| Some(actual) == values(&expected)) =>
+        {
             return Ok(None);
         }
         (Ok(_), Some(_)) => STALE,
@@ -220,6 +228,14 @@ pub(crate) fn check(
     };
 
     Ok(Some(finding(message)))
+}
+
+/// Returns the values of a TOML text, or `None` when the text is not TOML
+///
+/// The values leave out the layout, the comments, and the line endings of the
+/// text. So two texts that differ only in these hold the same values.
+fn values(text: &str) -> Option<serde_json::Value> {
+    toml_edit::de::from_str(text).ok()
 }
 
 /// Writes the generated file of the pins, or removes it when the project
@@ -457,6 +473,48 @@ mod tests {
         assert_eq!(problem, None);
     }
 
+    /// Shows that a formatter of the project and `doctor --fix` do not undo
+    /// each other
+    ///
+    /// The pin of stiles is longer than 80 columns. `doctor --fix` writes it on
+    /// one line, and taplo with its default settings spreads its list of
+    /// platforms over several lines. The check must accept the file that the
+    /// formatter left, or `doctor --fix` writes it again and the formatter
+    /// changes it back.
+    #[test]
+    fn check_with_a_current_file_that_a_formatter_wrapped_finds_nothing() {
+        let directory = TempDir::new().expect("the test creates a temporary directory");
+        let root = ProjectRoot::from(directory.path());
+        let pins = Pins::of(&[limited()
+            .tool("github:aonyx-ai/stiles")
+            .version("stiles@0.6.0")
+            .platforms(&[LINUX, MACOS_ARM64])
+            .call()]);
+        write()
+            .pins(&pins)
+            .root(&root)
+            .call()
+            .expect("the test project is writable");
+        let path = directory.path().join(PATH);
+        let written = std::fs::read_to_string(&path).expect("the test reads the written file");
+        let wrapped = written.replace(
+            "os = [\"linux\", \"macos/arm64\"] }",
+            "os = [\n  \"linux\",\n  \"macos/arm64\",\n] }",
+        );
+        std::fs::write(&path, &wrapped).expect("the test writes the wrapped file");
+
+        let problem = check()
+            .pins(&pins)
+            .root(&root)
+            .call()
+            .expect("the test project has a readable file");
+
+        assert!(
+            wrapped != written && problem.is_none(),
+            "expected no problem in the wrapped file, got {problem:?} for {wrapped}"
+        );
+    }
+
     #[test]
     fn check_with_a_directory_in_place_of_the_file_reports_an_error() {
         let directory = TempDir::new().expect("the test creates a temporary directory");
@@ -487,6 +545,13 @@ mod tests {
     #[test]
     fn check_with_a_file_of_other_pins_reports_it_stale() {
         let problem = problem_of(&taplo(), Some("[tools]\ntaplo = \"0.9.0\"\n"));
+
+        assert_eq!(problem.as_deref(), Some(STALE));
+    }
+
+    #[test]
+    fn check_with_a_file_that_is_no_toml_reports_it_stale() {
+        let problem = problem_of(&taplo(), Some("[tools\ntaplo = \"0.10.0\"\n"));
 
         assert_eq!(problem.as_deref(), Some(STALE));
     }

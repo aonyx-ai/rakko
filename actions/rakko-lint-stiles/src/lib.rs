@@ -5,9 +5,9 @@
 //! applies the rules the configuration turns on, so a run of the action agrees
 //! with a contributor that runs stiles bare.
 //!
-//! The action starts the stiles that [mise] installed for the project. It uses
-//! the version that the project pinned, if the action accepts that version.
-//! The action translates what stiles reported into the outcome of the run.
+//! The action declares the version of stiles that it runs. It starts that
+//! version, which [mise] installed. The action translates what stiles reported
+//! into the outcome of the run.
 //!
 //! Stiles ships no rule of its own. A project names the lints it runs in
 //! `.config/stiles.toml`, and those rules are all that a check applies.
@@ -34,24 +34,16 @@
 //!
 //! # Provisioning
 //!
-//! A project pins stiles in its `mise.toml` with the GitHub backend of mise,
-//! which downloads the archive of a release. Stiles tags each release with the
-//! name of the tool, so the pin names that prefix. Stiles publishes no build
-//! for Windows, so the pin installs it only on the platforms that have one:
+//! The action declares stiles with the GitHub backend of mise, which downloads
+//! the archive of a release. The declaration gives the tag of the release as
+//! its version, such as `stiles@0.6.0`. The rules that a project loads are
+//! built against one version of stiles, and another version refuses them. So
+//! a project builds its rules against the version that the action declares.
 //!
-//! ```toml
-//! [tools]
-//! "github:aonyx-ai/stiles" = { version = "0.6.0", version_prefix = "stiles@", os = ["linux", "macos"] }
-//! ```
-//!
-//! The action declares stiles as a requirement that accepts exactly one
-//! version. The rules that a project loads are built against one version of
-//! stiles, and another version refuses them. So the action stops when the
-//! project pins another version.
-//!
-//! The action asks mise for the program named `stiles`. So a release whose
-//! archive holds a program of another name needs the `bin` option of the
-//! backend to rename it.
+//! Stiles publishes builds only for Linux and for macOS on ARM, and the
+//! declaration lists these platforms. Mise installs stiles only there. On
+//! every other platform, such as Windows, the machinery skips a run of the
+//! action and gives the tool and the platform as its reason.
 //!
 //! # Asynchronous Runtime
 //!
