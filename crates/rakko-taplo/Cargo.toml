@@ -1,6 +1,7 @@
 [package]
 name = "rakko-taplo"
 version = "0.1.0"
+description = "Shared code for the Rakko actions that wrap taplo"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
