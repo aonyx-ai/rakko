@@ -23,7 +23,7 @@ cargo-binstall = "1.27.0"
 # - oxfmt: `^20.19.0 || >=22.12.0`
 # - the tests of `test-typescript`: `^22.18 || >=23.6`
 # - Renovate: `^24.11.0 || ^26.13.0`
-node = "26.13.0"
+node = "26.13.1"
 
 # The first toolchain is the default for builds, Clippy, and the tests. The
 # second is a nightly toolchain, which rustfmt needs for the unstable options
