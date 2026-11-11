@@ -77,6 +77,7 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use rakko::Documented;
     use rakko::{
         Access, Action, Args, ArgsSchema, Argument, ArgumentShape, ArgumentValue, Context, Outcome,
         action_name, argument_name,
@@ -127,6 +128,7 @@ mod tests {
     }
 
     /// An action that writes only when its arguments ask for a repair
+    #[derive(Documented)]
     struct Formatter;
 
     impl Action for Formatter {

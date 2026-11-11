@@ -1,5 +1,6 @@
 //! The named list of actions that the command line runs as one command
 
+use crate::documented::Documented;
 use crate::erased_action::ErasedAction;
 use crate::name::Name;
 
@@ -9,6 +10,11 @@ use crate::name::Name;
 /// actions that guard a commit. These actions are the members of the group. A
 /// group gives its name and its members, and nothing else. It has no run of
 /// its own, and it has no arguments of its own.
+///
+/// A group also describes itself in one sentence, which the help of the
+/// command line shows. The trait requires [`Documented`] for it. The derive of
+/// that trait takes the sentence from the first paragraph of the doc comment
+/// of the group. So a group must have a doc comment and derive [`Documented`].
 ///
 /// The `rakko-cli` crate builds the command line of a harness. A harness
 /// gives a group as it is to the `mount` method of the builder. The command
@@ -33,8 +39,10 @@ use crate::name::Name;
 /// harness that gives the list adds each action to it as it is:
 ///
 /// ```
-/// use rakko::{Bundle, ErasedAction, Group, Name, action_name};
+/// use rakko::{Bundle, Documented, ErasedAction, Group, Name, action_name};
 /// # use rakko::{Action, Context, Outcome};
+/// # /// Lints the YAML files of a project
+/// # #[derive(Documented)]
 /// # struct LintYaml;
 /// # impl Action for LintYaml {
 /// #     type Args = ();
@@ -44,6 +52,8 @@ use crate::name::Name;
 /// #     }
 /// # }
 ///
+/// /// Runs every check of the project
+/// #[derive(Documented)]
 /// struct CheckAll {
 ///     actions: Bundle,
 /// }
@@ -68,7 +78,7 @@ use crate::name::Name;
 /// ```
 ///
 /// [`Bundle`]: crate::Bundle
-pub trait Group: Send + Sync {
+pub trait Group: Documented + Send + Sync {
     /// Returns the name that identifies the group
     fn name(&self) -> Name;
 
@@ -94,8 +104,10 @@ mod tests {
     )]
 
     use super::*;
+    use crate::Documented;
 
     /// A group without members
+    #[derive(Documented)]
     struct Empty;
 
     impl Group for Empty {

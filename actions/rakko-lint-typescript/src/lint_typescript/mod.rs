@@ -10,8 +10,8 @@ mod error;
 use std::path::Path;
 
 use rakko::{
-    Access, Action, Context, FilePath, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    Summary, ToolRequirement, action_name,
+    Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, ProjectRoot,
+    SkipReason, Summary, ToolRequirement, action_name,
 };
 
 pub use self::error::LintTypeScriptError;
@@ -26,7 +26,7 @@ use crate::problem::{OxlintProblem, Place};
 /// files reports the same way.
 const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 
-/// The action that lints the TypeScript of a project
+/// Lints the TypeScript of a project
 ///
 /// The action wraps [oxlint]. Oxlint discovers the files of the project, reads
 /// its own configuration, and applies the rules that the project turned on.
@@ -66,7 +66,7 @@ const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [oxlint]: https://oxc.rs/docs/guide/usage/linter.html
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct LintTypeScript;
 
 impl Action for LintTypeScript {

@@ -8,8 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
-    action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
+    ToolRequirement, action_name,
 };
 use rakko_cargo::Cargo;
 use rakko_nextest::{Lockfile, Nextest};
@@ -19,7 +19,7 @@ pub use self::error::TestRustError;
 /// The reason of a run whose cargo discovered no workspace
 const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 
-/// The action that runs the tests of a project
+/// Runs the tests of a project
 ///
 /// The action wraps [nextest]. Cargo builds every target of every package
 /// with every feature. Nextest reads its own configuration and runs the
@@ -67,7 +67,7 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [nextest]: https://nexte.st
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct TestRust;
 
 impl Action for TestRust {

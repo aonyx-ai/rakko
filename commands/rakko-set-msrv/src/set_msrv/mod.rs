@@ -10,7 +10,7 @@ mod step;
 use std::fmt;
 use std::path::Path;
 
-use rakko::{Action, ArgsValues, Context, ErasedAction, Name, Outcome, action_name};
+use rakko::{Action, ArgsValues, Context, Documented, ErasedAction, Name, Outcome, action_name};
 use rakko_cli::clawless::context::Context as ClawlessContext;
 use rakko_cli::clawless::{CommandResult, ErrorContext};
 use rakko_cli::{Command, Report};
@@ -41,7 +41,7 @@ const MISE: &str = "mise";
 /// The details of a run of mise that ended without success and wrote nothing
 const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 
-/// The command that sets the minimum supported Rust version of a project
+/// Sets the minimum supported Rust version of a project
 ///
 /// Three places state the version, and all three must agree. One is the
 /// `rust-version` of the root manifest. Another is the Rust pin in
@@ -62,9 +62,12 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 ///
 /// ```
 /// use rakko::action_name;
+/// # use rakko::Documented;
 /// use rakko_cli::Command;
 /// use rakko_set_msrv::SetMsrv;
 ///
+/// # /// Checks a project against the Rust version it promises
+/// # #[derive(Documented)]
 /// # struct CheckMsrv;
 /// # impl rakko::Action for CheckMsrv {
 /// #     type Args = ();
@@ -74,6 +77,7 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 /// let command = SetMsrv::new(CheckMsrv);
 /// assert_eq!(command.name().get(), "set-msrv");
 /// ```
+#[derive(Documented)]
 pub struct SetMsrv {
     /// The action that runs the compiler on the toolchain at the new version
     check: Box<dyn ErasedAction>,
@@ -95,7 +99,9 @@ impl SetMsrv {
     ///
     /// ```
     /// use rakko_set_msrv::SetMsrv;
-    /// # use rakko::{Action, Context, Name, Outcome, action_name};
+    /// # use rakko::{Action, Context, Documented, Name, Outcome, action_name};
+    /// # /// Checks a project against the Rust version it promises
+    /// # #[derive(Documented)]
     /// # struct CheckMsrv;
     /// # impl Action for CheckMsrv {
     /// #     type Args = ();
@@ -436,6 +442,7 @@ mod tests {
     const NO_TOML: &str = "[workspace\n";
 
     /// An action that the command holds as its check
+    #[derive(Documented)]
     struct Stub;
 
     impl Action for Stub {

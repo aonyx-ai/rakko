@@ -8,7 +8,7 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
     ToolRequirement, action_name,
 };
 
@@ -24,7 +24,7 @@ use crate::zizmor::Zizmor;
 /// and the ignore rules of the version control system, can empty it too.
 const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 
-/// The action that audits the GitHub Actions workflows of a project
+/// Audits the GitHub Actions workflows of a project
 ///
 /// The action wraps [zizmor]: zizmor collects the workflows of the project,
 /// reads its own configuration, and applies the audits that it knows. So a run
@@ -68,7 +68,7 @@ const NOTHING_TO_AUDIT: &str = "zizmor found no file to audit";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [zizmor]: https://docs.zizmor.sh
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct LintGitHubActions;
 
 impl Action for LintGitHubActions {

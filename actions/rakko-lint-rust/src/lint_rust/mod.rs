@@ -8,8 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
-    action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
+    ToolRequirement, action_name,
 };
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot};
@@ -38,7 +38,7 @@ const CLIPPY: [&str; 5] = [
     "--message-format=json",
 ];
 
-/// The action that lints the Rust code of a project
+/// Lints the Rust code of a project
 ///
 /// The action wraps [clippy]. Cargo reads the manifests of the project, selects
 /// the lints that the project configured, and examines every target with every
@@ -85,7 +85,7 @@ const CLIPPY: [&str; 5] = [
 ///
 /// [clippy]: https://doc.rust-lang.org/clippy/
 /// [mise]: https://mise.jdx.dev
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct LintRust;
 
 impl Action for LintRust {

@@ -37,9 +37,11 @@ use crate::erased_command::ErasedCommand;
 /// and the bound infers the kind:
 ///
 /// ```
-/// use rakko::{Action, Context, Name, Outcome, action_name};
+/// use rakko::{Action, Context, Documented, Name, Outcome, action_name};
 /// use rakko_cli::Mount;
 ///
+/// /// Counts the lines of the project
+/// #[derive(Documented)]
 /// struct LineCount;
 ///
 /// impl Action for LineCount {

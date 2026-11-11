@@ -10,8 +10,8 @@ mod error;
 use std::collections::HashSet;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
-    action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
+    ToolRequirement, action_name,
 };
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoPackage, CargoReport, CargoRoot, DocumentedNames};
@@ -53,7 +53,7 @@ const EXCLUDE: &str = "--exclude";
 /// The flag that selects one package of the workspace
 const PACKAGE: &str = "--package";
 
-/// The action that builds the internal documentation of a project
+/// Builds the internal documentation of a project
 ///
 /// The action wraps [rustdoc]. Cargo reads the manifests of the project and
 /// renders the documentation of every package. This includes the private items
@@ -109,7 +109,7 @@ const PACKAGE: &str = "--package";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [rustdoc]: https://doc.rust-lang.org/rustdoc/
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct BuildInternalDocs;
 
 impl Action for BuildInternalDocs {

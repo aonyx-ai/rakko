@@ -11,8 +11,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, DirectoryPath, Finding, Location, Name, Outcome, ProjectRoot,
-    SkipReason, Summary, ToolRequirement, action_name,
+    Access, Action, Context, DirectoryPath, Documented, Finding, Location, Name, Outcome,
+    ProjectRoot, SkipReason, Summary, ToolRequirement, action_name,
 };
 use rakko_cargo::{Cargo, CargoRoot};
 
@@ -35,7 +35,7 @@ const WARNING: &str = "warning";
 /// The word that a summary counts several warnings with
 const WARNINGS: &str = "warnings";
 
-/// The action that examines the dependencies of a project
+/// Examines the dependencies of a project
 ///
 /// The action wraps [cargo-deny], which reads the manifests and the lock file
 /// of a workspace and its own configuration. It answers whether every package
@@ -91,7 +91,7 @@ const WARNINGS: &str = "warnings";
 ///
 /// [cargo-deny]: https://embarkstudios.github.io/cargo-deny/
 /// [mise]: https://mise.jdx.dev
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct CheckDependencies;
 
 impl Action for CheckDependencies {

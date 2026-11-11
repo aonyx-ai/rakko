@@ -12,8 +12,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, ProjectRoot, SkipReason, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
+    Summary, ToolRequirement, action_name,
 };
 use rakko_cargo::{Cargo, CargoRoot, Toolchain};
 use rakko_nextest::{Lockfile, Nextest};
@@ -42,8 +42,7 @@ const NOT_UPDATED: &str = "failed to update the dependencies to their lowest ver
 /// The details of an update that ended without success and wrote nothing
 const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 
-/// The action that checks a project against the lowest versions of its
-/// dependencies
+/// Checks a project against the lowest versions of its dependencies
 ///
 /// A manifest states a floor for each dependency, and whoever reads the floor
 /// reads a promise: that version of the dependency works. Nothing else in the
@@ -96,7 +95,7 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [nextest]: https://nexte.st
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct CheckMinimalDeps;
 
 impl Action for CheckMinimalDeps {

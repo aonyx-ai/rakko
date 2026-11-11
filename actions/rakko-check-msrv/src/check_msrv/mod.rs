@@ -8,8 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, SkipReason, Summary, ToolRequirement,
-    action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
+    ToolRequirement, action_name,
 };
 use rakko_cargo::lockfile::{self, LOCKED};
 use rakko_cargo::{Cargo, CargoReport, CargoRoot, RustVersion, Toolchain};
@@ -42,7 +42,7 @@ const CHECK: [&str; 5] = [
     "--message-format=json",
 ];
 
-/// The action that checks a project against the Rust version it promises
+/// Checks a project against the Rust version it promises
 ///
 /// A package writes the oldest toolchain that it compiles on as the
 /// `rust-version` of its manifest. Whoever depends on the package reads
@@ -91,7 +91,7 @@ const CHECK: [&str; 5] = [
 /// ```
 ///
 /// [mise]: https://mise.jdx.dev
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct CheckMsrv;
 
 impl Action for CheckMsrv {

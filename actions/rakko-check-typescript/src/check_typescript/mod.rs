@@ -8,8 +8,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    SkipReason, ToolRequirement, action_name,
 };
 
 pub use self::error::CheckTypeScriptError;
@@ -37,7 +37,7 @@ const UNCONFIGURED: [&str; 2] = ["TS5057", "TS5081"];
 /// there is none there.
 const UNINHABITED: &str = "TS18003";
 
-/// The action that type checks the TypeScript of a project
+/// Type checks the TypeScript of a project
 ///
 /// The action wraps [tsc]. Tsc reads the `tsconfig.json` of the project,
 /// collects the files that the configuration selects, and reports every rule
@@ -76,7 +76,7 @@ const UNINHABITED: &str = "TS18003";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [tsc]: https://www.typescriptlang.org/docs/handbook/compiler-options.html
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct CheckTypeScript;
 
 impl Action for CheckTypeScript {

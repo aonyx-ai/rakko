@@ -9,8 +9,8 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, Position, ProjectRoot, SkipReason,
-    Summary, ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    SkipReason, Summary, ToolRequirement, action_name,
 };
 
 pub use self::error::LintYamlError;
@@ -25,7 +25,7 @@ use crate::yamllint::Yamllint;
 /// one of them reports the same way.
 const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 
-/// The action that lints the YAML files of a project
+/// Lints the YAML files of a project
 ///
 /// The action wraps [yamllint]: yamllint discovers the YAML files of the
 /// project and reads its own configuration. It applies the rules that the
@@ -63,7 +63,7 @@ const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [yamllint]: https://github.com/adrienverge/yamllint
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct LintYaml;
 
 impl Action for LintYaml {

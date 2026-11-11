@@ -607,6 +607,7 @@ dependencies = [
  "bon",
  "dunce",
  "getset",
+ "rakko-macros",
  "thiserror",
  "typed-fields",
 ]
@@ -931,6 +932,15 @@ dependencies = [
  "rakko-tool",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "rakko-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use rakko::{ErasedAction, Group, Name};
+use rakko::{Description, ErasedAction, Group, Name};
 
 use crate::builder::members::MergedArgument;
 use crate::erased_command::ErasedCommand;
@@ -40,6 +40,17 @@ impl Mounted {
             Self::Action(action) => action.name(),
             Self::Command(command) => command.name(),
             Self::Group { group, .. } => group.name(),
+        }
+    }
+
+    /// Returns the sentence that describes the entry
+    ///
+    /// Each of the three takes the sentence from the doc comment of its type.
+    pub(crate) fn description(&self) -> Description {
+        match self {
+            Self::Action(action) => action.description(),
+            Self::Command(command) => command.description(),
+            Self::Group { group, .. } => group.description(),
         }
     }
 }

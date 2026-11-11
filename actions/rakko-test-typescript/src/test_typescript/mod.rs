@@ -8,7 +8,7 @@
 mod error;
 
 use rakko::{
-    Access, Action, Context, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
+    Access, Action, Context, Documented, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
     ToolRequirement, action_name,
 };
 
@@ -19,7 +19,7 @@ use crate::node::report::Report;
 /// The reason of a run whose node found no test
 const NO_TEST: &str = "node found no test in the project";
 
-/// The action that runs the tests of a Node project
+/// Runs the tests of a Node project
 ///
 /// The action wraps the [test runner] that Node carries. Node walks the
 /// project for its test files and runs each of them. Node reports what every
@@ -57,7 +57,7 @@ const NO_TEST: &str = "node found no test in the project";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [test runner]: https://nodejs.org/api/test.html
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct TestTypeScript;
 
 impl Action for TestTypeScript {

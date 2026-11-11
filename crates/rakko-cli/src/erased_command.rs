@@ -5,7 +5,7 @@ use std::pin::Pin;
 
 use clawless::CommandResult;
 use clawless::context::Context as ClawlessContext;
-use rakko::{Args, ArgsSchema, ArgsValues, Context, Name};
+use rakko::{Args, ArgsSchema, ArgsValues, Context, Description, Documented, Name};
 
 use crate::command::Command;
 use crate::seal::Sealed;
@@ -19,10 +19,11 @@ use crate::seal::Sealed;
 /// erased actions.
 ///
 /// An erased command answers everything that the projection needs without
-/// naming the type of the command. It gives the name that identifies it, the
-/// description of the arguments that become flags, and a run that takes the
-/// values of those flags. The conversion from those values into the arguments
-/// of the command happens inside, where the type is still known.
+/// naming the type of the command. It gives the name that identifies it and
+/// the sentence that describes it. It also gives the schema of the
+/// arguments that become flags, and a run that takes the values of those
+/// flags. The conversion from those values into the arguments of the command
+/// happens inside, where the type is still known.
 ///
 /// Every command has an erased view, because this trait is implemented for
 /// all of them. A harness never writes this implementation, and it never
@@ -36,11 +37,13 @@ use crate::seal::Sealed;
 /// # Examples
 ///
 /// ```
-/// use rakko::{Context, Name, action_name};
+/// use rakko::{Context, Documented, Name, action_name};
 /// use rakko_cli::clawless::CommandResult;
 /// use rakko_cli::clawless::context::Context as ClawlessContext;
 /// use rakko_cli::{Command, ErasedCommand};
 ///
+/// /// Serves the files of the project
+/// #[derive(Documented)]
 /// struct Serve;
 ///
 /// impl Command for Serve {
@@ -101,9 +104,16 @@ pub trait ErasedCommand: Send + Sync + Sealed {
     /// Returns the name that identifies the command
     fn name(&self) -> Name;
 
-    /// Returns the description of the arguments that the command reads
+    /// Returns the sentence that describes the command
     ///
-    /// The projection reads the description to build the flags of the command
+    /// The answer is the one that [`Documented::description`] gives, which
+    /// is the first paragraph of the doc comment of the command. The
+    /// projection shows it in the help of the command line.
+    fn description(&self) -> Description;
+
+    /// Returns the schema of the arguments that the command reads
+    ///
+    /// The projection reads the schema to build the flags of the command
     /// before a run exists.
     fn arguments(&self) -> ArgsSchema;
 
@@ -126,6 +136,10 @@ impl<C: Command> Sealed for C {}
 impl<C: Command> ErasedCommand for C {
     fn name(&self) -> Name {
         Command::name(self)
+    }
+
+    fn description(&self) -> Description {
+        Documented::description(self)
     }
 
     fn arguments(&self) -> ArgsSchema {
@@ -164,6 +178,7 @@ mod tests {
     use super::*;
 
     /// A command that reads no arguments and succeeds
+    #[derive(Documented)]
     struct Probe;
 
     impl Command for Probe {
@@ -184,6 +199,7 @@ mod tests {
     }
 
     /// A command whose arguments no value can build
+    #[derive(Documented)]
     struct Demanding;
 
     impl Command for Demanding {
@@ -266,7 +282,7 @@ mod tests {
     }
 
     #[test]
-    fn arguments_returns_the_description_of_the_command() {
+    fn arguments_returns_the_schema_of_the_command() {
         let command: &dyn ErasedCommand = &Demanding;
 
         let schema = command.arguments();
@@ -284,6 +300,18 @@ mod tests {
             .collect();
 
         assert_eq!(names, ["probe", "demanding"]);
+    }
+
+    #[test]
+    fn description_returns_the_description_of_the_command() {
+        let command: &dyn ErasedCommand = &Demanding;
+
+        let description = command.description();
+
+        assert_eq!(
+            description.get(),
+            "A command whose arguments no value can build"
+        );
     }
 
     #[test]

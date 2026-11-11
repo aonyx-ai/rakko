@@ -15,8 +15,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use rakko::{
-    Access, Action, Context, Finding, Location, Name, Outcome, Position, SkipReason, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, SkipReason,
+    Summary, ToolRequirement, action_name,
 };
 use rakko_cargo::{Cargo, CargoRoot, Toolchain};
 
@@ -45,7 +45,7 @@ const UNFORMATTED_FINDING: &str = "the file is not properly formatted";
 /// The message of a repair of a file that was not formatted
 const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 
-/// The action that formats the Rust code of a project
+/// Checks the format of the Rust code of a project, or repairs it
 ///
 /// The action wraps [rustfmt]: cargo reads the manifests of the project, and
 /// rustfmt reads its own configuration and formats every target. So a run
@@ -87,7 +87,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 ///
 /// [mise]: https://mise.jdx.dev
 /// [rustfmt]: https://github.com/rust-lang/rustfmt
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Documented)]
 pub struct FormatRust;
 
 impl Action for FormatRust {

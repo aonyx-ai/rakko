@@ -73,9 +73,11 @@ enum Entry {
 /// ```
 /// # use std::pin::pin;
 /// # use std::task::{Context as TaskContext, Poll, Waker};
-/// use rakko::{Access, Action, Context, Name, Outcome, action_name};
+/// use rakko::{Access, Action, Context, Documented, Name, Outcome, action_name};
 /// use rakko_test_utils::run_checking_access;
 ///
+/// /// Counts the lines of the project
+/// #[derive(Documented)]
 /// struct LineCount;
 ///
 /// impl Action for LineCount {
@@ -232,6 +234,7 @@ mod tests {
     use std::pin::pin;
     use std::task::{Context as TaskContext, Poll, Waker};
 
+    use rakko::Documented;
     use rakko::{Name, action_name};
     use tempfile::TempDir;
 
@@ -239,6 +242,7 @@ mod tests {
 
     /// An action that declares an access and changes the project as a test
     /// asks
+    #[derive(Documented)]
     struct Scribe {
         /// What the action declares
         access: Access,
