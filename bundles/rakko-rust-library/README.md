@@ -58,5 +58,18 @@ The other two need nothing beyond the core: `check-minimal-deps` resolves on
 the nightly `rust` and runs the tests with `cargo:cargo-nextest`, and
 `test-rust-docs` builds the examples with cargo.
 
+## Documentation
+
+The [documentation of the `bundle` function][docs] on docs.rs describes the list
+of actions that the function returns.
+
+## Support
+
+This bundle was built specifically for Aonyx's workflows. It might not fit
+your needs, in which case we strongly encourage you to create your own action.
+See the [guide] for instructions.
+
 [cargo]: https://doc.rust-lang.org/cargo/
+[docs]: https://docs.rs/rakko-rust-library/latest/rakko_rust_library/fn.bundle.html
+[guide]: https://github.com/aonyx-ai/rakko#support
 [mise]: https://mise.jdx.dev

@@ -1,6 +1,8 @@
 [package]
 name = "rakko-check-mise-lock"
 version = "0.1.0"
+description = "A Rakko action that checks whether the lockfile of mise is complete"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

@@ -1,6 +1,7 @@
 [package]
 name = "rakko-baseline"
 version = "0.1.0"
+description = "The Rakko bundle that any project mounts, for the files that every project holds"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

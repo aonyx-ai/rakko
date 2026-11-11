@@ -1,6 +1,8 @@
 [package]
 name = "rakko-check-minimal-deps"
 version = "0.1.0"
+description = "A Rakko action that tests a Rust project against the lowest versions of its dependencies"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

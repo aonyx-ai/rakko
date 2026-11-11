@@ -76,3 +76,17 @@ The run refuses a project in which no Rust pin names the current
 `rust-version`, and it changes nothing then. Such a project has not adopted
 check-msrv yet, and the command does not add a pin, because a pin in the
 wrong position changes the default toolchain.
+
+## Documentation
+
+The [documentation of `SetMsrv`][docs] on docs.rs describes what a run of the
+command changes, and how it checks the new version.
+
+## Support
+
+This command was built specifically for Aonyx's workflows. It might not fit
+your needs, in which case we strongly encourage you to create your own action.
+See the [guide] for instructions.
+
+[docs]: https://docs.rs/rakko-set-msrv/latest/rakko_set_msrv/struct.SetMsrv.html
+[guide]: https://github.com/aonyx-ai/rakko#support

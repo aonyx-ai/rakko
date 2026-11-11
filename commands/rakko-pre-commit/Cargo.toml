@@ -1,6 +1,7 @@
 [package]
 name = "rakko-pre-commit"
 version = "0.1.0"
+description = "A Rakko command that runs the actions that guard a commit"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

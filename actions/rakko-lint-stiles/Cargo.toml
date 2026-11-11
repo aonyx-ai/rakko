@@ -1,6 +1,8 @@
 [package]
 name = "rakko-lint-stiles"
 version = "0.1.0"
+description = "A Rakko action that applies the stiles rules of a project"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

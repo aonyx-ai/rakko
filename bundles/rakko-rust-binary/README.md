@@ -41,3 +41,17 @@ The bundle exports the seven actions of `rakko-rust` and no other.
 
 The bundle asks for no tool beyond the ones that `rakko-rust` names, because
 it exports the actions of the core and nothing else.
+
+## Documentation
+
+The [documentation of the `bundle` function][docs] on docs.rs describes the list
+of actions that the function returns.
+
+## Support
+
+This bundle was built specifically for Aonyx's workflows. It might not fit
+your needs, in which case we strongly encourage you to create your own action.
+See the [guide] for instructions.
+
+[docs]: https://docs.rs/rakko-rust-binary/latest/rakko_rust_binary/fn.bundle.html
+[guide]: https://github.com/aonyx-ai/rakko#support

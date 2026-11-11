@@ -1,6 +1,8 @@
 [package]
 name = "rakko-lint-typescript"
 version = "0.1.0"
+description = "A Rakko action that lints the TypeScript of a project with oxlint"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

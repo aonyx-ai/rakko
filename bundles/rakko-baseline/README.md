@@ -141,6 +141,19 @@ editor of a contributor and with a run of the tool alone on what the
 configuration asks. An action can ask its tool for more than a bare run does,
 though, and the documentation of each action says what it asks.
 
+## Documentation
+
+The [documentation of the `bundle` function][docs] on docs.rs describes the list
+of actions that the function returns.
+
+## Support
+
+This bundle was built specifically for Aonyx's workflows. It might not fit
+your needs, in which case we strongly encourage you to create your own action.
+See the [guide] for instructions.
+
+[docs]: https://docs.rs/rakko-baseline/latest/rakko_baseline/fn.bundle.html
+[guide]: https://github.com/aonyx-ai/rakko#support
 [markdownlint]: https://github.com/DavidAnson/markdownlint
 [mise]: https://mise.jdx.dev
 [prettier]: https://prettier.io

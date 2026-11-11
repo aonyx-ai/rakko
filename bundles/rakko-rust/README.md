@@ -85,9 +85,22 @@ run stops, and its error gives the tool and the version:
 Each tool reads its own configuration, so a run of an action agrees with the
 editor of a contributor and with a run of the tool alone.
 
+## Documentation
+
+The [documentation of the `bundle` function][docs] on docs.rs describes the list
+of actions that the function returns.
+
+## Support
+
+This bundle was built specifically for Aonyx's workflows. It might not fit
+your needs, in which case we strongly encourage you to create your own action.
+See the [guide] for instructions.
+
 [cargo-deny]: https://embarkstudios.github.io/cargo-deny/
 [cargo-udeps]: https://github.com/est31/cargo-udeps
 [clippy]: https://doc.rust-lang.org/clippy/
+[docs]: https://docs.rs/rakko-rust/latest/rakko_rust/fn.bundle.html
+[guide]: https://github.com/aonyx-ai/rakko#support
 [mise]: https://mise.jdx.dev
 [nextest]: https://nexte.st
 [rustdoc]: https://doc.rust-lang.org/rustdoc/

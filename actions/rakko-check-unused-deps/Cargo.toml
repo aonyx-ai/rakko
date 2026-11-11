@@ -1,6 +1,8 @@
 [package]
 name = "rakko-check-unused-deps"
 version = "0.1.0"
+description = "A Rakko action that finds the unused dependencies of a Rust project with cargo-udeps"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

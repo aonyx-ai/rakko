@@ -129,4 +129,17 @@ repos:
 Git runs the hook outside the environment of mise, so the hook starts mise,
 and mise runs the harness.
 
+## Documentation
+
+The [documentation of `PreCommit`][docs] on docs.rs describes the command and
+how a harness gives it its list.
+
+## Support
+
+This command was built specifically for Aonyx's workflows. It might not fit
+your needs, in which case we strongly encourage you to create your own action.
+See the [guide] for instructions.
+
+[docs]: https://docs.rs/rakko-pre-commit/latest/rakko_pre_commit/struct.PreCommit.html
+[guide]: https://github.com/aonyx-ai/rakko#support
 [pre-commit]: https://pre-commit.com
