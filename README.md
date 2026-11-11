@@ -42,6 +42,28 @@ rakko pre-commit
 This repository is the first adopter: the package in `tools/rakko` mounts the
 actions that maintain Rakko itself.
 
+## Support
+
+Rakko is built so that anyone can write actions for their own workflows.
+Aonyx uses Rakko internally, and we maintain and support the crates that you
+build on:
+
+- `rakko`, which holds the contract for actions and groups
+- `rakko-cli`, which turns your harness into a command line
+- `rakko-tool`, which finds a tool through mise and runs it
+- `rakko-test-utils`, which helps you test your action
+
+The [guide] shows how to build your first action. When you publish it, give its
+repository the GitHub topic `rakko-action` and its crate the crates.io keyword
+`rakko-action`, so that others can find it. A new action lives in a crate of
+its own, with the people who use it. So this repository does not take new
+actions from other authors.
+
+The actions, bundles, and commands in this repository are purpose-built for
+the workflows of Aonyx. You are welcome to use them, and we keep them focused
+on how Aonyx works. If one does not fit your needs, we encourage you to create
+your own. When we stop using an action, we say so in its README.
+
 ## Development
 
 [Mise] provisions every tool that this repository needs. `mise.toml` pins the
@@ -83,12 +105,16 @@ at your option.
 
 ## Contribution
 
+We welcome fixes to the crates in this repository. We take a fix to an action,
+a bundle, or a command when the fix fits the workflows of Aonyx.
+
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
 
 [clawless]: https://github.com/aonyx-ai/clawless
 [glossary.md]: ./GLOSSARY.md
+[guide]: https://docs.rs/rakko
 [mise]: https://mise.jdx.dev
 [mise-activate]: https://mise.jdx.dev/getting-started.html#activate-mise
 [vision.md]: ./VISION.md
