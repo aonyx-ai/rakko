@@ -1,6 +1,7 @@
 [package]
 name = "rakko-rust"
 version = "0.1.0"
+description = "The core Rakko bundle for Rust, which the library and binary bundles contain"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

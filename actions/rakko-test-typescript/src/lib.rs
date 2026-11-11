@@ -1,48 +1,4 @@
-//! The action that runs the tests of a Node project
-//!
-//! The [test runner] that Node carries does the work. It walks the project for
-//! the files that hold tests. It runs each of them in a process of its own and
-//! reports what every test did. Node is a toolchain of the project, so the
-//! action declares the range of versions that it accepts. It starts the node
-//! that [mise] installed for the project, at the version that the project
-//! pinned. It translates what the runner reported into the outcome of the run.
-//!
-//! The runner needs nothing from a project. A test file imports `node:test`,
-//! and the project adds no dependency, no configuration file, and no script.
-//! That is what makes this worth mounting for a project that would otherwise
-//! run no tests at all. Node also strips the types of a TypeScript file on the
-//! way in. So a project that writes its tests in TypeScript needs no build
-//! before the run.
-//!
-//! Node decides which files hold tests, with the patterns that it carries. So
-//! a run of the action covers the tests of a bare run and no others. A run
-//! only reports, so the action takes no argument.
-//!
-//! The report is the answer, and the status of the process decides only
-//! whether a run without a failure is trusted. The runner reports every test
-//! that failed. So a run that reported none and ended without success stopped
-//! for a reason of its own. It stops the action instead of passing.
-//!
-//! # Asynchronous Runtime
-//!
-//! A run starts a program and waits for it. A [Tokio] runtime drives that, and
-//! it panics without one.
-//!
-//! # Examples
-//!
-//! A harness adds the action as it is to a list, beside the other actions of
-//! the project:
-//!
-//! ```
-//! use rakko::Bundle;
-//! use rakko_test_typescript::TestTypeScript;
-//!
-//! let actions = Bundle::default().with(TestTypeScript);
-//! ```
-//!
-//! [mise]: https://mise.jdx.dev
-//! [test runner]: https://nodejs.org/api/test.html
-//! [tokio]: https://tokio.rs
+#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
 mod failure;
 mod node;

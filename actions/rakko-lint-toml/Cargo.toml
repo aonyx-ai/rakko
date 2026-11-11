@@ -1,6 +1,8 @@
 [package]
 name = "rakko-lint-toml"
 version = "0.1.0"
+description = "A Rakko action that validates the TOML files of a project with taplo"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

@@ -122,6 +122,19 @@ a CI workflow that starts from a clean checkout, and to every step that removes
 `node_modules`. Without the packages, tsc reports every import of a package as
 an error, and a test that imports a package fails.
 
+## Documentation
+
+The [documentation of the `bundle` function][docs] on docs.rs describes the list
+of actions that the function returns.
+
+## Support
+
+This bundle was built specifically for Aonyx's workflows. It might not fit
+your needs, in which case we strongly encourage you to create your own action.
+See the [guide] for instructions.
+
+[docs]: https://docs.rs/rakko-typescript/latest/rakko_typescript/fn.bundle.html
+[guide]: https://github.com/aonyx-ai/rakko#support
 [mise]: https://mise.jdx.dev
 [node-typescript]: https://nodejs.org/api/typescript.html
 [oxfmt]: https://oxc.rs/docs/guide/usage/formatter.html

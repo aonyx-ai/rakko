@@ -1,6 +1,7 @@
 [package]
 name = "rakko-set-msrv"
 version = "0.1.0"
+description = "A Rakko command that sets the minimum supported Rust version of a project"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

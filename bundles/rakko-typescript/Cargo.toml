@@ -1,6 +1,7 @@
 [package]
 name = "rakko-typescript"
 version = "0.1.0"
+description = "The Rakko bundle that any TypeScript project mounts"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

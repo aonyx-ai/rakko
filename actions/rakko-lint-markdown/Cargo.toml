@@ -1,6 +1,8 @@
 [package]
 name = "rakko-lint-markdown"
 version = "0.1.0"
+description = "A Rakko action that lints the Markdown files of a project with markdownlint"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

@@ -1,4 +1,4 @@
-//! The action that formats the TypeScript of a project
+#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
 mod format_typescript;
 mod observation;

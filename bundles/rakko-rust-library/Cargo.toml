@@ -1,6 +1,7 @@
 [package]
 name = "rakko-rust-library"
 version = "0.1.0"
+description = "The Rakko bundle that a Rust project mounts when it publishes a library"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

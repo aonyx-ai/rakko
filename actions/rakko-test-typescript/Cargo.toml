@@ -1,6 +1,8 @@
 [package]
 name = "rakko-test-typescript"
 version = "0.1.0"
+description = "A Rakko action that runs the tests of a Node project with the test runner of Node"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

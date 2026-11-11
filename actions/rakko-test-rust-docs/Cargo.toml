@@ -1,6 +1,8 @@
 [package]
 name = "rakko-test-rust-docs"
 version = "0.1.0"
+description = "A Rakko action that runs the examples in the documentation of a Rust project"
+keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
