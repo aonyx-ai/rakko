@@ -1,6 +1,7 @@
 [package]
 name = "rakko-test-utils"
 version = "0.1.0"
+description = "Helpers for the tests of a Rakko action"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

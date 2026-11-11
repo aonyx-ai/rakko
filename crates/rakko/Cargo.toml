@@ -1,6 +1,7 @@
 [package]
 name = "rakko"
 version = "0.1.0"
+description = "The contract that every Rakko action and group implements"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

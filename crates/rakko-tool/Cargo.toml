@@ -1,6 +1,7 @@
 [package]
 name = "rakko-tool"
 version = "0.1.0"
+description = "Finds the external tool of a Rakko action through mise and runs it"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

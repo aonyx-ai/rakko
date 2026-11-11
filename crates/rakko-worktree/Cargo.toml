@@ -1,6 +1,7 @@
 [package]
 name = "rakko-worktree"
 version = "0.1.0"
+description = "A disposable Git worktree, so that a Rakko action can write files without a change to the checkout"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

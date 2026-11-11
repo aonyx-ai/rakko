@@ -1,6 +1,7 @@
 [package]
 name = "rakko-nextest"
 version = "0.1.0"
+description = "Shared code for the Rakko actions that run nextest"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

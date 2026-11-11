@@ -1,6 +1,7 @@
 [package]
 name = "rakko-macros"
 version = "0.1.0"
+description = "The derive macros of the Rakko contract, which the rakko crate exports again"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
