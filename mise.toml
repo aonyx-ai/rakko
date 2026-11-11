@@ -63,6 +63,22 @@ jq = "1.8.2"
 # file to no Windows download, so the pin names the backend that installs
 # from the package index instead and works on every platform.
 "pipx:pre-commit" = "4.7.0"
+# Mise installs pre-commit above and the yamllint of `lint-yaml` from the
+# package index of Python, with uv. No action runs uv or Python itself. For
+# each of the two tools, mise writes a uv lock file that records the version
+# of every package that the tool depends on. Mise calls this record a
+# dependency graph. It keeps the graph in `.mise/locks/` beside `mise.lock`,
+# or in `.config/mise/locks/`, and the lockfile refers to it. `mise install
+# --locked` refuses such a tool without its graph. Not every machine has a uv
+# that works, so the first pin supplies one.
+#
+# An install from a graph uses only prebuilt packages, which Python calls
+# wheels. The graph of pre-commit needs Python 3.11 or later. pyyaml 6.0.3
+# has no wheel for Python 3.15 or later. The Python of a machine can be
+# newer, such as the Python 3.15 of the macOS runner of CI. So the second pin
+# supplies a Python that both tools can use.
+uv = "0.13.7"
+python = "3.14.8"
 # TypeScript is a toolchain of this repository, like node. `check-typescript`
 # reads this pin, and it accepts TypeScript 5 and later.
 "npm:typescript" = "7.0.2"
