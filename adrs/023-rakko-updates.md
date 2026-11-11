@@ -66,8 +66,8 @@ decides whether a person approves the repair.
    is an addition to Rakko, not a part of it. A project without the action
    repairs each update by hand, as the precondition says.
 
-3. **The credential decides who approves.** The only input of the action is
-   the credential, and the token of the workflow is its default. With that
+3. **The credential decides who approves.** The credential is an input of
+   the action, and the token of the workflow is its default. With that
    token, the repair needs no setup, but GitHub holds CI on the commit until
    a person with write access approves the run with one click. A credential
    from outside the workflow, such as the token of a GitHub App or a
@@ -190,7 +190,7 @@ week, and people learn to approve what they do not read.
   boundary. A ruleset that requires a pull request for the default branch
   keeps the credential away from that branch.
 - The rules of the preset of Rakko become public, and they freeze with the
-  launch. The action follows versions of its own, so a change to its input
+  launch. The action follows versions of its own, so a change to its inputs
   does not wait for a release of Rakko.
 - Aonyx maintains one more repository, with its own CI and releases. A new
   name for Rakko also reaches that repository.
