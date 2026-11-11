@@ -67,6 +67,12 @@ impl Project {
     /// the file is trusted right away. The project also states the rules that
     /// yamllint applies, so that no configuration of the machine reaches the
     /// run.
+    ///
+    /// Mise installs the declared yamllint from the dependency graph that the
+    /// generated lockfile of this repository records. It finds that install
+    /// only through a lockfile that refers to the graph. So the project
+    /// copies that lockfile and the directory of its graphs, as the root of a
+    /// real project holds them.
     fn new() -> Self {
         let directory = tempfile::tempdir().expect("the test creates a temporary directory");
         let project = Self { directory };
@@ -75,6 +81,17 @@ impl Project {
         std::fs::write(&pins, "[tools]\nyamllint = \"0.0.1\"\n")
             .expect("the test writes the mise.toml of the project");
         trust(&pins);
+
+        let generated = repository().join(".config/mise");
+        std::fs::copy(
+            generated.join("mise.lock"),
+            project.directory.path().join("mise.lock"),
+        )
+        .expect("the test copies the generated lockfile of the repository");
+        copy_tree(
+            &generated.join("locks"),
+            &project.directory.path().join("locks"),
+        );
 
         project
             .write()
@@ -120,6 +137,23 @@ impl Project {
     }
 }
 
+/// Copies a directory and everything below it
+fn copy_tree(source: &Path, target: &Path) {
+    std::fs::create_dir_all(target).expect("the test creates a directory of the project");
+
+    for entry in std::fs::read_dir(source).expect("the test reads a directory of the repository") {
+        let entry = entry.expect("the test reads an entry of a directory of the repository");
+        let destination = target.join(entry.file_name());
+
+        if entry.path().is_dir() {
+            copy_tree(&entry.path(), &destination);
+        } else {
+            std::fs::copy(entry.path(), &destination)
+                .expect("the test copies a file of the repository");
+        }
+    }
+}
+
 /// Returns the paths that the findings of an outcome name
 fn locations(findings: &[Finding]) -> Vec<String> {
     findings
@@ -130,6 +164,16 @@ fn locations(findings: &[Finding]) -> Vec<String> {
             other => panic!("expected a finding with a path, got {other:?}"),
         })
         .collect()
+}
+
+/// Returns the root of this repository
+fn repository() -> &'static Path {
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    manifest
+        .parent()
+        .and_then(Path::parent)
+        .expect("the crate lives two directories below the root of the repository")
 }
 
 /// Trusts a mise configuration, so that mise reads it
