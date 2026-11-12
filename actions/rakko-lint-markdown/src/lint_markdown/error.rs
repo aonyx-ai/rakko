@@ -1,5 +1,6 @@
 //! The error that stops a run of the action
 
+use std::io::Error as IoError;
 use std::path::PathBuf;
 
 use rakko_tool::{ResolveRequirementError, RunCommandError};
@@ -53,6 +54,27 @@ pub enum LintMarkdownError {
         source: RunCommandError,
     },
 
+    /// Markdownlint cannot parse the configuration of the project
+    ///
+    /// Markdownlint treats a configuration file that it cannot parse as a file
+    /// that is not there. It then runs on another configuration file or on its
+    /// defaults, and it says nothing. Such a run does what the project asked
+    /// it not to do. So the action stops instead of reporting what the
+    /// run found.
+    #[error("markdownlint cannot parse the configuration that starts in {}: {details}", path.display())]
+    RejectedConfiguration {
+        /// The first configuration file of markdownlint that exists in the
+        /// project root, relative to that root
+        ///
+        /// The configuration starts in this file. The file that markdownlint
+        /// cannot parse can also be a file that this file extends.
+        path: PathBuf,
+
+        /// What markdownlint wrote about the configuration, which gives the
+        /// file that it cannot parse
+        details: String,
+    },
+
     /// Markdownlint wrote a report that the action cannot read
     ///
     /// The report shape belongs to a version of markdownlint. A run that could
@@ -79,6 +101,24 @@ pub enum LintMarkdownError {
         stderr: String,
     },
 
+    /// The action cannot write the temporary configuration that extends the
+    /// file of the project
+    ///
+    /// The run gives markdownlint a temporary configuration file that extends
+    /// the configuration file of the project. Without it, markdownlint does
+    /// not report a configuration that it cannot parse. The write fails when
+    /// the file system refuses the temporary file. It also fails when the
+    /// root is relative and the current directory is unknown. It fails when
+    /// the path of the configuration file is not valid Unicode. Nothing of the
+    /// project was examined.
+    #[error(
+        "failed to write the temporary markdownlint configuration that extends the file of the project"
+    )]
+    UnwritableReference {
+        /// The cause of the failure
+        source: IoError,
+    },
+
     /// Mise reported no markdownlint at the version that the action declares, or
     /// no Node that the action accepts
     ///
@@ -96,16 +136,21 @@ pub enum LintMarkdownError {
 impl From<ObserveMarkdownlintError> for LintMarkdownError {
     /// Turns the failure of a markdownlint run into the error of the action
     ///
-    /// The machinery that runs markdownlint names the same two conditions
-    /// that the action reports, so the conversion renames them and adds
-    /// nothing.
+    /// The machinery that runs markdownlint reports the same conditions as
+    /// the action, so the conversion renames them and adds nothing.
     fn from(error: ObserveMarkdownlintError) -> Self {
         match error {
             ObserveMarkdownlintError::MarkdownlintUnavailable { source } => {
                 Self::MarkdownlintUnavailable { source }
             }
+            ObserveMarkdownlintError::RejectedConfiguration { path, details } => {
+                Self::RejectedConfiguration { path, details }
+            }
             ObserveMarkdownlintError::UnreadableReport { report, source } => {
                 Self::UnreadableReport { report, source }
+            }
+            ObserveMarkdownlintError::UnwritableReference { source } => {
+                Self::UnwritableReference { source }
             }
         }
     }
@@ -137,6 +182,19 @@ mod tests {
         assert!(
             matches!(&error, LintMarkdownError::UnreadableReport { report, .. } if report == REPORT),
             "expected the report of markdownlint, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn error_of_an_unwritable_reference_holds_its_cause() {
+        let source = IoError::other("the disk is full");
+
+        let error =
+            LintMarkdownError::from(ObserveMarkdownlintError::UnwritableReference { source });
+
+        assert!(
+            matches!(&error, LintMarkdownError::UnwritableReference { source } if source.to_string() == "the disk is full"),
+            "expected the cause of the failure, got {error:?}"
         );
     }
 

@@ -6,12 +6,14 @@
 //! action and the process lives here.
 
 mod error;
+mod reference;
 mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
+use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
 use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub(crate) use self::error::ObserveMarkdownlintError;
+use self::reference::Reference;
 use crate::observation::{Examination, Exit, Observation};
 
 /// The name that mise knows the tool by
@@ -71,6 +73,12 @@ const IGNORE: &str = "--ignore";
 /// without a shell, so nothing expands the wildcards on the way.
 const GIT: &str = "**/.git/**";
 
+/// The flag that gives markdownlint a configuration file to read
+///
+/// Markdownlint reports a configuration that it cannot parse only for the file
+/// that this flag gives.
+const CONFIG: &str = "--config";
+
 /// The place that a run tells markdownlint to look
 ///
 /// A run starts in the root of the project, so the working directory is the
@@ -106,6 +114,13 @@ impl Markdownlint {
     /// markdownlint skips by default. It leaves out the `.git` directory. The
     /// ignore file of the project decides what else the run leaves out.
     ///
+    /// Markdownlint finds the configuration of the project on its own. It
+    /// treats a configuration file that it cannot parse as a file that is not
+    /// there. So the run also refers markdownlint to the first configuration
+    /// file in the root, through a temporary file outside the project.
+    /// Markdownlint then reports that file when it cannot parse it. It applies
+    /// the same configuration as without the reference.
+    ///
     /// Markdownlint writes the report on its standard error stream. A run that
     /// finds no file to examine writes no report and ends with success, like a
     /// run that found nothing wrong. So the observation also says whether the
@@ -113,20 +128,38 @@ impl Markdownlint {
     ///
     /// # Errors
     ///
-    /// Returns [`MarkdownlintUnavailable`][unavailable] when markdownlint
-    /// does not run, and [`UnreadableReport`][unreadable] when it wrote
-    /// something else than the report that the crate reads.
+    /// Returns [`UnwritableReference`][unwritable] when the temporary file
+    /// cannot be written, and [`MarkdownlintUnavailable`][unavailable] when
+    /// markdownlint does not run. Returns
+    /// [`RejectedConfiguration`][rejected] when markdownlint cannot parse the
+    /// configuration file of the project. Returns
+    /// [`UnreadableReport`][unreadable] when markdownlint wrote something else
+    /// than the report that the crate reads.
     ///
+    /// [rejected]: ObserveMarkdownlintError::RejectedConfiguration
     /// [unavailable]: ObserveMarkdownlintError::MarkdownlintUnavailable
     /// [unreadable]: ObserveMarkdownlintError::UnreadableReport
-    pub(crate) async fn observe(&self) -> Result<Observation, ObserveMarkdownlintError> {
-        let execution = self
+    /// [unwritable]: ObserveMarkdownlintError::UnwritableReference
+    pub(crate) async fn observe(
+        &self,
+        root: &ProjectRoot,
+    ) -> Result<Observation, ObserveMarkdownlintError> {
+        let reference = Reference::to_configuration_of(root.get())
+            .map_err(|source| ObserveMarkdownlintError::UnwritableReference { source })?;
+
+        let invocation = self
             .tool
             .invocation()
             .arg(JSON)
             .arg(DOT)
             .arg(IGNORE)
-            .arg(GIT)
+            .arg(GIT);
+        let invocation = match &reference {
+            Some(reference) => invocation.arg(CONFIG).arg(reference.path()),
+            None => invocation,
+        };
+
+        let execution = invocation
             .arg(HERE)
             .launch()
             .await
@@ -134,6 +167,15 @@ impl Markdownlint {
 
         let stdout = execution.stdout().to_string_lossy();
         let stderr = execution.stderr().to_string_lossy();
+
+        if let Some(reference) = &reference
+            && let Some(details) = reference.rejection(&stderr)
+        {
+            return Err(ObserveMarkdownlintError::RejectedConfiguration {
+                path: reference.configuration().to_path_buf(),
+                details,
+            });
+        }
 
         let examined = examined().stdout(&stdout).stderr(&stderr).call();
 

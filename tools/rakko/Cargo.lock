@@ -875,6 +875,7 @@ dependencies = [
  "rakko-tool",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
 ]

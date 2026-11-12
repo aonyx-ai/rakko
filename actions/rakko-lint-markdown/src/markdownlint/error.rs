@@ -1,5 +1,8 @@
 //! The error that leaves a run without an answer
 
+use std::io::Error as IoError;
+use std::path::PathBuf;
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -7,7 +10,8 @@ use thiserror::Error;
 ///
 /// A rule that a file broke is no failure of a run: it travels in the
 /// observation, and the caller decides what it means. The variants here
-/// describe a run that produced no answer at all.
+/// describe a run that produced no answer, or an answer to a configuration
+/// that the project did not write.
 #[derive(Debug, Error)]
 pub(crate) enum ObserveMarkdownlintError {
     /// Markdownlint did not run
@@ -18,6 +22,42 @@ pub(crate) enum ObserveMarkdownlintError {
     MarkdownlintUnavailable {
         /// The cause of the failure
         source: RunCommandError,
+    },
+
+    /// Markdownlint cannot parse the configuration of the project
+    ///
+    /// Markdownlint then ran on another configuration file or on its
+    /// defaults, so its report does not answer for the rules of the project.
+    #[error("markdownlint cannot parse the configuration that starts in {}: {details}", path.display())]
+    RejectedConfiguration {
+        /// The first configuration file of markdownlint that exists in the
+        /// project root, relative to that root
+        ///
+        /// The configuration starts in this file. The file that markdownlint
+        /// cannot parse can also be a file that this file extends.
+        path: PathBuf,
+
+        /// What markdownlint wrote about the configuration, which gives the
+        /// file that it cannot parse
+        details: String,
+    },
+
+    /// The action cannot write the temporary configuration that extends the
+    /// file of the project
+    ///
+    /// The run gives markdownlint a temporary configuration file that extends
+    /// the configuration file of the project. Without it, markdownlint does
+    /// not report a configuration that it cannot parse. The write fails when
+    /// the file system refuses the temporary file. It also fails when the
+    /// root is relative and the current directory is unknown. It fails when
+    /// the path of the configuration file is not valid Unicode. Nothing of the
+    /// project was examined.
+    #[error(
+        "failed to write the temporary markdownlint configuration that extends the file of the project"
+    )]
+    UnwritableReference {
+        /// The cause of the failure
+        source: IoError,
     },
 
     /// Markdownlint wrote a report that the crate cannot read

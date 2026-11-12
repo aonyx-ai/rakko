@@ -15,12 +15,12 @@ rakko = { workspace = true }
 rakko-tool = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
 rakko-test-utils = { workspace = true }
-tempfile = { workspace = true }
 tokio = { workspace = true }
 
 [lints]
