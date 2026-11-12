@@ -2,28 +2,39 @@
 name: Website
 
 # The website lives in this repository, so a change to the API and the change
-# to its page land in one pull request. Every push to main deploys the site to
-# GitHub Pages. CI builds it on every pull request, so a page that does not
-# build never reaches main.
+# to its page land in one pull request. A Cloudflare Worker serves the site
+# from the assets that `site/wrangler.jsonc` selects. Every push to main
+# deploys it to rakko.aonyx.ai, and every pull request uploads a preview of
+# it. CI builds it on every pull request too, so a page that does not build
+# never reaches main.
 "on":
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions: {}
 
 # A deployment that started always completes, and the next push waits for it.
+# A newer push to a pull request replaces its preview, so an older upload can
+# stop.
 concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
-    name: Build the website
+  deploy:
+    name: Deploy the website
     runs-on: ubuntu-latest
+
+    if: github.event_name != 'pull_request'
 
     permissions:
       contents: read
+
+    environment:
+      name: production
+      url: https://rakko.aonyx.ai
 
     steps:
       - name: Checkout code
@@ -40,26 +51,60 @@ jobs:
       - name: Build the website
         run: mise run rakko -- build-site
 
-      - name: Upload the website
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      # The account of the Worker comes from a secret rather than from the
+      # committed configuration, because this repository is public.
+      - name: Deploy the website
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:
-          path: site/public
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: deploy
 
-  deploy:
-    name: Deploy the website
+  preview:
+    name: Preview the website
     runs-on: ubuntu-latest
 
-    needs: build
+    # A pull request from a fork gets no secrets, so it cannot upload.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
 
     permissions:
-      id-token: write # proves with a token of OpenID Connect that the deployment runs in this workflow
-      pages: write # publishes the uploaded website to GitHub Pages
+      contents: read
 
+    # The environment puts a link to the preview on the pull request. The alias
+    # gives each pull request one URL that every push updates.
     environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      name: preview
+      url: https://pr-${{ github.event.pull_request.number }}-rakko.aonyx.workers.dev
 
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The setup cleans the tree itself, and keeps the build output that
+          # an earlier job left on a persistent self-hosted runner.
+          clean: false
+          persist-credentials: false
+
+      - name: Set up the tools
+        uses: $/.github/actions/setup
+
+      # Zola writes every link as an absolute URL, so the preview gets the
+      # address that it is served on. Without it, its pages would load the
+      # stylesheet and link to the pages of the live website.
+      - name: Build the website
+        env:
+          PREVIEW_URL: https://pr-${{ github.event.pull_request.number }}-rakko.aonyx.workers.dev
+        run: mise run rakko -- build-site --base-url "$PREVIEW_URL"
+
+      # An upload makes a version without deploying it, so rakko.aonyx.ai
+      # keeps serving what main holds.
+      - name: Upload the preview
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: versions upload --preview-alias pr-${{ github.event.pull_request.number }}
