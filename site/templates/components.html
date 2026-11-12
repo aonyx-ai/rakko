@@ -1,0 +1,57 @@
+{#- The components that a page calls from its Markdown.
+
+    `example` prints a file of an example crate under `examples/` as a fenced
+    code block, so the Markdown renderer highlights it at build time. Cargo
+    compiles and tests every example crate, so the code on a page compiles
+    against the current crates. A page calls it like this, and the call can
+    span lines:
+
+        {{ <example crate="check-readme" file="src/lib.rs" region="action" /> }}
+
+    `crate` is the directory of the crate under `examples/`, and `file` is the
+    path of the file in that crate. The code block shows `file` as its name,
+    unless `name` gives another one. The language follows the extension of
+    the file, unless `lang` gives one.
+
+    With `region`, the block shows only the lines between the two marker
+    comments of that region, `// region: <name>` and `// endregion: <name>` in
+    Rust, and `# region: <name>` and `# endregion: <name>` in TOML and YAML.
+    It removes the marker lines of any nested region, and the indentation of
+    the first line from every line. A file or a region that does not exist
+    fails the build. -#}
+{% component example(crate: string, file: string, region: string = "", lang: string = "", name: string = "") %}
+{%- set path = "examples/" ~ crate ~ "/" ~ file -%}
+{%- set source = load_data(path=path, format="plain") -%}
+{%- if not lang -%}
+  {%- set extension = file | split(pat=".") | last -%}
+  {%- if extension == "rs" -%}
+    {%- set lang = "rust" -%}
+  {%- elif extension == "yml" or extension == "yaml" -%}
+    {%- set lang = "yaml" -%}
+  {%- else -%}
+    {%- set lang = extension -%}
+  {%- endif -%}
+{%- endif -%}
+{%- if lang == "rust" -%}
+  {%- set marker = "// " -%}
+{%- else -%}
+  {%- set marker = "# " -%}
+{%- endif -%}
+{%- if region -%}
+  {%- set parts = source | split(pat=marker ~ "region: " ~ region ~ "\n") -%}
+  {%- if parts | length < 2 -%}
+    {{ throw(message="the file " ~ path ~ " has no region '" ~ region ~ "'") }}
+  {%- endif -%}
+  {%- set source = parts | nth(n=1) | split(pat=marker ~ "endregion: " ~ region) | first -%}
+{%- endif -%}
+{%- set lines = source | trim_end | split(pat="\n") -%}
+{%- set first_line = lines | first -%}
+{%- set indent = (first_line | length) - (first_line | trim_start | length) -%}
+```{{ lang }},name={{ name if name else file }}
+{% for line in lines -%}
+{%- if marker ~ "region: " not in line and marker ~ "endregion: " not in line -%}
+{{ line[indent:] }}
+{% endif -%}
+{%- endfor -%}
+```
+{% endcomponent example %}

@@ -1,0 +1,3 @@
+/public/
+# The design hook of Impeccable keeps its cache here. It is local state.
+/.impeccable/hook.cache.json

@@ -2,7 +2,10 @@
 # patterns below anchor at the repository root, not at `.config`.
 # `/tools/rakko/` holds the harness, a workspace of its own that the toolchain
 # of the root workspace does not load, so stiles cannot analyze its types.
-ignore = ["/tools/rakko/"]
+# `/site/examples/` holds the Rust code that the pages of the website show.
+# That code teaches an author outside Aonyx. So it follows the conventions of
+# Rust and not those of Aonyx, and line comments mark its regions.
+ignore = ["/site/examples/", "/tools/rakko/"]
 
 # The rules of Aonyx live in their own repository, pinned to one commit that
 # builds against the stiles that the action `lint-stiles` pins. Both pins move

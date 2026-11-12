@@ -1,0 +1,40 @@
+{#- A documentation page: its title and summary, the outline of its sections,
+    the text, and links to the pages before and after it in its section. -#}
+{% extends "doc.html" %}
+
+{% block title %}{{ page.title }} · {{ config.title }}{% endblock title %}
+{% block description %}{{ page.description | default(value=config.description) }}{% endblock description %}
+
+{% block main %}
+<article class="doc">
+  <header class="doc-head">
+    <h1>{{ page.title }}</h1>
+    {% if page.description %}<p class="doc-summary">{{ page.description }}</p>{% endif %}
+  </header>
+  {%- if page.toc %}
+  <nav class="outline" aria-label="On this page">
+    <h2>On This Page</h2>
+    <ul>
+      {%- for heading in page.toc %}
+      <li><a href="#{{ heading.id }}">{{ heading.title }}</a>
+        {%- if heading.children %}
+        <ul>
+          {%- for child in heading.children %}
+          <li><a href="#{{ child.id }}">{{ child.title }}</a></li>
+          {%- endfor %}
+        </ul>
+        {%- endif %}
+      </li>
+      {%- endfor %}
+    </ul>
+  </nav>
+  {%- endif %}
+  <div class="prose">
+    {{ page.content | safe }}
+  </div>
+  <nav class="pager" aria-label="Pages of this section">
+    {% if page.lower %}<a rel="prev" href="{{ page.lower.permalink }}"><span class="pager-label">Previous</span> <span class="pager-title">{{ page.lower.title }}</span></a>{% endif %}
+    {% if page.higher %}<a rel="next" href="{{ page.higher.permalink }}"><span class="pager-label">Next</span> <span class="pager-title">{{ page.higher.title }}</span></a>{% endif %}
+  </nav>
+</article>
+{% endblock main %}

@@ -1,0 +1,16 @@
+[package]
+name = "otter-check-toml"
+version = "0.0.0"
+description = "The example action of the guide Run a Tool From an Action on the website of Rakko"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+rakko = { workspace = true }
+rakko-tool = { workspace = true }
+
+[lints]
+workspace = true

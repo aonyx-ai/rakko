@@ -90,6 +90,18 @@ mise run rakko -- doctor --fix
 --fix` before every commit. Mise writes the stubs in `bin` once, so a change
 to the tasks of `mise.toml` wants a fresh `mise generate task-stubs`.
 
+The website lives in `site/`, and [Zola] builds it into `site/public`. The
+Rust code on its pages comes from the example crates in `site/examples/`.
+These crates are members of the workspace, so the checks of the workspace
+compile and test them. A page links to another page with a link that starts
+with `@/`, such as `@/how-to/build-an-action.md`, because the build fails on
+such a link when its page or its anchor does not exist. This command builds
+the site:
+
+```console
+mise run rakko -- build-site
+```
+
 ## License
 
 Copyright (c) 2026 Aonyx B.V.
@@ -114,7 +126,8 @@ dual licensed as above, without any additional terms or conditions.
 
 [clawless]: https://github.com/aonyx-ai/clawless
 [glossary.md]: ./GLOSSARY.md
-[guide]: https://docs.rs/rakko
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
 [mise-activate]: https://mise.jdx.dev/getting-started.html#activate-mise
 [vision.md]: ./VISION.md
+[zola]: https://www.getzola.org

@@ -1,0 +1,18 @@
+[package]
+name = "otter-check-project"
+version = "0.0.0"
+description = "The example group of the guide Form a Group on the website of Rakko"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+rakko = { workspace = true }
+
+[dev-dependencies]
+rakko-cli = { workspace = true }
+
+[lints]
+workspace = true

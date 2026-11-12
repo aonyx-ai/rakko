@@ -1,0 +1,34 @@
+{#- The layout of every documentation page and of every section index.
+
+    The sidebar comes from the content tree. Each subsection of the root is a
+    kind of page (tutorial, how-to, explanation, reference), ordered by the
+    `weight` of its `_index.md`, and each page in it is ordered by its own
+    `weight`. So a new Markdown file in a section shows up here with no other
+    change. -#}
+{% extends "base.html" %}
+
+{% component navigation(@current_path: string) %}
+{%- set root = get_section(path="_index.md") -%}
+{%- for kind_path in root.subsections -%}
+  {%- set kind = get_section(path=kind_path) -%}
+  <section class="sidebar-group">
+    <h2><a href="{{ kind.permalink }}"{% if current_path == kind.path %} aria-current="page"{% endif %}>{{ kind.title }}</a></h2>
+    <ul>
+      {%- for entry in kind.pages %}
+      <li><a href="{{ entry.permalink }}"{% if current_path == entry.path %} aria-current="page"{% endif %}>{{ entry.title }}</a></li>
+      {%- endfor %}
+    </ul>
+  </section>
+{%- endfor -%}
+{% endcomponent navigation %}
+
+{% block topnav_extra %}<a class="to-sidebar" href="#sidebar">Menu</a>{% endblock topnav_extra %}
+
+{% block body %}
+<div class="docs">
+  <main class="docs-main" id="text">
+    {% block main %}{% endblock main %}
+  </main>
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">{{ <navigation /> }}</nav>
+</div>
+{% endblock body %}

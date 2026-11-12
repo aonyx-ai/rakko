@@ -21,7 +21,9 @@ Crates are grouped by who picks them. `actions/` holds the actions that a
 project mounts, `bundles/` holds the bundles that export a set of actions,
 `commands/` holds the commands that a harness mounts beside its actions, and
 `crates/` holds the contract, the projection, and the machinery that the
-actions share. [ADR-012] records this decision.
+actions share. [ADR-012] records this decision. The example crates of the
+website in `site/examples/` are members of the workspace too. So the checks
+compile and test the Rust code that the pages of the website show.
 
 ## Language
 

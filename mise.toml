@@ -82,6 +82,13 @@ python = "3.14.8"
 # TypeScript is a toolchain of this repository, like node. `check-typescript`
 # reads this pin, and it accepts TypeScript 5 and later.
 "npm:typescript" = "7.0.2"
+# Zola is a toolchain of this repository, like node, because it compiles the
+# templates and the pages of the website in `site/`. They are written for the
+# 0.23 releases of Zola. The action `build-site` of the harness reads this
+# pin, and it accepts 0.23.6 and later releases before 0.24. A release of Zola can break an existing
+# site, so the pin gives an exact version, and CI builds the site on every
+# pull request.
+zola = "0.23.6"
 
 [settings]
 # The lockfile records the version that each pin resolved to, and for a tool

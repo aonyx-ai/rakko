@@ -36,6 +36,23 @@ mise run rakko
 Where mise supplies its environment, `rakko` is a shortcut for the same
 command.
 
+## The Action of This Package
+
+### `build-site`
+
+The action lives in this package, in `src/build_site/`, because it serves only
+this repository. It builds the website in `site/` into `site/public` with Zola.
+Zola is a toolchain of the repository: the root `mise.toml` pins it, and the
+action accepts 0.23.6 and later releases before 0.24. The build fails on a
+broken `@/` link or anchor between two pages. It also fails on an example that
+a page shows from a file or a region that does not exist. A failed build gives
+one finding with what Zola reported. So the build is the check of the website
+as well, and CI runs it on every pull request, as it runs every action.
+
+```console
+mise run rakko -- build-site
+```
+
 ## Commands
 
 ### `pre-commit`

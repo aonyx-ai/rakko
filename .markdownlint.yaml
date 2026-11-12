@@ -10,3 +10,11 @@ MD013:
 # behavior" under both a design and an alternatives section.
 MD024:
   siblings_only: true
+
+# A page of the website shows the code of an example crate with the component
+# `example` of Zola, which a page calls as `{{ <example ... /> }}`. That call
+# reads as an HTML element to markdownlint. No HTML has an element of that
+# name, so the exception allows no real HTML.
+MD033:
+  allowed_elements:
+    - example
