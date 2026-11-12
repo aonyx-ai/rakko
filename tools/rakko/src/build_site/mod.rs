@@ -1,5 +1,6 @@
 //! The action that builds the website of the repository
 
+mod args;
 mod error;
 
 use std::path::Path;
@@ -10,6 +11,7 @@ use rakko::{
 };
 use rakko_tool::{Execution, Tool};
 
+pub(crate) use self::args::{BaseUrl, BuildSiteArgs};
 pub(crate) use self::error::BuildSiteError;
 
 /// The tool of mise that builds the website, and its program
@@ -41,6 +43,10 @@ const NO_DIAGNOSIS: &str = "zola did not build the website and reported nothing"
 /// project: the root `mise.toml` pins it, and the action declares the range of
 /// versions that it accepts.
 ///
+/// Zola writes every link as an absolute URL below the address in
+/// `site/zola.toml`. A build for another host, such as the preview of a pull
+/// request, gives that host with `--base-url`.
+///
 /// A build that fails gives one finding, with what Zola reported. A run stops
 /// with an error when the project pins no Zola in the range, or when Zola
 /// does not start. A run declares a write, because Zola replaces
@@ -49,7 +55,7 @@ const NO_DIAGNOSIS: &str = "zola did not build the website and reported nothing"
 pub(crate) struct BuildSite;
 
 impl Action for BuildSite {
-    type Args = ();
+    type Args = BuildSiteArgs;
 
     fn name(&self) -> Name {
         action_name!("build-site")
@@ -63,7 +69,7 @@ impl Action for BuildSite {
         vec![requirement()]
     }
 
-    async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+    async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
         let zola = match Tool::resolve_requirement()
             .requirement(&requirement())
             .context(context)
@@ -78,7 +84,7 @@ impl Action for BuildSite {
             }
         };
 
-        match build(&zola, context.root().get()).await {
+        match build(&zola, context.root().get(), args.base_url()).await {
             Ok(execution) => outcome(&execution),
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -101,12 +107,23 @@ fn requirement() -> ToolRequirement {
 
 /// Runs Zola on the website below `root`, and returns how it ended
 ///
+/// A `base_url` replaces the address in `site/zola.toml` for this build.
+///
 /// # Errors
 ///
 /// Returns [`BuildSiteError::ZolaUnavailable`] when Zola does not start.
-async fn build(zola: &Tool, root: &Path) -> Result<Execution, BuildSiteError> {
+async fn build(
+    zola: &Tool,
+    root: &Path,
+    base_url: Option<&BaseUrl>,
+) -> Result<Execution, BuildSiteError> {
+    let mut args = vec!["--root", SITE, "build"];
+    if let Some(base_url) = base_url {
+        args.extend(["--base-url", base_url.get()]);
+    }
+
     zola.invocation()
-        .args(["--root", SITE, "build"])
+        .args(args)
         .in_directory(root)
         .run()
         .await
@@ -178,7 +195,7 @@ mod tests {
 
     #[test]
     fn access_is_write() {
-        let access = BuildSite.access(&repository(), &());
+        let access = BuildSite.access(&repository(), &BuildSiteArgs::default());
 
         assert_eq!(access, Access::Write);
     }
@@ -195,7 +212,7 @@ mod tests {
         )
         .expect("the test writes the configuration");
 
-        let execution = build(&zola().await, project.path())
+        let execution = build(&zola().await, project.path(), None)
             .await
             .expect("the test starts zola");
 
@@ -203,11 +220,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn build_of_a_site_with_a_base_url_links_below_that_address() {
+        let project = tempfile::tempdir().expect("the test creates a temporary directory");
+        let site = project.path().join(SITE);
+        std::fs::create_dir(&site).expect("the test creates the site");
+        std::fs::create_dir(site.join("templates")).expect("the test creates the templates");
+        std::fs::write(
+            site.join("templates").join("index.html"),
+            "{{ get_url(path='style.css') }}",
+        )
+        .expect("the test writes the template");
+        std::fs::write(
+            site.join("zola.toml"),
+            "base_url = \"https://example.com\"\n",
+        )
+        .expect("the test writes the configuration");
+        let base_url = BaseUrl::parse("https://preview.example.dev").expect("the address parses");
+
+        build(&zola().await, project.path(), Some(&base_url))
+            .await
+            .expect("the test starts zola");
+
+        let page = std::fs::read_to_string(site.join("public").join("index.html"))
+            .expect("the build writes the landing page");
+        assert_eq!(page, "https://preview.example.dev/style.css");
+    }
+
+    #[tokio::test]
     async fn build_of_a_site_without_a_configuration_fails_with_what_zola_reported() {
         let project = tempfile::tempdir().expect("the test creates a temporary directory");
         std::fs::create_dir(project.path().join(SITE)).expect("the test creates the site");
 
-        let execution = build(&zola().await, project.path())
+        let execution = build(&zola().await, project.path(), None)
             .await
             .expect("the test starts zola");
 
@@ -248,7 +292,7 @@ mod tests {
         let project = tempfile::tempdir().expect("the test creates a temporary directory");
         let context = Context::builder().root(project.path()).build();
 
-        let outcome = BuildSite.run(&context, &()).await;
+        let outcome = BuildSite.run(&context, &BuildSiteArgs::default()).await;
 
         assert!(matches!(
             outcome,

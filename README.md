@@ -102,6 +102,14 @@ the site:
 mise run rakko -- build-site
 ```
 
+A Cloudflare Worker serves the site from `site/public`, as
+`site/wrangler.jsonc` configures it. Every push to `main` deploys the site to
+`rakko.aonyx.ai`. Every pull request from this repository uploads a preview
+to `https://pr-<number>-rakko.aonyx.workers.dev`, and the pull request links
+to it. Only the team can open a preview. The preview build gives its links
+the address of the preview with `--base-url`, because Zola writes every link
+as an absolute URL.
+
 ## License
 
 Copyright (c) 2026 Aonyx B.V.
