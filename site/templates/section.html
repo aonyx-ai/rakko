@@ -1,9 +1,6 @@
 {#- The index of one kind of page: its introduction and a link to each page. -#}
 {% extends "doc.html" %}
 
-{% block title %}{{ section.title }} · {{ config.title }}{% endblock title %}
-{% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
-
 {% block main %}
 <article class="doc doc-index">
   <header class="doc-head">

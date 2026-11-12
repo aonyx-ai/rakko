@@ -2,9 +2,6 @@
     the text, and links to the pages before and after it in its section. -#}
 {% extends "doc.html" %}
 
-{% block title %}{{ page.title }} · {{ config.title }}{% endblock title %}
-{% block description %}{{ page.description | default(value=config.description) }}{% endblock description %}
-
 {% block main %}
 <article class="doc">
   <header class="doc-head">

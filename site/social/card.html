@@ -1,0 +1,160 @@
+<!doctype html>
+<!--
+  The source of `static/social-card.png`, the image that a link to the website
+  shows on social media and in chat apps. The image is 1200 by 630 pixels, the
+  size that Open Graph and X expect for a large preview. Zola does not serve
+  this file, because it is outside `static/`.
+
+  The card uses the colors and faces of `DESIGN.md`. After a change, render it
+  again from the directory of this file:
+
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+        --headless --hide-scrollbars --force-device-scale-factor=1 \
+        --window-size=1200,630 --screenshot=../static/social-card.png card.html
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Rakko Social Card</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-soft: #f6f7f8;
+      --text: #1d2025;
+      --text-2: #565d67;
+      --text-3: #676e78;
+      --divider: #e3e6ea;
+      --border: #d3d7dd;
+      --brand: #c2410c;
+      --brand-text: #b13c0b;
+      --terminal: #1d2025;
+      --terminal-text: #e7e8ea;
+      --terminal-accent: #f2773d;
+      --code-keyword: #24508a;
+      --code-string: #2d6a3c;
+      --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; }
+
+    html, body {
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+    }
+
+    body {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 470px;
+      gap: 56px;
+      align-items: center;
+      padding: 0 72px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 10px;
+      background: var(--brand);
+    }
+
+    .name {
+      color: var(--brand-text);
+      font-size: 120px;
+      font-weight: 750;
+      line-height: 1;
+      letter-spacing: -0.035em;
+    }
+
+    .tagline {
+      margin-top: 20px;
+      font-size: 50px;
+      font-weight: 650;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    .maker {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin-top: 48px;
+      color: var(--text-2);
+      font-size: 26px;
+      font-weight: 500;
+    }
+
+    .maker img {
+      width: 48px;
+      height: 48px;
+    }
+
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--bg-soft);
+      box-shadow: 0 20px 48px -16px rgb(0 0 0 / 0.18);
+      font-family: var(--mono);
+      font-variant-ligatures: none;
+    }
+
+    .file {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--divider);
+      color: var(--text-2);
+      font-size: 19px;
+      font-weight: 500;
+    }
+
+    pre {
+      padding: 22px 24px 24px;
+      font-family: inherit;
+      font-size: 21px;
+      line-height: 1.7;
+    }
+
+    .table { color: var(--code-keyword); }
+    .punct { color: var(--text-2); }
+    .string { color: var(--code-string); }
+
+    .run {
+      display: flex;
+      gap: 14px;
+      padding: 18px 24px;
+      background: var(--terminal);
+      color: var(--terminal-text);
+      font-size: 19px;
+      white-space: nowrap;
+    }
+
+    .run span { color: var(--terminal-accent); }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="name">Rakko</div>
+    <div class="tagline">Project Maintenance as Rust&nbsp;Crates</div>
+    <div class="maker">
+      <img src="../static/aonyx-logo.png" alt="">
+      rakko.aonyx.ai
+    </div>
+  </div>
+  <div class="card">
+    <div class="file">tools/rakko/Cargo.toml</div>
+<pre><span class="table">[dependencies]</span>
+rakko-cli <span class="punct">=</span> <span class="string">"0.1"</span>
+rakko-format-rust <span class="punct">=</span> <span class="string">"0.1"</span>
+rakko-lint-rust <span class="punct">=</span> <span class="string">"0.1"</span>
+rakko-test-rust <span class="punct">=</span> <span class="string">"0.1"</span></pre>
+    <div class="run"><span>$</span>mise run rakko -- lint-rust</div>
+  </div>
+</body>
+</html>
