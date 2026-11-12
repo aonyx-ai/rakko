@@ -1,5 +1,7 @@
 //! The error that leaves a run without an answer
 
+use std::path::PathBuf;
+
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -33,12 +35,13 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ObserveTaploError {
-    /// Every attempt lost part of the report
+    /// No attempt held an answer, and the last one lost part of the report
     ///
     /// Taplo can lose the end of its report when it exits. A run that ended
     /// without success names at least one problem. So a report of such a run
     /// that names none lost the lines that held them. The run repeats a few
-    /// times, and this is what remains when no attempt held an answer.
+    /// times. This is what remains when no attempt held an answer, and the
+    /// report of the last attempt names no problem.
     #[error("taplo wrote a report that ends before its last line: {stderr}")]
     IncompleteReport {
         /// What taplo wrote to its standard error stream
@@ -53,6 +56,25 @@ pub enum ObserveTaploError {
     TaploUnavailable {
         /// The cause of the failure
         source: RunCommandError,
+    },
+
+    /// No attempt held an answer, and the last one left out the configuration
+    /// file of the project
+    ///
+    /// Taplo reports the configuration file that it found, and only then warns
+    /// when it rejects that file and runs with its defaults. A report that does
+    /// not mention a configuration file, while the project holds one, cannot
+    /// show whether taplo rejected it. Either taplo lost the lines, or it did not find the file
+    /// and ran with its defaults. The run repeats a few times. This is what
+    /// remains when no attempt held an answer, and the report of the last
+    /// attempt does not mention the file.
+    #[error("taplo did not report the configuration file {}: {stderr}", path.display())]
+    UnreportedConfiguration {
+        /// The configuration file that the project holds
+        path: PathBuf,
+
+        /// What taplo wrote to its standard error stream
+        stderr: String,
     },
 }
 

@@ -15,7 +15,7 @@
 mod report;
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bon::bon;
 use getset::{CopyGetters, Getters};
@@ -23,6 +23,7 @@ use rakko_tool::Execution;
 
 use crate::operation::Operation;
 use crate::problem::{ProblemDetail, TaploProblem};
+use crate::taplo::ObserveTaploError;
 
 /// How a run of taplo ended
 ///
@@ -36,6 +37,20 @@ enum Exit {
     /// Taplo ended the run with failure
     #[default]
     Failed,
+}
+
+/// Whether a report says that taplo found a configuration file
+///
+/// Taplo reports the configuration file that it found before it reads the
+/// file. The line comes before the warning about a file that taplo rejected.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+enum Configuration {
+    /// The report holds the line about the configuration file
+    Reported,
+
+    /// The report holds no line about a configuration file
+    #[default]
+    Unreported,
 }
 
 /// What one run of taplo produced
@@ -71,6 +86,9 @@ pub struct Observation {
     #[getset(get_copy = "pub")]
     checked: Option<u64>,
 
+    /// Whether the report says that taplo found a configuration file
+    configuration: Configuration,
+
     /// The files that the run examined, in the order in which taplo listed
     /// them
     ///
@@ -98,7 +116,6 @@ pub struct Observation {
     rejected_configuration: Option<String>,
 
     /// What taplo wrote to its standard error stream
-    #[getset(get = "pub(crate)")]
     stderr: String,
 
     /// How the run of taplo ended
@@ -140,6 +157,7 @@ impl Observation {
     ) -> Self {
         Self {
             checked,
+            configuration: Configuration::default(),
             examined: Vec::new(),
             problems,
             rejected_configuration,
@@ -162,6 +180,48 @@ impl Observation {
         match self.succeeded {
             Exit::Succeeded => true,
             Exit::Failed => !self.problems.is_empty(),
+        }
+    }
+
+    /// Returns the error that leaves the run without an answer, if any
+    ///
+    /// The configuration is the file that taplo finds in the project, if
+    /// the project holds one. A report must then say that taplo found a
+    /// configuration file, because only such a report can show whether taplo
+    /// rejected it. A report that does not is unanswered, whatever else it
+    /// holds. Otherwise the run is unanswered when its report is not
+    /// [complete][complete].
+    ///
+    /// [complete]: Observation::complete
+    pub(crate) fn unanswered(&self, configuration: Option<&Path>) -> Option<ObserveTaploError> {
+        if let Some(path) = configuration
+            && !self.reports_configuration()
+        {
+            return Some(ObserveTaploError::UnreportedConfiguration {
+                path: path.to_path_buf(),
+                stderr: self.stderr.clone(),
+            });
+        }
+
+        if !self.complete() {
+            return Some(ObserveTaploError::IncompleteReport {
+                stderr: self.stderr.clone(),
+            });
+        }
+
+        None
+    }
+
+    /// Returns whether the report says that taplo found a configuration file
+    ///
+    /// Taplo writes the warning about a configuration file that it rejected
+    /// only after the line that reports the file. A report without that line
+    /// therefore cannot show whether taplo rejected a file. The caller must
+    /// not trust such a report for a project that holds a configuration file.
+    pub(crate) fn reports_configuration(&self) -> bool {
+        match self.configuration {
+            Configuration::Reported => true,
+            Configuration::Unreported => false,
         }
     }
 
@@ -254,6 +314,9 @@ mod tests {
 
     use super::*;
 
+    /// The configuration file of a project that a test stands in for
+    const CONFIGURATION: &str = "/home/otter/project/.taplo.toml";
+
     /// Returns the observation of a failed validating run over the given
     /// files
     fn examined(files: Vec<PathBuf>, problems: Vec<TaploProblem>) -> Observation {
@@ -281,6 +344,7 @@ mod tests {
     fn observation(succeeded: Exit, problems: Vec<TaploProblem>) -> Observation {
         Observation {
             checked: None,
+            configuration: Configuration::default(),
             examined: Vec::new(),
             problems,
             rejected_configuration: None,
@@ -310,6 +374,13 @@ mod tests {
             .path(PathBuf::from("/home/otter/project/a.toml"))
             .detail(ProblemDetail::Unformatted)
             .build()
+    }
+
+    #[test]
+    fn configuration_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Configuration>();
     }
 
     #[test]
@@ -345,6 +416,83 @@ mod tests {
         let observation = observation(Exit::Succeeded, Vec::new());
 
         assert!(observation.complete());
+    }
+
+    #[test]
+    fn unanswered_of_a_failed_run_without_a_problem_or_the_configuration_reports_the_configuration()
+    {
+        let observation = observation(Exit::Failed, Vec::new());
+
+        let error = observation.unanswered(Some(Path::new(CONFIGURATION)));
+
+        assert!(
+            matches!(
+                error,
+                Some(ObserveTaploError::UnreportedConfiguration { .. })
+            ),
+            "expected an unreported configuration, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn unanswered_of_a_failed_run_without_a_problem_reports_an_incomplete_report() {
+        let observation = observation(Exit::Failed, Vec::new());
+
+        let error = observation.unanswered(None);
+
+        assert!(
+            matches!(error, Some(ObserveTaploError::IncompleteReport { .. })),
+            "expected an incomplete report, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn unanswered_of_a_failed_run_without_a_problem_that_reported_the_configuration_reports_an_incomplete_report()
+     {
+        let observation = Observation {
+            configuration: Configuration::Reported,
+            ..observation(Exit::Failed, Vec::new())
+        };
+
+        let error = observation.unanswered(Some(Path::new(CONFIGURATION)));
+
+        assert!(
+            matches!(error, Some(ObserveTaploError::IncompleteReport { .. })),
+            "expected an incomplete report, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn unanswered_of_a_passing_run_that_left_out_the_configuration_reports_the_file() {
+        let observation = observation(Exit::Succeeded, Vec::new());
+
+        let error = observation.unanswered(Some(Path::new(CONFIGURATION)));
+
+        assert!(
+            matches!(&error, Some(ObserveTaploError::UnreportedConfiguration { path, .. }) if path == Path::new(CONFIGURATION)),
+            "expected the configuration file, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn unanswered_of_a_passing_run_that_reported_the_configuration_is_none() {
+        let observation = Observation {
+            configuration: Configuration::Reported,
+            ..observation(Exit::Succeeded, Vec::new())
+        };
+
+        let error = observation.unanswered(Some(Path::new(CONFIGURATION)));
+
+        assert!(error.is_none(), "expected an answer, got {error:?}");
+    }
+
+    #[test]
+    fn unanswered_of_a_passing_run_without_a_configuration_file_is_none() {
+        let observation = observation(Exit::Succeeded, Vec::new());
+
+        let error = observation.unanswered(None);
+
+        assert!(error.is_none(), "expected an answer, got {error:?}");
     }
 
     #[tokio::test]

@@ -40,6 +40,9 @@ const INVALID: &str = "broken = [1,\n";
 /// taplo warns and falls back to its defaults instead of failing.
 const REJECTED_CONFIGURATION: &str = "[formatting]\nalign_entries = \"banana\"\n";
 
+/// A taplo configuration that taplo accepts
+const VALID_CONFIGURATION: &str = "exclude = [\"skipped.toml\"]\n";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -272,6 +275,24 @@ async fn run_with_a_rejected_configuration_stops() {
     assert!(
         matches!(outcome, Outcome::Errored { .. }),
         "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_valid_configuration_passes() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(VALID_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
     );
 }
 
