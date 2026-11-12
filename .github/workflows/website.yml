@@ -1,0 +1,65 @@
+---
+name: Website
+
+# The website lives in this repository, so a change to the API and the change
+# to its page land in one pull request. Every push to main deploys the site to
+# GitHub Pages. CI builds it on every pull request, so a page that does not
+# build never reaches main.
+"on":
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+# A deployment that started always completes, and the next push waits for it.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the website
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The setup cleans the tree itself, and keeps the build output that
+          # an earlier job left on a persistent self-hosted runner.
+          clean: false
+          persist-credentials: false
+
+      - name: Set up the tools
+        uses: $/.github/actions/setup
+
+      - name: Build the website
+        run: mise run rakko -- build-site
+
+      - name: Upload the website
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/public
+
+  deploy:
+    name: Deploy the website
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    permissions:
+      id-token: write # proves with a token of OpenID Connect that the deployment runs in this workflow
+      pages: write # publishes the uploaded website to GitHub Pages
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

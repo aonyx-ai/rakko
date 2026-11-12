@@ -1,0 +1,18 @@
+[package]
+name = "otter-landing"
+version = "0.0.0"
+description = "The example harness on the landing page of the website of Rakko"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+rakko-cli = { workspace = true }
+rakko-format-rust = { workspace = true }
+rakko-lint-rust = { workspace = true }
+rakko-test-rust = { workspace = true }
+
+[lints]
+workspace = true

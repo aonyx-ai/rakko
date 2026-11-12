@@ -1,0 +1,19 @@
+[package]
+name = "otter-clean-command"
+version = "0.0.0"
+description = "The example harness of the guide Add a Command on the website of Rakko"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+rakko = { workspace = true }
+rakko-cli = { workspace = true }
+rakko-format-rust = { workspace = true }
+rakko-lint-rust = { workspace = true }
+rakko-test-rust = { workspace = true }
+
+[lints]
+workspace = true

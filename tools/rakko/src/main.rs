@@ -4,7 +4,8 @@
 //! states which maintenance actions run here. It mounts the actions of the
 //! repository, and the command line that it builds turns each of them into a
 //! command. A bundle carries a set of actions that projects adopt together, so
-//! the harness mounts the bundle instead of each action in it.
+//! the harness mounts the bundle instead of each action in it. One action,
+//! `build-site`, serves only this repository, so it lives in this package.
 //!
 //! The harness also mounts actions that find nothing to do here, such as the
 //! actions for TypeScript. Each action pins the tools that it runs, and
@@ -17,9 +18,9 @@
 //! then the action skips.
 //!
 //! It also mounts commands, for a maintenance activity that no single action
-//! describes. A command comes from a crate, as an action does, and this file
-//! names it. When a command runs actions, this file names those actions as
-//! well and gives them to the command.
+//! describes. A command comes from a crate, and this file mounts it. When a
+//! command runs actions, this file lists those actions and gives them to the
+//! command.
 //!
 //! It also mounts groups, such as pre-commit. A group is a name and a list of
 //! actions that the command line runs as one command. This file gives each
@@ -28,6 +29,8 @@
 //!
 //! Run it with `mise run rakko`, or with `rakko` where the environment
 //! supplies the shortcut.
+
+mod build_site;
 
 use rakko::Bundle;
 use rakko_check_msrv::CheckMsrv;
@@ -46,6 +49,8 @@ use rakko_set_msrv::SetMsrv;
 use rakko_test_rust::TestRust;
 use rakko_test_rust_docs::TestRustDocs;
 
+use self::build_site::BuildSite;
+
 /// Builds the command line of this repository and runs it
 fn main() -> std::process::ExitCode {
     let pre_commit = PreCommit::new(actions_that_guard_a_commit());
@@ -56,6 +61,7 @@ fn main() -> std::process::ExitCode {
         .mount(rakko_typescript::bundle())
         .mount(LintStiles)
         .mount(SetMsrv::new(CheckMsrv))
+        .mount(BuildSite)
         .mount(pre_commit)
         .run()
 }

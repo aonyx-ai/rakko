@@ -411,7 +411,11 @@ dependencies = [
  "rakko-set-msrv",
  "rakko-test-rust",
  "rakko-test-rust-docs",
+ "rakko-tool",
  "rakko-typescript",
+ "tempfile",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

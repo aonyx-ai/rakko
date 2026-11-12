@@ -1,0 +1,29 @@
+base_url = "https://rakko.aonyx.ai"
+title = "Rakko"
+description = "Project maintenance as versioned Rust crates."
+default_language = "en"
+
+compile_sass = false
+build_search_index = false
+generate_feeds = false
+
+[markdown]
+smart_punctuation = true
+insert_anchor_links = "heading"
+
+# The highlighter marks each token of a code block with a class, and
+# `static/style.css` gives the classes the colors of the site, in light and in
+# dark mode. The theme decides which tokens share a class, and also the number
+# of each class: the highlighter numbers the colors of the theme in sorted
+# order. So after an update of Zola, compare the generated `giallo.css` with
+# the colors that `style.css` lists for each class.
+[markdown.highlighting]
+style = "class"
+theme = "github-light"
+
+[link_checker]
+internal_level = "error"
+# Only `zola check` checks the external links, and no task or job runs it. The
+# crates are not on docs.rs before their first release, so the level stays a
+# warning until then.
+external_level = "warn"

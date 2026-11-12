@@ -1,0 +1,910 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T13:51:28+00:00",
+  "title": "Design System: Rakko",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "White Ground",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(38% 0.000 90)",
+          "oklch(49% 0.000 90)",
+          "oklch(61% 0.000 90)",
+          "oklch(72% 0.000 90)",
+          "oklch(84% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ]
+      },
+      "bg-soft": {
+        "role": "neutral",
+        "displayName": "Soft Panel",
+        "canonical": "#f6f7f8",
+        "tonalRamp": [
+          "oklch(15% 0.002 248)",
+          "oklch(26% 0.002 248)",
+          "oklch(38% 0.002 248)",
+          "oklch(49% 0.002 248)",
+          "oklch(61% 0.002 248)",
+          "oklch(72% 0.002 248)",
+          "oklch(84% 0.002 248)",
+          "oklch(95% 0.002 248)"
+        ]
+      },
+      "bg-mute": {
+        "role": "neutral",
+        "displayName": "Mute Panel",
+        "canonical": "#eceef1",
+        "tonalRamp": [
+          "oklch(15% 0.001 258)",
+          "oklch(26% 0.002 258)",
+          "oklch(38% 0.003 258)",
+          "oklch(49% 0.004 258)",
+          "oklch(61% 0.005 258)",
+          "oklch(72% 0.004 258)",
+          "oklch(84% 0.003 258)",
+          "oklch(95% 0.002 258)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Near-Black Text",
+        "canonical": "#1d2025",
+        "tonalRamp": [
+          "oklch(15% 0.002 261)",
+          "oklch(26% 0.004 261)",
+          "oklch(38% 0.006 261)",
+          "oklch(49% 0.008 261)",
+          "oklch(61% 0.010 261)",
+          "oklch(72% 0.008 261)",
+          "oklch(84% 0.006 261)",
+          "oklch(95% 0.004 261)"
+        ]
+      },
+      "text-2": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "canonical": "#565d67",
+        "tonalRamp": [
+          "oklch(15% 0.003 257)",
+          "oklch(26% 0.007 257)",
+          "oklch(38% 0.011 257)",
+          "oklch(49% 0.015 257)",
+          "oklch(61% 0.018 257)",
+          "oklch(72% 0.014 257)",
+          "oklch(84% 0.010 257)",
+          "oklch(95% 0.006 257)"
+        ]
+      },
+      "text-3": {
+        "role": "neutral",
+        "displayName": "Light Slate",
+        "canonical": "#676e78",
+        "tonalRamp": [
+          "oklch(15% 0.003 257)",
+          "oklch(26% 0.007 257)",
+          "oklch(38% 0.010 257)",
+          "oklch(49% 0.014 257)",
+          "oklch(61% 0.018 257)",
+          "oklch(72% 0.014 257)",
+          "oklch(84% 0.010 257)",
+          "oklch(95% 0.006 257)"
+        ]
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Divider",
+        "canonical": "#e3e6ea",
+        "tonalRamp": [
+          "oklch(15% 0.001 255)",
+          "oklch(26% 0.002 255)",
+          "oklch(38% 0.004 255)",
+          "oklch(49% 0.005 255)",
+          "oklch(61% 0.006 255)",
+          "oklch(72% 0.005 255)",
+          "oklch(84% 0.004 255)",
+          "oklch(95% 0.002 255)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "canonical": "#d3d7dd",
+        "tonalRamp": [
+          "oklch(15% 0.001 258)",
+          "oklch(26% 0.003 258)",
+          "oklch(38% 0.005 258)",
+          "oklch(49% 0.007 258)",
+          "oklch(61% 0.009 258)",
+          "oklch(72% 0.007 258)",
+          "oklch(84% 0.005 258)",
+          "oklch(95% 0.003 258)"
+        ]
+      },
+      "brand": {
+        "role": "primary",
+        "displayName": "Rakko Orange",
+        "canonical": "#c2410c",
+        "tonalRamp": [
+          "oklch(15% 0.026 38)",
+          "oklch(26% 0.064 38)",
+          "oklch(38% 0.101 38)",
+          "oklch(49% 0.139 38)",
+          "oklch(61% 0.172 38)",
+          "oklch(72% 0.134 38)",
+          "oklch(84% 0.096 38)",
+          "oklch(95% 0.059 38)"
+        ]
+      },
+      "brand-hover": {
+        "role": "primary",
+        "displayName": "Rakko Orange Deep",
+        "canonical": "#a8380a",
+        "tonalRamp": [
+          "oklch(15% 0.023 39)",
+          "oklch(26% 0.057 39)",
+          "oklch(38% 0.090 39)",
+          "oklch(49% 0.124 39)",
+          "oklch(61% 0.153 39)",
+          "oklch(72% 0.120 39)",
+          "oklch(84% 0.086 39)",
+          "oklch(95% 0.053 39)"
+        ]
+      },
+      "brand-text": {
+        "role": "primary",
+        "displayName": "Rakko Orange Text",
+        "canonical": "#b13c0b",
+        "tonalRamp": [
+          "oklch(15% 0.024 39)",
+          "oklch(26% 0.059 39)",
+          "oklch(38% 0.094 39)",
+          "oklch(49% 0.128 39)",
+          "oklch(61% 0.159 39)",
+          "oklch(72% 0.124 39)",
+          "oklch(84% 0.089 39)",
+          "oklch(95% 0.055 39)"
+        ]
+      },
+      "brand-soft": {
+        "role": "primary",
+        "displayName": "Orange Wash",
+        "canonical": "#fdf0e9",
+        "tonalRamp": [
+          "oklch(15% 0.003 50)",
+          "oklch(26% 0.006 50)",
+          "oklch(38% 0.010 50)",
+          "oklch(49% 0.014 50)",
+          "oklch(61% 0.017 50)",
+          "oklch(72% 0.013 50)",
+          "oklch(84% 0.009 50)",
+          "oklch(95% 0.006 50)"
+        ]
+      },
+      "on-brand": {
+        "role": "neutral",
+        "displayName": "On Orange",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(38% 0.000 90)",
+          "oklch(49% 0.000 90)",
+          "oklch(61% 0.000 90)",
+          "oklch(72% 0.000 90)",
+          "oklch(84% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ]
+      },
+      "terminal": {
+        "role": "neutral",
+        "displayName": "Terminal",
+        "canonical": "#1d2025",
+        "tonalRamp": [
+          "oklch(15% 0.002 261)",
+          "oklch(26% 0.004 261)",
+          "oklch(38% 0.006 261)",
+          "oklch(49% 0.008 261)",
+          "oklch(61% 0.010 261)",
+          "oklch(72% 0.008 261)",
+          "oklch(84% 0.006 261)",
+          "oklch(95% 0.004 261)"
+        ]
+      },
+      "terminal-text": {
+        "role": "neutral",
+        "displayName": "Terminal Text",
+        "canonical": "#e7e8ea",
+        "tonalRamp": [
+          "oklch(15% 0.000 265)",
+          "oklch(26% 0.001 265)",
+          "oklch(38% 0.002 265)",
+          "oklch(49% 0.002 265)",
+          "oklch(61% 0.003 265)",
+          "oklch(72% 0.002 265)",
+          "oklch(84% 0.002 265)",
+          "oklch(95% 0.001 265)"
+        ]
+      },
+      "terminal-accent": {
+        "role": "primary",
+        "displayName": "Terminal Accent",
+        "canonical": "#f2773d",
+        "tonalRamp": [
+          "oklch(15% 0.025 44)",
+          "oklch(26% 0.061 44)",
+          "oklch(38% 0.097 44)",
+          "oklch(49% 0.133 44)",
+          "oklch(61% 0.165 44)",
+          "oklch(72% 0.129 44)",
+          "oklch(84% 0.093 44)",
+          "oklch(95% 0.057 44)"
+        ]
+      },
+      "code-keyword": {
+        "role": "syntax",
+        "displayName": "Keyword Blue",
+        "canonical": "#24508a",
+        "tonalRamp": [
+          "oklch(15% 0.016 256)",
+          "oklch(26% 0.039 256)",
+          "oklch(38% 0.063 256)",
+          "oklch(49% 0.086 256)",
+          "oklch(61% 0.106 256)",
+          "oklch(72% 0.083 256)",
+          "oklch(84% 0.060 256)",
+          "oklch(95% 0.037 256)"
+        ]
+      },
+      "code-entity": {
+        "role": "syntax",
+        "displayName": "Entity Violet",
+        "canonical": "#5b3f8f",
+        "tonalRamp": [
+          "oklch(15% 0.019 297)",
+          "oklch(26% 0.047 297)",
+          "oklch(38% 0.074 297)",
+          "oklch(49% 0.102 297)",
+          "oklch(61% 0.126 297)",
+          "oklch(72% 0.098 297)",
+          "oklch(84% 0.071 297)",
+          "oklch(95% 0.043 297)"
+        ]
+      },
+      "code-string": {
+        "role": "syntax",
+        "displayName": "String Green",
+        "canonical": "#2d6a3c",
+        "tonalRamp": [
+          "oklch(15% 0.015 149)",
+          "oklch(26% 0.036 149)",
+          "oklch(38% 0.057 149)",
+          "oklch(49% 0.078 149)",
+          "oklch(61% 0.096 149)",
+          "oklch(72% 0.075 149)",
+          "oklch(84% 0.054 149)",
+          "oklch(95% 0.033 149)"
+        ]
+      },
+      "code-const": {
+        "role": "syntax",
+        "displayName": "Constant Teal",
+        "canonical": "#0f6a78",
+        "tonalRamp": [
+          "oklch(15% 0.012 211)",
+          "oklch(26% 0.029 211)",
+          "oklch(38% 0.047 211)",
+          "oklch(49% 0.064 211)",
+          "oklch(61% 0.079 211)",
+          "oklch(72% 0.062 211)",
+          "oklch(84% 0.044 211)",
+          "oklch(95% 0.027 211)"
+        ]
+      },
+      "code-comment": {
+        "role": "syntax",
+        "displayName": "Comment Slate",
+        "canonical": "#6a727c",
+        "tonalRamp": [
+          "oklch(15% 0.003 254)",
+          "oklch(26% 0.007 254)",
+          "oklch(38% 0.011 254)",
+          "oklch(49% 0.015 254)",
+          "oklch(61% 0.018 254)",
+          "oklch(72% 0.014 254)",
+          "oklch(84% 0.010 254)",
+          "oklch(95% 0.006 254)"
+        ]
+      },
+      "code-tag": {
+        "role": "syntax",
+        "displayName": "Tag Green",
+        "canonical": "#2d6a3c",
+        "tonalRamp": [
+          "oklch(15% 0.015 149)",
+          "oklch(26% 0.036 149)",
+          "oklch(38% 0.057 149)",
+          "oklch(49% 0.078 149)",
+          "oklch(61% 0.096 149)",
+          "oklch(72% 0.075 149)",
+          "oklch(84% 0.054 149)",
+          "oklch(95% 0.033 149)"
+        ]
+      },
+      "code-var": {
+        "role": "syntax",
+        "displayName": "Variable Amber",
+        "canonical": "#8a4f05",
+        "tonalRamp": [
+          "oklch(15% 0.016 63)",
+          "oklch(26% 0.040 63)",
+          "oklch(38% 0.064 63)",
+          "oklch(49% 0.087 63)",
+          "oklch(61% 0.108 63)",
+          "oklch(72% 0.084 63)",
+          "oklch(84% 0.061 63)",
+          "oklch(95% 0.037 63)"
+        ]
+      },
+      "code-invalid": {
+        "role": "syntax",
+        "displayName": "Invalid Red",
+        "canonical": "#a3201b",
+        "tonalRamp": [
+          "oklch(15% 0.025 28)",
+          "oklch(26% 0.061 28)",
+          "oklch(38% 0.097 28)",
+          "oklch(49% 0.134 28)",
+          "oklch(61% 0.165 28)",
+          "oklch(72% 0.129 28)",
+          "oklch(84% 0.093 28)",
+          "oklch(95% 0.057 28)"
+        ]
+      },
+      "bg-dark": {
+        "role": "neutral",
+        "displayName": "White Ground (Dark Mode)",
+        "canonical": "#16171a",
+        "tonalRamp": [
+          "oklch(15% 0.001 271)",
+          "oklch(26% 0.002 271)",
+          "oklch(38% 0.004 271)",
+          "oklch(49% 0.005 271)",
+          "oklch(61% 0.006 271)",
+          "oklch(72% 0.005 271)",
+          "oklch(84% 0.003 271)",
+          "oklch(95% 0.002 271)"
+        ]
+      },
+      "bg-soft-dark": {
+        "role": "neutral",
+        "displayName": "Soft Panel (Dark Mode)",
+        "canonical": "#1d1f23",
+        "tonalRamp": [
+          "oklch(15% 0.001 264)",
+          "oklch(26% 0.003 264)",
+          "oklch(38% 0.005 264)",
+          "oklch(49% 0.007 264)",
+          "oklch(61% 0.008 264)",
+          "oklch(72% 0.006 264)",
+          "oklch(84% 0.005 264)",
+          "oklch(95% 0.003 264)"
+        ]
+      },
+      "bg-mute-dark": {
+        "role": "neutral",
+        "displayName": "Mute Panel (Dark Mode)",
+        "canonical": "#272a2f",
+        "tonalRamp": [
+          "oklch(15% 0.002 261)",
+          "oklch(26% 0.004 261)",
+          "oklch(38% 0.006 261)",
+          "oklch(49% 0.008 261)",
+          "oklch(61% 0.010 261)",
+          "oklch(72% 0.008 261)",
+          "oklch(84% 0.006 261)",
+          "oklch(95% 0.003 261)"
+        ]
+      },
+      "text-dark": {
+        "role": "neutral",
+        "displayName": "Near-Black Text (Dark Mode)",
+        "canonical": "#e7e8ea",
+        "tonalRamp": [
+          "oklch(15% 0.000 265)",
+          "oklch(26% 0.001 265)",
+          "oklch(38% 0.002 265)",
+          "oklch(49% 0.002 265)",
+          "oklch(61% 0.003 265)",
+          "oklch(72% 0.002 265)",
+          "oklch(84% 0.002 265)",
+          "oklch(95% 0.001 265)"
+        ]
+      },
+      "text-2-dark": {
+        "role": "neutral",
+        "displayName": "Slate (Dark Mode)",
+        "canonical": "#a7aeb7",
+        "tonalRamp": [
+          "oklch(15% 0.002 255)",
+          "oklch(26% 0.006 255)",
+          "oklch(38% 0.009 255)",
+          "oklch(49% 0.012 255)",
+          "oklch(61% 0.015 255)",
+          "oklch(72% 0.012 255)",
+          "oklch(84% 0.008 255)",
+          "oklch(95% 0.005 255)"
+        ]
+      },
+      "text-3-dark": {
+        "role": "neutral",
+        "displayName": "Light Slate (Dark Mode)",
+        "canonical": "#959ca6",
+        "tonalRamp": [
+          "oklch(15% 0.003 257)",
+          "oklch(26% 0.006 257)",
+          "oklch(38% 0.010 257)",
+          "oklch(49% 0.013 257)",
+          "oklch(61% 0.016 257)",
+          "oklch(72% 0.013 257)",
+          "oklch(84% 0.009 257)",
+          "oklch(95% 0.006 257)"
+        ]
+      },
+      "divider-dark": {
+        "role": "neutral",
+        "displayName": "Divider (Dark Mode)",
+        "canonical": "#2a2d32",
+        "tonalRamp": [
+          "oklch(15% 0.002 261)",
+          "oklch(26% 0.004 261)",
+          "oklch(38% 0.006 261)",
+          "oklch(49% 0.008 261)",
+          "oklch(61% 0.010 261)",
+          "oklch(72% 0.008 261)",
+          "oklch(84% 0.006 261)",
+          "oklch(95% 0.003 261)"
+        ]
+      },
+      "border-dark": {
+        "role": "neutral",
+        "displayName": "Border (Dark Mode)",
+        "canonical": "#3a3e45",
+        "tonalRamp": [
+          "oklch(15% 0.002 262)",
+          "oklch(26% 0.005 262)",
+          "oklch(38% 0.008 262)",
+          "oklch(49% 0.011 262)",
+          "oklch(61% 0.013 262)",
+          "oklch(72% 0.010 262)",
+          "oklch(84% 0.007 262)",
+          "oklch(95% 0.004 262)"
+        ]
+      },
+      "brand-dark": {
+        "role": "primary",
+        "displayName": "Rakko Orange (Dark Mode)",
+        "canonical": "#f2773d",
+        "tonalRamp": [
+          "oklch(15% 0.025 44)",
+          "oklch(26% 0.061 44)",
+          "oklch(38% 0.097 44)",
+          "oklch(49% 0.133 44)",
+          "oklch(61% 0.165 44)",
+          "oklch(72% 0.129 44)",
+          "oklch(84% 0.093 44)",
+          "oklch(95% 0.057 44)"
+        ]
+      },
+      "brand-hover-dark": {
+        "role": "primary",
+        "displayName": "Rakko Orange Deep (Dark Mode)",
+        "canonical": "#f58c5a",
+        "tonalRamp": [
+          "oklch(15% 0.022 45)",
+          "oklch(26% 0.052 45)",
+          "oklch(38% 0.083 45)",
+          "oklch(49% 0.114 45)",
+          "oklch(61% 0.141 45)",
+          "oklch(72% 0.111 45)",
+          "oklch(84% 0.080 45)",
+          "oklch(95% 0.049 45)"
+        ]
+      },
+      "brand-text-dark": {
+        "role": "primary",
+        "displayName": "Rakko Orange Text (Dark Mode)",
+        "canonical": "#f58c5a",
+        "tonalRamp": [
+          "oklch(15% 0.022 45)",
+          "oklch(26% 0.052 45)",
+          "oklch(38% 0.083 45)",
+          "oklch(49% 0.114 45)",
+          "oklch(61% 0.141 45)",
+          "oklch(72% 0.111 45)",
+          "oklch(84% 0.080 45)",
+          "oklch(95% 0.049 45)"
+        ]
+      },
+      "brand-soft-dark": {
+        "role": "primary",
+        "displayName": "Orange Wash (Dark Mode)",
+        "canonical": "#35211a",
+        "tonalRamp": [
+          "oklch(15% 0.005 40)",
+          "oklch(26% 0.012 40)",
+          "oklch(38% 0.020 40)",
+          "oklch(49% 0.027 40)",
+          "oklch(61% 0.033 40)",
+          "oklch(72% 0.026 40)",
+          "oklch(84% 0.019 40)",
+          "oklch(95% 0.011 40)"
+        ]
+      },
+      "on-brand-dark": {
+        "role": "neutral",
+        "displayName": "On Orange (Dark Mode)",
+        "canonical": "#16171a",
+        "tonalRamp": [
+          "oklch(15% 0.001 271)",
+          "oklch(26% 0.002 271)",
+          "oklch(38% 0.004 271)",
+          "oklch(49% 0.005 271)",
+          "oklch(61% 0.006 271)",
+          "oklch(72% 0.005 271)",
+          "oklch(84% 0.003 271)",
+          "oklch(95% 0.002 271)"
+        ]
+      },
+      "terminal-dark": {
+        "role": "neutral",
+        "displayName": "Terminal (Dark Mode)",
+        "canonical": "#0f1012",
+        "tonalRamp": [
+          "oklch(15% 0.001 264)",
+          "oklch(26% 0.002 264)",
+          "oklch(38% 0.003 264)",
+          "oklch(49% 0.004 264)",
+          "oklch(61% 0.004 264)",
+          "oklch(72% 0.003 264)",
+          "oklch(84% 0.002 264)",
+          "oklch(95% 0.002 264)"
+        ]
+      },
+      "code-keyword-dark": {
+        "role": "syntax",
+        "displayName": "Keyword Blue (Dark Mode)",
+        "canonical": "#8fb5ef",
+        "tonalRamp": [
+          "oklch(15% 0.014 259)",
+          "oklch(26% 0.034 259)",
+          "oklch(38% 0.054 259)",
+          "oklch(49% 0.075 259)",
+          "oklch(61% 0.092 259)",
+          "oklch(72% 0.072 259)",
+          "oklch(84% 0.052 259)",
+          "oklch(95% 0.032 259)"
+        ]
+      },
+      "code-entity-dark": {
+        "role": "syntax",
+        "displayName": "Entity Violet (Dark Mode)",
+        "canonical": "#c4b3f0",
+        "tonalRamp": [
+          "oklch(15% 0.013 297)",
+          "oklch(26% 0.032 297)",
+          "oklch(38% 0.050 297)",
+          "oklch(49% 0.069 297)",
+          "oklch(61% 0.086 297)",
+          "oklch(72% 0.067 297)",
+          "oklch(84% 0.048 297)",
+          "oklch(95% 0.029 297)"
+        ]
+      },
+      "code-string-dark": {
+        "role": "syntax",
+        "displayName": "String Green (Dark Mode)",
+        "canonical": "#93cf9f",
+        "tonalRamp": [
+          "oklch(15% 0.014 150)",
+          "oklch(26% 0.033 150)",
+          "oklch(38% 0.053 150)",
+          "oklch(49% 0.073 150)",
+          "oklch(61% 0.090 150)",
+          "oklch(72% 0.071 150)",
+          "oklch(84% 0.051 150)",
+          "oklch(95% 0.031 150)"
+        ]
+      },
+      "code-const-dark": {
+        "role": "syntax",
+        "displayName": "Constant Teal (Dark Mode)",
+        "canonical": "#74c7d5",
+        "tonalRamp": [
+          "oklch(15% 0.012 209)",
+          "oklch(26% 0.030 209)",
+          "oklch(38% 0.048 209)",
+          "oklch(49% 0.066 209)",
+          "oklch(61% 0.082 209)",
+          "oklch(72% 0.064 209)",
+          "oklch(84% 0.046 209)",
+          "oklch(95% 0.028 209)"
+        ]
+      },
+      "code-comment-dark": {
+        "role": "syntax",
+        "displayName": "Comment Slate (Dark Mode)",
+        "canonical": "#8f98a2",
+        "tonalRamp": [
+          "oklch(15% 0.003 251)",
+          "oklch(26% 0.007 251)",
+          "oklch(38% 0.011 251)",
+          "oklch(49% 0.014 251)",
+          "oklch(61% 0.018 251)",
+          "oklch(72% 0.014 251)",
+          "oklch(84% 0.010 251)",
+          "oklch(95% 0.006 251)"
+        ]
+      },
+      "code-tag-dark": {
+        "role": "syntax",
+        "displayName": "Tag Green (Dark Mode)",
+        "canonical": "#93cf9f",
+        "tonalRamp": [
+          "oklch(15% 0.014 150)",
+          "oklch(26% 0.033 150)",
+          "oklch(38% 0.053 150)",
+          "oklch(49% 0.073 150)",
+          "oklch(61% 0.090 150)",
+          "oklch(72% 0.071 150)",
+          "oklch(84% 0.051 150)",
+          "oklch(95% 0.031 150)"
+        ]
+      },
+      "code-var-dark": {
+        "role": "syntax",
+        "displayName": "Variable Amber (Dark Mode)",
+        "canonical": "#e2b56d",
+        "tonalRamp": [
+          "oklch(15% 0.016 78)",
+          "oklch(26% 0.038 78)",
+          "oklch(38% 0.061 78)",
+          "oklch(49% 0.083 78)",
+          "oklch(61% 0.103 78)",
+          "oklch(72% 0.080 78)",
+          "oklch(84% 0.058 78)",
+          "oklch(95% 0.035 78)"
+        ]
+      },
+      "code-invalid-dark": {
+        "role": "syntax",
+        "displayName": "Invalid Red (Dark Mode)",
+        "canonical": "#ff8a80",
+        "tonalRamp": [
+          "oklch(15% 0.022 26)",
+          "oklch(26% 0.053 26)",
+          "oklch(38% 0.083 26)",
+          "oklch(49% 0.114 26)",
+          "oklch(61% 0.142 26)",
+          "oklch(72% 0.111 26)",
+          "oklch(84% 0.080 26)",
+          "oklch(95% 0.049 26)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The name Rakko in the hero, in orange. Once per site."
+      },
+      "tagline": {
+        "displayName": "Tagline",
+        "purpose": "The line under the name in the hero."
+      },
+      "page-title": {
+        "displayName": "Page Title",
+        "purpose": "The title of a documentation page or section index."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The heading of a section of the landing page."
+      },
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "A second-level heading in running text, under a divider."
+      },
+      "subtitle": {
+        "displayName": "Subtitle",
+        "purpose": "The heading of a feature or a documentation kind on the landing page."
+      },
+      "lede": {
+        "displayName": "Lede",
+        "purpose": "The hero lede and the summary under a page title, in slate."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text at the 37rem measure."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "The top bar, the sidebar, the facts strip, and the footer."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Code panels, with ligatures off."
+      }
+    },
+    "shadows": [
+      {
+        "name": "code-card-lift",
+        "value": "0 12px 32px -12px rgb(0 0 0 / 0.14)",
+        "purpose": "The code card of the hero, and nothing else."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "150 ms on the color and border of links and buttons; nothing else animates, and reduced motion drops it."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "outline",
+        "value": "75rem"
+      },
+      {
+        "name": "tablet",
+        "value": "60rem"
+      },
+      {
+        "name": "phone",
+        "value": "40rem"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-brand",
+      "description": "The primary action, such as Get Started; one per group of buttons.",
+      "html": "<a class=\"ds-button ds-button-brand\" href=\"#\">Get Started <svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M3 8h9M8.5 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></a>",
+      "css": ".ds-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.25rem; border: 1px solid transparent; border-radius: var(--radius, 0.5rem); font-family: var(--sans, system-ui, sans-serif); font-size: 0.9375rem; font-weight: 600; line-height: 1.4; text-decoration: none; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-button-brand { background: var(--brand, #c2410c); color: var(--on-brand, #ffffff); } .ds-button-brand:hover { background: var(--brand-hover, #a8380a); } .ds-button:focus-visible { outline: 2px solid var(--brand, #c2410c); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-alt",
+      "description": "The second action beside a primary button.",
+      "html": "<a class=\"ds-button ds-button-alt\" href=\"#\">Build an Action</a>",
+      "css": ".ds-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1.25rem; border: 1px solid transparent; border-radius: var(--radius, 0.5rem); font-family: var(--sans, system-ui, sans-serif); font-size: 0.9375rem; font-weight: 600; line-height: 1.4; text-decoration: none; transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-button-alt { border-color: var(--border, #d3d7dd); background: var(--bg, #ffffff); color: var(--text, #1d2025); } .ds-button-alt:hover { border-color: var(--text-3, #676e78); } .ds-button:focus-visible { outline: 2px solid var(--brand, #c2410c); outline-offset: 2px; }"
+    },
+    {
+      "name": "Hero Code Card",
+      "kind": "custom",
+      "refersTo": "code-card",
+      "description": "The harness of a project in two files: its Cargo.toml from the front matter of the landing page, and its main.rs read from a compiled example crate, with the command that runs it in a dark strip.",
+      "html": "<figure class=\"ds-code-card\"><div class=\"ds-code-card-file\"><code>tools/rakko/Cargo.toml</code></div><pre class=\"ds-code-card-pre\"><code>[dependencies]\nrakko-cli = \"0.1\"\nrakko-format-rust = \"0.1\"\nrakko-lint-rust = \"0.1\"</code></pre><div class=\"ds-code-card-file\"><code>tools/rakko/src/main.rs</code></div><pre class=\"ds-code-card-pre\"><code><span class=\"ds-k\">fn</span> <span class=\"ds-e\">main</span>() -&gt; std::process::ExitCode {\n    rakko_cli::builder()\n        .<span class=\"ds-e\">mount</span>(rakko_format_rust::FormatRust)\n        .<span class=\"ds-e\">mount</span>(rakko_lint_rust::LintRust)\n        .<span class=\"ds-e\">run</span>()\n}</code></pre><div class=\"ds-code-card-run\"><span class=\"ds-code-card-prompt\" aria-hidden=\"true\">$</span><code>mise run rakko -- format-rust --fix</code></div></figure>",
+      "css": ".ds-code-card { margin: 0; overflow: hidden; border: 1px solid var(--border, #d3d7dd); border-radius: 0.75rem; background: var(--bg-soft, #f6f7f8); box-shadow: 0 12px 32px -12px rgb(0 0 0 / 0.14); color: var(--text, #1d2025); } .ds-code-card code { font-family: var(--mono, ui-monospace, monospace); font-variant-ligatures: none; } .ds-code-card-file { padding: 0.625rem 1.25rem; border-bottom: 1px solid var(--divider, #e3e6ea); color: var(--text-2, #565d67); font-size: 0.8125rem; font-weight: 500; } .ds-code-card-pre { margin: 0; overflow-x: auto; font-size: 0.8125rem; line-height: 1.7; } .ds-code-card-pre + .ds-code-card-file { border-top: 1px solid var(--divider, #e3e6ea); } .ds-code-card-pre code { display: block; width: max-content; min-width: 100%; padding: 1.125rem 1.25rem 1.25rem; } .ds-k { color: var(--code-keyword, #24508a); } .ds-e { color: var(--code-entity, #5b3f8f); } .ds-code-card-run { display: flex; gap: 0.75rem; padding: 0.875rem 1.25rem; overflow-x: auto; background: var(--terminal, #1d2025); color: var(--terminal-text, #e7e8ea); font-size: 0.8125rem; white-space: nowrap; } .ds-code-card-prompt { color: #f2773d; font-family: var(--mono, ui-monospace, monospace); user-select: none; }"
+    },
+    {
+      "name": "Code Panel",
+      "kind": "custom",
+      "refersTo": "code-panel",
+      "description": "A code block in running text, headed by its language or file name.",
+      "html": "<pre class=\"ds-pre\"><code data-lang=\"TOML\"><span class=\"ds-k\">[dependencies]</span>\nrakko-cli = <span class=\"ds-s\">\"0.1\"</span></code></pre>",
+      "css": ".ds-pre { margin: 0; overflow-x: auto; border-radius: var(--radius, 0.5rem); background: var(--bg-soft, #f6f7f8); color: var(--text, #1d2025); font-size: 0.875rem; line-height: 1.7; tab-size: 4; } .ds-pre code { display: block; width: max-content; min-width: 100%; padding: 1rem 1.25rem 1.125rem; font-family: var(--mono, ui-monospace, monospace); font-variant-ligatures: none; } .ds-pre code::before { position: sticky; left: 0; display: block; width: fit-content; margin-bottom: 0.625rem; color: var(--text-3, #676e78); font-family: var(--sans, system-ui, sans-serif); font-size: 0.75rem; font-weight: 500; content: attr(data-lang); } .ds-k { color: var(--code-keyword, #24508a); } .ds-s { color: var(--code-string, #2d6a3c); }"
+    },
+    {
+      "name": "Running Text",
+      "kind": "custom",
+      "refersTo": "inline-code",
+      "description": "Prose at the 37rem measure, with an orange link and inline code that never wraps.",
+      "html": "<p class=\"ds-prose\">Run the action with <code>--fix</code> to change the files, or read <a href=\"#\">the guide</a> first.</p>",
+      "css": ".ds-prose { max-width: 37rem; margin: 0; color: var(--text, #1d2025); font-family: var(--sans, system-ui, sans-serif); font-size: 1rem; line-height: 1.75; } .ds-prose a { color: var(--brand-text, #b13c0b); font-weight: 500; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--brand-text, #b13c0b) 35%, transparent); text-underline-offset: 0.2em; transition: text-decoration-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-prose a:hover { text-decoration-color: currentColor; } .ds-prose a:focus-visible { outline: 2px solid var(--brand, #c2410c); outline-offset: 2px; border-radius: 2px; } .ds-prose code { padding: 0.15em 0.4em; border-radius: 0.25rem; background: var(--bg-mute, #eceef1); font-family: var(--mono, ui-monospace, monospace); font-size: 0.875em; white-space: nowrap; }"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "description": "The sticky, translucent bar with the wordmark and the site links.",
+      "html": "<header class=\"ds-topbar\"><a class=\"ds-wordmark\" href=\"#\">Rakko</a><nav class=\"ds-topnav\"><a href=\"#\">Get Started</a><a href=\"#\">Guides</a><a href=\"#\">Concepts</a><a href=\"#\">Reference</a></nav></header>",
+      "css": ".ds-topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem 2rem; min-height: 4rem; padding: 0 1.5rem; background: color-mix(in srgb, var(--bg, #ffffff) 92%, transparent); border-bottom: 1px solid var(--divider, #e3e6ea); backdrop-filter: saturate(1.5) blur(8px); font-family: var(--sans, system-ui, sans-serif); } .ds-topbar a { text-decoration: none; } .ds-wordmark { color: var(--text, #1d2025); font-size: 1.25rem; font-weight: 750; letter-spacing: -0.02em; } .ds-topnav { display: flex; flex-wrap: wrap; gap: 0.25rem 1.5rem; font-size: 0.875rem; font-weight: 500; } .ds-topnav a { color: var(--text-2, #565d67); transition: color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-topnav a:hover { color: var(--brand-text, #b13c0b); } .ds-topbar a:focus-visible { outline: 2px solid var(--brand, #c2410c); outline-offset: 2px; border-radius: 2px; }"
+    },
+    {
+      "name": "Sidebar",
+      "kind": "nav",
+      "refersTo": "sidebar-link-current",
+      "description": "The documentation navigation, grouped by kind of page, with the current page in orange.",
+      "html": "<nav class=\"ds-sidebar\"><section><h2><a href=\"#\">How-To Guides</a></h2><ul><li><a href=\"#\">Build an Action</a></li><li><a href=\"#\" aria-current=\"page\">Test an Action</a></li><li><a href=\"#\">Form a Group</a></li></ul></section></nav>",
+      "css": ".ds-sidebar { width: 15rem; padding: 1rem 1.5rem 1rem 0; border-right: 1px solid var(--divider, #e3e6ea); font-family: var(--sans, system-ui, sans-serif); font-size: 0.875rem; } .ds-sidebar h2 { margin: 0; font-size: 0.875rem; font-weight: 700; } .ds-sidebar ul { margin: 0.5rem 0 0; padding: 0; list-style: none; } .ds-sidebar a { display: block; padding: 0.3125rem 0; color: var(--text-2, #565d67); line-height: 1.4; text-decoration: none; transition: color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-sidebar h2 a { color: var(--text, #1d2025); } .ds-sidebar a:hover { color: var(--text, #1d2025); } .ds-sidebar a[aria-current=\"page\"] { color: var(--brand-text, #b13c0b); font-weight: 600; } .ds-sidebar a:focus-visible { outline: 2px solid var(--brand, #c2410c); outline-offset: 2px; border-radius: 2px; }"
+    },
+    {
+      "name": "Layers List",
+      "kind": "card",
+      "refersTo": "layer-current",
+      "description": "The three layers, with the row of Rakko on the orange wash.",
+      "html": "<ol class=\"ds-layers\"><li class=\"ds-layer\"><strong>Clawless</strong><span>turns the actions that you mount into a command line.</span></li><li class=\"ds-layer ds-layer-current\"><strong>Rakko</strong><span>provides the actions and the machinery that runs them.</span></li><li class=\"ds-layer\"><strong>mise</strong><span>installs the external tools at the versions that each action pins.</span></li></ol>",
+      "css": ".ds-layers { margin: 0; padding: 0; overflow: hidden; border: 1px solid var(--border, #d3d7dd); border-radius: 0.75rem; list-style: none; font-family: var(--sans, system-ui, sans-serif); } .ds-layer { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 0.25rem 1.5rem; padding: 1.125rem 1.5rem; color: var(--text-2, #565d67); font-size: 0.9375rem; line-height: 1.55; } .ds-layer + .ds-layer { border-top: 1px solid var(--divider, #e3e6ea); } .ds-layer strong { color: var(--text, #1d2025); font-size: 1rem; font-weight: 650; } .ds-layer-current { background: var(--brand-soft, #fdf0e9); } .ds-layer-current strong { color: var(--brand-text, #b13c0b); }"
+    },
+    {
+      "name": "Pager Link",
+      "kind": "card",
+      "refersTo": "pager-link",
+      "description": "The link to the next or previous page of a section.",
+      "html": "<a class=\"ds-pager\" href=\"#\"><span class=\"ds-pager-label\">Next</span> <span class=\"ds-pager-title\">Test an Action</span></a>",
+      "css": ".ds-pager { display: block; max-width: 20rem; padding: 0.75rem 1rem; border: 1px solid var(--border, #d3d7dd); border-radius: var(--radius, 0.5rem); font-family: var(--sans, system-ui, sans-serif); text-decoration: none; transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-pager:hover { border-color: var(--brand, #c2410c); } .ds-pager:focus-visible { outline: 2px solid var(--brand, #c2410c); outline-offset: 2px; } .ds-pager-label { display: block; color: var(--text-3, #676e78); font-size: 0.75rem; font-weight: 500; } .ds-pager-title { display: block; margin-top: 0.125rem; color: var(--brand-text, #b13c0b); font-size: 0.9375rem; font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Developer Tool, Played Straight",
+    "overview": "The site of Rakko is the documentation site of a developer tool, with no twist. It holds the craft level of mise.jdx.dev: a sticky top bar, a landing page with a hero and a code sample, and documentation pages with a sidebar, a readable column, and an outline. A Rust developer recognizes every part on sight, so the attention goes to the code and the text. One system runs through the landing page and every documentation page.\n\nThe ground is white (near-black in dark mode), the text near-black, and secondary text a cool slate. Rakko orange is the only color with a voice. It marks the name, the primary button, links, the current page, and focus. Faces are the system UI face and the system monospace, with no web fonts. Code sits in soft gray panels with 8px corners; cards have 12px corners; 1px dividers separate sections. Depth is nearly flat: one soft shadow, under the code card of the hero.\n\nThe site has no JavaScript. Every responsive change is plain CSS, and the only motion is a 150 ms ease-out on the color and border of links and buttons. This design replaced a \"service manual\" design whose landing page was too dense and did not show that Rakko is a developer tool.",
+    "keyCharacteristics": [
+      "The first view proves the tool with code: the harness that a project writes, and the command that runs it.",
+      "Orange is the brand color, and it is reserved for the name, the primary action, links, the current page, and focus.",
+      "System faces only: system UI for text, system monospace for code.",
+      "Soft code panels, 1px dividers, 8px and 12px corners, and one shadow.",
+      "Light and dark mode from the same tokens, chosen by the system setting.",
+      "No JavaScript; the layout adapts at 75rem, 60rem, and 40rem."
+    ],
+    "rules": [
+      {
+        "name": "The One Orange Rule",
+        "body": "Orange marks the name, the primary action, links, the current page, and focus, and nothing else. It never decorates a rule, a border at rest, or a heading.",
+        "section": "colors"
+      },
+      {
+        "name": "The Text Orange Rule",
+        "body": "Small text in orange uses `brand-text`, never `brand`; `brand` is for fills, outlines, and borders.",
+        "section": "colors"
+      },
+      {
+        "name": "The System Face Rule",
+        "body": "The site loads no font. Text uses the system UI face and code the system monospace.",
+        "section": "typography"
+      },
+      {
+        "name": "The Measure Rule",
+        "body": "Prose holds a measure of 37rem. Code panels and tables may run to the 43rem column.",
+        "section": "typography"
+      },
+      {
+        "name": "The Whole Flag Rule",
+        "body": "Inline code never wraps, so a flag such as `--fix` or a path stays whole on one line.",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Script Rule",
+        "body": "Every responsive change is CSS. Navigation that needs a toggle becomes a link to a place on the page.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Shadow Rule",
+        "body": "Only the code card of the hero casts a shadow. Every other surface is flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep orange to the name, the primary action, links, the current page, and focus.",
+      "Do use `brand-text` for orange text and `brand` for fills and outlines.",
+      "Do keep prose at the 37rem measure, and let code and tables run to 43rem.",
+      "Do keep inline code on one line, and keep the indentation of code in panels with a sideways scroll.",
+      "Do show real code from a compiled example crate wherever a page shows the API.",
+      "Do separate sections with 1px dividers and soft panels, not shadows.",
+      "Do define every color as a token on `:root` with a partner in the dark mode block.",
+      "Do limit motion to 150 ms ease-out on color and border, and drop it for reduced motion."
+    ],
+    "donts": [
+      "Don't load a web font; use the system UI face and the system monospace.",
+      "Don't add JavaScript; responsive navigation uses links to places on the page.",
+      "Don't put an eyebrow or kicker label above a heading.",
+      "Don't add a shadow to any surface other than the code card of the hero.",
+      "Don't use orange for decorative rules or borders at rest.",
+      "Don't make the landing page dense or editorial; it is a developer tool landing page with a hero, a code sample, and short bands.",
+      "Don't draw or imitate the Aonyx logo; use the supplied file."
+    ]
+  }
+}

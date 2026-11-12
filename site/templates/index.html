@@ -1,0 +1,103 @@
+{#- The landing page. Most of its text lives in `content/_index.md`: the
+    hero, the manifest of the harness in the hero, the features, and the
+    three layers in the front matter, and the section on actions of your own
+    in the body. This template holds the rest: the labels of the buttons, the
+    paths of the two files in the hero, the command below them, and the
+    heading of the documentation index. The Rust code in the hero is the
+    harness of the example crate `examples/landing`, which Cargo compiles and
+    tests. The documentation at the end comes from the same content tree as
+    the sidebar of the documentation pages. -#}
+{% extends "base.html" %}
+
+{% block body %}
+{%- set start = get_page(path="tutorial/get-started.md") -%}
+{%- set link_references = "\n\n[clawless]: https://clawless.rs\n[mise]: https://mise.jdx.dev" -%}
+{%- set harness = load_data(path="examples/landing/src/main.rs", format="plain") -%}
+{%- set harness = harness | split(pat="// region: main\n") | nth(n=1) | split(pat="// endregion: main") | first | trim_end -%}
+<main class="home" id="text">
+  <section class="hero">
+    <div class="hero-copy">
+      <h1><span class="hero-name">Rakko</span> <span class="hero-tagline">{{ section.extra.headline }}</span></h1>
+      <p class="hero-lede">{{ section.extra.lede }}</p>
+      <div class="actions">
+        <a class="button button-brand" href="{{ start.permalink }}">Get Started
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="button button-alt" href="{{ get_url(path='@/how-to/build-an-action.md') }}">Build an Action</a>
+      </div>
+      <p class="hero-needs">{{ (section.extra.needs ~ link_references) | markdown(inline=true) | safe }}</p>
+    </div>
+    <figure class="code-card">
+      <div class="code-card-file"><code>tools/rakko/Cargo.toml</code></div>
+      {{ ("```toml\n" ~ section.extra.harness_manifest ~ "```") | markdown | safe }}
+      <div class="code-card-file"><code>tools/rakko/src/main.rs</code></div>
+      {{ ("```rust\n" ~ harness ~ "\n```") | markdown | safe }}
+      <div class="code-card-run">
+        <span class="code-card-prompt" aria-hidden="true">$</span>
+        <code>mise run rakko -- format-rust --fix</code>
+      </div>
+    </figure>
+  </section>
+
+  <ul class="facts">
+    {%- for fact in section.extra.facts %}
+    <li>{{ (fact ~ link_references) | markdown(inline=true) | safe }}</li>
+    {%- endfor %}
+  </ul>
+
+  <section class="band" aria-labelledby="features-title">
+    <h2 id="features-title">{{ section.extra.features_title }}</h2>
+    <p class="band-intro">{{ section.extra.features_intro }}</p>
+    <ul class="features">
+      {%- for feature in section.extra.features %}
+      <li class="feature">
+        <h3>{{ feature.title }}</h3>
+        <p>{{ (feature.text ~ link_references) | markdown(inline=true) | safe }}</p>
+      </li>
+      {%- endfor %}
+    </ul>
+  </section>
+
+  <section class="band band-split" aria-labelledby="layers-title">
+    <div>
+      <h2 id="layers-title">{{ (section.extra.layers_title ~ link_references) | markdown(inline=true) | safe }}</h2>
+      <p class="band-intro">{{ (section.extra.layers_intro ~ link_references) | markdown(inline=true) | safe }}</p>
+    </div>
+    <ol class="layers">
+      {%- for layer in section.extra.layers %}
+      <li class="layer{% if layer.name == 'Rakko' %} layer-current{% endif %}">
+        <strong>{% if layer.url %}<a href="{{ layer.url }}">{{ layer.name }}</a>{% else %}{{ layer.name }}{% endif %}</strong>
+        <span>{{ layer.role }}</span>
+      </li>
+      {%- endfor %}
+    </ol>
+  </section>
+
+  <section class="band band-split own-actions">
+    <div class="prose">
+      {{ section.content | safe }}
+    </div>
+    <div class="actions">
+      <a class="button button-brand" href="{{ get_url(path='@/how-to/build-an-action.md') }}">Build an Action</a>
+      <a class="button button-alt" href="{{ get_url(path='@/reference/crates.md') }}">Reference</a>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="docs-title">
+    <h2 id="docs-title">Documentation</h2>
+    <div class="doc-kinds">
+      {%- for kind_path in section.subsections %}
+      {%- set kind = get_section(path=kind_path) %}
+      <section class="doc-kind-entry">
+        <h3><a href="{{ kind.permalink }}">{{ kind.title }}</a></h3>
+        <ul>
+          {%- for entry in kind.pages %}
+          <li><a href="{{ entry.permalink }}">{{ entry.title }}</a></li>
+          {%- endfor %}
+        </ul>
+      </section>
+      {%- endfor %}
+    </div>
+  </section>
+</main>
+{% endblock body %}

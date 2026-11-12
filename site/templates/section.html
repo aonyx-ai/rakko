@@ -1,0 +1,27 @@
+{#- The index of one kind of page: its introduction and a link to each page. -#}
+{% extends "doc.html" %}
+
+{% block title %}{{ section.title }} · {{ config.title }}{% endblock title %}
+{% block description %}{{ section.description | default(value=config.description) }}{% endblock description %}
+
+{% block main %}
+<article class="doc doc-index">
+  <header class="doc-head">
+    <h1>{{ section.title }}</h1>
+    {% if section.description %}<p class="doc-summary">{{ section.description }}</p>{% endif %}
+  </header>
+  <div class="prose">
+    {{ section.content | safe }}
+  </div>
+  <ul class="link-list">
+    {%- for entry in section.pages %}
+    <li>
+      <a href="{{ entry.permalink }}">
+        <span class="link-list-title">{{ entry.title }}</span>
+        {% if entry.description %}<span class="link-list-text">{{ entry.description }}</span>{% endif %}
+      </a>
+    </li>
+    {%- endfor %}
+  </ul>
+</article>
+{% endblock main %}

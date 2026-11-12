@@ -1,5 +1,13 @@
 [workspace]
-members = ["actions/*", "bundles/*", "commands/*", "crates/*"]
+# The example crates of the website are members, so that every check of the
+# workspace compiles and tests the Rust code that its pages show.
+members = [
+  "actions/*",
+  "bundles/*",
+  "commands/*",
+  "crates/*",
+  "site/examples/*",
+]
 
 # Opt-in to the new feature resolver introduced in Rust 1.85 and Edition 2024.
 # https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions
@@ -30,11 +38,14 @@ quote = "1.0.35"
 rakko = { path = "crates/rakko", version = "0.1.0" }
 rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-cli = { path = "crates/rakko-cli", version = "0.1.0" }
+rakko-format-rust = { path = "actions/rakko-format-rust", version = "0.1.0" }
+rakko-lint-rust = { path = "actions/rakko-lint-rust", version = "0.1.0" }
 rakko-macros = { path = "crates/rakko-macros", version = "0.1.0" }
 rakko-nextest = { path = "crates/rakko-nextest", version = "0.1.0" }
 rakko-prettier = { path = "crates/rakko-prettier", version = "0.1.0" }
 rakko-rust = { path = "bundles/rakko-rust", version = "0.1.0" }
 rakko-taplo = { path = "crates/rakko-taplo", version = "0.1.0" }
+rakko-test-rust = { path = "actions/rakko-test-rust", version = "0.1.0" }
 rakko-test-utils = { path = "crates/rakko-test-utils", version = "0.1.0" }
 rakko-tool = { path = "crates/rakko-tool", version = "0.1.0" }
 rakko-worktree = { path = "crates/rakko-worktree", version = "0.1.0" }

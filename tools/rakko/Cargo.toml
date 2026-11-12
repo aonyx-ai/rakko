@@ -31,7 +31,13 @@ rakko-rust-library = { path = "../../bundles/rakko-rust-library" }
 rakko-set-msrv = { path = "../../commands/rakko-set-msrv" }
 rakko-test-rust = { path = "../../actions/rakko-test-rust" }
 rakko-test-rust-docs = { path = "../../actions/rakko-test-rust-docs" }
+rakko-tool = { path = "../../crates/rakko-tool" }
 rakko-typescript = { path = "../../bundles/rakko-typescript" }
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1.27.0", features = ["macros", "rt"] }
 
 [workspace.lints.clippy]
 # Require documentation on private items as well, since that helps with long-term maintainability.
