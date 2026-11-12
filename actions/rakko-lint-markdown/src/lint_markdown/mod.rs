@@ -44,11 +44,25 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 /// the rule points at one. The message of the finding is the sentence that
 /// markdownlint would have written for a reader.
 ///
+/// Markdownlint takes its configuration from the first of
+/// `.markdownlint.jsonc`, `.markdownlint.json`, `.markdownlint.yaml`, and
+/// `.markdownlint.yml` that exists in the root and that it can parse. It also
+/// reads a `.markdownlintrc`. When markdownlint runs without the action and
+/// cannot parse the first file, it takes the next file or its defaults, and it
+/// says nothing. The action gives markdownlint a temporary configuration file
+/// outside the project, which extends the first file. So markdownlint reports
+/// a file that it cannot parse. A run that examines Markdown files then stops
+/// with an error that gives the file and the message of markdownlint. With a
+/// file that it can parse, markdownlint applies the same configuration as
+/// without the action.
+///
 /// The action applies to a project that holds Markdown files, and it skips
 /// visibly otherwise. A run stops with an error when mise reports no
 /// markdownlint at the declared version or no Node in the accepted range. It
-/// also stops with an error when markdownlint writes a report that the action
-/// cannot read.
+/// also stops with an error when the action cannot write the temporary
+/// configuration file. It stops with an error when markdownlint cannot parse
+/// the configuration file, or when it writes a report that the action cannot
+/// read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -105,14 +119,16 @@ impl Action for LintMarkdown {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish: the resolution of the
-/// tool, the markdownlint run, or the reading of the report.
+/// Returns the error of the step that could not finish. The steps are the
+/// resolution of the tool and the write of the temporary configuration. Then
+/// come the markdownlint run, the reading of the configuration, and the
+/// reading of the report.
 async fn drive(context: &Context) -> Result<Outcome, LintMarkdownError> {
     let markdownlint = Markdownlint::resolve(context)
         .await
         .map_err(|source| LintMarkdownError::UnresolvedTool { source })?;
 
-    let observation = markdownlint.observe().await?;
+    let observation = markdownlint.observe(context.root()).await?;
 
     if let Some(outcome) = guard(&observation)? {
         return Ok(outcome);

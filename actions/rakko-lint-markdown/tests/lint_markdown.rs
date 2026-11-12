@@ -43,6 +43,33 @@ const BLANK_LINES: &str = "# Notes\n\n\n\nA paragraph of prose.\n";
 /// A markdownlint configuration that turns the rule of the heading off
 const CONFIGURATION: &str = "MD018: false\nMD041: false\n";
 
+/// A markdownlint configuration that no reader of markdownlint can parse
+///
+/// The list of the value has no closing bracket. A markdownlint that finds
+/// the file on its own treats it as a file that is not there.
+const UNPARSABLE_CONFIGURATION: &str = "MD013:\n  line_length: [60\n";
+
+/// A JSON configuration that no reader of markdownlint can parse
+///
+/// The object has no closing brace.
+const UNPARSABLE_JSON_CONFIGURATION: &str = "{ \"MD018\": false\n";
+
+/// A JSONC configuration that turns the rule of the heading off, with
+/// comments and trailing commas
+const TRAILING_COMMA_CONFIGURATION: &str = "{\n  // The headings of the tests have no space.\n  \"MD018\": false,\n  \"MD041\": false,\n}\n";
+
+/// A markdownlint configuration that extends another file of the project
+const EXTENDING_CONFIGURATION: &str = "extends: base.yaml\nMD041: false\n";
+
+/// A markdownlint configuration that turns the rule of the heading off
+///
+/// A test writes it to the file that another configuration extends.
+const BASE_CONFIGURATION: &str = "MD018: false\n";
+
+/// A markdownlint configuration of the user that turns the rule of the
+/// heading off
+const RC_CONFIGURATION: &str = "{ \"MD018\": false }\n";
+
 /// An ignore file that excludes the whole project
 const IGNORE_EVERYTHING: &str = "*.md\n";
 
@@ -376,6 +403,35 @@ async fn run_reaches_a_file_in_a_directory_with_a_dot() {
     assert_eq!(locations(findings), [path_text(".changeset/notes.md")]);
 }
 
+/// Shows that the run applies a configuration file that the configuration of
+/// the project extends
+#[tokio::test]
+async fn run_reads_a_configuration_that_the_configuration_of_the_project_extends() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content(EXTENDING_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("base.yaml")
+        .content(BASE_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the rules of the extended file to answer, got {outcome:?}"
+    );
+}
+
 #[tokio::test]
 async fn run_reads_the_configuration_of_the_project() {
     let project = Project::new();
@@ -395,6 +451,38 @@ async fn run_reads_the_configuration_of_the_project() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the rules of the project to answer, got {outcome:?}"
+    );
+}
+
+/// Shows that the run applies a `.markdownlintrc` beside the configuration
+/// file of the project
+///
+/// Markdownlint reads the `.markdownlintrc` first and adds the configuration
+/// file of the project on top of it.
+#[tokio::test]
+async fn run_reads_the_markdownlintrc_beside_the_configuration_of_the_project() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlintrc")
+        .content(RC_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content("MD041: false\n")
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the rules of both files to answer, got {outcome:?}"
     );
 }
 
@@ -420,6 +508,39 @@ async fn run_whose_markdownlint_examined_nothing_skips() {
     assert!(
         reason.get().contains("markdownlint"),
         "expected the reason to name the tool, got {reason:?}"
+    );
+}
+
+/// Shows that the run stops on a file that the configuration of the project
+/// extends, when markdownlint cannot parse that file
+#[tokio::test]
+async fn run_with_a_broken_configuration_that_the_project_extends_stops() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content(EXTENDING_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("base.yaml")
+        .content(UNPARSABLE_CONFIGURATION)
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(LintMarkdownError::RejectedConfiguration { path, .. })
+                        if path == Path::new(".markdownlint.yaml")
+                )
+        ),
+        "expected the run to stop on the extended file, got {outcome:?}"
     );
 }
 
@@ -487,6 +608,123 @@ async fn run_with_a_broken_rule_names_the_file() {
         panic!("expected the run to fail, got {outcome:?}");
     };
     assert_eq!(locations(findings), [path_text("sub/notes.md")]);
+}
+
+/// Shows that a later configuration file does not hide one that markdownlint
+/// cannot parse
+///
+/// Markdownlint takes the next of its file names when it cannot parse the
+/// first one that exists. The run stops on the first one, because the project
+/// wrote it to be read.
+#[tokio::test]
+async fn run_with_a_configuration_that_markdownlint_cannot_parse_before_a_valid_one_stops() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlint.json")
+        .content(UNPARSABLE_JSON_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content(CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(LintMarkdownError::RejectedConfiguration { path, .. })
+                        if path == Path::new(".markdownlint.json")
+                )
+        ),
+        "expected the run to stop on the first configuration, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_configuration_that_markdownlint_cannot_parse_reports_its_message() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content(UNPARSABLE_CONFIGURATION)
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains("Unable to parse")
+            && source.to_string().contains(".markdownlint.yaml"),
+        "expected the message of markdownlint about the file, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_configuration_that_markdownlint_cannot_parse_stops() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlint.yaml")
+        .content(UNPARSABLE_CONFIGURATION)
+        .call();
+    project.write().path("notes.md").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(LintMarkdownError::RejectedConfiguration { path, .. })
+                        if path == Path::new(".markdownlint.yaml")
+                )
+        ),
+        "expected the run to stop on the configuration, got {outcome:?}"
+    );
+}
+
+/// Shows that a configuration that markdownlint accepts on its own still
+/// applies
+///
+/// Markdownlint parses a JSONC file with a trailing comma. A file that its
+/// `--config` option gives directly is first parsed as JSON with comments,
+/// and that parser stops on the comma.
+#[tokio::test]
+async fn run_with_a_jsonc_configuration_with_a_trailing_comma_applies_it() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".markdownlint.jsonc")
+        .content(TRAILING_COMMA_CONFIGURATION)
+        .call();
+    project
+        .write()
+        .path("notes.md")
+        .content(UNSPACED_HEADING)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the rules of the project to answer, got {outcome:?}"
+    );
 }
 
 #[tokio::test]
