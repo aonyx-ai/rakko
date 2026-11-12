@@ -6,8 +6,36 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#16171a" media="(prefers-color-scheme: dark)">
-  <title>{% block title %}{{ config.title }}{% endblock title %}</title>
-  <meta name="description" content="{% block description %}{{ config.description }}{% endblock description %}">
+  {#- The title and the summary of the page. A link to the page on social
+      media or in a chat app shows them in its preview, with the image
+      `static/social-card.png`. The source of the image is
+      `social/card.html`. The landing page has the title of the site alone. -#}
+  {%- set share_title = config.title -%}
+  {%- set share_description = config.description -%}
+  {%- set full_title = config.title -%}
+  {%- if page -%}
+    {%- set share_title = page.title -%}
+    {%- set share_description = page.description | default(value=config.description) -%}
+    {%- set full_title = page.title ~ " · " ~ config.title -%}
+  {%- elif section and section.path != "/" -%}
+    {%- set share_title = section.title -%}
+    {%- set share_description = section.description | default(value=config.description) -%}
+    {%- set full_title = section.title ~ " · " ~ config.title -%}
+  {%- endif %}
+  <title>{{ full_title }}</title>
+  <meta name="description" content="{{ share_description }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config.title }}">
+  <meta property="og:title" content="{{ share_title }}">
+  <meta property="og:description" content="{{ share_description }}">
+  {%- if current_url %}
+  <meta property="og:url" content="{{ current_url }}">
+  {%- endif %}
+  <meta property="og:image" content="{{ get_url(path='social-card.png', cachebust=true) }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Rakko: Project Maintenance as Rust Crates">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="{{ get_url(path='style.css', cachebust=true) }}">
 </head>
 <body>
