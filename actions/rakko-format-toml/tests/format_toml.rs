@@ -378,6 +378,34 @@ async fn run_with_an_unformatted_file_names_the_file() {
 
 #[cfg(unix)]
 #[tokio::test]
+async fn run_with_an_unreadable_file_reports_what_taplo_wrote() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    project
+        .write()
+        .path("secret.toml")
+        .content(FORMATTED)
+        .call();
+    let path = project.directory.path().join("secret.toml");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a file");
+
+    let outcome = project.run(FormatMode::Report).await;
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+        .expect("the test restores the permissions of a file");
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains("found files"),
+        "expected the report of taplo, got {source}"
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
 async fn run_with_an_unreadable_file_stops() {
     use std::os::unix::fs::PermissionsExt;
 

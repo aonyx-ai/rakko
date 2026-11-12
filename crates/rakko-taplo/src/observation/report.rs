@@ -4,8 +4,15 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::str::Chars;
 
-use super::{Exit, Observation};
+use super::{Configuration, Exit, Observation};
 use crate::problem::{ProblemDetail, TaploProblem};
+
+/// The marker of the line that reports the configuration file that taplo found
+///
+/// Taplo writes this line before it reads the file. So the line precedes the
+/// warning about a file that taplo rejected, and a report that lacks it cannot
+/// show whether taplo rejected the file.
+const CONFIG_FOUND: &str = "load_config: found configuration file";
 
 /// The marker of the line that reports a rejected configuration file
 ///
@@ -70,6 +77,7 @@ const DIFF_TARGET: &str = "+++ b/";
 pub(super) fn read(stdout: &str, stderr: &str, succeeded: Exit) -> Observation {
     let mut observation = Observation {
         checked: None,
+        configuration: Configuration::Unreported,
         examined: Vec::new(),
         problems: Vec::new(),
         rejected_configuration: None,
@@ -79,7 +87,9 @@ pub(super) fn read(stdout: &str, stderr: &str, succeeded: Exit) -> Observation {
     let lines: Vec<&str> = observation.stderr.lines().collect();
 
     for (index, line) in lines.iter().enumerate() {
-        if line.contains(CONFIG_REJECTED) {
+        if line.contains(CONFIG_FOUND) {
+            observation.configuration = Configuration::Reported;
+        } else if line.contains(CONFIG_REJECTED) {
             if observation.rejected_configuration.is_none() {
                 observation.rejected_configuration = Some(rejection(line));
             }
@@ -359,6 +369,12 @@ mod tests {
     /// The report of a run over a file that taplo cannot open
     const REFUSED: &str = "ERROR taplo:lint_files: invalid file error=Permission denied (os error 13) path=\"/home/otter/project/secret.toml\"\nERROR operation failed error=some files were not valid\n";
 
+    /// The line of a formatting run that found a configuration file
+    const FOUND: &str = " INFO taplo:format_files:load_config: found configuration file path=\"/home/otter/project/.taplo.toml\"\n";
+
+    /// The line of a validating run that found a configuration file
+    const FOUND_BY_LINT: &str = " INFO taplo:load_config: found configuration file path=\"/home/otter/project/.taplo.toml\"\n";
+
     /// The report of a run whose configuration taplo rejected
     const REJECTED: &str = " WARN taplo:format_files:load_config: invalid configuration file error=TOML parse error at line 1, column 5\n";
 
@@ -453,6 +469,17 @@ mod tests {
     }
 
     #[test]
+    fn read_clean_report_reports_no_configuration_file() {
+        let observation = read()
+            .stdout("")
+            .stderr(CLEAN)
+            .succeeded(Exit::Succeeded)
+            .call();
+
+        assert!(!observation.reports_configuration());
+    }
+
+    #[test]
     fn read_diagnostic_reads_the_path() {
         let observation = read()
             .stdout("")
@@ -525,6 +552,7 @@ mod tests {
             observation,
             Observation {
                 checked: None,
+                configuration: Configuration::Unreported,
                 examined: Vec::new(),
                 problems: Vec::new(),
                 rejected_configuration: None,
@@ -532,6 +560,28 @@ mod tests {
                 succeeded: Exit::Succeeded,
             }
         );
+    }
+
+    #[test]
+    fn read_found_configuration_of_a_formatting_run_reports_the_file() {
+        let observation = read()
+            .stdout("")
+            .stderr(&format!("{FOUND}{CLEAN}"))
+            .succeeded(Exit::Succeeded)
+            .call();
+
+        assert!(observation.reports_configuration());
+    }
+
+    #[test]
+    fn read_found_configuration_of_a_validating_run_reports_the_file() {
+        let observation = read()
+            .stdout("")
+            .stderr(&format!("{FOUND_BY_LINT}{CLEAN}"))
+            .succeeded(Exit::Succeeded)
+            .call();
+
+        assert!(observation.reports_configuration());
     }
 
     #[test]

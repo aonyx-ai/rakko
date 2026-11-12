@@ -7,10 +7,11 @@
 
 mod error;
 
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Execution, Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+use rakko_tool::{Execution, Invocation, Launch, MiseFile, ResolveRequirementError, Tool};
 
 pub use self::error::ObserveTaploError;
 use crate::observation::Observation;
@@ -47,6 +48,21 @@ const TAPLO: &str = "taplo";
 /// The version comes from the mise file of the crate, which the build
 /// embeds, so a file without the pin fails the build.
 const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(TAPLO);
+
+/// The variable that selects which lines of its log taplo writes
+///
+/// The reading needs lines at the level of information. One of them reports
+/// the configuration file that taplo found, and another counts the files. A
+/// filter that the environment of the run sets, such as `warn`, drops them. Like the flag for colors, the filter selects the presentation of the
+/// report and not the behavior of the tool. A run without the variable writes
+/// the same report.
+const LOG_FILTER: &str = "RUST_LOG";
+
+/// The filter that keeps every line of the log that the reading needs
+const INFO: &str = "info";
+
+/// The names of the configuration files that taplo looks for
+const CONFIGURATION_FILES: [&str; 2] = [".taplo.toml", "taplo.toml"];
 
 /// The subcommand of taplo that formats TOML files
 const FORMAT: &str = "fmt";
@@ -109,6 +125,12 @@ const PLAIN: &str = "never";
 /// [requirement]: Taplo::requirement
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Taplo {
+    /// The root of the project that taplo runs in
+    ///
+    /// A run looks for the configuration file of the project from here, the
+    /// way that taplo does.
+    root: ProjectRoot,
+
     /// The program that mise installed for the project
     tool: Tool,
 }
@@ -126,6 +148,15 @@ impl Taplo {
     ///
     /// A report that holds no answer at all lost the lines that carried one.
     /// Such a run starts again, a few times, before the crate gives up.
+    ///
+    /// Taplo warns about a configuration file that it rejected, and then runs
+    /// with its defaults and can end with success. The warning comes only on
+    /// the stream that can lose lines. So when the project holds a
+    /// configuration file, a report must say that taplo found a configuration
+    /// file. A report that does not say so cannot show whether taplo rejected
+    /// the file, and the run starts again in the same way. The crate looks for
+    /// the file in the places where taplo looks. That is a `.taplo.toml` or a
+    /// `taplo.toml` in the root of the project or in a directory above it.
     ///
     /// The count of the files is the one part that no other stream carries. An
     /// operation starts again to get it, with a budget of its own, and answers
@@ -156,13 +187,20 @@ impl Taplo {
     ///
     /// # Errors
     ///
-    /// Returns [`TaploUnavailable`][unavailable] when taplo does not run,
-    /// and [`IncompleteReport`][incomplete] when no attempt answered.
+    /// Returns [`TaploUnavailable`][unavailable] when taplo does not run. When
+    /// no attempt answered, it returns
+    /// [`UnreportedConfiguration`][unreported] if the last attempt did not
+    /// report the configuration file of the project, and
+    /// [`IncompleteReport`][incomplete] otherwise.
     ///
     /// [incomplete]: ObserveTaploError::IncompleteReport
     /// [unavailable]: ObserveTaploError::TaploUnavailable
+    /// [unreported]: ObserveTaploError::UnreportedConfiguration
     pub async fn observe(&self, operation: Operation) -> Result<Observation, ObserveTaploError> {
-        let mut stderr = String::new();
+        let configuration = configuration_file(self.root.get()).await;
+        let mut unanswered = ObserveTaploError::IncompleteReport {
+            stderr: String::new(),
+        };
         let mut answered: Option<Observation> = None;
 
         for attempt in 0..ATTEMPTS {
@@ -176,8 +214,8 @@ impl Taplo {
                 .call()
                 .await;
 
-            if !observation.complete() {
-                stderr = observation.stderr().clone();
+            if let Some(error) = observation.unanswered(configuration.as_deref()) {
+                unanswered = error;
                 continue;
             }
 
@@ -188,7 +226,7 @@ impl Taplo {
             answered.get_or_insert(observation);
         }
 
-        answered.ok_or(ObserveTaploError::IncompleteReport { stderr })
+        answered.ok_or(unanswered)
     }
 
     /// Returns the requirement of the taplo that the crate runs
@@ -250,7 +288,10 @@ impl Taplo {
             .call()
             .await?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            root: context.root().clone(),
+            tool,
+        })
     }
 
     /// Starts one operation and collects what it produced
@@ -261,15 +302,51 @@ impl Taplo {
     ///
     /// [unavailable]: ObserveTaploError::TaploUnavailable
     async fn start(&self, operation: Operation) -> Result<Execution, ObserveTaploError> {
+        self.invocation(operation)
+            .launch()
+            .await
+            .map_err(|source| ObserveTaploError::TaploUnavailable { source })
+    }
+
+    /// Returns the command that runs one operation
+    fn invocation(&self, operation: Operation) -> Invocation {
         self.tool
             .invocation()
             .args(arguments(operation).iter().copied())
             .arg(COLORS)
             .arg(PLAIN)
-            .launch()
-            .await
-            .map_err(|source| ObserveTaploError::TaploUnavailable { source })
+            .env(LOG_FILTER, INFO)
     }
+}
+
+/// Returns a configuration file that taplo would find when it starts in a
+/// directory
+///
+/// Taplo looks for a file of either name in the directory where it starts,
+/// and then in each directory above it. An entry of either name that exists
+/// counts, also one that taplo cannot read, because taplo reports such an
+/// entry before it reads it. A symbolic link counts when its target exists,
+/// so this look counts a broken link as no file. Taplo reports a broken link
+/// as a configuration file that it found, and its run then fails on its own.
+/// Where one directory holds both names, taplo can pick the other one. The
+/// path of the answer then differs, and the report must still hold the line
+/// about a configuration file.
+///
+/// Taplo also reads a file that the variable `TAPLO_CONFIG` gives. This look
+/// does not. So when a project holds no file of either name, a report does not
+/// have to hold that line, whatever the variable says.
+async fn configuration_file(directory: &Path) -> Option<PathBuf> {
+    for ancestor in directory.ancestors() {
+        for name in CONFIGURATION_FILES {
+            let path = ancestor.join(name);
+
+            if tokio::fs::metadata(&path).await.is_ok() {
+                return Some(path);
+            }
+        }
+    }
+
+    None
 }
 
 /// Returns the command line of one operation of taplo
@@ -290,6 +367,14 @@ mod tests {
 
     use super::*;
 
+    /// Returns a directory that holds an entry with the given name
+    fn directory_with(name: &str) -> tempfile::TempDir {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        std::fs::write(directory.path().join(name), "").expect("the test writes a file");
+
+        directory
+    }
+
     #[test]
     fn arguments_of_a_format_check_report_instead_of_rewriting() {
         let selected = arguments(Operation::CheckFormat);
@@ -309,6 +394,65 @@ mod tests {
         let selected = arguments(Operation::Lint);
 
         assert_eq!(selected, ["lint"]);
+    }
+
+    #[tokio::test]
+    async fn configuration_file_above_the_directory_finds_the_file() {
+        let directory = directory_with(".taplo.toml");
+        let nested = directory.path().join("crates").join("otter");
+        std::fs::create_dir_all(&nested).expect("the test creates a directory");
+
+        let found = configuration_file(&nested).await;
+
+        assert_eq!(found, Some(directory.path().join(".taplo.toml")));
+    }
+
+    #[tokio::test]
+    async fn configuration_file_in_the_directory_finds_the_file() {
+        let directory = directory_with(".taplo.toml");
+
+        let found = configuration_file(directory.path()).await;
+
+        assert_eq!(found, Some(directory.path().join(".taplo.toml")));
+    }
+
+    #[tokio::test]
+    async fn configuration_file_of_a_directory_without_one_finds_nothing() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let found = configuration_file(directory.path()).await;
+
+        assert_eq!(found, None);
+    }
+
+    #[tokio::test]
+    async fn configuration_file_with_the_name_without_a_dot_finds_the_file() {
+        let directory = directory_with("taplo.toml");
+
+        let found = configuration_file(directory.path()).await;
+
+        assert_eq!(found, Some(directory.path().join("taplo.toml")));
+    }
+
+    #[tokio::test]
+    async fn invocation_asks_for_the_log_at_the_level_of_information() {
+        let context = Context::builder()
+            .root(ProjectRoot::new(PathBuf::from(env!("CARGO_MANIFEST_DIR"))))
+            .build();
+        let taplo = Taplo::resolve(&context)
+            .await
+            .expect("expected mise to report the taplo that the crate declares");
+
+        let invocation = taplo.invocation(Operation::CheckFormat);
+
+        assert!(
+            invocation
+                .environment()
+                .iter()
+                .any(|variable| variable.to_string() == "RUST_LOG=info"),
+            "expected the log at the level of information, got {:?}",
+            invocation.environment()
+        );
     }
 
     #[test]
