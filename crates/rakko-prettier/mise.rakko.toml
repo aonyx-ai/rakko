@@ -3,4 +3,4 @@
 # reads the reports of prettier change together. Mise reads the file only
 # with `MISE_ENV=rakko`.
 [tools]
-"npm:prettier" = "3.10.0"
+"npm:prettier" = "3.10.1"

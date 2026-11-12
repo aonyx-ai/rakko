@@ -11,7 +11,7 @@
   "macos/arm64",
 ] }
 "npm:markdownlint-cli" = "0.50.0"
-"npm:prettier" = "3.10.0"
+"npm:prettier" = "3.10.1"
 "npm:renovate" = "44.222.5"
 oxfmt = "0.75.0"
 oxlint = "1.93.0"
