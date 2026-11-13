@@ -88,9 +88,10 @@ impl SetMsrv {
     ///
     /// The check is the action that the project runs to compile its code on
     /// the toolchain that its manifest names. This is usually `CheckMsrv` of
-    /// the `rakko-check-msrv` crate. The command runs it with no arguments, after
-    /// it installed the toolchain. The check is independent of the mount, so a
-    /// harness that wants a command for the check mounts it as well.
+    /// the `aonyx-rakko-check-msrv` crate. The command runs it with no
+    /// arguments, after it installed the toolchain. The check is independent of
+    /// the mount, so a harness that wants a command for the check mounts it as
+    /// well.
     ///
     /// The method takes the check as it is, so a harness writes no erased
     /// type.

@@ -1,0 +1,27 @@
+[package]
+name = "aonyx-rakko-cargo"
+version = "0.1.0"
+description = "Shared code for the Rakko actions that wrap cargo"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+bon = { workspace = true }
+getset = { workspace = true }
+rakko = { workspace = true }
+rakko-tool = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+toml_edit = { workspace = true }
+typed-fields = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

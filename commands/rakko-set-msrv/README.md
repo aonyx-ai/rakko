@@ -12,14 +12,14 @@ the new toolchain, and checks the code on it.
 Add `rakko-set-msrv` to the harness of the project, and mount the command
 beside the actions. The harness gives the command the check that compiles the
 code on the new version, usually the check-msrv action, so the harness depends
-on `rakko-check-msrv` as well:
+on `aonyx-rakko-check-msrv` as well:
 
 ```rust
-use rakko_check_msrv::CheckMsrv;
+use aonyx_rakko_check_msrv::CheckMsrv;
 use rakko_set_msrv::SetMsrv;
 
 rakko_cli::builder()
-    .mount(rakko_rust_library::bundle())
+    .mount(aonyx_rakko_rust_library::bundle())
     .mount(SetMsrv::new(CheckMsrv))
     .run();
 ```

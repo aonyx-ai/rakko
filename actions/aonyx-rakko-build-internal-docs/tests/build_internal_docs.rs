@@ -1,0 +1,816 @@
+//! Tests that drive the action against real projects
+//!
+//! Each test builds a project in a temporary directory and runs the action
+//! against it. So no fixture with a deliberately faulty crate sits in this
+//! repository, where the lints of the repository itself would fight it.
+//!
+//! The tests run the cargo that this repository pins. A project copies the
+//! `mise.toml` of the repository and trusts it. So the version that answers is
+//! the version that the repository installs, and a new pin reaches the tests
+//! without a change to them.
+
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
+#![allow(clippy::missing_panics_doc)]
+
+use std::path::Path;
+use std::process::Command;
+
+use aonyx_rakko_build_internal_docs::{BuildInternalDocs, BuildInternalDocsError};
+use aonyx_rakko_cargo::Cargo;
+use rakko::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
+use rakko_test_utils::{path_text, run_checking_access};
+use tempfile::TempDir;
+
+/// The manifest of a package that rustdoc documents
+const PACKAGE: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// The manifest of a package with a feature that is off by default
+const FEATURED: &str = "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[features]\nextra = []\n";
+
+/// The manifest of a package that belongs to no workspace
+///
+/// The empty workspace table tells cargo that the package is a root of its
+/// own. Cargo demands this from a package below a workspace that does not list
+/// it.
+const STANDALONE: &str =
+    "[workspace]\n\n[package]\nname = \"harness\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// The manifest of a workspace of a library, a command line tool, and a
+/// third package that uses the library
+const SHARED_NAME: &str =
+    "[workspace]\nmembers = [\"demo\", \"demo-cli\", \"extra\"]\nresolver = \"3\"\n";
+
+/// The manifest of the library of that workspace
+const DEMO: &str = "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// The manifest of a package whose binary carries the name of the library
+/// of another package, and which uses that library
+///
+/// Cargo documents both targets into one directory, and without a run of
+/// their own the two runs of rustdoc race.
+const DEMO_CLI: &str = "[package]\nname = \"demo-cli\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[[bin]]\nname = \"demo\"\npath = \"src/main.rs\"\n\n[dependencies]\ndemo = { path = \"../demo\" }\n";
+
+/// The manifest of the library of that workspace, with a feature that no
+/// package of the workspace enables
+const DEMO_FEATURED: &str = "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[features]\ngated = []\n";
+
+/// The manifest of a package that uses the library and shares no name
+const EXTRA: &str = "[package]\nname = \"extra\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\ndemo = { path = \"../demo\" }\n";
+
+/// A manifest with a build script that fails
+///
+/// Cargo reports the failure on its standard error stream, not as a compiler
+/// diagnostic. So the report holds nothing that the action recognizes.
+const FAILING_BUILD: &str =
+    "[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\nbuild = \"build.rs\"\n";
+
+/// A source file that rustdoc documents without a word
+const CLEAN: &str = "pub fn clean() {}\n";
+
+/// A source file whose public item links to nothing
+///
+/// The link sits on the first line, and the name that it fails to resolve
+/// starts at the seventeenth column.
+const BROKEN_LINK: &str = "/// A link to [`Missing`].\npub fn documented() {}\n";
+
+/// A source file whose private item links to nothing
+///
+/// Rustdoc reads the documentation of a private item only when the run asks
+/// for the private items.
+const PRIVATE_LINK: &str = "/// A link to [`Missing`].\nfn hidden() {}\n";
+
+/// A library whose public item links to nothing and holds a variable that
+/// nothing uses
+///
+/// Rustdoc reports the link. Cargo compiles the library for every run that
+/// documents a package which uses it, and the compiler reports the variable
+/// in each of those runs.
+const BROKEN_DEPENDENCY: &str =
+    "/// A link to [`Missing`].\npub fn documented() {\n    let unused = 1;\n}\n";
+
+/// A library whose only item exists behind a feature
+const GATED_ITEM: &str = "#[cfg(feature = \"gated\")]\npub fn gated() {}\n";
+
+/// A source file whose public item links to an item behind a feature of
+/// the library
+const LINK_TO_GATED: &str = "/// Uses [`demo::gated`].\npub fn uses() {}\n";
+
+/// A binary whose entry point links to nothing
+const BROKEN_BINARY: &str = "/// A link to [`Missing`].\nfn main() {}\n";
+
+/// A source file whose item behind a feature links to nothing
+///
+/// Rustdoc reads the documentation of the item only when the feature is on,
+/// and the feature of the manifest is off by default.
+const GATED_LINK: &str =
+    "#[cfg(feature = \"extra\")]\n/// A link to [`Missing`].\npub fn gated() {}\n";
+
+/// A source file that rustdoc refuses
+const BROKEN: &str = "pub fn broken() -> NoSuchType {\n    todo!()\n}\n";
+
+/// The manifest of a package with a dependency that the lockfile does not
+/// record
+///
+/// The workspace table makes the dependency below the package a member of
+/// its workspace, so that the project holds one workspace and one lockfile.
+const STALE: &str = "[workspace]\n\n[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nhelper = { path = \"helper\" }\n";
+
+/// The manifest of that dependency
+const HELPER: &str = "[package]\nname = \"helper\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// A lockfile that records the package and not its dependency
+const LOCKFILE: &str = "version = 4\n\n[[package]]\nname = \"probe\"\nversion = \"0.1.0\"\n";
+
+/// A build script that fails
+const FAILING_SCRIPT: &str = "fn main() {\n    std::process::exit(1);\n}\n";
+
+/// A project that a test builds in a temporary directory
+struct Project {
+    /// The directory that holds the project
+    directory: TempDir,
+}
+
+#[bon::bon]
+impl Project {
+    /// Creates a project without a cargo to resolve
+    ///
+    /// The project holds no mise configuration, so nothing in it reaches a
+    /// tool. A test uses this shape when the run must end before the tool
+    /// runs.
+    fn bare() -> Self {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        Self { directory }
+    }
+
+    /// Creates a project with the cargo of this repository
+    ///
+    /// The project copies the `mise.toml` of this repository, so the cargo
+    /// that mise resolves for it is the cargo that the repository pins and
+    /// installs. Mise ignores a configuration that nobody trusts, so the
+    /// copy is trusted right away.
+    fn new() -> Self {
+        let project = Self::bare();
+
+        let pins = repository().join("mise.toml");
+        let copy = project.directory.path().join("mise.toml");
+        std::fs::copy(&pins, &copy).expect("the test copies the mise.toml of the repository");
+        trust(&copy);
+
+        project
+    }
+
+    /// Creates a project with one package whose library holds the given
+    /// source
+    fn with_library(source: &str) -> Self {
+        Self::with_manifest()
+            .manifest(PACKAGE)
+            .source(source)
+            .call()
+    }
+
+    /// Creates a project with one package of the given manifest and source
+    #[builder]
+    fn with_manifest(manifest: &str, source: &str) -> Self {
+        let project = Self::new();
+        project.write().path("Cargo.toml").content(manifest).call();
+        project.write().path("src/lib.rs").content(source).call();
+
+        project
+    }
+
+    /// Creates a project whose lockfile does not record a dependency that
+    /// the manifest declares
+    fn stale() -> Self {
+        let project = Self::new();
+        project.write().path("Cargo.toml").content(STALE).call();
+        project.write().path("Cargo.lock").content(LOCKFILE).call();
+        project.write().path("src/lib.rs").content(CLEAN).call();
+        project
+            .write()
+            .path("helper/Cargo.toml")
+            .content(HELPER)
+            .call();
+        project
+            .write()
+            .path("helper/src/lib.rs")
+            .content(CLEAN)
+            .call();
+
+        project
+    }
+
+    /// Creates a project that pins a Rust toolchain that nothing installed
+    ///
+    /// The pin names a version that no machine installs, so mise reports no
+    /// location for cargo. This is true whatever the global configuration of
+    /// the machine says about Rust.
+    fn without_cargo() -> Self {
+        let project = Self::bare();
+
+        let pins = project.directory.path().join("mise.toml");
+        std::fs::write(&pins, "[tools]\nrust = \"0.0.1\"\n")
+            .expect("the test writes the mise.toml of the project");
+        trust(&pins);
+
+        project
+    }
+
+    /// Returns the context of a run against this project
+    ///
+    /// The root is canonical, so the paths that the run reports do not
+    /// depend on the symbolic links of the temporary directory.
+    fn context(&self) -> Context {
+        let root = ProjectRoot::canonical(self.directory.path())
+            .expect("the test names a directory that exists");
+
+        Context::builder().root(root).build()
+    }
+
+    /// Writes the lockfile of every workspace of the project that has none
+    ///
+    /// The action holds cargo to the lockfile of a workspace. Cargo refuses a
+    /// workspace without one, as a project that commits its lockfile never is.
+    /// A test that writes a workspace therefore gets the lockfile that a first
+    /// build would write. A project in which cargo cannot find its workspaces
+    /// stays as it is, so that the run reports what stops it.
+    async fn lock(&self) {
+        let Ok(cargo) = Cargo::resolve(&self.context()).await else {
+            return;
+        };
+        let Ok(roots) = cargo.roots().await else {
+            return;
+        };
+
+        for root in roots {
+            if !root.directory().join("Cargo.lock").exists() {
+                let _ = cargo.invocation(&root).arg("generate-lockfile").run().await;
+            }
+        }
+    }
+
+    /// Returns the content of a file of the project
+    fn read(&self, path: &str) -> String {
+        std::fs::read_to_string(self.directory.path().join(path))
+            .expect("the test reads a file that it wrote")
+    }
+
+    /// Runs the action against this project, after it wrote the lockfiles
+    /// that the project lacks
+    async fn run(&self) -> Outcome {
+        self.lock().await;
+
+        BuildInternalDocs.run(&self.context(), &()).await
+    }
+
+    /// Writes a file of the project, with the directories that lead to it
+    #[builder]
+    fn write(&self, path: &str, content: &str) {
+        let path = self.directory.path().join(path);
+
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("the test creates the directories of a file");
+        }
+
+        std::fs::write(&path, content).expect("the test writes a file of the project");
+    }
+}
+
+/// Returns the path and the code of the lint that each finding of an outcome
+/// names
+///
+/// The message of a finding ends with the code of its lint in brackets.
+fn codes(findings: &[Finding]) -> Vec<(String, String)> {
+    let paths = locations(findings);
+
+    findings
+        .iter()
+        .zip(paths)
+        .map(|(finding, path)| {
+            let code = finding
+                .message()
+                .get()
+                .rsplit_once('[')
+                .and_then(|(_, code)| code.strip_suffix(']'))
+                .unwrap_or_default();
+
+            (path, code.to_owned())
+        })
+        .collect()
+}
+
+/// Returns the paths that the findings of an outcome name
+fn locations(findings: &[Finding]) -> Vec<String> {
+    findings
+        .iter()
+        .map(|finding| match finding.location() {
+            Location::Span { path, .. } => path.to_string(),
+            other => panic!("expected a finding with a range, got {other:?}"),
+        })
+        .collect()
+}
+
+/// Returns the root of the repository that the tests run in
+fn repository() -> &'static Path {
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    manifest
+        .parent()
+        .and_then(Path::parent)
+        .expect("the crate lives two directories below the root of the repository")
+}
+
+/// Trusts a mise configuration, so that mise reads it
+fn trust(configuration: &Path) {
+    let trusted = Command::new("mise")
+        .arg("trust")
+        .arg("--quiet")
+        .arg(configuration)
+        .status()
+        .expect("the test starts mise to trust a configuration");
+
+    assert!(
+        trusted.success(),
+        "expected mise to trust the configuration"
+    );
+}
+
+impl Drop for Project {
+    /// Withdraws the trust that the project received
+    ///
+    /// Mise records the trust of a configuration in the state of the user.
+    /// The temporary directory of a test never comes back, so the record would
+    /// pile up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
+    fn drop(&mut self) {
+        let _ = Command::new("mise")
+            .arg("trust")
+            .arg("--quiet")
+            .arg("--untrust")
+            .arg(self.directory.path().join("mise.toml"))
+            .status();
+    }
+}
+
+#[test]
+fn action_declares_no_argument() {
+    let schema = <BuildInternalDocs as Action>::Args::schema();
+
+    assert!(schema.arguments().is_empty());
+}
+
+#[test]
+fn action_identifies_itself_as_build_internal_docs() {
+    let name = BuildInternalDocs.name();
+
+    assert_eq!(name.get(), "build-internal-docs");
+}
+
+#[tokio::test]
+async fn run_in_a_clean_project_counts_the_workspaces() {
+    let project = Project::with_library(CLEAN);
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("documented 1 workspace")
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_clean_project_passes() {
+    let project = Project::with_library(CLEAN);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_leaves_the_sources_unchanged() {
+    let project = Project::with_library(BROKEN_LINK);
+
+    project.run().await;
+
+    assert_eq!(project.read("src/lib.rs"), BROKEN_LINK);
+}
+
+/// Shows that a binary that shares a library's name documents both packages
+///
+/// The race that the split prevents depends on timing, so this test cannot
+/// show the split itself. It shows that both packages are still documented,
+/// and that the warning of the library which two runs compile counts once.
+#[tokio::test]
+async fn run_with_a_binary_that_shares_the_name_of_a_library_documents_both_packages() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(SHARED_NAME)
+        .call();
+    project.write().path("demo/Cargo.toml").content(DEMO).call();
+    project
+        .write()
+        .path("demo/src/lib.rs")
+        .content(BROKEN_DEPENDENCY)
+        .call();
+    project
+        .write()
+        .path("demo-cli/Cargo.toml")
+        .content(DEMO_CLI)
+        .call();
+    project
+        .write()
+        .path("demo-cli/src/main.rs")
+        .content(BROKEN_BINARY)
+        .call();
+    project
+        .write()
+        .path("extra/Cargo.toml")
+        .content(EXTRA)
+        .call();
+    project
+        .write()
+        .path("extra/src/lib.rs")
+        .content(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    let mut codes = codes(findings);
+    codes.sort();
+    assert_eq!(
+        codes,
+        [
+            (
+                path_text("demo-cli/src/main.rs"),
+                String::from("rustdoc::broken_intra_doc_links")
+            ),
+            (
+                path_text("demo/src/lib.rs"),
+                String::from("rustdoc::broken_intra_doc_links")
+            ),
+            (
+                path_text("demo/src/lib.rs"),
+                String::from("unused_variables")
+            ),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_link_behind_a_feature_fails() {
+    let project = Project::with_manifest()
+        .manifest(FEATURED)
+        .source(GATED_LINK)
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_link_carries_the_code_in_the_message() {
+    let project = Project::with_library(BROKEN_LINK);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings.iter().any(|finding| finding
+            .message()
+            .get()
+            .ends_with("[rustdoc::broken_intra_doc_links]")),
+        "expected the code of the lint, got {findings:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_link_fails() {
+    let project = Project::with_library(BROKEN_LINK);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_link_in_a_private_item_fails() {
+    let project = Project::with_library(PRIVATE_LINK);
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Failed { .. }),
+        "expected the run to fail, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_broken_link_in_a_second_workspace_names_its_path() {
+    let project = Project::with_library(CLEAN);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(BROKEN_LINK)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(
+        locations(findings)[0],
+        path_text("tools/harness/src/lib.rs")
+    );
+}
+
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
+#[tokio::test]
+async fn run_with_a_broken_link_leaves_the_project_unchanged() {
+    let project = Project::with_library(BROKEN_LINK);
+    project.lock().await;
+
+    run_checking_access(&BuildInternalDocs, &project.context(), &()).await;
+}
+
+#[tokio::test]
+async fn run_with_a_broken_link_reports_the_range() {
+    let project = Project::with_library(BROKEN_LINK);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    let Location::Span { span, .. } = findings[0].location() else {
+        panic!("expected a finding with a range, got {:?}", findings[0]);
+    };
+    assert_eq!(
+        (
+            span.start().line().get(),
+            span.start().column().map(|column| column.get())
+        ),
+        (1, Some(17))
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_build_script_that_fails_reports_what_cargo_said() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains("custom build command"),
+        "expected the diagnosis of cargo, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_build_script_that_fails_stops() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(FAILING_BUILD)
+        .call();
+    project
+        .write()
+        .path("build.rs")
+        .content(FAILING_SCRIPT)
+        .call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_compiler_error_fails_with_a_finding() {
+    let project = Project::with_library(BROKEN);
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings
+            .iter()
+            .any(|finding| finding.message().get().contains("cannot find type")),
+        "expected the error of the compiler, got {findings:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_manifest_that_cargo_cannot_read_stops() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content("this is not a manifest\n")
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+/// Shows that a shared name documents the rest without the sharing packages'
+/// features
+///
+/// A single run turns every feature of the library on, and the link resolves.
+/// The run of the other packages leaves the library out and builds it with
+/// the features that those packages ask for. So only a split breaks the link.
+#[tokio::test]
+async fn run_with_a_shared_name_documents_the_rest_without_the_features_of_the_sharing_packages() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(SHARED_NAME)
+        .call();
+    project
+        .write()
+        .path("demo/Cargo.toml")
+        .content(DEMO_FEATURED)
+        .call();
+    project
+        .write()
+        .path("demo/src/lib.rs")
+        .content(GATED_ITEM)
+        .call();
+    project
+        .write()
+        .path("demo-cli/Cargo.toml")
+        .content(DEMO_CLI)
+        .call();
+    project
+        .write()
+        .path("demo-cli/src/main.rs")
+        .content("fn main() {}\n")
+        .call();
+    project
+        .write()
+        .path("extra/Cargo.toml")
+        .content(EXTRA)
+        .call();
+    project
+        .write()
+        .path("extra/src/lib.rs")
+        .content(LINK_TO_GATED)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), [path_text("extra/src/lib.rs")]);
+}
+
+#[tokio::test]
+async fn run_with_a_stale_lockfile_leaves_it_unchanged() {
+    let project = Project::stale();
+
+    project.run().await;
+
+    assert_eq!(project.read("Cargo.lock"), LOCKFILE);
+}
+
+#[tokio::test]
+async fn run_with_a_stale_lockfile_says_that_it_needs_an_update() {
+    let project = Project::stale();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        matches!(
+            source.downcast_ref::<BuildInternalDocsError>(),
+            Some(BuildInternalDocsError::StaleLockfile { .. })
+        ),
+        "expected a lockfile that needs an update, got {source:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_two_workspaces_counts_both() {
+    let project = Project::with_library(CLEAN);
+    project
+        .write()
+        .path("tools/harness/Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("tools/harness/src/lib.rs")
+        .content(CLEAN)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("documented 2 workspaces")
+    );
+}
+
+#[tokio::test]
+async fn run_without_a_cargo_stops() {
+    let project = Project::without_cargo();
+    project.write().path("Cargo.toml").content(PACKAGE).call();
+    project.write().path("src/lib.rs").content(CLEAN).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_without_a_manifest_skips() {
+    let project = Project::new();
+    project
+        .write()
+        .path("README.md")
+        .content("# Project\n")
+        .call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Skipped { .. }),
+        "expected the run to skip, got {outcome:?}"
+    );
+}
+
+#[test]
+fn tools_declare_the_stable_toolchain() {
+    let tools: Vec<String> = BuildInternalDocs
+        .tools()
+        .iter()
+        .map(|requirement| requirement.tool().get().to_owned())
+        .collect();
+
+    assert_eq!(tools, ["rust"]);
+}

@@ -1,0 +1,364 @@
+//! The action that checks a project against the Rust version it promises
+//!
+//! This module holds the action and the error that stops a run. The action
+//! wraps cargo as a subprocess: cargo reads the manifests, rustup selects
+//! the toolchain that the manifests declare, and the compiler examines the
+//! code. The action translates what cargo reported into an outcome.
+
+mod error;
+
+use aonyx_rakko_cargo::lockfile::{self, LOCKED};
+use aonyx_rakko_cargo::{Cargo, CargoReport, CargoRoot, RustVersion, Toolchain};
+use rakko::{
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
+    ToolRequirement, action_name,
+};
+use rakko_tool::Execution;
+
+pub use self::error::CheckMsrvError;
+
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
+
+/// The reason of a run that found no declaration
+const NO_DECLARATION: &str =
+    "no workspace of the project declares a rust-version in its Cargo.toml";
+
+/// The arguments that ask the compiler to examine every target with every
+/// feature
+///
+/// The check produces no binary, because the question is whether the older
+/// toolchain accepts the code. Cargo checks the versions that the lockfile
+/// holds and does not write the lockfile, because the action only examines
+/// the project. The report arrives as JSON, because the
+/// action reads it as data. The format selects the presentation of the
+/// report, not the behavior of the tool. Which lints apply and at which
+/// level comes from the configuration of the project alone.
+const CHECK: [&str; 5] = [
+    "check",
+    LOCKED,
+    "--all-targets",
+    "--all-features",
+    "--message-format=json",
+];
+
+/// Checks a project against the Rust version it promises
+///
+/// A package writes the oldest toolchain that it compiles on as the
+/// `rust-version` of its manifest. Whoever depends on the package reads
+/// that as a fact. The action runs the compiler on the toolchain that the
+/// promise names, so the compiler confirms the fact. The cargo that runs is
+/// the one that [mise] installed for the project, on the toolchain that mise
+/// installed for the declared version. The action installs nothing.
+///
+/// The action declares the range of stable toolchains whose cargo discovers the
+/// workspaces. The toolchain of a declared version comes from a manifest, so
+/// the action cannot declare it. A run takes the first pin of the project that
+/// is a patch of the declared release. For example, `1.88` accepts the pin
+/// `1.88.1`, and `1.88.0` accepts only the pin `1.88.0`.
+///
+/// A run only reports, and it takes no argument. It checks every workspace
+/// of the project that declares a version, each on the toolchain that it
+/// declares. The reason is that the harness of a project is a package of its own. It makes a
+/// promise of its own. Every diagnostic becomes a finding at the
+/// range that the compiler named. A run with a finding fails, whether
+/// the compiler warned or refused the code.
+///
+/// A project whose cargo discovers no workspace, and one whose workspaces
+/// declare no Rust version, skip visibly and say so. A run stops with an error
+/// when the project pins no stable Rust toolchain that the action accepts. It
+/// also stops when mise reports no toolchain of the declared version. It stops
+/// when the workspaces of the project cannot be discovered, or when a
+/// declaration cannot be read. It stops when the lockfile of a workspace needs
+/// an update, or when cargo writes a report that the action does not recognize.
+///
+/// A run declares a read of the project. It holds cargo to the lockfile of each
+/// workspace. Cargo writes what it builds into the `target` directory,
+/// which cargo locks against parallel use itself. The declaration covers the
+/// action and cargo, and not the build scripts and procedural macros of the
+/// project, which can write files of their own. A caller that orders runs by
+/// their declarations runs it after the actions that write.
+///
+/// # Examples
+///
+/// A harness adds the action as it is to a list:
+///
+/// ```
+/// use rakko::Bundle;
+/// use aonyx_rakko_check_msrv::CheckMsrv;
+///
+/// let actions = Bundle::default().with(CheckMsrv);
+/// ```
+///
+/// [mise]: https://mise.jdx.dev
+#[derive(Copy, Clone, Debug, Default, Documented)]
+pub struct CheckMsrv;
+
+impl Action for CheckMsrv {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("check-msrv")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
+    }
+
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement()]
+    }
+
+    async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+        match drive(context).await {
+            Ok(outcome) => outcome,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        }
+    }
+}
+
+/// Runs the action against the project of the context
+///
+/// The run examines the project, resolves cargo, discovers the workspaces,
+/// reads the declaration of each of them, and checks the ones that declare a
+/// version. An error that this function returns stops the run, and the
+/// caller reports it in the outcome.
+///
+/// # Errors
+///
+/// Returns the error of the step that could not finish. The step can be the
+/// resolution of the tool or of a toolchain, the discovery of the workspaces,
+/// or the reading of a declaration. It can also be a cargo run or the reading
+/// of a report.
+async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
+    let cargo = Cargo::resolve(context)
+        .await
+        .map_err(|source| CheckMsrvError::UnresolvedTool { source })?;
+
+    let roots = cargo
+        .roots()
+        .await
+        .map_err(|source| CheckMsrvError::UndiscoveredRoots { source })?;
+
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
+
+    let declared = declarations(&roots);
+
+    if declared.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_DECLARATION),
+        });
+    }
+
+    let mut findings = Vec::new();
+
+    for (root, version) in &declared {
+        findings.extend(check(&cargo, root, version, context).await?);
+    }
+
+    if findings.is_empty() {
+        Ok(Outcome::Passed {
+            summary: Some(summary(declared.len())),
+        })
+    } else {
+        Ok(Outcome::Failed {
+            findings,
+            repairs: Vec::new(),
+        })
+    }
+}
+
+/// Checks one workspace of the project and returns the findings
+///
+/// The run selects the toolchain of the declaration, so the compiler that
+/// answers is the one that the workspace promises to compile on.
+///
+/// # Errors
+///
+/// Returns [`UnresolvedToolchain`][toolchain] when mise reports no toolchain
+/// for the declared version, [`CargoUnavailable`][unavailable] when cargo
+/// does not run. Returns [`StaleLockfile`][stale] when cargo refused to check
+/// because the lockfile needs an update. Returns [`UnrecognizedReport`][unrecognized]
+/// when cargo writes a report that the action cannot answer from.
+///
+/// [stale]: CheckMsrvError::StaleLockfile
+/// [toolchain]: CheckMsrvError::UnresolvedToolchain
+/// [unavailable]: CheckMsrvError::CargoUnavailable
+/// [unrecognized]: CheckMsrvError::UnrecognizedReport
+async fn check(
+    cargo: &Cargo,
+    root: &CargoRoot,
+    version: &RustVersion,
+    context: &Context,
+) -> Result<Vec<Finding>, CheckMsrvError> {
+    let toolchain = Toolchain::resolve_requirement()
+        .requirement(&Toolchain::release(version))
+        .context(context)
+        .call()
+        .await
+        .map_err(|source| CheckMsrvError::UnresolvedToolchain {
+            version: version.clone(),
+            source,
+        })?;
+
+    let execution = cargo
+        .invocation_with_toolchain(root, &toolchain)
+        .args(CHECK)
+        .run()
+        .await
+        .map_err(|source| CheckMsrvError::CargoUnavailable { source })?;
+
+    if lockfile::refused(&execution.stderr().to_string_lossy()) {
+        return Err(CheckMsrvError::StaleLockfile {
+            root: root.directory().clone(),
+        });
+    }
+
+    let report = read(root, &execution.stdout().to_string_lossy())?;
+
+    if !recognized(&report, &execution) {
+        return Err(CheckMsrvError::UnrecognizedReport {
+            root: root.directory().clone(),
+            stderr: execution.stderr().to_string_lossy().into_owned(),
+        });
+    }
+
+    Ok(report
+        .diagnostics()
+        .iter()
+        .map(|diagnostic| diagnostic.finding(root, context.root()))
+        .collect())
+}
+
+/// Returns the roots that declare a Rust version, with the version that each
+/// of them declares
+///
+/// A root that declares none is passed over, because it promises nothing
+/// that a compiler can confirm. The discovery of the roots read the
+/// declarations, so nothing here asks cargo.
+fn declarations(roots: &[CargoRoot]) -> Vec<(CargoRoot, RustVersion)> {
+    roots
+        .iter()
+        .filter_map(|root| {
+            root.rust_version()
+                .clone()
+                .map(|version| (root.clone(), version))
+        })
+        .collect()
+}
+
+/// Returns whether the action can answer from a report
+///
+/// A run that ended without success and named no diagnostic wrote a report
+/// that the action cannot read. A run that ended with success without saying
+/// that the build finished wrote such a report. An answer built on such a
+/// report would hide problems behind a green result.
+fn recognized(report: &CargoReport, execution: &Execution) -> bool {
+    if execution.status().success() {
+        report.finished() == Some(true)
+    } else {
+        !report.diagnostics().is_empty()
+    }
+}
+
+/// Reads what cargo reported at a root
+///
+/// # Errors
+///
+/// Returns [`UnreadableReport`][unreadable] when the report holds a record
+/// of cargo that the action cannot read. The shape of a record belongs to a
+/// version of cargo. An answer built on a report with such a record
+/// would hide problems behind a green result.
+///
+/// [unreadable]: CheckMsrvError::UnreadableReport
+fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, CheckMsrvError> {
+    CargoReport::read(stdout).map_err(|source| CheckMsrvError::UnreadableReport {
+        root: root.directory().clone(),
+        source,
+    })
+}
+
+/// Returns the summary that tells how many workspaces the run checked
+fn summary(roots: usize) -> Summary {
+    if roots == 1 {
+        Summary::new("checked 1 workspace")
+    } else {
+        Summary::new(format!("checked {roots} workspaces"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use std::path::{Path, PathBuf};
+
+    use aonyx_rakko_cargo::Documentation;
+
+    use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = CheckMsrv.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn check_msrv_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckMsrv>();
+    }
+
+    #[test]
+    fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
+        let root = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .build();
+
+        let report = read(
+            &root,
+            r#"{"reason":"compiler-message","message":{"level":5}}"#,
+        );
+
+        assert!(
+            matches!(
+                &report,
+                Err(CheckMsrvError::UnreadableReport { root, .. })
+                    if root == Path::new("/home/otter/project")
+            ),
+            "expected an unreadable report, got {report:?}"
+        );
+    }
+
+    #[test]
+    fn summary_of_one_workspace_says_so() {
+        let summary = summary(1);
+
+        assert_eq!(summary.get(), "checked 1 workspace");
+    }
+
+    #[test]
+    fn summary_of_two_workspaces_counts_them() {
+        let summary = summary(2);
+
+        assert_eq!(summary.get(), "checked 2 workspaces");
+    }
+}

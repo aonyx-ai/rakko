@@ -9,11 +9,11 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+aonyx-rakko-worktree = { workspace = true }
 bon = { workspace = true }
 getset = { workspace = true }
 rakko = { workspace = true }
 rakko-tool = { workspace = true }
-rakko-worktree = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

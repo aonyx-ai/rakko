@@ -1,0 +1,27 @@
+[package]
+name = "aonyx-rakko-check-unused-deps"
+version = "0.1.0"
+description = "A Rakko action that finds the unused dependencies of a Rust project with cargo-udeps"
+keywords = ["rakko-action"]
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-cargo = { workspace = true }
+bon = { workspace = true }
+getset = { workspace = true }
+rakko = { workspace = true }
+rakko-tool = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+rakko-test-utils = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

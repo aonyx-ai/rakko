@@ -32,22 +32,22 @@
 
 mod build_site;
 
+use aonyx_rakko_check_msrv::CheckMsrv;
+use aonyx_rakko_format_rust::FormatRust;
+use aonyx_rakko_lint_rust::LintRust;
+use aonyx_rakko_lint_stiles::LintStiles;
+use aonyx_rakko_test_rust::TestRust;
+use aonyx_rakko_test_rust_docs::TestRustDocs;
 use rakko::Bundle;
-use rakko_check_msrv::CheckMsrv;
 use rakko_format_json::FormatJson;
 use rakko_format_markdown::FormatMarkdown;
-use rakko_format_rust::FormatRust;
 use rakko_format_toml::FormatToml;
 use rakko_format_yaml::FormatYaml;
 use rakko_lint_github_actions::LintGitHubActions;
 use rakko_lint_markdown::LintMarkdown;
-use rakko_lint_rust::LintRust;
-use rakko_lint_stiles::LintStiles;
 use rakko_lint_yaml::LintYaml;
 use rakko_pre_commit::PreCommit;
 use rakko_set_msrv::SetMsrv;
-use rakko_test_rust::TestRust;
-use rakko_test_rust_docs::TestRustDocs;
 
 use self::build_site::BuildSite;
 
@@ -57,7 +57,7 @@ fn main() -> std::process::ExitCode {
 
     rakko_cli::builder()
         .mount(rakko_baseline::bundle())
-        .mount(rakko_rust_library::bundle())
+        .mount(aonyx_rakko_rust_library::bundle())
         .mount(rakko_typescript::bundle())
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)

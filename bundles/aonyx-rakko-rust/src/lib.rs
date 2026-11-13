@@ -1,0 +1,75 @@
+#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
+
+use aonyx_rakko_build_internal_docs::BuildInternalDocs;
+use aonyx_rakko_check_dependencies::CheckDependencies;
+use aonyx_rakko_check_latest_deps::CheckLatestDeps;
+use aonyx_rakko_check_unused_deps::CheckUnusedDeps;
+use aonyx_rakko_format_rust::FormatRust;
+use aonyx_rakko_lint_rust::LintRust;
+use aonyx_rakko_lint_stiles::LintStiles;
+use aonyx_rakko_test_rust::TestRust;
+use rakko::Bundle;
+
+/// Returns the actions that any Rust project runs
+///
+/// The list is in alphabetical order. The order is for whoever reads the list,
+/// because the command line that a harness builds decides for itself how it
+/// lists the commands. A run of one command starts no other.
+///
+/// Each call builds a fresh list, because a mount takes ownership of every
+/// action in it.
+///
+/// # Examples
+///
+/// ```
+/// use aonyx_rakko_rust::bundle;
+///
+/// let actions = bundle();
+/// assert!(!actions.actions().is_empty());
+/// ```
+#[must_use]
+pub fn bundle() -> Bundle {
+    Bundle::new(vec![
+        Box::new(BuildInternalDocs),
+        Box::new(CheckDependencies),
+        Box::new(CheckLatestDeps),
+        Box::new(CheckUnusedDeps),
+        Box::new(FormatRust),
+        Box::new(LintRust),
+        Box::new(LintStiles),
+        Box::new(TestRust),
+    ])
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use super::*;
+
+    #[test]
+    fn bundle_exports_the_actions_that_any_rust_project_runs() {
+        let names: Vec<String> = bundle()
+            .actions()
+            .iter()
+            .map(|action| action.name().to_string())
+            .collect();
+
+        assert_eq!(
+            names,
+            [
+                "build-internal-docs",
+                "check-dependencies",
+                "check-latest-deps",
+                "check-unused-deps",
+                "format-rust",
+                "lint-rust",
+                "lint-stiles",
+                "test-rust",
+            ]
+        );
+    }
+}

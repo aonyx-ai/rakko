@@ -3,8 +3,8 @@
 use std::io;
 use std::path::PathBuf;
 
+use aonyx_rakko_worktree::CreateWorktreeError;
 use rakko_tool::RunCommandError;
-use rakko_worktree::CreateWorktreeError;
 use thiserror::Error;
 
 use crate::lockfile::ReadLockfileError;

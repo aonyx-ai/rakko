@@ -7,9 +7,9 @@
 // region: main
 fn main() -> std::process::ExitCode {
     rakko_cli::builder()
-        .mount(rakko_format_rust::FormatRust)
-        .mount(rakko_lint_rust::LintRust)
-        .mount(rakko_test_rust::TestRust)
+        .mount(aonyx_rakko_format_rust::FormatRust)
+        .mount(aonyx_rakko_lint_rust::LintRust)
+        .mount(aonyx_rakko_test_rust::TestRust)
         .run()
 }
 // endregion: main

@@ -1,0 +1,184 @@
+//! The error that stops the discovery of the roots
+
+use std::path::PathBuf;
+
+use rakko_tool::RunCommandError;
+use thiserror::Error;
+
+/// An error that stops the discovery of the workspace roots of a project
+///
+/// Nothing here is a problem that a finding can report.
+///
+/// A discovery that cannot read a directory or a manifest cannot say which
+/// roots the project holds. An answer with a root missing would hide every
+/// problem of that root behind a green run.
+///
+/// The discovery therefore stops, and the action that asked for it reports
+/// the error.
+///
+/// A later release can add a variant for another reason why the discovery of
+/// the roots can stop. So a match on this error outside this crate needs an arm
+/// for a variant that it does not know.
+///
+/// # Examples
+///
+/// ```
+/// use aonyx_rakko_cargo::DiscoverRootsError;
+///
+/// let error = DiscoverRootsError::ForeignWorkspace {
+///     manifest: std::env::temp_dir().join("Cargo.toml"),
+///     workspace: std::env::temp_dir(),
+/// };
+///
+/// assert!(error.to_string().contains("outside the project"));
+/// ```
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum DiscoverRootsError {
+    /// Cargo did not run
+    ///
+    /// The program was resolved and did not start, or it started and its
+    /// output could not be read. Nothing of the project was examined.
+    #[error("failed to run cargo")]
+    CargoUnavailable {
+        /// The cause of the failure
+        source: RunCommandError,
+    },
+
+    /// A manifest of the project belongs to a workspace outside the project
+    ///
+    /// An outer workspace that lists the manifest as a member is the usual
+    /// case. Cargo names that outer directory as the root.
+    ///
+    /// A job at that root would work on files outside the project. So the
+    /// discovery stops instead of naming a root that the project does not
+    /// contain.
+    #[error(
+        "the manifest {} belongs to a workspace outside the project, at {}",
+        manifest.display(),
+        workspace.display()
+    )]
+    ForeignWorkspace {
+        /// The manifest of the project that cargo assigned to the workspace
+        manifest: PathBuf,
+
+        /// The directory of the workspace, which lies outside the project
+        workspace: PathBuf,
+    },
+
+    /// A directory of the project could not be read
+    ///
+    /// The discovery walks every directory of the project that can hold a
+    /// manifest. A directory that it cannot read can hold a root that it
+    /// would never find.
+    #[error("failed to read the directory {}", directory.display())]
+    UnreadableDirectory {
+        /// The directory that could not be read
+        directory: PathBuf,
+
+        /// The cause of the failure
+        source: std::io::Error,
+    },
+
+    /// Cargo could not read a manifest of the project
+    ///
+    /// Cargo refused the manifest, or the workspace that the manifest names.
+    /// A package that sits under a workspace which does not list it is the
+    /// usual case, and cargo names it in the details.
+    #[error("cargo cannot read the manifest {}: {details}", manifest.display())]
+    UnreadableManifest {
+        /// The manifest that cargo could not read
+        manifest: PathBuf,
+
+        /// What cargo wrote about the manifest
+        details: String,
+    },
+
+    /// The paths that a workspace root excludes could not be read
+    ///
+    /// Cargo does not report them, so the discovery reads the manifest of the
+    /// root itself. Cargo has read the manifest a moment before, so a change
+    /// of the file system in between is the usual case.
+    #[error(
+        "failed to read the manifest {} for the paths that its workspace excludes",
+        manifest.display()
+    )]
+    UnreadableExclusions {
+        /// The manifest of the workspace root
+        manifest: PathBuf,
+
+        /// The cause of the failure
+        source: std::io::Error,
+    },
+
+    /// The manifest that holds the paths that a workspace root excludes is
+    /// no TOML document that the crate recognizes
+    ///
+    /// Cargo has accepted the manifest a moment before. A change of the file
+    /// in between is one cause. A version of the TOML parser of the crate that
+    /// is older than the one of cargo is the other cause. Such a parser
+    /// rejects syntax that cargo accepts.
+    #[error(
+        "failed to parse the manifest {} for the paths that its workspace excludes",
+        manifest.display()
+    )]
+    UnrecognizedExclusions {
+        /// The manifest of the workspace root
+        manifest: PathBuf,
+
+        /// The cause of the failure, as the TOML parser of the crate gave it
+        ///
+        /// The type of the cause is not part of the interface, so a later
+        /// release can change the parser without a break. Read the cause
+        /// through the [`Error`][error] trait.
+        ///
+        /// [error]: std::error::Error
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    /// Cargo described a manifest in a shape that the crate does not
+    /// recognize
+    ///
+    /// The shape of the description belongs to a version of cargo, and a
+    /// description that the crate cannot read leaves it without an answer.
+    #[error("failed to read what cargo reported about the manifest {}", manifest.display())]
+    UnrecognizedMetadata {
+        /// The manifest that cargo described
+        manifest: PathBuf,
+
+        /// The cause of the failure
+        source: serde_json::Error,
+    },
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use super::*;
+
+    /// Shows that the error type satisfies Send and Sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome
+    /// holds an error that another thread can read.
+    ///
+    /// This test holds the error to the auto traits that make this
+    /// possible. It does so because a field of a later version could take
+    /// them away without a word from the compiler.
+    #[test]
+    fn discover_roots_error_is_send_and_sync() {
+        fn assert_send_and_sync<T: Send + Sync>() {}
+
+        assert_send_and_sync::<DiscoverRootsError>();
+    }
+
+    #[test]
+    fn discover_roots_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<DiscoverRootsError>();
+    }
+}

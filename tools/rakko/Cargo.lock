@@ -59,6 +59,204 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "aonyx-rakko-build-internal-docs"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-cargo"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "toml_edit",
+ "typed-fields",
+]
+
+[[package]]
+name = "aonyx-rakko-check-dependencies"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aonyx-rakko-check-latest-deps"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "aonyx-rakko-nextest",
+ "aonyx-rakko-worktree",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-check-minimal-deps"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "aonyx-rakko-nextest",
+ "aonyx-rakko-worktree",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-check-msrv"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-check-unused-deps"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-format-rust"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-lint-rust"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-lint-stiles"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-nextest"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-rust"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-build-internal-docs",
+ "aonyx-rakko-check-dependencies",
+ "aonyx-rakko-check-latest-deps",
+ "aonyx-rakko-check-unused-deps",
+ "aonyx-rakko-format-rust",
+ "aonyx-rakko-lint-rust",
+ "aonyx-rakko-lint-stiles",
+ "aonyx-rakko-test-rust",
+ "rakko",
+]
+
+[[package]]
+name = "aonyx-rakko-rust-library"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-check-minimal-deps",
+ "aonyx-rakko-check-msrv",
+ "aonyx-rakko-rust",
+ "aonyx-rakko-test-rust-docs",
+ "rakko",
+]
+
+[[package]]
+name = "aonyx-rakko-test-rust"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "aonyx-rakko-nextest",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-test-rust-docs"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-cargo",
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-worktree"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "kawauso-process",
+ "rakko",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -392,25 +590,25 @@ dependencies = [
 name = "harness"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-check-msrv",
+ "aonyx-rakko-format-rust",
+ "aonyx-rakko-lint-rust",
+ "aonyx-rakko-lint-stiles",
+ "aonyx-rakko-rust-library",
+ "aonyx-rakko-test-rust",
+ "aonyx-rakko-test-rust-docs",
  "rakko",
  "rakko-baseline",
- "rakko-check-msrv",
  "rakko-cli",
  "rakko-format-json",
  "rakko-format-markdown",
- "rakko-format-rust",
  "rakko-format-toml",
  "rakko-format-yaml",
  "rakko-lint-github-actions",
  "rakko-lint-markdown",
- "rakko-lint-rust",
- "rakko-lint-stiles",
  "rakko-lint-yaml",
  "rakko-pre-commit",
- "rakko-rust-library",
  "rakko-set-msrv",
- "rakko-test-rust",
- "rakko-test-rust-docs",
  "rakko-tool",
  "rakko-typescript",
  "tempfile",
@@ -634,95 +832,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-build-internal-docs"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-cargo",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
-name = "rakko-cargo"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "toml_edit",
- "typed-fields",
-]
-
-[[package]]
-name = "rakko-check-dependencies"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-cargo",
- "rakko-tool",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "rakko-check-latest-deps"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-cargo",
- "rakko-nextest",
- "rakko-tool",
- "rakko-worktree",
- "thiserror",
-]
-
-[[package]]
-name = "rakko-check-minimal-deps"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-cargo",
- "rakko-nextest",
- "rakko-tool",
- "rakko-worktree",
- "thiserror",
-]
-
-[[package]]
 name = "rakko-check-mise-lock"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-worktree",
  "bon",
  "getset",
  "rakko",
  "rakko-tool",
- "rakko-worktree",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "toml_edit",
  "typed-fields",
-]
-
-[[package]]
-name = "rakko-check-msrv"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-cargo",
- "rakko-tool",
- "thiserror",
 ]
 
 [[package]]
@@ -749,20 +872,6 @@ dependencies = [
  "rakko-tool",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "rakko-check-unused-deps"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-cargo",
- "rakko-tool",
- "serde",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]
@@ -801,18 +910,6 @@ dependencies = [
  "getset",
  "rakko",
  "rakko-prettier",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
-name = "rakko-format-rust"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-cargo",
  "rakko-tool",
  "thiserror",
 ]
@@ -881,29 +978,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-lint-rust"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-cargo",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
-name = "rakko-lint-stiles"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "rakko-lint-toml"
 version = "0.1.0"
 dependencies = [
@@ -949,20 +1023,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-nextest"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-cargo",
- "rakko-tool",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "rakko-pre-commit"
 version = "0.1.0"
 dependencies = [
@@ -980,32 +1040,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "typed-fields",
-]
-
-[[package]]
-name = "rakko-rust"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-build-internal-docs",
- "rakko-check-dependencies",
- "rakko-check-latest-deps",
- "rakko-check-unused-deps",
- "rakko-format-rust",
- "rakko-lint-rust",
- "rakko-lint-stiles",
- "rakko-test-rust",
-]
-
-[[package]]
-name = "rakko-rust-library"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-check-minimal-deps",
- "rakko-check-msrv",
- "rakko-rust",
- "rakko-test-rust-docs",
 ]
 
 [[package]]
@@ -1032,29 +1066,6 @@ dependencies = [
  "rakko-tool",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "rakko-test-rust"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-cargo",
- "rakko-nextest",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
-name = "rakko-test-rust-docs"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-cargo",
- "rakko-tool",
- "thiserror",
 ]
 
 [[package]]
@@ -1094,17 +1105,6 @@ dependencies = [
  "rakko-format-typescript",
  "rakko-lint-typescript",
  "rakko-test-typescript",
-]
-
-[[package]]
-name = "rakko-worktree"
-version = "0.1.0"
-dependencies = [
- "getset",
- "kawauso-process",
- "rakko",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]

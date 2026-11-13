@@ -1,0 +1,25 @@
+[package]
+name = "aonyx-rakko-test-rust"
+version = "0.1.0"
+description = "A Rakko action that runs the tests of a Rust project with nextest"
+keywords = ["rakko-action"]
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-cargo = { workspace = true }
+aonyx-rakko-nextest = { workspace = true }
+rakko = { workspace = true }
+rakko-tool = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+bon = { workspace = true }
+rakko-test-utils = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

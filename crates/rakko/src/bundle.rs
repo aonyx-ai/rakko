@@ -66,12 +66,12 @@ use crate::erased_action::ErasedAction;
 /// ```
 ///
 /// A bundle contains another bundle when it includes the list of that bundle
-/// in its own. The crate `rakko_rust_library` depends on the crate
-/// `rakko_rust` and exports every action of it:
+/// in its own. The crate `aonyx_rakko_rust_library` depends on the crate
+/// `aonyx_rakko_rust` and exports every action of it:
 ///
 /// ```
 /// # use rakko::Bundle;
-/// mod rakko_rust {
+/// mod aonyx_rakko_rust {
 ///     use rakko::Bundle;
 /// #   use rakko::{Action, Context, Documented, Name, Outcome, action_name};
 /// #   /// Lints the Rust code of a project
@@ -91,10 +91,10 @@ use crate::erased_action::ErasedAction;
 ///     }
 /// }
 ///
-/// mod rakko_rust_library {
+/// mod aonyx_rakko_rust_library {
 ///     use rakko::Bundle;
 /// #   use rakko::{Action, Context, Documented, Name, Outcome, action_name};
-/// #   use super::rakko_rust;
+/// #   use super::aonyx_rakko_rust;
 /// #   /// Checks a project against the Rust version it promises
 /// #   #[derive(Documented)]
 /// #   struct CheckMsrv;
@@ -108,14 +108,14 @@ use crate::erased_action::ErasedAction;
 ///
 ///     /// Returns the actions that a Rust library runs
 ///     pub fn bundle() -> Bundle {
-///         let mut actions = rakko_rust::bundle();
+///         let mut actions = aonyx_rakko_rust::bundle();
 ///         actions.push(Box::new(CheckMsrv));
 ///         actions
 ///     }
 /// }
 /// #
 /// # fn main() {
-/// #     assert_eq!(rakko_rust_library::bundle().actions().len(), 2);
+/// #     assert_eq!(aonyx_rakko_rust_library::bundle().actions().len(), 2);
 /// # }
 /// ```
 ///
@@ -146,7 +146,7 @@ use crate::erased_action::ErasedAction;
 /// #         Outcome::Passed { summary: None }
 /// #     }
 /// # }
-/// # mod rakko_rust {
+/// # mod aonyx_rakko_rust {
 /// #     use rakko::{Action, Bundle, Context, Documented, Name, Outcome, action_name};
 /// #     /// Lints the Rust code of a project
 /// #     #[derive(Documented)]
@@ -164,7 +164,7 @@ use crate::erased_action::ErasedAction;
 /// # }
 ///
 /// let mut actions = Bundle::default().with(FormatJson).with(LintYaml);
-/// actions.extend(rakko_rust::bundle());
+/// actions.extend(aonyx_rakko_rust::bundle());
 /// #
 /// # assert_eq!(actions.actions().len(), 3);
 /// ```

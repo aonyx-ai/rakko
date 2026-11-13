@@ -1,0 +1,458 @@
+//! The action that builds the internal documentation of a project
+//!
+//! This module holds the action and the error that stops a run. The action
+//! wraps cargo as a subprocess. Cargo reads the manifests, runs rustdoc over
+//! every package of a workspace, and reports what rustdoc said. The action
+//! translates that report into an outcome.
+
+mod error;
+
+use std::collections::HashSet;
+
+use aonyx_rakko_cargo::lockfile::{self, LOCKED};
+use aonyx_rakko_cargo::{Cargo, CargoPackage, CargoReport, CargoRoot, DocumentedNames};
+use rakko::{
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
+    ToolRequirement, action_name,
+};
+use rakko_tool::Execution;
+
+pub use self::error::BuildInternalDocsError;
+
+/// The reason of a run whose cargo discovered no workspace
+const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
+
+/// The arguments that ask cargo to document the packages that a run selects
+///
+/// The private items belong to the internal documentation. A feature that is
+/// off by default can carry documentation of its own. So the run covers both. The
+/// dependencies stay out, because the documentation of a
+/// dependency belongs to the project that publishes it. Cargo builds the
+/// versions that the lockfile holds and does not write the lockfile, because
+/// the action only examines the project.
+///
+/// The report arrives as JSON, because the action reads it as data. The
+/// format selects the presentation of the report, not the behavior of the
+/// tool. Which lints apply and at which level comes from the configuration of
+/// the project alone.
+const DOC: [&str; 6] = [
+    "doc",
+    LOCKED,
+    "--no-deps",
+    "--document-private-items",
+    "--all-features",
+    "--message-format=json",
+];
+
+/// The flag that selects every package of the workspace
+const WORKSPACE: &str = "--workspace";
+
+/// The flag that leaves one package out of a run that selects the workspace
+const EXCLUDE: &str = "--exclude";
+
+/// The flag that selects one package of the workspace
+const PACKAGE: &str = "--package";
+
+/// Builds the internal documentation of a project
+///
+/// The action wraps [rustdoc]. Cargo reads the manifests of the project and
+/// renders the documentation of every package. This includes the private items
+/// and every feature. The cargo that runs is the one that [mise] installed for
+/// the project. It runs on the stable toolchain that the project pins. The
+/// action installs nothing. The action accepts a range of stable toolchains,
+/// and the first pin in that range answers.
+///
+/// Building the documentation is also the only examination that it gets.
+/// Rustdoc resolves the links between items while it renders them, and a link
+/// that names nothing is a warning that no other tool reports. Every
+/// diagnostic becomes a finding at the range that the compiler named. The
+/// finding includes the message of the compiler and the code of the lint. A
+/// run with a finding fails, whether the diagnostic is a warning or an error.
+///
+/// A run takes no argument. It documents every workspace of the project,
+/// because the harness of a project is a package of its own. A package that
+/// shares a crate name with another package is documented in a cargo run of its
+/// own. The reason is that cargo would otherwise write both into one directory
+/// at once. Such packages include a binary that carries the name of a library.
+/// Cargo builds
+/// the dependencies of each run with the features of the packages of that
+/// run only. A package that relies on a feature which only a package of
+/// another run enables then fails. The compiler can also report other
+/// warnings for a library of the workspace than a single run does. A
+/// diagnostic that several runs report becomes one finding. The
+/// documentation goes where cargo builds, and the sources and the lockfile
+/// stay as they are.
+///
+/// A project whose cargo discovers no workspace skips visibly, and says so. A
+/// run stops with an error when the project pins no stable Rust toolchain that
+/// the action accepts. A run also stops when the workspaces of the project
+/// cannot be discovered. It also stops when the lockfile of a workspace needs
+/// an update, or when cargo writes a report that the action does not recognize.
+///
+/// A run declares a read of the project. It holds cargo to the lockfile of
+/// each workspace. Cargo writes what it builds into the `target` directory,
+/// which cargo locks against parallel use itself. The declaration covers the
+/// action and cargo, and not the build scripts and procedural macros of the
+/// project, which can write files of their own. A caller that orders runs by
+/// their declarations runs it after the actions that write.
+///
+/// # Examples
+///
+/// A harness adds the action as it is to a list:
+///
+/// ```
+/// use rakko::Bundle;
+/// use aonyx_rakko_build_internal_docs::BuildInternalDocs;
+///
+/// let actions = Bundle::default().with(BuildInternalDocs);
+/// ```
+///
+/// [mise]: https://mise.jdx.dev
+/// [rustdoc]: https://doc.rust-lang.org/rustdoc/
+#[derive(Copy, Clone, Debug, Default, Documented)]
+pub struct BuildInternalDocs;
+
+impl Action for BuildInternalDocs {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("build-internal-docs")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
+    }
+
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Cargo::requirement()]
+    }
+
+    async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+        match drive(context).await {
+            Ok(outcome) => outcome,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        }
+    }
+}
+
+/// Runs the action against the project of the context
+///
+/// The run examines the project, resolves cargo, discovers the workspaces,
+/// and documents each of them. An error that this function returns stops the
+/// run, and the caller reports it in the outcome.
+///
+/// # Errors
+///
+/// Returns the error of the step that could not finish. This includes the
+/// resolution of the tool, the discovery of the workspaces, a cargo run, or
+/// the reading of a report.
+async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
+    let cargo = Cargo::resolve(context)
+        .await
+        .map_err(|source| BuildInternalDocsError::UnresolvedTool { source })?;
+
+    let roots = cargo
+        .roots()
+        .await
+        .map_err(|source| BuildInternalDocsError::UndiscoveredRoots { source })?;
+
+    if roots.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NO_WORKSPACE),
+        });
+    }
+
+    let mut findings = Vec::new();
+
+    for root in &roots {
+        let mut earlier: HashSet<Finding> = HashSet::new();
+
+        for selection in selections(root) {
+            let fresh: Vec<Finding> = document(&cargo, root, selection, context)
+                .await?
+                .into_iter()
+                .filter(|finding| !earlier.contains(finding))
+                .collect();
+
+            earlier.extend(fresh.iter().cloned());
+            findings.extend(fresh);
+        }
+    }
+
+    if findings.is_empty() {
+        Ok(Outcome::Passed {
+            summary: Some(summary(roots.len())),
+        })
+    } else {
+        Ok(Outcome::Failed {
+            findings,
+            repairs: Vec::new(),
+        })
+    }
+}
+
+/// Returns the arguments that select the packages of each cargo run at a
+/// root
+///
+/// Cargo documents the packages of a workspace in parallel. Two targets of
+/// different packages that share a crate name write one directory at once,
+/// which fails at random. Each package that shares a crate name
+/// therefore gets a run of its own, and the other packages share one run. A
+/// workspace without a shared name keeps its one run. A workspace whose every
+/// package shares a name has no run for the rest. The reason is that cargo refuses a run that
+/// excludes every package.
+fn selections(root: &CargoRoot) -> Vec<Vec<&str>> {
+    let (shared, unique): (Vec<&CargoPackage>, Vec<&CargoPackage>) = root
+        .packages()
+        .iter()
+        .partition(|package| package.documented_names() == DocumentedNames::Shared);
+
+    if shared.is_empty() {
+        return vec![vec![WORKSPACE]];
+    }
+
+    let mut selections = Vec::new();
+
+    if !unique.is_empty() {
+        let mut rest = vec![WORKSPACE];
+        for package in &shared {
+            rest.extend([EXCLUDE, package.name().get()]);
+        }
+        selections.push(rest);
+    }
+
+    selections.extend(
+        shared
+            .iter()
+            .map(|package| vec![PACKAGE, package.name().get()]),
+    );
+
+    selections
+}
+
+/// Documents the selected packages of one workspace and returns the
+/// findings
+///
+/// # Errors
+///
+/// Returns [`CargoUnavailable`][unavailable] when cargo does not run.
+/// Returns [`StaleLockfile`][stale] when cargo refused to document because
+/// the lockfile needs an update. Returns [`UnrecognizedReport`][unrecognized]
+/// when cargo writes a report that the action cannot answer from.
+///
+/// [stale]: BuildInternalDocsError::StaleLockfile
+/// [unavailable]: BuildInternalDocsError::CargoUnavailable
+/// [unrecognized]: BuildInternalDocsError::UnrecognizedReport
+async fn document(
+    cargo: &Cargo,
+    root: &CargoRoot,
+    selection: Vec<&str>,
+    context: &Context,
+) -> Result<Vec<Finding>, BuildInternalDocsError> {
+    let execution = cargo
+        .invocation(root)
+        .args(DOC)
+        .args(selection)
+        .run()
+        .await
+        .map_err(|source| BuildInternalDocsError::CargoUnavailable { source })?;
+
+    if lockfile::refused(&execution.stderr().to_string_lossy()) {
+        return Err(BuildInternalDocsError::StaleLockfile {
+            root: root.directory().clone(),
+        });
+    }
+
+    let report = read(root, &execution.stdout().to_string_lossy())?;
+
+    if !recognized(&report, &execution) {
+        return Err(BuildInternalDocsError::UnrecognizedReport {
+            root: root.directory().clone(),
+            stderr: execution.stderr().to_string_lossy().into_owned(),
+        });
+    }
+
+    Ok(report
+        .diagnostics()
+        .iter()
+        .map(|diagnostic| diagnostic.finding(root, context.root()))
+        .collect())
+}
+
+/// Returns whether the action can answer from a report
+///
+/// A run without success that names no diagnostic wrote a report the action
+/// cannot read. A run with success that does not say the build finished also
+/// wrote such a report. An answer built on such a report hides problems behind
+/// a green result.
+fn recognized(report: &CargoReport, execution: &Execution) -> bool {
+    if execution.status().success() {
+        report.finished() == Some(true)
+    } else {
+        !report.diagnostics().is_empty()
+    }
+}
+
+/// Reads what cargo reported at a root
+///
+/// # Errors
+///
+/// Returns [`UnreadableReport`][unreadable] when the report holds a record
+/// of cargo that the action cannot read. The shape of a record belongs to a
+/// version of cargo. An answer built on a report with such a record hides
+/// problems behind a green result.
+///
+/// [unreadable]: BuildInternalDocsError::UnreadableReport
+fn read(root: &CargoRoot, stdout: &str) -> Result<CargoReport, BuildInternalDocsError> {
+    CargoReport::read(stdout).map_err(|source| BuildInternalDocsError::UnreadableReport {
+        root: root.directory().clone(),
+        source,
+    })
+}
+
+/// Returns the summary that tells how many workspaces the run documented
+fn summary(roots: usize) -> Summary {
+    if roots == 1 {
+        Summary::new("documented 1 workspace")
+    } else {
+        Summary::new(format!("documented {roots} workspaces"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use std::path::{Path, PathBuf};
+
+    use aonyx_rakko_cargo::{Documentation, PackageName};
+
+    use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns a root with the given packages
+    fn workspace(packages: &[(&str, DocumentedNames)]) -> CargoRoot {
+        CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .packages(
+                packages
+                    .iter()
+                    .map(|&(name, documented_names)| {
+                        CargoPackage::builder()
+                            .name(PackageName::new(name))
+                            .documented_names(documented_names)
+                            .build()
+                    })
+                    .collect(),
+            )
+            .build()
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = BuildInternalDocs.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn build_internal_docs_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<BuildInternalDocs>();
+    }
+
+    #[test]
+    fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
+        let root = CargoRoot::builder()
+            .directory(PathBuf::from("/home/otter/project"))
+            .documentation(Documentation::Testable)
+            .build();
+
+        let report = read(
+            &root,
+            r#"{"reason":"compiler-message","message":{"level":5}}"#,
+        );
+
+        assert!(
+            matches!(
+                &report,
+                Err(BuildInternalDocsError::UnreadableReport { root, .. })
+                    if root == Path::new("/home/otter/project")
+            ),
+            "expected an unreadable report, got {report:?}"
+        );
+    }
+
+    #[test]
+    fn selections_of_a_workspace_whose_every_package_shares_a_name_select_each_alone() {
+        let root = workspace(&[
+            ("demo", DocumentedNames::Shared),
+            ("demo-cli", DocumentedNames::Shared),
+        ]);
+
+        let selections = selections(&root);
+
+        assert_eq!(
+            selections,
+            [vec!["--package", "demo"], vec!["--package", "demo-cli"]]
+        );
+    }
+
+    #[test]
+    fn selections_of_a_workspace_with_a_shared_name_select_the_rest_and_each_sharing_package() {
+        let root = workspace(&[
+            ("demo", DocumentedNames::Shared),
+            ("demo-cli", DocumentedNames::Shared),
+            ("extra", DocumentedNames::Unique),
+        ]);
+
+        let selections = selections(&root);
+
+        assert_eq!(
+            selections,
+            [
+                vec!["--workspace", "--exclude", "demo", "--exclude", "demo-cli"],
+                vec!["--package", "demo"],
+                vec!["--package", "demo-cli"],
+            ]
+        );
+    }
+
+    #[test]
+    fn selections_of_a_workspace_without_a_shared_name_select_the_workspace() {
+        let root = workspace(&[
+            ("a", DocumentedNames::Unique),
+            ("b", DocumentedNames::Unique),
+        ]);
+
+        let selections = selections(&root);
+
+        assert_eq!(selections, [vec!["--workspace"]]);
+    }
+
+    #[test]
+    fn summary_of_one_workspace_says_so() {
+        let summary = summary(1);
+
+        assert_eq!(summary.get(), "documented 1 workspace");
+    }
+
+    #[test]
+    fn summary_of_two_workspaces_counts_them() {
+        let summary = summary(2);
+
+        assert_eq!(summary.get(), "documented 2 workspaces");
+    }
+}
