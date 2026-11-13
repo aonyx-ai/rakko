@@ -17,8 +17,9 @@ use std::path::PathBuf;
 use aonyx_rakko_cargo::{Cargo, CargoRoot, Toolchain};
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, SkipReason,
-    Summary, ToolRequirement, action_name,
+    Summary, ToolOutput, ToolRequirement, action_name,
 };
+use rakko_tool::{Launch, ShownStreams};
 
 pub use self::args::FormatRustArgs;
 pub use self::error::FormatRustError;
@@ -161,7 +162,7 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
     let mut repairs = Vec::new();
 
     for root in &roots {
-        let checked = observe(&cargo, &toolchain, root, &CHECK).await?;
+        let checked = observe(&cargo, &toolchain, root, &CHECK, context.tool_output()).await?;
 
         if checked.listed().is_empty() && checked.invalid().is_empty() {
             continue;
@@ -169,7 +170,8 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
 
         match args.operation() {
             Operation::Rewrite => {
-                let (repaired, remaining) = fix(&cargo, &toolchain, root, &checked).await?;
+                let (repaired, remaining) =
+                    fix(&cargo, &toolchain, root, &checked, context.tool_output()).await?;
                 repairs.extend(
                     repaired
                         .iter()
@@ -272,8 +274,9 @@ async fn fix(
     toolchain: &Toolchain,
     root: &CargoRoot,
     checked: &RustfmtReport,
+    output: &ToolOutput,
 ) -> Result<(Vec<RustfmtProblem>, Vec<RustfmtProblem>), FormatRustError> {
-    let rewritten = observe(cargo, toolchain, root, &FORMAT).await?;
+    let rewritten = observe(cargo, toolchain, root, &FORMAT, output).await?;
     let repaired: HashSet<&PathBuf> = rewritten.listed().iter().collect();
 
     Ok(checked
@@ -299,11 +302,12 @@ async fn observe(
     toolchain: &Toolchain,
     root: &CargoRoot,
     arguments: &[&str],
+    output: &ToolOutput,
 ) -> Result<RustfmtReport, FormatRustError> {
     let execution = cargo
         .invocation_with_toolchain(root, toolchain)
         .args(arguments.iter().copied())
-        .run()
+        .launch_with(output, ShownStreams::Both)
         .await
         .map_err(|source| FormatRustError::CargoUnavailable { source })?;
 

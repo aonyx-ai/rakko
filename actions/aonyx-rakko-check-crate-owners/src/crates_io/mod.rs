@@ -18,7 +18,8 @@ mod pace;
 use std::time::Duration;
 
 use aonyx_rakko_cargo::{Cargo, CargoRoot, PackageName};
-use rakko_tool::{Execution, Launch};
+use rakko::ToolOutput;
+use rakko_tool::{Execution, Launch, ShownStreams};
 use reqwest::{Client, ClientBuilder};
 use serde::Deserialize;
 
@@ -80,23 +81,29 @@ pub(crate) struct CratesIo {
     /// The cargo that adds an owner
     cargo: Cargo,
 
+    /// The tool output that each run of cargo sends what it writes to
+    output: ToolOutput,
+
     /// The wait between two requests
     pace: Pace,
 }
 
+#[bon::bon]
 impl CratesIo {
     /// Builds the registry with the cargo that adds an owner
     ///
     /// The client configures its TLS with the root certificates that it
-    /// carries.
+    /// carries. Each run of cargo sends what it writes to the tool output.
     ///
     /// # Errors
     ///
     /// Returns a [`reqwest::Error`] when the client cannot configure its TLS.
-    pub(crate) fn build(cargo: Cargo) -> Result<Self, reqwest::Error> {
+    #[builder]
+    pub(crate) fn build(cargo: Cargo, output: ToolOutput) -> Result<Self, reqwest::Error> {
         Ok(Self {
             client: client(TIMEOUT)?,
             cargo,
+            output,
             pace: Pace::new(INTERVAL),
         })
     }
@@ -116,7 +123,7 @@ impl Registry for CratesIo {
             .cargo
             .invocation(root)
             .args(["owner", "--add", owner.get(), name.get()])
-            .launch()
+            .launch_with(&self.output, ShownStreams::Both)
             .await;
 
         match launched {

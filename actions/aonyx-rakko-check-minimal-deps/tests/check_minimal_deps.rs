@@ -32,8 +32,8 @@ use std::process::Command;
 
 use aonyx_rakko_cargo::Cargo;
 use aonyx_rakko_check_minimal_deps::{CheckMinimalDeps, CheckMinimalDepsError};
-use rakko::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary};
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary, ToolEvent};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The manifest of a package that nextest tests
@@ -278,6 +278,17 @@ impl Project {
         CheckMinimalDeps.run(&self.context(), &()).await
     }
 
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        CheckMinimalDeps.run(&context, &()).await
+    }
+
     /// Writes a file of the project, with the directories that lead to it
     #[builder]
     fn write(&self, path: &str, content: &str) {
@@ -495,6 +506,29 @@ async fn run_leaves_the_project_without_a_build_directory() {
     project.run().await;
 
     assert!(!project.holds("target"));
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_cargo_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(MISSING_DEPENDENCY)
+        .call();
+    project.write().path("src/lib.rs").content(PASSING).call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of cargo, got {:?}",
+        recorder.events()
+    );
 }
 
 #[tokio::test]

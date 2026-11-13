@@ -22,8 +22,11 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_lint_github_actions::{LintGitHubActions, LintGitHubActionsError};
-use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Span};
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko::{
+    Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Span, ToolEvent,
+    ToolStream,
+};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A workflow that no audit of the pedantic persona reports
@@ -150,6 +153,17 @@ impl Project {
     /// Runs the action against this project
     async fn run(&self) -> Outcome {
         LintGitHubActions.run(&self.context(), &()).await
+    }
+
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        LintGitHubActions.run(&context, &()).await
     }
 
     /// Writes a file of the project, with the directories that lead to it
@@ -361,6 +375,46 @@ async fn run_reports_a_finding_of_the_pedantic_persona() {
             .any(|message| message.contains("concurrency-limits")),
         "expected an audit of the pedantic persona, got {:?}",
         messages(findings)
+    );
+}
+
+#[tokio::test]
+async fn run_sends_no_line_of_the_report_of_zizmor_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project
+        .workflow()
+        .name("injection.yml")
+        .content(INJECTION)
+        .call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        !recorder.events().iter().any(|event| matches!(
+            event,
+            ToolEvent::Line(line) if line.stream() == ToolStream::StandardOutput
+        )),
+        "expected no line of the report of zizmor, got {:?}",
+        recorder.events()
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_zizmor_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project.workflow().name("clean.yml").content(CLEAN).call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of zizmor, got {:?}",
+        recorder.events()
     );
 }
 

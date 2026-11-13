@@ -25,8 +25,8 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_lint_yaml::{LintYaml, LintYamlError};
-use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// A YAML document that yamllint accepts
@@ -122,6 +122,17 @@ impl Project {
     /// Runs the action against this project
     async fn run(&self) -> Outcome {
         LintYaml.run(&self.context(), &()).await
+    }
+
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        LintYaml.run(&context, &()).await
     }
 
     /// Writes a file of the project, with the directories that lead to it
@@ -346,6 +357,56 @@ async fn run_reads_the_configuration_of_the_project() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the rules of the project to answer, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_the_lint_of_yamllint_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".yamllint")
+        .content(DEFAULT_CONFIGURATION)
+        .call();
+    project.write().path("notes.yaml").content(VALID).call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder.events().iter().any(|event| matches!(
+            event,
+            ToolEvent::Started(command) if command.get().contains("parsable")
+        )),
+        "expected the start of the lint of yamllint, got {:?}",
+        recorder.events()
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_yamllint_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".yamllint")
+        .content(IGNORE_EVERYTHING)
+        .call();
+    project
+        .write()
+        .path("notes.yaml")
+        .content(TRAILING_SPACES)
+        .call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of yamllint, got {:?}",
+        recorder.events()
     );
 }
 

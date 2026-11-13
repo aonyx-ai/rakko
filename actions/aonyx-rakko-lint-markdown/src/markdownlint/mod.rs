@@ -9,8 +9,10 @@ mod error;
 mod reference;
 mod report;
 
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{
+    Context, ProjectRoot, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion, VersionRange,
+};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveMarkdownlintError;
 use self::reference::Reference;
@@ -104,6 +106,11 @@ const NO_MATCHING_FILES: &str = "No matching files found";
 pub(crate) struct Markdownlint {
     /// The program that mise installed at the declared version
     tool: Tool,
+
+    /// The tool output of the context that resolved markdownlint
+    ///
+    /// Each run sends what markdownlint writes to it.
+    output: ToolOutput,
 }
 
 impl Markdownlint {
@@ -161,7 +168,7 @@ impl Markdownlint {
 
         let execution = invocation
             .arg(HERE)
-            .launch()
+            .launch_with(&self.output, ShownStreams::StandardOutput)
             .await
             .map_err(|source| ObserveMarkdownlintError::MarkdownlintUnavailable { source })?;
 
@@ -265,7 +272,10 @@ impl Markdownlint {
             .await?
             .with_toolchain(&node)?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 }
 

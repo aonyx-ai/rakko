@@ -21,8 +21,11 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_check_renovate_config::{CheckRenovateConfig, CheckRenovateConfigError};
-use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Summary};
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko::{
+    Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Summary, ToolEvent,
+    ToolStream,
+};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use rakko_tool::ResolveRequirementError;
 use tempfile::TempDir;
 
@@ -130,6 +133,17 @@ impl Project {
     /// Runs the action against this project
     async fn run(&self) -> Outcome {
         CheckRenovateConfig.run(&self.context(), &()).await
+    }
+
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        CheckRenovateConfig.run(&context, &()).await
     }
 
     /// Writes a file of the project, with the directories that lead to it
@@ -336,6 +350,51 @@ async fn run_leaves_a_configuration_with_a_problem_unchanged() {
     project.run().await;
 
     assert_eq!(project.read("renovate.json"), MIGRATION);
+}
+
+#[tokio::test]
+async fn run_sends_no_line_of_the_report_of_renovate_config_validator_to_the_tool_output_of_the_context()
+ {
+    let project = Project::new();
+    project
+        .write()
+        .path("renovate.json")
+        .content(UNKNOWN_OPTION)
+        .call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        !recorder.events().iter().any(|event| matches!(
+            event,
+            ToolEvent::Line(line) if line.stream() == ToolStream::StandardOutput
+        )),
+        "expected no line of the report of renovate-config-validator, got {:?}",
+        recorder.events()
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_renovate_config_validator_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".github/renovate.json")
+        .content(VALID)
+        .call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of renovate-config-validator, got {:?}",
+        recorder.events()
+    );
 }
 
 #[tokio::test]

@@ -20,8 +20,11 @@ use std::process::Command;
 
 use aonyx_rakko_cargo::Cargo;
 use aonyx_rakko_test_rust_docs::{TestRustDocs, TestRustDocsError};
-use rakko::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, SkipReason, Summary};
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko::{
+    Action, Args, Context, Finding, Location, Outcome, ProjectRoot, SkipReason, Summary, ToolEvent,
+    ToolStream,
+};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The manifest of a package whose documentation cargo can test
@@ -218,6 +221,18 @@ impl Project {
         TestRustDocs.run(&self.context(), &()).await
     }
 
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        self.lock().await;
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        TestRustDocs.run(&context, &()).await
+    }
+
     /// Writes a file of the project, with the directories that lead to it
     #[builder]
     fn write(&self, path: &str, content: &str) {
@@ -407,6 +422,40 @@ async fn run_leaves_the_project_unchanged() {
     project.lock().await;
 
     run_checking_access(&TestRustDocs, &project.context(), &()).await;
+}
+
+#[tokio::test]
+async fn run_sends_no_line_of_the_report_of_cargo_to_the_tool_output_of_the_context() {
+    let project = Project::with_library(FAILING);
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        !recorder.events().iter().any(|event| matches!(
+            event,
+            ToolEvent::Line(line) if line.stream() == ToolStream::StandardOutput
+        )),
+        "expected no line of the report of cargo, got {:?}",
+        recorder.events()
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_cargo_to_the_tool_output_of_the_context() {
+    let project = Project::with_library(UNDOCUMENTED);
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of cargo, got {:?}",
+        recorder.events()
+    );
 }
 
 #[tokio::test]

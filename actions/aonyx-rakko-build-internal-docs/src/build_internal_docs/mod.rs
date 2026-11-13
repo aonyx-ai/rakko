@@ -15,7 +15,7 @@ use rakko::{
     Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
     ToolRequirement, action_name,
 };
-use rakko_tool::Execution;
+use rakko_tool::{Execution, Launch, ShownStreams};
 
 pub use self::error::BuildInternalDocsError;
 
@@ -255,7 +255,7 @@ async fn document(
         .invocation(root)
         .args(DOC)
         .args(selection)
-        .run()
+        .launch_with(context.tool_output(), ShownStreams::StandardError)
         .await
         .map_err(|source| BuildInternalDocsError::CargoUnavailable { source })?;
 

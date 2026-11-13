@@ -23,8 +23,10 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_lint_typescript::{LintTypeScript, LintTypeScriptError};
-use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko::{
+    Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent, ToolStream,
+};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use rakko_tool::ResolveRequirementError;
 use tempfile::TempDir;
 
@@ -110,6 +112,17 @@ impl Project {
     /// Runs the action against this project
     async fn run(&self) -> Outcome {
         LintTypeScript.run(&self.context(), &()).await
+    }
+
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        LintTypeScript.run(&context, &()).await
     }
 
     /// Writes a file of the project, with the directories that lead to it
@@ -287,6 +300,42 @@ async fn run_reads_the_configuration_of_the_project() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the rules of the project to answer, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_sends_no_line_of_the_report_of_oxlint_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project.write().path("index.ts").content(DEBUGGER).call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        !recorder.events().iter().any(|event| matches!(
+            event,
+            ToolEvent::Line(line) if line.stream() == ToolStream::StandardOutput
+        )),
+        "expected no line of the report of oxlint, got {:?}",
+        recorder.events()
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_oxlint_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project.write().path("index.ts").content(VALID).call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of oxlint, got {:?}",
+        recorder.events()
     );
 }
 

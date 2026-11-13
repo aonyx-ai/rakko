@@ -9,8 +9,8 @@ mod error;
 mod report;
 
 use aonyx_rakko_cargo::{CargoRoot, lockfile};
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::CheckWorkspaceError;
 use self::report::Entry;
@@ -94,6 +94,11 @@ const NO_DIAGNOSIS: &str = "cargo-deny wrote nothing about it";
 pub(crate) struct Deny {
     /// The program that mise installed at the declared version
     tool: Tool,
+
+    /// The tool output of the context that resolved cargo-deny
+    ///
+    /// Each run sends what cargo-deny writes to it.
+    output: ToolOutput,
 }
 
 impl Deny {
@@ -143,7 +148,7 @@ impl Deny {
             .arg(LOCKED)
             .arg(CHECK)
             .args(CHECKS)
-            .launch()
+            .launch_with(&self.output, ShownStreams::StandardOutput)
             .await
             .map_err(|source| CheckWorkspaceError::DenyUnavailable {
                 root: root.directory().clone(),
@@ -218,7 +223,10 @@ impl Deny {
             .call()
             .await?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 }
 

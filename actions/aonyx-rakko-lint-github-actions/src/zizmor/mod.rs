@@ -8,8 +8,8 @@
 mod error;
 mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, PinnedPlatforms, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
+use rakko_tool::{Launch, MiseFile, PinnedPlatforms, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveZizmorError;
 use crate::observation::{Examination, Observation};
@@ -105,6 +105,11 @@ const HIGHEST_FINDING: i32 = 14;
 pub(crate) struct Zizmor {
     /// The program that mise installed at the declared version
     tool: Tool,
+
+    /// The tool output of the context that resolved zizmor
+    ///
+    /// Each run sends what zizmor writes to it.
+    output: ToolOutput,
 }
 
 impl Zizmor {
@@ -140,7 +145,7 @@ impl Zizmor {
             .arg(FORMAT)
             .arg(JSON)
             .arg(HERE)
-            .launch()
+            .launch_with(&self.output, ShownStreams::StandardError)
             .await
             .map_err(|source| ObserveZizmorError::ZizmorUnavailable { source })?;
 
@@ -205,7 +210,10 @@ impl Zizmor {
             .call()
             .await?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 }
 
