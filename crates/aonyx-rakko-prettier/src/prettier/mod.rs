@@ -8,8 +8,8 @@
 
 mod error;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion, VersionRange};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
 
 pub use self::error::ObservePrettierError;
 use crate::filter::Filter;
@@ -104,10 +104,18 @@ pub struct Prettier {
     /// The program that mise installed at the declared version, on the Node
     /// of the project
     tool: Tool,
+
+    /// The tool output of the context that resolved prettier
+    ///
+    /// Each run sends what prettier writes to it.
+    output: ToolOutput,
 }
 
 impl Prettier {
     /// Runs one operation over the files that the filter selects
+    ///
+    /// The run sends what prettier writes to the tool output of the context
+    /// that resolved the prettier.
     ///
     /// # Examples
     ///
@@ -150,7 +158,7 @@ impl Prettier {
             .arg(NO_COLOR)
             .arg(IGNORE_UNKNOWN)
             .arg(filter.pattern())
-            .launch()
+            .launch_with(&self.output, ShownStreams::Both)
             .await
             .map_err(|source| ObservePrettierError::PrettierUnavailable { source })?;
 
@@ -260,7 +268,10 @@ impl Prettier {
             .await?
             .with_toolchain(&node)?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 }
 

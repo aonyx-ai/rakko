@@ -9,6 +9,7 @@ use rakko::{Access, Context, Name, Outcome};
 
 pub(crate) use self::error::RunGroupError;
 use super::members::BoundMember;
+use super::tool_lines::{self, Buffer, ToolLines};
 use super::{EXIT_CLEAN, exit_code};
 use crate::report::{GroupSummary, Report};
 
@@ -54,6 +55,7 @@ pub(super) async fn run(
     members: Vec<BoundMember<'_>>,
     project: &Context,
     clawless: &ClawlessContext,
+    lines: ToolLines,
 ) -> Result<u8, RunGroupError> {
     let mut writes = Vec::new();
     let mut reads = Vec::new();
@@ -70,8 +72,8 @@ pub(super) async fn run(
         }
     }
 
-    let mut finished = drive_writers(writes, project, clawless).await?;
-    finished.extend(drive_readers(reads, project, clawless).await?);
+    let mut finished = drive_writers(writes, project, clawless, lines).await?;
+    finished.extend(drive_readers(reads, project, clawless, lines).await?);
     finished.sort_by_key(|member| member.place);
 
     let code = finished
@@ -130,11 +132,20 @@ async fn drive_writers(
     members: Vec<(usize, BoundMember<'_>)>,
     project: &Context,
     clawless: &ClawlessContext,
+    lines: ToolLines,
 ) -> Result<Vec<Finished>, RunGroupError> {
     let mut finished = Vec::new();
 
     for (place, member) in members {
-        let outcome = member.action().run(project).await;
+        let action = member.action();
+        let outcome = tool_lines::stream(lines, project, clawless.output(), |context| async move {
+            action.run(&context).await
+        })
+        .await
+        .map_err(|source| RunGroupError::UnreportedToolOutput {
+            member: member.name().clone(),
+            source,
+        })?;
 
         finished.push(report(place, member.name(), outcome, clawless).await?);
     }
@@ -158,17 +169,31 @@ async fn drive_readers(
     members: Vec<(usize, BoundMember<'_>)>,
     project: &Context,
     clawless: &ClawlessContext,
+    lines: ToolLines,
 ) -> Result<Vec<Finished>, RunGroupError> {
     let mut running = members
         .iter()
-        .map(|(place, member)| async move {
-            (*place, member.name(), member.action().run(project).await)
+        .map(|(place, member)| {
+            let (context, buffer) = Buffer::attach(lines, project);
+
+            async move {
+                let outcome = member.action().run(&context).await;
+
+                (*place, member.name(), outcome, buffer)
+            }
         })
         .collect::<FuturesUnordered<_>>();
 
     let mut finished = Vec::new();
 
-    while let Some((place, name, outcome)) = running.next().await {
+    while let Some((place, name, outcome, buffer)) = running.next().await {
+        buffer
+            .flush(name, clawless.output())
+            .await
+            .map_err(|source| RunGroupError::UnreportedToolOutput {
+                member: name.clone(),
+                source,
+            })?;
         finished.push(report(place, name, outcome, clawless).await?);
     }
 
@@ -225,13 +250,15 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::task::{Context as TaskContext, Poll, Waker};
 
+    use clawless::event::process::ProcessEvent;
     use clawless::event::{Event, EventReceiver, event_channel};
     use clawless::output::Output;
     use rakko::Documented;
     use rakko::{
         Access, Action, Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue,
         ErasedAction, Name, OperatingSystem, Outcome, Platform, ReadArgsError, SkipReason,
-        ToolRequirement, ToolVersion, action_name, argument_name,
+        ToolCommand, ToolEvent, ToolLine, ToolRequirement, ToolStream, ToolVersion, action_name,
+        argument_name,
     };
 
     use super::*;
@@ -494,6 +521,72 @@ mod tests {
         }
     }
 
+    /// An action that runs a tool that writes one line, and answers as the test
+    /// asks
+    ///
+    /// The action sends the start of its tool and returns control to the
+    /// driver of the run once. Then it sends the line that its tool wrote. A run that
+    /// drives two such actions at once therefore receives the events of both
+    /// before either of them ends.
+    #[derive(Documented)]
+    struct Talker {
+        /// The name that the action reports and that its tool writes
+        name: Name,
+
+        /// How the action declares that a run uses the project
+        declaration: Declaration,
+
+        /// What the action answers, where only a pass, a problem, and a stop
+        /// differ
+        answer: Answer,
+    }
+
+    impl Action for Talker {
+        type Args = Received;
+
+        fn name(&self) -> Name {
+            self.name.clone()
+        }
+
+        fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+            match self.declaration {
+                Declaration::Read => Access::Read,
+                Declaration::Write => Access::Write,
+            }
+        }
+
+        async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+            context
+                .tool_output()
+                .send(ToolEvent::Started(ToolCommand::new(format!(
+                    "{}-tool",
+                    self.name
+                ))));
+
+            yield_once().await;
+
+            context.tool_output().send(ToolEvent::Line(
+                ToolLine::builder()
+                    .stream(ToolStream::StandardOutput)
+                    .text(format!("{} wrote", self.name))
+                    .build(),
+            ));
+
+            match self.answer {
+                Answer::Fail => Outcome::Failed {
+                    findings: Vec::new(),
+                    repairs: Vec::new(),
+                },
+                Answer::Stop => Outcome::Errored {
+                    source: Box::new(std::io::Error::other("the tool is missing")),
+                },
+                Answer::Pass | Answer::Repair | Answer::Skip | Answer::Wait => {
+                    Outcome::Passed { summary: None }
+                }
+            }
+        }
+    }
+
     /// Polls a run of the actions without values a fixed number of times and
     /// returns what it sent by then
     ///
@@ -509,7 +602,8 @@ mod tests {
                 &group,
                 bind(actions, &ArgsValues::empty()),
                 &project,
-                &clawless
+                &clawless,
+                ToolLines::Hidden,
             ));
             let mut task_context = TaskContext::from_waker(Waker::noop());
 
@@ -519,6 +613,16 @@ mod tests {
         }
 
         received(clawless, receiver)
+    }
+
+    /// Returns an action with the given name that reads, runs a tool that
+    /// writes one line, and answers as the test asks
+    fn answering_talker(name: Name, answer: Answer) -> Box<dyn ErasedAction> {
+        Box::new(Talker {
+            name,
+            declaration: Declaration::Read,
+            answer,
+        })
     }
 
     /// Binds every action to the values of a run, as the command line binds
@@ -593,7 +697,13 @@ mod tests {
     ) -> Result<u8, RunGroupError> {
         let (clawless, _receiver) = clawless();
 
-        block_on(run(&group(), bind(actions, values), &project(), &clawless))
+        block_on(run(
+            &group(),
+            bind(actions, values),
+            &project(),
+            &clawless,
+            ToolLines::Hidden,
+        ))
     }
 
     /// Returns an action with the given name that reads and found a problem,
@@ -724,9 +834,56 @@ mod tests {
             bind(actions, &ArgsValues::empty()),
             &project(),
             &clawless,
+            ToolLines::Hidden,
         ));
 
         received(clawless, receiver)
+    }
+
+    /// Returns an action with the given name that runs a tool that writes one
+    /// line, and that declares the given access
+    fn talker(name: Name, declaration: Declaration) -> Box<dyn ErasedAction> {
+        Box::new(Talker {
+            name,
+            declaration,
+            answer: Answer::Pass,
+        })
+    }
+
+    /// Runs the actions to their end and returns every detail, line, and
+    /// message that the run sent, in the order in which it sent them
+    ///
+    /// A message holds the report of a member, so the transcript gives only
+    /// the name of the member that the report starts with.
+    fn transcript(actions: &[Box<dyn ErasedAction>], lines: ToolLines) -> Vec<String> {
+        let (clawless, mut receiver) = clawless();
+        let _result = block_on(run(
+            &group(),
+            bind(actions, &ArgsValues::empty()),
+            &project(),
+            &clawless,
+            lines,
+        ));
+        drop(clawless);
+
+        let mut transcript = Vec::new();
+        while let Some(event) = block_on(receiver.recv()) {
+            match event {
+                Event::Detail(detail) => transcript.push(format!("detail: {detail}")),
+                Event::Process(process) => {
+                    if let ProcessEvent::Line { line, .. } = *process {
+                        transcript.push(format!("line: {line}"));
+                    }
+                }
+                Event::Message(message) => {
+                    let member = message.split(':').next().unwrap_or_default();
+                    transcript.push(format!("report: {member}"));
+                }
+                Event::Artifact(_) | Event::Prompt(_) => {}
+            }
+        }
+
+        transcript
     }
 
     /// Returns an action with the given name that declares nothing and
@@ -1109,6 +1266,18 @@ mod tests {
     }
 
     #[test]
+    fn run_with_hidden_lines_shows_nothing_that_a_tool_wrote() {
+        let actions = [
+            talker(action_name!("format"), Declaration::Write),
+            talker(action_name!("lint"), Declaration::Read),
+        ];
+
+        let transcript = transcript(&actions, ToolLines::Hidden);
+
+        assert_eq!(transcript, ["report: format", "report: lint"]);
+    }
+
+    #[test]
     fn run_with_several_writers_drives_them_in_the_order_of_the_list() {
         let log = Arc::new(Mutex::new(Vec::new()));
         let actions = [
@@ -1122,6 +1291,120 @@ mod tests {
         assert_eq!(
             *log.lock().expect("the run has ended"),
             ["format-yaml", "format-json", "lint-yaml"]
+        );
+    }
+
+    #[test]
+    fn run_with_shown_lines_shows_the_output_of_a_reader_that_found_problems_before_its_report() {
+        let actions = [answering_talker(action_name!("lint"), Answer::Fail)];
+
+        let transcript = transcript(&actions, ToolLines::Shown);
+
+        assert_eq!(
+            transcript,
+            [
+                "detail: --- lint ---",
+                "detail: $ lint-tool",
+                "line: lint wrote",
+                "report: lint"
+            ]
+        );
+    }
+
+    #[test]
+    fn run_with_shown_lines_shows_the_output_of_a_reader_that_stopped_before_its_report() {
+        let actions = [answering_talker(action_name!("lint"), Answer::Stop)];
+
+        let transcript = transcript(&actions, ToolLines::Shown);
+
+        assert_eq!(
+            transcript,
+            [
+                "detail: --- lint ---",
+                "detail: $ lint-tool",
+                "line: lint wrote",
+                "report: lint"
+            ]
+        );
+    }
+
+    #[test]
+    fn run_with_shown_lines_shows_the_output_of_a_writer_before_its_report() {
+        let actions = [talker(action_name!("format"), Declaration::Write)];
+
+        let transcript = transcript(&actions, ToolLines::Shown);
+
+        assert_eq!(
+            transcript,
+            [
+                "detail: $ format-tool",
+                "line: format wrote",
+                "report: format"
+            ]
+        );
+    }
+
+    #[test]
+    fn run_with_shown_lines_shows_the_output_of_each_reader_in_one_block_before_its_report() {
+        let actions = [
+            talker(action_name!("first"), Declaration::Read),
+            talker(action_name!("second"), Declaration::Read),
+        ];
+
+        let transcript = transcript(&actions, ToolLines::Shown);
+
+        assert_eq!(
+            transcript,
+            [
+                "detail: --- first ---",
+                "detail: $ first-tool",
+                "line: first wrote",
+                "report: first",
+                "detail: --- second ---",
+                "detail: $ second-tool",
+                "line: second wrote",
+                "report: second"
+            ]
+        );
+    }
+
+    #[test]
+    fn run_with_shown_lines_without_an_output_fails_at_the_output_of_a_reader() {
+        let actions = [talker(action_name!("lint"), Declaration::Read)];
+        let (clawless, receiver) = clawless();
+        drop(receiver);
+
+        let result = block_on(run(
+            &group(),
+            bind(&actions, &ArgsValues::empty()),
+            &project(),
+            &clawless,
+            ToolLines::Shown,
+        ));
+
+        assert_eq!(
+            result.map_err(|error| error.to_string()),
+            Err("failed to report the output of the tools of the lint action".to_owned())
+        );
+    }
+
+    #[test]
+    fn run_with_shown_lines_without_an_output_fails_at_the_output_of_a_writer() {
+        let actions = [talker(action_name!("format"), Declaration::Write)];
+        let (clawless, receiver) = clawless();
+        drop(receiver);
+
+        let result = block_on(run(
+            &group(),
+            bind(&actions, &ArgsValues::empty()),
+            &project(),
+            &clawless,
+            ToolLines::Shown,
+        ));
+
+        assert_eq!(
+            result.map_err(|error| error.to_string()),
+            Err("failed to report the output of the tools of the format action".to_owned())
         );
     }
 
@@ -1161,7 +1444,8 @@ mod tests {
             &group,
             bind(&actions, &ArgsValues::empty()),
             &project,
-            &clawless
+            &clawless,
+            ToolLines::Hidden,
         ));
         let mut task_context = TaskContext::from_waker(Waker::noop());
 
@@ -1193,6 +1477,7 @@ mod tests {
             bind(&actions, &ArgsValues::empty()),
             &project(),
             &clawless,
+            ToolLines::Hidden,
         ));
 
         assert_eq!(
@@ -1206,7 +1491,13 @@ mod tests {
         let (clawless, receiver) = clawless();
         drop(receiver);
 
-        let result = block_on(run(&group(), Vec::new(), &project(), &clawless));
+        let result = block_on(run(
+            &group(),
+            Vec::new(),
+            &project(),
+            &clawless,
+            ToolLines::Hidden,
+        ));
 
         assert_eq!(
             result.map_err(|error| error.to_string()),

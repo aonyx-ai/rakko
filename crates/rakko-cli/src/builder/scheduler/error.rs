@@ -46,6 +46,20 @@ pub(crate) enum RunGroupError {
         source: SendError,
     },
 
+    /// What the tools of a member wrote did not reach the reader
+    ///
+    /// The run shows the output of the tools only when the reader asked for
+    /// it. It stops at output that nothing takes, as it stops at a report
+    /// that nothing takes.
+    #[error("failed to report the output of the tools of the {member} action")]
+    UnreportedToolOutput {
+        /// The member whose output the run could not report
+        member: Name,
+
+        /// The cause of the failure
+        source: SendError,
+    },
+
     /// The summary of the group did not reach the reader
     ///
     /// The run sends the summary when every member finished. Every member

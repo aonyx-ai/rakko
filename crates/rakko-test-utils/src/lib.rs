@@ -1,9 +1,10 @@
 //! Helpers for the tests of an action
 //!
-//! The crate gives the author of an action two kinds of help. The first lets
+//! The crate gives the author of an action three kinds of help. The first lets
 //! a test write a path that reads the same on every platform. The second lets
 //! a test run an action and check that the action keeps its declaration of
-//! how it uses the project.
+//! how it uses the project. The third lets a test read what the tools of an
+//! action sent while they ran.
 //!
 //! Add this crate as a development dependency of the action crate.
 //! Then `rakko-test-utils` builds only for the tests of the action.
@@ -44,6 +45,13 @@
 //! project. So a test that runs the action through this helper also checks
 //! the declaration.
 //!
+//! # Tool Output
+//!
+//! An action sends what its tools write to the tool output of its context, so
+//! that a harness can show it while the tools run. [`ToolRecorder`] is a tool
+//! output that keeps every event. A test gives it to the context of a run, and
+//! reads the events after the run.
+//!
 //! # Examples
 //!
 //! ```
@@ -60,10 +68,12 @@
 //! [run_checking_access]: run_checking_access()
 
 mod access;
+mod recorder;
 
 use std::path::PathBuf;
 
 pub use self::access::run_checking_access;
+pub use self::recorder::ToolRecorder;
 
 /// The root of the file system that Windows reads as absolute
 ///

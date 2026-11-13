@@ -97,11 +97,13 @@ jobs:
 
       # The task hands every argument to the harness untouched, and the harness
       # is what a contributor runs as well, so a job of CI and a machine of a
-      # contributor answer the same question with the same command.
+      # contributor answer the same question with the same command. The flag
+      # `--verbose` adds what the tools write while they run, because the log
+      # is the only record of a job that failed or that takes a long time.
       - name: Run the command
         env:
           COMMAND: ${{ matrix.command }}
-        run: mise run rakko -- "$COMMAND"
+        run: mise run rakko -- "$COMMAND" --verbose
 
   # An action starts a subprocess and reads the paths that it reported, and
   # that is where an assumption about a platform shows up, so the commands
@@ -142,12 +144,13 @@ jobs:
       # contributor does. Every runner carries it, so one spelling of the
       # command serves the whole matrix. The default shell of a step on
       # Windows is PowerShell too, but it reads `$COMMAND` as a variable of its
-      # own, so the step reads the variable of the environment.
+      # own, so the step reads the variable of the environment. The step
+      # passes `--verbose` for the reason that the step of the checks gives.
       - name: Run the command
         shell: pwsh
         env:
           COMMAND: ${{ matrix.command }}
-        run: mise run rakko -- $env:COMMAND
+        run: mise run rakko -- $env:COMMAND --verbose
 
   success:
     name: All checks succeeded
