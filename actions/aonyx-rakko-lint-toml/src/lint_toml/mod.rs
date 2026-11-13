@@ -204,6 +204,9 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use rakko::FilePath;
+    use rakko_test_utils::path;
+
     use super::*;
 
     /// Returns a context whose root names no project, because a declaration
@@ -217,6 +220,35 @@ mod tests {
         let access = LintToml.access(&context(), &());
 
         assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn findings_of_a_diagnostic_place_the_finding_at_its_position() {
+        let problem = TaploProblem::builder()
+            .path(path("/home/otter/project/a.toml"))
+            .detail(ProblemDetail::Diagnostic {
+                line: 2,
+                column: 5,
+                message: "unexpected token".to_owned(),
+            })
+            .build();
+        let observation = Observation::builder().problems(vec![problem]).build();
+        let root = ProjectRoot::new(path("/home/otter/project"));
+
+        let findings = findings(observation.problems(), &root).unwrap();
+
+        assert_eq!(
+            findings,
+            vec![
+                Finding::builder()
+                    .message("unexpected token")
+                    .location(Location::Position {
+                        path: FilePath::try_from(path("a.toml")).unwrap(),
+                        position: Position::builder().line(2).column(5).build(),
+                    })
+                    .build()
+            ]
+        );
     }
 
     #[test]

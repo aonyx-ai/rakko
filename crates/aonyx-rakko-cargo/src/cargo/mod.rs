@@ -667,8 +667,8 @@ impl Metadata {
         packages
     }
 
-    /// Returns the oldest Rust toolchain that the packages of the workspace
-    /// declare they compile on
+    /// Returns the highest Rust version that a package of the workspace
+    /// declares
     ///
     /// Cargo compiles a workspace as one unit, so the highest declaration of
     /// its packages answers, and a workspace whose packages declare nothing
