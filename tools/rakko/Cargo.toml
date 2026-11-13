@@ -27,12 +27,12 @@ aonyx-rakko-lint-yaml = { path = "../../actions/aonyx-rakko-lint-yaml" }
 aonyx-rakko-rust-library = { path = "../../bundles/aonyx-rakko-rust-library" }
 aonyx-rakko-test-rust = { path = "../../actions/aonyx-rakko-test-rust" }
 aonyx-rakko-test-rust-docs = { path = "../../actions/aonyx-rakko-test-rust-docs" }
+aonyx-rakko-typescript = { path = "../../bundles/aonyx-rakko-typescript" }
 rakko = { path = "../../crates/rakko" }
 rakko-cli = { path = "../../crates/rakko-cli" }
 rakko-pre-commit = { path = "../../commands/rakko-pre-commit" }
 rakko-set-msrv = { path = "../../commands/rakko-set-msrv" }
 rakko-tool = { path = "../../crates/rakko-tool" }
-rakko-typescript = { path = "../../bundles/rakko-typescript" }
 thiserror = "2"
 
 [dev-dependencies]

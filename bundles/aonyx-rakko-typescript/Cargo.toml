@@ -1,0 +1,18 @@
+[package]
+name = "aonyx-rakko-typescript"
+version = "0.1.0"
+description = "The Rakko bundle that any TypeScript project mounts"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-check-typescript = { path = "../../actions/aonyx-rakko-check-typescript", version = "0.1.0" }
+aonyx-rakko-format-typescript = { path = "../../actions/aonyx-rakko-format-typescript", version = "0.1.0" }
+aonyx-rakko-lint-typescript = { path = "../../actions/aonyx-rakko-lint-typescript", version = "0.1.0" }
+aonyx-rakko-test-typescript = { path = "../../actions/aonyx-rakko-test-typescript", version = "0.1.0" }
+rakko = { workspace = true }
+
+[lints]
+workspace = true

@@ -58,7 +58,7 @@ fn main() -> std::process::ExitCode {
     rakko_cli::builder()
         .mount(aonyx_rakko_baseline::bundle())
         .mount(aonyx_rakko_rust_library::bundle())
-        .mount(rakko_typescript::bundle())
+        .mount(aonyx_rakko_typescript::bundle())
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)
         .mount(pre_commit)

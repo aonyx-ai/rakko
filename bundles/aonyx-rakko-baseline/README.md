@@ -8,7 +8,7 @@ request like any other dependency.
 
 The bundle contains no other bundle, and no bundle contains it. A project
 mounts it alone, or beside the bundle of its language, such as a Rust bundle or
-`rakko-typescript`.
+`aonyx-rakko-typescript`.
 
 ## Usage
 
