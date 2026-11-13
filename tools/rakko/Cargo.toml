@@ -12,25 +12,25 @@ name = "rakko"
 path = "src/main.rs"
 
 [dependencies]
+aonyx-rakko-check-msrv = { path = "../../actions/aonyx-rakko-check-msrv" }
+aonyx-rakko-format-rust = { path = "../../actions/aonyx-rakko-format-rust" }
+aonyx-rakko-lint-rust = { path = "../../actions/aonyx-rakko-lint-rust" }
+aonyx-rakko-lint-stiles = { path = "../../actions/aonyx-rakko-lint-stiles" }
+aonyx-rakko-rust-library = { path = "../../bundles/aonyx-rakko-rust-library" }
+aonyx-rakko-test-rust = { path = "../../actions/aonyx-rakko-test-rust" }
+aonyx-rakko-test-rust-docs = { path = "../../actions/aonyx-rakko-test-rust-docs" }
 rakko = { path = "../../crates/rakko" }
 rakko-baseline = { path = "../../bundles/rakko-baseline" }
-rakko-check-msrv = { path = "../../actions/rakko-check-msrv" }
 rakko-cli = { path = "../../crates/rakko-cli" }
 rakko-format-json = { path = "../../actions/rakko-format-json" }
 rakko-format-markdown = { path = "../../actions/rakko-format-markdown" }
-rakko-format-rust = { path = "../../actions/rakko-format-rust" }
 rakko-format-toml = { path = "../../actions/rakko-format-toml" }
 rakko-format-yaml = { path = "../../actions/rakko-format-yaml" }
 rakko-lint-github-actions = { path = "../../actions/rakko-lint-github-actions" }
 rakko-lint-markdown = { path = "../../actions/rakko-lint-markdown" }
-rakko-lint-rust = { path = "../../actions/rakko-lint-rust" }
-rakko-lint-stiles = { path = "../../actions/rakko-lint-stiles" }
 rakko-lint-yaml = { path = "../../actions/rakko-lint-yaml" }
 rakko-pre-commit = { path = "../../commands/rakko-pre-commit" }
-rakko-rust-library = { path = "../../bundles/rakko-rust-library" }
 rakko-set-msrv = { path = "../../commands/rakko-set-msrv" }
-rakko-test-rust = { path = "../../actions/rakko-test-rust" }
-rakko-test-rust-docs = { path = "../../actions/rakko-test-rust-docs" }
 rakko-tool = { path = "../../crates/rakko-tool" }
 rakko-typescript = { path = "../../bundles/rakko-typescript" }
 thiserror = "2"

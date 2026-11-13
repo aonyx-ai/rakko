@@ -23,6 +23,13 @@ repository = "https://github.com/aonyx-ai/rakko"
 rust-version = "1.88.0"
 
 [workspace.dependencies]
+aonyx-rakko-cargo = { path = "crates/aonyx-rakko-cargo", version = "0.1.0" }
+aonyx-rakko-format-rust = { path = "actions/aonyx-rakko-format-rust", version = "0.1.0" }
+aonyx-rakko-lint-rust = { path = "actions/aonyx-rakko-lint-rust", version = "0.1.0" }
+aonyx-rakko-nextest = { path = "crates/aonyx-rakko-nextest", version = "0.1.0" }
+aonyx-rakko-rust = { path = "bundles/aonyx-rakko-rust", version = "0.1.0" }
+aonyx-rakko-test-rust = { path = "actions/aonyx-rakko-test-rust", version = "0.1.0" }
+aonyx-rakko-worktree = { path = "crates/aonyx-rakko-worktree", version = "0.1.0" }
 bon = "3"
 clap = "4.3.4"
 clawless = "0.8.0"
@@ -36,19 +43,12 @@ kawauso-project = "0.3.0"
 proc-macro2 = "1.0.91"
 quote = "1.0.35"
 rakko = { path = "crates/rakko", version = "0.1.0" }
-rakko-cargo = { path = "crates/rakko-cargo", version = "0.1.0" }
 rakko-cli = { path = "crates/rakko-cli", version = "0.1.0" }
-rakko-format-rust = { path = "actions/rakko-format-rust", version = "0.1.0" }
-rakko-lint-rust = { path = "actions/rakko-lint-rust", version = "0.1.0" }
 rakko-macros = { path = "crates/rakko-macros", version = "0.1.0" }
-rakko-nextest = { path = "crates/rakko-nextest", version = "0.1.0" }
 rakko-prettier = { path = "crates/rakko-prettier", version = "0.1.0" }
-rakko-rust = { path = "bundles/rakko-rust", version = "0.1.0" }
 rakko-taplo = { path = "crates/rakko-taplo", version = "0.1.0" }
-rakko-test-rust = { path = "actions/rakko-test-rust", version = "0.1.0" }
 rakko-test-utils = { path = "crates/rakko-test-utils", version = "0.1.0" }
 rakko-tool = { path = "crates/rakko-tool", version = "0.1.0" }
-rakko-worktree = { path = "crates/rakko-worktree", version = "0.1.0" }
 semver = "1.0.0"
 serde = { version = "1.0.225", features = ["derive"] }
 serde_json = "1.0.0"

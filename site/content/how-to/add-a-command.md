@@ -23,11 +23,11 @@ dependencies of the harness:
 
 ```toml,name=tools/rakko/Cargo.toml
 [dependencies]
+aonyx-rakko-format-rust = "0.1"
+aonyx-rakko-lint-rust = "0.1"
+aonyx-rakko-test-rust = "0.1"
 rakko = "0.1"
 rakko-cli = "0.1"
-rakko-format-rust = "0.1"
-rakko-lint-rust = "0.1"
-rakko-test-rust = "0.1"
 ```
 
 `rakko-cli` also exports [Clawless][clawless], the command-line framework.

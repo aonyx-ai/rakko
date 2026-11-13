@@ -9,10 +9,10 @@ rust-version.workspace = true
 publish = false
 
 [dependencies]
+aonyx-rakko-format-rust = { workspace = true }
+aonyx-rakko-lint-rust = { workspace = true }
+aonyx-rakko-test-rust = { workspace = true }
 rakko-cli = { workspace = true }
-rakko-format-rust = { workspace = true }
-rakko-lint-rust = { workspace = true }
-rakko-test-rust = { workspace = true }
 
 [lints]
 workspace = true

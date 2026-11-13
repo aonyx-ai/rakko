@@ -92,20 +92,20 @@ actions that wrap familiar Rust tools.
 
 ### Format Rust
 
-`rakko-format-rust` adds the `format-rust` command. It runs `cargo fmt` with
-your pinned nightly toolchain, so rustfmt can use its unstable formatting
+`aonyx-rakko-format-rust` adds the `format-rust` command. It runs `cargo fmt`
+with your pinned nightly toolchain, so rustfmt can use its unstable formatting
 options. By default, it reports formatting problems. With `--fix`, it
 rewrites the files and reports each repair.
 
 ### Lint Rust
 
-`rakko-lint-rust` adds the `lint-rust` command. It runs `cargo clippy` on every
-target with every feature enabled, using your pinned stable toolchain. It
+`aonyx-rakko-lint-rust` adds the `lint-rust` command. It runs `cargo clippy` on
+every target with every feature enabled, using your pinned stable toolchain. It
 reports warnings and errors as findings with their file locations.
 
 ### Test Rust
 
-`rakko-test-rust` adds the `test-rust` command. It runs your tests with
+`aonyx-rakko-test-rust` adds the `test-rust` command. It runs your tests with
 [cargo-nextest][nextest] on your pinned stable toolchain. The action declares
 the exact nextest version, and [mise] installs it. Failed tests become
 findings with the panic message and location.
@@ -133,10 +133,10 @@ name = "rakko"
 path = "src/main.rs"
 
 [dependencies]
+aonyx-rakko-format-rust = "0.1"
+aonyx-rakko-lint-rust = "0.1"
+aonyx-rakko-test-rust = "0.1"
 rakko-cli = "0.1"
-rakko-format-rust = "0.1"
-rakko-lint-rust = "0.1"
-rakko-test-rust = "0.1"
 ```
 
 The empty `[workspace]` table keeps the harness out of any parent workspace.

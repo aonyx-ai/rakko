@@ -1,0 +1,15 @@
+[package]
+name = "aonyx-rakko-rust-binary"
+version = "0.1.0"
+description = "The Rakko bundle that a Rust project mounts when it ships a binary"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-rust = { workspace = true }
+rakko = { workspace = true }
+
+[lints]
+workspace = true

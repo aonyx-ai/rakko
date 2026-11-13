@@ -1,0 +1,18 @@
+[package]
+name = "aonyx-rakko-rust-library"
+version = "0.1.0"
+description = "The Rakko bundle that a Rust project mounts when it publishes a library"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-check-minimal-deps = { path = "../../actions/aonyx-rakko-check-minimal-deps", version = "0.1.0" }
+aonyx-rakko-check-msrv = { path = "../../actions/aonyx-rakko-check-msrv", version = "0.1.0" }
+aonyx-rakko-rust = { workspace = true }
+aonyx-rakko-test-rust-docs = { path = "../../actions/aonyx-rakko-test-rust-docs", version = "0.1.0" }
+rakko = { workspace = true }
+
+[lints]
+workspace = true

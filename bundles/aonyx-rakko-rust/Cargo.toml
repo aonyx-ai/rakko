@@ -1,0 +1,22 @@
+[package]
+name = "aonyx-rakko-rust"
+version = "0.1.0"
+description = "The core Rakko bundle for Rust, which the library and binary bundles contain"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-build-internal-docs = { path = "../../actions/aonyx-rakko-build-internal-docs", version = "0.1.0" }
+aonyx-rakko-check-dependencies = { path = "../../actions/aonyx-rakko-check-dependencies", version = "0.1.0" }
+aonyx-rakko-check-latest-deps = { path = "../../actions/aonyx-rakko-check-latest-deps", version = "0.1.0" }
+aonyx-rakko-check-unused-deps = { path = "../../actions/aonyx-rakko-check-unused-deps", version = "0.1.0" }
+aonyx-rakko-format-rust = { workspace = true }
+aonyx-rakko-lint-rust = { workspace = true }
+aonyx-rakko-lint-stiles = { path = "../../actions/aonyx-rakko-lint-stiles", version = "0.1.0" }
+aonyx-rakko-test-rust = { workspace = true }
+rakko = { workspace = true }
+
+[lints]
+workspace = true

@@ -12,10 +12,10 @@ needs = "Use [mise] to install Rust and the tools your actions need."
 # command line. A test of that crate checks that the names here match it.
 harness_manifest = """
 [dependencies]
+aonyx-rakko-format-rust = "0.1"
+aonyx-rakko-lint-rust = "0.1"
+aonyx-rakko-test-rust = "0.1"
 rakko-cli = "0.1"
-rakko-format-rust = "0.1"
-rakko-lint-rust = "0.1"
-rakko-test-rust = "0.1"
 """
 
 # The facts in the strip under the first view of the landing page.

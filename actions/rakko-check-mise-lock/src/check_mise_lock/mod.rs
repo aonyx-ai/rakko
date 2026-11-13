@@ -12,11 +12,11 @@ mod operation;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use aonyx_rakko_worktree::Worktree;
 use rakko::{
     Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, Summary,
     action_name,
 };
-use rakko_worktree::Worktree;
 
 pub use self::args::CheckMiseLockArgs;
 pub use self::error::CheckMiseLockError;
