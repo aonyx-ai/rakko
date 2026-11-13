@@ -15,6 +15,7 @@ rakko-check-latest-deps = { path = "../../actions/rakko-check-latest-deps", vers
 rakko-check-unused-deps = { path = "../../actions/rakko-check-unused-deps", version = "0.1.0" }
 rakko-format-rust = { workspace = true }
 rakko-lint-rust = { workspace = true }
+rakko-lint-stiles = { path = "../../actions/rakko-lint-stiles", version = "0.1.0" }
 rakko-test-rust = { workspace = true }
 
 [lints]

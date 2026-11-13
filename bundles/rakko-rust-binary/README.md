@@ -35,7 +35,7 @@ bundle but one action filters the list, because the list is an ordinary value.
 
 ## Actions
 
-The bundle exports the seven actions of `rakko-rust` and no other.
+The bundle exports the eight actions of `rakko-rust` and no other.
 
 ## Tools
 
