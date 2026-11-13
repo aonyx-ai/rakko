@@ -63,7 +63,8 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 /// Before it checks the project, a run asks stiles to list the rules that the
 /// configuration turns on.
 /// It fails when that list is empty, because stiles checks such a project with
-/// no rule at all, and a check with no rule passes whatever the code holds.
+/// no rule at all.
+/// A check with no rule passes whatever the code holds.
 /// The finding belongs to the project and names `.config/stiles.toml`.
 /// It skips when stiles finds no file to check.
 /// A run stops with an error when mise reports no stiles at the declared
