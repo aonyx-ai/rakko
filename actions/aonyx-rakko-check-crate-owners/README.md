@@ -5,10 +5,10 @@
 on [crates.io].
 
 A crate that one person owns depends on that person. When their account
-becomes unavailable, nobody can publish the crate, change its owners, or set up
-trusted publishing. The action compares the owners of each crate with a list of
-owners, and it fails when a crate misses one of them. With `fix`, it adds each
-missing owner.
+becomes unavailable, nobody can publish the crate, change its owners, or
+configure trusted publishing. The action compares the owners of each crate with
+a list of owners, and it fails when a crate misses one of them. With `fix`, it
+adds each missing owner.
 
 The action checks each crate of each workspace of the project that cargo can
 publish to crates.io, as its manifest says. A manifest without the `publish` key
@@ -70,8 +70,9 @@ the network, so a project runs it in a job of CI and not before every commit.
 A run starts a program, sends requests, and waits for them. A [Tokio] runtime
 drives that. The command line that `rakko-cli` builds starts one, so a harness
 needs no runtime of its own. A caller that runs the action outside of that
-command line starts a runtime with its timer first, because the run panics
-without one.
+command line must start a Tokio runtime first. The runtime needs its drivers for
+I/O and for time, which `enable_io` and `enable_time` turn on. Without them,
+the run panics.
 
 ## Documentation
 

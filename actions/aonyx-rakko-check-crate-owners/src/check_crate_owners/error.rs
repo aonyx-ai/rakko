@@ -10,8 +10,8 @@ use crate::crates_io::LookUpOwnersError;
 ///
 /// Nothing here is a problem of the project. A missing owner travels as a
 /// finding in the outcome of the run, and so does an owner that a repair
-/// could not add. The variants of this error describe a run whose answer
-/// cannot be trusted, and such a run stops instead of reporting one.
+/// did not add. The variants of this error describe a run whose answer the
+/// caller cannot trust. Such a run stops and reports no answer.
 ///
 /// # Examples
 ///
@@ -34,31 +34,31 @@ use crate::crates_io::LookUpOwnersError;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum CheckCrateOwnersError {
-    /// The client that reads the owners from crates.io could not be set up
+    /// The client that reads the owners from crates.io is not available
     ///
     /// The client carries its own TLS, so this points at a broken build of
     /// the action and not at the network.
-    #[error("failed to set up the client for crates.io")]
+    #[error("failed to configure the client for crates.io")]
     ClientUnavailable {
         /// The cause of the failure
         source: std::io::Error,
     },
 
-    /// The workspaces of the project could not be discovered
+    /// The discovery of the workspaces of the project failed
     ///
-    /// A run checks every crate of every workspace of the project. So a run
-    /// that does not know the workspaces would check less than the project
-    /// and report a green result for the rest.
+    /// A run checks every crate of every workspace of the project. If a run
+    /// does not know the workspaces, it checks less than the project and
+    /// reports a pass for the rest.
     #[error("failed to discover the workspaces of the project")]
     UndiscoveredRoots {
         /// The cause of the failure
         source: DiscoverRootsError,
     },
 
-    /// The owners of a crate could not be read from crates.io
+    /// The lookup of the owners of a crate on crates.io failed
     ///
-    /// A run that skipped the crate would report a green result for a crate
-    /// that nothing checked.
+    /// If a run skips the crate, it reports a pass for a crate that nothing
+    /// checked.
     #[error("failed to read the owners of {name} from crates.io")]
     UnreadableOwners {
         /// The crate whose owners the run asked for

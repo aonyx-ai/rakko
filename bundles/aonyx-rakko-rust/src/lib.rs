@@ -50,9 +50,9 @@ pub fn bundle() -> Bundle {
 
 /// Returns the owners that every crate of Aonyx must have on crates.io
 ///
-/// Only a user owner of a crate can change its owners or set up trusted
-/// publishing. So two users keep the crate in reach when one account becomes
-/// unavailable. The team shows on crates.io that the crate belongs to the
+/// Only a user owner of a crate can change its owners or configure trusted
+/// publishing. So when one account becomes unavailable, the other user can
+/// still change the owners of the crate. The team shows on crates.io that the crate belongs to the
 /// organization.
 fn owners() -> [CrateOwner; 3] {
     [

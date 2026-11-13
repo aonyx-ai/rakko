@@ -37,7 +37,8 @@ pub(crate) trait Registry: Sync {
     ///
     /// The root is the workspace that holds the crate. A registry that runs
     /// a tool for the addition runs it there. The answer says whether the
-    /// registry added the owner, refused it, or could not be asked.
+    /// registry added the owner, refused it, or failed for another reason,
+    /// such as a request that did not reach it.
     fn add(
         &self,
         root: &CargoRoot,
