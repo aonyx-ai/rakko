@@ -13,7 +13,7 @@ use thiserror::Error;
 /// A caller reads the message of the parser from the error:
 ///
 /// ```
-/// use rakko_set_msrv::ParseTomlError;
+/// use aonyx_rakko_set_msrv::ParseTomlError;
 ///
 /// fn message_of(error: &ParseTomlError) -> String {
 ///     error.to_string()

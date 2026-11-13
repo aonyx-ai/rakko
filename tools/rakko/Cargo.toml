@@ -24,14 +24,14 @@ aonyx-rakko-lint-markdown = { path = "../../actions/aonyx-rakko-lint-markdown" }
 aonyx-rakko-lint-rust = { path = "../../actions/aonyx-rakko-lint-rust" }
 aonyx-rakko-lint-stiles = { path = "../../actions/aonyx-rakko-lint-stiles" }
 aonyx-rakko-lint-yaml = { path = "../../actions/aonyx-rakko-lint-yaml" }
+aonyx-rakko-pre-commit = { path = "../../commands/aonyx-rakko-pre-commit" }
 aonyx-rakko-rust-library = { path = "../../bundles/aonyx-rakko-rust-library" }
+aonyx-rakko-set-msrv = { path = "../../commands/aonyx-rakko-set-msrv" }
 aonyx-rakko-test-rust = { path = "../../actions/aonyx-rakko-test-rust" }
 aonyx-rakko-test-rust-docs = { path = "../../actions/aonyx-rakko-test-rust-docs" }
 aonyx-rakko-typescript = { path = "../../bundles/aonyx-rakko-typescript" }
 rakko = { path = "../../crates/rakko" }
 rakko-cli = { path = "../../crates/rakko-cli" }
-rakko-pre-commit = { path = "../../commands/rakko-pre-commit" }
-rakko-set-msrv = { path = "../../commands/rakko-set-msrv" }
 rakko-tool = { path = "../../crates/rakko-tool" }
 thiserror = "2"
 

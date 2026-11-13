@@ -22,7 +22,7 @@ use super::step::MiseStep;
 /// # Examples
 ///
 /// ```
-/// use rakko_set_msrv::SetMsrvError;
+/// use aonyx_rakko_set_msrv::SetMsrvError;
 /// use std::path::PathBuf;
 /// use std::io;
 ///

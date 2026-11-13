@@ -17,7 +17,7 @@ use super::args::Msrv;
 /// # Examples
 ///
 /// ```
-/// use rakko_set_msrv::{MiseStep, Msrv};
+/// use aonyx_rakko_set_msrv::{MiseStep, Msrv};
 ///
 /// let step = MiseStep::Install {
 ///     msrv: Msrv::new("1.89.0"),
@@ -43,7 +43,7 @@ impl MiseStep {
     /// # Examples
     ///
     /// ```
-    /// use rakko_set_msrv::{MiseStep, Msrv};
+    /// use aonyx_rakko_set_msrv::{MiseStep, Msrv};
     ///
     /// assert_eq!(MiseStep::Lock.arguments(), ["lock", "rust"]);
     ///
