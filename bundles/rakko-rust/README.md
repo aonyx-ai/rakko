@@ -28,7 +28,7 @@ bundle but one action filters the list, because the list is an ordinary value.
 
 ## Actions
 
-The bundle exports seven actions:
+The bundle exports eight actions:
 
 - `build-internal-docs` builds the documentation of the workspace with
   [rustdoc], including what the crates keep to themselves.
@@ -40,6 +40,8 @@ The bundle exports seven actions:
   [cargo-udeps].
 - `format-rust` formats the Rust files with [rustfmt].
 - `lint-rust` examines the Rust files with [clippy].
+- `lint-stiles` applies the rules that the project names in
+  `.config/stiles.toml`, with [stiles]. A project that names no rule fails.
 - `test-rust` runs the tests with [nextest].
 
 ## Tools
@@ -70,6 +72,12 @@ stable toolchain run on 1.99.1. With `1.88.0` first, they run on 1.88.0.
   `nightly` resolves to the newest nightly that the machine holds. The actions
   accept a nightly from 2025-02-20 on. A bare `nightly` counts for nothing,
   also on a machine where mise resolves it to a date.
+
+Stiles is a decision of the project as well. `lint-stiles` accepts exactly one
+version of `github:aonyx-ai/stiles`, because the rules that a project loads are
+built against one version, and the project pins that version in its
+`mise.toml`. Stiles publishes no build for some platforms, and only the pin of
+the project can limit the platforms that install it.
 
 The other tools belong to the actions. Each of these actions runs the version
 that its crate pins in a `mise.rakko.toml`, and not the version that the
@@ -105,3 +113,4 @@ See the [guide] for instructions.
 [nextest]: https://nexte.st
 [rustdoc]: https://doc.rust-lang.org/rustdoc/
 [rustfmt]: https://rust-lang.github.io/rustfmt/
+[stiles]: https://github.com/aonyx-ai/stiles

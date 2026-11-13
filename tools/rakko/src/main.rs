@@ -59,7 +59,6 @@ fn main() -> std::process::ExitCode {
         .mount(rakko_baseline::bundle())
         .mount(rakko_rust_library::bundle())
         .mount(rakko_typescript::bundle())
-        .mount(LintStiles)
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)
         .mount(pre_commit)

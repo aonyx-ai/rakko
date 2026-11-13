@@ -61,6 +61,7 @@ mod tests {
                 "check-unused-deps",
                 "format-rust",
                 "lint-rust",
+                "lint-stiles",
                 "test-rust",
                 "check-minimal-deps",
                 "check-msrv",

@@ -7,6 +7,7 @@ use rakko_check_latest_deps::CheckLatestDeps;
 use rakko_check_unused_deps::CheckUnusedDeps;
 use rakko_format_rust::FormatRust;
 use rakko_lint_rust::LintRust;
+use rakko_lint_stiles::LintStiles;
 use rakko_test_rust::TestRust;
 
 /// Returns the actions that any Rust project runs
@@ -35,6 +36,7 @@ pub fn bundle() -> Bundle {
         Box::new(CheckUnusedDeps),
         Box::new(FormatRust),
         Box::new(LintRust),
+        Box::new(LintStiles),
         Box::new(TestRust),
     ])
 }
@@ -65,6 +67,7 @@ mod tests {
                 "check-unused-deps",
                 "format-rust",
                 "lint-rust",
+                "lint-stiles",
                 "test-rust",
             ]
         );

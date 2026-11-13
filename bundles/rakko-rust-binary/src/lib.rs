@@ -57,6 +57,7 @@ mod tests {
                 "check-unused-deps",
                 "format-rust",
                 "lint-rust",
+                "lint-stiles",
                 "test-rust",
             ]
         );

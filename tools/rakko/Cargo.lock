@@ -993,6 +993,7 @@ dependencies = [
  "rakko-check-unused-deps",
  "rakko-format-rust",
  "rakko-lint-rust",
+ "rakko-lint-stiles",
  "rakko-test-rust",
 ]
 
