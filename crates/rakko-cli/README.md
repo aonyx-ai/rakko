@@ -17,12 +17,13 @@ checks that the project pins the tools that the mounted actions run.
 
 Add `rakko-cli` to the harness, together with the crates of the actions,
 bundles, and commands that the harness mounts. Then run the command line from
-the `main` of the harness. This example mounts the bundle `rakko-baseline`:
+the `main` of the harness. This example mounts the bundle
+`aonyx-rakko-baseline`:
 
 ```rust
 fn main() -> std::process::ExitCode {
     rakko_cli::builder()
-        .mount(rakko_baseline::bundle())
+        .mount(aonyx_rakko_baseline::bundle())
         .run()
 }
 ```
@@ -33,7 +34,7 @@ Run `doctor --fix` before the first run, and again when an update of Rakko
 changes a tool. It writes the pins of the tools that the mounted actions run.
 It does not write the pin of a toolchain, such as Node or Rust. The project
 pins each toolchain itself, in the range that the actions accept. For example,
-several actions of `rakko-baseline` run on Node, so the project pins Node.
+several actions of `aonyx-rakko-baseline` run on Node, so the project pins Node.
 Until all pins are current, every command stops. Only the help, the list of
 the commands, and `doctor` still run.
 

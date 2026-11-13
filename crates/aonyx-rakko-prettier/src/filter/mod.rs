@@ -1,0 +1,144 @@
+//! The files that a run of prettier examines
+//!
+//! Prettier discovers no files of its own: a run names them, and this module
+//! holds that name. An action states the extensions of the group that it
+//! wraps, and the filter turns them into the pattern that prettier reads.
+
+mod extension;
+
+pub use self::extension::FileExtension;
+
+/// The part of a pattern that matches every directory below the root
+const EVERY_DIRECTORY: &str = "**/*.";
+
+/// The part of a pattern that matches every extension
+const EVERY_EXTENSION: &str = "*";
+
+/// The files that a run of prettier examines
+///
+/// A filter names extensions, and a run examines the files that carry one of
+/// them. A filter that names none examines every file that has an extension,
+/// and prettier then skips the files whose language it does not know.
+///
+/// The filter selects files and nothing else. It excludes no directory, because
+/// prettier reads the ignore files of the project. It changes no option of
+/// prettier, because the behavior of the tool comes from the configuration of
+/// the project alone.
+///
+/// # Examples
+///
+/// An action that wraps the JSON files of a project names two extensions:
+///
+/// ```
+/// use aonyx_rakko_prettier::{FileExtension, Filter};
+///
+/// let filter = Filter::new([FileExtension::new("json"), FileExtension::new("json5")]);
+/// ```
+///
+/// An action that wraps everything names nothing:
+///
+/// ```
+/// use aonyx_rakko_prettier::Filter;
+///
+/// assert_eq!(Filter::default(), Filter::new(Vec::new()));
+/// ```
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub struct Filter {
+    /// The extensions that a run examines, empty for every extension
+    extensions: Vec<FileExtension>,
+}
+
+impl Filter {
+    /// Returns the filter that examines the files with the given extensions
+    ///
+    /// An extension stands without its dot. A call without an extension
+    /// returns the default filter, which examines every file with an
+    /// extension. Prettier skips what it cannot assign to a language, so a
+    /// run with that filter covers every language that prettier understands.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use aonyx_rakko_prettier::{FileExtension, Filter};
+    ///
+    /// let filter = Filter::new([FileExtension::new("md")]);
+    ///
+    /// assert_ne!(filter, Filter::default());
+    /// ```
+    pub fn new(extensions: impl IntoIterator<Item = FileExtension>) -> Self {
+        Self {
+            extensions: extensions.into_iter().collect(),
+        }
+    }
+
+    /// Returns the pattern that names the files of the filter to prettier
+    ///
+    /// Prettier reads a brace list only when it holds more than one entry, so
+    /// a single extension stands alone and several stand in braces.
+    pub(crate) fn pattern(&self) -> String {
+        let mut pattern = String::from(EVERY_DIRECTORY);
+
+        match self.extensions.as_slice() {
+            [] => pattern.push_str(EVERY_EXTENSION),
+            [only] => pattern.push_str(only.get()),
+            several => {
+                pattern.push('{');
+
+                for (index, extension) in several.iter().enumerate() {
+                    if index > 0 {
+                        pattern.push(',');
+                    }
+
+                    pattern.push_str(extension.get());
+                }
+
+                pattern.push('}');
+            }
+        }
+
+        pattern
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use super::*;
+
+    /// Returns the filter that names the given extensions
+    fn filter(extensions: &[&str]) -> Filter {
+        Filter::new(extensions.iter().copied().map(FileExtension::new))
+    }
+
+    #[test]
+    fn filter_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<Filter>();
+    }
+
+    #[test]
+    fn pattern_with_one_extension_names_it_alone() {
+        let pattern = filter(&["md"]).pattern();
+
+        assert_eq!(pattern, "**/*.md");
+    }
+
+    #[test]
+    fn pattern_with_several_extensions_names_them_in_braces() {
+        let pattern = filter(&["yaml", "yml"]).pattern();
+
+        assert_eq!(pattern, "**/*.{yaml,yml}");
+    }
+
+    #[test]
+    fn pattern_without_an_extension_matches_every_extension() {
+        let pattern = Filter::default().pattern();
+
+        assert_eq!(pattern, "**/*.*");
+    }
+}

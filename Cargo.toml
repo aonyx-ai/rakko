@@ -27,7 +27,9 @@ aonyx-rakko-cargo = { path = "crates/aonyx-rakko-cargo", version = "0.1.0" }
 aonyx-rakko-format-rust = { path = "actions/aonyx-rakko-format-rust", version = "0.1.0" }
 aonyx-rakko-lint-rust = { path = "actions/aonyx-rakko-lint-rust", version = "0.1.0" }
 aonyx-rakko-nextest = { path = "crates/aonyx-rakko-nextest", version = "0.1.0" }
+aonyx-rakko-prettier = { path = "crates/aonyx-rakko-prettier", version = "0.1.0" }
 aonyx-rakko-rust = { path = "bundles/aonyx-rakko-rust", version = "0.1.0" }
+aonyx-rakko-taplo = { path = "crates/aonyx-rakko-taplo", version = "0.1.0" }
 aonyx-rakko-test-rust = { path = "actions/aonyx-rakko-test-rust", version = "0.1.0" }
 aonyx-rakko-worktree = { path = "crates/aonyx-rakko-worktree", version = "0.1.0" }
 bon = "3"
@@ -45,8 +47,6 @@ quote = "1.0.35"
 rakko = { path = "crates/rakko", version = "0.1.0" }
 rakko-cli = { path = "crates/rakko-cli", version = "0.1.0" }
 rakko-macros = { path = "crates/rakko-macros", version = "0.1.0" }
-rakko-prettier = { path = "crates/rakko-prettier", version = "0.1.0" }
-rakko-taplo = { path = "crates/rakko-taplo", version = "0.1.0" }
 rakko-test-utils = { path = "crates/rakko-test-utils", version = "0.1.0" }
 rakko-tool = { path = "crates/rakko-tool", version = "0.1.0" }
 semver = "1.0.0"

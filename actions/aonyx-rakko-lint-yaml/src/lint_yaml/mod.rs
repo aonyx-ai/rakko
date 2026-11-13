@@ -1,0 +1,379 @@
+//! The action that lints the YAML files of a project
+//!
+//! This module holds the action and the error that stops a run.
+//! The action wraps yamllint as a subprocess: yamllint discovers the files
+//! and reads its own configuration.
+//! It applies its rules and translates what yamllint reported into an
+//! outcome.
+
+mod error;
+
+use rakko::{
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    SkipReason, Summary, ToolRequirement, action_name,
+};
+
+pub use self::error::LintYamlError;
+use crate::observation::{Completion, Observation};
+use crate::problem::YamllintProblem;
+use crate::yamllint::Yamllint;
+
+/// The reason of a run whose yamllint examines nothing
+///
+/// Yamllint lists the files it examines on request, so this is what a project
+/// without YAML files reports. A project whose configuration excludes every
+/// one of them reports the same way.
+const NOTHING_TO_EXAMINE: &str = "yamllint found no YAML file to examine";
+
+/// Lints the YAML files of a project
+///
+/// The action wraps [yamllint]: yamllint discovers the YAML files of the
+/// project and reads its own configuration. It applies the rules that the
+/// project turned on. So a run agrees with an editor and with a contributor
+/// that runs yamllint bare. The yamllint that runs is the version that the
+/// action declares, which [mise] installed, whatever version the project pins.
+/// The action installs nothing.
+///
+/// A run only reports, and it takes no argument. Every rule that a file broke
+/// becomes a finding at the position that yamllint named. The message of the
+/// finding is the sentence that yamllint wrote for a reader. A problem that
+/// yamllint calls a warning becomes a finding like one that it calls an error.
+/// This is because a project that wants a rule to stay quiet turns that rule
+/// off.
+///
+/// The action applies to a project that holds YAML files, and it skips visibly
+/// otherwise. A run stops with an error when mise reports no yamllint at the
+/// declared version. It also stops when yamllint refuses the configuration of
+/// the project. It stops when yamllint writes a report that the action cannot
+/// read.
+///
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
+///
+/// # Examples
+///
+/// A harness adds the action as it is to a list:
+///
+/// ```
+/// use rakko::Bundle;
+/// use aonyx_rakko_lint_yaml::LintYaml;
+///
+/// let actions = Bundle::default().with(LintYaml);
+/// ```
+///
+/// [mise]: https://mise.jdx.dev
+/// [yamllint]: https://github.com/adrienverge/yamllint
+#[derive(Copy, Clone, Debug, Default, Documented)]
+pub struct LintYaml;
+
+impl Action for LintYaml {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("lint-yaml")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
+    }
+
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Yamllint::requirement()]
+    }
+
+    async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+        match drive(context).await {
+            Ok(outcome) => outcome,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        }
+    }
+}
+
+/// Runs the action against the project of the context
+///
+/// The run examines the project, resolves yamllint, asks which files yamllint
+/// examines, and lints them. An error that this function returns stops the
+/// run, and the caller reports it in the outcome.
+///
+/// # Errors
+///
+/// Returns the error of the step that failed: tool resolution, file listing,
+/// the yamllint run, or report reading.
+async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
+    let yamllint = Yamllint::resolve(context)
+        .await
+        .map_err(|source| LintYamlError::UnresolvedTool { source })?;
+
+    let examined = yamllint.list().await?;
+
+    if examined.is_empty() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(NOTHING_TO_EXAMINE),
+        });
+    }
+
+    let observation = yamllint.observe().await?;
+
+    if let Some(outcome) = guard(&observation, examined.len())? {
+        return Ok(outcome);
+    }
+
+    Ok(Outcome::Failed {
+        findings: findings(observation.problems(), context.root())?,
+        repairs: Vec::new(),
+    })
+}
+
+/// Returns the finding that reports one rule that a file broke
+///
+/// The finding sits at the position that yamllint named. The message comes from
+/// yamllint. So a reader of a finding reads what the tool itself would have
+/// told them, including the level that the project gave the rule.
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain
+/// the path of the problem.
+///
+/// [foreign]: LintYamlError::ForeignPath
+fn finding(problem: &YamllintProblem, root: &ProjectRoot) -> Result<Finding, LintYamlError> {
+    let path = problem
+        .relative_path(root)
+        .ok_or_else(|| LintYamlError::ForeignPath {
+            path: problem.path().clone(),
+        })?;
+
+    let position = Position::builder()
+        .line(problem.line())
+        .column(problem.column())
+        .build();
+
+    Ok(Finding::builder()
+        .message(problem.message())
+        .location(Location::Position { path, position })
+        .build())
+}
+
+/// Returns the findings that report the given problems
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain
+/// the path of a problem.
+///
+/// [foreign]: LintYamlError::ForeignPath
+fn findings(
+    problems: &[YamllintProblem],
+    root: &ProjectRoot,
+) -> Result<Vec<Finding>, LintYamlError> {
+    problems
+        .iter()
+        .map(|problem| finding(problem, root))
+        .collect()
+}
+
+/// Returns what a run reports when it cannot answer from its findings
+///
+/// Two conditions end a run before its findings matter. A yamllint that stopped
+/// before examining every file leaves the action with an answer about a part of
+/// the project. An outcome built on it would hide the rest behind that part. A
+/// run that reported no rule found a clean project. It says how many files it
+/// examined for that answer.
+///
+/// Returns `None` when the caller reports what the run found.
+///
+/// # Errors
+///
+/// Returns [`IncompleteExamination`][incomplete] when yamllint stopped before
+/// it examined every file.
+///
+/// [incomplete]: LintYamlError::IncompleteExamination
+fn guard(observation: &Observation, examined: usize) -> Result<Option<Outcome>, LintYamlError> {
+    match observation.finished() {
+        Completion::Interrupted => {
+            return Err(LintYamlError::IncompleteExamination {
+                details: observation.stderr().clone(),
+            });
+        }
+        Completion::Finished => {}
+    }
+
+    if !observation.problems().is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(Outcome::Passed {
+        summary: Some(summary(examined)),
+    }))
+}
+
+/// Returns the summary of a run that found no problem
+///
+/// The summary names how many files yamllint examined, so that a reader can
+/// question a pass that examined less than they expect. The configuration of
+/// a project can exclude a file that the reader believes is checked, and the
+/// count is where that shows.
+fn summary(examined: usize) -> Summary {
+    if examined == 1 {
+        Summary::new("checked 1 file")
+    } else {
+        Summary::new(format!("checked {examined} files"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use std::path::PathBuf;
+
+    use rakko_test_utils::path;
+
+    use super::*;
+    use crate::problem::ProblemLevel;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns a problem of the given level in a file of the project
+    fn problem(level: ProblemLevel) -> YamllintProblem {
+        YamllintProblem::builder()
+            .path(PathBuf::from("./notes.yaml"))
+            .line(4)
+            .column(9)
+            .level(level)
+            .description("truthy value should be one of [false, true] (truthy)".to_owned())
+            .build()
+    }
+
+    /// The root that the problems of a test belong to
+    fn root() -> ProjectRoot {
+        ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = LintYaml.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = YamllintProblem::builder()
+            .path(path("/elsewhere/notes.yaml"))
+            .line(1)
+            .column(1)
+            .level(ProblemLevel::Error)
+            .description("trailing spaces (trailing-spaces)".to_owned())
+            .build();
+
+        let error = finding(&problem, &root()).unwrap_err();
+
+        assert!(matches!(error, LintYamlError::ForeignPath { .. }));
+    }
+
+    #[test]
+    fn finding_of_a_problem_carries_the_message_of_yamllint() {
+        let finding = finding(&problem(ProblemLevel::Error), &root()).unwrap();
+
+        assert_eq!(
+            finding.message().get(),
+            "[error] truthy value should be one of [false, true] (truthy)"
+        );
+    }
+
+    #[test]
+    fn finding_of_a_problem_sits_at_the_position_of_yamllint() {
+        let finding = finding(&problem(ProblemLevel::Error), &root()).unwrap();
+
+        assert_eq!(
+            finding.location(),
+            &Location::Position {
+                path: "notes.yaml".parse().unwrap(),
+                position: Position::builder().line(4).column(9).build(),
+            }
+        );
+    }
+
+    #[test]
+    fn finding_of_a_warning_names_the_warning_level() {
+        let finding = finding(&problem(ProblemLevel::Warning), &root()).unwrap();
+
+        assert_eq!(
+            finding.message().get(),
+            "[warning] truthy value should be one of [false, true] (truthy)"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_clean_run_passes() {
+        let outcome = guard(&Observation::builder().build(), 3).unwrap();
+
+        assert!(
+            matches!(outcome, Some(Outcome::Passed { .. })),
+            "expected the run to pass, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_clean_run_says_how_many_files_yamllint_examined() {
+        let outcome = guard(&Observation::builder().build(), 3).unwrap();
+
+        let Some(Outcome::Passed { summary: Some(it) }) = outcome else {
+            panic!("expected a summary, got {outcome:?}");
+        };
+        assert_eq!(it.get(), "checked 3 files");
+    }
+
+    #[test]
+    fn guard_of_a_run_that_reported_a_warning_reports_nothing() {
+        let observation = Observation::builder()
+            .problems(vec![problem(ProblemLevel::Warning)])
+            .build();
+
+        let outcome = guard(&observation, 3).unwrap();
+
+        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+    }
+
+    #[test]
+    fn guard_of_a_run_that_stopped_early_stops() {
+        let observation = Observation::builder()
+            .finished(Completion::Interrupted)
+            .build();
+
+        let error = guard(&observation, 3).unwrap_err();
+
+        assert!(matches!(error, LintYamlError::IncompleteExamination { .. }));
+    }
+
+    #[test]
+    fn lint_yaml_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintYaml>();
+    }
+
+    #[test]
+    fn summary_of_a_single_file_names_it_in_the_singular() {
+        let summary = summary(1);
+
+        assert_eq!(summary.get(), "checked 1 file");
+    }
+
+    #[test]
+    fn tools_declare_the_yamllint_of_the_crate() {
+        let tools = LintYaml.tools();
+
+        assert_eq!(tools, vec![Yamllint::requirement()]);
+    }
+}

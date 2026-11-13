@@ -1,0 +1,25 @@
+[package]
+name = "aonyx-rakko-format-yaml"
+version = "0.1.0"
+description = "A Rakko action that formats the YAML files of a project with prettier"
+keywords = ["rakko-action"]
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-prettier = { workspace = true }
+getset = { workspace = true }
+rakko = { workspace = true }
+rakko-tool = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+bon = { workspace = true }
+rakko-test-utils = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

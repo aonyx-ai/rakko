@@ -1,0 +1,397 @@
+//! Tests that drive the action against real projects
+//!
+//! Each test builds a project in a temporary directory and runs the action
+//! against it. So no fixture with a deliberately broken TOML file sits in this
+//! repository, where the checks of the repository itself would fight it.
+//!
+//! The tests run the taplo that the action declares. Each project pins
+//! another taplo that nothing installs, so a test passes only when the run
+//! ignores the pin of the project.
+
+#![allow(
+    clippy::expect_used,
+    reason = "An assertion in a test panics by design, and the helpers of this file exist only for tests. The lints that guard production code do not apply."
+)]
+#![allow(clippy::missing_panics_doc)]
+
+use std::path::Path;
+use std::process::Command;
+
+use aonyx_rakko_lint_toml::{LintToml, LintTomlError};
+use aonyx_rakko_taplo::Taplo;
+#[cfg(unix)]
+use rakko::Finding;
+use rakko::{Action, Args, Context, Location, Outcome, Position, ProjectRoot, Summary};
+use rakko_test_utils::{path_text, run_checking_access};
+use tempfile::TempDir;
+
+/// A TOML document that taplo accepts
+const VALID: &str = "x = 1\n";
+
+/// A TOML document that taplo accepts and would reformat
+const UNFORMATTED: &str = "x   =    1\n";
+
+/// A TOML document that taplo cannot parse
+const INVALID: &str = "broken = [1,\n";
+
+/// A taplo configuration that taplo rejects
+///
+/// The file is valid TOML, and the value of the option has the wrong type. So
+/// taplo warns and falls back to its defaults instead of failing.
+const REJECTED_CONFIGURATION: &str = "[formatting]\nalign_entries = \"banana\"\n";
+
+/// A taplo configuration that taplo accepts
+const VALID_CONFIGURATION: &str = "exclude = [\"skipped.toml\"]\n";
+
+/// A project that a test builds in a temporary directory
+struct Project {
+    /// The directory that holds the project
+    directory: TempDir,
+}
+
+#[bon::bon]
+impl Project {
+    /// Creates a project that pins a taplo that nothing installed
+    ///
+    /// The pin holds a version that no machine installs. The run resolves the
+    /// taplo that the action declares, so the pin of the project must not
+    /// change what runs. Mise ignores a configuration that nobody trusts, so
+    /// the file is trusted right away.
+    fn new() -> Self {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let project = Self { directory };
+
+        let pins = project.directory.path().join("mise.toml");
+        std::fs::write(&pins, "[tools]\ntaplo = \"0.0.1\"\n")
+            .expect("the test writes the mise.toml of the project");
+        trust(&pins);
+
+        project
+    }
+
+    /// Returns the context of a run against this project
+    ///
+    /// The root is canonical, so the paths that the run reports do not
+    /// depend on the symbolic links of the temporary directory.
+    fn context(&self) -> Context {
+        let root = ProjectRoot::canonical(self.directory.path())
+            .expect("the test names a directory that exists");
+
+        Context::builder().root(root).build()
+    }
+
+    /// Returns the content of a file of the project
+    fn read(&self, path: &str) -> String {
+        std::fs::read_to_string(self.directory.path().join(path))
+            .expect("the test reads a file that it wrote")
+    }
+
+    /// Runs the action against this project
+    async fn run(&self) -> Outcome {
+        LintToml.run(&self.context(), &()).await
+    }
+
+    /// Writes a file of the project, with the directories that lead to it
+    #[builder]
+    fn write(&self, path: &str, content: &str) {
+        let path = self.directory.path().join(path);
+
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("the test creates the directories of a file");
+        }
+
+        std::fs::write(&path, content).expect("the test writes a file of the project");
+    }
+}
+
+/// Returns the paths that the findings of an outcome name
+///
+/// Only the test that takes the permissions off a file asks for them, and
+/// that test runs on Unix alone.
+#[cfg(unix)]
+fn locations(findings: &[Finding]) -> Vec<String> {
+    findings
+        .iter()
+        .map(|finding| match finding.location() {
+            Location::File { path } => path.to_string(),
+            Location::Position { path, .. } => path.to_string(),
+            other => panic!("expected a finding with a path, got {other:?}"),
+        })
+        .collect()
+}
+
+/// Trusts a mise configuration, so that mise reads it
+fn trust(configuration: &Path) {
+    let trusted = Command::new("mise")
+        .arg("trust")
+        .arg("--quiet")
+        .arg(configuration)
+        .status()
+        .expect("the test starts mise to trust a configuration");
+
+    assert!(
+        trusted.success(),
+        "expected mise to trust the configuration"
+    );
+}
+
+impl Drop for Project {
+    /// Withdraws the trust that the project received
+    ///
+    /// Mise records the trust of a configuration in the user's state. The
+    /// temporary directory of a test never comes back, so the record would
+    /// pile up there forever. A failure stays quiet, because the test already
+    /// reported what it was about.
+    fn drop(&mut self) {
+        let _ = Command::new("mise")
+            .arg("trust")
+            .arg("--quiet")
+            .arg("--untrust")
+            .arg(self.directory.path().join("mise.toml"))
+            .status();
+    }
+}
+
+#[test]
+fn action_declares_no_argument() {
+    let schema = <<LintToml as Action>::Args as Args>::schema();
+
+    assert!(
+        schema.arguments().is_empty(),
+        "expected no argument, got {:?}",
+        schema.arguments()
+    );
+}
+
+#[test]
+fn action_declares_the_taplo_of_rakko_taplo() {
+    let tools = LintToml.tools();
+
+    assert_eq!(tools, vec![Taplo::requirement()]);
+}
+
+#[test]
+fn action_identifies_itself_as_lint_toml() {
+    let name = LintToml.name();
+
+    assert_eq!(name.get(), "lint-toml");
+}
+
+#[tokio::test]
+async fn run_in_a_missing_directory_stops_without_a_taplo() {
+    let parent = tempfile::tempdir().expect("the test creates a temporary directory");
+    let missing = parent.path().join("missing");
+    let context = Context::builder().root(missing.as_path()).build();
+
+    let outcome = LintToml.run(&context, &()).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(source.downcast_ref(), Some(LintTomlError::UnresolvedTool { .. }))
+        ),
+        "expected the run to stop without a taplo, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_valid_project_counts_the_files() {
+    let project = Project::new();
+    project.write().path("clean.toml").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Passed { summary } = &outcome else {
+        panic!("expected the run to pass, got {outcome:?}");
+    };
+    assert_eq!(
+        summary.as_ref().map(Summary::get),
+        Some("checked 2 files"),
+        "the project holds the valid file and its mise.toml"
+    );
+}
+
+#[tokio::test]
+async fn run_in_a_valid_project_passes() {
+    let project = Project::new();
+    project.write().path("clean.toml").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_leaves_an_unformatted_file_unchanged() {
+    let project = Project::new();
+    project
+        .write()
+        .path("messy.toml")
+        .content(UNFORMATTED)
+        .call();
+
+    project.run().await;
+
+    assert_eq!(project.read("messy.toml"), UNFORMATTED);
+}
+
+#[tokio::test]
+async fn run_with_a_rejected_configuration_reports_what_taplo_said() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Errored { source } = &outcome else {
+        panic!("expected the run to stop, got {outcome:?}");
+    };
+    assert!(
+        source.to_string().contains("TOML parse error"),
+        "expected the diagnosis of taplo, got {source}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_rejected_configuration_stops() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(REJECTED_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }),
+        "expected the run to stop, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_a_valid_configuration_passes() {
+    let project = Project::new();
+    project
+        .write()
+        .path(".taplo.toml")
+        .content(VALID_CONFIGURATION)
+        .call();
+    project.write().path("clean.toml").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Passed { .. }),
+        "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_with_an_invalid_file_carries_the_message_of_taplo() {
+    let project = Project::new();
+    project.write().path("broken.toml").content(INVALID).call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings[0].message().get().contains("invalid TOML"),
+        "expected the message of taplo, got {:?}",
+        findings[0].message()
+    );
+}
+
+/// Shows that the run leaves every file of the project as it was
+///
+/// The access check fails the test when the run changes a file of the project.
+#[tokio::test]
+async fn run_with_an_invalid_file_leaves_the_project_unchanged() {
+    let project = Project::new();
+    project.write().path("broken.toml").content(INVALID).call();
+
+    run_checking_access(&LintToml, &project.context(), &()).await;
+}
+
+#[tokio::test]
+async fn run_with_an_invalid_file_reports_the_position() {
+    let project = Project::new();
+    project
+        .write()
+        .path("sub/broken.toml")
+        .content(INVALID)
+        .call();
+
+    let outcome = project.run().await;
+
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    let Location::Position { path, position } = findings[0].location() else {
+        panic!("expected a finding at a position, got {:?}", findings[0]);
+    };
+    assert_eq!(
+        (path.to_string(), *position),
+        (
+            path_text("sub/broken.toml"),
+            Position::builder().line(2).column(1).build()
+        )
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn run_with_an_unreadable_file_carries_the_reason_of_taplo() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    project.write().path("secret.toml").content(VALID).call();
+    let path = project.directory.path().join("secret.toml");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a file");
+
+    let outcome = project.run().await;
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+        .expect("the test restores the permissions of a file");
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert!(
+        findings[0].message().get().contains("Permission denied"),
+        "expected the reason of taplo, got {:?}",
+        findings[0].message()
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn run_with_an_unreadable_file_names_the_file() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    project.write().path("secret.toml").content(VALID).call();
+    let path = project.directory.path().join("secret.toml");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000))
+        .expect("the test removes the permissions of a file");
+
+    let outcome = project.run().await;
+
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+        .expect("the test restores the permissions of a file");
+    let Outcome::Failed { findings, .. } = &outcome else {
+        panic!("expected the run to fail, got {outcome:?}");
+    };
+    assert_eq!(locations(findings), ["secret.toml"]);
+}

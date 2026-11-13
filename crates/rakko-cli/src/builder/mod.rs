@@ -243,7 +243,7 @@ impl Builder {
     /// # use rakko_cli::Command;
     /// # use rakko_cli::clawless::CommandResult;
     /// # use rakko_cli::clawless::context::Context as ClawlessContext;
-    /// # mod rakko_baseline {
+    /// # mod aonyx_rakko_baseline {
     /// #     use rakko::{Action, Bundle, Context, Documented, Name, Outcome, action_name};
     /// #     /// Formats the JSON files of a project
     /// #     #[derive(Documented)]
@@ -309,7 +309,7 @@ impl Builder {
     /// let pre_commit = PreCommit::new(Bundle::default().with(LintRust));
     ///
     /// let command_line = rakko_cli::builder()
-    ///     .mount(rakko_baseline::bundle())
+    ///     .mount(aonyx_rakko_baseline::bundle())
     ///     .mount(CheckMsrv)
     ///     .mount(Serve)
     ///     .mount(pre_commit);

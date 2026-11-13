@@ -12,23 +12,23 @@ name = "rakko"
 path = "src/main.rs"
 
 [dependencies]
+aonyx-rakko-baseline = { path = "../../bundles/aonyx-rakko-baseline" }
 aonyx-rakko-check-msrv = { path = "../../actions/aonyx-rakko-check-msrv" }
+aonyx-rakko-format-json = { path = "../../actions/aonyx-rakko-format-json" }
+aonyx-rakko-format-markdown = { path = "../../actions/aonyx-rakko-format-markdown" }
 aonyx-rakko-format-rust = { path = "../../actions/aonyx-rakko-format-rust" }
+aonyx-rakko-format-toml = { path = "../../actions/aonyx-rakko-format-toml" }
+aonyx-rakko-format-yaml = { path = "../../actions/aonyx-rakko-format-yaml" }
+aonyx-rakko-lint-github-actions = { path = "../../actions/aonyx-rakko-lint-github-actions" }
+aonyx-rakko-lint-markdown = { path = "../../actions/aonyx-rakko-lint-markdown" }
 aonyx-rakko-lint-rust = { path = "../../actions/aonyx-rakko-lint-rust" }
 aonyx-rakko-lint-stiles = { path = "../../actions/aonyx-rakko-lint-stiles" }
+aonyx-rakko-lint-yaml = { path = "../../actions/aonyx-rakko-lint-yaml" }
 aonyx-rakko-rust-library = { path = "../../bundles/aonyx-rakko-rust-library" }
 aonyx-rakko-test-rust = { path = "../../actions/aonyx-rakko-test-rust" }
 aonyx-rakko-test-rust-docs = { path = "../../actions/aonyx-rakko-test-rust-docs" }
 rakko = { path = "../../crates/rakko" }
-rakko-baseline = { path = "../../bundles/rakko-baseline" }
 rakko-cli = { path = "../../crates/rakko-cli" }
-rakko-format-json = { path = "../../actions/rakko-format-json" }
-rakko-format-markdown = { path = "../../actions/rakko-format-markdown" }
-rakko-format-toml = { path = "../../actions/rakko-format-toml" }
-rakko-format-yaml = { path = "../../actions/rakko-format-yaml" }
-rakko-lint-github-actions = { path = "../../actions/rakko-lint-github-actions" }
-rakko-lint-markdown = { path = "../../actions/rakko-lint-markdown" }
-rakko-lint-yaml = { path = "../../actions/rakko-lint-yaml" }
 rakko-pre-commit = { path = "../../commands/rakko-pre-commit" }
 rakko-set-msrv = { path = "../../commands/rakko-set-msrv" }
 rakko-tool = { path = "../../crates/rakko-tool" }

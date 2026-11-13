@@ -105,7 +105,7 @@ from the design discussions to the terms that replaced them.
 - **mise** — The provisioning layer. [Mise] installs the external tools at
   pinned versions. Renovate updates the pins in the mise files of the
   project. It also updates the mise file of each crate that pins its tool,
-  such as `rakko-taplo`.
+  such as `aonyx-rakko-taplo`.
 - **`mise run rakko`** — The mise task that builds and runs the harness of a
   project. The task lives in the `mise.toml` file of each project. It is the
   canonical form on every platform, and documentation always writes it out,
