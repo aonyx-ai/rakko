@@ -31,7 +31,7 @@ bundle but one action filters the list, because the list is an ordinary value.
 
 ## Actions
 
-The bundle exports eleven actions: the eight of `aonyx-rakko-rust` and three of
+The bundle exports twelve actions: the nine of `aonyx-rakko-rust` and three of
 its own.
 The three guard what a published library promises, and a binary promises none
 of it:

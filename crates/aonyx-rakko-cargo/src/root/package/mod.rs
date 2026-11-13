@@ -2,19 +2,22 @@
 
 mod documented_names;
 mod name;
+mod publication;
 
 use bon::Builder;
 use getset::{CopyGetters, Getters};
 
 pub use self::documented_names::DocumentedNames;
 pub use self::name::PackageName;
+pub use self::publication::Publication;
 
 /// One package of a workspace, as a root names it
 ///
 /// A job selects the packages of a workspace by name. A job that documents the
 /// workspace also needs to know which packages it must document apart from the
-/// others. A package carries both, so a caller reads them from the root
-/// instead of asking cargo again.
+/// others. A job that asks a registry about the packages needs to know which
+/// of them cargo can publish. A package carries all three, so a caller reads
+/// them from the root instead of asking cargo again.
 ///
 /// # Examples
 ///
@@ -38,6 +41,11 @@ pub struct CargoPackage {
     /// workspace
     #[getset(get_copy = "pub")]
     documented_names: DocumentedNames,
+
+    /// Whether the manifest of the package lets cargo publish it
+    #[builder(default)]
+    #[getset(get_copy = "pub")]
+    publication: Publication,
 }
 
 #[cfg(test)]

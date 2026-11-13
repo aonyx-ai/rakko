@@ -21,7 +21,7 @@ use std::process::Command;
 
 use aonyx_rakko_cargo::{
     Cargo, CargoPackage, CargoReport, CargoRoot, DiscoverRootsError, Documentation,
-    DocumentedNames, PackageName, RustVersion, Toolchain, lockfile,
+    DocumentedNames, PackageName, Publication, RustVersion, Toolchain, lockfile,
 };
 use rakko::{Context, ProjectRoot};
 use rakko_tool::{Invocation, ResolveRequirementError, Tool};
@@ -345,6 +345,15 @@ fn package(name: &str, documented_names: DocumentedNames) -> CargoPackage {
         .name(PackageName::new(name))
         .documented_names(documented_names)
         .build()
+}
+
+/// Returns the name and the publication of every package of the roots
+fn publications(roots: &[CargoRoot]) -> Vec<(String, Publication)> {
+    roots
+        .iter()
+        .flat_map(|root| root.packages())
+        .map(|package| (package.name().get().to_owned(), package.publication()))
+        .collect()
 }
 
 /// Returns the Rust toolchain that this repository builds with
@@ -934,6 +943,96 @@ async fn roots_ignore_an_unreadable_directory_of_a_nested_project() {
     assert!(
         matches!(&roots, Ok(found) if found == &[project.workspace_root()]),
         "expected only the workspace, got {roots:?}"
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_package_that_forbids_a_publish_say_so() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&format!("{STANDALONE}publish = false\n"))
+        .call();
+    project
+        .write()
+        .path("src/main.rs")
+        .content("fn main() {}\n")
+        .call();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        publications(&roots),
+        [("harness".to_owned(), Publication::Forbidden)]
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_package_that_lists_another_registry_allow_only_other_registries() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&format!("{STANDALONE}publish = [\"internal\"]\n"))
+        .call();
+    project
+        .write()
+        .path("src/main.rs")
+        .content("fn main() {}\n")
+        .call();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        publications(&roots),
+        [("harness".to_owned(), Publication::OtherRegistries)]
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_package_that_lists_crates_io_allow_crates_io() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(&format!(
+            "{STANDALONE}publish = [\"internal\", \"crates-io\"]\n"
+        ))
+        .call();
+    project
+        .write()
+        .path("src/main.rs")
+        .content("fn main() {}\n")
+        .call();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        publications(&roots),
+        [("harness".to_owned(), Publication::CratesIo)]
+    );
+}
+
+#[tokio::test]
+async fn roots_of_a_package_without_a_publish_key_allow_crates_io() {
+    let project = Project::new();
+    project
+        .write()
+        .path("Cargo.toml")
+        .content(STANDALONE)
+        .call();
+    project
+        .write()
+        .path("src/main.rs")
+        .content("fn main() {}\n")
+        .call();
+
+    let roots = project.roots().await.expect("the test discovers the roots");
+
+    assert_eq!(
+        publications(&roots),
+        [("harness".to_owned(), Publication::CratesIo)]
     );
 }
 

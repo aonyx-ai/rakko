@@ -8,7 +8,15 @@
 # The harness reaches the same dependencies as the workspace above it, so it
 # accepts the same licenses. Add a license here when a dependency needs it, and
 # only when it is OSI- or FSF-approved.
-allow = ["Apache-2.0", "MIT", "MPL-2.0", "Unicode-3.0"]
+allow = [
+  "Apache-2.0",
+  "BSD-3-Clause",
+  "CDLA-Permissive-2.0",
+  "ISC",
+  "MIT",
+  "MPL-2.0",
+  "Unicode-3.0",
+]
 
 [licenses.private]
 # The harness is never published and carries no license expression of its own.

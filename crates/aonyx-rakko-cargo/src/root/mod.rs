@@ -15,7 +15,7 @@ use rakko::path::canonical;
 use rakko::{FilePath, ProjectRoot};
 
 pub use self::documentation::Documentation;
-pub use self::package::{CargoPackage, DocumentedNames, PackageName};
+pub use self::package::{CargoPackage, DocumentedNames, PackageName, Publication};
 use crate::version::RustVersion;
 
 /// The name of the file that describes a package or a workspace to cargo

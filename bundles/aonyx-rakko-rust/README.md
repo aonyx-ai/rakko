@@ -1,9 +1,10 @@
 # Aonyx Rakko Rust
 
-`aonyx-rakko-rust` is the bundle that any Rust project mounts: the formatter,
-the linter, the test runner, the checks that guard what the project depends on,
-and the build of its internal documentation. A project subscribes to the whole
-set with one dependency and one line in its harness, and a release of the
+`aonyx-rakko-rust` is the bundle that a Rust project of Aonyx mounts. It holds
+the formatter, the linter, the test runner, the checks that guard what the
+project depends on, the check of the owners of its crates, and the build of its
+internal documentation. A project subscribes to the whole set with one
+dependency and one line in its harness, and a release of the
 bundle reaches the project as a pull request like any other dependency.
 
 The bundle is the core that the Rust library bundle and the Rust binary bundle
@@ -28,10 +29,15 @@ bundle but one action filters the list, because the list is an ordinary value.
 
 ## Actions
 
-The bundle exports eight actions:
+The bundle exports nine actions:
 
 - `build-internal-docs` builds the documentation of the workspace with
   [rustdoc], including what the crates keep to themselves.
+- `check-crate-owners` checks that each crate that can reach [crates.io] has the
+  owners of Aonyx: the users `jdno` and `martijnarts`, and the team
+  `github:aonyx-ai:crates-io`. It reads the owners from crates.io, so it needs
+  the network, and it belongs in a job of CI and not before every commit. A
+  project whose crates Aonyx does not own removes the action from the list.
 - `check-dependencies` examines the dependencies of the project with
   [cargo-deny], for advisories, licenses, and bans.
 - `check-latest-deps` resolves every dependency to its newest version and runs
@@ -106,6 +112,7 @@ See the [guide] for instructions.
 
 [cargo-deny]: https://embarkstudios.github.io/cargo-deny/
 [cargo-udeps]: https://github.com/est31/cargo-udeps
+[crates.io]: https://crates.io
 [clippy]: https://doc.rust-lang.org/clippy/
 [docs]: https://docs.rs/aonyx-rakko-rust/latest/aonyx_rakko_rust/fn.bundle.html
 [guide]: https://github.com/aonyx-ai/rakko#support

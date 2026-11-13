@@ -52,6 +52,7 @@ mod tests {
             names,
             [
                 "build-internal-docs",
+                "check-crate-owners",
                 "check-dependencies",
                 "check-latest-deps",
                 "check-unused-deps",
