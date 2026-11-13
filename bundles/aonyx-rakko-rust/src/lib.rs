@@ -1,6 +1,7 @@
 #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
 use aonyx_rakko_build_internal_docs::BuildInternalDocs;
+use aonyx_rakko_check_crate_owners::{CheckCrateOwners, CrateOwner};
 use aonyx_rakko_check_dependencies::CheckDependencies;
 use aonyx_rakko_check_latest_deps::CheckLatestDeps;
 use aonyx_rakko_check_unused_deps::CheckUnusedDeps;
@@ -19,6 +20,11 @@ use rakko::Bundle;
 /// Each call builds a fresh list, because a mount takes ownership of every
 /// action in it.
 ///
+/// `check-crate-owners` checks that each crate of the project has the owners
+/// of Aonyx on crates.io: the users `jdno` and `martijnarts`, and the team
+/// `github:aonyx-ai:crates-io`. Every project that mounts the bundle checks
+/// the same owners.
+///
 /// # Examples
 ///
 /// ```
@@ -31,6 +37,7 @@ use rakko::Bundle;
 pub fn bundle() -> Bundle {
     Bundle::new(vec![
         Box::new(BuildInternalDocs),
+        Box::new(CheckCrateOwners::new(owners())),
         Box::new(CheckDependencies),
         Box::new(CheckLatestDeps),
         Box::new(CheckUnusedDeps),
@@ -39,6 +46,20 @@ pub fn bundle() -> Bundle {
         Box::new(LintStiles),
         Box::new(TestRust),
     ])
+}
+
+/// Returns the owners that every crate of Aonyx must have on crates.io
+///
+/// Only a user owner of a crate can change its owners or set up trusted
+/// publishing. So two users keep the crate in reach when one account becomes
+/// unavailable. The team shows on crates.io that the crate belongs to the
+/// organization.
+fn owners() -> [CrateOwner; 3] {
+    [
+        CrateOwner::new("jdno"),
+        CrateOwner::new("martijnarts"),
+        CrateOwner::new("github:aonyx-ai:crates-io"),
+    ]
 }
 
 #[cfg(test)]
@@ -62,6 +83,7 @@ mod tests {
             names,
             [
                 "build-internal-docs",
+                "check-crate-owners",
                 "check-dependencies",
                 "check-latest-deps",
                 "check-unused-deps",

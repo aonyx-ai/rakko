@@ -17,7 +17,9 @@ use serde::Deserialize;
 use toml_edit::DocumentMut;
 
 pub use self::error::DiscoverRootsError;
-use crate::root::{CargoPackage, CargoRoot, Documentation, DocumentedNames, MANIFEST, PackageName};
+use crate::root::{
+    CargoPackage, CargoRoot, Documentation, DocumentedNames, MANIFEST, PackageName, Publication,
+};
 use crate::toolchain::Toolchain;
 use crate::version::RustVersion;
 
@@ -26,6 +28,9 @@ pub(crate) const RUST: &str = "rust";
 
 /// The program of a Rust toolchain that a job starts
 pub(crate) const CARGO: &str = "cargo";
+
+/// The name that cargo gives to crates.io in a list of registries
+const CRATES_IO: &str = "crates-io";
 
 /// The range of the stable toolchains that the crate accepts
 ///
@@ -659,6 +664,7 @@ impl Metadata {
                 CargoPackage::builder()
                     .name(PackageName::new(&package.name))
                     .documented_names(documented_names)
+                    .publication(package.publication())
                     .build()
             })
             .collect();
@@ -714,6 +720,31 @@ struct Package {
 
     /// The targets that the package builds
     targets: Vec<Target>,
+
+    /// The registries that the manifest lets cargo publish the package to
+    ///
+    /// Cargo reports `null` when the manifest allows every registry, and an
+    /// empty list when it sets `publish = false`. It calls crates.io
+    /// `crates-io` in the list.
+    publish: Option<Vec<String>>,
+}
+
+impl Package {
+    /// Returns where the manifest of the package lets cargo publish it
+    ///
+    /// A manifest without a list allows every registry. An empty list forbids
+    /// every registry. A list that holds the name of crates.io allows
+    /// crates.io, and any other list allows only other registries.
+    fn publication(&self) -> Publication {
+        match &self.publish {
+            None => Publication::CratesIo,
+            Some(registries) if registries.is_empty() => Publication::Forbidden,
+            Some(registries) if registries.iter().any(|name| name == CRATES_IO) => {
+                Publication::CratesIo
+            }
+            Some(_) => Publication::OtherRegistries,
+        }
+    }
 }
 
 /// One target of a package, as cargo describes it
