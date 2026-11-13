@@ -177,7 +177,16 @@ compile and test the Rust code that the pages of the website show.
   good title has no hard rule.
 - Write commit messages for a reader that has no prior context and no access to
   the session history.
-- Keep commit messages concise. Aim for two or three paragraphs, not more.
+- Keep commit messages concise. The body has at most three short paragraphs:
+  the problem, the approach and why it has that shape, and a trade-off or a
+  rejected alternative only when it matters. Most changes need less.
+- Explain the implementation, not its inventory. Do not list the files,
+  references, or places that a change touches, because the diff shows them.
+- Do not retell how the change came about, such as what the issue first
+  asked, what a review found, or how many rounds the work took. State a
+  decision by its reason.
+- Never mention a person, the author included. Git records the author, and a
+  decision stands on its reason, not on who made it.
 - Don't use backticks in commit message titles, but do use them in bodies.
 - **Never** write conventional commit messages.
 - **Never** add yourself as a co-author.
