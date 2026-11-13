@@ -1,0 +1,507 @@
+//! The action that formats the YAML files of a project
+//!
+//! This module holds the action, the arguments that a run reads, and the error
+//! that stops a run. The action wraps prettier as a subprocess. It names the
+//! YAML files, prettier reads its own configuration and does the formatting,
+//! and the action translates what prettier reported into an outcome.
+
+mod args;
+mod error;
+
+use std::path::PathBuf;
+
+use aonyx_rakko_prettier::{
+    Exit, FileExtension, Filter, Matching, Observation, Operation, Prettier, PrettierProblem,
+    ProblemDetail,
+};
+use rakko::{
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
+    SkipReason, ToolRequirement, action_name,
+};
+
+pub use self::args::FormatYamlArgs;
+pub use self::error::FormatYamlError;
+
+/// The extension of the files that the action formats
+const YAML_EXTENSION: &str = "yaml";
+
+/// The short extension that a project can give a YAML file
+const YML_EXTENSION: &str = "yml";
+
+/// The reason of a run whose prettier found nothing to examine
+///
+/// Prettier refuses a pattern that matches no file, so this is what a project
+/// without files of the group reports. A project whose ignore files exclude
+/// every one of them reports it as well.
+const NOTHING_TO_EXAMINE: &str = "prettier found no YAML file to examine";
+
+/// The message of a finding about a file that is not formatted
+const UNFORMATTED_FINDING: &str = "the file is not formatted";
+
+/// The message of a repair of a file that was not formatted
+const UNFORMATTED_REPAIR: &str = "the file was not formatted";
+
+/// Checks the format of the YAML files of a project, or repairs it
+///
+/// The action wraps [prettier]. The action names the YAML files. Prettier reads
+/// its own configuration and formats what its ignore files leave. So a run
+/// agrees with an editor and with a contributor that runs prettier bare. The
+/// prettier that runs is the version that the action declares, which [mise]
+/// installed, whatever version the project pins. It runs on the Node that the
+/// project pins, when the action accepts that version. The action installs
+/// nothing.
+///
+/// A run reports by default. A file that is not formatted becomes a finding
+/// that names the file. A file that prettier cannot parse becomes a
+/// finding at the position that prettier reports. With the `fix` argument,
+/// prettier rewrites the files that it can format. The outcome carries one
+/// repair for each file that it rewrote, next to the problems that remain.
+///
+/// A run that reports declares a read of the project, and a run with `fix`
+/// declares a write. A caller that orders runs by their declarations can
+/// then run a rewrite before the actions that read.
+///
+/// A run whose prettier found no YAML file to examine skips visibly and says
+/// so. A run stops with an error when mise reports no prettier at the declared
+/// version or no Node in the accepted range. It also stops when a
+/// configuration of the project did not reach the run. It stops when
+/// prettier writes a report that the action does not recognize.
+///
+/// # Examples
+///
+/// A harness adds the action as it is to a list:
+///
+/// ```
+/// use rakko::Bundle;
+/// use aonyx_rakko_format_yaml::FormatYaml;
+///
+/// let actions = Bundle::default().with(FormatYaml);
+/// ```
+///
+/// [mise]: https://mise.jdx.dev
+/// [prettier]: https://prettier.io
+#[derive(Copy, Clone, Debug, Default, Documented)]
+pub struct FormatYaml;
+
+impl Action for FormatYaml {
+    type Args = FormatYamlArgs;
+
+    fn name(&self) -> Name {
+        action_name!("format-yaml")
+    }
+
+    fn access(&self, _context: &Context, args: &Self::Args) -> Access {
+        match args.operation() {
+            Operation::Rewrite => Access::Write,
+            _ => Access::Read,
+        }
+    }
+
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Prettier::requirement(), Prettier::node_requirement()]
+    }
+
+    async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
+        match drive(context, args).await {
+            Ok(outcome) => outcome,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        }
+    }
+}
+
+/// Runs the action against the project of the context
+///
+/// The run resolves prettier, and then reports or rewrites, depending on the
+/// arguments. An error that this function returns stops the run, and the
+/// caller reports it in the outcome.
+///
+/// # Errors
+///
+/// Returns the error of the step that could not finish: the resolution of the
+/// tool, a prettier run, or the reading of the report.
+async fn drive(context: &Context, args: &FormatYamlArgs) -> Result<Outcome, FormatYamlError> {
+    let filter = filter();
+
+    let prettier = Prettier::resolve(context)
+        .await
+        .map_err(|source| FormatYamlError::UnresolvedTool { source })?;
+
+    match args.operation() {
+        Operation::Rewrite => fix(&prettier, &filter, context.root()).await,
+        _ => report(&prettier, &filter, context.root()).await,
+    }
+}
+
+/// Returns the filter that selects the files of the action
+fn filter() -> Filter {
+    Filter::new([
+        FileExtension::new(YAML_EXTENSION),
+        FileExtension::new(YML_EXTENSION),
+    ])
+}
+
+/// Returns the finding that reports one problem of the project
+///
+/// A file that is not formatted gets a finding at the level of the file. A file
+/// that prettier could not read gets the reason. A file that prettier could not
+/// parse gets a finding at the position that prettier named. The message for an
+/// unformatted file comes from the caller. This is because a finding states a
+/// problem that the project has. A repair states one that the run took away.
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// path of the problem.
+///
+/// [foreign]: FormatYamlError::ForeignPath
+fn finding(
+    problem: &PrettierProblem,
+    root: &ProjectRoot,
+    unformatted_message: &str,
+) -> Result<Finding, FormatYamlError> {
+    let path = problem
+        .relative_path(root)
+        .ok_or_else(|| FormatYamlError::ForeignPath {
+            path: problem.path().clone(),
+        })?;
+
+    let finding = match problem.detail() {
+        ProblemDetail::Diagnostic {
+            line,
+            column,
+            message,
+        } => Finding::builder()
+            .message(message.clone())
+            .location(Location::Position {
+                path,
+                position: Position::builder().line(*line).column(*column).build(),
+            })
+            .build(),
+        ProblemDetail::Unformatted => Finding::builder()
+            .message(unformatted_message)
+            .location(Location::File { path })
+            .build(),
+        ProblemDetail::Unreadable { reason } => Finding::builder()
+            .message(reason.clone())
+            .location(Location::File { path })
+            .build(),
+    };
+
+    Ok(finding)
+}
+
+/// Returns the findings that report the given problems
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// path of a problem.
+///
+/// [foreign]: FormatYamlError::ForeignPath
+fn findings(
+    problems: &[PrettierProblem],
+    root: &ProjectRoot,
+) -> Result<Vec<Finding>, FormatYamlError> {
+    problems
+        .iter()
+        .map(|problem| finding(problem, root, UNFORMATTED_FINDING))
+        .collect()
+}
+
+/// Lets prettier rewrite the project and reports what the rewrite left
+///
+/// Prettier names every file that it examined and marks the ones that it left
+/// alone. So one run both repairs the project and says what it repaired. A file
+/// that prettier cannot parse or cannot read remains, because a rewrite repairs
+/// formatting and a broken file needs a hand.
+///
+/// # Errors
+///
+/// Returns the error of a rewrite that could not finish. Prettier did not run,
+/// or a configuration of the project did not reach it. Or it wrote a report
+/// that the action does not recognize, or it reported a path outside the
+/// project.
+async fn fix(
+    prettier: &Prettier,
+    filter: &Filter,
+    root: &ProjectRoot,
+) -> Result<Outcome, FormatYamlError> {
+    let observation = prettier.observe(Operation::Rewrite, filter).await?;
+
+    if let Some(outcome) = guard(&observation)? {
+        return Ok(outcome);
+    }
+
+    let repairs = repairs(observation.rewritten(), root)?;
+    let findings = findings(observation.problems(), root)?;
+
+    if !findings.is_empty() {
+        return Ok(Outcome::Failed { findings, repairs });
+    }
+
+    if repairs.is_empty() {
+        return Ok(Outcome::Passed { summary: None });
+    }
+
+    Ok(Outcome::Changed { repairs })
+}
+
+/// Returns what a run reports when it cannot answer from its own findings
+///
+/// Three conditions end a run before its findings matter. A configuration that
+/// did not reach prettier stops it, because prettier ignores an option that it
+/// does not know and then runs without it. A run without it quietly does what
+/// the project asked it not to do. A prettier that matched no file leaves the
+/// action with nothing to examine. The ignore files of the project explain
+/// this, so the run skips. A run that ended without success and named no
+/// problem wrote a report the action could not read. An answer built on it
+/// would hide every problem behind a green result.
+///
+/// Returns `None` when the caller reports what the run found.
+///
+/// # Errors
+///
+/// Returns [`RejectedConfiguration`][rejected] when a configuration did not
+/// reach prettier, and [`UnrecognizedReport`][unrecognized] when the report
+/// says nothing that the action can answer from.
+///
+/// [rejected]: FormatYamlError::RejectedConfiguration
+/// [unrecognized]: FormatYamlError::UnrecognizedReport
+fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatYamlError> {
+    if let Some(details) = observation.rejected_configuration() {
+        return Err(FormatYamlError::RejectedConfiguration {
+            details: details.clone(),
+        });
+    }
+
+    match observation.unmatched_pattern() {
+        Matching::Unmatched => {
+            return Ok(Some(Outcome::Skipped {
+                reason: SkipReason::new(NOTHING_TO_EXAMINE),
+            }));
+        }
+        Matching::Matched => {}
+    }
+
+    match observation.succeeded() {
+        Exit::Failed if observation.problems().is_empty() => {
+            Err(FormatYamlError::UnrecognizedReport {
+                stderr: observation.stderr().clone(),
+            })
+        }
+        Exit::Failed | Exit::Succeeded => Ok(None),
+    }
+}
+
+/// Asks prettier what it would change and reports the answer
+///
+/// The run changes nothing. Prettier names the files that a rewrite would
+/// change. Each of them becomes a finding next to the files that prettier could
+/// not parse or read.
+///
+/// # Errors
+///
+/// Returns the error of a run that could not finish. Prettier did not run, or a
+/// configuration of the project did not reach it. Or it wrote a report that the
+/// action does not recognize, or it reported a path outside the project.
+async fn report(
+    prettier: &Prettier,
+    filter: &Filter,
+    root: &ProjectRoot,
+) -> Result<Outcome, FormatYamlError> {
+    let observation = prettier.observe(Operation::Report, filter).await?;
+
+    if let Some(outcome) = guard(&observation)? {
+        return Ok(outcome);
+    }
+
+    if observation.problems().is_empty() {
+        return Ok(Outcome::Passed { summary: None });
+    }
+
+    Ok(Outcome::Failed {
+        findings: findings(observation.problems(), root)?,
+        repairs: Vec::new(),
+    })
+}
+
+/// Returns the repairs that report the files a rewrite changed
+///
+/// A file that prettier rewrote was not formatted before the run, which is the
+/// problem that the repair took away.
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// path of a file.
+///
+/// [foreign]: FormatYamlError::ForeignPath
+fn repairs(rewritten: &[PathBuf], root: &ProjectRoot) -> Result<Vec<Finding>, FormatYamlError> {
+    rewritten
+        .iter()
+        .map(|path| {
+            let problem = PrettierProblem::builder()
+                .path(path.clone())
+                .detail(ProblemDetail::Unformatted)
+                .build();
+
+            finding(&problem, root, UNFORMATTED_REPAIR)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
+    use rakko_test_utils::path;
+
+    use super::*;
+
+    /// The root that the problems of a test belong to
+    fn root() -> ProjectRoot {
+        ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns the arguments of a run that asks for a repair
+    fn fixing() -> FormatYamlArgs {
+        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+
+        FormatYamlArgs::from_values(&values).unwrap()
+    }
+
+    #[test]
+    fn access_with_fix_is_write() {
+        let args = fixing();
+
+        let access = FormatYaml.access(&context(), &args);
+
+        assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn access_without_fix_is_read() {
+        let args = FormatYamlArgs::default();
+
+        let access = FormatYaml.access(&context(), &args);
+
+        assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn finding_of_a_diagnostic_carries_the_message_of_prettier() {
+        let problem = PrettierProblem::builder()
+            .path(PathBuf::from("notes.yaml"))
+            .detail(ProblemDetail::Diagnostic {
+                line: 2,
+                column: 5,
+                message: "SyntaxError: Unexpected token".to_owned(),
+            })
+            .build();
+
+        let finding = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap();
+
+        assert_eq!(finding.message().get(), "SyntaxError: Unexpected token");
+    }
+
+    #[test]
+    fn finding_of_a_diagnostic_sits_at_the_position_of_prettier() {
+        let problem = PrettierProblem::builder()
+            .path(PathBuf::from("notes.yaml"))
+            .detail(ProblemDetail::Diagnostic {
+                line: 2,
+                column: 5,
+                message: "SyntaxError: Unexpected token".to_owned(),
+            })
+            .build();
+
+        let finding = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap();
+
+        assert_eq!(
+            finding.location(),
+            &Location::Position {
+                path: "notes.yaml".parse().unwrap(),
+                position: Position::builder().line(2).column(5).build(),
+            }
+        );
+    }
+
+    #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = PrettierProblem::builder()
+            .path(path("/elsewhere/notes.yaml"))
+            .detail(ProblemDetail::Unformatted)
+            .build();
+
+        let error = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap_err();
+
+        assert!(matches!(error, FormatYamlError::ForeignPath { .. }));
+    }
+
+    #[test]
+    fn format_yaml_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatYaml>();
+    }
+
+    #[test]
+    fn guard_of_a_failed_run_without_a_problem_stops() {
+        let observation = Observation::builder().stderr("something new").build();
+
+        let error = guard(&observation).unwrap_err();
+
+        assert!(matches!(error, FormatYamlError::UnrecognizedReport { .. }));
+    }
+
+    #[test]
+    fn guard_of_a_run_that_matched_no_file_skips() {
+        let observation = Observation::builder()
+            .succeeded(Exit::Succeeded)
+            .unmatched_pattern(Matching::Unmatched)
+            .build();
+
+        let outcome = guard(&observation).unwrap();
+
+        assert!(
+            matches!(outcome, Some(Outcome::Skipped { .. })),
+            "expected the run to skip, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_run_that_reported_normally_reports_nothing() {
+        let observation = Observation::builder().succeeded(Exit::Succeeded).build();
+
+        let outcome = guard(&observation).unwrap();
+
+        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+    }
+
+    #[test]
+    fn guard_of_a_run_without_its_configuration_stops() {
+        let observation = Observation::builder()
+            .succeeded(Exit::Succeeded)
+            .rejected_configuration("Ignored unknown option { notAnOption: 5 }.".to_owned())
+            .build();
+
+        let error = guard(&observation).unwrap_err();
+
+        assert!(matches!(
+            error,
+            FormatYamlError::RejectedConfiguration { .. }
+        ));
+    }
+}

@@ -9,7 +9,7 @@ bundle reaches the project as a pull request like any other dependency.
 The bundle is the core that the Rust library bundle and the Rust binary bundle
 contain, and a project mounts it through one of them. It contains no other
 bundle, and it does not contain the baseline, so a Rust project mounts two
-names: this family beside `rakko-baseline`.
+names: this family beside `aonyx-rakko-baseline`.
 
 ## Usage
 

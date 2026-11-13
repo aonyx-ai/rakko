@@ -1,0 +1,315 @@
+//! The action that checks the Renovate configuration of a project
+//!
+//! This module holds the action and the error that stops a run. The action
+//! wraps the validator of Renovate as a subprocess. The validator finds the
+//! configurations, reads them, and reports what Renovate would refuse. The
+//! action translates what the validator reported into an outcome.
+
+mod error;
+
+use rakko::{
+    Access, Action, Context, Documented, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
+    ToolRequirement, action_name,
+};
+
+pub use self::error::CheckRenovateConfigError;
+use crate::problem::RenovateProblem;
+use crate::validator::Validator;
+
+/// Checks the Renovate configuration of a project
+///
+/// The action wraps `renovate-config-validator`, the validator that [Renovate]
+/// ships. The validator finds the configurations of the project, reads each of
+/// them, and reports every option that Renovate would refuse. A run agrees with
+/// a contributor that runs `renovate-config-validator --strict`, and then
+/// `renovate-config-validator --strict --no-global default.json`. The validator
+/// that runs is the one of the version of Renovate that the action declares,
+/// which [mise] installed, whatever version the project pins. It runs on the
+/// Node that the project pins, when the action accepts that version. The action
+/// installs nothing.
+///
+/// A preset is a configuration that other configurations extend. Renovate
+/// reads a preset such as `github>owner/repository` from the `default.json` in
+/// the root of that repository. The validator does not find this file by
+/// itself, so the action also validates a `default.json` in the root of the
+/// project. It does this for every such file, also for one that belongs to
+/// another tool. The validator checks the preset as the configuration of a
+/// repository, which is stricter than the check of a preset in Renovate. So a
+/// preset that only fits inside a package rule fails the run, such as one
+/// that sets `matchPackageNames` at the top.
+///
+/// A run only reports and takes no argument. A run asks for strict validation.
+/// So a configuration that needs a migration fails the run like an error or
+/// warning. Each error and warning becomes a finding at the file the validator
+/// named, with the validator's topic and message. A configuration that needs a
+/// migration becomes one finding that names the options the migration changes.
+///
+/// The action applies to a project that holds a Renovate configuration or a
+/// preset, and it skips visibly otherwise. A run stops with an error when mise
+/// reports no validator at the declared version or no Node in the accepted
+/// range. It also stops if the validator stops before validating the project.
+/// It stops if the validator writes a log that the action cannot read.
+///
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
+///
+/// # Examples
+///
+/// A harness adds the action as it is to a list:
+///
+/// ```
+/// use rakko::Bundle;
+/// use aonyx_rakko_check_renovate_config::CheckRenovateConfig;
+///
+/// let actions = Bundle::default().with(CheckRenovateConfig);
+/// ```
+///
+/// [mise]: https://mise.jdx.dev
+/// [renovate]: https://docs.renovatebot.com
+#[derive(Copy, Clone, Debug, Default, Documented)]
+pub struct CheckRenovateConfig;
+
+impl Action for CheckRenovateConfig {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("check-renovate-config")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
+    }
+
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Validator::requirement(), Validator::node_requirement()]
+    }
+
+    async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+        match drive(context).await {
+            Ok(outcome) => outcome,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        }
+    }
+}
+
+/// Runs the action against the project of the context
+///
+/// The run resolves the validator and validates the project with it. A second
+/// run of the validator validates the preset of the project, and the outcome
+/// holds the answers of both runs. A project without a preset gets the answer
+/// of the first run alone, because the validator reports that the preset is
+/// not there. An error that this function returns stops the run, and the
+/// caller reports it in the outcome.
+///
+/// # Errors
+///
+/// Returns the error of the step that could not finish. The step is the
+/// resolution of the tool, a run of the validator, or the reading of its log.
+async fn drive(context: &Context) -> Result<Outcome, CheckRenovateConfigError> {
+    let validator = Validator::resolve(context)
+        .await
+        .map_err(|source| CheckRenovateConfigError::UnresolvedTool { source })?;
+
+    let observation = validator
+        .observe()
+        .await?
+        .join(validator.observe_preset().await?);
+
+    if let Some(words) = observation.unconfigured() {
+        return Ok(Outcome::Skipped {
+            reason: SkipReason::new(words.clone()),
+        });
+    }
+
+    if observation.problems().is_empty() {
+        return Ok(Outcome::Passed {
+            summary: Some(summary(observation.validated())),
+        });
+    }
+
+    Ok(Outcome::Failed {
+        findings: findings(observation.problems(), context.root())?,
+        repairs: Vec::new(),
+    })
+}
+
+/// Returns the finding that reports one problem of a configuration
+///
+/// The finding sits at the position that the validator named, or at the whole
+/// file where it named none. The message comes from the validator, so a reader
+/// of a finding reads what the tool itself would have told them.
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// file of the problem.
+///
+/// [foreign]: CheckRenovateConfigError::ForeignPath
+fn finding(
+    problem: &RenovateProblem,
+    root: &ProjectRoot,
+) -> Result<Finding, CheckRenovateConfigError> {
+    let location = problem
+        .location(root)
+        .ok_or_else(|| CheckRenovateConfigError::ForeignPath {
+            path: problem.path().clone(),
+        })?;
+
+    Ok(Finding::builder()
+        .message(problem.message())
+        .location(location)
+        .build())
+}
+
+/// Returns the findings that report the given problems
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// file of a problem.
+///
+/// [foreign]: CheckRenovateConfigError::ForeignPath
+fn findings(
+    problems: &[RenovateProblem],
+    root: &ProjectRoot,
+) -> Result<Vec<Finding>, CheckRenovateConfigError> {
+    problems
+        .iter()
+        .map(|problem| finding(problem, root))
+        .collect()
+}
+
+/// Returns the summary of a run that validated the given number of
+/// configurations
+fn summary(validated: u32) -> Summary {
+    if validated == 1 {
+        Summary::new("validated 1 configuration")
+    } else {
+        Summary::new(format!("validated {validated} configurations"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use std::path::PathBuf;
+
+    use rakko::{Location, Position};
+    use rakko_test_utils::path;
+
+    use super::*;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns an error of the validator about the given path
+    fn problem(path: PathBuf) -> RenovateProblem {
+        RenovateProblem::builder()
+            .path(path)
+            .topic("Configuration Error".to_owned())
+            .detail("Invalid configuration option: foo".to_owned())
+            .build()
+    }
+
+    /// The root that the problems of a test belong to
+    fn root() -> ProjectRoot {
+        ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = CheckRenovateConfig.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn check_renovate_config_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<CheckRenovateConfig>();
+    }
+
+    #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let error = finding(&problem(path("/elsewhere/config.js")), &root()).unwrap_err();
+
+        assert!(matches!(
+            error,
+            CheckRenovateConfigError::ForeignPath { .. }
+        ));
+    }
+
+    #[test]
+    fn finding_of_a_problem_at_a_position_sits_at_the_position() {
+        let position = Position::builder().line(2).column(1).build();
+        let problem = RenovateProblem::builder()
+            .path(path("renovate.json"))
+            .position(position)
+            .topic("File could not be parsed".to_owned())
+            .detail("JSON5: invalid end of input at 2:1".to_owned())
+            .build();
+
+        let finding = finding(&problem, &root()).unwrap();
+
+        assert_eq!(
+            finding.location(),
+            &Location::Position {
+                path: "renovate.json".parse().unwrap(),
+                position,
+            }
+        );
+    }
+
+    #[test]
+    fn finding_of_a_problem_carries_the_message_of_the_validator() {
+        let finding = finding(&problem(path("renovate.json")), &root()).unwrap();
+
+        assert_eq!(
+            finding.message().get(),
+            "Configuration Error: Invalid configuration option: foo"
+        );
+    }
+
+    #[test]
+    fn findings_report_every_problem_of_the_observation() {
+        let problems = vec![problem(path("renovate.json")), problem(path(".renovaterc"))];
+
+        let findings = findings(&problems, &root()).unwrap();
+
+        assert_eq!(findings.len(), 2);
+    }
+
+    #[test]
+    fn summary_of_one_configuration_names_one_configuration() {
+        let summary = summary(1);
+
+        assert_eq!(summary.get(), "validated 1 configuration");
+    }
+
+    #[test]
+    fn summary_of_several_configurations_names_their_number() {
+        let summary = summary(3);
+
+        assert_eq!(summary.get(), "validated 3 configurations");
+    }
+
+    #[test]
+    fn tools_declare_the_validator_and_its_node() {
+        let tools = CheckRenovateConfig.tools();
+
+        assert_eq!(
+            tools,
+            vec![Validator::requirement(), Validator::node_requirement()]
+        );
+    }
+}

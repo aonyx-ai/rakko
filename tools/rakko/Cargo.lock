@@ -59,6 +59,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "aonyx-rakko-baseline"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-check-mise-lock",
+ "aonyx-rakko-check-renovate-config",
+ "aonyx-rakko-format-json",
+ "aonyx-rakko-format-markdown",
+ "aonyx-rakko-format-toml",
+ "aonyx-rakko-format-yaml",
+ "aonyx-rakko-lint-github-actions",
+ "aonyx-rakko-lint-markdown",
+ "aonyx-rakko-lint-toml",
+ "aonyx-rakko-lint-yaml",
+ "rakko",
+]
+
+[[package]]
 name = "aonyx-rakko-build-internal-docs"
 version = "0.1.0"
 dependencies = [
@@ -124,6 +141,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-check-mise-lock"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-worktree",
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "toml_edit",
+ "typed-fields",
+]
+
+[[package]]
 name = "aonyx-rakko-check-msrv"
 version = "0.1.0"
 dependencies = [
@@ -131,6 +165,20 @@ dependencies = [
  "rakko",
  "rakko-tool",
  "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-check-renovate-config"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -148,6 +196,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-format-json"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-prettier",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-format-markdown"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-prettier",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
 name = "aonyx-rakko-format-rust"
 version = "0.1.0"
 dependencies = [
@@ -157,6 +227,57 @@ dependencies = [
  "rakko",
  "rakko-tool",
  "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-format-toml"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-taplo",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-format-yaml"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-prettier",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-lint-github-actions"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "aonyx-rakko-lint-markdown"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -183,6 +304,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-lint-toml"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-taplo",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-lint-yaml"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "aonyx-rakko-nextest"
 version = "0.1.0"
 dependencies = [
@@ -194,6 +337,19 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "aonyx-rakko-prettier"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
+ "typed-fields",
 ]
 
 [[package]]
@@ -220,6 +376,18 @@ dependencies = [
  "aonyx-rakko-rust",
  "aonyx-rakko-test-rust-docs",
  "rakko",
+]
+
+[[package]]
+name = "aonyx-rakko-taplo"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -590,23 +758,23 @@ dependencies = [
 name = "harness"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-baseline",
  "aonyx-rakko-check-msrv",
+ "aonyx-rakko-format-json",
+ "aonyx-rakko-format-markdown",
  "aonyx-rakko-format-rust",
+ "aonyx-rakko-format-toml",
+ "aonyx-rakko-format-yaml",
+ "aonyx-rakko-lint-github-actions",
+ "aonyx-rakko-lint-markdown",
  "aonyx-rakko-lint-rust",
  "aonyx-rakko-lint-stiles",
+ "aonyx-rakko-lint-yaml",
  "aonyx-rakko-rust-library",
  "aonyx-rakko-test-rust",
  "aonyx-rakko-test-rust-docs",
  "rakko",
- "rakko-baseline",
  "rakko-cli",
- "rakko-format-json",
- "rakko-format-markdown",
- "rakko-format-toml",
- "rakko-format-yaml",
- "rakko-lint-github-actions",
- "rakko-lint-markdown",
- "rakko-lint-yaml",
  "rakko-pre-commit",
  "rakko-set-msrv",
  "rakko-tool",
@@ -815,54 +983,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-baseline"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-check-mise-lock",
- "rakko-check-renovate-config",
- "rakko-format-json",
- "rakko-format-markdown",
- "rakko-format-toml",
- "rakko-format-yaml",
- "rakko-lint-github-actions",
- "rakko-lint-markdown",
- "rakko-lint-toml",
- "rakko-lint-yaml",
-]
-
-[[package]]
-name = "rakko-check-mise-lock"
-version = "0.1.0"
-dependencies = [
- "aonyx-rakko-worktree",
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "toml_edit",
- "typed-fields",
-]
-
-[[package]]
-name = "rakko-check-renovate-config"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "rakko-check-typescript"
 version = "0.1.0"
 dependencies = [
@@ -893,39 +1013,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-format-json"
-version = "0.1.0"
-dependencies = [
- "getset",
- "rakko",
- "rakko-prettier",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
-name = "rakko-format-markdown"
-version = "0.1.0"
-dependencies = [
- "getset",
- "rakko",
- "rakko-prettier",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
-name = "rakko-format-toml"
-version = "0.1.0"
-dependencies = [
- "getset",
- "rakko",
- "rakko-taplo",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
 name = "rakko-format-typescript"
 version = "0.1.0"
 dependencies = [
@@ -938,56 +1025,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-format-yaml"
-version = "0.1.0"
-dependencies = [
- "getset",
- "rakko",
- "rakko-prettier",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
-name = "rakko-lint-github-actions"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "rakko-lint-markdown"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "rakko-lint-toml"
-version = "0.1.0"
-dependencies = [
- "rakko",
- "rakko-taplo",
- "rakko-tool",
- "thiserror",
-]
-
-[[package]]
 name = "rakko-lint-typescript"
 version = "0.1.0"
 dependencies = [
@@ -997,18 +1034,6 @@ dependencies = [
  "rakko-tool",
  "serde",
  "serde_json",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "rakko-lint-yaml"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
  "thiserror",
  "tokio",
 ]
@@ -1030,19 +1055,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rakko-prettier"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
- "thiserror",
- "tokio",
- "typed-fields",
-]
-
-[[package]]
 name = "rakko-set-msrv"
 version = "0.1.0"
 dependencies = [
@@ -1054,18 +1066,6 @@ dependencies = [
  "tokio",
  "toml_edit",
  "typed-fields",
-]
-
-[[package]]
-name = "rakko-taplo"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-tool",
- "thiserror",
- "tokio",
 ]
 
 [[package]]

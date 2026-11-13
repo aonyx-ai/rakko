@@ -686,9 +686,12 @@ mod tests {
     /// The version comes from the mise file of the crate that wraps the tool.
     /// So an update of the pin reaches the test without a change to it.
     fn scripted() -> ToolRequirement {
-        let pins =
-            std::fs::read_to_string(root().get().join("crates/rakko-prettier/mise.rakko.toml"))
-                .expect("the test reads the mise file of the crate that wraps the tool");
+        let pins = std::fs::read_to_string(
+            root()
+                .get()
+                .join("crates/aonyx-rakko-prettier/mise.rakko.toml"),
+        )
+        .expect("the test reads the mise file of the crate that wraps the tool");
         let tool = format!("npm:{SCRIPTED}");
         let version = ToolVersion::new(MiseFile::new(&pins).pinned_version(&tool));
 

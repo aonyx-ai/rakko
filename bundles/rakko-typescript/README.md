@@ -6,8 +6,8 @@ subscribes to the whole set with one dependency and one line in its harness,
 and a release of the bundle reaches the project as a pull request like any
 other dependency.
 
-The bundle contains no other bundle, and it does not contain the baseline, so
-a TypeScript project mounts two names: this bundle beside `rakko-baseline`.
+The bundle contains no other bundle, and it does not contain the baseline, so a
+TypeScript project mounts two names: this bundle beside `aonyx-rakko-baseline`.
 
 ## Usage
 
@@ -16,7 +16,7 @@ harness mount what the bundle exports beside the baseline:
 
 ```rust
 rakko_cli::builder()
-    .mount(rakko_baseline::bundle())
+    .mount(aonyx_rakko_baseline::bundle())
     .mount(rakko_typescript::bundle())
     .run();
 ```

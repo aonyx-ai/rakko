@@ -16,7 +16,7 @@ A project mounts this bundle or `aonyx-rakko-rust-library`, never both, because
 both carry the core and a harness stops when two actions have one name. A
 workspace that publishes a library and ships a binary mounts the library bundle,
 which is the superset. Neither of the two contains the baseline, so a Rust
-project mounts two names: this bundle beside `rakko-baseline`.
+project mounts two names: this bundle beside `aonyx-rakko-baseline`.
 
 ## Usage
 

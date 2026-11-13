@@ -21,9 +21,9 @@ depends on `rakko` as well. Mount the command
 beside the actions, as it is:
 
 ```rust
+use aonyx_rakko_format_toml::FormatToml;
+use aonyx_rakko_lint_toml::LintToml;
 use rakko::Bundle;
-use rakko_format_toml::FormatToml;
-use rakko_lint_toml::LintToml;
 use rakko_pre_commit::PreCommit;
 
 let pre_commit = PreCommit::new(
@@ -33,7 +33,7 @@ let pre_commit = PreCommit::new(
 );
 
 rakko_cli::builder()
-    .mount(rakko_baseline::bundle())
+    .mount(aonyx_rakko_baseline::bundle())
     .mount(pre_commit)
     .run();
 ```

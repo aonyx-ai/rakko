@@ -407,7 +407,7 @@ mod tests {
     /// the tool pins
     fn tool() -> Declaration {
         let version = pinned_in()
-            .file("crates/rakko-taplo/mise.rakko.toml")
+            .file("crates/aonyx-rakko-taplo/mise.rakko.toml")
             .tool(TOOL)
             .call();
 

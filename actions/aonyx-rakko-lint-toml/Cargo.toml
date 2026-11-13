@@ -1,0 +1,24 @@
+[package]
+name = "aonyx-rakko-lint-toml"
+version = "0.1.0"
+description = "A Rakko action that validates the TOML files of a project with taplo"
+keywords = ["rakko-action"]
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-taplo = { workspace = true }
+rakko = { workspace = true }
+rakko-tool = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+bon = { workspace = true }
+rakko-test-utils = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true
