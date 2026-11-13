@@ -35,8 +35,8 @@ const CRATES: &str = "crates";
 /// Checks that each crate of a project has every owner on crates.io
 ///
 /// A crate that one person owns depends on that person. When their account
-/// becomes unavailable, nobody can publish the crate, add an owner, or set up
-/// trusted publishing. The action compares the owners of each crate on
+/// becomes unavailable, nobody can publish the crate, add an owner, or
+/// configure trusted publishing. The action compares the owners of each crate on
 /// [crates.io] with the owners that the harness gives it. It fails when a
 /// crate misses one of them.
 ///
@@ -69,7 +69,7 @@ const CRATES: &str = "crates";
 /// add owners. For any other user, crates.io refuses the change,
 /// and the finding says that a user owner of the crate must run the fix.
 /// Each owner that the run added becomes a repair. An owner that the run
-/// could not add stays a finding, and the run goes on with the next owner.
+/// did not add stays a finding, and the run goes on with the next owner.
 ///
 /// The run reads the owners from the public API of crates.io, which needs no
 /// token. It waits one second before each lookup and before each run of
@@ -86,8 +86,8 @@ const CRATES: &str = "crates";
 /// visibly, and so
 /// does a project whose crates crates.io has none of. A run stops with an
 /// error when the project pins no stable Rust toolchain that the action
-/// accepts. It stops when the workspaces of the project cannot be discovered,
-/// or when the client for crates.io cannot set up its TLS. It
+/// accepts. It stops when it cannot discover the workspaces of the project,
+/// or when the client for crates.io cannot configure its TLS. It
 /// stops when it cannot read the owners of a crate from crates.io.
 ///
 /// # Examples
@@ -166,7 +166,7 @@ impl Action for CheckCrateOwners {
 ///
 /// # Errors
 ///
-/// Returns the error of the step that could not finish. That step is the
+/// Returns the error of the step that failed. That step is the
 /// resolution of cargo, the discovery of the workspaces, the setup of the
 /// client, or a lookup of owners.
 async fn drive(
@@ -328,7 +328,7 @@ fn refused_owner(name: &PackageName, owner: &CrateOwner, details: &str) -> Findi
     ))
 }
 
-/// Returns the finding of an owner that the run could not add to a crate
+/// Returns the finding of an owner that the run did not add to a crate
 fn failed_owner(name: &PackageName, owner: &CrateOwner, details: &str) -> Finding {
     finding(format!("failed to add `{owner}` to `{name}`: {details}"))
 }

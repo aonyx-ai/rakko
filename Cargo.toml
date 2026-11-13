@@ -42,6 +42,7 @@ futures-util = { version = "0.3", default-features = false, features = [
 getset = ">=0.1,<1"
 kawauso-process = "0.2.1"
 kawauso-project = "0.3.0"
+mockito = "1"
 proc-macro2 = "1.0.91"
 quote = "1.0.35"
 rakko = { path = "crates/rakko", version = "0.1.0" }

@@ -10,7 +10,7 @@
 /// package can reach crates.io reads this value. It does not read the
 /// manifest again.
 ///
-/// A package that a root builds without this value is
+/// A package that a caller builds without this value is
 /// [`CratesIo`][Publication::CratesIo], because cargo reads a manifest
 /// without the key in the same way.
 ///

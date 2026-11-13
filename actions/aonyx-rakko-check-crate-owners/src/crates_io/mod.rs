@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use aonyx_rakko_cargo::{Cargo, CargoRoot, PackageName};
 use rakko_tool::{Execution, Launch};
-use reqwest::Client;
+use reqwest::{Client, ClientBuilder};
 use serde::Deserialize;
 
 pub use self::error::LookUpOwnersError;
@@ -87,19 +87,15 @@ pub(crate) struct CratesIo {
 impl CratesIo {
     /// Builds the registry with the cargo that adds an owner
     ///
-    /// The client sets up its TLS with the root certificates that it carries.
+    /// The client configures its TLS with the root certificates that it
+    /// carries.
     ///
     /// # Errors
     ///
-    /// Returns a [`reqwest::Error`] when the client cannot set up its TLS.
+    /// Returns a [`reqwest::Error`] when the client cannot configure its TLS.
     pub(crate) fn build(cargo: Cargo) -> Result<Self, reqwest::Error> {
-        let client = Client::builder()
-            .user_agent(USER_AGENT)
-            .timeout(TIMEOUT)
-            .build()?;
-
         Ok(Self {
-            client,
+            client: client(TIMEOUT)?,
             cargo,
             pace: Pace::new(INTERVAL),
         })
@@ -110,20 +106,7 @@ impl Registry for CratesIo {
     async fn owners(&self, name: &PackageName) -> Result<Ownership, LookUpOwnersError> {
         self.pace.wait().await;
 
-        let unavailable = |source: reqwest::Error| LookUpOwnersError::RegistryUnavailable {
-            source: std::io::Error::other(source),
-        };
-
-        let response = self
-            .client
-            .get(format!("{CRATES}/{name}/owners"))
-            .send()
-            .await
-            .map_err(unavailable)?;
-        let status = response.status().as_u16();
-        let body = response.text().await.map_err(unavailable)?;
-
-        ownership(status, &body)
+        look_up(&self.client, CRATES, name).await
     }
 
     async fn add(&self, root: &CargoRoot, name: &PackageName, owner: &CrateOwner) -> Addition {
@@ -143,6 +126,61 @@ impl Registry for CratesIo {
             },
         }
     }
+}
+
+/// Returns the client that sends the requests to crates.io
+///
+/// The client gives the User-Agent of the action, and it fails a request
+/// that takes longer than the timeout. It configures its TLS with the root
+/// certificates that it carries.
+///
+/// # Errors
+///
+/// Returns a [`reqwest::Error`] when the client cannot configure its TLS.
+fn client(timeout: Duration) -> Result<Client, reqwest::Error> {
+    builder(timeout).build()
+}
+
+/// Returns the setup of the client that sends the requests to crates.io
+///
+/// The setup gives the User-Agent of the action and the timeout of a request.
+/// The client keeps the defaults of reqwest otherwise, so it uses the proxy
+/// that the environment sets. A test adds to the setup what its server needs,
+/// such as no proxy for a server on the machine itself.
+fn builder(timeout: Duration) -> ClientBuilder {
+    Client::builder().user_agent(USER_AGENT).timeout(timeout)
+}
+
+/// Asks an API with the shape of crates.io for the owners of a crate
+///
+/// The API lists the owners of a crate at `<crates>/<name>/owners`. A run
+/// gives the address of crates.io, and a test gives the address of a server
+/// of its own.
+///
+/// # Errors
+///
+/// Returns [`RegistryUnavailable`][unavailable] when the request or its
+/// answer fails, and the errors of [`ownership`] for the answer.
+///
+/// [unavailable]: LookUpOwnersError::RegistryUnavailable
+async fn look_up(
+    client: &Client,
+    crates: &str,
+    name: &PackageName,
+) -> Result<Ownership, LookUpOwnersError> {
+    let unavailable = |source: reqwest::Error| LookUpOwnersError::RegistryUnavailable {
+        source: std::io::Error::other(source),
+    };
+
+    let response = client
+        .get(format!("{crates}/{name}/owners"))
+        .send()
+        .await
+        .map_err(unavailable)?;
+    let status = response.status().as_u16();
+    let body = response.text().await.map_err(unavailable)?;
+
+    ownership(status, &body)
 }
 
 /// The list of owners that crates.io reports for a crate
@@ -248,6 +286,35 @@ mod tests {
     /// What cargo writes when crates.io refuses an addition
     const REFUSED: &str = "    Updating crates.io index\nerror: failed to invite owners to crate `otter` on registry at https://crates.io\n\nCaused by:\n  the remote server responded with an error (status 403 Forbidden): only owners have permission to modify owners\n";
 
+    /// The path at which a server of a test lists the owners of `otter`
+    const OTTER_OWNERS: &str = "/api/v1/crates/otter/owners";
+
+    /// What crates.io answers with the owners of a crate
+    const OWNERS: &str = r#"{"users":[{"kind":"user","id":1,"login":"jdno","name":"Jan David"},{"kind":"team","id":2,"login":"github:aonyx-ai:crates-io","name":"crates-io"}]}"#;
+
+    /// Returns the address at which a server of a test lists the crates
+    fn crates(server: &mockito::ServerGuard) -> String {
+        format!("{}/api/v1/crates", server.url())
+    }
+
+    /// Returns the client of the action for a server on the machine itself
+    ///
+    /// The client uses no proxy. So a proxy of the environment cannot answer
+    /// in the place of the server of the test.
+    fn local_client(timeout: Duration) -> Client {
+        builder(timeout).no_proxy().build().unwrap()
+    }
+
+    /// Asks the API at the address for the owners of `otter`
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the lookup, which the assertion of the test
+    /// examines.
+    async fn look_up_otter(crates: &str) -> Result<Ownership, LookUpOwnersError> {
+        look_up(&local_client(TIMEOUT), crates, &PackageName::new("otter")).await
+    }
+
     /// What cargo writes when it has no token
     const NO_TOKEN: &str = "    Updating crates.io index\nerror: no token found, please run `cargo login`\nor use environment variable CARGO_REGISTRY_TOKEN\n";
 
@@ -300,6 +367,101 @@ mod tests {
             matches!(&addition, Addition::Refused { details } if details.contains("only owners")),
             "expected a refusal with the error of cargo, got {addition:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn look_up_of_a_crate_that_the_registry_does_not_have_is_unpublished() {
+        let mut server = mockito::Server::new_async().await;
+        let _mock = server
+            .mock("GET", OTTER_OWNERS)
+            .with_status(404)
+            .with_body(r#"{"errors":[{"detail":"crate `otter` does not exist"}]}"#)
+            .create_async()
+            .await;
+
+        let ownership = look_up_otter(&crates(&server)).await.unwrap();
+
+        assert_eq!(ownership, Ownership::Unpublished);
+    }
+
+    #[tokio::test]
+    async fn look_up_of_a_published_crate_lists_its_owners() {
+        let mut server = mockito::Server::new_async().await;
+        let _mock = server
+            .mock("GET", OTTER_OWNERS)
+            .with_status(200)
+            .with_body(OWNERS)
+            .create_async()
+            .await;
+
+        let ownership = look_up_otter(&crates(&server)).await.unwrap();
+
+        assert_eq!(
+            ownership,
+            Ownership::Published {
+                owners: vec![
+                    CrateOwner::new("jdno"),
+                    CrateOwner::new("github:aonyx-ai:crates-io"),
+                ],
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn look_up_of_a_registry_that_does_not_answer_in_time_reports_it() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let client = local_client(Duration::from_millis(100));
+
+        let result = tokio::time::timeout(
+            Duration::from_secs(10),
+            look_up(
+                &client,
+                &format!("http://127.0.0.1:{port}/api/v1/crates"),
+                &PackageName::new("otter"),
+            ),
+        )
+        .await;
+
+        assert!(
+            matches!(
+                &result,
+                Ok(Err(LookUpOwnersError::RegistryUnavailable { .. }))
+            ),
+            "expected an unavailable registry before the test gave up, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn look_up_of_a_registry_that_refuses_the_connection_reports_it() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+
+        let error = look_up_otter(&format!("http://127.0.0.1:{port}/api/v1/crates"))
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, LookUpOwnersError::RegistryUnavailable { .. }),
+            "expected an unavailable registry, got {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn look_up_sends_the_user_agent_of_the_action() {
+        let mut server = mockito::Server::new_async().await;
+        let mock = server
+            .mock("GET", OTTER_OWNERS)
+            .match_header("user-agent", USER_AGENT)
+            .with_status(200)
+            .with_body(OWNERS)
+            .create_async()
+            .await;
+
+        let _ownership = look_up_otter(&crates(&server)).await;
+
+        mock.assert_async().await;
     }
 
     #[test]
