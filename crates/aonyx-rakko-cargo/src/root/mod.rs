@@ -35,8 +35,8 @@ pub(crate) const MANIFEST: &str = "Cargo.toml";
 ///
 /// A root also carries what cargo said about the packages of its workspace. It
 /// carries their names and which of them share a crate name. It also carries
-/// whether cargo can test the examples in their documentation and the oldest
-/// toolchain that they promise to compile on. The discovery of the roots asks
+/// whether cargo can test the examples in their documentation and the
+/// highest Rust version that one of them declares. The discovery of the roots asks
 /// cargo to describe every workspace anyway, and one description answers all
 /// of them. So a caller reads them here instead of asking cargo again.
 ///
@@ -74,8 +74,12 @@ pub struct CargoRoot {
     #[getset(get = "pub")]
     packages: Vec<CargoPackage>,
 
-    /// The oldest Rust toolchain that the packages of the workspace declare
-    /// they compile on, or `None` when no package declares one
+    /// The highest Rust version that a package of the workspace declares, or
+    /// `None` when no package declares one
+    ///
+    /// A package can declare the oldest Rust version that it compiles on.
+    /// Every package that declares a version promises to compile on the
+    /// highest of these versions.
     #[getset(get = "pub")]
     rust_version: Option<RustVersion>,
 }

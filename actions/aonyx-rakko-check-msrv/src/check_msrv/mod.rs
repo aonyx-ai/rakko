@@ -327,6 +327,23 @@ mod tests {
     }
 
     #[test]
+    fn declarations_of_a_root_that_declares_no_version_pass_it_over() {
+        let declaring = CargoRoot::builder()
+            .directory(PathBuf::from("/tmp/project"))
+            .documentation(Documentation::Testable)
+            .rust_version(RustVersion::new("1.88"))
+            .build();
+        let silent = CargoRoot::builder()
+            .directory(PathBuf::from("/tmp/project/harness"))
+            .documentation(Documentation::Testable)
+            .build();
+
+        let declarations = declarations(&[declaring.clone(), silent]);
+
+        assert_eq!(declarations, vec![(declaring, RustVersion::new("1.88"))]);
+    }
+
+    #[test]
     fn read_a_record_in_a_shape_the_action_does_not_know_names_the_root() {
         let root = CargoRoot::builder()
             .directory(PathBuf::from("/home/otter/project"))

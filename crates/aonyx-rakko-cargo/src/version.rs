@@ -15,9 +15,10 @@ const SEPARATOR: char = '.';
 
 /// A version of the Rust compiler
 ///
-/// A version names a release of the compiler, such as `1.88.0`. It reaches
-/// the crate as text that cargo wrote. It is the version that a package
-/// declares as the oldest one it compiles on.
+/// A version names a release of the compiler, such as `1.88.0`. The crate
+/// reads it from text that cargo wrote, and a caller can also
+/// [create][new] one. It is the version that a package declares as the
+/// oldest one it compiles on.
 ///
 /// The value carries that text as it was written, because it is the name
 /// that rustup and a provisioning layer know the toolchain by. `1.88` and
@@ -48,12 +49,30 @@ const SEPARATOR: char = '.';
 /// # Ok(())
 /// # }
 /// ```
+///
+/// [new]: RustVersion::new
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct RustVersion(String);
 
 impl RustVersion {
     /// Creates a version from the text that names it
-    pub(crate) fn new(version: impl Into<String>) -> Self {
+    ///
+    /// The value keeps the text as it was written, and it does not check
+    /// the text. A caller that builds a [`CargoRoot`][root] without cargo,
+    /// for example in a test, gives the text that a manifest would declare.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use aonyx_rakko_cargo::RustVersion;
+    ///
+    /// let version = RustVersion::new("1.88");
+    ///
+    /// assert_eq!(version.get(), "1.88");
+    /// ```
+    ///
+    /// [root]: crate::CargoRoot
+    pub fn new(version: impl Into<String>) -> Self {
         Self(version.into())
     }
 
