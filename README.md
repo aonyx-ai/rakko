@@ -55,14 +55,24 @@ build on:
 
 The [guide] shows how to build your first action. When you publish it, give its
 repository the GitHub topic `rakko-action` and its crate the crates.io keyword
-`rakko-action`, so that others can find it. A new action lives in a crate of
-its own, with the people who use it. So this repository does not take new
-actions from other authors.
+`rakko-action`, so that others can find it. The crate of your action can have
+any name. If you want, you can put the name of your organization and then
+`rakko` in front of it, such as `otter-rakko-check-readme`. A new action lives
+in a crate of its own, with the people who use it. So this repository does not
+take new actions from other authors.
 
 The actions, bundles, and commands in this repository are purpose-built for
 the workflows of Aonyx. You are welcome to use them, and we keep them focused
 on how Aonyx works. If one does not fit your needs, we encourage you to create
 your own. When we stop using an action, we say so in its README.
+
+The names of our crates show what we built each one for. Each crate that we
+built for our own workflows has a name that starts with `aonyx-rakko-`, such as
+`aonyx-rakko-lint-rust`. The four crates above have short names that start with
+`rakko`, and so does `rakko-macros`, which `rakko` uses for its derive macros.
+Anyone can publish a crate whose name starts with `aonyx-rakko-` or with
+`rakko`. We publish our crates with these names from this repository. So such a
+crate that is not in this repository is probably not one of ours.
 
 ## Development
 
