@@ -1,0 +1,485 @@
+//! The action that formats the TypeScript of a project
+//!
+//! This module holds the action, the arguments that a run reads, and the error
+//! that stops a run. The action wraps oxfmt as a subprocess and names the files
+//! of the language. Oxfmt reads its own configuration and does the formatting.
+//! The action translates what oxfmt reported into an outcome.
+
+mod args;
+mod error;
+mod operation;
+
+use std::path::Path;
+
+use rakko::{
+    Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, Position,
+    ProjectRoot, SkipReason, ToolRequirement, action_name,
+};
+
+pub use self::args::FormatTypeScriptArgs;
+pub use self::error::FormatTypeScriptError;
+pub use self::operation::Operation;
+use crate::observation::{Exit, Matching, Observation};
+use crate::oxfmt::Oxfmt;
+use crate::problem::OxfmtProblem;
+
+/// The reason of a run whose oxfmt found nothing to examine
+///
+/// Oxfmt refuses a pattern that matches no file, so this is what a project
+/// without files of the language reports. A project whose ignore files exclude
+/// every one of them reports it as well.
+const NOTHING_TO_EXAMINE: &str = "oxfmt found no TypeScript file to examine";
+
+/// The message of a finding about a file that is not formatted
+const UNFORMATTED_FINDING: &str = "the file is not formatted";
+
+/// The message of a repair of a file that was not formatted
+const UNFORMATTED_REPAIR: &str = "the file was not formatted";
+
+/// Checks the format of the TypeScript of a project, or repairs it
+///
+/// The action wraps [oxfmt]. The action names the files of the language, and
+/// oxfmt reads its own configuration. Oxfmt formats what its ignore files
+/// leave. So a run agrees with an editor and with a contributor that runs
+/// oxfmt bare. The oxfmt that runs is the version that the action declares,
+/// which [mise] installed, whatever version the project pins. It runs on the
+/// Node that the project pins, when the action accepts that version. The
+/// action installs nothing.
+///
+/// Oxfmt formats more languages than the action asks it about. It would
+/// otherwise rewrite the Markdown, the JSON, and the YAML of a project that
+/// another action already formats. The action therefore names the extensions of
+/// TypeScript and of JavaScript, and oxfmt never sees the rest.
+///
+/// A run reports by default. A file that is not formatted becomes a finding
+/// that names the file. A file that oxfmt cannot parse becomes a finding at the
+/// position that oxfmt reports. A failure that oxfmt placed nowhere becomes a
+/// finding about the project. With the `fix` argument, oxfmt rewrites the files
+/// that it can format. The outcome carries one repair for each file that
+/// changed, next to the problems that remain.
+///
+/// A run that reports declares a read of the project, and a run with `fix`
+/// declares a write. A caller that orders runs by their declarations can
+/// then run a rewrite before the actions that read.
+///
+/// A run whose oxfmt found no file of the language skips visibly, and says so.
+/// A run stops with an error in these conditions:
+///
+/// - Mise reports no oxfmt at the declared version or no Node in the accepted
+///   range.
+/// - Oxfmt refused a configuration of the project.
+/// - Oxfmt writes a report that the action does not recognize.
+///
+/// # Examples
+///
+/// A harness adds the action as it is to a list:
+///
+/// ```
+/// use rakko::Bundle;
+/// use aonyx_rakko_format_typescript::FormatTypeScript;
+///
+/// let actions = Bundle::default().with(FormatTypeScript);
+/// ```
+///
+/// [mise]: https://mise.jdx.dev
+/// [oxfmt]: https://oxc.rs/docs/guide/usage/formatter.html
+#[derive(Copy, Clone, Debug, Default, Documented)]
+pub struct FormatTypeScript;
+
+impl Action for FormatTypeScript {
+    type Args = FormatTypeScriptArgs;
+
+    fn name(&self) -> Name {
+        action_name!("format-typescript")
+    }
+
+    fn access(&self, _context: &Context, args: &Self::Args) -> Access {
+        match args.operation() {
+            Operation::Rewrite => Access::Write,
+            Operation::Report => Access::Read,
+        }
+    }
+
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Oxfmt::requirement(), Oxfmt::node_requirement()]
+    }
+
+    async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
+        match drive(context, args).await {
+            Ok(outcome) => outcome,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        }
+    }
+}
+
+/// Runs the action against the project of the context
+///
+/// The run resolves oxfmt, and then reports or rewrites, depending on the
+/// arguments. An error that this function returns stops the run, and the
+/// caller reports it in the outcome.
+///
+/// # Errors
+///
+/// Returns the error of the step that could not finish: the resolution of the
+/// tool, or an oxfmt run.
+async fn drive(
+    context: &Context,
+    args: &FormatTypeScriptArgs,
+) -> Result<Outcome, FormatTypeScriptError> {
+    let oxfmt = Oxfmt::resolve(context)
+        .await
+        .map_err(|source| FormatTypeScriptError::UnresolvedTool { source })?;
+
+    match args.operation() {
+        Operation::Rewrite => fix(&oxfmt, context.root()).await,
+        Operation::Report => report(&oxfmt, context.root()).await,
+    }
+}
+
+/// Lets oxfmt rewrite the project and reports what the rewrite left
+///
+/// Oxfmt names no file that it rewrote, so the rewrite alone says only that it
+/// happened. The action therefore asks for the list of files before the rewrite
+/// and again after it. What the first list holds and the second one does not is
+/// what the run repaired. What the second list still holds is what remains.
+///
+/// A file that oxfmt cannot parse remains, and so does a file that it cannot
+/// write. A rewrite repairs formatting, and a file that the tool cannot read
+/// or a tree that refuses a write needs a hand.
+///
+/// # Errors
+///
+/// Returns the error of a run that could not finish. Oxfmt did not run, or it
+/// refused a configuration of the project. Or it wrote a report that the action
+/// does not recognize, or it reported a path outside the project.
+async fn fix(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatTypeScriptError> {
+    let before = oxfmt.list().await?;
+
+    if let Some(outcome) = guard(&before)? {
+        return Ok(outcome);
+    }
+
+    if before.problems().is_empty() {
+        return Ok(Outcome::Passed { summary: None });
+    }
+
+    oxfmt.rewrite().await?;
+
+    let after = oxfmt.list().await?;
+
+    if let Some(outcome) = guard(&after)? {
+        return Ok(outcome);
+    }
+
+    let repairs = repairs(&before, &after, root)?;
+    let findings = findings(after.problems(), root)?;
+
+    if !findings.is_empty() {
+        return Ok(Outcome::Failed { findings, repairs });
+    }
+
+    Ok(Outcome::Changed { repairs })
+}
+
+/// Returns the repairs that report the files the rewrite changed
+///
+/// A file that the first list named and the second one does not was rewritten,
+/// which is the problem that the repair took away. A file that both lists name
+/// is a file that the rewrite could not take away, and it travels as a finding
+/// instead.
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// path of a file.
+///
+/// [foreign]: FormatTypeScriptError::ForeignPath
+fn repairs(
+    before: &Observation,
+    after: &Observation,
+    root: &ProjectRoot,
+) -> Result<Vec<Finding>, FormatTypeScriptError> {
+    let remaining: Vec<&Path> = after
+        .problems()
+        .iter()
+        .filter_map(OxfmtProblem::path)
+        .collect();
+
+    before
+        .problems()
+        .iter()
+        .filter(|problem| matches!(problem, OxfmtProblem::Unformatted { .. }))
+        .filter(|problem| !problem.path().is_some_and(|path| remaining.contains(&path)))
+        .map(|problem| finding(problem, root, UNFORMATTED_REPAIR))
+        .collect()
+}
+
+/// Returns the finding that reports one problem of the project
+///
+/// A file that is not formatted gets a finding at the level of the file. A file
+/// that oxfmt could not format gets a finding at the place that oxfmt named. A
+/// failure that oxfmt placed nowhere gets a finding about the project, because
+/// oxfmt writes the file into the sentence instead. The message for an
+/// unformatted file comes from the caller. This is because a finding states a
+/// problem that the project has. A repair states one that the run took away.
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// path of the problem.
+///
+/// [foreign]: FormatTypeScriptError::ForeignPath
+fn finding(
+    problem: &OxfmtProblem,
+    root: &ProjectRoot,
+    unformatted_message: &str,
+) -> Result<Finding, FormatTypeScriptError> {
+    let finding = match problem {
+        OxfmtProblem::Invalid {
+            path,
+            line,
+            column,
+            message,
+        } => Finding::builder()
+            .message(message.clone())
+            .location(Location::Position {
+                path: relative(path, root)?,
+                position: Position::builder().line(*line).column(*column).build(),
+            })
+            .build(),
+        OxfmtProblem::Unformatted { path } => Finding::builder()
+            .message(unformatted_message)
+            .location(Location::File {
+                path: relative(path, root)?,
+            })
+            .build(),
+        OxfmtProblem::Unplaced { message } => Finding::builder()
+            .message(message.clone())
+            .location(Location::Project)
+            .build(),
+    };
+
+    Ok(finding)
+}
+
+/// Returns the path of a file, relative to the project root
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// file.
+///
+/// [foreign]: FormatTypeScriptError::ForeignPath
+fn relative(path: &Path, root: &ProjectRoot) -> Result<FilePath, FormatTypeScriptError> {
+    FilePath::within()
+        .path(path)
+        .root(root)
+        .call()
+        .ok_or_else(|| FormatTypeScriptError::ForeignPath {
+            path: path.to_path_buf(),
+        })
+}
+
+/// Returns the findings that report the given problems
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// path of a problem.
+///
+/// [foreign]: FormatTypeScriptError::ForeignPath
+fn findings(
+    problems: &[OxfmtProblem],
+    root: &ProjectRoot,
+) -> Result<Vec<Finding>, FormatTypeScriptError> {
+    problems
+        .iter()
+        .map(|problem| finding(problem, root, UNFORMATTED_FINDING))
+        .collect()
+}
+
+/// Returns what a run reports when it cannot answer from its own findings
+///
+/// Three conditions end a run before its findings matter. A configuration that
+/// oxfmt refused stops it, because oxfmt then formatted nothing at all and the
+/// project asked for rules that never applied. An oxfmt that matched no file
+/// leaves the action with nothing to examine, which the ignore files of the
+/// project explain, so the run skips. A run that ended without success and
+/// named no problem wrote a report that the action could not read. An answer
+/// built on it would hide every problem behind a green result.
+///
+/// Returns `None` when the caller reports what the run found.
+///
+/// # Errors
+///
+/// Returns [`RejectedConfiguration`][rejected] when oxfmt refused a
+/// configuration, and [`UnrecognizedReport`][unrecognized] when the report says
+/// nothing that the action can answer from.
+///
+/// [rejected]: FormatTypeScriptError::RejectedConfiguration
+/// [unrecognized]: FormatTypeScriptError::UnrecognizedReport
+fn guard(observation: &Observation) -> Result<Option<Outcome>, FormatTypeScriptError> {
+    if let Some(details) = observation.rejected_configuration() {
+        return Err(FormatTypeScriptError::RejectedConfiguration {
+            details: details.clone(),
+        });
+    }
+
+    match observation.matching() {
+        Matching::Unmatched => {
+            return Ok(Some(Outcome::Skipped {
+                reason: SkipReason::new(NOTHING_TO_EXAMINE),
+            }));
+        }
+        Matching::Matched => {}
+    }
+
+    match observation.exit() {
+        Exit::Failed if observation.problems().is_empty() => {
+            Err(FormatTypeScriptError::UnrecognizedReport {
+                stderr: observation.stderr().clone(),
+            })
+        }
+        Exit::Failed | Exit::Succeeded => Ok(None),
+    }
+}
+
+/// Asks oxfmt what it would change and reports the answer
+///
+/// The run changes nothing. Oxfmt names the files that a rewrite would change.
+/// Each becomes a finding next to the files that oxfmt could not format.
+///
+/// # Errors
+///
+/// Returns the error of a run that could not finish. Oxfmt did not run, or it
+/// refused a configuration of the project. Or it wrote a report that the action
+/// does not recognize, or it reported a path outside the project.
+async fn report(oxfmt: &Oxfmt, root: &ProjectRoot) -> Result<Outcome, FormatTypeScriptError> {
+    let observation = oxfmt.list().await?;
+
+    if let Some(outcome) = guard(&observation)? {
+        return Ok(outcome);
+    }
+
+    if observation.problems().is_empty() {
+        return Ok(Outcome::Passed { summary: None });
+    }
+
+    Ok(Outcome::Failed {
+        findings: findings(observation.problems(), root)?,
+        repairs: Vec::new(),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
+    use rakko_test_utils::path;
+
+    use super::*;
+
+    /// The sentence of a failure that oxfmt placed nowhere
+    const UNPLACED: &str = "Failed to read file: /home/otter/project/src/index.ts";
+
+    /// The root that the problems of a test belong to
+    fn root() -> ProjectRoot {
+        ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns the arguments of a run that asks for a repair
+    fn fixing() -> FormatTypeScriptArgs {
+        let values = ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))]);
+
+        FormatTypeScriptArgs::from_values(&values).unwrap()
+    }
+
+    #[test]
+    fn access_with_fix_is_write() {
+        let args = fixing();
+
+        let access = FormatTypeScript.access(&context(), &args);
+
+        assert_eq!(access, Access::Write);
+    }
+
+    #[test]
+    fn access_without_fix_is_read() {
+        let args = FormatTypeScriptArgs::default();
+
+        let access = FormatTypeScript.access(&context(), &args);
+
+        assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn finding_of_a_failure_without_a_place_belongs_to_the_project() {
+        let problem = OxfmtProblem::Unplaced {
+            message: String::from(UNPLACED),
+        };
+
+        let finding = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap();
+
+        assert_eq!(finding.location(), &Location::Project);
+    }
+
+    #[test]
+    fn finding_of_a_failure_without_a_place_carries_the_sentence_of_oxfmt() {
+        let problem = OxfmtProblem::Unplaced {
+            message: String::from(UNPLACED),
+        };
+
+        let finding = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap();
+
+        assert_eq!(finding.message().get(), UNPLACED);
+    }
+
+    #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = OxfmtProblem::Unformatted {
+            path: path("/elsewhere/index.ts"),
+        };
+
+        let error = finding(&problem, &root(), UNFORMATTED_FINDING).unwrap_err();
+
+        assert!(matches!(error, FormatTypeScriptError::ForeignPath { .. }));
+    }
+
+    #[test]
+    fn format_type_script_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<FormatTypeScript>();
+    }
+
+    #[test]
+    fn guard_of_an_unrecognized_report_holds_what_oxfmt_wrote() {
+        let observation = Observation::builder().stderr(UNPLACED).build();
+
+        let error = guard(&observation).unwrap_err();
+
+        assert!(matches!(
+            error,
+            FormatTypeScriptError::UnrecognizedReport { stderr } if stderr == UNPLACED
+        ));
+    }
+
+    #[test]
+    fn tools_declare_oxfmt_and_its_node() {
+        let tools = FormatTypeScript.tools();
+
+        assert_eq!(tools, vec![Oxfmt::requirement(), Oxfmt::node_requirement()]);
+    }
+}

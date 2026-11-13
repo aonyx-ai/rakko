@@ -1,0 +1,169 @@
+//! The error that stops a run of the action
+
+use std::path::PathBuf;
+
+use rakko_tool::{ResolveRequirementError, RunCommandError};
+use thiserror::Error;
+
+use crate::oxlint::ObserveOxlintError;
+use crate::oxlint::report::ReadReportError;
+
+/// An error that stops a run of the action before it has an answer
+///
+/// Nothing here is a problem of the project. A diagnostic of oxlint travels as
+/// a finding in the outcome of the run, even one about the project itself. The
+/// variants of this error describe a run whose answer cannot be trusted, and
+/// such a run stops instead of reporting one.
+///
+/// # Examples
+///
+/// ```
+/// use aonyx_rakko_lint_typescript::LintTypeScriptError;
+/// use std::path::PathBuf;
+///
+/// let error = LintTypeScriptError::ForeignPath {
+///     path: PathBuf::from("../outside/root"),
+/// };
+/// assert_eq!(
+///     error.to_string(),
+///     "oxlint reported a path outside the project: ../outside/root"
+/// );
+/// ```
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum LintTypeScriptError {
+    /// Oxlint reported a path that the project root does not contain
+    ///
+    /// A finding names its path relative to the project root, and a path
+    /// outside the root has no such name. A run names the root as the place to
+    /// look, so this points at a report that the action misread.
+    #[error("oxlint reported a path outside the project: {}", path.display())]
+    ForeignPath {
+        /// The path that oxlint reported
+        path: PathBuf,
+    },
+
+    /// Oxlint wrote no report
+    ///
+    /// Oxlint reports whenever it lints the project. It writes no report when
+    /// it refuses the project's configuration, because it reads that
+    /// configuration before it collects a single file. The project asked for
+    /// rules that never applied, so the run stops here.
+    #[error("oxlint wrote no report: {details}")]
+    MissingReport {
+        /// What oxlint wrote in place of a report
+        details: String,
+    },
+
+    /// Oxlint did not run
+    ///
+    /// The program was resolved and did not start, or it started and its output
+    /// could not be read. Nothing of the project was examined.
+    #[error("failed to run oxlint")]
+    OxlintUnavailable {
+        /// The cause of the failure
+        source: RunCommandError,
+    },
+
+    /// Oxlint wrote a report that the action cannot read
+    ///
+    /// The shape of the report belongs to a version of oxlint. A report that
+    /// does not fit therefore points at a version that this crate does not
+    /// know. The findings of such a run would be the diagnostics that the
+    /// reading happened to understand.
+    #[error("failed to read the report from oxlint: {report}")]
+    UnreadableReport {
+        /// What oxlint wrote in place of a report that the action reads
+        report: String,
+
+        /// The cause of the failure
+        source: ReadReportError,
+    },
+
+    /// Mise reported no oxlint at the version that the action declares
+    ///
+    /// Mise did not run, or nothing installed that version of oxlint yet. The
+    /// action installs nothing, so the run stops here.
+    #[error("failed to resolve oxlint")]
+    UnresolvedTool {
+        /// The cause of the failure
+        source: ResolveRequirementError,
+    },
+}
+
+impl From<ObserveOxlintError> for LintTypeScriptError {
+    /// Turns the failure of an oxlint run into the error of the action
+    ///
+    /// The machinery that runs oxlint names the same three conditions that the
+    /// action reports, so the conversion renames them and adds nothing.
+    fn from(error: ObserveOxlintError) -> Self {
+        match error {
+            ObserveOxlintError::MissingReport { details } => Self::MissingReport { details },
+            ObserveOxlintError::OxlintUnavailable { source } => Self::OxlintUnavailable { source },
+            ObserveOxlintError::UnreadableReport { report, source } => {
+                Self::UnreadableReport { report, source }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use super::*;
+
+    /// What oxlint wrote about a configuration that it refused
+    const DETAILS: &str = "Failed to parse oxlint configuration file.";
+
+    /// What oxlint wrote in a run whose report the action could not read
+    const REPORT: &str = r#"{"diagnostics": "none"}"#;
+
+    #[test]
+    fn error_of_an_absent_report_holds_what_oxlint_wrote() {
+        let error = LintTypeScriptError::from(ObserveOxlintError::MissingReport {
+            details: DETAILS.to_owned(),
+        });
+
+        assert!(
+            matches!(&error, LintTypeScriptError::MissingReport { details } if details == DETAILS),
+            "expected what oxlint wrote, got {error:?}"
+        );
+    }
+
+    #[test]
+    fn error_of_an_unreadable_report_holds_what_oxlint_wrote() {
+        let error = LintTypeScriptError::from(ObserveOxlintError::UnreadableReport {
+            report: REPORT.to_owned(),
+            source: ReadReportError::Absent,
+        });
+
+        assert!(
+            matches!(&error, LintTypeScriptError::UnreadableReport { report, .. } if report == REPORT),
+            "expected the report of oxlint, got {error:?}"
+        );
+    }
+
+    /// Shows that error is Send and Sync
+    ///
+    /// An action puts the error in the outcome of a run, and that outcome holds
+    /// an error that another thread can read. This test holds the error to the
+    /// auto traits that make this possible. This matters because a field of a
+    /// later version could take them away without compiler warning.
+    #[test]
+    fn lint_type_script_error_is_send_and_sync() {
+        fn assert_send_and_sync<T: Send + Sync>() {}
+
+        assert_send_and_sync::<LintTypeScriptError>();
+    }
+
+    #[test]
+    fn lint_type_script_error_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintTypeScriptError>();
+    }
+}

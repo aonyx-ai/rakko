@@ -1,0 +1,471 @@
+//! The action that lints the TypeScript of a project
+//!
+//! This module holds the action and the error that stops a run. The action
+//! wraps oxlint as a subprocess. Oxlint discovers the files, reads its own
+//! configuration, and applies its rules. The action translates what oxlint
+//! reported into an outcome.
+
+mod error;
+
+use std::path::Path;
+
+use rakko::{
+    Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, ProjectRoot,
+    SkipReason, Summary, ToolRequirement, action_name,
+};
+
+pub use self::error::LintTypeScriptError;
+use crate::observation::Observation;
+use crate::oxlint::Oxlint;
+use crate::problem::{OxlintProblem, Place};
+
+/// The reason of a run whose oxlint examined nothing
+///
+/// Oxlint counts the files that it examined, so this is what a project without
+/// TypeScript reports. A project whose configuration ignores every one of its
+/// files reports the same way.
+const NOTHING_TO_EXAMINE: &str = "oxlint found no file to examine";
+
+/// Lints the TypeScript of a project
+///
+/// The action wraps [oxlint]. Oxlint discovers the files of the project, reads
+/// its own configuration, and applies the rules that the project turned on.
+/// A run agrees with an editor and with a contributor that runs oxlint bare.
+/// The oxlint that runs is the version that the action declares, which [mise]
+/// installed, whatever version the project pins. The action installs nothing.
+///
+/// A run only reports, and it takes no argument. Every diagnostic that oxlint
+/// writes becomes a finding, and the message of the finding is the sentence
+/// that oxlint wrote for a reader. A rule that a file broke becomes a finding
+/// at the place that oxlint marked. A diagnostic about the project becomes a
+/// finding of the project beside the others. An example is a suppressions file
+/// that no longer agrees with the code. A diagnostic that oxlint weighs as a
+/// warning becomes a finding like one that it weighs as an error. This is
+/// because a project that wants a rule to stay quiet turns that rule off.
+///
+/// The action applies to a project that holds files which oxlint lints, and it
+/// skips visibly otherwise. A run stops with an error in these conditions:
+///
+/// - Mise reports no oxlint at the declared version.
+/// - Oxlint writes no report at all.
+/// - Oxlint writes a report that the action cannot read.
+///
+/// A run declares a read of the project. A caller that orders runs by their
+/// declarations runs it after the actions that write.
+///
+/// # Examples
+///
+/// A harness adds the action as it is to a list:
+///
+/// ```
+/// use rakko::Bundle;
+/// use aonyx_rakko_lint_typescript::LintTypeScript;
+///
+/// let actions = Bundle::default().with(LintTypeScript);
+/// ```
+///
+/// [mise]: https://mise.jdx.dev
+/// [oxlint]: https://oxc.rs/docs/guide/usage/linter.html
+#[derive(Copy, Clone, Debug, Default, Documented)]
+pub struct LintTypeScript;
+
+impl Action for LintTypeScript {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("lint-typescript")
+    }
+
+    fn access(&self, _context: &Context, _args: &Self::Args) -> Access {
+        Access::Read
+    }
+
+    fn tools(&self) -> Vec<ToolRequirement> {
+        vec![Oxlint::requirement()]
+    }
+
+    async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+        match drive(context).await {
+            Ok(outcome) => outcome,
+            Err(error) => Outcome::Errored {
+                source: Box::new(error),
+            },
+        }
+    }
+}
+
+/// Runs the action against the project of the context
+///
+/// The run resolves oxlint, lints the project with it, and turns the report
+/// into an outcome. An error that this function returns stops the run, and the
+/// caller reports it in the outcome.
+///
+/// # Errors
+///
+/// Returns the error of the step that could not finish: the resolution of the
+/// tool, the oxlint run, or the reading of the report.
+async fn drive(context: &Context) -> Result<Outcome, LintTypeScriptError> {
+    let oxlint = Oxlint::resolve(context)
+        .await
+        .map_err(|source| LintTypeScriptError::UnresolvedTool { source })?;
+
+    let observation = oxlint.observe().await?;
+
+    if let Some(outcome) = guard(&observation) {
+        return Ok(outcome);
+    }
+
+    Ok(Outcome::Failed {
+        findings: findings(observation.problems(), context.root())?,
+        repairs: Vec::new(),
+    })
+}
+
+/// Returns the finding that reports one diagnostic of oxlint
+///
+/// The finding sits where the diagnostic belongs: at the place that oxlint
+/// marked, in a whole file, or in the project. The message comes from oxlint.
+/// A reader of a finding reads what the tool itself would have told them,
+/// including the severity that oxlint gave the diagnostic.
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// path of the diagnostic.
+///
+/// [foreign]: LintTypeScriptError::ForeignPath
+fn finding(problem: &OxlintProblem, root: &ProjectRoot) -> Result<Finding, LintTypeScriptError> {
+    let location = match problem.place() {
+        Place::Project => Location::Project,
+        Place::File { path } => Location::File {
+            path: relative_path(path, root)?,
+        },
+        Place::Position { path, position } => Location::Position {
+            path: relative_path(path, root)?,
+            position: *position,
+        },
+    };
+
+    Ok(Finding::builder()
+        .message(problem.message())
+        .location(location)
+        .build())
+}
+
+/// Returns the findings that report the given diagnostics
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// path of a diagnostic.
+///
+/// [foreign]: LintTypeScriptError::ForeignPath
+fn findings(
+    problems: &[OxlintProblem],
+    root: &ProjectRoot,
+) -> Result<Vec<Finding>, LintTypeScriptError> {
+    problems
+        .iter()
+        .map(|problem| finding(problem, root))
+        .collect()
+}
+
+/// Returns what a run reports when it cannot answer from its findings
+///
+/// Two answers of oxlint end a run before its findings matter. A run that
+/// examined no file found no TypeScript to lint, which is not a clean project
+/// but an action that does not apply. A run that examined files and reported no
+/// diagnostic found a clean project, and it says how many files it examined for
+/// that answer.
+///
+/// Returns `None` when the caller reports what the run found.
+fn guard(observation: &Observation) -> Option<Outcome> {
+    if observation.examined() == 0 {
+        return Some(Outcome::Skipped {
+            reason: SkipReason::new(NOTHING_TO_EXAMINE),
+        });
+    }
+
+    if !observation.problems().is_empty() {
+        return None;
+    }
+
+    Some(Outcome::Passed {
+        summary: Some(summary(observation.examined())),
+    })
+}
+
+/// Returns the path of a file that oxlint reported, relative to the project
+/// root
+///
+/// A run starts oxlint in the project root and names the root as the place to
+/// look. So oxlint reports a path relative to the root. The answer drops a root
+/// that the path starts with.
+///
+/// # Errors
+///
+/// Returns [`ForeignPath`][foreign] when the project root does not contain the
+/// file.
+///
+/// [foreign]: LintTypeScriptError::ForeignPath
+fn relative_path(path: &Path, root: &ProjectRoot) -> Result<FilePath, LintTypeScriptError> {
+    FilePath::within()
+        .path(path)
+        .root(root)
+        .call()
+        .ok_or_else(|| LintTypeScriptError::ForeignPath {
+            path: path.to_path_buf(),
+        })
+}
+
+/// Returns the summary of a run that found no problem
+///
+/// The summary names how many files oxlint examined, so that a reader can
+/// question a pass that examined less than they expect. The configuration of a
+/// project can ignore a file that the reader believes is checked, and the count
+/// is where that shows.
+fn summary(examined: usize) -> Summary {
+    if examined == 1 {
+        Summary::new("checked 1 file")
+    } else {
+        Summary::new(format!("checked {examined} files"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::missing_panics_doc,
+        reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
+    )]
+
+    use rakko::Position;
+    use rakko_test_utils::path;
+
+    use super::*;
+    use crate::problem::Severity;
+
+    /// Returns a context whose root names no project, because a declaration
+    /// of access reads no file
+    fn context() -> Context {
+        Context::builder().root("/tmp/project").build()
+    }
+
+    /// Returns a diagnostic of the given severity in a file of the project
+    fn problem(severity: Severity) -> OxlintProblem {
+        OxlintProblem::builder()
+            .place(Place::Position {
+                path: path("src/index.ts"),
+                position: Position::builder().line(2).column(3).build(),
+            })
+            .severity(severity)
+            .code("eslint(no-debugger)")
+            .description("`debugger` statement is not allowed")
+            .help("Remove the debugger statement")
+            .build()
+    }
+
+    /// Returns a diagnostic without a rule, at the given place
+    fn problem_at(place: Place) -> OxlintProblem {
+        OxlintProblem::builder()
+            .place(place)
+            .severity(Severity::Error)
+            .description("There are suppressions that do not occur anymore.")
+            .help("Run `oxlint --prune-suppressions` to remove unused suppressions.")
+            .build()
+    }
+
+    /// The root that the diagnostics of a test belong to
+    fn root() -> ProjectRoot {
+        ProjectRoot::new(path("/home/otter/project"))
+    }
+
+    #[test]
+    fn access_is_read() {
+        let access = LintTypeScript.access(&context(), &());
+
+        assert_eq!(access, Access::Read);
+    }
+
+    #[test]
+    fn finding_of_a_diagnostic_carries_the_message_of_oxlint() {
+        let finding = finding(&problem(Severity::Error), &root()).unwrap();
+
+        assert_eq!(
+            finding.message().get(),
+            "[error] eslint(no-debugger): `debugger` statement is not allowed \
+             help: Remove the debugger statement"
+        );
+    }
+
+    #[test]
+    fn finding_of_a_diagnostic_sits_at_the_position_of_oxlint() {
+        let finding = finding(&problem(Severity::Error), &root()).unwrap();
+
+        assert_eq!(
+            finding.location(),
+            &Location::Position {
+                path: "src/index.ts".parse().unwrap(),
+                position: Position::builder().line(2).column(3).build(),
+            }
+        );
+    }
+
+    #[test]
+    fn finding_of_a_file_outside_the_project_reports_the_path() {
+        let problem = problem_at(Place::File {
+            path: path("/elsewhere/index.ts"),
+        });
+
+        let result = finding(&problem, &root());
+
+        assert!(
+            matches!(result, Err(LintTypeScriptError::ForeignPath { .. })),
+            "expected the path to stop the run, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn finding_of_a_path_outside_the_project_reports_the_path() {
+        let problem = OxlintProblem::builder()
+            .place(Place::Position {
+                path: path("/elsewhere/index.ts"),
+                position: Position::builder().line(1).column(1).build(),
+            })
+            .severity(Severity::Warning)
+            .code("eslint(no-var)")
+            .description("Unexpected var, use let or const instead")
+            .build();
+
+        let result = finding(&problem, &root());
+
+        assert!(
+            matches!(result, Err(LintTypeScriptError::ForeignPath { .. })),
+            "expected the path to stop the run, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn finding_of_a_problem_of_a_file_belongs_to_the_file() {
+        let problem = problem_at(Place::File {
+            path: path("src/index.ts"),
+        });
+
+        let finding = finding(&problem, &root()).unwrap();
+
+        assert_eq!(
+            finding.location(),
+            &Location::File {
+                path: "src/index.ts".parse().unwrap(),
+            }
+        );
+    }
+
+    #[test]
+    fn finding_of_a_problem_of_the_project_belongs_to_the_project() {
+        let finding = finding(&problem_at(Place::Project), &root()).unwrap();
+
+        assert_eq!(finding.location(), &Location::Project);
+    }
+
+    #[test]
+    fn finding_of_a_warning_names_the_warning_severity() {
+        let finding = finding(&problem(Severity::Warning), &root()).unwrap();
+
+        assert_eq!(
+            finding.message().get(),
+            "[warning] eslint(no-debugger): `debugger` statement is not allowed \
+             help: Remove the debugger statement"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_clean_run_passes() {
+        let outcome = guard(&Observation::builder().examined(3).build());
+
+        assert!(
+            matches!(outcome, Some(Outcome::Passed { .. })),
+            "expected the run to pass, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_clean_run_says_how_many_files_oxlint_examined() {
+        let outcome = guard(&Observation::builder().examined(3).build());
+
+        let Some(Outcome::Passed { summary: Some(it) }) = outcome else {
+            panic!("expected a summary, got {outcome:?}");
+        };
+        assert_eq!(it.get(), "checked 3 files");
+    }
+
+    #[test]
+    fn guard_of_a_run_that_examined_nothing_names_the_tool() {
+        let outcome = guard(&Observation::builder().build());
+
+        let Some(Outcome::Skipped { reason }) = outcome else {
+            panic!("expected the run to skip, got {outcome:?}");
+        };
+        assert!(
+            reason.get().contains("oxlint"),
+            "expected the reason to name the tool, got {reason:?}"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_run_that_examined_nothing_skips() {
+        let outcome = guard(&Observation::builder().build());
+
+        assert!(
+            matches!(outcome, Some(Outcome::Skipped { .. })),
+            "expected the run to skip, got {outcome:?}"
+        );
+    }
+
+    #[test]
+    fn guard_of_a_run_that_reported_a_warning_reports_nothing() {
+        let observation = Observation::builder()
+            .problems(vec![problem(Severity::Warning)])
+            .examined(3)
+            .build();
+
+        let outcome = guard(&observation);
+
+        assert!(outcome.is_none(), "expected no outcome, got {outcome:?}");
+    }
+
+    #[test]
+    fn lint_type_script_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
+
+        assert_send_sync_and_unpin::<LintTypeScript>();
+    }
+
+    #[test]
+    fn relative_path_that_arrived_absolute_drops_the_root() {
+        let relative = relative_path(&path("/home/otter/project/src/index.ts"), &root());
+
+        assert_eq!(relative.ok(), FilePath::try_from(path("src/index.ts")).ok());
+    }
+
+    #[test]
+    fn relative_path_that_arrived_relative_names_the_file() {
+        let relative = relative_path(&path("src/index.ts"), &root());
+
+        assert_eq!(relative.ok(), FilePath::try_from(path("src/index.ts")).ok());
+    }
+
+    #[test]
+    fn summary_of_a_single_file_names_it_in_the_singular() {
+        let summary = summary(1);
+
+        assert_eq!(summary.get(), "checked 1 file");
+    }
+
+    #[test]
+    fn tools_declare_the_oxlint_of_the_crate() {
+        let tools = LintTypeScript.tools();
+
+        assert_eq!(tools, vec![Oxlint::requirement()]);
+    }
+}
