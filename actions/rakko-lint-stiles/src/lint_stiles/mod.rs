@@ -19,12 +19,14 @@ use crate::observation::Examination;
 use crate::problem::StilesProblem;
 use crate::stiles::Stiles;
 
-/// The reason of a run whose stiles lists no rule that the project runs
+/// The message of a run whose stiles lists no rule that the project runs
 ///
 /// Stiles ships no rule of its own, so a project without a configuration of
 /// stiles, or with one that names no lint, runs no rule. A check of such a
 /// project passes whatever the code holds, which says nothing about the code.
-const NO_RULES: &str = "stiles lists no rule that the project runs";
+/// The project therefore fails, and the message names the file that fixes it.
+const NO_RULES: &str = "stiles lists no rule that the project runs, so name the lints of the \
+                        project in `.config/stiles.toml`";
 
 /// The reason of a run whose stiles found no file to check
 ///
@@ -57,13 +59,13 @@ const NOTHING_TO_CHECK: &str = "stiles found no file to check";
 /// stay quiet turns that rule off.
 /// A note and a help fail no run, as in stiles itself.
 ///
-/// The action applies to a project that runs stiles rules, and it skips
-/// visibly otherwise.
+/// Every project that mounts the action is meant to run stiles rules.
 /// Before it checks the project, a run asks stiles to list the rules that the
 /// configuration turns on.
-/// It skips when that list is empty, because stiles checks such a project with
-/// no rule at all.
-/// It also skips when stiles finds no file to check.
+/// It fails when that list is empty, because stiles checks such a project with
+/// no rule at all, and a check with no rule passes whatever the code holds.
+/// The finding belongs to the project and names `.config/stiles.toml`.
+/// It skips when stiles finds no file to check.
 /// A run stops with an error when mise reports no stiles at the declared
 /// version.
 /// It stops when stiles stops before checking the whole project.
@@ -135,8 +137,9 @@ async fn drive(context: &Context) -> Result<Outcome, LintStilesError> {
     let rules = stiles.enabled_rules().await?;
 
     if rules.is_empty() {
-        return Ok(Outcome::Skipped {
-            reason: SkipReason::new(NO_RULES),
+        return Ok(Outcome::Failed {
+            findings: vec![no_rules()],
+            repairs: Vec::new(),
         });
     }
 
@@ -167,6 +170,17 @@ async fn drive(context: &Context) -> Result<Outcome, LintStilesError> {
         findings: findings(&failing, context.root())?,
         repairs: Vec::new(),
     })
+}
+
+/// Returns the finding of a project whose stiles lists no rule
+///
+/// The finding belongs to the project and to no file in it, because the
+/// missing configuration is the problem and not a line of code.
+fn no_rules() -> Finding {
+    Finding::builder()
+        .message(NO_RULES)
+        .location(Location::Project)
+        .build()
 }
 
 /// Returns the finding that reports one diagnostic of stiles
@@ -312,6 +326,20 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<LintStiles>();
+    }
+
+    #[test]
+    fn no_rules_belongs_to_the_project() {
+        let finding = no_rules();
+
+        assert_eq!(finding.location(), &Location::Project);
+    }
+
+    #[test]
+    fn no_rules_names_the_configuration_of_stiles() {
+        let finding = no_rules();
+
+        assert!(finding.message().get().contains(".config/stiles.toml"));
     }
 
     #[test]

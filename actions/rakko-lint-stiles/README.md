@@ -16,8 +16,10 @@ Stiles ships no rule of its own. A project names the lints it runs in
 `.config/stiles.toml`, and those rules are all that a check applies.
 
 The action therefore first asks stiles to list the rules that the project runs.
-It skips visibly when stiles lists none, because a check with no rule passes
-whatever the code holds. It skips as well when stiles finds no file to check.
+It fails when stiles lists none, because a check with no rule passes whatever
+the code holds, and every project that mounts the action is meant to run
+stiles rules. The finding names `.config/stiles.toml`, the file that fixes it.
+It skips when stiles finds no file to check.
 
 A run only reports, so the action takes no argument.
 
