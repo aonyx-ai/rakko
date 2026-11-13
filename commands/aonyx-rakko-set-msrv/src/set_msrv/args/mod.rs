@@ -36,8 +36,8 @@ const PARTS: usize = 3;
 /// # Examples
 ///
 /// ```
+/// use aonyx_rakko_set_msrv::{Msrv, SetMsrvArgs};
 /// use rakko::{Args, ArgsValues, ArgumentValue, argument_name};
-/// use rakko_set_msrv::{Msrv, SetMsrvArgs};
 ///
 /// let values = ArgsValues::new([
 ///     (argument_name!("msrv"), ArgumentValue::new("1.89.0")),

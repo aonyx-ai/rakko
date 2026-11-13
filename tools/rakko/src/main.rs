@@ -43,11 +43,11 @@ use aonyx_rakko_lint_markdown::LintMarkdown;
 use aonyx_rakko_lint_rust::LintRust;
 use aonyx_rakko_lint_stiles::LintStiles;
 use aonyx_rakko_lint_yaml::LintYaml;
+use aonyx_rakko_pre_commit::PreCommit;
+use aonyx_rakko_set_msrv::SetMsrv;
 use aonyx_rakko_test_rust::TestRust;
 use aonyx_rakko_test_rust_docs::TestRustDocs;
 use rakko::Bundle;
-use rakko_pre_commit::PreCommit;
-use rakko_set_msrv::SetMsrv;
 
 use self::build_site::BuildSite;
 

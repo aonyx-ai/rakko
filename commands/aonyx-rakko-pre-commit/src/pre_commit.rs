@@ -26,8 +26,8 @@ use rakko::{Documented, ErasedAction, Group, Name, action_name};
 /// # Examples
 ///
 /// ```
+/// use aonyx_rakko_pre_commit::PreCommit;
 /// use rakko::Group;
-/// use rakko_pre_commit::PreCommit;
 ///
 /// let group = PreCommit::new([]);
 /// assert_eq!(group.name().get(), "pre-commit");
@@ -62,9 +62,9 @@ impl PreCommit {
     /// # Examples
     ///
     /// ```
+    /// use aonyx_rakko_pre_commit::PreCommit;
     /// use rakko::Bundle;
     /// # use rakko::Documented;
-    /// use rakko_pre_commit::PreCommit;
     /// # use rakko::{Action, Context, Group, Name, Outcome, action_name};
     /// # /// Formats the TOML files of a project
     /// # #[derive(Documented)]

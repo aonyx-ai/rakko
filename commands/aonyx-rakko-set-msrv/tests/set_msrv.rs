@@ -26,6 +26,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use aonyx_rakko_set_msrv::{SetMsrv, SetMsrvArgs, SetMsrvError};
 use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Documented, Name, Outcome, SkipReason,
     action_name, argument_name,
@@ -35,7 +36,6 @@ use rakko_cli::clawless::CommandResult;
 use rakko_cli::clawless::context::Context as ClawlessContext;
 use rakko_cli::clawless::event::{Event, event_channel};
 use rakko_cli::clawless::prelude::Output;
-use rakko_set_msrv::{SetMsrv, SetMsrvArgs, SetMsrvError};
 use tempfile::TempDir;
 use toml_edit::DocumentMut;
 

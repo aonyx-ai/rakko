@@ -57,13 +57,13 @@ mise run rakko -- build-site
 
 ### `pre-commit`
 
-The command comes from [`rakko-pre-commit`][rakko-pre-commit]. It runs the
-actions that guard a commit. `src/main.rs` names them in one list, and the
-command runs the actions that write before the actions that read. The command
-takes its flags from these actions, so `--fix` reaches the formatters, which
-declare it, and no other action. With `--fix`, the formatters write, so they
-run first, in the order of the list, and the checks then read what they wrote.
-The README of the crate describes what a run does and when it fails.
+The command comes from [`aonyx-rakko-pre-commit`][aonyx-rakko-pre-commit]. It
+runs the actions that guard a commit. `src/main.rs` gives them in one list, and
+the command runs the actions that write before the actions that read. The
+command takes its flags from these actions, so `--fix` reaches the formatters,
+which declare it, and no other action. With `--fix`, the formatters write, so
+they run first, in the order of the list, and the checks then read what they
+wrote. The README of the crate describes what a run does and when it fails.
 
 ```console
 mise run rakko -- pre-commit --fix
@@ -75,9 +75,9 @@ commit has to repair, and it changes nothing.
 
 ### `set-msrv`
 
-The command comes from [`rakko-set-msrv`][rakko-set-msrv]. It sets the
-minimum supported Rust version of the repository in the three places that
-must agree: the root `Cargo.toml`, the Rust pin in `mise.toml`, and
+The command comes from [`aonyx-rakko-set-msrv`][aonyx-rakko-set-msrv]. It sets
+the minimum supported Rust version of the repository in three places. These
+places must agree: the root `Cargo.toml`, the Rust pin in `mise.toml`, and
 `mise.lock`. The reason replaces the comment above `rust-version`.
 
 ```console
@@ -95,5 +95,5 @@ dependencies on its own and carries its own `Cargo.lock`. The binary is named
 `rakko`, and the package is named `harness`, because a package that depends on
 the `rakko` crate cannot carry that name as well.
 
-[rakko-pre-commit]: ../../commands/rakko-pre-commit/README.md
-[rakko-set-msrv]: ../../commands/rakko-set-msrv/README.md
+[aonyx-rakko-pre-commit]: ../../commands/aonyx-rakko-pre-commit/README.md
+[aonyx-rakko-set-msrv]: ../../commands/aonyx-rakko-set-msrv/README.md

@@ -448,6 +448,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-pre-commit"
+version = "0.1.0"
+dependencies = [
+ "rakko",
+]
+
+[[package]]
 name = "aonyx-rakko-prettier"
 version = "0.1.0"
 dependencies = [
@@ -494,6 +501,22 @@ dependencies = [
  "aonyx-rakko-rust",
  "aonyx-rakko-test-rust-docs",
  "rakko",
+]
+
+[[package]]
+name = "aonyx-rakko-set-msrv"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-cli",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "toml_edit",
+ "typed-fields",
 ]
 
 [[package]]
@@ -1193,29 +1216,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.10",
-]
-
-[[package]]
-name = "rakko-pre-commit"
-version = "0.1.0"
-dependencies = [
- "rakko",
-]
-
-[[package]]
-name = "rakko-set-msrv"
-version = "0.1.0"
-dependencies = [
- "bon",
- "getset",
- "rakko",
- "rakko-cli",
- "rakko-tool",
- "tempfile",
- "thiserror",
- "tokio",
- "toml_edit",
- "typed-fields",
 ]
 
 [[package]]

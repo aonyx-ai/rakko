@@ -1,5 +1,5 @@
 [package]
-name = "rakko-pre-commit"
+name = "aonyx-rakko-pre-commit"
 version = "0.1.0"
 description = "A Rakko command that runs the actions that guard a commit"
 edition.workspace = true

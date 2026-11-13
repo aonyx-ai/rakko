@@ -1,11 +1,11 @@
-# Rakko Pre-Commit
+# Aonyx Rakko Pre-Commit
 
-`rakko-pre-commit` provides the `pre-commit` command, which runs the actions
-that guard a commit. A harness gives the command one list of these actions, in
-any order. The harness selects the actions, and the command line of the
-harness orders and drives them. The harness therefore contains no loop over
-actions, no code that reports them, and no split into the actions that write
-and the actions that read.
+`aonyx-rakko-pre-commit` provides the `pre-commit` command, which runs the
+actions that guard a commit. A harness gives the command one list of these
+actions, in any order. The harness selects the actions, and the command line of
+the harness orders and runs them. So the harness contains no loop over actions
+and no code that reports them. It also does not split the actions into the
+actions that write and the actions that read.
 
 The command is a group, and the actions in its list are its members. The
 group is a name and this list, and nothing else. The command line of the
@@ -14,17 +14,16 @@ it runs the members. So the command defines no flag of its own.
 
 ## Usage
 
-Add `rakko-pre-commit` to the harness of the project. Then let the `main` of
-the harness give the command its list. A `Bundle` of the `rakko` crate holds
+Add `aonyx-rakko-pre-commit` to the harness of the project. Then let the `main`
+of the harness give the command its list. A `Bundle` of the `rakko` crate holds
 the list, and the harness adds each action to it as it is. So the harness
-depends on `rakko` as well. Mount the command
-beside the actions, as it is:
+depends on `rakko` as well. Mount the command beside the actions, as it is:
 
 ```rust
 use aonyx_rakko_format_toml::FormatToml;
 use aonyx_rakko_lint_toml::LintToml;
+use aonyx_rakko_pre_commit::PreCommit;
 use rakko::Bundle;
-use rakko_pre_commit::PreCommit;
 
 let pre_commit = PreCommit::new(
     Bundle::default()
@@ -140,6 +139,6 @@ This command was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
-[docs]: https://docs.rs/rakko-pre-commit/latest/rakko_pre_commit/struct.PreCommit.html
+[docs]: https://docs.rs/aonyx-rakko-pre-commit/latest/aonyx_rakko_pre_commit/struct.PreCommit.html
 [guide]: https://github.com/aonyx-ai/rakko#support
 [pre-commit]: https://pre-commit.com

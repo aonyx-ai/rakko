@@ -1,6 +1,6 @@
-# Rakko Set MSRV
+# Aonyx Rakko Set MSRV
 
-`rakko-set-msrv` provides the `set-msrv` command, which sets the minimum
+`aonyx-rakko-set-msrv` provides the `set-msrv` command, which sets the minimum
 supported Rust version (MSRV) of a project. Three places state that version,
 and all three must agree: the `rust-version` of the root `Cargo.toml`, the
 Rust pin in `mise.toml` that check-msrv runs the compiler on, and the entry of
@@ -9,14 +9,14 @@ the new toolchain, and checks the code on it.
 
 ## Usage
 
-Add `rakko-set-msrv` to the harness of the project, and mount the command
-beside the actions. The harness gives the command the check that compiles the
-code on the new version, usually the check-msrv action, so the harness depends
-on `aonyx-rakko-check-msrv` as well:
+Add `aonyx-rakko-set-msrv` to the harness of the project. Then mount the
+command beside the actions. The harness gives the command the check that
+compiles the code on the new version, usually the check-msrv action, so the
+harness depends on `aonyx-rakko-check-msrv` as well:
 
 ```rust
 use aonyx_rakko_check_msrv::CheckMsrv;
-use rakko_set_msrv::SetMsrv;
+use aonyx_rakko_set_msrv::SetMsrv;
 
 rakko_cli::builder()
     .mount(aonyx_rakko_rust_library::bundle())
@@ -88,5 +88,5 @@ This command was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
-[docs]: https://docs.rs/rakko-set-msrv/latest/rakko_set_msrv/struct.SetMsrv.html
+[docs]: https://docs.rs/aonyx-rakko-set-msrv/latest/aonyx_rakko_set_msrv/struct.SetMsrv.html
 [guide]: https://github.com/aonyx-ai/rakko#support

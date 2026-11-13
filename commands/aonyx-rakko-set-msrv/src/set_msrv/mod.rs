@@ -61,10 +61,10 @@ const NO_DIAGNOSIS: &str = "mise wrote nothing about it";
 /// # Examples
 ///
 /// ```
+/// use aonyx_rakko_set_msrv::SetMsrv;
 /// use rakko::action_name;
 /// # use rakko::Documented;
 /// use rakko_cli::Command;
-/// use rakko_set_msrv::SetMsrv;
 ///
 /// # /// Checks a project against the Rust version it promises
 /// # #[derive(Documented)]
@@ -99,7 +99,7 @@ impl SetMsrv {
     /// # Examples
     ///
     /// ```
-    /// use rakko_set_msrv::SetMsrv;
+    /// use aonyx_rakko_set_msrv::SetMsrv;
     /// # use rakko::{Action, Context, Documented, Name, Outcome, action_name};
     /// # /// Checks a project against the Rust version it promises
     /// # #[derive(Documented)]
