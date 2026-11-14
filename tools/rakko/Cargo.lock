@@ -343,6 +343,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-lint-shell"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-shfmt",
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "aonyx-rakko-lint-stiles"
 version = "0.1.0"
 dependencies = [
@@ -991,6 +1005,7 @@ dependencies = [
  "aonyx-rakko-lint-github-actions",
  "aonyx-rakko-lint-markdown",
  "aonyx-rakko-lint-rust",
+ "aonyx-rakko-lint-shell",
  "aonyx-rakko-lint-stiles",
  "aonyx-rakko-lint-yaml",
  "aonyx-rakko-pre-commit",

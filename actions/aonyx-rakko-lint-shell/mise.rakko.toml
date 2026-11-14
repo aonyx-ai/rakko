@@ -1,0 +1,6 @@
+# This file pins the version of ShellCheck that the action of this crate runs.
+# The crate embeds the file when it compiles, so the pin and the code that
+# reads the reports of ShellCheck change together. Mise reads the file only
+# with `MISE_ENV=rakko`.
+[tools]
+shellcheck = "0.11.0"
