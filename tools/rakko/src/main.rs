@@ -36,6 +36,7 @@ use aonyx_rakko_check_msrv::CheckMsrv;
 use aonyx_rakko_format_json::FormatJson;
 use aonyx_rakko_format_markdown::FormatMarkdown;
 use aonyx_rakko_format_rust::FormatRust;
+use aonyx_rakko_format_terraform::FormatTerraform;
 use aonyx_rakko_format_toml::FormatToml;
 use aonyx_rakko_format_yaml::FormatYaml;
 use aonyx_rakko_lint_github_actions::LintGitHubActions;
@@ -60,6 +61,7 @@ fn main() -> std::process::ExitCode {
         .mount(aonyx_rakko_rust_library::bundle())
         .mount(aonyx_rakko_typescript::bundle())
         .mount(aonyx_rakko_shell::bundle())
+        .mount(FormatTerraform)
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)
         .mount(pre_commit)
