@@ -8,14 +8,15 @@
 //! `build-site`, serves only this repository, so it lives in this package.
 //!
 //! The harness also mounts bundles that find nothing to do here, such as the
-//! bundles for TypeScript and for shell scripts. Each action pins the tools
-//! that it runs, and `doctor --fix` writes the pins of the mounted actions
-//! into the generated mise file, `.config/mise/conf.d/rakko.toml`. This repository holds the
-//! tests of every action, and those tests run the tools at their pinned
-//! versions. So the mounts make mise install every declared tool that a test
-//! needs. The root `mise.toml` supplies the toolchains. Each mounted action is
-//! also a job of CI. So the job of a TypeScript action installs the tools, and
-//! then the action skips.
+//! bundles for TypeScript, for shell scripts, and for Terraform. Each action
+//! pins the tools that it runs, and `doctor --fix` writes the pins of the
+//! mounted actions into the generated mise file,
+//! `.config/mise/conf.d/rakko.toml`. This repository holds the tests of every
+//! action, and those tests run the tools at their pinned versions. So the
+//! mounts make mise install every declared tool that a test needs. The root
+//! `mise.toml` supplies the toolchains. Each mounted action is also a job of
+//! CI. So the job of a TypeScript action installs the tools, and then the
+//! action skips.
 //!
 //! It also mounts commands, for a maintenance activity that no single action
 //! describes. A command comes from a crate, and this file mounts it. When a
@@ -36,14 +37,12 @@ use aonyx_rakko_check_msrv::CheckMsrv;
 use aonyx_rakko_format_json::FormatJson;
 use aonyx_rakko_format_markdown::FormatMarkdown;
 use aonyx_rakko_format_rust::FormatRust;
-use aonyx_rakko_format_terraform::FormatTerraform;
 use aonyx_rakko_format_toml::FormatToml;
 use aonyx_rakko_format_yaml::FormatYaml;
 use aonyx_rakko_lint_github_actions::LintGitHubActions;
 use aonyx_rakko_lint_markdown::LintMarkdown;
 use aonyx_rakko_lint_rust::LintRust;
 use aonyx_rakko_lint_stiles::LintStiles;
-use aonyx_rakko_lint_terraform::LintTerraform;
 use aonyx_rakko_lint_yaml::LintYaml;
 use aonyx_rakko_pre_commit::PreCommit;
 use aonyx_rakko_set_msrv::SetMsrv;
@@ -62,8 +61,7 @@ fn main() -> std::process::ExitCode {
         .mount(aonyx_rakko_rust_library::bundle())
         .mount(aonyx_rakko_typescript::bundle())
         .mount(aonyx_rakko_shell::bundle())
-        .mount(FormatTerraform)
-        .mount(LintTerraform)
+        .mount(aonyx_rakko_terraform::bundle())
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)
         .mount(pre_commit)

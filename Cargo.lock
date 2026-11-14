@@ -646,6 +646,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-terraform"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-format-terraform",
+ "aonyx-rakko-lint-terraform",
+ "rakko",
+]
+
+[[package]]
 name = "aonyx-rakko-test-rust"
 version = "0.1.0"
 dependencies = [

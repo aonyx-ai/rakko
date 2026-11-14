@@ -1,0 +1,16 @@
+[package]
+name = "aonyx-rakko-terraform"
+version = "0.1.0"
+description = "The Rakko bundle that any project with Terraform mounts"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-format-terraform = { path = "../../actions/aonyx-rakko-format-terraform", version = "0.1.0" }
+aonyx-rakko-lint-terraform = { path = "../../actions/aonyx-rakko-lint-terraform", version = "0.1.0" }
+rakko = { workspace = true }
+
+[lints]
+workspace = true
