@@ -29,6 +29,7 @@ aonyx-rakko-lint-rust = { path = "actions/aonyx-rakko-lint-rust", version = "0.1
 aonyx-rakko-nextest = { path = "crates/aonyx-rakko-nextest", version = "0.1.0" }
 aonyx-rakko-prettier = { path = "crates/aonyx-rakko-prettier", version = "0.1.0" }
 aonyx-rakko-rust = { path = "bundles/aonyx-rakko-rust", version = "0.1.0" }
+aonyx-rakko-shfmt = { path = "crates/aonyx-rakko-shfmt", version = "0.1.0" }
 aonyx-rakko-taplo = { path = "crates/aonyx-rakko-taplo", version = "0.1.0" }
 aonyx-rakko-test-rust = { path = "actions/aonyx-rakko-test-rust", version = "0.1.0" }
 aonyx-rakko-worktree = { path = "crates/aonyx-rakko-worktree", version = "0.1.0" }

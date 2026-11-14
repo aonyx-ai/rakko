@@ -17,6 +17,7 @@ aonyx-rakko-check-msrv = { path = "../../actions/aonyx-rakko-check-msrv" }
 aonyx-rakko-format-json = { path = "../../actions/aonyx-rakko-format-json" }
 aonyx-rakko-format-markdown = { path = "../../actions/aonyx-rakko-format-markdown" }
 aonyx-rakko-format-rust = { path = "../../actions/aonyx-rakko-format-rust" }
+aonyx-rakko-format-shell = { path = "../../actions/aonyx-rakko-format-shell" }
 aonyx-rakko-format-toml = { path = "../../actions/aonyx-rakko-format-toml" }
 aonyx-rakko-format-yaml = { path = "../../actions/aonyx-rakko-format-yaml" }
 aonyx-rakko-lint-github-actions = { path = "../../actions/aonyx-rakko-lint-github-actions" }

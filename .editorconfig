@@ -26,3 +26,8 @@ max_line_length = 72
 
 [*.cmd]
 end_of_line = crlf
+
+# Mise writes these stubs without a final newline, and it recognizes a stub of
+# its own by its exact content. Shfmt reads `ignore` and leaves them alone.
+[bin/{install-toolchains,rakko}]
+ignore = true

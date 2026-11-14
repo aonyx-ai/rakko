@@ -259,6 +259,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-format-shell"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-shfmt",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
 name = "aonyx-rakko-format-toml"
 version = "0.1.0"
 dependencies = [
@@ -453,6 +464,17 @@ dependencies = [
  "tokio",
  "toml_edit",
  "typed-fields",
+]
+
+[[package]]
+name = "aonyx-rakko-shfmt"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
 ]
 
 [[package]]
@@ -963,6 +985,7 @@ dependencies = [
  "aonyx-rakko-format-json",
  "aonyx-rakko-format-markdown",
  "aonyx-rakko-format-rust",
+ "aonyx-rakko-format-shell",
  "aonyx-rakko-format-toml",
  "aonyx-rakko-format-yaml",
  "aonyx-rakko-lint-github-actions",
