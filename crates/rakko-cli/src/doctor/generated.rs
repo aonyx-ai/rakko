@@ -8,7 +8,7 @@ use rakko::{
     FilePath, Finding, Location, MiseTool, Platform, ProjectRoot, RequiredVersion, ToolRequirement,
     ToolVersion,
 };
-use toml_edit::{Array, DocumentMut, InlineTable, Item, Table, Value};
+use toml_edit::{Array, ArrayOfTables, DocumentMut, Item, Key, Table, Value};
 
 use super::check_error::CheckToolPinsError;
 use super::repair_error::RepairToolPinsError;
@@ -43,6 +43,17 @@ const VERSION: &str = "version";
 /// The key of the platforms in the table of a pin, which mise calls the `os`
 /// option
 const OS: &str = "os";
+
+/// The widest line of a list that taplo keeps on one line
+///
+/// This is the limit of the default settings of the formatter taplo. When the
+/// line of a list is wider, taplo puts each element on a line of its own.
+/// When a list fits, taplo puts it back on one line.
+const COLUMNS: usize = 80;
+
+/// The text before an element of a list that has each element on a line of
+/// its own
+const INDENT: &str = "\n  ";
 
 /// The comment at the top of the generated file
 ///
@@ -120,9 +131,10 @@ impl Pins {
     /// needs no file
     ///
     /// The tools, their versions, and their platforms are in a fixed order, so
-    /// the same declarations give the same file on every machine. A version
-    /// with platforms is a table with the `version` and the `os` keys, the
-    /// form that mise reads for a tool with options.
+    /// the same declarations give the same file on every machine. The layout
+    /// is the one that the formatter taplo gives with its default settings. So
+    /// a project that checks its TOML files with taplo and its default
+    /// settings accepts the file that `doctor --fix` writes.
     fn render(&self) -> Option<String> {
         if self.is_empty() {
             return None;
@@ -131,16 +143,7 @@ impl Pins {
         let mut tools = Table::new();
 
         for (tool, versions) in &self.0 {
-            let mut values = versions
-                .iter()
-                .map(|(version, platforms)| pin(version, platforms.as_ref()));
-
-            let value = match (values.next(), versions.len()) {
-                (Some(value), 1) => value,
-                (first, _) => Value::Array(first.into_iter().chain(values).collect::<Array>()),
-            };
-
-            tools.insert(tool.get(), Item::Value(value));
+            tools.insert(tool.get(), entry(tool, versions));
         }
 
         let mut document = DocumentMut::new();
@@ -148,6 +151,90 @@ impl Pins {
 
         Some(format!("{HEADER}\n{document}"))
     }
+}
+
+/// Returns the entry of one tool in the table of the tools
+///
+/// A tool whose versions have no platforms is a key of the table of the
+/// tools. Its value is a string for one version, and a list for more.
+///
+/// A tool with platforms for one of its versions gets a table of its own,
+/// such as `[tools.taplo]`. The table has the `version` and the `os` keys.
+/// Mise reads this form for a tool with options. More versions of such a tool
+/// get an array of tables, such as `[[tools.taplo]]`, with one table for each
+/// version. The tables come after the keys of the table of the tools,
+/// because TOML puts the keys of a table before its subtables.
+fn entry(tool: &MiseTool, versions: &BTreeMap<ToolVersion, Option<BTreeSet<Platform>>>) -> Item {
+    if versions.values().all(Option::is_none) {
+        let mut values = versions.keys().map(|version| Value::from(version.get()));
+
+        return match (values.next(), versions.len()) {
+            (Some(value), 1) => Item::Value(value),
+            (first, _) => Item::Value(Value::Array(list(
+                tool.get(),
+                first.into_iter().chain(values),
+            ))),
+        };
+    }
+
+    let mut tables = versions
+        .iter()
+        .map(|(version, platforms)| table(version, platforms.as_ref()));
+
+    match (tables.next(), versions.len()) {
+        (Some(table), 1) => Item::Table(table),
+        (first, _) => {
+            let mut array = ArrayOfTables::new();
+            first
+                .into_iter()
+                .chain(tables)
+                .for_each(|table| array.push(table));
+
+            Item::ArrayOfTables(array)
+        }
+    }
+}
+
+/// Returns the table of one pinned version in the generated file
+///
+/// The table holds the `os` option of mise only when the version has
+/// platforms. A blank line comes before the header of the table, so that the
+/// tables of the file stay apart.
+fn table(version: &ToolVersion, platforms: Option<&BTreeSet<Platform>>) -> Table {
+    let mut table = Table::new();
+    table.decor_mut().set_prefix("\n");
+    table.insert(VERSION, toml_edit::value(version.get()));
+
+    if let Some(platforms) = platforms {
+        let platforms = platforms
+            .iter()
+            .map(|platform| Value::from(platform.to_string()));
+        table.insert(OS, Item::Value(Value::Array(list(OS, platforms))));
+    }
+
+    table
+}
+
+/// Returns the list of the values of a key
+///
+/// The list is on one line when the line of the key fits in [`COLUMNS`].
+/// Otherwise, each value is on a line of its own, with a comma after the
+/// last value, as taplo writes a long list.
+fn list(key: &str, values: impl IntoIterator<Item = Value>) -> Array {
+    let mut array = values.into_iter().collect::<Array>();
+    let line = format!("{} = {array}", Key::new(key).display_repr());
+
+    if line.chars().count() > COLUMNS {
+        for value in array.iter_mut() {
+            value.decor_mut().set_prefix(INDENT);
+            value.decor_mut().set_suffix("");
+        }
+
+        array.set_trailing_comma(true);
+        array.set_trailing("\n");
+    }
+
+    array
 }
 
 /// Returns the platforms of a version that two actions pin
@@ -167,25 +254,6 @@ fn merge(
     }
 }
 
-/// Returns the value of one pinned version in the generated file
-///
-/// A version without platforms is a plain string. A version with platforms
-/// is a table that also holds the `os` option of mise.
-fn pin(version: &ToolVersion, platforms: Option<&BTreeSet<Platform>>) -> Value {
-    let Some(platforms) = platforms else {
-        return Value::from(version.get());
-    };
-
-    let mut table = InlineTable::new();
-    table.insert(VERSION, Value::from(version.get()));
-    table.insert(
-        OS,
-        Value::Array(platforms.iter().map(ToString::to_string).collect::<Array>()),
-    );
-
-    Value::InlineTable(table)
-}
-
 /// Returns the problem of the generated file, or `None` when the file
 /// matches the pins
 ///
@@ -195,7 +263,8 @@ fn pin(version: &ToolVersion, platforms: Option<&BTreeSet<Platform>>) -> Value {
 ///
 /// The check compares the values that the file holds, and not its text. A
 /// formatter of the project can change the layout of the file. For example,
-/// it can put each platform of a long pin on a line of its own. Git can check
+/// a formatter with settings other than its defaults can put each platform
+/// of a pin on a line of its own. Git can check
 /// the file out with the line endings of Windows. Neither change makes the
 /// file stale, so `doctor --fix` and the formatter do not undo each other. A
 /// file that is not TOML is stale.
@@ -373,15 +442,42 @@ mod tests {
             .build()
     }
 
-    /// Returns the last line of the generated file of the requirements
+    /// Returns the generated file of the requirements, without its header
+    ///
+    /// The tests of the layout compare the file with the text that taplo
+    /// 0.10.0 leaves unchanged with its default settings, which
+    /// `taplo fmt --check` confirmed by hand. No test runs taplo, because this
+    /// crate pins no version of it.
     fn rendered(requirements: &[ToolRequirement]) -> String {
         Pins::of(requirements)
             .render()
             .expect("the pins give a file")
-            .lines()
-            .last()
-            .expect("the file has lines")
+            .strip_prefix(HEADER)
+            .expect("the file starts with the header")
             .to_owned()
+    }
+
+    /// Returns a version of a tool, and the generated file of the tool at
+    /// 0.9.0 and at that version, without its header
+    ///
+    /// With the version, the line of the list of the two versions has as many
+    /// columns as the test gives. The file puts a key with a colon in
+    /// quotation marks, so the count includes them.
+    fn two_versions(tool: &str, columns: usize) -> (String, String) {
+        let key = if tool.contains(':') {
+            format!("\"{tool}\"")
+        } else {
+            tool.to_owned()
+        };
+        let line = format!("{key} = [\"0.9.0\", \"1.0.0-\"]").len();
+        let version = format!("1.0.0-{}", "a".repeat(columns - line));
+
+        let text = rendered(&[
+            exact().tool(tool).version("0.9.0").call(),
+            exact().tool(tool).version(&version).call(),
+        ]);
+
+        (version, text)
     }
 
     /// The platform of Linux, on every architecture
@@ -390,6 +486,17 @@ mod tests {
     /// The platform of macOS on ARM
     const MACOS_ARM64: Platform =
         Platform::new(OperatingSystem::Macos).with_architecture(Architecture::Arm64);
+
+    /// Every platform with an architecture, whose list is wider than the
+    /// columns that taplo allows
+    const EVERY_ARCHITECTURE: [Platform; 6] = [
+        Platform::new(OperatingSystem::Linux).with_architecture(Architecture::X64),
+        Platform::new(OperatingSystem::Linux).with_architecture(Architecture::Arm64),
+        Platform::new(OperatingSystem::Macos).with_architecture(Architecture::X64),
+        MACOS_ARM64,
+        Platform::new(OperatingSystem::Windows).with_architecture(Architecture::X64),
+        Platform::new(OperatingSystem::Windows).with_architecture(Architecture::Arm64),
+    ];
 
     /// Returns the requirement of a tool at an exact version
     #[bon::builder]
@@ -476,9 +583,9 @@ mod tests {
     /// Shows that a formatter of the project and `doctor --fix` do not undo
     /// each other
     ///
-    /// The pin of stiles is longer than 80 columns. `doctor --fix` writes it on
-    /// one line, and taplo with its default settings spreads its list of
-    /// platforms over several lines. The check must accept the file that the
+    /// `doctor --fix` writes the short list of platforms of stiles on one
+    /// line. A formatter with settings other than its defaults can spread the
+    /// list over several lines. The check must accept the file that the
     /// formatter left, or `doctor --fix` writes it again and the formatter
     /// changes it back.
     #[test]
@@ -498,8 +605,8 @@ mod tests {
         let path = directory.path().join(PATH);
         let written = std::fs::read_to_string(&path).expect("the test reads the written file");
         let wrapped = written.replace(
-            "os = [\"linux\", \"macos/arm64\"] }",
-            "os = [\n  \"linux\",\n  \"macos/arm64\",\n] }",
+            "os = [\"linux\", \"macos/arm64\"]\n",
+            "os = [\n  \"linux\",\n  \"macos/arm64\",\n]\n",
         );
         std::fs::write(&path, &wrapped).expect("the test writes the wrapped file");
 
@@ -556,6 +663,27 @@ mod tests {
         assert_eq!(problem.as_deref(), Some(STALE));
     }
 
+    /// Shows that a file of an earlier layout stays current
+    ///
+    /// Before the layout of taplo, `doctor --fix` wrote a pin with platforms
+    /// as an inline table. Such a file holds the same values as the table of
+    /// its own that the pin has now.
+    #[test]
+    fn check_with_a_pin_with_platforms_in_an_inline_table_finds_nothing() {
+        let pins = Pins::of(&[limited()
+            .tool("stiles")
+            .version("0.6.0")
+            .platforms(&[LINUX])
+            .call()]);
+
+        let problem = problem_of(
+            &pins,
+            Some("[tools]\nstiles = { version = \"0.6.0\", os = [\"linux\"] }\n"),
+        );
+
+        assert_eq!(problem, None);
+    }
+
     #[test]
     fn check_with_no_file_and_no_pins_finds_nothing() {
         let problem = problem_of(&Pins::default(), None);
@@ -592,8 +720,28 @@ mod tests {
     }
 
     #[test]
+    fn render_counts_the_quotation_marks_of_a_key_in_the_width_of_its_line() {
+        let (long, text) = two_versions("npm:taplo", 81);
+
+        assert_eq!(
+            text,
+            format!("\n[tools]\n\"npm:taplo\" = [\n  \"0.9.0\",\n  \"{long}\",\n]\n")
+        );
+    }
+
+    #[test]
+    fn render_keeps_a_list_of_80_columns_on_one_line() {
+        let (long, text) = two_versions("taplo", 80);
+
+        assert_eq!(
+            text,
+            format!("\n[tools]\ntaplo = [\"0.9.0\", \"{long}\"]\n")
+        );
+    }
+
+    #[test]
     fn render_merges_the_platforms_of_one_version() {
-        let line = rendered(&[
+        let text = rendered(&[
             limited()
                 .tool("stiles")
                 .version("0.6.0")
@@ -607,14 +755,14 @@ mod tests {
         ]);
 
         assert_eq!(
-            line,
-            "stiles = { version = \"0.6.0\", os = [\"linux\", \"macos/arm64\"] }"
+            text,
+            "\n[tools]\n\n[tools.stiles]\nversion = \"0.6.0\"\nos = [\"linux\", \"macos/arm64\"]\n"
         );
     }
 
     #[test]
     fn render_of_one_version_on_every_platform_and_on_some_lists_none() {
-        let line = rendered(&[
+        let text = rendered(&[
             limited()
                 .tool("stiles")
                 .version("0.6.0")
@@ -623,12 +771,12 @@ mod tests {
             exact().tool("stiles").version("0.6.0").call(),
         ]);
 
-        assert_eq!(line, "stiles = \"0.6.0\"");
+        assert_eq!(text, "\n[tools]\nstiles = \"0.6.0\"\n");
     }
 
     #[test]
     fn render_of_one_version_on_some_platforms_and_on_every_platform_lists_none() {
-        let line = rendered(&[
+        let text = rendered(&[
             exact().tool("stiles").version("0.6.0").call(),
             limited()
                 .tool("stiles")
@@ -637,20 +785,23 @@ mod tests {
                 .call(),
         ]);
 
-        assert_eq!(line, "stiles = \"0.6.0\"");
+        assert_eq!(text, "\n[tools]\nstiles = \"0.6.0\"\n");
     }
 
     #[test]
-    fn render_pins_a_tool_on_its_platforms_as_a_table() {
-        let line = rendered(&[limited()
-            .tool("stiles")
-            .version("0.6.0")
-            .platforms(&[MACOS_ARM64, LINUX])
-            .call()]);
+    fn render_pins_a_tool_on_its_platforms_as_a_table_after_the_plain_pins() {
+        let text = rendered(&[
+            limited()
+                .tool("github:aonyx-ai/stiles")
+                .version("stiles@0.6.0")
+                .platforms(&[MACOS_ARM64, LINUX])
+                .call(),
+            exact().tool("taplo").version("0.10.0").call(),
+        ]);
 
         assert_eq!(
-            line,
-            "stiles = { version = \"0.6.0\", os = [\"linux\", \"macos/arm64\"] }"
+            text,
+            "\n[tools]\ntaplo = \"0.10.0\"\n\n[tools.\"github:aonyx-ai/stiles\"]\nversion = \"stiles@0.6.0\"\nos = [\"linux\", \"macos/arm64\"]\n"
         );
     }
 
@@ -688,8 +839,8 @@ mod tests {
     }
 
     #[test]
-    fn render_pins_two_versions_with_and_without_platforms_as_an_array() {
-        let line = rendered(&[
+    fn render_pins_two_versions_with_and_without_platforms_as_an_array_of_tables() {
+        let text = rendered(&[
             limited()
                 .tool("taplo")
                 .version("0.9.0")
@@ -699,8 +850,32 @@ mod tests {
         ]);
 
         assert_eq!(
-            line,
-            "taplo = [\"0.10.0\", { version = \"0.9.0\", os = [\"linux\"] }]"
+            text,
+            "\n[tools]\n\n[[tools.taplo]]\nversion = \"0.10.0\"\n\n[[tools.taplo]]\nversion = \"0.9.0\"\nos = [\"linux\"]\n"
+        );
+    }
+
+    #[test]
+    fn render_spreads_a_list_of_81_columns() {
+        let (long, text) = two_versions("taplo", 81);
+
+        assert_eq!(
+            text,
+            format!("\n[tools]\ntaplo = [\n  \"0.9.0\",\n  \"{long}\",\n]\n")
+        );
+    }
+
+    #[test]
+    fn render_spreads_a_list_of_platforms_wider_than_80_columns() {
+        let text = rendered(&[limited()
+            .tool("stiles")
+            .version("0.6.0")
+            .platforms(&EVERY_ARCHITECTURE)
+            .call()]);
+
+        assert_eq!(
+            text,
+            "\n[tools]\n\n[tools.stiles]\nversion = \"0.6.0\"\nos = [\n  \"linux/x64\",\n  \"linux/arm64\",\n  \"macos/x64\",\n  \"macos/arm64\",\n  \"windows/x64\",\n  \"windows/arm64\",\n]\n"
         );
     }
 
