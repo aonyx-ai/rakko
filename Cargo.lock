@@ -323,6 +323,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-format-terraform"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-test-utils",
+ "rakko-tool",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "aonyx-rakko-format-toml"
 version = "0.1.0"
 dependencies = [

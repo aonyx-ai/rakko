@@ -82,6 +82,11 @@ python = "3.14.8"
 # TypeScript is a toolchain of this repository, like node. `check-typescript`
 # reads this pin, and it accepts TypeScript 5 and later.
 "npm:typescript" = "7.0.2"
+# Terraform is a toolchain of this repository, like node, because the
+# configuration of a project runs on it. `format-terraform` reads this pin,
+# and it accepts Terraform 1.0 and later. Nothing here holds Terraform files,
+# so the action passes here, and the pin exists for the tests of the action.
+terraform = "1.17.2"
 # Zola is a toolchain of this repository, like node, because it compiles the
 # templates and the pages of the website in `site/`. They are written for the
 # 0.23 releases of Zola. The action `build-site` of the harness reads this
