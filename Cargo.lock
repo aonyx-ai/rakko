@@ -413,6 +413,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-lint-shell"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-shfmt",
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-test-utils",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "aonyx-rakko-lint-stiles"
 version = "0.1.0"
 dependencies = [
