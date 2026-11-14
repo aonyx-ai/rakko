@@ -580,6 +580,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-shell"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-format-shell",
+ "aonyx-rakko-lint-shell",
+ "rakko",
+]
+
+[[package]]
 name = "aonyx-rakko-shfmt"
 version = "0.1.0"
 dependencies = [

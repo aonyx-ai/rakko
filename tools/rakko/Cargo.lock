@@ -481,6 +481,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-shell"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-format-shell",
+ "aonyx-rakko-lint-shell",
+ "rakko",
+]
+
+[[package]]
 name = "aonyx-rakko-shfmt"
 version = "0.1.0"
 dependencies = [
@@ -999,18 +1008,17 @@ dependencies = [
  "aonyx-rakko-format-json",
  "aonyx-rakko-format-markdown",
  "aonyx-rakko-format-rust",
- "aonyx-rakko-format-shell",
  "aonyx-rakko-format-toml",
  "aonyx-rakko-format-yaml",
  "aonyx-rakko-lint-github-actions",
  "aonyx-rakko-lint-markdown",
  "aonyx-rakko-lint-rust",
- "aonyx-rakko-lint-shell",
  "aonyx-rakko-lint-stiles",
  "aonyx-rakko-lint-yaml",
  "aonyx-rakko-pre-commit",
  "aonyx-rakko-rust-library",
  "aonyx-rakko-set-msrv",
+ "aonyx-rakko-shell",
  "aonyx-rakko-test-rust",
  "aonyx-rakko-test-rust-docs",
  "aonyx-rakko-typescript",
