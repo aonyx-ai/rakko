@@ -8,7 +8,9 @@
 //! `build-site`, serves only this repository, so it lives in this package.
 //!
 //! The harness also mounts actions that find nothing to do here, such as the
-//! actions for TypeScript. Each action pins the tools that it runs, and
+//! actions for TypeScript and the action for shell scripts. No bundle exports
+//! the action for shell scripts, so the harness mounts it on its own. Each
+//! action pins the tools that it runs, and
 //! `doctor --fix` writes the pins of the mounted actions into the generated
 //! mise file, `.config/mise/conf.d/rakko.toml`. This repository holds the
 //! tests of every action, and those tests run the tools at their pinned
@@ -36,6 +38,7 @@ use aonyx_rakko_check_msrv::CheckMsrv;
 use aonyx_rakko_format_json::FormatJson;
 use aonyx_rakko_format_markdown::FormatMarkdown;
 use aonyx_rakko_format_rust::FormatRust;
+use aonyx_rakko_format_shell::FormatShell;
 use aonyx_rakko_format_toml::FormatToml;
 use aonyx_rakko_format_yaml::FormatYaml;
 use aonyx_rakko_lint_github_actions::LintGitHubActions;
@@ -59,6 +62,7 @@ fn main() -> std::process::ExitCode {
         .mount(aonyx_rakko_baseline::bundle())
         .mount(aonyx_rakko_rust_library::bundle())
         .mount(aonyx_rakko_typescript::bundle())
+        .mount(FormatShell)
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)
         .mount(pre_commit)

@@ -1,0 +1,22 @@
+[package]
+name = "aonyx-rakko-shfmt"
+version = "0.1.0"
+description = "Shared code for the Rakko actions that wrap shfmt"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+bon = { workspace = true }
+getset = { workspace = true }
+rakko = { workspace = true }
+rakko-tool = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+rakko-test-utils = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true
