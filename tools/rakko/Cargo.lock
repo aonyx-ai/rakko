@@ -536,6 +536,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-terraform"
+version = "0.1.0"
+dependencies = [
+ "aonyx-rakko-format-terraform",
+ "aonyx-rakko-lint-terraform",
+ "rakko",
+]
+
+[[package]]
 name = "aonyx-rakko-test-rust"
 version = "0.1.0"
 dependencies = [
@@ -1091,19 +1100,18 @@ dependencies = [
  "aonyx-rakko-format-json",
  "aonyx-rakko-format-markdown",
  "aonyx-rakko-format-rust",
- "aonyx-rakko-format-terraform",
  "aonyx-rakko-format-toml",
  "aonyx-rakko-format-yaml",
  "aonyx-rakko-lint-github-actions",
  "aonyx-rakko-lint-markdown",
  "aonyx-rakko-lint-rust",
  "aonyx-rakko-lint-stiles",
- "aonyx-rakko-lint-terraform",
  "aonyx-rakko-lint-yaml",
  "aonyx-rakko-pre-commit",
  "aonyx-rakko-rust-library",
  "aonyx-rakko-set-msrv",
  "aonyx-rakko-shell",
+ "aonyx-rakko-terraform",
  "aonyx-rakko-test-rust",
  "aonyx-rakko-test-rust-docs",
  "aonyx-rakko-typescript",

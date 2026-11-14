@@ -7,15 +7,15 @@ bundle carries a set of actions that projects adopt together, so the harness
 mounts the bundle instead of each action in it.
 
 The harness also mounts bundles that find nothing to do here, such as the
-bundles for TypeScript and for shell scripts. The only shell scripts here are
-the stubs that mise generates in `bin/`, and `.editorconfig` keeps shfmt away
-from them, so both shell actions skip. Each action pins the tools that it runs,
-and `doctor --fix` writes the pins of the mounted actions into
-`.config/mise/conf.d/rakko.toml`. This repository holds the tests of every
+bundles for TypeScript, for shell scripts, and for Terraform. The only shell
+scripts here are the stubs that mise generates in `bin/`, and `.editorconfig`
+keeps shfmt away from them, so both shell actions skip. Each action pins the
+tools that it runs, and `doctor --fix` writes the pins of the mounted actions
+into `.config/mise/conf.d/rakko.toml`. This repository holds the tests of every
 action, and those tests run the tools at their pinned versions. So the mounts
 make mise install every declared tool that a test needs. The root `mise.toml`
-supplies the toolchains. Each mounted action is also a job of CI. So the job
-of a TypeScript action installs the tools, and then the action skips.
+supplies the toolchains. Each mounted action is also a job of CI. So the job of
+a TypeScript action installs the tools, and then the action skips.
 
 It also mounts commands, for a maintenance activity that no single action
 describes. A command comes from a crate, as an action does, and `src/main.rs`

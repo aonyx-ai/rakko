@@ -17,13 +17,11 @@ aonyx-rakko-check-msrv = { path = "../../actions/aonyx-rakko-check-msrv" }
 aonyx-rakko-format-json = { path = "../../actions/aonyx-rakko-format-json" }
 aonyx-rakko-format-markdown = { path = "../../actions/aonyx-rakko-format-markdown" }
 aonyx-rakko-format-rust = { path = "../../actions/aonyx-rakko-format-rust" }
-aonyx-rakko-format-terraform = { path = "../../actions/aonyx-rakko-format-terraform" }
 aonyx-rakko-format-toml = { path = "../../actions/aonyx-rakko-format-toml" }
 aonyx-rakko-format-yaml = { path = "../../actions/aonyx-rakko-format-yaml" }
 aonyx-rakko-lint-github-actions = { path = "../../actions/aonyx-rakko-lint-github-actions" }
 aonyx-rakko-lint-markdown = { path = "../../actions/aonyx-rakko-lint-markdown" }
 aonyx-rakko-lint-rust = { path = "../../actions/aonyx-rakko-lint-rust" }
-aonyx-rakko-lint-terraform = { path = "../../actions/aonyx-rakko-lint-terraform" }
 aonyx-rakko-lint-stiles = { path = "../../actions/aonyx-rakko-lint-stiles" }
 aonyx-rakko-lint-yaml = { path = "../../actions/aonyx-rakko-lint-yaml" }
 aonyx-rakko-pre-commit = { path = "../../commands/aonyx-rakko-pre-commit" }
@@ -32,6 +30,7 @@ aonyx-rakko-set-msrv = { path = "../../commands/aonyx-rakko-set-msrv" }
 aonyx-rakko-test-rust = { path = "../../actions/aonyx-rakko-test-rust" }
 aonyx-rakko-test-rust-docs = { path = "../../actions/aonyx-rakko-test-rust-docs" }
 aonyx-rakko-shell = { path = "../../bundles/aonyx-rakko-shell" }
+aonyx-rakko-terraform = { path = "../../bundles/aonyx-rakko-terraform" }
 aonyx-rakko-typescript = { path = "../../bundles/aonyx-rakko-typescript" }
 rakko = { path = "../../crates/rakko" }
 rakko-cli = { path = "../../crates/rakko-cli" }
