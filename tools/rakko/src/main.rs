@@ -7,11 +7,10 @@
 //! the harness mounts the bundle instead of each action in it. One action,
 //! `build-site`, serves only this repository, so it lives in this package.
 //!
-//! The harness also mounts actions that find nothing to do here, such as the
-//! actions for TypeScript and the actions for shell scripts. No bundle exports
-//! the actions for shell scripts, so the harness mounts them on their own.
-//! Each action pins the tools that it runs, and `doctor --fix` writes the pins of the mounted actions into the generated
-//! mise file, `.config/mise/conf.d/rakko.toml`. This repository holds the
+//! The harness also mounts bundles that find nothing to do here, such as the
+//! bundles for TypeScript and for shell scripts. Each action pins the tools
+//! that it runs, and `doctor --fix` writes the pins of the mounted actions
+//! into the generated mise file, `.config/mise/conf.d/rakko.toml`. This repository holds the
 //! tests of every action, and those tests run the tools at their pinned
 //! versions. So the mounts make mise install every declared tool that a test
 //! needs. The root `mise.toml` supplies the toolchains. Each mounted action is
@@ -37,13 +36,11 @@ use aonyx_rakko_check_msrv::CheckMsrv;
 use aonyx_rakko_format_json::FormatJson;
 use aonyx_rakko_format_markdown::FormatMarkdown;
 use aonyx_rakko_format_rust::FormatRust;
-use aonyx_rakko_format_shell::FormatShell;
 use aonyx_rakko_format_toml::FormatToml;
 use aonyx_rakko_format_yaml::FormatYaml;
 use aonyx_rakko_lint_github_actions::LintGitHubActions;
 use aonyx_rakko_lint_markdown::LintMarkdown;
 use aonyx_rakko_lint_rust::LintRust;
-use aonyx_rakko_lint_shell::LintShell;
 use aonyx_rakko_lint_stiles::LintStiles;
 use aonyx_rakko_lint_yaml::LintYaml;
 use aonyx_rakko_pre_commit::PreCommit;
@@ -62,8 +59,7 @@ fn main() -> std::process::ExitCode {
         .mount(aonyx_rakko_baseline::bundle())
         .mount(aonyx_rakko_rust_library::bundle())
         .mount(aonyx_rakko_typescript::bundle())
-        .mount(FormatShell)
-        .mount(LintShell)
+        .mount(aonyx_rakko_shell::bundle())
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)
         .mount(pre_commit)

@@ -1,0 +1,16 @@
+[package]
+name = "aonyx-rakko-shell"
+version = "0.1.0"
+description = "The Rakko bundle that any project with shell scripts mounts"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aonyx-rakko-format-shell = { path = "../../actions/aonyx-rakko-format-shell", version = "0.1.0" }
+aonyx-rakko-lint-shell = { path = "../../actions/aonyx-rakko-lint-shell", version = "0.1.0" }
+rakko = { workspace = true }
+
+[lints]
+workspace = true

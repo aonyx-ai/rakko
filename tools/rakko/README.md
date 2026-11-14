@@ -6,13 +6,11 @@ and the command line that it builds turns each of them into a command. A
 bundle carries a set of actions that projects adopt together, so the harness
 mounts the bundle instead of each action in it.
 
-The harness also mounts actions that find nothing to do here, such as the
-actions for TypeScript and the actions for shell scripts. No bundle exports the
-actions for shell scripts, so the harness mounts them on their own. The only
-shell scripts here are the stubs that mise generates in `bin/`, and
-`.editorconfig` keeps shfmt away from them. Both actions search with shfmt, so
-both skip. Each action pins the tools that it runs, and
-`doctor --fix` writes the pins of the mounted actions into
+The harness also mounts bundles that find nothing to do here, such as the
+bundles for TypeScript and for shell scripts. The only shell scripts here are
+the stubs that mise generates in `bin/`, and `.editorconfig` keeps shfmt away
+from them, so both shell actions skip. Each action pins the tools that it runs,
+and `doctor --fix` writes the pins of the mounted actions into
 `.config/mise/conf.d/rakko.toml`. This repository holds the tests of every
 action, and those tests run the tools at their pinned versions. So the mounts
 make mise install every declared tool that a test needs. The root `mise.toml`
