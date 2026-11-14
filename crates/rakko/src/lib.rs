@@ -6,7 +6,8 @@
 //! the arguments that a run reads. It holds the context that an action reads
 //! when it runs, the finding that an action produces, and the outcome that the
 //! run returns. It also holds the requirement of each external tool that an
-//! action runs. It holds the trait that gives the sentence that describes an
+//! action runs. It holds the tool output that receives what those tools write
+//! while they run. It holds the trait that gives the sentence that describes an
 //! action, and the derive that takes that sentence from a doc comment.
 //! It also holds the view of an action that hides its type, which is how a
 //! registry holds many actions at once. It also holds the list of such views
@@ -58,6 +59,7 @@ mod outcome;
 pub mod path;
 mod seal;
 mod tool;
+mod tool_output;
 
 pub use rakko_macros::Documented;
 
@@ -83,4 +85,7 @@ pub use self::outcome::{Outcome, SkipReason, Summary};
 pub use self::tool::{
     Architecture, Executable, MiseTool, OperatingSystem, Platform, RequiredVersion,
     ToolRequirement, ToolVersion, VersionRange,
+};
+pub use self::tool_output::{
+    ToolCommand, ToolEnd, ToolEvent, ToolExitCode, ToolLine, ToolOutput, ToolStream, ToolText,
 };

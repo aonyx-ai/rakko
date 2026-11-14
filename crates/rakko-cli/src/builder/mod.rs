@@ -6,6 +6,7 @@ mod members;
 mod mount;
 mod registry;
 mod scheduler;
+mod tool_lines;
 
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -24,6 +25,7 @@ use rakko::{Access, ArgsSchema, ArgsValues, Context, ErasedAction, Group, Outcom
 use self::error::RunEntryError;
 pub use self::mount::Mount;
 use self::registry::{Mounted, Registry};
+use self::tool_lines::ToolLines;
 use crate::chain::Chain;
 use crate::doctor::{self, Declaration};
 use crate::erased_command::ErasedCommand;
@@ -176,6 +178,13 @@ impl Builder {
     /// standard output therefore carries one document for the run, and the
     /// messages go to the standard error. With `--quiet`, the messages do not
     /// appear, and the summary still gives the members that did not pass.
+    ///
+    /// With `--verbose`, the run also shows what the tools of each member
+    /// write. A member that writes shows its tools while they run. A member
+    /// that reads holds what its tools write until it finishes. Then that
+    /// output appears in one block under a header that gives the member, just
+    /// before its report. So the output of two members never mixes. With
+    /// `--json`, this output goes to the standard error as well.
     ///
     /// The run exits with the worst code of its members. A member that stopped
     /// gives the code of an action that stopped. Otherwise, a member that found
@@ -690,6 +699,8 @@ fn drive_action(
     values: ArgsValues,
     action: Box<dyn ErasedAction>,
 ) -> Result<u8, Box<dyn Error>> {
+    let lines = ToolLines::from_matches(&matches);
+
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
         doctor::require()
@@ -701,7 +712,15 @@ fn drive_action(
         let name = action.name();
         let outcome = match action.bind(&values) {
             Ok(bound) => match bound.access(&project) {
-                Access::Read | Access::Write => bound.run(&project).await,
+                Access::Read | Access::Write => {
+                    self::tool_lines::stream(
+                        lines,
+                        &project,
+                        context.output(),
+                        |project| async move { bound.run(&project).await },
+                    )
+                    .await?
+                }
                 _ => Outcome::Errored {
                     source: Box::new(RunEntryError::UnknownAccess {
                         action: name.clone(),
@@ -833,6 +852,8 @@ fn drive_group(
     values: Vec<ArgsValues>,
     group: Box<dyn Group>,
 ) -> Result<u8, Box<dyn Error>> {
+    let lines = ToolLines::from_matches(&matches);
+
     drive(matches, move |context| async move {
         let project = locate(named, &context)?;
         doctor::require()
@@ -842,7 +863,7 @@ fn drive_group(
             .await?;
 
         let members = self::members::bind(group.members(), &values)?;
-        let code = self::scheduler::run(&group.name(), members, &project, &context).await?;
+        let code = self::scheduler::run(&group.name(), members, &project, &context, lines).await?;
 
         Ok(code)
     })

@@ -22,7 +22,8 @@ use std::process::Command;
 use aonyx_rakko_prettier::{
     Exit, FileExtension, Filter, Observation, Operation, Prettier, ProblemDetail,
 };
-use rakko::{Context, ProjectRoot};
+use rakko::{Context, ProjectRoot, ToolEvent};
+use rakko_test_utils::ToolRecorder;
 use tempfile::TempDir;
 
 /// A Markdown document that prettier leaves alone
@@ -255,6 +256,31 @@ async fn observe_reads_the_marker_of_a_line_that_a_color_would_hide() {
         observation.rejected_configuration().is_some(),
         "expected the ignored option, got {:?}",
         observation.stderr()
+    );
+}
+
+#[tokio::test]
+async fn observe_sends_the_start_of_prettier_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project.write().path("messy.md").content(UNFORMATTED).call();
+    let recorder = ToolRecorder::new();
+    let context = Context::builder()
+        .root(project.root())
+        .tool_output(recorder.output().clone())
+        .build();
+    let prettier = Prettier::resolve(&context)
+        .await
+        .expect("the test resolves the prettier that the crate declares");
+
+    let _observation = prettier.observe(Operation::Report, &markdown()).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of prettier, got {:?}",
+        recorder.events()
     );
 }
 

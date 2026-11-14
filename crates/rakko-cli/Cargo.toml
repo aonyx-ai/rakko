@@ -19,12 +19,12 @@ rakko-tool = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
 toml_edit = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 semver = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }
 
 [lints]
 workspace = true

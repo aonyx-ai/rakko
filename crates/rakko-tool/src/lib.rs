@@ -34,10 +34,15 @@
 //! a run. An action can therefore write the command to a log, or name it in
 //! an error, before anything runs.
 //!
-//! An action runs the command with [`launch`][launch]. On Windows, a tool that
-//! a package manager for Node installed starts through a launcher. The launch
-//! starts that launcher again when the operating system refused it a file for a
-//! moment.
+//! An action runs the command with [`launch_with`][launch-with] and the
+//! [`ToolOutput`][output] of its context. The run sends the start of the tool,
+//! each line that it writes, and its end to that tool output. So the harness
+//! can show the tool to a reader while it runs. The action still receives the
+//! full capture of the tool. A tool that writes a machine report, such as
+//! JSON, to one stream shows only the other one, as [`ShownStreams`] says. [`launch`][launch] runs the command without a
+//! tool output. On Windows, a tool that a package manager for Node installed
+//! starts through a launcher. Both runs start that launcher again when the
+//! operating system refused it a file for a moment.
 //!
 //! # Asynchronous Runtime
 //!
@@ -49,7 +54,7 @@
 //!
 //! ```no_run
 //! use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-//! use rakko_tool::{Launch, Tool};
+//! use rakko_tool::{Launch, ShownStreams, Tool};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,7 +67,12 @@
 //!
 //! let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
 //!
-//! let execution = tool.invocation().arg("--check").arg(".").launch().await?;
+//! let execution = tool
+//!     .invocation()
+//!     .arg("--check")
+//!     .arg(".")
+//!     .launch_with(context.tool_output(), ShownStreams::Both)
+//!     .await?;
 //!
 //! println!("{}", execution.status());
 //! # Ok(())
@@ -70,6 +80,8 @@
 //! ```
 //!
 //! [launch]: Launch::launch
+//! [launch-with]: Launch::launch_with
+//! [output]: rakko::ToolOutput
 //! [mise]: https://mise.jdx.dev
 //! [requirement]: rakko::ToolRequirement
 //! [tokio]: https://tokio.rs
@@ -83,6 +95,6 @@ pub use kawauso_process::error::RunCommandError;
 pub use kawauso_process::invocation::Program;
 pub use kawauso_process::{Execution, Invocation};
 
-pub use self::launch::Launch;
+pub use self::launch::{Launch, ShownStreams};
 pub use self::pin::{MiseFile, PinnedPlatforms};
 pub use self::tool::{ResolveRequirementError, Tool};

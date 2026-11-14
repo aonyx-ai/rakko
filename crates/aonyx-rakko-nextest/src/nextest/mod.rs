@@ -11,8 +11,8 @@ mod error;
 mod lockfile;
 
 use aonyx_rakko_cargo::{Cargo, CargoRoot};
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, ProjectRoot, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
 
 pub use self::error::ObserveNextestError;
 pub use self::lockfile::Lockfile;
@@ -127,6 +127,11 @@ pub struct Nextest {
 
     /// What a run does with the lockfile of the workspace
     lockfile: Lockfile,
+
+    /// The tool output of the context that resolved nextest
+    ///
+    /// Each run sends what nextest and cargo write for people to it.
+    output: ToolOutput,
 }
 
 #[bon::bon]
@@ -161,6 +166,9 @@ impl Nextest {
     /// does not change the answer. The lockfile tells a run whether cargo may
     /// resolve the dependencies of the build. Otherwise cargo builds the
     /// versions that the lockfile holds and refuses every other one.
+    ///
+    /// The nextest keeps the tool output of the context. Each run sends what
+    /// nextest and cargo write for people to it while they run.
     ///
     /// # Examples
     ///
@@ -207,6 +215,7 @@ impl Nextest {
             cargo,
             tool,
             lockfile,
+            output: context.tool_output().clone(),
         })
     }
 
@@ -221,6 +230,11 @@ impl Nextest {
     /// Nothing outside the workspace of the root changes, whatever the run
     /// finds. Cargo builds in the target directory of that workspace, and it
     /// writes the lockfile of the workspace unless the value forbids it.
+    ///
+    /// Nextest and cargo write for people on their standard error stream. The
+    /// run sends that stream to the tool output of the context that resolved
+    /// the nextest. Their standard output stream holds the report that the run
+    /// reads, so it stays out.
     ///
     /// # Examples
     ///
@@ -274,7 +288,7 @@ impl Nextest {
         };
 
         let execution = invocation
-            .run()
+            .launch_with(&self.output, ShownStreams::StandardError)
             .await
             .map_err(|source| ObserveNextestError::NextestUnavailable { source })?;
 

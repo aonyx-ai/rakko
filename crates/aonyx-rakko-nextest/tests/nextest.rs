@@ -21,8 +21,8 @@ use std::process::Command;
 
 use aonyx_rakko_cargo::Cargo;
 use aonyx_rakko_nextest::{Lockfile, Nextest, Observation, ObserveNextestError};
-use rakko::{Context, Location, Position, ProjectRoot};
-use rakko_test_utils::path_text;
+use rakko::{Context, Location, Position, ProjectRoot, ToolEvent, ToolOutput, ToolStream};
+use rakko_test_utils::{ToolRecorder, path_text};
 use tempfile::TempDir;
 
 /// The manifest of a package that nextest tests
@@ -127,8 +127,26 @@ impl Project {
     /// Returns the error of the run when the reports of nextest and cargo
     /// leave it without an answer.
     async fn observe_with(&self, lockfile: Lockfile) -> Result<Observation, ObserveNextestError> {
+        self.observe_sending(lockfile, ToolOutput::discard()).await
+    }
+
+    /// Tests the one workspace of the project the way the lockfile says, and
+    /// sends what the tools write to the tool output
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the run when the reports of nextest and cargo
+    /// leave it without an answer.
+    async fn observe_sending(
+        &self,
+        lockfile: Lockfile,
+        output: ToolOutput,
+    ) -> Result<Observation, ObserveNextestError> {
         let root = self.root();
-        let context = Context::builder().root(root.clone()).build();
+        let context = Context::builder()
+            .root(root.clone())
+            .tool_output(output)
+            .build();
         let cargo = Cargo::resolve(&context)
             .await
             .expect("the test resolves the cargo that the project pins");
@@ -447,4 +465,42 @@ async fn observe_gives_consent_to_no_other_process() {
     let _observation = project.observe().await;
 
     assert_eq!(std::env::var_os(CONSENT_VARIABLE), before);
+}
+
+#[tokio::test]
+async fn observe_sends_no_line_of_the_report_of_nextest_to_the_tool_output_of_the_context() {
+    let project = Project::with_library(PASSING);
+    let recorder = ToolRecorder::new();
+
+    let _observation = project
+        .observe_sending(Lockfile::Writable, recorder.output().clone())
+        .await;
+
+    assert!(
+        !recorder.events().iter().any(|event| matches!(
+            event,
+            ToolEvent::Line(line) if line.stream() == ToolStream::StandardOutput
+        )),
+        "expected no line of the standard output stream, got {:?}",
+        recorder.events()
+    );
+}
+
+#[tokio::test]
+async fn observe_sends_the_start_of_nextest_to_the_tool_output_of_the_context() {
+    let project = Project::with_library(PASSING);
+    let recorder = ToolRecorder::new();
+
+    let _observation = project
+        .observe_sending(Lockfile::Writable, recorder.output().clone())
+        .await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of nextest, got {:?}",
+        recorder.events()
+    );
 }

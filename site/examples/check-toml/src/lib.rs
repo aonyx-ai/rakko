@@ -14,7 +14,7 @@ use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, RequiredVersion,
     ToolRequirement, ToolVersion, action_name,
 };
-use rakko_tool::{Launch, MiseFile, PinnedPlatforms, Tool};
+use rakko_tool::{Launch, MiseFile, PinnedPlatforms, ShownStreams, Tool};
 // endregion: imports
 
 // region: pin
@@ -89,7 +89,12 @@ impl Action for CheckToml {
             }
         };
 
-        let execution = match tool.invocation().arg("check").launch().await {
+        let execution = match tool
+            .invocation()
+            .arg("check")
+            .launch_with(context.tool_output(), ShownStreams::Both)
+            .await
+        {
             Ok(execution) => execution,
             Err(error) => {
                 return Outcome::Errored {

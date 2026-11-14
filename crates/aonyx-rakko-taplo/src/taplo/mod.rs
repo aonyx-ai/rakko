@@ -10,8 +10,10 @@ mod error;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Execution, Invocation, Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, ProjectRoot, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
+use rakko_tool::{
+    Execution, Invocation, Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool,
+};
 
 pub use self::error::ObserveTaploError;
 use crate::observation::Observation;
@@ -133,10 +135,18 @@ pub struct Taplo {
 
     /// The program that mise installed for the project
     tool: Tool,
+
+    /// The tool output of the context that resolved taplo
+    ///
+    /// Each run sends what taplo writes to it.
+    output: ToolOutput,
 }
 
 impl Taplo {
     /// Runs one operation and reads what taplo reported
+    ///
+    /// Each attempt sends what taplo writes to the tool output of the context
+    /// that resolved the taplo.
     ///
     /// Taplo can lose the end of its report when it exits. The answer of a run
     /// survives that loss. The exit status carries whether taplo found
@@ -291,6 +301,7 @@ impl Taplo {
         Ok(Self {
             root: context.root().clone(),
             tool,
+            output: context.tool_output().clone(),
         })
     }
 
@@ -303,7 +314,7 @@ impl Taplo {
     /// [unavailable]: ObserveTaploError::TaploUnavailable
     async fn start(&self, operation: Operation) -> Result<Execution, ObserveTaploError> {
         self.invocation(operation)
-            .launch()
+            .launch_with(&self.output, ShownStreams::Both)
             .await
             .map_err(|source| ObserveTaploError::TaploUnavailable { source })
     }

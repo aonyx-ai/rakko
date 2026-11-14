@@ -118,8 +118,16 @@ The run resolves the tool and starts it:
   the action returns `Outcome::Errored`.
 - `invocation` describes the command and starts it from the project root.
   No shell interprets the arguments, so the tool receives them as written.
-- `launch` starts the tool and waits for it to finish. On Windows, it retries
-  when the operating system temporarily refuses the tool's launcher.
+- `launch_with` starts the tool and waits for it to finish. The context
+  holds a tool output, which receives what the tool writes while it runs.
+  With `--verbose`, the run shows that output. Your action still gets the
+  full output to parse.
+- `ShownStreams` selects the streams that reach the tool output. A tool
+  that writes JSON to standard output gets `ShownStreams::StandardError`.
+  Then people see the output that the tool writes for them. taplo writes
+  text to both streams, so the example passes `ShownStreams::Both`.
+- On Windows, `launch_with` retries when the operating system temporarily
+  refuses the tool's launcher.
 - A nonzero exit status is not necessarily an execution error. It can mean
   that the tool found problems. Use the status and output to choose the
   action's outcome.

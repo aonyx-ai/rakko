@@ -78,7 +78,9 @@ through the same interface.
 The action returns data, and the command line formats the output. At a
 terminal, it shows findings and a summary such as `check-readme: 1 finding`.
 With `--json`, it writes a document for programs to read. With `--quiet`, it
-omits informational messages. This separation lets Rakko add output formats
+omits informational messages. With `--verbose`, it also shows what the
+action's tools write while they run. Then you can find why a CI step failed
+or why it takes a long time. This separation lets Rakko add output formats
 without changing actions.
 
 The exit code follows the outcome:
@@ -113,6 +115,11 @@ changes them, regardless of their positions in the list.
 Every member runs to completion, even if another member fails or returns an
 error. One group run therefore reports all the results instead of stopping
 at the first problem.
+
+With `--verbose`, a writer shows its tools' output while it runs. Readers run
+at the same time, so each reader keeps its tools' output until it finishes.
+The output then appears in one block under the reader's name, just before
+its report. The output of two readers never mixes.
 
 ### The Result of a Group
 

@@ -19,7 +19,8 @@ use std::process::Command;
 
 use aonyx_rakko_taplo::{Observation, Operation, ProblemDetail, Taplo};
 use bon::bon;
-use rakko::{Context, ProjectRoot};
+use rakko::{Context, ProjectRoot, ToolEvent};
+use rakko_test_utils::ToolRecorder;
 use tempfile::TempDir;
 
 /// A TOML document that taplo leaves alone
@@ -223,6 +224,31 @@ async fn observe_reads_a_report_without_color_codes() {
             })
         }),
         "expected a diagnostic without an escape code, got {observation:?}"
+    );
+}
+
+#[tokio::test]
+async fn observe_sends_the_start_of_taplo_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project.write().path("ok.toml").content(FORMATTED).call();
+    let recorder = ToolRecorder::new();
+    let context = Context::builder()
+        .root(project.root())
+        .tool_output(recorder.output().clone())
+        .build();
+    let taplo = Taplo::resolve(&context)
+        .await
+        .expect("the test resolves the taplo that the crate declares");
+
+    let _observation = taplo.observe(Operation::Lint).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of taplo, got {:?}",
+        recorder.events()
     );
 }
 

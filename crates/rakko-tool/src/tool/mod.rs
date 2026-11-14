@@ -137,8 +137,9 @@ impl Tool {
     /// [`resolve_requirement`][resolve] found, in the root of the project,
     /// and it carries no argument yet. The caller adds the arguments of the
     /// operation that it wants. Then it runs the command with
-    /// [`launch`][launch], which survives a launcher that Windows refused for
-    /// a moment.
+    /// [`launch_with`][launch-with] and the tool output of its context. The run
+    /// sends what the tool writes to that tool output, and it survives a
+    /// launcher that Windows refused for a moment.
     ///
     /// No shell reads the command. Nothing splits an argument at a space,
     /// removes a quotation mark, or expands a character such as `*`. So the
@@ -161,7 +162,7 @@ impl Tool {
     ///
     /// ```no_run
     /// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-    /// use rakko_tool::{Launch, Tool};
+    /// use rakko_tool::{Launch, ShownStreams, Tool};
     ///
     /// # #[tokio::main(flavor = "current_thread")]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -174,14 +175,18 @@ impl Tool {
     ///
     /// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
     ///
-    /// let execution = tool.invocation().arg("check").launch().await?;
+    /// let execution = tool
+    ///     .invocation()
+    ///     .arg("check")
+    ///     .launch_with(context.tool_output(), ShownStreams::Both)
+    ///     .await?;
     ///
     /// println!("{}", execution.stdout());
     /// # Ok(())
     /// # }
     /// ```
     ///
-    /// [launch]: crate::Launch::launch
+    /// [launch-with]: crate::Launch::launch_with
     /// [resolve]: Tool::resolve_requirement
     /// [toolchain]: Tool::with_toolchain
     pub fn invocation(&self) -> Invocation {

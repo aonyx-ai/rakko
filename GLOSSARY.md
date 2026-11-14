@@ -38,8 +38,8 @@ from the design discussions to the terms that replaced them.
   action or the group itself. A written command is an ordinary Clawless
   command, and it knows nothing about actions.
 - **Context** — The data that is relevant when an action runs. Today this is
-  the project root. Later it can include user variables and loaded
-  configuration. Clawless uses the same name for a
+  the project root and the tool output. Later it can include user variables
+  and loaded configuration. Clawless uses the same name for a
   similar concept. This parallel is intentional. An action never sees the
   Clawless type, and a command receives both.
 - **Contract crate** — The `rakko` crate. It contains the `Action` trait,
@@ -176,6 +176,12 @@ from the design discussions to the terms that replaced them.
 - **Tool** — An external program that an action uses, for example prettier
   or taplo. Mise provisions tools. In Rakko documentation, "tool" always
   means an external program.
+- **Tool output** — The place on the context where the tools of an action
+  send what they write while they run. For each tool, it receives the start,
+  the lines of the streams that the call shows, and the end. The projection
+  decides what a person sees. Under `--verbose`, it shows the events, and
+  otherwise it discards them. The author of an action sends no text of their
+  own there, although the contract does not enforce it.
 - **Tool requirement** — What an action declares for each tool that it
   runs. A requirement holds the identifier of the tool in the configuration
   of mise and the program that the action starts. It also holds the exact
