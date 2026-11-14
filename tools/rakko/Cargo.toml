@@ -34,11 +34,11 @@ aonyx-rakko-typescript = { path = "../../bundles/aonyx-rakko-typescript" }
 rakko = { path = "../../crates/rakko" }
 rakko-cli = { path = "../../crates/rakko-cli" }
 rakko-tool = { path = "../../crates/rakko-tool" }
-thiserror = "2"
+thiserror = "2.0.3"
 
 [dev-dependencies]
 tempfile = "3"
-tokio = { version = "1.27.0", features = ["macros", "rt"] }
+tokio = { version = "1.28.1", features = ["macros", "rt"] }
 
 [workspace.lints.clippy]
 # Require documentation on private items as well, since that helps with long-term maintainability.
