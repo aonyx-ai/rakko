@@ -4,7 +4,7 @@
 
 [tools]
 "cargo:cargo-deny" = "0.20.2"
-"cargo:cargo-nextest" = "0.9.151"
+"cargo:cargo-nextest" = "0.9.152"
 "cargo:cargo-udeps" = "0.1.61"
 "github:aonyx-ai/stiles" = { version = "stiles@0.6.0", os = [
   "linux",
