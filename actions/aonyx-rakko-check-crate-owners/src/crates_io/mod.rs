@@ -20,9 +20,8 @@ use std::time::Duration;
 use aonyx_rakko_cargo::{Cargo, CargoRoot, PackageName};
 use rakko::ToolOutput;
 use rakko_tool::{Execution, Launch, ShownStreams};
-use reqwest::{Certificate, Client, ClientBuilder};
+use reqwest::{Client, ClientBuilder};
 use serde::Deserialize;
-use webpki_root_certs::TLS_SERVER_ROOT_CERTS;
 
 pub use self::error::LookUpOwnersError;
 use self::pace::Pace;
@@ -69,9 +68,11 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// The registry crates.io
 ///
 /// The registry reads the owners of a crate over HTTPS. It verifies the
-/// certificate of crates.io against the root certificates that the client
-/// carries itself. So a run needs no certificate store of the system and no
-/// TLS library of the system. It adds an owner with the cargo of the
+/// certificate of crates.io with the certificate verifier of the operating
+/// system, so it trusts the root certificates that the system trusts. On
+/// Linux, the system must have its root certificates installed, for example
+/// with the `ca-certificates` package. A run needs no TLS library of the
+/// system. It adds an owner with the cargo of the
 /// project, so cargo uses the credentials that the user gave it with
 /// `cargo login`.
 #[derive(Debug)]
@@ -93,8 +94,8 @@ pub(crate) struct CratesIo {
 impl CratesIo {
     /// Builds the registry with the cargo that adds an owner
     ///
-    /// The client configures its TLS with the root certificates that it
-    /// carries. Each run of cargo sends what it writes to the tool output.
+    /// The client verifies certificates with the verifier of the operating
+    /// system. Each run of cargo sends what it writes to the tool output.
     ///
     /// # Errors
     ///
@@ -139,19 +140,14 @@ impl Registry for CratesIo {
 /// Returns the client that sends the requests to crates.io
 ///
 /// The client gives the User-Agent of the action, and it fails a request
-/// that takes longer than the timeout. It configures its TLS with the root
-/// certificates that it carries.
+/// that takes longer than the timeout. It verifies certificates with the
+/// verifier of the operating system.
 ///
 /// # Errors
 ///
 /// Returns a [`reqwest::Error`] when the client cannot configure its TLS.
 fn client(timeout: Duration) -> Result<Client, reqwest::Error> {
-    let roots = TLS_SERVER_ROOT_CERTS
-        .iter()
-        .map(|root| Certificate::from_der(root))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    builder(timeout).tls_certs_only(roots).build()
+    builder(timeout).build()
 }
 
 /// Returns the setup of the client that sends the requests to crates.io

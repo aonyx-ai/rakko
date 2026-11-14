@@ -36,8 +36,8 @@ use crate::crates_io::LookUpOwnersError;
 pub enum CheckCrateOwnersError {
     /// The client that reads the owners from crates.io is not available
     ///
-    /// The client carries its own TLS, so this points at a broken build of
-    /// the action and not at the network.
+    /// The client cannot set up its TLS. On Linux, the cause can be a system
+    /// that has no root certificates installed. The cause is not the network.
     #[error("failed to configure the client for crates.io")]
     ClientUnavailable {
         /// The cause of the failure

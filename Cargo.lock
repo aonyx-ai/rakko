@@ -131,7 +131,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "typed-fields",
- "webpki-root-certs",
 ]
 
 [[package]]
