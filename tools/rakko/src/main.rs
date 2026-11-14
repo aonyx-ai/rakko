@@ -43,6 +43,7 @@ use aonyx_rakko_lint_github_actions::LintGitHubActions;
 use aonyx_rakko_lint_markdown::LintMarkdown;
 use aonyx_rakko_lint_rust::LintRust;
 use aonyx_rakko_lint_stiles::LintStiles;
+use aonyx_rakko_lint_terraform::LintTerraform;
 use aonyx_rakko_lint_yaml::LintYaml;
 use aonyx_rakko_pre_commit::PreCommit;
 use aonyx_rakko_set_msrv::SetMsrv;
@@ -62,6 +63,7 @@ fn main() -> std::process::ExitCode {
         .mount(aonyx_rakko_typescript::bundle())
         .mount(aonyx_rakko_shell::bundle())
         .mount(FormatTerraform)
+        .mount(LintTerraform)
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)
         .mount(pre_commit)
