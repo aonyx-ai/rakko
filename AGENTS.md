@@ -96,9 +96,12 @@ compile and test the Rust code that the pages of the website show.
   every other path. The prefix separates a submodule from a crate of the same
   name. In an import it also puts the path in the group with the other local
   paths.
-- Prefer `pub` over `pub(crate)`. Visibility should come from module
-  structure, not access modifiers. If a type needs restricted visibility,
-  that is usually a signal to restructure the modules.
+- In library crates, give every item the narrowest visibility that still
+  compiles. `unreachable_pub` enforces this, so a `pub` item is genuinely part
+  of the public API and a `pub(crate)` item is genuinely internal.
+- Binary crates keep `unreachable_pub` too. The modules of a binary are
+  private, and its crate root re-exports nothing, so the lint rejects `pub` in
+  them. Write `pub(crate)` there.
 
 ### Tests
 
