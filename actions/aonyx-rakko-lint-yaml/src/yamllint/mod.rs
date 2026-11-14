@@ -11,8 +11,8 @@ pub(crate) mod report;
 
 use std::path::PathBuf;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveYamllintError;
 pub(crate) use self::listing::ListFilesError;
@@ -68,6 +68,11 @@ const PROBLEMS_FOUND: i32 = 1;
 pub(crate) struct Yamllint {
     /// The program that mise installed at the declared version
     tool: Tool,
+
+    /// The tool output of the context that resolved yamllint
+    ///
+    /// Each run sends what yamllint writes to it.
+    output: ToolOutput,
 }
 
 impl Yamllint {
@@ -85,7 +90,7 @@ impl Yamllint {
     /// [unavailable]: ListFilesError::YamllintUnavailable
     /// [rejected]: ListFilesError::RejectedConfiguration
     pub(crate) async fn list(&self) -> Result<Vec<PathBuf>, ListFilesError> {
-        self::listing::files(&self.tool).await
+        self::listing::files(&self.tool, &self.output).await
     }
 
     /// Runs yamllint over the project and reads what it reported
@@ -110,7 +115,7 @@ impl Yamllint {
             .arg(FORMAT)
             .arg(PARSABLE)
             .arg(HERE)
-            .launch()
+            .launch_with(&self.output, ShownStreams::Both)
             .await
             .map_err(|source| ObserveYamllintError::YamllintUnavailable { source })?;
 
@@ -170,7 +175,10 @@ impl Yamllint {
             .call()
             .await?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 }
 

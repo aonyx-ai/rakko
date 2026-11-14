@@ -9,8 +9,10 @@
 mod error;
 mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Execution, MiseFile, PinnedPlatforms, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
+use rakko_tool::{
+    Execution, Launch, MiseFile, PinnedPlatforms, ResolveRequirementError, ShownStreams, Tool,
+};
 
 pub(crate) use self::error::ObserveStilesError;
 use crate::observation::{Examination, Observation};
@@ -101,6 +103,11 @@ const FAILED: i32 = 1;
 pub(crate) struct Stiles {
     /// The program that mise installed at the declared version
     tool: Tool,
+
+    /// The tool output of the context that resolved stiles
+    ///
+    /// Each run sends what stiles writes to it.
+    output: ToolOutput,
 }
 
 impl Stiles {
@@ -228,7 +235,10 @@ impl Stiles {
             .call()
             .await?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 
     /// Runs a command of stiles over the project and asks for data
@@ -244,7 +254,7 @@ impl Stiles {
             .arg(command)
             .arg(JSON)
             .arg(HERE)
-            .run()
+            .launch_with(&self.output, ShownStreams::StandardError)
             .await
             .map_err(|source| ObserveStilesError::StilesUnavailable { source })
     }

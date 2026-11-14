@@ -23,8 +23,8 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_test_typescript::{TestTypeScript, TestTypeScriptError};
-use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use rakko_tool::ResolveRequirementError;
 use tempfile::TempDir;
 
@@ -145,6 +145,17 @@ impl Project {
     /// Runs the action against this project
     async fn run(&self) -> Outcome {
         TestTypeScript.run(&self.context(), &()).await
+    }
+
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        TestTypeScript.run(&context, &()).await
     }
 
     /// Writes a file of the project, with the directories that lead to it
@@ -513,6 +524,28 @@ async fn run_reads_the_report_of_node_rather_than_its_drawing() {
         !findings[0].message().get().contains('\u{1b}'),
         "expected a message without an escape code, got {:?}",
         findings[0].message()
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_node_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/add.test.ts")
+        .content(PASSING)
+        .call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of node, got {:?}",
+        recorder.events()
     );
 }
 

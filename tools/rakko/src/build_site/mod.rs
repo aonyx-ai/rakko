@@ -7,9 +7,9 @@ use std::path::Path;
 
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, RequiredVersion,
-    Summary, ToolRequirement, VersionRange, action_name,
+    Summary, ToolOutput, ToolRequirement, VersionRange, action_name,
 };
-use rakko_tool::{Execution, Tool};
+use rakko_tool::{Execution, Launch, ShownStreams, Tool};
 
 pub(crate) use self::args::{BaseUrl, BuildSiteArgs};
 pub(crate) use self::error::BuildSiteError;
@@ -84,7 +84,14 @@ impl Action for BuildSite {
             }
         };
 
-        match build(&zola, context.root().get(), args.base_url()).await {
+        match build(
+            &zola,
+            context.root().get(),
+            args.base_url(),
+            context.tool_output(),
+        )
+        .await
+        {
             Ok(execution) => outcome(&execution),
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -107,7 +114,8 @@ fn requirement() -> ToolRequirement {
 
 /// Runs Zola on the website below `root`, and returns how it ended
 ///
-/// A `base_url` replaces the address in `site/zola.toml` for this build.
+/// A `base_url` replaces the address in `site/zola.toml` for this build. The
+/// build sends what Zola writes to the tool output.
 ///
 /// # Errors
 ///
@@ -116,6 +124,7 @@ async fn build(
     zola: &Tool,
     root: &Path,
     base_url: Option<&BaseUrl>,
+    output: &ToolOutput,
 ) -> Result<Execution, BuildSiteError> {
     let mut args = vec!["--root", SITE, "build"];
     if let Some(base_url) = base_url {
@@ -125,7 +134,7 @@ async fn build(
     zola.invocation()
         .args(args)
         .in_directory(root)
-        .run()
+        .launch_with(output, ShownStreams::Both)
         .await
         .map_err(|source| BuildSiteError::ZolaUnavailable { source })
 }
@@ -170,6 +179,10 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use std::sync::{Arc, Mutex};
+
+    use rakko::ToolEvent;
+
     use super::*;
 
     /// Returns the context of this repository, which pins Zola
@@ -212,7 +225,7 @@ mod tests {
         )
         .expect("the test writes the configuration");
 
-        let execution = build(&zola().await, project.path(), None)
+        let execution = build(&zola().await, project.path(), None, &ToolOutput::discard())
             .await
             .expect("the test starts zola");
 
@@ -237,9 +250,14 @@ mod tests {
         .expect("the test writes the configuration");
         let base_url = BaseUrl::parse("https://preview.example.dev").expect("the address parses");
 
-        build(&zola().await, project.path(), Some(&base_url))
-            .await
-            .expect("the test starts zola");
+        build(
+            &zola().await,
+            project.path(),
+            Some(&base_url),
+            &ToolOutput::discard(),
+        )
+        .await
+        .expect("the test starts zola");
 
         let page = std::fs::read_to_string(site.join("public").join("index.html"))
             .expect("the build writes the landing page");
@@ -251,7 +269,7 @@ mod tests {
         let project = tempfile::tempdir().expect("the test creates a temporary directory");
         std::fs::create_dir(project.path().join(SITE)).expect("the test creates the site");
 
-        let execution = build(&zola().await, project.path(), None)
+        let execution = build(&zola().await, project.path(), None, &ToolOutput::discard())
             .await
             .expect("the test starts zola");
 
@@ -260,6 +278,29 @@ mod tests {
             Outcome::Failed { findings, .. }
                 if findings.iter().any(|finding| finding.message().get().contains("zola.toml"))
         ));
+    }
+
+    #[tokio::test]
+    async fn build_sends_the_start_of_zola_to_the_tool_output() {
+        let project = tempfile::tempdir().expect("the test creates a temporary directory");
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let received = Arc::clone(&events);
+        let output = ToolOutput::new(move |event| {
+            received
+                .lock()
+                .expect("no test panics while it holds the lock")
+                .push(event);
+        });
+
+        let _execution = build(&zola().await, project.path(), None, &output).await;
+
+        assert!(
+            events
+                .lock()
+                .expect("no test panics while it holds the lock")
+                .iter()
+                .any(|event| matches!(event, ToolEvent::Started(_)))
+        );
     }
 
     #[test]

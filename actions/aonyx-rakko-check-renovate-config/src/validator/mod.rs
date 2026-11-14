@@ -7,8 +7,8 @@
 mod error;
 pub(crate) mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Invocation, Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion, VersionRange};
+use rakko_tool::{Invocation, Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveValidatorError;
 use self::report::Report;
@@ -124,6 +124,11 @@ const INVALID: i32 = 1;
 pub(crate) struct Validator {
     /// The program that mise installed at the declared version
     tool: Tool,
+
+    /// The tool output of the context that resolved the validator
+    ///
+    /// Each run sends what the validator writes to it.
+    output: ToolOutput,
 }
 
 impl Validator {
@@ -154,7 +159,7 @@ impl Validator {
     /// [unavailable]: ObserveValidatorError::ValidatorUnavailable
     /// [unreadable]: ObserveValidatorError::UnreadableReport
     pub(crate) async fn observe(&self) -> Result<Observation, ObserveValidatorError> {
-        observe(self.invocation()).await
+        observe(self.invocation(), &self.output).await
     }
 
     /// Runs the validator over the preset of the project and reads what it
@@ -172,7 +177,7 @@ impl Validator {
     ///
     /// [observe]: Validator::observe
     pub(crate) async fn observe_preset(&self) -> Result<Observation, ObserveValidatorError> {
-        observe(self.preset_invocation()).await
+        observe(self.preset_invocation(), &self.output).await
     }
 
     /// Returns the requirement of the Node that the validator runs on
@@ -230,7 +235,10 @@ impl Validator {
             .await?
             .with_toolchain(&node)?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 
     /// Returns the command that runs the validator over the project
@@ -259,9 +267,12 @@ impl Validator {
 /// run, and the errors of [`answer`] for what it reported.
 ///
 /// [unavailable]: ObserveValidatorError::ValidatorUnavailable
-async fn observe(invocation: Invocation) -> Result<Observation, ObserveValidatorError> {
+async fn observe(
+    invocation: Invocation,
+    output: &ToolOutput,
+) -> Result<Observation, ObserveValidatorError> {
     let execution = invocation
-        .launch()
+        .launch_with(output, ShownStreams::StandardError)
         .await
         .map_err(|source| ObserveValidatorError::ValidatorUnavailable { source })?;
 

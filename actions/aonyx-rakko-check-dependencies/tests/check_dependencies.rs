@@ -25,8 +25,11 @@ use std::process::Command;
 
 use aonyx_rakko_cargo::Cargo;
 use aonyx_rakko_check_dependencies::{CheckDependencies, CheckDependenciesError};
-use rakko::{Action, Args, Context, DirectoryPath, Finding, Location, Outcome, ProjectRoot};
-use rakko_test_utils::run_checking_access;
+use rakko::{
+    Action, Args, Context, DirectoryPath, Finding, Location, Outcome, ProjectRoot, ToolEvent,
+    ToolStream,
+};
+use rakko_test_utils::{ToolRecorder, run_checking_access};
 use tempfile::TempDir;
 
 /// A package whose license the tests accept
@@ -274,6 +277,18 @@ impl Project {
         self.lock().await;
 
         CheckDependencies.run(&self.context(), &()).await
+    }
+
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        self.lock().await;
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        CheckDependencies.run(&context, &()).await
     }
 
     /// Writes a file of the project, with the directories that lead to it
@@ -529,6 +544,40 @@ async fn run_reads_the_configuration_that_lies_closest_to_a_workspace() {
         matches!(outcome, Outcome::Passed { .. }),
         "expected the workspace below the root to answer from its own \
          configuration, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_sends_no_line_of_the_report_of_cargo_deny_to_the_tool_output_of_the_context() {
+    let project = Project::with_configuration(ALLOW_APACHE);
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        !recorder.events().iter().any(|event| matches!(
+            event,
+            ToolEvent::Line(line) if line.stream() == ToolStream::StandardError
+        )),
+        "expected no line of the report of cargo-deny, got {:?}",
+        recorder.events()
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_cargo_deny_to_the_tool_output_of_the_context() {
+    let project = Project::with_configuration(ALLOW_MIT);
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of cargo-deny, got {:?}",
+        recorder.events()
     );
 }
 

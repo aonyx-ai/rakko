@@ -13,7 +13,8 @@ mod error;
 
 use std::path::PathBuf;
 
-use rakko_tool::{Launch, Tool};
+use rakko::ToolOutput;
+use rakko_tool::{Launch, ShownStreams, Tool};
 
 pub(crate) use self::error::ListFilesError;
 
@@ -41,12 +42,15 @@ const HERE: &str = ".";
 ///
 /// [unavailable]: ListFilesError::YamllintUnavailable
 /// [rejected]: ListFilesError::RejectedConfiguration
-pub(crate) async fn files(tool: &Tool) -> Result<Vec<PathBuf>, ListFilesError> {
+pub(crate) async fn files(
+    tool: &Tool,
+    output: &ToolOutput,
+) -> Result<Vec<PathBuf>, ListFilesError> {
     let execution = tool
         .invocation()
         .arg(LIST_FILES)
         .arg(HERE)
-        .launch()
+        .launch_with(output, ShownStreams::Both)
         .await
         .map_err(|source| ListFilesError::YamllintUnavailable { source })?;
 

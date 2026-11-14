@@ -15,9 +15,9 @@ use aonyx_rakko_nextest::{Lockfile, Nextest};
 use aonyx_rakko_worktree::Worktree;
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    Summary, ToolRequirement, action_name,
+    Summary, ToolOutput, ToolRequirement, action_name,
 };
-use rakko_tool::Execution;
+use rakko_tool::{Execution, Launch, ShownStreams};
 
 pub use self::error::CheckLatestDepsError;
 
@@ -155,7 +155,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
     let mut findings = Vec::new();
 
     for root in &copies {
-        findings.extend(update(&cargo, root, worktree.root()).await?);
+        findings.extend(update(&cargo, root, worktree.root(), context.tool_output()).await?);
     }
 
     if !findings.is_empty() {
@@ -300,11 +300,12 @@ async fn update(
     cargo: &Cargo,
     root: &CargoRoot,
     project: &ProjectRoot,
+    output: &ToolOutput,
 ) -> Result<Option<Finding>, CheckLatestDepsError> {
     let execution = cargo
         .invocation(root)
         .arg(UPDATE)
-        .run()
+        .launch_with(output, ShownStreams::Both)
         .await
         .map_err(|source| CheckLatestDepsError::CargoUnavailable { source })?;
 

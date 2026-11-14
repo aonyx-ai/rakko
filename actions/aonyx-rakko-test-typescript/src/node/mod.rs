@@ -8,8 +8,8 @@
 mod error;
 pub(crate) mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
-use rakko_tool::{Launch, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, VersionRange};
+use rakko_tool::{Launch, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveNodeError;
 use self::report::Report;
@@ -55,6 +55,11 @@ const REPORTER: &str = "--test-reporter=tap";
 pub(crate) struct Node {
     /// The program that mise installed at the version that the project pins
     tool: Tool,
+
+    /// The tool output of the context that resolved node
+    ///
+    /// Each run sends what node writes to it.
+    output: ToolOutput,
 }
 
 impl Node {
@@ -85,7 +90,7 @@ impl Node {
             .invocation()
             .arg(TEST)
             .arg(REPORTER)
-            .launch()
+            .launch_with(&self.output, ShownStreams::Both)
             .await
             .map_err(|source| ObserveNodeError::NodeUnavailable { source })?;
 
@@ -145,7 +150,10 @@ impl Node {
             .call()
             .await?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 }
 

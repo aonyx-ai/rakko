@@ -26,8 +26,8 @@ use std::process::Command;
 use aonyx_rakko_format_typescript::{
     FormatTypeScript, FormatTypeScriptArgs, FormatTypeScriptError,
 };
-use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot};
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use rakko_tool::ResolveRequirementError;
 use tempfile::TempDir;
 
@@ -112,6 +112,19 @@ impl Project {
     /// Runs the action against this project, and reports what it found
     async fn report(&self) -> Outcome {
         self.run(&FormatTypeScriptArgs::default()).await
+    }
+
+    /// Runs the action against this project like [`Project::report`], with a
+    /// context that sends what its tools write to a recorder
+    async fn report_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        FormatTypeScript
+            .run(&context, &FormatTypeScriptArgs::default())
+            .await
     }
 
     /// Runs the action against this project with the given arguments
@@ -538,4 +551,26 @@ async fn report_of_an_unformatted_file_names_it() {
         panic!("expected the run to fail, got {outcome:?}");
     };
     assert_eq!(locations(&findings), [path_text("src/index.ts")]);
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_oxfmt_to_the_tool_output_of_the_context() {
+    let project = Project::new();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(FORMATTED)
+        .call();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.report_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of oxfmt, got {:?}",
+        recorder.events()
+    );
 }

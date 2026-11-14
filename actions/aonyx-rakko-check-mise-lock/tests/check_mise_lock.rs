@@ -34,9 +34,9 @@ use std::process::Command;
 use aonyx_rakko_check_mise_lock::{CheckMiseLock, CheckMiseLockArgs, CheckMiseLockError};
 use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, ProjectRoot,
-    argument_name,
+    ToolEvent, ToolStream, argument_name,
 };
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The configuration of a project that pins one tool that mise downloads
@@ -281,6 +281,19 @@ impl Project {
             .await
     }
 
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, recorder: &ToolRecorder) -> Outcome {
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        CheckMiseLock
+            .run(&context, &CheckMiseLockArgs::default())
+            .await
+    }
+
     /// Runs the action against this project, and fixes
     async fn fix(&self) -> Outcome {
         fix(&self.context()).await
@@ -437,6 +450,55 @@ fn action_identifies_itself_as_check_mise_lock() {
     let name = CheckMiseLock.name();
 
     assert_eq!(name.get(), "check-mise-lock");
+}
+
+/// Shows that the listing of the lockfiles sends no line of its report to the
+/// tool output
+///
+/// The run of `mise lock` shows both of its streams, and the listing after it
+/// asks mise for a report on the standard output. So the test reads only the
+/// lines between the start of the listing and its end.
+#[tokio::test]
+async fn run_sends_no_line_of_the_report_of_mise_to_the_tool_output_of_the_context() {
+    let project = Project::locked(PINNED);
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    let events = recorder.events();
+    let Some(start) = events.iter().position(
+        |event| matches!(event, ToolEvent::Started(command) if command.get().contains("--json")),
+    ) else {
+        panic!("expected the start of the listing, got {events:?}");
+    };
+    assert!(
+        !events[start..]
+            .iter()
+            .take_while(|event| !matches!(event, ToolEvent::Ended(_)))
+            .any(|event| matches!(
+                event,
+                ToolEvent::Line(line) if line.stream() == ToolStream::StandardOutput
+            )),
+        "expected no line of the report of mise, got {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_mise_to_the_tool_output_of_the_context() {
+    let project = Project::untrusted(PINNED);
+    project.initialize();
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(&recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of mise, got {:?}",
+        recorder.events()
+    );
 }
 
 /// Shows that a run that stops after the lock keeps the lockfile

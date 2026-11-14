@@ -8,8 +8,8 @@
 
 mod error;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion, VersionRange};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveOxfmtError;
 use crate::observation::Observation;
@@ -76,6 +76,11 @@ const PATTERN: &str = "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}";
 pub(crate) struct Oxfmt {
     /// The program that mise installed at the declared version
     tool: Tool,
+
+    /// The tool output of the context that resolved oxfmt
+    ///
+    /// Each run sends what oxfmt writes to it.
+    output: ToolOutput,
 }
 
 impl Oxfmt {
@@ -150,7 +155,10 @@ impl Oxfmt {
             .await?
             .with_toolchain(&node)?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 
     /// Rewrites the files of the project that oxfmt can format
@@ -181,7 +189,7 @@ impl Oxfmt {
             .invocation()
             .arg(operation)
             .arg(PATTERN)
-            .launch()
+            .launch_with(&self.output, ShownStreams::Both)
             .await
             .map_err(|source| ObserveOxfmtError::OxfmtUnavailable { source })?;
 

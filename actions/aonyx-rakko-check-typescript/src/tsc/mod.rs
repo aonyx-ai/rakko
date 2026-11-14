@@ -8,8 +8,8 @@
 mod error;
 pub(crate) mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, VersionRange};
-use rakko_tool::{Launch, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, VersionRange};
+use rakko_tool::{Launch, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveTscError;
 use crate::diagnostic::Diagnostic;
@@ -85,6 +85,11 @@ const HERE: &str = ".";
 pub(crate) struct Tsc {
     /// The program that mise installed at the version that the project pins
     tool: Tool,
+
+    /// The tool output of the context that resolved tsc
+    ///
+    /// Each run sends what tsc writes to it.
+    output: ToolOutput,
 }
 
 impl Tsc {
@@ -119,7 +124,7 @@ impl Tsc {
             .arg(PLAIN)
             .arg(PROJECT)
             .arg(HERE)
-            .launch()
+            .launch_with(&self.output, ShownStreams::Both)
             .await
             .map_err(|source| ObserveTscError::TscUnavailable { source })?;
 
@@ -201,7 +206,10 @@ impl Tsc {
             .await?
             .with_toolchain(&node)?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 }
 

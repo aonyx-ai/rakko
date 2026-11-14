@@ -23,9 +23,9 @@ use aonyx_rakko_cargo::Cargo;
 use aonyx_rakko_format_rust::{FormatRust, FormatRustArgs, Operation};
 use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, Position,
-    ProjectRoot, Summary, argument_name,
+    ProjectRoot, Summary, ToolEvent, argument_name,
 };
-use rakko_test_utils::{path_text, run_checking_access};
+use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use tempfile::TempDir;
 
 /// The manifest of a package that rustfmt formats
@@ -158,6 +158,25 @@ impl Project {
         FormatRust.run(&self.context(), &args).await
     }
 
+    /// Runs the action against this project like [`Project::run`], with a
+    /// context that sends what its tools write to a recorder
+    async fn run_recording(&self, operation: Operation, recorder: &ToolRecorder) -> Outcome {
+        let values = match operation {
+            Operation::Rewrite => {
+                ArgsValues::new([(argument_name!("fix"), ArgumentValue::new("true"))])
+            }
+            Operation::Report => ArgsValues::empty(),
+        };
+        let args = FormatRustArgs::from_values(&values)
+            .expect("the test builds the arguments from values that the action reads");
+        let context = Context::builder()
+            .root(self.context().root().clone())
+            .tool_output(recorder.output().clone())
+            .build();
+
+        FormatRust.run(&context, &args).await
+    }
+
     /// Writes a file of the project, with the directories that lead to it
     #[builder]
     fn write(&self, path: &str, content: &str) {
@@ -273,6 +292,23 @@ async fn run_in_a_formatted_project_passes() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the run to pass, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn run_sends_the_start_of_cargo_to_the_tool_output_of_the_context() {
+    let project = Project::with_library(FORMATTED);
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(Operation::Report, &recorder).await;
+
+    assert!(
+        recorder
+            .events()
+            .iter()
+            .any(|event| matches!(event, ToolEvent::Started(_))),
+        "expected the start of cargo, got {:?}",
+        recorder.events()
     );
 }
 
@@ -572,6 +608,24 @@ async fn run_with_fix_rewrites_the_file() {
     project.run(Operation::Rewrite).await;
 
     assert_eq!(project.read("src/lib.rs"), REWRITTEN);
+}
+
+#[tokio::test]
+async fn run_with_fix_sends_the_start_of_the_rewrite_to_the_tool_output_of_the_context() {
+    let project = Project::with_library(UNFORMATTED);
+    let recorder = ToolRecorder::new();
+
+    let _outcome = project.run_recording(Operation::Rewrite, &recorder).await;
+
+    assert!(
+        recorder.events().iter().any(|event| matches!(
+            event,
+            ToolEvent::Started(command)
+                if command.get().contains("fmt") && !command.get().contains("--check")
+        )),
+        "expected the start of the rewrite of cargo, got {:?}",
+        recorder.events()
+    );
 }
 
 #[tokio::test]

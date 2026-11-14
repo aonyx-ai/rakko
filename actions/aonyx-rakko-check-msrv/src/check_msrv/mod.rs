@@ -13,7 +13,7 @@ use rakko::{
     Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
     ToolRequirement, action_name,
 };
-use rakko_tool::Execution;
+use rakko_tool::{Execution, Launch, ShownStreams};
 
 pub use self::error::CheckMsrvError;
 
@@ -210,7 +210,7 @@ async fn check(
     let execution = cargo
         .invocation_with_toolchain(root, &toolchain)
         .args(CHECK)
-        .run()
+        .launch_with(context.tool_output(), ShownStreams::StandardError)
         .await
         .map_err(|source| CheckMsrvError::CargoUnavailable { source })?;
 

@@ -13,7 +13,7 @@ use rakko::{
     Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
     ToolRequirement, action_name,
 };
-use rakko_tool::Execution;
+use rakko_tool::{Execution, Launch, ShownStreams};
 
 pub use self::error::CheckUnusedDepsError;
 use crate::report::UdepsReport;
@@ -216,7 +216,7 @@ async fn check(
     let execution = cargo
         .plugin_invocation_with_toolchain(root, udeps.tool(), toolchain)
         .args(UDEPS)
-        .run()
+        .launch_with(context.tool_output(), ShownStreams::StandardError)
         .await
         .map_err(|source| CheckUnusedDepsError::UdepsUnavailable { source })?;
 

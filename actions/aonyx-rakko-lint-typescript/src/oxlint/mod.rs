@@ -8,8 +8,8 @@
 mod error;
 pub(crate) mod report;
 
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, Tool};
+use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
+use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveOxlintError;
 use crate::observation::Observation;
@@ -58,6 +58,11 @@ const HERE: &str = ".";
 pub(crate) struct Oxlint {
     /// The program that mise installed at the declared version
     tool: Tool,
+
+    /// The tool output of the context that resolved oxlint
+    ///
+    /// Each run sends what oxlint writes to it.
+    output: ToolOutput,
 }
 
 impl Oxlint {
@@ -94,7 +99,7 @@ impl Oxlint {
             .arg(FORMAT)
             .arg(JSON)
             .arg(HERE)
-            .launch()
+            .launch_with(&self.output, ShownStreams::StandardError)
             .await
             .map_err(|source| ObserveOxlintError::OxlintUnavailable { source })?;
 
@@ -140,7 +145,10 @@ impl Oxlint {
             .call()
             .await?;
 
-        Ok(Self { tool })
+        Ok(Self {
+            tool,
+            output: context.tool_output().clone(),
+        })
     }
 }
 

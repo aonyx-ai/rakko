@@ -12,8 +12,8 @@ mod trust;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use rakko::{FilePath, ProjectRoot, SkipReason};
-use rakko_tool::{Execution, Invocation};
+use rakko::{FilePath, ProjectRoot, SkipReason, ToolOutput};
+use rakko_tool::{Execution, Invocation, Launch, ShownStreams};
 use serde::Deserialize;
 
 pub(crate) use self::lock::Lock;
@@ -172,6 +172,12 @@ pub(crate) struct Mise {
     /// grants it only for a directory whose configuration somebody trusted in
     /// another place. An example is a copy of a project that mise already read.
     trust: Trust,
+
+    /// The tool output that each run of mise sends what it writes to
+    ///
+    /// A value without one discards what mise writes.
+    #[builder(default)]
+    output: ToolOutput,
 }
 
 impl Mise {
@@ -206,7 +212,7 @@ impl Mise {
     pub(crate) async fn lock(&self) -> Result<Lock, CheckMiseLockError> {
         let execution = self
             .lock_invocation()
-            .run()
+            .launch_with(&self.output, ShownStreams::Both)
             .await
             .map_err(|source| CheckMiseLockError::MiseUnavailable { source })?;
 
@@ -291,7 +297,7 @@ impl Mise {
             .arg(LOCK)
             .arg(SIDECARS)
             .arg(JSON)
-            .run()
+            .launch_with(&self.output, ShownStreams::StandardError)
             .await
             .map_err(|source| CheckMiseLockError::MiseUnavailable { source })?;
 

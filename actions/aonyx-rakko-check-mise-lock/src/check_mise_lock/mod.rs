@@ -145,6 +145,7 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
     let project = Mise::builder()
         .root(context.root().clone())
         .trust(Trust::Inherited)
+        .output(context.tool_output().clone())
         .build();
 
     let (mise, before, _worktree) = match args.operation() {
@@ -163,6 +164,7 @@ async fn drive(context: &Context, args: &CheckMiseLockArgs) -> Result<Outcome, C
             let copy = Mise::builder()
                 .root(worktree.root().clone())
                 .trust(Trust::Granted)
+                .output(context.tool_output().clone())
                 .build();
 
             let before = copy.lockfiles().await?;

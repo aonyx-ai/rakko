@@ -183,8 +183,11 @@ async fn drive(
         .await
         .map_err(|source| CheckCrateOwnersError::UndiscoveredRoots { source })?;
 
-    let registry =
-        CratesIo::build(cargo).map_err(|source| CheckCrateOwnersError::ClientUnavailable {
+    let registry = CratesIo::build()
+        .cargo(cargo)
+        .output(context.tool_output().clone())
+        .call()
+        .map_err(|source| CheckCrateOwnersError::ClientUnavailable {
             source: std::io::Error::other(source),
         })?;
 
