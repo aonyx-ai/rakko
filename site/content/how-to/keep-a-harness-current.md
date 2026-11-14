@@ -205,9 +205,9 @@ works. Create the app token in the job and pass it to `rakko-update`:
 steps:
   - name: Create the token of the app
     id: app-token
-    uses: actions/create-github-app-token@<commit> # v2
+    uses: actions/create-github-app-token@<commit> # v3.3.0
     with:
-      app-id: ${{ vars.RAKKO_UPDATE_APP_ID }}
+      client-id: ${{ vars.RAKKO_UPDATE_CLIENT_ID }}
       private-key: ${{ secrets.RAKKO_UPDATE_PRIVATE_KEY }}
 
   - name: Update the tool pins
@@ -217,6 +217,10 @@ steps:
 ```
 
 {% endraw %}
+
+Store the client ID of the app as a repository variable, and its private key
+as a repository secret. The client ID is on the settings page of the app, and
+it is a different value from the App ID.
 
 If you use Dependabot, also store the app's private key as a Dependabot
 secret. Workflows that Dependabot starts cannot read ordinary repository
