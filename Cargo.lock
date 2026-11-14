@@ -460,6 +460,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-lint-terraform"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-test-utils",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "aonyx-rakko-lint-toml"
 version = "0.1.0"
 dependencies = [

@@ -23,6 +23,7 @@ aonyx-rakko-format-yaml = { path = "../../actions/aonyx-rakko-format-yaml" }
 aonyx-rakko-lint-github-actions = { path = "../../actions/aonyx-rakko-lint-github-actions" }
 aonyx-rakko-lint-markdown = { path = "../../actions/aonyx-rakko-lint-markdown" }
 aonyx-rakko-lint-rust = { path = "../../actions/aonyx-rakko-lint-rust" }
+aonyx-rakko-lint-terraform = { path = "../../actions/aonyx-rakko-lint-terraform" }
 aonyx-rakko-lint-stiles = { path = "../../actions/aonyx-rakko-lint-stiles" }
 aonyx-rakko-lint-yaml = { path = "../../actions/aonyx-rakko-lint-yaml" }
 aonyx-rakko-pre-commit = { path = "../../commands/aonyx-rakko-pre-commit" }

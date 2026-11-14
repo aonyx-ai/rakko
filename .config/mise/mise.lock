@@ -143,6 +143,29 @@ checksum = "sha256:1615eed140039bd58e7089109883b1c434de5d6de8f64a993e6e8c80ca57b
 url = "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-windows-x86_64.zip"
 url_api = "https://api.github.com/repos/tamasfe/taplo/releases/assets/257323062"
 
+[[tools.tflint]]
+version = "0.66.0"
+backend = "aqua:terraform-linters/tflint"
+specifiers = ["0.66.0"]
+
+[tools.tflint."platforms.linux-x64"]
+checksum = "sha256:22be11cadc25cd02401e94c0ccc91aa63467debb8485c2a755d98f4c0a9d1e2e"
+url = "https://github.com/terraform-linters/tflint/releases/download/v0.66.0/tflint_linux_amd64.zip"
+url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/724464090"
+provenance = "github-attestations"
+
+[tools.tflint."platforms.macos-arm64"]
+checksum = "sha256:859b26af07ead7e65cee7eec9d050b2e2571dc28395b7a39191cae088cd67803"
+url = "https://github.com/terraform-linters/tflint/releases/download/v0.66.0/tflint_darwin_arm64.zip"
+url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/724463988"
+provenance = "github-attestations"
+
+[tools.tflint."platforms.windows-x64"]
+checksum = "sha256:e3acd1d89c735ce6e09108c9277f26076ebeb385c1f77a73c1cbf1826ed626a7"
+url = "https://github.com/terraform-linters/tflint/releases/download/v0.66.0/tflint_windows_amd64.zip"
+url_api = "https://api.github.com/repos/terraform-linters/tflint/releases/assets/724464085"
+provenance = "github-attestations"
+
 [[tools.yamllint]]
 version = "1.38.0"
 backend = "pypi:yamllint"
