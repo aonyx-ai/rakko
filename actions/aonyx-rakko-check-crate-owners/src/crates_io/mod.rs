@@ -20,8 +20,9 @@ use std::time::Duration;
 use aonyx_rakko_cargo::{Cargo, CargoRoot, PackageName};
 use rakko::ToolOutput;
 use rakko_tool::{Execution, Launch, ShownStreams};
-use reqwest::{Client, ClientBuilder};
+use reqwest::{Certificate, Client, ClientBuilder};
 use serde::Deserialize;
+use webpki_root_certs::TLS_SERVER_ROOT_CERTS;
 
 pub use self::error::LookUpOwnersError;
 use self::pace::Pace;
@@ -145,7 +146,12 @@ impl Registry for CratesIo {
 ///
 /// Returns a [`reqwest::Error`] when the client cannot configure its TLS.
 fn client(timeout: Duration) -> Result<Client, reqwest::Error> {
-    builder(timeout).build()
+    let roots = TLS_SERVER_ROOT_CERTS
+        .iter()
+        .map(|root| Certificate::from_der(root))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    builder(timeout).tls_certs_only(roots).build()
 }
 
 /// Returns the setup of the client that sends the requests to crates.io
