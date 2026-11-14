@@ -138,7 +138,8 @@ fn finding(issue: &TflintIssue, root: &ProjectRoot) -> Result<Finding, LintTerra
 /// TFLint writes the path relative to the directory where it started, which
 /// is the project root. It can write the path through the real location of
 /// that directory, with `..` in it, when the root sits behind a symbolic link.
-/// The real location of the file then gives the path within the root.
+/// Such a path gives no file within the root as it stands. The real location
+/// of the file then gives the path within the root.
 ///
 /// # Errors
 ///
@@ -147,13 +148,13 @@ fn finding(issue: &TflintIssue, root: &ProjectRoot) -> Result<Finding, LintTerra
 ///
 /// [foreign]: LintTerraformError::ForeignPath
 fn relative(path: &Path, root: &ProjectRoot) -> Result<FilePath, LintTerraformError> {
-    let joined = root.get().join(path);
-    let resolved = std::fs::canonicalize(&joined).unwrap_or(joined);
+    let within = |candidate: &Path| FilePath::within().path(candidate).root(root).call();
 
-    FilePath::within()
-        .path(&resolved)
-        .root(root)
-        .call()
+    within(path)
+        .or_else(|| {
+            let resolved = rakko::path::canonical(&root.get().join(path)).ok()?;
+            within(&resolved)
+        })
         .ok_or_else(|| LintTerraformError::ForeignPath {
             path: path.to_path_buf(),
         })
