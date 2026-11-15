@@ -21,7 +21,7 @@ use rakko::Bundle;
 /// action in it.
 ///
 /// `check-crate-owners` checks that each crate of the project has the owners
-/// of Aonyx on crates.io: the users `jdno` and `martijnarts`, and the team
+/// of Aonyx on crates.io: the user `jdno` and the team
 /// `github:aonyx-ai:crates-io`. Every project that mounts the bundle checks
 /// the same owners.
 ///
@@ -51,13 +51,11 @@ pub fn bundle() -> Bundle {
 /// Returns the owners that every crate of Aonyx must have on crates.io
 ///
 /// Only a user owner of a crate can change its owners or configure trusted
-/// publishing. So when one account becomes unavailable, the other user can
-/// still change the owners of the crate. The team shows on crates.io that the crate belongs to the
+/// publishing. The team shows on crates.io that the crate belongs to the
 /// organization.
-fn owners() -> [CrateOwner; 3] {
+fn owners() -> [CrateOwner; 2] {
     [
         CrateOwner::new("jdno"),
-        CrateOwner::new("martijnarts"),
         CrateOwner::new("github:aonyx-ai:crates-io"),
     ]
 }

@@ -40,10 +40,10 @@ The bundle exports nine actions:
 - `build-internal-docs` builds the documentation of the workspace with
   [rustdoc], including what the crates keep to themselves.
 - `check-crate-owners` checks that each crate that can reach [crates.io] has the
-  owners of Aonyx: the users `jdno` and `martijnarts`, and the team
-  `github:aonyx-ai:crates-io`. It reads the owners from crates.io, so it needs
-  the network, and it belongs in a job of CI and not before every commit. A
-  project whose crates Aonyx does not own removes the action from the list.
+  owners of Aonyx: the user `jdno` and the team `github:aonyx-ai:crates-io`.
+  It reads the owners from crates.io, so it needs the network, and it belongs
+  in a job of CI and not before every commit. A project whose crates Aonyx does
+  not own removes the action from the list.
 - `check-dependencies` examines the dependencies of the project with
   [cargo-deny], for advisories, licenses, and bans.
 - `check-latest-deps` resolves every dependency to its newest version and runs
