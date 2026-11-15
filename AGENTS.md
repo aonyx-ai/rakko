@@ -188,6 +188,8 @@ compile and test the Rust code that the pages of the website show.
 - Do not retell how the change came about, such as what the issue first
   asked, what a review found, or how many rounds the work took. State a
   decision by its reason.
+- Do not state that the checks or the tests pass. A change reaches `main`
+  only after its checks pass, so the claim tells the reader nothing.
 - Never mention a person, the author included. Git records the author, and a
   decision stands on its reason, not on who made it.
 - Don't use backticks in commit message titles, but do use them in bodies.
