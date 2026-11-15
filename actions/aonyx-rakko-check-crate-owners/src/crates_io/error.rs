@@ -28,7 +28,9 @@ pub enum LookUpOwnersError {
     /// The request did not reach crates.io, or its answer did not arrive
     ///
     /// The network, the name service, the certificate of crates.io, a
-    /// timeout, or a body that is not text can be the cause.
+    /// timeout, or a body that is not text can be the cause. A run reports
+    /// it only after several requests in a row for the same crate got no
+    /// answer.
     #[error("failed to reach crates.io")]
     RegistryUnavailable {
         /// The cause of the failure
