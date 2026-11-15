@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-cargo"
 version = "0.1.0"
-description = "Shared code for the Rakko actions that wrap cargo"
+description = "Runs cargo for Rakko actions: workspaces, toolchains, and JSON diagnostics"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

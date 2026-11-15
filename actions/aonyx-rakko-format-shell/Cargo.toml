@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-format-shell"
 version = "0.1.0"
-description = "A Rakko action that formats the shell scripts of a project with shfmt"
+description = "A Rakko action that formats shell scripts with shfmt"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true

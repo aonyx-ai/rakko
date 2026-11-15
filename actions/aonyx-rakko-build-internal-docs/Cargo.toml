@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-build-internal-docs"
 version = "0.1.0"
-description = "A Rakko action that builds the internal documentation of a Rust project with rustdoc"
+description = "A Rakko action that builds internal Rust documentation with rustdoc"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true

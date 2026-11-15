@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-check-crate-owners"
 version = "0.1.0"
-description = "A Rakko action that checks the owners of the crates of a Rust project on crates.io"
+description = "A Rakko action that checks that each crate has its required owners on crates.io"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
