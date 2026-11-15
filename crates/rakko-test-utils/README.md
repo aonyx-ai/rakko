@@ -1,8 +1,13 @@
-# Rakko Test Utils
+# `rakko-test-utils`
 
-[Rakko] turns project maintenance into versioned Rust crates, and an action is
-a crate that does one maintenance task. `rakko-test-utils` helps the author of
-an action test the action. It gives two kinds of help:
+This crate helps authors test their Rakko actions and their declarations of
+access to project files.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+The crate gives two kinds of help:
 
 - A test writes a path with a forward slash between the parts, and the crate
   builds the path that the platform uses. So one literal in a test describes
@@ -33,6 +38,21 @@ Aonyx uses Rakko internally, and we maintain and support this crate. The
 section [Support] in the README of the repository lists the crates that Aonyx
 supports for other authors.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/rakko-test-utils
-[rakko]: https://github.com/aonyx-ai/rakko
+[rakko]: https://rakko.aonyx.ai
 [support]: https://github.com/aonyx-ai/rakko#support
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

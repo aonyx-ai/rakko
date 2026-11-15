@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "The traits and types of Rakko, which turns project maintenance into Rust crates"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "automation", "maintenance"]
 
 [dependencies]
 bon = { workspace = true }

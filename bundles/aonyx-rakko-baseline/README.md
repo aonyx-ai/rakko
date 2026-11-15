@@ -1,10 +1,15 @@
-# Aonyx Rakko Baseline
+# `aonyx-rakko-baseline`
 
-`aonyx-rakko-baseline` is the bundle that any project mounts: the actions that
-format and examine the files that a project holds, whatever language it is
-written in. A project subscribes to the whole set with one dependency and one
-line in its harness, and a release of the bundle reaches the project as a pull
-request like any other dependency.
+This crate bundles the maintenance actions that Aonyx runs for project files
+across languages.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+A project subscribes to the whole set with one dependency and one line in its
+harness, and a release of the bundle reaches the project as a pull request
+like any other dependency.
 
 The bundle contains no other bundle, and no bundle contains it. A project
 mounts it alone, or beside the bundle of its language, such as a Rust bundle or
@@ -153,8 +158,21 @@ This bundle was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-baseline/latest/aonyx_rakko_baseline/fn.bundle.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [markdownlint]: https://github.com/DavidAnson/markdownlint
 [mise]: https://mise.jdx.dev
 [prettier]: https://prettier.io
@@ -164,3 +182,6 @@ See the [guide] for instructions.
 [taplo]: https://taplo.tamasfe.dev
 [yamllint]: https://github.com/adrienverge/yamllint
 [zizmor]: https://docs.zizmor.sh
+[rakko]: https://rakko.aonyx.ai
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

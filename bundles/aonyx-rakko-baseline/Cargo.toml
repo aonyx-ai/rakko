@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "A Rakko bundle of actions for the files of any project, whatever its language"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "rakko-bundle", "automation"]
 
 [dependencies]
 aonyx-rakko-check-mise-lock = { path = "../../actions/aonyx-rakko-check-mise-lock", version = "0.1.0" }

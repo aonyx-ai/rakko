@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "A disposable Git worktree for Rakko actions that must not change the checkout"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "git", "worktree"]
 
 [dependencies]
 getset = { workspace = true }

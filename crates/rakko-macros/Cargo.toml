@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "The derive macros of the rakko crate, which exports them again"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "derive", "macros"]
 
 [lib]
 proc-macro = true

@@ -1,10 +1,15 @@
-# Aonyx Rakko TypeScript
+# `aonyx-rakko-typescript`
 
-`aonyx-rakko-typescript` is the bundle that any TypeScript project mounts: the
-formatter, the linter, the type checker, and the test runner. A project
-subscribes to the whole set with one dependency and one line in its harness,
-and a release of the bundle reaches the project as a pull request like any
-other dependency.
+This crate bundles the actions that Aonyx uses to format, lint, type check,
+and test TypeScript projects.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+A project subscribes to the whole set with one dependency and one line in its
+harness, and a release of the bundle reaches the project as a pull request
+like any other dependency.
 
 The bundle contains no other bundle, and it does not contain the baseline, so a
 TypeScript project mounts two names: this bundle beside `aonyx-rakko-baseline`.
@@ -133,11 +138,27 @@ This bundle was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-typescript/latest/aonyx_rakko_typescript/fn.bundle.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
 [node-typescript]: https://nodejs.org/api/typescript.html
 [oxfmt]: https://oxc.rs/docs/guide/usage/formatter.html
 [oxlint]: https://oxc.rs/docs/guide/usage/linter.html
 [test runner]: https://nodejs.org/api/test.html
 [tsc]: https://www.typescriptlang.org/docs/handbook/compiler-options.html
+[rakko]: https://rakko.aonyx.ai
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

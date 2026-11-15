@@ -5,6 +5,8 @@ description = "A Rakko action that checks a Rust project on its minimum supporte
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

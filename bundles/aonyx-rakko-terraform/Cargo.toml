@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "A Rakko bundle of actions that format and lint Terraform"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "rakko-bundle", "automation", "terraform"]
 
 [dependencies]
 aonyx-rakko-format-terraform = { path = "../../actions/aonyx-rakko-format-terraform", version = "0.1.0" }

@@ -1,11 +1,17 @@
-# Aonyx Rakko Rust
+# `aonyx-rakko-rust`
 
-`aonyx-rakko-rust` is the bundle that a Rust project of Aonyx mounts. It holds
-the formatter, the linter, the test runner, the checks that guard what the
-project depends on, the check of the owners of its crates, and the build of its
-internal documentation. A project subscribes to the whole set with one
-dependency and one line in its harness, and a release of the
-bundle reaches the project as a pull request like any other dependency.
+This crate bundles the maintenance actions that Aonyx runs for every Rust
+project.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+The bundle holds the formatter, the linter, the test runner, the checks that
+guard what the project depends on, the check of the owners of its crates, and
+the build of its internal documentation. A project subscribes to the whole set
+with one dependency and one line in its harness, and a release of the bundle
+reaches the project as a pull request like any other dependency.
 
 The bundle is the core that the Rust library bundle and the Rust binary bundle
 contain, and a project mounts it through one of them. It contains no other
@@ -110,14 +116,30 @@ This bundle was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [cargo-deny]: https://embarkstudios.github.io/cargo-deny/
 [cargo-udeps]: https://github.com/est31/cargo-udeps
 [crates.io]: https://crates.io
 [clippy]: https://doc.rust-lang.org/clippy/
 [docs]: https://docs.rs/aonyx-rakko-rust/latest/aonyx_rakko_rust/fn.bundle.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
 [nextest]: https://nexte.st
 [rustdoc]: https://doc.rust-lang.org/rustdoc/
 [rustfmt]: https://rust-lang.github.io/rustfmt/
 [stiles]: https://github.com/aonyx-ai/stiles
+[rakko]: https://rakko.aonyx.ai
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

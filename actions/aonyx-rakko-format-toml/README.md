@@ -1,7 +1,11 @@
-# Aonyx Rakko Format TOML
+# `aonyx-rakko-format-toml`
 
-`aonyx-rakko-format-toml` provides `format-toml`, an action for [Rakko] that
-formats the TOML files of a project.
+This crate provides `format-toml`, a Rakko action that formats TOML files with
+taplo.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
 
 [Taplo] does the work. It discovers the TOML files, reads its own configuration,
 and formats what that configuration selects. So a run of the action agrees with
@@ -41,8 +45,23 @@ This action was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-format-toml/latest/aonyx_rakko_format_toml/struct.FormatToml.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
-[rakko]: https://github.com/aonyx-ai/rakko
+[rakko]: https://rakko.aonyx.ai
 [taplo]: https://taplo.tamasfe.dev
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

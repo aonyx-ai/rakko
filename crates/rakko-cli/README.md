@@ -1,12 +1,14 @@
-# Rakko CLI
+# `rakko-cli`
 
-`rakko-cli` turns the actions that a harness mounts into a command line.
-[Rakko] turns project maintenance into versioned Rust crates, and an action is
-a crate that does one maintenance task. A bundle is a crate that exports a
-list of actions. A harness is the small binary that a project runs to maintain
-itself. It mounts the actions that the project uses, one by one or through a
-bundle. This crate gives each action a command with its help text and its
-flags.
+This crate turns the Rakko actions that a project chooses into a command line.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+A bundle is a crate that exports a list of actions. A harness selects actions
+one by one or through a bundle. This crate gives each action a command with
+its help text and its flags.
 
 A harness can also mount commands that it writes itself, and groups. A group
 is a named list of actions that runs as one command, such as the actions that
@@ -49,6 +51,21 @@ Aonyx uses Rakko internally, and we maintain and support this crate. The
 section [Support] in the README of the repository lists the crates that Aonyx
 supports for other authors.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/rakko-cli
-[rakko]: https://github.com/aonyx-ai/rakko
+[rakko]: https://rakko.aonyx.ai
 [support]: https://github.com/aonyx-ai/rakko#support
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

@@ -1,11 +1,17 @@
-# Aonyx Rakko Pre-Commit
+# `aonyx-rakko-pre-commit`
 
-`aonyx-rakko-pre-commit` provides the `pre-commit` command, which runs the
-actions that guard a commit. A harness gives the command one list of these
-actions, in any order. The harness selects the actions, and the command line of
-the harness orders and runs them. So the harness contains no loop over actions
-and no code that reports them. It also does not split the actions into the
-actions that write and the actions that read.
+This crate provides `pre-commit`, a Rakko command that runs the actions that
+guard a commit.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+A harness gives the command one list of these actions, in any order. The
+harness selects the actions, and the command line of the harness orders and
+runs them. So the harness contains no loop over actions and no code that
+reports them. It also does not split the actions into the actions that write
+and the actions that read.
 
 The command is a group, and the actions in its list are its members. The
 group is a name and this list, and nothing else. The command line of the
@@ -139,6 +145,22 @@ This command was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-pre-commit/latest/aonyx_rakko_pre_commit/struct.PreCommit.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [pre-commit]: https://pre-commit.com
+[rakko]: https://rakko.aonyx.ai
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT
