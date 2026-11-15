@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-check-dependencies"
 version = "0.1.0"
-description = "A Rakko action that examines the dependencies of a Rust project with cargo-deny"
+description = "A Rakko action that checks Rust dependencies with cargo-deny"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true

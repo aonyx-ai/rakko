@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-format-terraform"
 version = "0.1.0"
-description = "A Rakko action that formats the Terraform files of a project with terraform fmt"
+description = "A Rakko action that formats Terraform files with terraform fmt"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true

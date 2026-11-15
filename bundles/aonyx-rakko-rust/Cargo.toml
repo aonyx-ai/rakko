@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-rust"
 version = "0.1.0"
-description = "The core Rakko bundle for Rust, which the library and binary bundles contain"
+description = "A Rakko bundle of the actions that every Rust project of Aonyx runs"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true

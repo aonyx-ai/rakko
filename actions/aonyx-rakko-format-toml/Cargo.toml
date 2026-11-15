@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-format-toml"
 version = "0.1.0"
-description = "A Rakko action that formats the TOML files of a project with taplo"
+description = "A Rakko action that formats TOML files with taplo"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true

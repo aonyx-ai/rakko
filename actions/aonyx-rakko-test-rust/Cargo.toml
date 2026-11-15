@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-test-rust"
 version = "0.1.0"
-description = "A Rakko action that runs the tests of a Rust project with nextest"
+description = "A Rakko action that runs Rust tests with nextest"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true

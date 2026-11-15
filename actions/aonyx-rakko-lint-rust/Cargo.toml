@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-lint-rust"
 version = "0.1.0"
-description = "A Rakko action that lints the Rust code of a project with clippy"
+description = "A Rakko action that lints Rust code with clippy"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true

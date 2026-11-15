@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-lint-github-actions"
 version = "0.1.0"
-description = "A Rakko action that audits the GitHub Actions workflows of a project with zizmor"
+description = "A Rakko action that audits GitHub Actions workflows with zizmor"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true

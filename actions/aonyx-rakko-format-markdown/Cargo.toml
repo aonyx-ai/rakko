@@ -1,7 +1,7 @@
 [package]
 name = "aonyx-rakko-format-markdown"
 version = "0.1.0"
-description = "A Rakko action that formats the Markdown files of a project with prettier"
+description = "A Rakko action that formats Markdown files with prettier"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
