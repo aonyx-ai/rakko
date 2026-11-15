@@ -11,6 +11,11 @@
 //! module waits one second before each lookup and before each run of
 //! `cargo owner --add`. Cargo sends requests of its own in such a run. The
 //! User-Agent gives the name of this crate and the address of its repository.
+//!
+//! A request to crates.io can get no answer while crates.io answers the
+//! requests before and after it, for example when it times out. The registry
+//! then asks again for the same crate, and it gives up only after several
+//! requests in a row got no answer.
 
 mod error;
 mod pace;
@@ -46,6 +51,10 @@ const INTERVAL: Duration = Duration::from_secs(1);
 
 /// The longest time that one request to crates.io takes before it fails
 const TIMEOUT: Duration = Duration::from_secs(30);
+
+/// The number of requests for the owners of one crate that a run sends
+/// before it reports that crates.io is unavailable
+const ATTEMPTS: u8 = 3;
 
 /// The status with which crates.io answers for a crate that it does not have
 const NOT_FOUND: u16 = 404;
@@ -113,9 +122,7 @@ impl CratesIo {
 
 impl Registry for CratesIo {
     async fn owners(&self, name: &PackageName) -> Result<Ownership, LookUpOwnersError> {
-        self.pace.wait().await;
-
-        look_up(&self.client, CRATES, name).await
+        look_up_patiently(&self.client, &self.pace, CRATES, name).await
     }
 
     async fn add(&self, root: &CargoRoot, name: &PackageName, owner: &CrateOwner) -> Addition {
@@ -158,6 +165,36 @@ fn client(timeout: Duration) -> Result<Client, reqwest::Error> {
 /// such as no proxy for a server on the machine itself.
 fn builder(timeout: Duration) -> ClientBuilder {
     Client::builder().user_agent(USER_AGENT).timeout(timeout)
+}
+
+/// Asks an API with the shape of crates.io for the owners of a crate, and asks
+/// again when no answer arrives
+///
+/// Each request waits for `pace` first. A request that gets no answer is sent
+/// again, up to [`ATTEMPTS`] requests in all. An answer ends the lookup, so a
+/// status that the action does not expect still fails it at once.
+///
+/// # Errors
+///
+/// Returns the error of the last request, as [`look_up`] describes it.
+async fn look_up_patiently(
+    client: &Client,
+    pace: &Pace,
+    crates: &str,
+    name: &PackageName,
+) -> Result<Ownership, LookUpOwnersError> {
+    let mut attempt = 1;
+
+    loop {
+        pace.wait().await;
+
+        match look_up(client, crates, name).await {
+            Err(LookUpOwnersError::RegistryUnavailable { .. }) if attempt < ATTEMPTS => {
+                attempt += 1;
+            }
+            result => return result,
+        }
+    }
 }
 
 /// Asks an API with the shape of crates.io for the owners of a crate
@@ -290,6 +327,11 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpListener;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     use super::*;
 
     /// What cargo writes when crates.io refuses an addition
@@ -322,6 +364,46 @@ mod tests {
     /// examines.
     async fn look_up_otter(crates: &str) -> Result<Ownership, LookUpOwnersError> {
         look_up(&local_client(TIMEOUT), crates, &PackageName::new("otter")).await
+    }
+
+    /// Starts a server on the machine that takes one connection after the other
+    ///
+    /// The function returns the address of the crates of the server and the
+    /// number of connections that the server took. Each answer is the body of
+    /// a status 200 for one connection. A `None` closes its connection without
+    /// an answer, like a request whose answer never arrives. The server stops
+    /// after the last answer.
+    fn serve(answers: Vec<Option<&'static str>>) -> (String, Arc<AtomicUsize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let connections = Arc::new(AtomicUsize::new(0));
+        let counted = Arc::clone(&connections);
+
+        std::thread::spawn(move || {
+            for answer in answers {
+                let (mut stream, _) = listener.accept().unwrap();
+                counted.fetch_add(1, Ordering::SeqCst);
+
+                let mut request = BufReader::new(stream.try_clone().unwrap());
+                let mut line = String::new();
+                while request.read_line(&mut line).unwrap() > 0 && line != "\r\n" {
+                    line.clear();
+                }
+
+                if let Some(body) = answer {
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                    stream.write_all(response.as_bytes()).unwrap();
+                }
+            }
+        });
+
+        (
+            format!("http://127.0.0.1:{port}/api/v1/crates"),
+            connections,
+        )
     }
 
     /// What cargo writes when it has no token
@@ -455,6 +537,45 @@ mod tests {
             matches!(&error, LookUpOwnersError::RegistryUnavailable { .. }),
             "expected an unavailable registry, got {error:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn look_up_patiently_after_a_lost_request_lists_the_owners() {
+        let (crates, _connections) = serve(vec![None, Some(OWNERS)]);
+
+        let ownership = look_up_patiently(
+            &local_client(TIMEOUT),
+            &Pace::new(Duration::ZERO),
+            &crates,
+            &PackageName::new("otter"),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            ownership,
+            Ownership::Published {
+                owners: vec![
+                    CrateOwner::new("jdno"),
+                    CrateOwner::new("github:aonyx-ai:crates-io"),
+                ],
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn look_up_patiently_of_a_registry_that_never_answers_sends_every_attempt() {
+        let (crates, connections) = serve(vec![None; usize::from(ATTEMPTS) + 2]);
+
+        let _result = look_up_patiently(
+            &local_client(TIMEOUT),
+            &Pace::new(Duration::ZERO),
+            &crates,
+            &PackageName::new("otter"),
+        )
+        .await;
+
+        assert_eq!(connections.load(Ordering::SeqCst), usize::from(ATTEMPTS));
     }
 
     #[tokio::test]
