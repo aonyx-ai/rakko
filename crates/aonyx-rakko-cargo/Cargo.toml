@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Runs cargo for Rakko actions: workspaces, toolchains, and JSON diagnostics"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "cargo", "automation"]
 
 [dependencies]
 bon = { workspace = true }

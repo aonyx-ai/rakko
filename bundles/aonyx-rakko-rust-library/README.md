@@ -1,11 +1,15 @@
-# Aonyx Rakko Rust Library
+# `aonyx-rakko-rust-library`
 
-`aonyx-rakko-rust-library` is the bundle that a Rust project mounts when it
-publishes a library: everything that any Rust project runs, and the checks that
-guard the promises a library makes to whoever depends on it. A project
-subscribes to the whole set with one dependency and one line in its harness, and
-a release of the bundle reaches the project as a pull request like any other
-dependency.
+This crate bundles the maintenance actions that Aonyx runs for Rust projects
+that publish libraries.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+A project subscribes to the whole set with one dependency and one line in its
+harness, and a release of the bundle reaches the project as a pull request
+like any other dependency.
 
 The bundle contains `aonyx-rakko-rust`, the core of the Rust family, and adds
 three checks to it. A project mounts this bundle or `aonyx-rakko-rust-binary`,
@@ -71,7 +75,23 @@ This bundle was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [cargo]: https://doc.rust-lang.org/cargo/
 [docs]: https://docs.rs/aonyx-rakko-rust-library/latest/aonyx_rakko_rust_library/fn.bundle.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
+[rakko]: https://rakko.aonyx.ai
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

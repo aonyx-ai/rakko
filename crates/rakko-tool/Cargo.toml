@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Finds and runs the external tools of Rakko actions through mise"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "mise", "automation"]
 
 [dependencies]
 bon = { workspace = true }

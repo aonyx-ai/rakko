@@ -1,11 +1,16 @@
-# Aonyx Rakko Set MSRV
+# `aonyx-rakko-set-msrv`
 
-`aonyx-rakko-set-msrv` provides the `set-msrv` command, which sets the minimum
-supported Rust version (MSRV) of a project. Three places state that version,
-and all three must agree: the `rust-version` of the root `Cargo.toml`, the
-Rust pin in `mise.toml` that check-msrv runs the compiler on, and the entry of
-that pin in `mise.lock`. The command writes all three in one run, installs
-the new toolchain, and checks the code on it.
+This crate provides `set-msrv`, a Rakko command that sets and tests the
+minimum supported Rust version (MSRV) of a project.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+Three places state that version, and all three must agree: the `rust-version`
+of the root `Cargo.toml`, the Rust pin in `mise.toml` that check-msrv runs the
+compiler on, and the entry of that pin in `mise.lock`. The command writes all
+three in one run, installs the new toolchain, and checks the code on it.
 
 ## Usage
 
@@ -88,5 +93,21 @@ This command was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-set-msrv/latest/aonyx_rakko_set_msrv/struct.SetMsrv.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
+[rakko]: https://rakko.aonyx.ai
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

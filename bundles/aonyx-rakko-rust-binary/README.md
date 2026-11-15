@@ -1,11 +1,15 @@
-# Aonyx Rakko Rust Binary
+# `aonyx-rakko-rust-binary`
 
-`aonyx-rakko-rust-binary` is the bundle that a Rust project mounts when it ships
-a binary: the formatter, the linter, the test runner, the checks that guard what
-the project depends on, and the build of its internal documentation. A project
-subscribes to the whole set with one dependency and one line in its harness,
-and a release of the bundle reaches the project as a pull request like any
-other dependency.
+This crate bundles the maintenance actions that Aonyx runs for Rust projects
+that ship binaries.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+A project subscribes to the whole set with one dependency and one line in its
+harness, and a release of the bundle reaches the project as a pull request
+like any other dependency.
 
 The bundle contains `aonyx-rakko-rust`, the core of the Rust family, and adds
 nothing to it today. It exists so that a binary project names what it is, and so
@@ -53,5 +57,21 @@ This bundle was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-rust-binary/latest/aonyx_rakko_rust_binary/fn.bundle.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
+[rakko]: https://rakko.aonyx.ai
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

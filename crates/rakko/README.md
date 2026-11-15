@@ -1,10 +1,13 @@
-# Rakko
+# `rakko`
 
-`rakko` is the contract of [Rakko], which turns project maintenance into
-versioned Rust crates. A maintenance task, such as the check of the TOML files
-of a project, is a crate called an action. This crate holds the trait that an
-action implements, and the types that a run uses: the arguments, the context,
-the findings, and the outcome.
+This crate defines the traits and types that Rakko actions and groups share.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+An action implements the `Action` trait from this crate. The shared types
+describe the arguments, the context, the findings, and the outcome of a run.
 
 A group is a named list of actions that runs as one command, such as the
 actions that run before a commit. A bundle is a crate that exports a list of
@@ -36,7 +39,22 @@ Aonyx uses Rakko internally, and we maintain and support this crate. The
 section [Support] in the README of the repository lists the crates that Aonyx
 supports for other authors.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/rakko
-[rakko]: https://github.com/aonyx-ai/rakko
+[rakko]: https://rakko.aonyx.ai
 [rakko-cli]: https://crates.io/crates/rakko-cli
 [support]: https://github.com/aonyx-ai/rakko#support
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

@@ -1,9 +1,15 @@
-# Aonyx Rakko Terraform
+# `aonyx-rakko-terraform`
 
-`aonyx-rakko-terraform` is the bundle that any project with Terraform mounts:
-the formatter and the linter. A project subscribes to both with one dependency
-and one line in its harness, and a release of the bundle reaches the project as
-a pull request like any other dependency.
+This crate bundles the actions that Aonyx uses to format and lint Terraform
+files.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+A project subscribes to both with one dependency and one line in its harness,
+and a release of the bundle reaches the project as a pull request like any
+other dependency.
 
 The bundle contains no other bundle, and it does not contain the baseline. A
 project with Terraform mounts this bundle beside `aonyx-rakko-baseline`.
@@ -63,7 +69,23 @@ This bundle was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-terraform/latest/aonyx_rakko_terraform/fn.bundle.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
 [tflint]: https://github.com/terraform-linters/tflint
+[rakko]: https://rakko.aonyx.ai
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

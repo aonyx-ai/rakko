@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Runs shfmt for Rakko actions to find, check, and format shell scripts"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "shfmt", "shell", "formatting"]
 
 [dependencies]
 bon = { workspace = true }

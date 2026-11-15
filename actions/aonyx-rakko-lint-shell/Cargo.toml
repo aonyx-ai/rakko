@@ -5,6 +5,8 @@ description = "A Rakko action that lints shell scripts with ShellCheck"
 keywords = ["rakko-action"]
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 

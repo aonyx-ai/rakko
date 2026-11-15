@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "A pre-commit command for Rakko, which runs the actions that guard a commit"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "pre-commit", "automation"]
 
 [dependencies]
 rakko = { workspace = true }

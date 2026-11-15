@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "A Rakko command that sets and verifies the minimum supported Rust version"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "msrv", "automation"]
 
 [dependencies]
 getset = { workspace = true }

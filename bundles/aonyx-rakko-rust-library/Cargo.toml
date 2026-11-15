@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "A Rakko bundle of the actions for Rust projects of Aonyx that publish a library"
 edition.workspace = true
 license.workspace = true
+homepage.workspace = true
+categories.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords = ["rakko", "rakko-bundle", "automation", "rust"]
 
 [dependencies]
 aonyx-rakko-check-minimal-deps = { path = "../../actions/aonyx-rakko-check-minimal-deps", version = "0.1.0" }

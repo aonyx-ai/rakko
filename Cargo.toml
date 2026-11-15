@@ -18,6 +18,8 @@ edition = "2024"
 
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/aonyx-ai/rakko"
+homepage = "https://rakko.aonyx.ai"
+categories = ["development-tools"]
 
 # bon 3.10 requires Rust 1.88 or higher
 rust-version = "1.88.0"

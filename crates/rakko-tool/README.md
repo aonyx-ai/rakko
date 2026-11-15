@@ -1,10 +1,15 @@
-# Rakko Tool
+# `rakko-tool`
 
-[Rakko] turns project maintenance into versioned Rust crates, and an action is
-a crate that does one maintenance task. An action does the work of an external
-tool, such as a formatter or a linter, and it starts that tool as a
-subprocess. `rakko-tool` finds the tool, and it describes the command that
-starts the tool. So every action reaches its tool in the same way.
+This crate finds and runs the external tools of Rakko actions through mise.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
+
+An action does the work of an external tool, such as a formatter or a linter,
+and it starts that tool as a subprocess. `rakko-tool` finds the tool, and it
+describes the command that starts the tool. So every action reaches its tool
+in the same way.
 
 [Mise] tells the crate where a tool is. The crate searches no path of its own
 and installs nothing. An action declares each tool that it runs as a
@@ -24,7 +29,22 @@ Aonyx uses Rakko internally, and we maintain and support this crate. The
 section [Support] in the README of the repository lists the crates that Aonyx
 supports for other authors.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/rakko-tool
 [mise]: https://mise.jdx.dev
-[rakko]: https://github.com/aonyx-ai/rakko
+[rakko]: https://rakko.aonyx.ai
 [support]: https://github.com/aonyx-ai/rakko#support
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

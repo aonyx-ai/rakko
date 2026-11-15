@@ -1,7 +1,11 @@
-# Aonyx Rakko Check Renovate Config
+# `aonyx-rakko-check-renovate-config`
 
-`aonyx-rakko-check-renovate-config` provides `check-renovate-config`, an action
-for [Rakko] that checks the Renovate configuration of a project.
+This crate provides `check-renovate-config`, a Rakko action that finds errors
+in Renovate configuration.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
 
 `renovate-config-validator`, the validator that [Renovate] ships, does the work.
 It finds the configurations of the project, reads each of them, and reports
@@ -80,9 +84,24 @@ This action was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-check-renovate-config/latest/aonyx_rakko_check_renovate_config/struct.CheckRenovateConfig.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
-[rakko]: https://github.com/aonyx-ai/rakko
+[rakko]: https://rakko.aonyx.ai
 [renovate]: https://docs.renovatebot.com
 [tokio]: https://tokio.rs
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT

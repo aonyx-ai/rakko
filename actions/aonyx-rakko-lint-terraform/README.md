@@ -1,7 +1,11 @@
-# Aonyx Rakko Lint Terraform
+# `aonyx-rakko-lint-terraform`
 
-`aonyx-rakko-lint-terraform` provides `lint-terraform`, an action for [Rakko]
-that lints the Terraform modules of a project.
+This crate provides `lint-terraform`, a Rakko action that lints Terraform
+modules with TFLint.
+
+[Rakko] turns project maintenance into versioned Rust crates. An action is
+a crate that does one maintenance task. A project runs its chosen actions
+through a harness, a small Rust program.
 
 [TFLint] does the work. It walks the project from its root and inspects every
 directory that holds Terraform files. It skips a directory whose name starts
@@ -47,8 +51,23 @@ This action was built specifically for Aonyx's workflows. It might not fit
 your needs, in which case we strongly encourage you to create your own action.
 See the [guide] for instructions.
 
+## License
+
+Copyright (c) 2026 Aonyx B.V.
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE][license-apache]
+  or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT][license-mit]
+  or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
 [docs]: https://docs.rs/aonyx-rakko-lint-terraform/latest/aonyx_rakko_lint_terraform/struct.LintTerraform.html
-[guide]: https://github.com/aonyx-ai/rakko#support
+[guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
-[rakko]: https://github.com/aonyx-ai/rakko
+[rakko]: https://rakko.aonyx.ai
 [tflint]: https://github.com/terraform-linters/tflint
+[license-apache]: LICENSE-APACHE
+[license-mit]: LICENSE-MIT
