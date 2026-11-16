@@ -8,7 +8,7 @@
 "cargo:cargo-udeps" = "0.1.61"
 "npm:markdownlint-cli" = "0.50.0"
 "npm:prettier" = "3.10.1"
-"npm:renovate" = "44.222.5"
+"npm:renovate" = "44.239.1"
 oxfmt = "0.75.0"
 oxlint = "1.93.0"
 shellcheck = "0.11.0"
