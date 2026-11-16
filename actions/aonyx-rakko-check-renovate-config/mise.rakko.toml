@@ -3,4 +3,4 @@
 # that reads the log of its validator change together. Mise reads the file
 # only with `MISE_ENV=rakko`.
 [tools]
-"npm:renovate" = "44.222.5"
+"npm:renovate" = "44.239.1"
