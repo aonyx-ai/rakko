@@ -45,9 +45,9 @@ backend = "npm:prettier"
 specifiers = ["3.10.1"]
 
 [[tools."npm:renovate"]]
-version = "44.239.2"
+version = "44.240.0"
 backend = "npm:renovate"
-specifiers = ["44.239.2"]
+specifiers = ["44.240.0"]
 
 [[tools.oxfmt]]
 version = "0.75.0"
