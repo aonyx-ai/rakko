@@ -1,0 +1,29 @@
+---
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share an idea for a new feature or an improvement of Rakko. Start with the problem that the idea solves.
+
+        Discussions are public. Remove credentials and personal data from examples and logs. Report a security vulnerability through the [private vulnerability reporting] of GitHub, not here.
+
+        [private vulnerability reporting]: https://github.com/aonyx-ai/rakko/security/advisories/new
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What does not work well for you today?
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact on Your Work
+      description: Who has this problem, and how does it change your workflow?
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: Describe how Rakko can solve the problem, and the alternatives that you see.
+    validations:
+      required: true

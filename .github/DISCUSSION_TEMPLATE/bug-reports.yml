@@ -1,0 +1,44 @@
+---
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report behavior of Rakko that looks wrong. You do not need to know the cause.
+
+        Discussions are public. Remove credentials and personal data from examples and logs. Report a security vulnerability through the [private vulnerability reporting] of GitHub, not here.
+
+        [private vulnerability reporting]: https://github.com/aonyx-ai/rakko/security/advisories/new
+  - type: textarea
+    id: environment
+    attributes:
+      label: Versions and Platform
+      description: Give the Rakko crates and their versions from the `Cargo.lock` of your harness, the versions of Rust and mise, and your operating system. If you do not know a version, say so.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Give the command that you ran and the smallest example that shows the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Paste only the output that helps to explain the problem. Remove credentials and personal data.
+      render: text

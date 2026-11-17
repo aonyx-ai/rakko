@@ -1,0 +1,27 @@
+---
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask for help with using or understanding Rakko.
+
+        Discussions are public. Remove credentials and personal data from examples and logs. Report a security vulnerability through the [private vulnerability reporting] of GitHub, not here.
+
+        [private vulnerability reporting]: https://github.com/aonyx-ai/rakko/security/advisories/new
+  - type: textarea
+    id: question
+    attributes:
+      label: Goal or Question
+      description: What do you want to do, and where are you stuck?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What You Tried
+      description: Show what you tried and what happened. A small example helps.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Versions and Platform
+      description: If they matter for the question, give the Rakko crates and their versions from the `Cargo.lock` of your harness, the versions of Rust and mise, and your operating system.
