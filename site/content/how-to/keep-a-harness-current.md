@@ -160,13 +160,15 @@ jobs:
 
     steps:
       - name: Update the tool pins
-        uses: aonyx-ai/rakko-update@<commit> # main
+        uses: aonyx-ai/rakko-update@<commit> # v0.1.0
 ```
 
 {% endraw %}
 
-Replace `<commit>` with a full commit hash from `aonyx-ai/rakko-update`'s
-`main` branch. Keep the `# main` comment so that Renovate can update the pin.
+Replace `<commit>` with the full commit hash of a release of
+`aonyx-ai/rakko-update`, the commit that its tag points to. Keep the tag in the
+comment, such as `# v0.1.0`, so that Renovate moves the pin to each new
+release.
 
 `rakko-update` checks out the branch, installs the tools of the project with
 [mise], builds the harness, and runs `doctor --fix`. The job needs `contents: write`
@@ -202,21 +204,39 @@ works. Create the app token in the job and pass it to `rakko-update`:
 {% raw %}
 
 ```yaml,name=.github/workflows/rakko-update.yml
-steps:
-  - name: Create the token of the app
-    id: app-token
-    uses: actions/create-github-app-token@<commit> # v3.3.0
-    with:
-      client-id: ${{ vars.RAKKO_UPDATE_CLIENT_ID }}
-      private-key: ${{ secrets.RAKKO_UPDATE_PRIVATE_KEY }}
+jobs:
+  update:
+    name: Update the tool pins
+    runs-on: ubuntu-latest
 
-  - name: Update the tool pins
-    uses: aonyx-ai/rakko-update@<commit> # main
-    with:
-      token: ${{ steps.app-token.outputs.token }}
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(fromJSON('["renovate[bot]", "dependabot[bot]"]'), github.event.pull_request.user.login)
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Create the token of the app
+        id: app-token
+        uses: actions/create-github-app-token@<commit> # v3.3.0
+        with:
+          client-id: ${{ vars.RAKKO_UPDATE_CLIENT_ID }}
+          private-key: ${{ secrets.RAKKO_UPDATE_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Update the tool pins
+        uses: aonyx-ai/rakko-update@<commit> # v0.1.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 ```
 
 {% endraw %}
+
+The job needs no write access of its own, because the app token pushes. The
+condition `if` runs the job only on a pull request that an update bot opened
+in your repository. A pull request from a fork gets no secrets, so the step
+that creates the token would fail there.
 
 Store the client ID of the app as a repository variable, and its private key
 as a repository secret. The client ID is on the settings page of the app, and
