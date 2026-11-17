@@ -74,6 +74,13 @@ Anyone can publish a crate whose name starts with `aonyx-rakko-` or with
 `rakko`. We publish our crates with these names from this repository. So such a
 crate that is not in this repository is probably not one of ours.
 
+## Collaboration
+
+Questions, bug reports, and ideas are welcome in [Discussions]. We scope the
+work in issues, and our team and its agents write the changes. So only
+collaborators of this repository can create issues and pull requests. The
+[contribution guide] describes how a discussion becomes a change.
+
 ## Development
 
 [Mise] provisions every tool that this repository needs. `mise.toml` pins the
@@ -135,14 +142,13 @@ at your option.
 
 ## Contribution
 
-We welcome fixes to the crates in this repository. We take a fix to an action,
-a bundle, or a command when the fix fits the workflows of Aonyx.
-
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
 
 [clawless]: https://github.com/aonyx-ai/clawless
+[contribution guide]: ./CONTRIBUTING.md
+[discussions]: https://github.com/aonyx-ai/rakko/discussions
 [glossary.md]: ./GLOSSARY.md
 [guide]: https://rakko.aonyx.ai/how-to/build-an-action/
 [mise]: https://mise.jdx.dev
