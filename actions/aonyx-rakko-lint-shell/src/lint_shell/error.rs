@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use aonyx_rakko_shfmt::ObserveShfmtError;
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
 use crate::shellcheck::ObserveShellcheckError;
@@ -118,21 +118,26 @@ pub enum LintShellError {
     /// Mise reported no ShellCheck at the version that the action declares
     ///
     /// Mise did not run, or nothing installed that version of ShellCheck yet.
-    /// The action installs nothing, so the run stops here.
+    /// The action installs nothing, so the run stops here. The action can also
+    /// declare no ShellCheck, declare it at two versions, or name a program
+    /// that ShellCheck does not provide. No change of the project repairs
+    /// that.
     #[error("failed to resolve ShellCheck")]
     UnresolvedShellcheck {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
     },
 
     /// Mise reported no shfmt at the version that the action declares
     ///
     /// Mise did not run, or nothing installed that version of shfmt yet. The
-    /// action installs nothing, so the run stops here.
+    /// action installs nothing, so the run stops here. The action can also
+    /// declare no shfmt, declare it at two versions, or name a program that
+    /// shfmt does not provide. No change of the project repairs that.
     #[error("failed to resolve shfmt")]
     UnresolvedShfmt {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
     },
 }
 

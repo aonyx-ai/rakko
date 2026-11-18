@@ -11,7 +11,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    Summary, ToolRequirement, action_name,
+    Summary, Tools, action_name,
 };
 
 pub use self::error::LintStilesError;
@@ -106,12 +106,12 @@ impl Action for LintStiles {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Stiles::requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(context, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -122,16 +122,20 @@ impl Action for LintStiles {
 
 /// Runs the action against the project of the context
 ///
-/// The run resolves stiles, asks it for the rules that the project runs, and
-/// checks the project with them. An error that this function returns stops
-/// the run, and the caller reports it in the outcome.
+/// The run resolves stiles from the tools that the action declares. It asks
+/// stiles for the rules that the project runs, and checks the project with
+/// them. An error that this function returns stops the run, and the caller
+/// reports it in the outcome.
 ///
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, a stiles run, or the reading of a report.
-async fn drive(context: &Context) -> Result<Outcome, LintStilesError> {
-    let stiles = Stiles::resolve(context)
+async fn drive(context: &Context, action: &LintStiles) -> Result<Outcome, LintStilesError> {
+    let stiles = Stiles::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| LintStilesError::UnresolvedTool { source })?;
 
@@ -249,7 +253,9 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
-    use rakko::Position;
+    use std::collections::BTreeSet;
+
+    use rakko::{Architecture, OperatingSystem, Platform, Position, RequiredVersion};
     use rakko_test_utils::path;
 
     use super::*;
@@ -358,9 +364,38 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_the_stiles_of_the_crate() {
+    fn tools_declare_stiles_alone() {
         let tools = LintStiles.tools();
 
-        assert_eq!(tools, vec![Stiles::requirement()]);
+        let names: Vec<&str> = tools.iter().map(|tool| tool.tool().get()).collect();
+
+        assert_eq!(names, ["github:aonyx-ai/stiles"]);
+    }
+
+    #[test]
+    fn tools_declare_the_exact_version_of_the_crate() {
+        let tools = LintStiles.tools();
+
+        let RequiredVersion::Exact(version) = tools[0].version() else {
+            panic!("expected an exact version of stiles");
+        };
+
+        assert!(
+            include_str!("../../mise.rakko.toml").contains(&format!("version = \"{version}\"")),
+            "expected the version of the mise file of the crate, got {version}"
+        );
+    }
+
+    #[test]
+    fn tools_limit_stiles_to_linux_and_macos_on_arm() {
+        let tools = LintStiles.tools();
+
+        assert_eq!(
+            tools[0].platforms(),
+            Some(&BTreeSet::from([
+                Platform::new(OperatingSystem::Linux),
+                Platform::new(OperatingSystem::Macos).with_architecture(Architecture::Arm64),
+            ]))
+        );
     }
 }

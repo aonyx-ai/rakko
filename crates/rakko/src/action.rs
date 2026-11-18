@@ -8,7 +8,7 @@ use crate::context::Context;
 use crate::documented::Documented;
 use crate::name::Name;
 use crate::outcome::Outcome;
-use crate::tool::ToolRequirement;
+use crate::tool::{ToolRequirement, Tools};
 
 /// The unit of maintenance work
 ///
@@ -24,7 +24,10 @@ use crate::tool::ToolRequirement;
 ///
 /// The machinery can also ask the action which external tools it runs. The
 /// answer depends on no run, because a project installs the tools before
-/// any run starts.
+/// any run starts. An action that wraps a tool pins it in the mise file of
+/// its crate and returns the pins from [`bundled_tools`]. An action that runs
+/// a tool through a helper crate adds the tools of the helper with
+/// [`additional_tools`].
 ///
 /// Before a run, the machinery can ask the action how that run uses the
 /// project, with the arguments of the run. An action that does not answer
@@ -62,6 +65,8 @@ use crate::tool::ToolRequirement;
 /// }
 /// ```
 ///
+/// [`additional_tools`]: Action::additional_tools
+/// [`bundled_tools`]: Action::bundled_tools
 /// [`run`]: Action::run
 pub trait Action: Documented + Send + Sync {
     /// The arguments that a run of the action reads
@@ -98,6 +103,44 @@ pub trait Action: Documented + Send + Sync {
         Access::Write
     }
 
+    /// Returns the tools that the mise file of the crate of the action pins
+    ///
+    /// A crate that wraps a tool pins it in the file `mise.rakko.toml` at its
+    /// root. The action returns the pins of that file with one line:
+    ///
+    /// ```ignore
+    /// fn bundled_tools(&self) -> Tools {
+    ///     rakko::bundled_tools!()
+    /// }
+    /// ```
+    ///
+    /// The macro reads the file when the crate compiles, so a file that it
+    /// does not read fails the build. Every tool of the file is a tool of the
+    /// action, with its exact version and its platforms. So the file holds
+    /// only the tools that the action runs.
+    ///
+    /// An action without a mise file of its own needs no implementation of
+    /// the method.
+    fn bundled_tools(&self) -> Tools {
+        Tools::NONE
+    }
+
+    /// Returns the tools of the helper crates that the action runs, which
+    /// add to the tools of [`bundled_tools`][bundled]
+    ///
+    /// A helper crate that wraps a tool keeps the pin of that tool, and it
+    /// offers the tools of its mise file as a constant. An action that runs
+    /// the tool through the helper returns that constant here, so that the
+    /// machinery knows the tool before any run starts.
+    ///
+    /// An action that uses no tool of a helper crate needs no implementation
+    /// of the method.
+    ///
+    /// [bundled]: Action::bundled_tools
+    fn additional_tools(&self) -> Vec<Tools> {
+        Vec::new()
+    }
+
     /// Returns the external tools that the action runs
     ///
     /// The answer holds one requirement for each tool that a run of the
@@ -105,9 +148,16 @@ pub trait Action: Documented + Send + Sync {
     /// no arguments and no context, because the machinery reads the answer
     /// before any run starts.
     ///
-    /// The method must not read a file or start a tool. An action that wraps
-    /// a tool embeds the version that it pins when it compiles, and it
-    /// answers from that.
+    /// The default answer holds the tools of [`bundled_tools`][bundled] and
+    /// then those of [`additional_tools`][additional], each once. An action
+    /// that pins its tools in mise files needs no implementation of this
+    /// method. A
+    /// tool that a run starts must be in this answer. The lookup of a tool
+    /// reads the answer, and it refuses a tool that the answer does not hold.
+    ///
+    /// An action that implements the method must not read a file or start a
+    /// tool there. Such an action can give a requirement that the builder of
+    /// [`ToolRequirement`] creates, such as the range of a toolchain.
     ///
     /// A requirement can give the platforms where its tool has a build. On
     /// every other platform, the machinery does not start the run, and the
@@ -118,12 +168,23 @@ pub trait Action: Documented + Send + Sync {
     /// through them too. A caller that calls [`run`][Action::run] itself gets
     /// no skip.
     ///
-    /// An action that does not implement the method runs no external tool.
-    ///
     /// [`BoundAction`]: crate::BoundAction
     /// [`ErasedAction`]: crate::ErasedAction
+    /// [additional]: Action::additional_tools
+    /// [bundled]: Action::bundled_tools
     fn tools(&self) -> Vec<ToolRequirement> {
-        Vec::new()
+        let mut tools = Vec::new();
+
+        for requirement in std::iter::once(self.bundled_tools())
+            .chain(self.additional_tools())
+            .flat_map(|declared| declared.requirements())
+        {
+            if !tools.contains(&requirement) {
+                tools.push(requirement);
+            }
+        }
+
+        tools
     }
 
     /// Runs the action against the project that the context names
@@ -203,6 +264,109 @@ mod tests {
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
             Outcome::Passed { summary: None }
         }
+    }
+
+    /// The pins of the mise file of an action that wraps two tools
+    const OWN: Tools =
+        crate::__tools_of_mise_file!("[tools]\nshellcheck = \"0.11.0\"\nyamllint = \"1.38.0\"\n");
+
+    /// The pins of the mise file of a helper crate
+    const HELPER: Tools = crate::__tools_of_mise_file!("[tools]\nshfmt = \"3.14.1\"\n");
+
+    /// An action that runs the tools of its own mise file
+    #[derive(Documented)]
+    struct Direct;
+
+    impl Action for Direct {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            "direct".parse().unwrap()
+        }
+
+        fn bundled_tools(&self) -> Tools {
+            OWN
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// An action that runs a tool of a helper crate
+    #[derive(Documented)]
+    struct Shared;
+
+    impl Action for Shared {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            "shared".parse().unwrap()
+        }
+
+        fn additional_tools(&self) -> Vec<Tools> {
+            vec![HELPER]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// An action that runs the tools of its own mise file and of a helper
+    #[derive(Documented)]
+    struct Combined;
+
+    impl Action for Combined {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            "combined".parse().unwrap()
+        }
+
+        fn bundled_tools(&self) -> Tools {
+            OWN
+        }
+
+        fn additional_tools(&self) -> Vec<Tools> {
+            vec![HELPER]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// An action that adds the tools of its own file a second time
+    #[derive(Documented)]
+    struct Repeated;
+
+    impl Action for Repeated {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            "repeated".parse().unwrap()
+        }
+
+        fn bundled_tools(&self) -> Tools {
+            OWN
+        }
+
+        fn additional_tools(&self) -> Vec<Tools> {
+            vec![OWN]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// Returns the identifiers of the tools of a declaration, in its order
+    fn names(tools: &[ToolRequirement]) -> Vec<String> {
+        tools
+            .iter()
+            .map(|requirement| requirement.tool().get().to_owned())
+            .collect()
     }
 
     /// Returns the requirement that the wrapper declares
@@ -285,6 +449,15 @@ mod tests {
     }
 
     #[test]
+    fn additional_tools_of_an_action_that_declares_nothing_are_empty() {
+        let action = Probe;
+
+        let tools = action.additional_tools();
+
+        assert!(tools.is_empty());
+    }
+
+    #[test]
     fn args_are_send() {
         require_args_send::<Probe>();
     }
@@ -292,6 +465,15 @@ mod tests {
     #[test]
     fn args_are_sync() {
         require_args_sync::<Probe>();
+    }
+
+    #[test]
+    fn bundled_tools_of_an_action_that_declares_nothing_are_none() {
+        let action = Probe;
+
+        let tools = action.bundled_tools();
+
+        assert_eq!(tools, Tools::NONE);
     }
 
     #[test]
@@ -347,12 +529,48 @@ mod tests {
     }
 
     #[test]
+    fn tools_of_an_action_that_adds_a_pin_twice_hold_it_once() {
+        let action = Repeated;
+
+        let tools = action.tools();
+
+        assert_eq!(names(&tools), ["shellcheck", "yamllint"]);
+    }
+
+    #[test]
     fn tools_of_an_action_that_declares_nothing_is_empty() {
         let action = Probe;
 
         let tools = action.tools();
 
         assert!(tools.is_empty());
+    }
+
+    #[test]
+    fn tools_of_an_action_with_additional_tools_hold_the_tools_of_the_helper() {
+        let action = Shared;
+
+        let tools = action.tools();
+
+        assert_eq!(names(&tools), ["shfmt"]);
+    }
+
+    #[test]
+    fn tools_of_an_action_with_both_sources_hold_the_bundled_tools_first() {
+        let action = Combined;
+
+        let tools = action.tools();
+
+        assert_eq!(names(&tools), ["shellcheck", "yamllint", "shfmt"]);
+    }
+
+    #[test]
+    fn tools_of_an_action_with_bundled_tools_hold_each_pin_of_its_file() {
+        let action = Direct;
+
+        let tools = action.tools();
+
+        assert_eq!(names(&tools), ["shellcheck", "yamllint"]);
     }
 
     #[test]

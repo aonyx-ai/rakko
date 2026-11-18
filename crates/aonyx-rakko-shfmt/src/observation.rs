@@ -42,10 +42,13 @@ pub(crate) enum Exit {
 /// use aonyx_rakko_shfmt::{Operation, Shfmt};
 /// use rakko_test_utils::path;
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
 /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-/// let shfmt = Shfmt::resolve(&context).await?;
+/// let shfmt = Shfmt::resolve()
+///     .context(&context)
+///     .action(action)
+///     .call()
+///     .await?;
 ///
 /// let observation = shfmt.observe(Operation::Find).await?;
 ///

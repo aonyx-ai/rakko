@@ -1,7 +1,7 @@
 //! The stiles that a project runs
 //!
-//! This module holds the version that the crate pins and the program that
-//! mise installed at that version. It also holds the two runs that the action
+//! This module holds the program that mise installed at the version that the
+//! action declares. It also holds the two runs that the action
 //! asks of stiles. These runs are the listing of the rules the project runs and
 //! the check of the project. An action asks for a run, and everything between
 //! the action and the process lives here.
@@ -9,10 +9,8 @@
 mod error;
 mod report;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{
-    Execution, Launch, MiseFile, PinnedPlatforms, ResolveRequirementError, ShownStreams, Tool,
-};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Execution, Launch, ResolveToolError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveStilesError;
 use crate::observation::{Examination, Observation};
@@ -26,23 +24,6 @@ const TOOL: &str = "github:aonyx-ai/stiles";
 
 /// The program of the tool that a run starts
 const STILES: &str = "stiles";
-
-/// The mise file of the crate, which pins the stiles that the crate runs
-const PINS: MiseFile = MiseFile::new(include_str!("../../mise.rakko.toml"));
-
-/// The version of stiles that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build. It is the tag of the
-/// release, such as `stiles@0.6.0`.
-const VERSION: &str = PINS.pinned_version(TOOL);
-
-/// The platforms where stiles has a build, or `None` for every platform
-///
-/// The list comes from the same pin as the version. A platform that the
-/// list leaves out gets no stiles from mise, and a run of the action skips
-/// there.
-const PLATFORMS: Option<PinnedPlatforms> = PINS.pinned_platforms(TOOL);
 
 /// The command of stiles that lists the rules of the project
 const RULES: &str = "rules";
@@ -110,6 +91,7 @@ pub(crate) struct Stiles {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Stiles {
     /// Returns the identifiers of the rules that the project runs
     ///
@@ -200,37 +182,29 @@ impl Stiles {
         Ok(Observation::builder().problems(problems).build())
     }
 
-    /// Returns the requirement of the stiles that the crate runs
+    /// Returns the stiles that mise installed at the version that the action
+    /// declares
     ///
-    /// The requirement holds the exact version that the crate pins, and the
-    /// platforms that the pin lists.
-    pub(crate) fn requirement() -> ToolRequirement {
-        let version = ToolVersion::new(VERSION);
-        let builder = ToolRequirement::builder().tool(TOOL).executable(STILES);
-
-        match PLATFORMS {
-            Some(platforms) => builder.exact_version_on(version, platforms).build(),
-            None => builder.version(RequiredVersion::Exact(version)).build(),
-        }
-    }
-
-    /// Returns the stiles that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that
-    /// [`requirement`][requirement] holds, so a pin of stiles in the project
-    /// does not change the answer. A run of stiles starts in the root of the
+    /// The lookup reads the tools that the action declares. The mise file of
+    /// the crate pins stiles, so they hold its version, which is the tag of the
+    /// release, such as `stiles@0.6.0`. A pin of stiles in the project does
+    /// not change the answer. A run of stiles starts in the root of the
     /// context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
-    /// returns one when mise reports no stiles at that version, for example
-    /// because nothing installed it.
-    ///
-    /// [requirement]: Stiles::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    /// Returns a [`ResolveToolError`] when the action declares no stiles, or when
+    /// mise does not run. It also returns one when mise reports no stiles at
+    /// that version, for example because nothing installed it.
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        context: &Context,
+        action: &A,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(TOOL)
+            .executable(STILES)
             .context(context)
             .call()
             .await?;
@@ -346,10 +320,9 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
-    use std::collections::BTreeSet;
     use std::path::PathBuf;
 
-    use rakko::{Architecture, OperatingSystem, Platform, Position};
+    use rakko::Position;
 
     use super::*;
 
@@ -439,26 +412,6 @@ mod tests {
     #[test]
     fn found_nothing_of_a_run_without_a_file_is_true() {
         assert!(found_nothing(NOTHING));
-    }
-
-    #[test]
-    fn requirement_accepts_an_exact_version() {
-        let requirement = Stiles::requirement();
-
-        assert!(matches!(requirement.version(), RequiredVersion::Exact(_)));
-    }
-
-    #[test]
-    fn requirement_limits_stiles_to_linux_and_macos_on_arm() {
-        let requirement = Stiles::requirement();
-
-        assert_eq!(
-            requirement.platforms(),
-            Some(&BTreeSet::from([
-                Platform::new(OperatingSystem::Linux),
-                Platform::new(OperatingSystem::Macos).with_architecture(Architecture::Arm64),
-            ]))
-        );
     }
 
     #[test]

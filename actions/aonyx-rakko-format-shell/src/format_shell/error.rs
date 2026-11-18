@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use aonyx_rakko_shfmt::ObserveShfmtError;
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -78,11 +78,13 @@ pub enum FormatShellError {
     /// Mise reported no shfmt at the version that the action declares
     ///
     /// Mise did not run, or nothing installed that version of shfmt yet. The
-    /// action installs nothing, so the run stops here.
+    /// action installs nothing, so the run stops here. The action can also
+    /// declare no shfmt, declare it at two versions, or name a program that
+    /// shfmt does not provide. No change of the project repairs that.
     #[error("failed to resolve shfmt")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
     },
 }
 

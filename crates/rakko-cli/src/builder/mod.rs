@@ -986,9 +986,9 @@ mod tests {
     use clawless::CommandResult;
     use rakko::Documented;
     use rakko::{
-        Action, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name, OperatingSystem,
-        Platform, ReadArgsError, RequiredVersion, SkipReason, ToolRequirement, ToolVersion,
-        argument_name,
+        Action, Architecture, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name,
+        OperatingSystem, Platform, ReadArgsError, RequiredVersion, SkipReason, ToolRequirement,
+        ToolVersion, Tools, argument_name,
     };
 
     use super::*;
@@ -1757,6 +1757,85 @@ mod tests {
                 .exact_version_on(ToolVersion::new("0.10.0"), [platform])
                 .build(),
         })
+    }
+
+    /// The pins of a mise file that hold both forms of a pin
+    const BUNDLED: Tools = rakko::__tools_of_mise_file!(
+        "[tools]\ntaplo = \"0.10.0\"\n\"github:aonyx-ai/stiles\" = { version = \"0.6.0\", os = [\"linux\", \"macos/arm64\"] }\n"
+    );
+
+    /// An action that pins its tools in its mise file
+    #[derive(Documented)]
+    struct Bundled;
+
+    impl Action for Bundled {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name("lint-bundled")
+        }
+
+        fn bundled_tools(&self) -> Tools {
+            BUNDLED
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// An action that builds the requirements of the pins of [`BUNDLED`] by
+    /// hand
+    #[derive(Documented)]
+    struct Built;
+
+    impl Action for Built {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name("lint-bundled")
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            vec![
+                ToolRequirement::builder()
+                    .tool("taplo")
+                    .executable("taplo")
+                    .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
+                    .build(),
+                ToolRequirement::builder()
+                    .tool("github:aonyx-ai/stiles")
+                    .executable("stiles")
+                    .exact_version_on(
+                        ToolVersion::new("0.6.0"),
+                        [
+                            Platform::new(OperatingSystem::Linux),
+                            Platform::new(OperatingSystem::Macos)
+                                .with_architecture(Architecture::Arm64),
+                        ],
+                    )
+                    .build(),
+            ]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// Returns the generated file that `doctor --fix` writes for the
+    /// builder, in a project of its own
+    fn repaired_pins(builder: Builder) -> String {
+        let directory = Trusted::new();
+
+        doctor_in()
+            .root(directory.path())
+            .builder(builder)
+            .arguments(&["doctor", "--fix"])
+            .call();
+
+        std::fs::read_to_string(directory.path().join(".config/mise/conf.d/rakko.toml"))
+            .expect("the test reads the generated file")
     }
 
     /// Returns the platform of the run of the test, on every architecture
@@ -2719,6 +2798,24 @@ mod tests {
     }
 
     #[test]
+    fn drive_doctor_after_a_repair_of_bundled_tools_reports_no_problem() {
+        let directory = Trusted::new();
+        doctor_in()
+            .root(directory.path())
+            .builder(builder().mount(Bundled))
+            .arguments(&["doctor", "--fix"])
+            .call();
+
+        let code = doctor_in()
+            .root(directory.path())
+            .builder(builder().mount(Bundled))
+            .arguments(&["doctor"])
+            .call();
+
+        assert_eq!(code, EXIT_CLEAN);
+    }
+
+    #[test]
     fn drive_doctor_reports_a_problem_as_findings() {
         let (_project, code) = run_doctor(&["doctor"]);
 
@@ -2775,6 +2872,15 @@ mod tests {
                 .join(".config/mise/conf.d/rakko.toml")
                 .is_file()
         );
+    }
+
+    #[test]
+    fn drive_doctor_with_the_flag_writes_the_pins_of_bundled_tools_as_of_built_ones() {
+        let bundled = repaired_pins(builder().mount(Bundled));
+
+        let built = repaired_pins(builder().mount(Built));
+
+        assert_eq!(bundled, built);
     }
 
     #[test]

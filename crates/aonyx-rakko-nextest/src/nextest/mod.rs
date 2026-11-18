@@ -148,7 +148,10 @@ impl Nextest {
     ///
     /// let requirement = Nextest::requirement();
     ///
-    /// assert_eq!(requirement.executable().get(), "cargo-nextest");
+    /// assert_eq!(
+    ///     requirement.executable().map(rakko::Executable::get),
+    ///     Some("cargo-nextest")
+    /// );
     /// ```
     pub fn requirement() -> ToolRequirement {
         ToolRequirement::builder()

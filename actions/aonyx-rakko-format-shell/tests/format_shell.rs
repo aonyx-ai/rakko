@@ -165,7 +165,7 @@ impl Drop for Project {
 fn action_declares_the_shfmt_of_rakko_shfmt() {
     let tools = FormatShell.tools();
 
-    assert_eq!(tools, vec![Shfmt::requirement()]);
+    assert_eq!(tools, Shfmt::TOOLS.requirements());
 }
 
 #[test]

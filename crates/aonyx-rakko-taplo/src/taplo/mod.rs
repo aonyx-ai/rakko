@@ -251,7 +251,10 @@ impl Taplo {
     ///
     /// let requirement = Taplo::requirement();
     ///
-    /// assert_eq!(requirement.executable().get(), "taplo");
+    /// assert_eq!(
+    ///     requirement.executable().map(rakko::Executable::get),
+    ///     Some("taplo")
+    /// );
     /// ```
     pub fn requirement() -> ToolRequirement {
         ToolRequirement::builder()
