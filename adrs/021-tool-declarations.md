@@ -3,7 +3,8 @@
 ## Status
 
 Accepted. [ADR-028] supersedes point 6 for a tool outside its declared
-platforms.
+platforms. [ADR-031] supersedes the range that points 1, 2, and 6 give every
+toolchain of an action.
 
 ## Context
 
@@ -183,3 +184,4 @@ format that the mise manager of Renovate already reads.
 [adr-011]: 011-tool-integration.md
 [adr-017]: 017-access-declarations.md
 [adr-028]: 028-tool-platforms.md
+[adr-031]: 031-tools-and-toolchains.md
