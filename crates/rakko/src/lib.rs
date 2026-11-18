@@ -6,7 +6,8 @@
 //! the arguments that a run reads. It holds the context that an action reads
 //! when it runs, the finding that an action produces, and the outcome that the
 //! run returns. It also holds the requirement of each external tool that an
-//! action runs. It holds the tool output that receives what those tools write
+//! action runs. It holds the macro that reads those tools from the mise file
+//! of a crate. It holds the tool output that receives what those tools write
 //! while they run. It holds the trait that gives the sentence that describes an
 //! action, and the derive that takes that sentence from a doc comment.
 //! It also holds the view of an action that hides its type, which is how a
@@ -43,6 +44,8 @@
 /// derives work on the types of this crate.
 extern crate self as rakko;
 
+#[doc(hidden)]
+pub mod __private;
 mod access;
 mod action;
 mod args;
@@ -84,7 +87,7 @@ pub use self::name::{Name, ParseNameError};
 pub use self::outcome::{Outcome, SkipReason, Summary};
 pub use self::tool::{
     Architecture, Executable, MiseTool, OperatingSystem, Platform, RequiredVersion,
-    ToolRequirement, ToolVersion, VersionRange,
+    ToolRequirement, ToolVersion, Tools, VersionRange,
 };
 pub use self::tool_output::{
     ToolCommand, ToolEnd, ToolEvent, ToolExitCode, ToolLine, ToolOutput, ToolStream, ToolText,

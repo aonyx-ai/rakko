@@ -7,8 +7,8 @@
 
 mod error;
 
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{Invocation, Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ProjectRoot, ToolOutput, Tools};
+use rakko_tool::{Invocation, Launch, ResolveToolError, ShownStreams, Tool};
 
 pub use self::error::ObserveShfmtError;
 use crate::observation::{Exit, Observation};
@@ -17,12 +17,6 @@ use crate::operation::Operation;
 /// The name that mise knows the tool by, which is also the name of its
 /// program
 const SHFMT: &str = "shfmt";
-
-/// The version of shfmt that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(SHFMT);
 
 /// The flag that asks shfmt to name the files that it would rewrite
 const LIST: &str = "--list";
@@ -52,8 +46,8 @@ const ROOT: &str = ".";
 /// a run formats in the same way as an editor, and as a contributor that runs
 /// shfmt on the project with no flag.
 ///
-/// An action that runs shfmt declares [`requirement`][requirement] among its
-/// tools, so that the machinery can read the version.
+/// An action that runs shfmt adds [`TOOLS`][tools] to its tools, so that the
+/// machinery can read the version, and a run can resolve shfmt.
 ///
 /// # Examples
 ///
@@ -62,10 +56,13 @@ const ROOT: &str = ".";
 /// use aonyx_rakko_shfmt::{Operation, Shfmt};
 /// use rakko_test_utils::path;
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
 /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-/// let shfmt = Shfmt::resolve(&context).await?;
+/// let shfmt = Shfmt::resolve()
+///     .context(&context)
+///     .action(action)
+///     .call()
+///     .await?;
 ///
 /// let observation = shfmt.observe(Operation::CheckFormat).await?;
 ///
@@ -74,7 +71,7 @@ const ROOT: &str = ".";
 /// # }
 /// ```
 ///
-/// [requirement]: Shfmt::requirement
+/// [tools]: Shfmt::TOOLS
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Shfmt {
     /// The root of the project that shfmt runs in
@@ -89,7 +86,45 @@ pub struct Shfmt {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Shfmt {
+    /// The tools that the mise file of the crate pins, which is shfmt alone
+    ///
+    /// An action that runs shfmt through this crate returns the constant from
+    /// [`Action::additional_tools`]. The crate keeps the pin, so
+    /// every action that uses it runs the version that the tests of the crate
+    /// cover.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{Action, Context, Documented, Name, Outcome, Tools, action_name};
+    /// use aonyx_rakko_shfmt::Shfmt;
+    ///
+    /// /// Formats the shell scripts of the project
+    /// #[derive(Documented)]
+    /// struct FormatScripts;
+    ///
+    /// impl Action for FormatScripts {
+    ///     type Args = ();
+    ///
+    ///     fn name(&self) -> Name {
+    ///         action_name!("format-scripts")
+    ///     }
+    ///
+    ///     fn additional_tools(&self) -> Vec<Tools> {
+    ///         vec![Shfmt::TOOLS]
+    ///     }
+    ///
+    ///     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    ///         Outcome::Passed { summary: None }
+    ///     }
+    /// }
+    ///
+    /// assert_eq!(FormatScripts.tools()[0].tool().get(), "shfmt");
+    /// ```
+    pub const TOOLS: Tools = rakko::bundled_tools!();
+
     /// Runs one operation and reads what shfmt reported
     ///
     /// The run sends what shfmt writes to the tool output of the context that
@@ -103,10 +138,13 @@ impl Shfmt {
     /// use aonyx_rakko_shfmt::{Operation, Shfmt};
     /// use rakko_test_utils::path;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-    /// let shfmt = Shfmt::resolve(&context).await?;
+    /// let shfmt = Shfmt::resolve()
+    ///     .context(&context)
+    ///     .action(action)
+    ///     .call()
+    ///     .await?;
     ///
     /// let observation = shfmt.observe(Operation::Find).await?;
     ///
@@ -144,33 +182,12 @@ impl Shfmt {
             .call()
     }
 
-    /// Returns the requirement of the shfmt that the crate runs
+    /// Returns the shfmt that mise installed at the version that an action
+    /// declares
     ///
-    /// The requirement holds the exact version that the crate pins. An action
-    /// that runs shfmt returns it from its declaration of tools.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use aonyx_rakko_shfmt::Shfmt;
-    ///
-    /// let requirement = Shfmt::requirement();
-    ///
-    /// assert_eq!(requirement.executable().get(), "shfmt");
-    /// ```
-    pub fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(SHFMT)
-            .executable(SHFMT)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the shfmt that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of shfmt in the project does not change the answer.
-    /// A run of shfmt starts in the root of the context.
+    /// The lookup reads the tools that the action declares, which hold
+    /// [`TOOLS`][tools]. It asks mise for shfmt at the version that they give,
+    /// so a pin of shfmt in the project does not change the answer. A run of shfmt starts in the root of the context.
     ///
     /// # Examples
     ///
@@ -179,26 +196,31 @@ impl Shfmt {
     /// use aonyx_rakko_shfmt::Shfmt;
     /// use rakko_test_utils::path;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-    /// let shfmt = Shfmt::resolve(&context).await?;
+    /// let shfmt = Shfmt::resolve().context(&context).action(action).call().await?;
     ///
-    /// assert_eq!(shfmt, Shfmt::resolve(&context).await?);
+    /// assert_eq!(shfmt, Shfmt::resolve().context(&context).action(action).call().await?);
     /// # Ok(())
     /// # }
     /// ```
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
-    /// it reports no shfmt at that version, for example because nothing
-    /// installed it.
+    /// Returns a [`ResolveToolError`] when the action does not declare shfmt,
+    /// or when mise does not run. It also returns one when mise reports no shfmt
+    /// at that version, for example because nothing installed it.
     ///
-    /// [requirement]: Shfmt::requirement
-    pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    /// [tools]: Shfmt::TOOLS
+    #[builder]
+    pub async fn resolve<A: Action>(
+        context: &Context,
+        action: &A,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(SHFMT)
+            .executable(SHFMT)
             .context(context)
             .call()
             .await?;
@@ -235,7 +257,25 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use rakko::{Documented, Name, Outcome, action_name};
+
     use super::*;
+
+    /// An action that declares no tool
+    #[derive(Documented)]
+    struct Bare;
+
+    impl Action for Bare {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("bare")
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
 
     #[test]
     fn arguments_of_a_format_check_list_and_rewrite_nothing() {
@@ -258,10 +298,63 @@ mod tests {
         assert_eq!(selected, ["--find"]);
     }
 
+    #[tokio::test]
+    async fn resolve_for_an_action_without_shfmt_reports_it_undeclared() {
+        let context = Context::builder()
+            .root(ProjectRoot::new(std::env::temp_dir()))
+            .build();
+
+        let result = Shfmt::resolve()
+            .context(&context)
+            .action(&Bare)
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolError::UndeclaredTool { .. })),
+            "expected shfmt to be undeclared, got {result:?}"
+        );
+    }
+
+    /// Shows that the lookup of `rakko-tool` for a requirement with a program
+    /// refuses the requirement of a pin
+    ///
+    /// This crate holds a mise file, so its pins are pins of a real file. The
+    /// test lives here, because `rakko-tool` holds no mise file of its own.
+    #[tokio::test]
+    async fn resolve_requirement_of_a_pin_reports_it_without_a_program() {
+        let context = Context::builder()
+            .root(ProjectRoot::new(std::env::temp_dir()))
+            .build();
+
+        let result = Tool::resolve_requirement()
+            .requirement(&Shfmt::TOOLS.requirements()[0])
+            .context(&context)
+            .call()
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(rakko_tool::ResolveRequirementError::UnstatedExecutable { .. })
+            ),
+            "expected a requirement without a program, got {result:?}"
+        );
+    }
+
     #[test]
     fn shfmt_is_send_sync_and_unpin() {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Shfmt>();
+    }
+
+    #[test]
+    fn tools_declare_shfmt_alone() {
+        let tools = Shfmt::TOOLS.requirements();
+
+        let names: Vec<&str> = tools.iter().map(|tool| tool.tool().get()).collect();
+
+        assert_eq!(names, ["shfmt"]);
     }
 }

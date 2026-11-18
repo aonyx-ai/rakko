@@ -182,13 +182,24 @@ from the design discussions to the terms that replaced them.
   decides what a person sees. Under `--verbose`, it shows the events, and
   otherwise it discards them. The author of an action sends no text of their
   own there, although the contract does not enforce it.
+- **Tool pin** — The line of the mise file of a crate that gives the exact
+  version of one tool. The line holds the identifier of the tool and its
+  version. When the tool has no build for some platforms, it also lists the
+  platforms where the tool has one. The crate embeds the file, and
+  `bundled_tools!` reads every pin of the file when the crate compiles. An
+  action returns the pins of its own file from `bundled_tools`, and the pins
+  of a helper crate from `additional_tools`. A pin holds no program, because
+  one tool can provide several programs. For example, the tool `npm:renovate`
+  provides `renovate` and `renovate-config-validator`. The action gives the
+  program when it runs the tool.
 - **Tool requirement** — What an action declares for each tool that it
   runs. A requirement holds the identifier of the tool in the configuration
-  of mise and the program that the action starts. It also holds the exact
-  version of a tool, or the range of versions of a toolchain. A requirement
-  of an exact version can also list the platforms where the tool has a
-  build. The declaration takes no arguments and no context, because the
-  machinery reads it before any run starts.
+  of mise. It also holds the exact version of a tool, or the range of
+  versions of a toolchain. A requirement of an exact version can also list
+  the platforms where the tool has a build. The requirement of a tool pin
+  holds no program. A requirement that the builder creates also holds the
+  program that the action starts. The declaration takes no arguments and no
+  context, because the machinery reads it before any run starts.
 - **Toolchain** — A tool that the code of the project builds or runs with,
   such as Rust, Node.js, or TypeScript. The project pins its toolchains. An
   action pins every other tool that it runs through mise, and it accepts a

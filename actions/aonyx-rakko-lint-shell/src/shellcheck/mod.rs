@@ -1,15 +1,15 @@
 //! The ShellCheck that a project runs
 //!
-//! This module holds the version that the crate declares, the program that
-//! mise installed at that version, and the run that produces a report. An
+//! This module holds the program that mise installed at the version that the
+//! action declares, and the run that produces a report. An
 //! action asks for a run, and everything between the action and the process
 //! lives here.
 
 mod error;
 mod report;
 
-use rakko::{Context, FilePath, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, FilePath, ToolOutput};
+use rakko_tool::{Launch, ResolveToolError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveShellcheckError;
 use crate::comment::ShellcheckComment;
@@ -17,13 +17,6 @@ use crate::comment::ShellcheckComment;
 /// The name that mise knows the tool by, which is also the name of its
 /// program
 const SHELLCHECK: &str = "shellcheck";
-
-/// The version of ShellCheck that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str =
-    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(SHELLCHECK);
 
 /// The option that asks ShellCheck for its report as data
 ///
@@ -79,6 +72,7 @@ pub(crate) struct Shellcheck {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Shellcheck {
     /// Runs ShellCheck over the given scripts and reads what it reported
     ///
@@ -127,33 +121,28 @@ impl Shellcheck {
         })
     }
 
-    /// Returns the requirement of the ShellCheck that the crate runs
+    /// Returns the ShellCheck that mise installed at the version that the
+    /// action declares
     ///
-    /// The requirement holds the exact version that the crate pins.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(SHELLCHECK)
-            .executable(SHELLCHECK)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the ShellCheck that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of ShellCheck in the project does not change the
-    /// answer. A run of ShellCheck starts in the root of the context.
+    /// The lookup reads the tools that the action declares. The mise file of
+    /// the crate pins ShellCheck, so they hold its version. A pin of ShellCheck in
+    /// the project does not change the answer. A run of ShellCheck starts in
+    /// the root of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
-    /// returns one when mise reports no ShellCheck at that version, for
-    /// example because nothing installed it.
-    ///
-    /// [requirement]: Shellcheck::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    /// Returns a [`ResolveToolError`] when the action declares no ShellCheck, or
+    /// when mise does not run. It also returns one when mise reports no
+    /// ShellCheck at that version, for example because nothing installed it.
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        context: &Context,
+        action: &A,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(SHELLCHECK)
+            .executable(SHELLCHECK)
             .context(context)
             .call()
             .await?;

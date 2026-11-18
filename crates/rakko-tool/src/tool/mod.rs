@@ -11,17 +11,24 @@
 //! tool produced.
 
 mod requirement_error;
+mod resolve_tool_error;
 mod toolchain;
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use bon::bon;
 use getset::Getters;
+use kawauso_process::error::RunCommandError;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+use rakko::{
+    Action, Context, Executable, MiseTool, ProjectRoot, RequiredVersion, ToolRequirement,
+    ToolVersion,
+};
 
 pub use self::requirement_error::ResolveRequirementError;
+pub use self::resolve_tool_error::ResolveToolError;
 use self::toolchain::pinned_toolchain;
 
 /// The program that reports where a tool is
@@ -33,6 +40,10 @@ const MISE: &str = "mise";
 
 /// The subcommand of mise that reports where a tool is
 const WHICH: &str = "which";
+
+/// The subcommand of mise that reports where it installed a version of a
+/// tool
+const WHERE: &str = "where";
 
 /// The subcommand of mise that reports the versions that a project pins
 const CURRENT: &str = "current";
@@ -388,20 +399,16 @@ impl Tool {
             }
         };
 
-        let bin = requirement.executable();
+        let Some(bin) = requirement.executable() else {
+            return Err(ResolveRequirementError::UnstatedExecutable { tool: tool.clone() });
+        };
 
-        let execution = Invocation::new(MISE)
-            .arg(WHICH)
-            .arg(bin.get())
-            .arg(TOOL)
-            .arg(format!("{tool}@{version}"))
-            .in_directory(root.get())
-            .run()
-            .await
-            .map_err(|source| ResolveRequirementError::MiseUnavailable {
+        let execution = which(tool, &version, bin, root).await.map_err(|source| {
+            ResolveRequirementError::MiseUnavailable {
                 tool: tool.clone(),
                 source,
-            })?;
+            }
+        })?;
 
         let named =
             program(&execution).ok_or_else(|| ResolveRequirementError::UnresolvedVersion {
@@ -418,6 +425,181 @@ impl Tool {
             toolchains: Vec::new(),
         })
     }
+
+    /// Returns a program of a tool that an action declares, at the location
+    /// that mise reports
+    ///
+    /// The lookup reads the declarations of the action from
+    /// [`Action::tools`], and it takes the exact version that they give
+    /// for the tool. So a run starts only a tool that the action declares. A
+    /// tool that the action declares only with a range, as a toolchain, is not
+    /// such a tool, and [`resolve_requirement`][requirement] resolves it.
+    ///
+    /// Then the lookup asks mise for the program of the tool at that version,
+    /// wherever mise installed it. The version that the project pins does not
+    /// change the answer, and the lookup searches no `PATH` of its own. So a
+    /// run starts the version that the tests of the action cover. One tool
+    /// can provide several programs, such as `renovate-config-validator` of
+    /// the tool `npm:renovate`, so the caller gives the program to start.
+    ///
+    /// The answer is an absolute path, and a command of the tool starts in
+    /// the root of the context. The lookup starts up to two processes, so an
+    /// action resolves each tool once and keeps the result for the length of
+    /// the run.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UndeclaredTool`][undeclared] when the declarations hold no
+    /// exact version of the tool, and [`AmbiguousVersion`][ambiguous] when
+    /// they hold more than one. Returns [`MiseUnavailable`][unavailable] when
+    /// mise does not run. Returns [`UninstalledVersion`][uninstalled] when
+    /// mise did not install the tool at that version. Rakko installs nothing,
+    /// so a missing version is a failure and not a step this method takes.
+    /// Returns [`MissingExecutable`][missing] when the installed tool provides
+    /// no program by that name.
+    ///
+    /// # Panics
+    ///
+    /// Panics when no Tokio runtime drives the future. The runtime waits for
+    /// mise, and the method has no way to ask without one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Action, Context};
+    /// use rakko_tool::Tool;
+    ///
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root("/home/otter/project").build();
+    ///
+    /// let validator = Tool::resolve()
+    ///     .action(action)
+    ///     .tool("npm:renovate")
+    ///     .executable("renovate-config-validator")
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// println!("{}", validator.program());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [ambiguous]: ResolveToolError::AmbiguousVersion
+    /// [missing]: ResolveToolError::MissingExecutable
+    /// [requirement]: Tool::resolve_requirement
+    /// [unavailable]: ResolveToolError::MiseUnavailable
+    /// [undeclared]: ResolveToolError::UndeclaredTool
+    /// [uninstalled]: ResolveToolError::UninstalledVersion
+    #[builder]
+    pub async fn resolve<A: Action>(
+        action: &A,
+        #[builder(into)] tool: MiseTool,
+        #[builder(into)] executable: Executable,
+        context: &Context,
+    ) -> Result<Self, ResolveToolError> {
+        let version = declared_version(&action.tools(), &tool)?;
+        let root = context.root();
+
+        let unavailable = |source| ResolveToolError::MiseUnavailable {
+            tool: tool.clone(),
+            source,
+        };
+
+        let execution = which(&tool, &version, &executable, root)
+            .await
+            .map_err(unavailable)?;
+
+        if let Some(named) = program(&execution) {
+            return Ok(Self {
+                program: self::executable(named),
+                root: root.clone(),
+                version,
+                toolchains: Vec::new(),
+            });
+        }
+
+        let installed = Invocation::new(MISE)
+            .arg(WHERE)
+            .arg(format!("{tool}@{version}"))
+            .in_directory(root.get())
+            .run()
+            .await
+            .map_err(unavailable)?;
+
+        if installed.status().success() {
+            return Err(ResolveToolError::MissingExecutable {
+                tool,
+                version,
+                executable,
+            });
+        }
+
+        Err(ResolveToolError::UninstalledVersion {
+            details: details(&execution),
+            tool,
+            version,
+        })
+    }
+}
+
+/// Returns the exact version at which the declarations of an action give a
+/// tool
+///
+/// # Errors
+///
+/// Returns [`UndeclaredTool`][undeclared] when the declarations give no exact
+/// version of the tool, and [`AmbiguousVersion`][ambiguous] when they give
+/// more than one.
+///
+/// [ambiguous]: ResolveToolError::AmbiguousVersion
+/// [undeclared]: ResolveToolError::UndeclaredTool
+fn declared_version(
+    tools: &[ToolRequirement],
+    tool: &MiseTool,
+) -> Result<ToolVersion, ResolveToolError> {
+    let versions: BTreeSet<&ToolVersion> = tools
+        .iter()
+        .filter(|requirement| requirement.tool() == tool)
+        .filter_map(|requirement| match requirement.version() {
+            RequiredVersion::Exact(version) => Some(version),
+            _ => None,
+        })
+        .collect();
+
+    let mut declared = versions.iter();
+    match (declared.next(), declared.next()) {
+        (Some(version), None) => Ok((*version).clone()),
+        (None, _) => Err(ResolveToolError::UndeclaredTool { tool: tool.clone() }),
+        (Some(_), Some(_)) => Err(ResolveToolError::AmbiguousVersion {
+            tool: tool.clone(),
+            versions: versions.into_iter().cloned().collect(),
+        }),
+    }
+}
+
+/// Asks mise for the location of a program of a tool at a version
+///
+/// The question names the version, so the version that the project pins does
+/// not change the answer.
+///
+/// # Errors
+///
+/// Returns the error of a mise that did not run.
+async fn which(
+    tool: &MiseTool,
+    version: &ToolVersion,
+    executable: &Executable,
+    root: &ProjectRoot,
+) -> Result<Execution, RunCommandError> {
+    Invocation::new(MISE)
+        .arg(WHICH)
+        .arg(executable.get())
+        .arg(TOOL)
+        .arg(format!("{tool}@{version}"))
+        .in_directory(root.get())
+        .run()
+        .await
 }
 
 /// Returns what mise wrote to its standard error stream, or a sentence that
@@ -522,7 +704,7 @@ mod tests {
     use std::process::Command;
 
     use kawauso_process::invocation::WorkingDirectory;
-    use rakko::VersionRange;
+    use rakko::{Documented, Name, Outcome, VersionRange, action_name};
     use tempfile::TempDir;
 
     use super::*;
@@ -707,6 +889,72 @@ mod tests {
             .build()
     }
 
+    /// Returns the requirement of the tool of a package with two programs
+    ///
+    /// The package `renovate` provides `renovate` and
+    /// `renovate-config-validator`. The version comes from the mise file of
+    /// the action that runs the tool. So an update of the pin reaches the test
+    /// without a change to it.
+    fn renovate() -> ToolRequirement {
+        let pins = std::fs::read_to_string(
+            root()
+                .get()
+                .join("actions/aonyx-rakko-check-renovate-config/mise.rakko.toml"),
+        )
+        .expect("the test reads the mise file of the action that runs the tool");
+        let version = ToolVersion::new(MiseFile::new(&pins).pinned_version(RENOVATE));
+
+        ToolRequirement::builder()
+            .tool(RENOVATE)
+            .executable("renovate")
+            .version(RequiredVersion::Exact(version))
+            .build()
+    }
+
+    /// The tool of the package with two programs
+    const RENOVATE: &str = "npm:renovate";
+
+    /// An action that declares the requirements that it holds
+    #[derive(Documented)]
+    struct Declaring(Vec<ToolRequirement>);
+
+    impl Action for Declaring {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("declaring")
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            self.0.clone()
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// Resolves a program of a tool for an action that declares the
+    /// requirements, in the root of this repository
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the lookup, which the test asserts on.
+    #[bon::builder]
+    async fn resolved(
+        tools: &[ToolRequirement],
+        tool: &str,
+        executable: &str,
+    ) -> Result<Tool, ResolveToolError> {
+        Tool::resolve()
+            .action(&Declaring(tools.to_vec()))
+            .tool(tool)
+            .executable(executable)
+            .context(&context())
+            .call()
+            .await
+    }
+
     /// A program in a directory that cannot be an entry of `PATH`
     ///
     /// The directory holds the separator of the entries of a path on Unix.
@@ -822,6 +1070,44 @@ mod tests {
         let invocation = tool.invocation();
 
         assert_eq!(invocation.program(), tool.program());
+    }
+
+    #[tokio::test]
+    async fn resolve_ignores_the_pin_of_the_project() {
+        let project = Project::pinning(&["1.7.1"]);
+
+        let tool = Tool::resolve()
+            .action(&Declaring(vec![exact()]))
+            .tool(PINNED)
+            .executable(PINNED)
+            .context(&project.context())
+            .call()
+            .await
+            .expect("expected mise to report the declared version");
+
+        assert!(runs_version(&tool, &pinned_by_the_repository()));
+    }
+
+    #[tokio::test]
+    async fn resolve_of_a_tool_reports_each_program_that_it_provides() {
+        let tools = [renovate()];
+
+        let validator = resolved()
+            .tools(&tools)
+            .tool(RENOVATE)
+            .executable("renovate-config-validator")
+            .call()
+            .await
+            .expect("expected mise to report the validator of the declared tool");
+        let renovate = resolved()
+            .tools(&tools)
+            .tool(RENOVATE)
+            .executable("renovate")
+            .call()
+            .await
+            .expect("expected mise to report the main program of the declared tool");
+
+        assert_ne!(validator.program(), renovate.program());
     }
 
     #[tokio::test]
@@ -1184,6 +1470,120 @@ mod tests {
                 Err(ResolveRequirementError::UnresolvedToolchain { .. })
             ),
             "expected an unpinned toolchain, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_with_a_declared_tool_reports_the_program_of_its_version() {
+        let tool = resolved()
+            .tools(&[exact()])
+            .tool(PINNED)
+            .executable(PINNED)
+            .call()
+            .await
+            .expect("expected mise to report the version that this project pins");
+
+        assert!(runs_version(&tool, &pinned_by_the_repository()));
+    }
+
+    #[tokio::test]
+    async fn resolve_with_a_program_that_the_tool_lacks_reports_it_missing() {
+        let result = resolved()
+            .tools(&[exact()])
+            .tool(PINNED)
+            .executable("jq-but-not-jq")
+            .call()
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveToolError::MissingExecutable { ref executable, .. })
+                    if executable.get() == "jq-but-not-jq"
+            ),
+            "expected a missing program, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_with_a_tool_declared_at_one_version_twice_reports_it() {
+        let tools = [exact(), exact()];
+
+        let tool = resolved()
+            .tools(&tools)
+            .tool(PINNED)
+            .executable(PINNED)
+            .call()
+            .await
+            .expect("expected mise to report the one declared version");
+
+        assert_eq!(tool.version().get(), pinned_by_the_repository());
+    }
+
+    #[tokio::test]
+    async fn resolve_with_a_tool_declared_at_two_versions_reports_it_ambiguous() {
+        let tools = [
+            exact(),
+            requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1"))),
+        ];
+
+        let result = resolved()
+            .tools(&tools)
+            .tool(PINNED)
+            .executable(PINNED)
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolError::AmbiguousVersion { ref versions, .. }) if versions.len() == 2),
+            "expected an ambiguous version, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_with_a_tool_declared_only_as_a_toolchain_reports_it_undeclared() {
+        let result = resolved()
+            .tools(&[toolchain(">=1.0")])
+            .tool(PINNED)
+            .executable(PINNED)
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolError::UndeclaredTool { .. })),
+            "expected an undeclared tool, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_with_a_version_that_is_not_installed_reports_it_uninstalled() {
+        let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
+
+        let result = resolved()
+            .tools(&[missing])
+            .tool(PINNED)
+            .executable(PINNED)
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolError::UninstalledVersion { ref version, .. }) if version.get() == "0.0.1"),
+            "expected an uninstalled version, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_without_the_tool_in_the_declarations_reports_it_undeclared() {
+        let result = resolved()
+            .tools(&[renovate()])
+            .tool(PINNED)
+            .executable(PINNED)
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolError::UndeclaredTool { ref tool }) if tool.get() == PINNED),
+            "expected an undeclared tool, got {result:?}"
         );
     }
 

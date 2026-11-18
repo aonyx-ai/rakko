@@ -249,7 +249,7 @@ mod tests {
     use super::*;
     use crate::Documented;
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
-    use crate::tool::{OperatingSystem, Platform, RequiredVersion, ToolVersion};
+    use crate::tool::{OperatingSystem, Platform, RequiredVersion, ToolVersion, Tools};
     use crate::{action_name, argument_name};
 
     /// What a formatter does with the files that it examines
@@ -374,6 +374,44 @@ mod tests {
 
         fn tools(&self) -> Vec<ToolRequirement> {
             vec![taplo(), self.tool.clone()]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            self.ran.store(true, Ordering::SeqCst);
+
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// The pin of a tool whose platforms leave out the run of the test
+    #[cfg(not(windows))]
+    const ELSEWHERE: Tools = crate::__tools_of_mise_file!(
+        "[tools]\n\"github:aonyx-ai/stiles\" = { version = \"0.6.0\", os = [\"windows\"] }\n"
+    );
+
+    /// The pin of a tool whose platforms leave out the run of the test
+    #[cfg(windows)]
+    const ELSEWHERE: Tools = crate::__tools_of_mise_file!(
+        "[tools]\n\"github:aonyx-ai/stiles\" = { version = \"0.6.0\", os = [\"linux\"] }\n"
+    );
+
+    /// An action that pins a tool without a build here in its mise file, and
+    /// records whether it ran
+    #[derive(Default, Documented)]
+    struct Pinned {
+        /// Whether a run of the action started
+        ran: AtomicBool,
+    }
+
+    impl Action for Pinned {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("pinned")
+        }
+
+        fn bundled_tools(&self) -> Tools {
+            ELSEWHERE
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
@@ -574,6 +612,28 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Bound<'static, Formatter>>();
+    }
+
+    #[test]
+    fn bound_run_of_an_action_whose_bundled_tool_has_no_build_here_does_not_start() {
+        let action = Pinned::default();
+        let values = ArgsValues::empty();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        drive_bound(bound.as_ref());
+
+        assert!(!action.ran.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn bound_run_of_an_action_whose_bundled_tool_has_no_build_here_skips() {
+        let action = Pinned::default();
+        let values = ArgsValues::empty();
+        let bound = ErasedAction::bind(&action, &values).unwrap();
+
+        let outcome = drive_bound(bound.as_ref());
+
+        assert!(matches!(outcome, Outcome::Skipped { .. }));
     }
 
     #[test]

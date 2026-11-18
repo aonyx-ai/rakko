@@ -12,7 +12,7 @@ use std::path::Path;
 use aonyx_rakko_shfmt::{Operation, Shfmt};
 use rakko::{
     Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, ProjectRoot,
-    SkipReason, Summary, ToolRequirement, action_name,
+    SkipReason, Summary, Tools, action_name,
 };
 
 pub use self::error::LintShellError;
@@ -78,12 +78,16 @@ impl Action for LintShell {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Shfmt::requirement(), Shellcheck::requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
+    }
+
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Shfmt::TOOLS]
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(context, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -94,19 +98,25 @@ impl Action for LintShell {
 
 /// Runs the action against the project of the context
 ///
-/// The run resolves both tools, finds the scripts with shfmt, and examines
-/// them with ShellCheck. An error that this function returns stops the run,
+/// The run resolves both tools from the tools that the action declares, finds
+/// the scripts with shfmt, and examines them with ShellCheck. An error that this function returns stops the run,
 /// and the caller reports it in the outcome.
 ///
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of a
 /// tool, the search, the examination, or the reading of a report.
-async fn drive(context: &Context) -> Result<Outcome, LintShellError> {
-    let shfmt = Shfmt::resolve(context)
+async fn drive(context: &Context, action: &LintShell) -> Result<Outcome, LintShellError> {
+    let shfmt = Shfmt::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| LintShellError::UnresolvedShfmt { source })?;
-    let shellcheck = Shellcheck::resolve(context)
+    let shellcheck = Shellcheck::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| LintShellError::UnresolvedShellcheck { source })?;
 
@@ -318,9 +328,11 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_shfmt_and_shellcheck() {
+    fn tools_declare_shellcheck_and_then_shfmt() {
         let tools = LintShell.tools();
 
-        assert_eq!(tools, [Shfmt::requirement(), Shellcheck::requirement()]);
+        let names: Vec<&str> = tools.iter().map(|tool| tool.tool().get()).collect();
+
+        assert_eq!(names, ["shellcheck", "shfmt"]);
     }
 }

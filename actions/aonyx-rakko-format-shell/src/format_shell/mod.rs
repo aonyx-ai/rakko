@@ -14,7 +14,7 @@ use std::path::Path;
 use aonyx_rakko_shfmt::{Observation, Operation, Shfmt, ShfmtDiagnostic};
 use rakko::{
     Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, Position,
-    ProjectRoot, SkipReason, Summary, ToolRequirement, action_name,
+    ProjectRoot, SkipReason, Summary, Tools, action_name,
 };
 
 pub use self::args::FormatShellArgs;
@@ -86,12 +86,12 @@ impl Action for FormatShell {
         }
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Shfmt::requirement()]
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Shfmt::TOOLS]
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
-        match drive(context, args).await {
+        match drive(context, args, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -102,16 +102,23 @@ impl Action for FormatShell {
 
 /// Runs the action against the project of the context
 ///
-/// The run resolves shfmt, finds the scripts, checks them, and fixes them
-/// when the arguments ask for it. An error that this function returns stops
+/// The run resolves shfmt from the tools that the action declares, finds the
+/// scripts, checks them, and fixes them when the arguments ask for it. An error that this function returns stops
 /// the run, and the caller reports it in the outcome.
 ///
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, a shfmt run, or the reading of the report.
-async fn drive(context: &Context, args: &FormatShellArgs) -> Result<Outcome, FormatShellError> {
-    let shfmt = Shfmt::resolve(context)
+async fn drive(
+    context: &Context,
+    args: &FormatShellArgs,
+    action: &FormatShell,
+) -> Result<Outcome, FormatShellError> {
+    let shfmt = Shfmt::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| FormatShellError::UnresolvedTool { source })?;
 
@@ -334,6 +341,6 @@ mod tests {
     fn tools_declare_the_shfmt_of_the_crate() {
         let tools = FormatShell.tools();
 
-        assert_eq!(tools, [Shfmt::requirement()]);
+        assert_eq!(tools, Shfmt::TOOLS.requirements());
     }
 }

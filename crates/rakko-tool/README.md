@@ -12,11 +12,14 @@ describes the command that starts the tool. So every action reaches its tool
 in the same way.
 
 [Mise] tells the crate where a tool is. The crate searches no path of its own
-and installs nothing. An action declares each tool that it runs as a
-requirement. A tool that the action wraps resolves at the exact version that
-the action pins. So a run starts the version that the tests of the action
-cover. A toolchain, such as Rust or Node, resolves at the version that the
-project pins, when the range of the action accepts it.
+and installs nothing. An action pins each tool that it wraps in the mise file
+of its crate, or adds the tools of a helper crate. It declares the range of a
+toolchain with the builder of `ToolRequirement`. A tool that the action
+wraps resolves at the exact version that the action pins. So a run starts the
+version that the tests of the action cover. The lookup with `Tool::resolve`
+refuses a tool that the action does not declare. A toolchain, such as Rust or
+Node, resolves at the version that the project pins, when the range of the
+action accepts it.
 
 ## Documentation
 

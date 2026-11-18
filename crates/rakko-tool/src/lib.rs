@@ -9,26 +9,24 @@
 //! A tool that mise did not install stops the action with an error that
 //! gives the name of the tool.
 //!
-//! An action declares the tools that it runs, each as a
-//! [`ToolRequirement`][requirement] of the contract.
-//! [`Tool::resolve_requirement`] finds the version that the requirement
-//! accepts. A tool that the action wraps resolves at the exact version that
-//! the action pins. The pin of the project does not change it, so a run
-//! starts the version that the tests of the action cover. A toolchain
-//! resolves at the version that the project pins, when the range of the
-//! action accepts it. A tool that starts its toolchain by name, such as a
-//! package for Node, runs on the toolchain that [`Tool::with_toolchain`]
-//! gives it. A crate that wraps a tool keeps its pin in a mise file.
-//! It reads the pin with [`MiseFile::pinned_version`] when it compiles, and
-//! the platforms where the tool has a build with
-//! [`MiseFile::pinned_platforms`].
+//! An action declares the tools that it runs. A crate that wraps a tool pins
+//! the exact version of the tool in a mise file. The action returns the pins
+//! of that file, or of the file of a helper crate, from the methods of
+//! [`Action`][action] that declare its tools. [`Tool::resolve`] finds a
+//! program of a declared tool at the version of its pin. The pin of the project does
+//! not change it, so a run starts the version that the tests of the action
+//! cover. The lookup takes the declarations of the action, and it refuses a
+//! tool that they do not hold. So a project can install every tool that a run
+//! needs before the run starts.
 //!
-//! Every lookup of this crate takes a requirement, and no lookup takes the
-//! name of a tool alone. An action resolves the requirements that it
-//! declares, so that a project can install every tool that a run needs before
-//! the run starts. The crate does not compare a requirement with the
-//! declaration of the action. So an action that resolves a requirement that
-//! it did not declare still runs, wherever mise installed that tool.
+//! [`Tool::resolve_requirement`] resolves a
+//! [`ToolRequirement`][requirement] that the builder of the contract created.
+//! A toolchain resolves there at the version that the project pins, when the
+//! range of the action accepts it. A tool that starts its toolchain by name,
+//! such as a package for Node, runs on the toolchain that
+//! [`Tool::with_toolchain`] gives it. [`MiseFile`] reads the pin of one tool
+//! in a constant, for a requirement that the builder creates. This lookup
+//! does not compare a requirement with the declaration of the action.
 //!
 //! The crate describes a command and starts nothing until the caller asks for
 //! a run. An action can therefore write the command to a log, or name it in
@@ -53,19 +51,19 @@
 //! # Examples
 //!
 //! ```no_run
-//! use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+//! use rakko::{Action, Context};
 //! use rakko_tool::{Launch, ShownStreams, Tool};
 //!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let requirement = ToolRequirement::builder()
-//!     .tool("npm:prettier")
-//!     .executable("prettier")
-//!     .version(RequiredVersion::Exact(ToolVersion::new("3.9.10")))
-//!     .build();
+//! # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
 //! let context = Context::builder().root("/home/otter/project").build();
 //!
-//! let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
+//! let tool = Tool::resolve()
+//!     .action(action)
+//!     .tool("npm:prettier")
+//!     .executable("prettier")
+//!     .context(&context)
+//!     .call()
+//!     .await?;
 //!
 //! let execution = tool
 //!     .invocation()
@@ -79,6 +77,7 @@
 //! # }
 //! ```
 //!
+//! [action]: rakko::Action
 //! [launch]: Launch::launch
 //! [launch-with]: Launch::launch_with
 //! [output]: rakko::ToolOutput
@@ -97,4 +96,4 @@ pub use kawauso_process::{Execution, Invocation};
 
 pub use self::launch::{Launch, ShownStreams};
 pub use self::pin::{MiseFile, PinnedPlatforms};
-pub use self::tool::{ResolveRequirementError, Tool};
+pub use self::tool::{ResolveRequirementError, ResolveToolError, Tool};

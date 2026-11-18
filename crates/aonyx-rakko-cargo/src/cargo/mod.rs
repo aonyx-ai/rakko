@@ -348,7 +348,10 @@ impl Cargo {
     ///
     /// let requirement = Cargo::requirement();
     ///
-    /// assert_eq!(requirement.executable().get(), "cargo");
+    /// assert_eq!(
+    ///     requirement.executable().map(rakko::Executable::get),
+    ///     Some("cargo")
+    /// );
     /// ```
     pub fn requirement() -> ToolRequirement {
         ToolRequirement::builder()

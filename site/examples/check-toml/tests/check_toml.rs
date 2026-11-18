@@ -28,5 +28,8 @@ fn tools_pins_the_version_of_the_mise_file() {
 fn tools_runs_the_program_of_taplo() {
     let tools = CheckToml.tools();
 
-    assert_eq!(tools[0].executable().get(), "taplo");
+    assert_eq!(
+        tools[0].executable().map(rakko::Executable::get),
+        Some("taplo")
+    );
 }

@@ -1,8 +1,10 @@
 //! Types for the external tools that an action runs
 
 mod executable;
+pub(crate) mod mise_file;
 mod mise_tool;
 mod platform;
+mod tools;
 mod version;
 
 use std::collections::BTreeSet;
@@ -11,36 +13,48 @@ use bon::bon;
 use getset::Getters;
 
 pub use self::executable::Executable;
+pub use self::mise_file::{MiseText, ToolPin};
 pub use self::mise_tool::MiseTool;
 pub(crate) use self::platform::Host;
 pub use self::platform::{Architecture, OperatingSystem, Platform};
+pub use self::tools::Tools;
 pub use self::version::{RequiredVersion, ToolVersion, VersionRange};
 
 /// A tool that an action runs, and the versions that it accepts
 ///
-/// An action declares a requirement for each external program that it runs.
-/// The requirement holds three parts:
+/// The machinery reads the requirements of an action before any run, from
+/// [`Action::tools`][tools]. A requirement holds these parts:
 ///
 /// - the identifier of the tool in the configuration of mise,
-/// - the program of that tool that the action starts, and
-/// - the versions of the tool that the action accepts.
+/// - the versions of the tool that the action accepts, and
+/// - the platforms where the tool has a build, for an exact version.
 ///
-/// Mise installs the tool. A resolver asks mise for the program at a version
-/// that the requirement accepts.
+/// Mise installs the tool. A resolver asks mise for a program of the tool at
+/// a version that the requirement accepts.
 ///
-/// A requirement of an exact version can also give the platforms where the
-/// tool has a build. Mise then installs the tool only on those platforms. On
-/// every other platform, a run of the action through
-/// [`ErasedAction`][erased] or [`BoundAction`][bound] skips before it starts.
-/// The reason gives the tool and the platform. A call of
-/// [`Action::run`][run] on the type of the action does not skip. A
-/// requirement without such a list needs the tool on every platform. A
-/// toolchain gets no list, because the project pins its toolchains. So the
-/// builder does not let a requirement of a range carry platforms.
+/// An action that wraps a tool pins it in its mise file, and
+/// [`bundled_tools!`][bundled] reads the pin. The requirement of such a pin
+/// holds the exact version and the platforms of the pin. It holds no
+/// program, because one tool can provide several programs. The action gives
+/// the program when it runs the tool. A requirement that the builder creates also
+/// holds the program that the action starts, and it can hold the range of
+/// versions of a toolchain.
+///
+/// A requirement of an exact version can give the platforms where the tool
+/// has a build. Mise then installs the tool only on those platforms. On every
+/// other platform, a run of the action through [`ErasedAction`][erased] or
+/// [`BoundAction`][bound] skips before it starts. The reason gives the tool
+/// and the platform. A call of [`Action::run`][run] on the type of the action
+/// does not skip. A requirement without such a list needs the tool on every
+/// platform. A toolchain gets no list, because the project pins its
+/// toolchains. So the builder does not let a requirement of a range carry
+/// platforms.
 ///
 /// [bound]: crate::BoundAction
+/// [bundled]: crate::bundled_tools
 /// [erased]: crate::ErasedAction
 /// [run]: crate::Action::run
+/// [tools]: crate::Action::tools
 ///
 /// # Examples
 ///
@@ -53,7 +67,10 @@ pub use self::version::{RequiredVersion, ToolVersion, VersionRange};
 ///     .version(RequiredVersion::Exact(ToolVersion::new("0.50.0")))
 ///     .build();
 ///
-/// assert_eq!(requirement.executable().get(), "markdownlint");
+/// assert_eq!(
+///     requirement.executable().map(Executable::get),
+///     Some("markdownlint")
+/// );
 /// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct ToolRequirement {
@@ -61,9 +78,9 @@ pub struct ToolRequirement {
     #[getset(get = "pub")]
     tool: MiseTool,
 
-    /// The program of the tool that the action starts
-    #[getset(get = "pub")]
-    executable: Executable,
+    /// The program of the tool that the action starts, or `None` for the
+    /// requirement of a pin, whose program the action gives when it runs
+    executable: Option<Executable>,
 
     /// The versions of the tool that the action accepts
     #[getset(get = "pub")]
@@ -141,10 +158,53 @@ impl ToolRequirement {
     ) -> Self {
         Self {
             tool,
-            executable,
+            executable: Some(executable),
             version,
             platforms,
         }
+    }
+
+    /// Creates the requirement of a pin of a mise file
+    ///
+    /// The requirement holds the exact version and the platforms of the pin,
+    /// and no program.
+    #[builder]
+    pub(crate) fn declared(
+        tool: MiseTool,
+        version: ToolVersion,
+        platforms: Option<BTreeSet<Platform>>,
+    ) -> Self {
+        Self {
+            tool,
+            executable: None,
+            version: RequiredVersion::Exact(version),
+            platforms,
+        }
+    }
+
+    /// Returns the program of the tool that the action starts, or `None` for
+    /// the requirement of a pin of a mise file
+    ///
+    /// The requirement of a pin holds no program, because one tool can
+    /// provide several programs. The action gives the program when it runs
+    /// the tool.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{Executable, RequiredVersion, ToolRequirement, ToolVersion};
+    ///
+    /// let requirement = ToolRequirement::builder()
+    ///     .tool("npm:prettier")
+    ///     .executable("prettier")
+    ///     .version(RequiredVersion::Exact(ToolVersion::new("3.3.0")))
+    ///     .build();
+    ///
+    /// assert_eq!(requirement.executable().map(Executable::get), Some("prettier"));
+    /// ```
+    #[must_use]
+    pub fn executable(&self) -> Option<&Executable> {
+        self.executable.as_ref()
     }
 
     /// Returns the platforms where the tool has a build, or `None` when the
@@ -231,7 +291,10 @@ mod tests {
     fn executable_returns_the_given_program() {
         let requirement = requirement();
 
-        assert_eq!(requirement.executable().get(), "markdownlint");
+        assert_eq!(
+            requirement.executable(),
+            Some(&Executable::new("markdownlint"))
+        );
     }
 
     #[test]

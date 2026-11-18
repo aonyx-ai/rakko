@@ -185,6 +185,19 @@ pub enum ResolveRequirementError {
         details: String,
     },
 
+    /// The requirement gives no program to start
+    ///
+    /// The requirement of a pin of a mise file holds no program, because the
+    /// action gives the program when it runs the tool. Such a requirement
+    /// resolves with [`Tool::resolve`][resolve], which takes the program.
+    ///
+    /// [resolve]: crate::Tool::resolve
+    #[error("the requirement of `{tool}` gives no program to start")]
+    UnstatedExecutable {
+        /// The tool that the requirement is for
+        tool: MiseTool,
+    },
+
     /// The project pins a version of the toolchain that the action does not
     /// accept
     ///
