@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use aonyx_rakko_cargo::{DiscoverRootsError, ReadReportError, RustVersion};
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -114,6 +114,7 @@ pub enum CheckMsrvError {
     /// The project declares the version in a manifest, and mise pins no
     /// toolchain for it, or nothing installed the pin yet. The two places
     /// state the same version, so a disagreement between them arrives here.
+    /// The cause says whether a pin of the project or an install repairs it.
     /// The action installs nothing, so the run stops.
     #[error("failed to resolve the toolchain for the declared rust-version {version}")]
     UnresolvedToolchain {
@@ -121,7 +122,7 @@ pub enum CheckMsrvError {
         version: RustVersion,
 
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolchainError,
     },
 }
 

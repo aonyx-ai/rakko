@@ -8,7 +8,7 @@ use crate::context::Context;
 use crate::documented::Documented;
 use crate::name::Name;
 use crate::outcome::Outcome;
-use crate::tool::{ToolRequirement, Tools};
+use crate::tool::{ToolRequirement, ToolchainRequirement, Tools};
 
 /// The unit of maintenance work
 ///
@@ -157,7 +157,9 @@ pub trait Action: Documented + Send + Sync {
     ///
     /// An action that implements the method must not read a file or start a
     /// tool there. Such an action can give a requirement that the builder of
-    /// [`ToolRequirement`] creates, such as the range of a toolchain.
+    /// [`ToolRequirement`] creates. An older action gives the range of a
+    /// toolchain there, which still works. A new action declares what it
+    /// requires of a toolchain with [`toolchains`][toolchains].
     ///
     /// A requirement can give the platforms where its tool has a build. On
     /// every other platform, the machinery does not start the run, and the
@@ -172,6 +174,7 @@ pub trait Action: Documented + Send + Sync {
     /// [`ErasedAction`]: crate::ErasedAction
     /// [additional]: Action::additional_tools
     /// [bundled]: Action::bundled_tools
+    /// [toolchains]: Action::toolchains
     fn tools(&self) -> Vec<ToolRequirement> {
         let mut tools = Vec::new();
 
@@ -185,6 +188,37 @@ pub trait Action: Documented + Send + Sync {
         }
 
         tools
+    }
+
+    /// Returns what the action requires of the toolchains that the project
+    /// pins
+    ///
+    /// A toolchain is a compiler or a runtime of the project, such as Rust or
+    /// Node. The project pins it, and the action runs on that pin. A
+    /// requirement gives the versions of a toolchain that the action accepts.
+    /// An action declares one only for a need of its own. One such need is a
+    /// result that is wrong on an older release. Another is a diagnosis
+    /// that the toolchain does not give itself, such as a nightly for an
+    /// unstable option. That a tool
+    /// runs on a toolchain is no such need. A helper crate can offer a
+    /// requirement that several actions share.
+    ///
+    /// The method takes no arguments and no context, because the machinery
+    /// reads the answer before any run starts. `doctor` reports a requirement
+    /// that the pins of the project do not meet. A requirement is no
+    /// precondition of a run, so it stops no other action, group, or command.
+    ///
+    /// The action writes no check of its own. The lookup that resolves a
+    /// toolchain for a run reads this answer. It takes the first pin of the
+    /// project that every requirement of that toolchain accepts. When no
+    /// pin is accepted, the lookup fails, and the action stops with the error.
+    /// A run that skips because a tool has no build on its platform checks no
+    /// toolchain.
+    ///
+    /// An action that requires nothing of a toolchain needs no implementation
+    /// of the method. It still runs on the toolchain that the project pins.
+    fn toolchains(&self) -> Vec<ToolchainRequirement> {
+        Vec::new()
     }
 
     /// Runs the action against the project that the context names
@@ -216,7 +250,7 @@ mod tests {
 
     use super::*;
     use crate::Documented;
-    use crate::tool::{RequiredVersion, ToolVersion};
+    use crate::tool::{RequiredVersion, ToolVersion, VersionRange};
 
     /// Whether a future has returned control already
     #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
@@ -359,6 +393,34 @@ mod tests {
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
             Outcome::Passed { summary: None }
         }
+    }
+
+    /// An action that requires a release of a toolchain
+    #[derive(Documented)]
+    struct Demanding;
+
+    impl Action for Demanding {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            "demanding".parse().unwrap()
+        }
+
+        fn toolchains(&self) -> Vec<ToolchainRequirement> {
+            vec![node()]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// Returns the requirement that the demanding action declares
+    fn node() -> ToolchainRequirement {
+        ToolchainRequirement::builder()
+            .toolchain("node")
+            .versions(VersionRange::new("^22.18 || >=23.6"))
+            .build()
     }
 
     /// Returns the identifiers of the tools of a declaration, in its order
@@ -526,6 +588,24 @@ mod tests {
         let state = future.as_mut().poll(&mut task_context);
 
         assert!(matches!(state, Poll::Pending));
+    }
+
+    #[test]
+    fn toolchains_of_an_action_that_declares_nothing_are_empty() {
+        let action = Probe;
+
+        let toolchains = action.toolchains();
+
+        assert!(toolchains.is_empty());
+    }
+
+    #[test]
+    fn toolchains_returns_what_the_action_declares() {
+        let action = Demanding;
+
+        let toolchains = action.toolchains();
+
+        assert_eq!(toolchains, vec![node()]);
     }
 
     #[test]

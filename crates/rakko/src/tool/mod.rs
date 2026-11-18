@@ -4,6 +4,7 @@ mod executable;
 pub(crate) mod mise_file;
 mod mise_tool;
 mod platform;
+mod toolchain_requirement;
 mod tools;
 mod version;
 
@@ -17,6 +18,7 @@ pub use self::mise_file::{MiseText, ToolPin};
 pub use self::mise_tool::MiseTool;
 pub(crate) use self::platform::Host;
 pub use self::platform::{Architecture, OperatingSystem, Platform};
+pub use self::toolchain_requirement::ToolchainRequirement;
 pub use self::tools::Tools;
 pub use self::version::{RequiredVersion, ToolVersion, VersionRange};
 
@@ -37,8 +39,9 @@ pub use self::version::{RequiredVersion, ToolVersion, VersionRange};
 /// holds the exact version and the platforms of the pin. It holds no
 /// program, because one tool can provide several programs. The action gives
 /// the program when it runs the tool. A requirement that the builder creates also
-/// holds the program that the action starts, and it can hold the range of
-/// versions of a toolchain.
+/// holds the program that the action starts. An action that does not declare
+/// a [`ToolchainRequirement`] can give the range of versions of a toolchain
+/// there.
 ///
 /// A requirement of an exact version can give the platforms where the tool
 /// has a build. Mise then installs the tool only on those platforms. On every

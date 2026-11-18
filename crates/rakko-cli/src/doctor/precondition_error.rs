@@ -12,7 +12,8 @@ use crate::report::Report;
 /// The command line checks the tool pins of the project before it runs an
 /// action, a command that the harness wrote, or a group. Each variant stops
 /// the run before it starts, also in CI. Only the help and `doctor` run
-/// without the check.
+/// without the check. The pins of the toolchains are no part of it, so an
+/// action that a toolchain pin does not satisfy stops no other run.
 #[derive(Debug, Error)]
 pub(crate) enum CheckPreconditionError {
     /// The check of the tool pins did not get an answer
@@ -30,14 +31,14 @@ pub(crate) enum CheckPreconditionError {
 
     /// The tool pins of the project do not meet the precondition
     ///
-    /// The report holds each problem that a run of `doctor` gives. The
-    /// message gives the command that repairs them, and the report gives the
-    /// pin of each toolchain that the project must change itself.
+    /// The report holds each problem of the generated file and of the pins
+    /// that override a declared tool. The message gives the command that
+    /// repairs them. A toolchain is no part of the precondition, so the
+    /// report gives no pin of a toolchain.
     #[error(
         "the tool pins of the project do not meet the precondition of the mounted actions, so \
          the run stops. `mise run rakko -- doctor --fix` repairs the generated file and each pin \
-         that overrides a declared tool. It does not change the pin of a toolchain, so change \
-         each such pin as the report says:\n{report}"
+         that overrides a declared tool:\n{report}"
     )]
     UnmetPrecondition {
         /// The report of `doctor` with each problem

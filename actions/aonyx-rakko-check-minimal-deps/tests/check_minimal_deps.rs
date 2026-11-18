@@ -30,7 +30,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use aonyx_rakko_cargo::Cargo;
+use aonyx_rakko_cargo::{Cargo, Toolchain};
 use aonyx_rakko_check_minimal_deps::{CheckMinimalDeps, CheckMinimalDepsError};
 use rakko::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary, ToolEvent};
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
@@ -846,12 +846,19 @@ async fn run_without_a_nightly_toolchain_stops() {
 }
 
 #[test]
-fn tools_declare_both_toolchains_and_nextest() {
+fn toolchains_require_the_nightly() {
+    let toolchains = CheckMinimalDeps.toolchains();
+
+    assert_eq!(toolchains, vec![Toolchain::nightly_requirement()]);
+}
+
+#[test]
+fn tools_declare_the_stable_toolchain_and_nextest() {
     let tools: Vec<String> = CheckMinimalDeps
         .tools()
         .iter()
         .map(|requirement| requirement.tool().get().to_owned())
         .collect();
 
-    assert_eq!(tools, ["rust", "rust", "cargo:cargo-nextest"]);
+    assert_eq!(tools, ["rust", "cargo:cargo-nextest"]);
 }

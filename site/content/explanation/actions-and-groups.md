@@ -47,8 +47,8 @@ during a read-only run.
 An action pins external tools, such as linters, to exact versions. [Mise][mise]
 installs those versions, so projects use the tools covered by the action's
 tests. The project pins its toolchains, such as Rust or Node.js, and the
-action declares an accepted version range. [Tools and Mise][tools-and-mise]
-explains who owns each pin.
+action runs on those pins. An action can require a range of versions when it
+needs one. [Tools and Mise][tools-and-mise] explains who owns each pin.
 
 ## The Outcome of a Run
 

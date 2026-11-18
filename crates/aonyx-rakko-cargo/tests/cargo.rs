@@ -23,8 +23,10 @@ use aonyx_rakko_cargo::{
     Cargo, CargoPackage, CargoReport, CargoRoot, DiscoverRootsError, Documentation,
     DocumentedNames, PackageName, Publication, RustVersion, Toolchain, lockfile,
 };
-use rakko::{Context, ProjectRoot};
-use rakko_tool::{Invocation, ResolveRequirementError, Tool};
+use rakko::{
+    Action, Context, Documented, Name, Outcome, ProjectRoot, ToolchainRequirement, action_name,
+};
+use rakko_tool::{Invocation, ResolveRequirementError, ResolveToolchainError, Tool};
 use tempfile::TempDir;
 
 /// The manifest of a workspace with two members
@@ -403,6 +405,26 @@ fn repository() -> &'static Path {
         .parent()
         .and_then(Path::parent)
         .expect("the crate lives two directories below the root of the repository")
+}
+
+/// An action that requires the Rust toolchains that it holds
+#[derive(Documented)]
+struct Requiring(Vec<ToolchainRequirement>);
+
+impl Action for Requiring {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("requiring")
+    }
+
+    fn toolchains(&self) -> Vec<ToolchainRequirement> {
+        self.0.clone()
+    }
+
+    async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+        Outcome::Passed { summary: None }
+    }
 }
 
 /// Returns the value of a variable that a command sets
@@ -1485,23 +1507,58 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
 }
 
 #[tokio::test]
-async fn toolchain_resolve_requirement_of_a_release_answers_the_pin_of_that_release() {
+async fn toolchain_resolve_of_a_release_answers_the_pin_of_that_release() {
     let pin = pinned_rust().await;
-    let project = Project::with_rust(&format!("\"{pin}\""));
-    project.declaring().name("declared").version(&pin).call();
-    let roots = project.roots().await.expect("the test discovers the roots");
-    let version = roots
-        .first()
-        .and_then(|root| root.rust_version().clone())
-        .expect("the package declares a version");
+    let project = Project::with_rust(&format!("[\"nightly-2026-11-02\", \"{pin}\"]"));
+    let version = RustVersion::new(pin.clone());
 
-    let toolchain = Toolchain::resolve_requirement()
-        .requirement(&Toolchain::release(&version))
+    let toolchain = Toolchain::resolve()
+        .action(&Requiring(Vec::new()))
+        .release(&version)
         .context(&project.context())
         .call()
         .await;
 
     assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
+}
+
+#[tokio::test]
+async fn toolchain_resolve_of_an_action_that_requires_the_nightly_answers_the_dated_pin() {
+    let context = Context::builder().root(repository()).build();
+
+    let toolchain = Toolchain::resolve()
+        .action(&Requiring(vec![Toolchain::nightly_requirement()]))
+        .context(&context)
+        .call()
+        .await;
+
+    assert!(
+        toolchain
+            .as_ref()
+            .is_ok_and(|toolchain| toolchain.get().starts_with("nightly-")),
+        "expected the dated nightly of the repository, got {toolchain:?}"
+    );
+}
+
+#[tokio::test]
+async fn toolchain_resolve_of_an_action_that_requires_the_nightly_without_a_dated_pin_reports_it() {
+    let pin = pinned_rust().await;
+    let project = Project::with_rust(&format!("\"{pin}\""));
+
+    let toolchain = Toolchain::resolve()
+        .action(&Requiring(vec![Toolchain::nightly_requirement()]))
+        .context(&project.context())
+        .call()
+        .await;
+
+    assert!(
+        matches!(
+            &toolchain,
+            Err(ResolveToolchainError::UnpinnedToolchain { details, .. })
+                if details.contains("`nightly`")
+        ),
+        "expected no nightly, got {toolchain:?}"
+    );
 }
 
 #[tokio::test]
@@ -1564,4 +1621,17 @@ async fn toolchain_resolve_requirement_of_the_nightly_without_a_dated_pin_report
         ),
         "expected no nightly, got {toolchain:?}"
     );
+}
+#[tokio::test]
+async fn toolchain_resolve_without_a_requirement_answers_the_first_pin() {
+    let pin = pinned_rust().await;
+    let project = Project::with_rust(&format!("[\"{pin}\", \"nightly-2026-11-02\"]"));
+
+    let toolchain = Toolchain::resolve()
+        .action(&Requiring(Vec::new()))
+        .context(&project.context())
+        .call()
+        .await;
+
+    assert_eq!(toolchain.ok(), Some(Toolchain::new(pin)));
 }

@@ -1,9 +1,10 @@
 //! The version of a toolchain that a project pins
 //!
 //! A toolchain is a decision of the project, so the project pins its
-//! version. An action states only the range of versions that it accepts. This
-//! module asks mise which versions the configuration of the project pins, in
-//! the order of its pins. It picks the first one that the range accepts.
+//! version. An action can state only the ranges of versions that it accepts.
+//! This module asks mise which versions the configuration of the project pins,
+//! in the order of its pins. It picks the first one that every range accepts,
+//! or the first one when there is no range.
 //!
 //! A range compares the versions of releases, such as `>=1.85`, or the dates
 //! of one channel, such as `>=nightly-2025-02-20`. Rustup names a dated
@@ -15,13 +16,14 @@
 
 use std::path::{Path, PathBuf};
 
+use kawauso_process::error::RunCommandError;
 use kawauso_process::{Execution, Invocation};
 use rakko::{MiseTool, ProjectRoot, ToolVersion, VersionRange};
 use semver::{Version, VersionReq};
 use serde::Deserialize;
 
 use super::{CURRENT, MISE, diagnosis};
-use crate::tool::ResolveRequirementError;
+use crate::tool::{ResolveRequirementError, ResolveToolchainError};
 
 /// The subcommand of mise that lists the versions of a tool
 const LIST: &str = "ls";
@@ -62,9 +64,129 @@ struct Source {
     path: Option<PathBuf>,
 }
 
-/// Returns the first version of a toolchain that the project pins and that
-/// the range accepts
+/// Why no version of a toolchain was selected
 ///
+/// The lookups of the crate turn the reason into their own errors, so that
+/// each one gives the words that fit what it resolves.
+#[derive(Debug)]
+pub(super) enum Unselected {
+    /// A range is not a range
+    InvalidRange {
+        /// The text that was given as the range
+        range: VersionRange,
+
+        /// The cause of the failure
+        source: semver::Error,
+    },
+
+    /// Mise did not run
+    MiseUnavailable {
+        /// The cause of the failure
+        source: RunCommandError,
+    },
+
+    /// A range refused the first pin that it could compare
+    Outside {
+        /// The version that the project pins
+        version: ToolVersion,
+
+        /// The range that refused it
+        range: VersionRange,
+    },
+
+    /// No configuration inside the project pins a version that the ranges
+    /// can read
+    Unpinned {
+        /// What mise said, or what the ranges need
+        details: String,
+    },
+
+    /// A range of releases found no pin with three numbers
+    Unreadable {
+        /// The version that mise gave for the pin
+        version: ToolVersion,
+
+        /// The cause of the failure
+        source: semver::Error,
+    },
+
+    /// Mise listed the pins in a form that the crate does not read
+    UnrecognizedReport {
+        /// The cause of the failure
+        source: serde_json::Error,
+    },
+}
+
+impl Unselected {
+    /// Returns the error of the resolution of a requirement of a tool
+    pub(super) fn requirement_error(self, tool: &MiseTool) -> ResolveRequirementError {
+        let tool = tool.clone();
+
+        match self {
+            Self::InvalidRange { range, source } => ResolveRequirementError::InvalidRange {
+                tool,
+                range,
+                source,
+            },
+            Self::MiseUnavailable { source } => {
+                ResolveRequirementError::MiseUnavailable { tool, source }
+            }
+            Self::Outside { version, range } => ResolveRequirementError::VersionOutOfRange {
+                tool,
+                version,
+                range,
+            },
+            Self::Unpinned { details } => {
+                ResolveRequirementError::UnresolvedToolchain { tool, details }
+            }
+            Self::Unreadable { version, source } => ResolveRequirementError::UnreadableVersion {
+                tool,
+                version,
+                source,
+            },
+            Self::UnrecognizedReport { source } => {
+                ResolveRequirementError::UnrecognizedReport { tool, source }
+            }
+        }
+    }
+
+    /// Returns the error of the resolution of a toolchain
+    pub(super) fn toolchain_error(self, toolchain: &MiseTool) -> ResolveToolchainError {
+        let toolchain = toolchain.clone();
+
+        match self {
+            Self::InvalidRange { range, source } => ResolveToolchainError::InvalidRange {
+                toolchain,
+                range,
+                source,
+            },
+            Self::MiseUnavailable { source } => {
+                ResolveToolchainError::MiseUnavailable { toolchain, source }
+            }
+            Self::Outside { version, range } => ResolveToolchainError::UnmetRequirement {
+                toolchain,
+                version,
+                range,
+            },
+            Self::Unpinned { details } => {
+                ResolveToolchainError::UnpinnedToolchain { toolchain, details }
+            }
+            Self::Unreadable { version, source } => ResolveToolchainError::UnreadableVersion {
+                toolchain,
+                version,
+                source,
+            },
+            Self::UnrecognizedReport { source } => {
+                ResolveToolchainError::UnrecognizedReport { toolchain, source }
+            }
+        }
+    }
+}
+
+/// Returns the first version of a toolchain that the project pins and that
+/// every range accepts
+///
+/// Without a range, the answer is the first version that the project pins.
 /// A range of dates reads only the pins of its channel that the
 /// configuration writes with a date. It passes over every other pin of the
 /// toolchain. A range of releases reads every pin.
@@ -78,37 +200,43 @@ struct Source {
 ///
 /// # Errors
 ///
-/// Returns [`InvalidRange`][invalid] when the range is not a range. Returns
+/// Returns [`InvalidRange`][invalid] when a range is not a range. Returns
 /// [`MiseUnavailable`][unavailable] when mise does not run. Returns
 /// [`UnrecognizedReport`][unrecognized] when mise lists the pins in a form
-/// that the crate does not read. Returns [`UnresolvedToolchain`][unresolved]
-/// when no configuration inside the project pins the toolchain, or no dated
-/// version of the channel of a range of dates. The project can pin versions
-/// that the range does not accept. Returns [`VersionOutOfRange`][outside] then,
-/// for the first pin with three numbers or a date to compare. Returns [`UnreadableVersion`][unreadable] when a range
-/// of releases finds no pin with three numbers.
+/// that the crate does not read. Returns [`Unpinned`][unpinned] when no
+/// configuration inside the project pins the toolchain, or no dated version of
+/// the channel of a range of dates. The project can pin versions that a range
+/// does not accept. Returns [`Outside`][outside] then, for the first pin with
+/// three numbers or a date to compare, and the range that refused it. Returns
+/// [`Unreadable`][unreadable] when a range of releases finds no pin with three
+/// numbers.
 ///
-/// [invalid]: ResolveRequirementError::InvalidRange
-/// [outside]: ResolveRequirementError::VersionOutOfRange
-/// [unavailable]: ResolveRequirementError::MiseUnavailable
-/// [unreadable]: ResolveRequirementError::UnreadableVersion
-/// [unrecognized]: ResolveRequirementError::UnrecognizedReport
-/// [unresolved]: ResolveRequirementError::UnresolvedToolchain
-pub(super) async fn pinned_toolchain(
+/// [invalid]: Unselected::InvalidRange
+/// [outside]: Unselected::Outside
+/// [unavailable]: Unselected::MiseUnavailable
+/// [unpinned]: Unselected::Unpinned
+/// [unreadable]: Unselected::Unreadable
+/// [unrecognized]: Unselected::UnrecognizedReport
+pub(super) async fn select(
     tool: &MiseTool,
-    range: &VersionRange,
+    ranges: &[VersionRange],
     root: &ProjectRoot,
-) -> Result<ToolVersion, ResolveRequirementError> {
-    let accepted =
-        Accepted::parse(range).map_err(|source| ResolveRequirementError::InvalidRange {
-            tool: tool.clone(),
-            range: range.clone(),
-            source,
-        })?;
+) -> Result<ToolVersion, Unselected> {
+    let accepted = ranges
+        .iter()
+        .map(|range| {
+            Accepted::parse(range)
+                .map(|accepted| (accepted, range))
+                .map_err(|source| Unselected::InvalidRange {
+                    range: range.clone(),
+                    source,
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     let project = project_pins(tool, root).await?;
 
-    let current = ask(tool, root, &[CURRENT, tool.get()]).await?;
+    let current = ask(root, &[CURRENT, tool.get()]).await?;
 
     let output = current.stdout().to_string_lossy();
     let ordered = output.split_whitespace().filter_map(|version| {
@@ -118,36 +246,59 @@ pub(super) async fn pinned_toolchain(
             .map(|pin| (version, pin.requested_version.as_deref().unwrap_or(version)))
     });
 
-    let mut outside: Option<&str> = None;
+    let mut outside: Option<(&str, &VersionRange)> = None;
     let mut unreadable: Option<(&str, semver::Error)> = None;
 
     for (pin, requested) in ordered {
-        match accepted.read().pin(pin).requested(requested).call() {
-            Reading::Accepted => return Ok(ToolVersion::new(pin)),
-            Reading::Outside => {
-                outside.get_or_insert(pin);
-            }
-            Reading::Unreadable(source) => {
-                unreadable.get_or_insert((pin, source));
-            }
-            Reading::Foreign => {}
+        let readings: Vec<(Reading, &VersionRange)> = accepted
+            .iter()
+            .map(|(range, text)| (range.read().pin(pin).requested(requested).call(), *text))
+            .collect();
+
+        if readings
+            .iter()
+            .all(|(reading, _)| matches!(reading, Reading::Accepted))
+        {
+            return Ok(ToolVersion::new(pin));
+        }
+
+        if readings
+            .iter()
+            .any(|(reading, _)| matches!(reading, Reading::Foreign))
+        {
+            continue;
+        }
+
+        if let Some((_, range)) = readings
+            .iter()
+            .find(|(reading, _)| matches!(reading, Reading::Outside))
+        {
+            outside.get_or_insert((pin, range));
+            continue;
+        }
+
+        if let Some((Reading::Unreadable(source), _)) = readings
+            .into_iter()
+            .find(|(reading, _)| matches!(reading, Reading::Unreadable(_)))
+        {
+            unreadable.get_or_insert((pin, source));
         }
     }
 
     match (outside, unreadable) {
-        (Some(pin), _) => Err(ResolveRequirementError::VersionOutOfRange {
-            tool: tool.clone(),
+        (Some((pin, range)), _) => Err(Unselected::Outside {
             version: ToolVersion::new(pin),
             range: range.clone(),
         }),
-        (None, Some((pin, source))) => Err(ResolveRequirementError::UnreadableVersion {
-            tool: tool.clone(),
+        (None, Some((pin, source))) => Err(Unselected::Unreadable {
             version: ToolVersion::new(pin),
             source,
         }),
-        (None, None) => Err(ResolveRequirementError::UnresolvedToolchain {
-            tool: tool.clone(),
-            details: accepted.unpinned(),
+        (None, None) => Err(Unselected::Unpinned {
+            details: accepted
+                .iter()
+                .find_map(|(range, _)| range.dated_unpinned())
+                .unwrap_or_else(|| NO_PROJECT_PIN.to_owned()),
         }),
     }
 }
@@ -263,14 +414,18 @@ impl Accepted {
     }
 
     /// Returns the details of a toolchain that the project does not pin for
-    /// the range
-    fn unpinned(&self) -> String {
+    /// a range of dates, or `None` for a range of releases
+    ///
+    /// A range of dates needs a pin of its channel with a date, so the details
+    /// give an example of such a pin. A range of releases needs no more than a
+    /// pin, which the general details already say.
+    fn dated_unpinned(&self) -> Option<String> {
         match self {
-            Self::Releases(_) => NO_PROJECT_PIN.to_owned(),
-            Self::Dated { channel, .. } => format!(
+            Self::Releases(_) => None,
+            Self::Dated { channel, .. } => Some(format!(
                 "no configuration inside the project pins a dated `{channel}` version, such as \
                  `{channel}-2026-11-02`"
-            ),
+            )),
         }
     }
 }
@@ -393,33 +548,25 @@ fn number(part: &str, width: usize) -> Option<u32> {
 ///
 /// # Errors
 ///
-/// Returns [`MiseUnavailable`][unavailable] when mise does not run,
-/// [`UnresolvedToolchain`][unresolved] when mise ends without success.
+/// Returns [`MiseUnavailable`][unavailable] when mise does not run, and
+/// [`Unpinned`][unpinned] with what mise wrote when it ends without success.
 /// Returns [`UnrecognizedReport`][unrecognized] when the list is not the JSON
 /// that the crate reads.
 ///
-/// [unavailable]: ResolveRequirementError::MiseUnavailable
-/// [unrecognized]: ResolveRequirementError::UnrecognizedReport
-/// [unresolved]: ResolveRequirementError::UnresolvedToolchain
-async fn project_pins(
-    tool: &MiseTool,
-    root: &ProjectRoot,
-) -> Result<Vec<Pin>, ResolveRequirementError> {
-    let listing = ask(tool, root, &[LIST, PINNED, JSON, tool.get()]).await?;
+/// [unavailable]: Unselected::MiseUnavailable
+/// [unpinned]: Unselected::Unpinned
+/// [unrecognized]: Unselected::UnrecognizedReport
+async fn project_pins(tool: &MiseTool, root: &ProjectRoot) -> Result<Vec<Pin>, Unselected> {
+    let listing = ask(root, &[LIST, PINNED, JSON, tool.get()]).await?;
 
     if !listing.status().success() {
-        return Err(ResolveRequirementError::UnresolvedToolchain {
-            tool: tool.clone(),
+        return Err(Unselected::Unpinned {
             details: diagnosis(&listing),
         });
     }
 
-    let pins: Vec<Pin> = serde_json::from_slice(listing.stdout().get()).map_err(|source| {
-        ResolveRequirementError::UnrecognizedReport {
-            tool: tool.clone(),
-            source,
-        }
-    })?;
+    let pins: Vec<Pin> = serde_json::from_slice(listing.stdout().get())
+        .map_err(|source| Unselected::UnrecognizedReport { source })?;
 
     let inside = canonical(root.get());
 
@@ -442,21 +589,14 @@ async fn project_pins(
 ///
 /// Returns [`MiseUnavailable`][unavailable] when mise does not run.
 ///
-/// [unavailable]: ResolveRequirementError::MiseUnavailable
-async fn ask(
-    tool: &MiseTool,
-    root: &ProjectRoot,
-    arguments: &[&str],
-) -> Result<Execution, ResolveRequirementError> {
+/// [unavailable]: Unselected::MiseUnavailable
+async fn ask(root: &ProjectRoot, arguments: &[&str]) -> Result<Execution, Unselected> {
     Invocation::new(MISE)
         .args(arguments.iter().copied())
         .in_directory(root.get())
         .run()
         .await
-        .map_err(|source| ResolveRequirementError::MiseUnavailable {
-            tool: tool.clone(),
-            source,
-        })
+        .map_err(|source| Unselected::MiseUnavailable { source })
 }
 
 /// Returns the path with its links resolved, or the path as it is when it
@@ -502,6 +642,26 @@ mod tests {
         let range = dated_alternatives(&[">=nightly-2025-02-20", ">=beta-2026-01-01"]);
 
         assert_eq!(range, None);
+    }
+
+    #[test]
+    fn dated_unpinned_of_a_range_of_dates_gives_the_channel() {
+        let range = Accepted::parse(&VersionRange::new(">=nightly-2025-02-20"))
+            .expect("the test gives a valid range");
+
+        assert!(
+            range
+                .dated_unpinned()
+                .is_some_and(|details| details.contains("`nightly`"))
+        );
+    }
+
+    #[test]
+    fn dated_unpinned_of_a_range_of_releases_is_none() {
+        let range =
+            Accepted::parse(&VersionRange::new(">=1.85")).expect("the test gives a valid range");
+
+        assert_eq!(range.dated_unpinned(), None);
     }
 
     #[test]
@@ -704,10 +864,9 @@ mod tests {
     }
 
     #[test]
-    fn unpinned_of_a_range_of_dates_names_the_channel() {
-        let range = Accepted::parse(&VersionRange::new(">=nightly-2025-02-20"))
-            .expect("the test gives a valid range");
+    fn unselected_is_send_sync_and_unpin() {
+        fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
-        assert!(range.unpinned().contains("`nightly`"));
+        assert_send_sync_and_unpin::<Unselected>();
     }
 }

@@ -13,13 +13,15 @@ in the same way.
 
 [Mise] tells the crate where a tool is. The crate searches no path of its own
 and installs nothing. An action pins each tool that it wraps in the mise file
-of its crate, or adds the tools of a helper crate. It declares the range of a
-toolchain with the builder of `ToolRequirement`. A tool that the action
+of its crate, or adds the tools of a helper crate. A tool that the action
 wraps resolves at the exact version that the action pins. So a run starts the
 version that the tests of the action cover. The lookup with `Tool::resolve`
 refuses a tool that the action does not declare. A toolchain, such as Rust or
-Node, resolves at the version that the project pins, when the range of the
-action accepts it.
+Node, belongs to the project. An action that declares toolchain requirements
+resolves the toolchain with `Tool::resolve_toolchain`. The lookup takes the
+first pin of the project that every requirement accepts. When the
+requirements accept no pin, the lookup returns an error, and only that action
+stops.
 
 ## Documentation
 

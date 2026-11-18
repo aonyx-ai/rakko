@@ -110,7 +110,7 @@ impl Action for CheckMsrv {
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -132,7 +132,7 @@ impl Action for CheckMsrv {
 /// resolution of the tool or of a toolchain, the discovery of the workspaces,
 /// or the reading of a declaration. It can also be a cargo run or the reading
 /// of a report.
-async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
+async fn drive(action: &CheckMsrv, context: &Context) -> Result<Outcome, CheckMsrvError> {
     let cargo = Cargo::resolve(context)
         .await
         .map_err(|source| CheckMsrvError::UnresolvedTool { source })?;
@@ -159,7 +159,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
     let mut findings = Vec::new();
 
     for (root, version) in &declared {
-        findings.extend(check(&cargo, root, version, context).await?);
+        findings.extend(check(action, &cargo, root, version, context).await?);
     }
 
     if findings.is_empty() {
@@ -177,7 +177,9 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
 /// Checks one workspace of the project and returns the findings
 ///
 /// The run selects the toolchain of the declaration, so the compiler that
-/// answers is the one that the workspace promises to compile on.
+/// answers is the one that the workspace promises to compile on. The version
+/// comes from the manifest, so the action declares no requirement of it. The
+/// lookup takes the first pin of the project that is a patch of the release.
 ///
 /// # Errors
 ///
@@ -192,13 +194,15 @@ async fn drive(context: &Context) -> Result<Outcome, CheckMsrvError> {
 /// [unavailable]: CheckMsrvError::CargoUnavailable
 /// [unrecognized]: CheckMsrvError::UnrecognizedReport
 async fn check(
+    action: &CheckMsrv,
     cargo: &Cargo,
     root: &CargoRoot,
     version: &RustVersion,
     context: &Context,
 ) -> Result<Vec<Finding>, CheckMsrvError> {
-    let toolchain = Toolchain::resolve_requirement()
-        .requirement(&Toolchain::release(version))
+    let toolchain = Toolchain::resolve()
+        .action(action)
+        .release(version)
         .context(context)
         .call()
         .await

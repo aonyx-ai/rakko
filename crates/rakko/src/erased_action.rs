@@ -13,7 +13,7 @@ use crate::documented::Documented;
 use crate::name::Name;
 use crate::outcome::{Outcome, SkipReason};
 use crate::seal::{Sealed, SealedBound};
-use crate::tool::{Host, ToolRequirement};
+use crate::tool::{Host, ToolRequirement, ToolchainRequirement};
 
 /// One action behind an interface that hides its type
 ///
@@ -123,6 +123,14 @@ pub trait ErasedAction: Send + Sync + Sealed {
     /// actions need.
     fn tools(&self) -> Vec<ToolRequirement>;
 
+    /// Returns what the action requires of the toolchains that the project
+    /// pins
+    ///
+    /// The answer is the one that [`Action::toolchains`] gives. A caller reads
+    /// it before any run, for example to report a requirement that the pins
+    /// of the project do not meet.
+    fn toolchains(&self) -> Vec<ToolchainRequirement>;
+
     /// Converts the values of a run into the arguments of the action
     ///
     /// The values hold what the machinery parsed for the arguments of the
@@ -182,6 +190,10 @@ impl<A: Action> ErasedAction for A {
 
     fn tools(&self) -> Vec<ToolRequirement> {
         Action::tools(self)
+    }
+
+    fn toolchains(&self) -> Vec<ToolchainRequirement> {
+        Action::toolchains(self)
     }
 
     fn bind<'a>(&'a self, values: &ArgsValues) -> Result<Box<dyn BoundAction + 'a>, ReadArgsError> {
@@ -249,7 +261,9 @@ mod tests {
     use super::*;
     use crate::Documented;
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
-    use crate::tool::{OperatingSystem, Platform, RequiredVersion, ToolVersion, Tools};
+    use crate::tool::{
+        OperatingSystem, Platform, RequiredVersion, ToolVersion, Tools, VersionRange,
+    };
     use crate::{action_name, argument_name};
 
     /// What a formatter does with the files that it examines
@@ -329,6 +343,34 @@ mod tests {
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
             Outcome::Passed { summary: None }
         }
+    }
+
+    /// An action that requires a dated nightly of Rust
+    #[derive(Documented)]
+    struct Demanding;
+
+    impl Action for Demanding {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("demanding")
+        }
+
+        fn toolchains(&self) -> Vec<ToolchainRequirement> {
+            vec![nightly()]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
+    /// Returns the requirement that the demanding action declares
+    fn nightly() -> ToolchainRequirement {
+        ToolchainRequirement::builder()
+            .toolchain("rust")
+            .versions(VersionRange::new(">=nightly-2025-02-20"))
+            .build()
     }
 
     /// Returns the requirement that the wrapper declares
@@ -761,6 +803,24 @@ mod tests {
         let outcome = drive(&action, &values);
 
         assert!(matches!(outcome, Outcome::Errored { .. }));
+    }
+
+    #[test]
+    fn toolchains_of_an_action_that_declares_nothing_is_empty() {
+        let action = Probe;
+
+        let toolchains = ErasedAction::toolchains(&action);
+
+        assert!(toolchains.is_empty());
+    }
+
+    #[test]
+    fn toolchains_returns_what_the_action_declares() {
+        let action = Demanding;
+
+        let toolchains = ErasedAction::toolchains(&action);
+
+        assert_eq!(toolchains, vec![nightly()]);
     }
 
     #[test]

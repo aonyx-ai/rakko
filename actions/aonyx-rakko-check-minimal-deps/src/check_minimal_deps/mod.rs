@@ -16,7 +16,7 @@ use aonyx_rakko_nextest::{Lockfile, Nextest};
 use aonyx_rakko_worktree::Worktree;
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    Summary, ToolOutput, ToolRequirement, action_name,
+    Summary, ToolOutput, ToolRequirement, ToolchainRequirement, action_name,
 };
 use rakko_tool::{Execution, Launch, ShownStreams};
 
@@ -110,15 +110,15 @@ impl Action for CheckMinimalDeps {
     }
 
     fn tools(&self) -> Vec<ToolRequirement> {
-        vec![
-            Cargo::requirement(),
-            Toolchain::nightly(),
-            Nextest::requirement(),
-        ]
+        vec![Cargo::requirement(), Nextest::requirement()]
+    }
+
+    fn toolchains(&self) -> Vec<ToolchainRequirement> {
+        vec![Toolchain::nightly_requirement()]
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -148,13 +148,16 @@ impl Action for CheckMinimalDeps {
 /// Returns the error when a step could not finish. The error comes from tool
 /// or toolchain resolution, workspace discovery, copy creation, a cargo run,
 /// or a nextest run that left no answer.
-async fn drive(context: &Context) -> Result<Outcome, CheckMinimalDepsError> {
+async fn drive(
+    action: &CheckMinimalDeps,
+    context: &Context,
+) -> Result<Outcome, CheckMinimalDepsError> {
     let cargo = Cargo::resolve(context)
         .await
         .map_err(|source| CheckMinimalDepsError::UnresolvedCargo { source })?;
 
-    let toolchain = Toolchain::resolve_requirement()
-        .requirement(&Toolchain::nightly())
+    let toolchain = Toolchain::resolve()
+        .action(action)
         .context(context)
         .call()
         .await

@@ -14,8 +14,10 @@ on the same tool versions.
 The project and its actions own different tool versions.
 
 A toolchain is a compiler or runtime for the project's code. Rust, Node.js,
-and TypeScript are examples. The project pins these versions in `mise.toml`.
-An action declares a range of versions it accepts and uses the project's pin.
+and TypeScript are examples. The project pins these versions in `mise.toml`,
+and an action runs on the project's pin. An action can also require a range
+of versions, such as a minimum release or a dated Rust nightly. It does this
+to protect a result, or to use an option that only a nightly has.
 
 For other tools, a pin specifies an exact version. The action owns that pin,
 and its tests cover that version. The pin travels with the action, so
@@ -77,10 +79,16 @@ Every harness has the command `doctor`. It checks three conditions:
 - The generated file matches the tools that the mounted actions declare.
 - No pin of the project overrides a declared tool.
 - The project pins each toolchain that a mounted action requires, at a version
-  in the range of that action.
+  that the requirement of that action accepts.
 
 `doctor` reads project files and asks [mise] about them. It needs no network,
 so it can examine the same conditions offline and in CI.
+
+Each problem is a finding, and `doctor` exits with code 1, the code of a run
+with findings. `doctor --fix` exits with code 1 too while a problem remains. A toolchain
+pin that an action does not accept is such a problem, because `doctor --fix`
+does not change it. So a workflow that runs `doctor --fix` fails until you
+change the pin.
 
 `doctor --fix` rewrites the generated file, removes overriding pins, and runs
 `mise lock`. Locking needs the network and covers all project tools, so it
@@ -93,9 +101,14 @@ file.
 
 ## Outdated Tool Pins
 
-Rakko requires these conditions before it runs an action, group, or custom
-command. If a condition fails, the run stops, including in CI, and explains
-the repair. Help, the command list, and `doctor` remain available.
+Rakko requires the first two conditions before it runs an action, group, or
+custom command. If one of them fails, the run stops, including in CI, and
+explains the repair. Help, the command list, and `doctor` remain available.
+
+A toolchain requirement is not one of these conditions. If the project pins
+no version that an action accepts, only that action stops, with an error that
+identifies the pin to change. Other actions and custom commands run. A group
+that holds the action runs its other members and fails.
 
 Stopping prevents CI from accepting an inconsistent environment. Repair
 requires an explicit `doctor --fix` run because it changes committed files

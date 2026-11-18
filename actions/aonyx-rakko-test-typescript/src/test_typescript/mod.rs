@@ -9,7 +9,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Documented, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
-    ToolRequirement, action_name,
+    ToolchainRequirement, action_name,
 };
 
 pub use self::error::TestTypeScriptError;
@@ -71,12 +71,12 @@ impl Action for TestTypeScript {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
+    fn toolchains(&self) -> Vec<ToolchainRequirement> {
         vec![Node::requirement()]
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -94,11 +94,14 @@ impl Action for TestTypeScript {
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of the
-/// tool, or the run of node that left no answer.
-async fn drive(context: &Context) -> Result<Outcome, TestTypeScriptError> {
-    let node = Node::resolve(context)
+/// toolchain, or the run of node that left no answer.
+async fn drive(action: &TestTypeScript, context: &Context) -> Result<Outcome, TestTypeScriptError> {
+    let node = Node::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
-        .map_err(|source| TestTypeScriptError::UnresolvedTool { source })?;
+        .map_err(|source| TestTypeScriptError::UnresolvedToolchain { source })?;
 
     let report = node.observe().await?;
 
@@ -253,9 +256,24 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_the_node_of_the_tests() {
+    fn toolchains_require_a_node_that_strips_types() {
+        let toolchains = TestTypeScript.toolchains();
+
+        assert_eq!(
+            toolchains,
+            vec![
+                ToolchainRequirement::builder()
+                    .toolchain("node")
+                    .versions(rakko::VersionRange::new("^22.18 || >=23.6"))
+                    .build()
+            ]
+        );
+    }
+
+    #[test]
+    fn tools_are_empty() {
         let tools = TestTypeScript.tools();
 
-        assert_eq!(tools, vec![Node::requirement()]);
+        assert!(tools.is_empty());
     }
 }

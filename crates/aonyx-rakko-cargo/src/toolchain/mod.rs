@@ -8,8 +8,10 @@
 //! the machine.
 
 use bon::bon;
-use rakko::{Context, MiseTool, RequiredVersion, ToolRequirement, VersionRange};
-use rakko_tool::{ResolveRequirementError, Tool};
+use rakko::{
+    Action, Context, MiseTool, RequiredVersion, ToolRequirement, ToolchainRequirement, VersionRange,
+};
+use rakko_tool::{ResolveRequirementError, ResolveToolchainError, Tool};
 
 use crate::cargo::{CARGO, RUST};
 use crate::version::RustVersion;
@@ -61,37 +63,110 @@ impl Toolchain {
         Self::requirement(VersionRange::new(NIGHTLY))
     }
 
-    /// Returns the requirement of the toolchain of one release of Rust
+    /// Returns what an action that runs a job on the nightly requires of the
+    /// Rust toolchains of the project
     ///
-    /// The range accepts every patch of the release, so a version such as
-    /// `1.88` accepts the pins `1.88.0` and `1.88.1`. The version `1.88.0`
-    /// accepts the pin `1.88.0` alone. The version comes from the project,
-    /// such as the `rust-version` of a manifest. So an action builds this
-    /// requirement during a run and cannot declare it.
+    /// The project pins the nightly by its date, such as
+    /// `nightly-2026-11-02`, and the requirement accepts the dates from the
+    /// release of Rust 1.85 on. An action that needs the unstable options of
+    /// the nightly returns it from [`Action::toolchains`]. Then
+    /// [`resolve`][resolve] selects the nightly that the project pins, and
+    /// `doctor` reports a project that pins none.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use aonyx_rakko_cargo::Toolchain;
+    ///
+    /// let requirement = Toolchain::nightly_requirement();
+    ///
+    /// assert_eq!(requirement.versions().get(), ">=nightly-2025-02-20");
+    /// ```
+    ///
+    /// [resolve]: Toolchain::resolve
+    pub fn nightly_requirement() -> ToolchainRequirement {
+        ToolchainRequirement::builder()
+            .toolchain(RUST)
+            .versions(VersionRange::new(NIGHTLY))
+            .build()
+    }
+
+    /// Returns the Rust toolchain that the project pins for a job of an
+    /// action
+    ///
+    /// The lookup reads what the action requires of `rust` from
+    /// [`Action::toolchains`], such as
+    /// [`nightly_requirement`][nightly]. A job that must run on one release
+    /// gives that release with `release`, such as the `rust-version` of a
+    /// manifest. The lookup then accepts every patch of the release. So the
+    /// version `1.88` accepts the pins `1.88.0` and `1.88.1`, and the version
+    /// `1.88.0` accepts the pin `1.88.0` alone. The lookup takes the first
+    /// toolchain that the project pins and that all of these accept. It does
+    /// so as [`Tool::resolve_toolchain`] does. Without a requirement and a release,
+    /// it takes the first Rust toolchain that the project pins.
+    ///
+    /// A pin in the global configuration of the user does not count, and
+    /// neither does a pin in a directory above the project. The lookup starts
+    /// processes, so a caller that needs the toolchain more than once keeps
+    /// the answer for the length of the run.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ResolveToolchainError`] when mise does not run, or when the
+    /// project pins no toolchain that the requirements accept. It returns the
+    /// same error when nothing installed the toolchain that it pins. The error
+    /// says which pin to change, or that the pins need an install.
+    ///
+    /// # Panics
+    ///
+    /// Panics when no Tokio runtime drives the future. The runtime waits for
+    /// mise, and the method has no way to ask without one.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, ProjectRoot};
-    /// use aonyx_rakko_cargo::{Cargo, Toolchain};
+    /// use rakko::{Action, Context};
+    /// use aonyx_rakko_cargo::Toolchain;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-    /// let cargo = Cargo::resolve(&context).await?;
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root("/home/otter/project").build();
     ///
-    /// for root in cargo.roots().await? {
-    ///     if let Some(version) = root.rust_version() {
-    ///         let requirement = Toolchain::release(version);
+    /// let toolchain = Toolchain::resolve()
+    ///     .action(action)
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
     ///
-    ///         assert_eq!(requirement.tool().get(), "rust");
-    ///     }
-    /// }
+    /// println!("{toolchain}");
     /// # Ok(())
     /// # }
     /// ```
-    pub fn release(version: &RustVersion) -> ToolRequirement {
-        Self::requirement(VersionRange::new(format!("={}", version.get())))
+    ///
+    /// [nightly]: Toolchain::nightly_requirement
+    #[builder]
+    pub async fn resolve<A: Action>(
+        action: &A,
+        release: Option<&RustVersion>,
+        context: &Context,
+    ) -> Result<Self, ResolveToolchainError> {
+        let tool = Tool::resolve_toolchain()
+            .action(action)
+            .toolchain(RUST)
+            .executable(CARGO)
+            .maybe_accepting(release.map(Self::release_range))
+            .context(context)
+            .call()
+            .await?;
+
+        Ok(Self::of(&tool))
+    }
+
+    /// Returns the range that accepts every patch of one release of Rust
+    ///
+    /// A version such as `1.88` accepts the pins `1.88.0` and `1.88.1`. The
+    /// version `1.88.0` accepts the pin `1.88.0` alone.
+    fn release_range(version: &RustVersion) -> VersionRange {
+        VersionRange::new(format!("={}", version.get()))
     }
 
     /// Returns the toolchain that the project pins and that a requirement
@@ -190,12 +265,9 @@ mod tests {
     }
 
     #[test]
-    fn release_accepts_the_patches_of_the_version() {
-        let requirement = Toolchain::release(&RustVersion::new("1.88"));
+    fn release_range_accepts_the_patches_of_the_version() {
+        let range = Toolchain::release_range(&RustVersion::new("1.88"));
 
-        assert_eq!(
-            requirement.version(),
-            &RequiredVersion::Range(VersionRange::new("=1.88"))
-        );
+        assert_eq!(range, VersionRange::new("=1.88"));
     }
 }

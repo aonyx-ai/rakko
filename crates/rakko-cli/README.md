@@ -35,10 +35,11 @@ The harness gives each action, bundle, command, or group to `mount` as it is.
 Run `doctor --fix` before the first run, and again when an update of Rakko
 changes a tool. It writes the pins of the tools that the mounted actions run.
 It does not write the pin of a toolchain, such as Node or Rust. The project
-pins each toolchain itself, in the range that the actions accept. For example,
-several actions of `aonyx-rakko-baseline` run on Node, so the project pins Node.
-Until all pins are current, every command stops. Only the help, the list of
-the commands, and `doctor` still run.
+pins each toolchain itself. For example, several actions of
+`aonyx-rakko-baseline` run on Node, so the project pins Node. Until the pins of
+the tools are current, every command stops. Only the help, the list of the
+commands, and `doctor` still run. A toolchain pin that an action does not
+accept stops only that action, and `doctor` reports it.
 
 ## Documentation
 

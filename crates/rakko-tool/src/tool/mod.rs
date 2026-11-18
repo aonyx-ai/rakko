@@ -12,6 +12,7 @@
 
 mod requirement_error;
 mod resolve_tool_error;
+mod resolve_toolchain_error;
 mod toolchain;
 
 use std::collections::BTreeSet;
@@ -24,12 +25,13 @@ use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
 use rakko::{
     Action, Context, Executable, MiseTool, ProjectRoot, RequiredVersion, ToolRequirement,
-    ToolVersion,
+    ToolVersion, ToolchainRequirement, VersionRange,
 };
 
 pub use self::requirement_error::ResolveRequirementError;
 pub use self::resolve_tool_error::ResolveToolError;
-use self::toolchain::pinned_toolchain;
+pub use self::resolve_toolchain_error::ResolveToolchainError;
+use self::toolchain::select;
 
 /// The program that reports where a tool is
 ///
@@ -393,7 +395,9 @@ impl Tool {
 
         let version = match requirement.version() {
             RequiredVersion::Exact(version) => version.clone(),
-            RequiredVersion::Range(range) => pinned_toolchain(tool, range, root).await?,
+            RequiredVersion::Range(range) => select(tool, std::slice::from_ref(range), root)
+                .await
+                .map_err(|unselected| unselected.requirement_error(tool))?,
             _ => {
                 return Err(ResolveRequirementError::UnknownRequirement { tool: tool.clone() });
             }
@@ -519,15 +523,10 @@ impl Tool {
             });
         }
 
-        let installed = Invocation::new(MISE)
-            .arg(WHERE)
-            .arg(format!("{tool}@{version}"))
-            .in_directory(root.get())
-            .run()
+        if installed(&tool, &version, root)
             .await
-            .map_err(unavailable)?;
-
-        if installed.status().success() {
+            .map_err(unavailable)?
+        {
             return Err(ResolveToolError::MissingExecutable {
                 tool,
                 version,
@@ -541,6 +540,246 @@ impl Tool {
             version,
         })
     }
+
+    /// Returns a program of a toolchain that the project pins, at the
+    /// location that mise reports
+    ///
+    /// A toolchain is a compiler or a runtime of the project, such as Rust or
+    /// Node.js, and the project pins it. The lookup reads the requirements of
+    /// the action from [`Action::toolchains`], and it keeps those of the
+    /// toolchain. A run can add a range that only the run knows with
+    /// `accepting`, such as the `rust-version` of a manifest. The lookup takes
+    /// the first pin of the project that every one of these ranges accepts, in
+    /// the order of the pins, as [`select_toolchain`][select] does. Without a
+    /// range, it takes the first pin of the project. So an action that
+    /// requires nothing still runs on the toolchain that the project pins,
+    /// and the lookup never searches the `PATH` of the environment.
+    ///
+    /// The action writes no check of its own, because the lookup compares the
+    /// pins with the requirements before anything starts. A run that skips
+    /// because a tool has no build on its platform never reaches the lookup,
+    /// so it checks no toolchain.
+    ///
+    /// Then the lookup asks mise for the program at that version. One
+    /// toolchain can provide several programs, such as `cargo` and `rustc` of
+    /// `rust`, so the caller gives the program to start. A tool that starts
+    /// the toolchain by name runs on it with [`with_toolchain`][with].
+    ///
+    /// The answer is an absolute path, and a command of the toolchain starts
+    /// in the root of the context. The lookup starts up to four processes, so
+    /// an action resolves each toolchain once and keeps the result for the
+    /// length of the run.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`select_toolchain`][select] when the project
+    /// pins no version that the ranges accept. Returns
+    /// [`UninstalledToolchain`][uninstalled] when mise did not install the
+    /// version that the project pins. Rakko installs nothing, so an install of
+    /// the pins of the project repairs it, and the pins stay. Returns
+    /// [`MissingExecutable`][missing] when the installed toolchain provides no
+    /// program by that name, and [`MiseUnavailable`][unavailable] when mise
+    /// does not run.
+    ///
+    /// # Panics
+    ///
+    /// Panics when no Tokio runtime drives the future. The runtime waits for
+    /// mise, and the method has no way to ask without one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Action, Context};
+    /// use rakko_tool::Tool;
+    ///
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root("/home/otter/project").build();
+    ///
+    /// let node = Tool::resolve_toolchain()
+    ///     .action(action)
+    ///     .toolchain("node")
+    ///     .executable("node")
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// println!("{} {}", node.program(), node.version());
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [missing]: ResolveToolchainError::MissingExecutable
+    /// [select]: Tool::select_toolchain
+    /// [unavailable]: ResolveToolchainError::MiseUnavailable
+    /// [uninstalled]: ResolveToolchainError::UninstalledToolchain
+    /// [with]: Tool::with_toolchain
+    #[builder]
+    pub async fn resolve_toolchain<A: Action>(
+        action: &A,
+        #[builder(into)] toolchain: MiseTool,
+        #[builder(into)] executable: Executable,
+        accepting: Option<VersionRange>,
+        context: &Context,
+    ) -> Result<Self, ResolveToolchainError> {
+        let mut requirements = action.toolchains();
+        requirements.extend(accepting.map(|range| {
+            ToolchainRequirement::builder()
+                .toolchain(toolchain.clone())
+                .versions(range)
+                .build()
+        }));
+
+        let version = Self::select_toolchain()
+            .toolchain(&toolchain)
+            .requirements(&requirements)
+            .context(context)
+            .call()
+            .await?;
+        let root = context.root();
+
+        let unavailable = |source| ResolveToolchainError::MiseUnavailable {
+            toolchain: toolchain.clone(),
+            source,
+        };
+
+        let execution = which(&toolchain, &version, &executable, root)
+            .await
+            .map_err(unavailable)?;
+
+        if let Some(named) = program(&execution) {
+            return Ok(Self {
+                program: self::executable(named),
+                root: root.clone(),
+                version,
+                toolchains: Vec::new(),
+            });
+        }
+
+        if installed(&toolchain, &version, root)
+            .await
+            .map_err(unavailable)?
+        {
+            return Err(ResolveToolchainError::MissingExecutable {
+                toolchain,
+                version,
+                executable,
+            });
+        }
+
+        Err(ResolveToolchainError::UninstalledToolchain {
+            details: details(&execution),
+            toolchain,
+            version,
+        })
+    }
+
+    /// Returns the version of a toolchain that the project pins and that
+    /// every requirement of the toolchain accepts
+    ///
+    /// The lookup reads only the requirements of the toolchain, so a caller
+    /// can give every requirement of an action. It asks mise which versions
+    /// the configuration of the project pins. It takes the first one that
+    /// every range accepts, in the order of the pins. Without a requirement,
+    /// it takes the first pin. A range compares release versions such as
+    /// `>=1.85`, or dates of one channel such as `>=nightly-2025-02-20`. A
+    /// range of dates reads only the pins of that channel that the
+    /// configuration writes with a date, such as `nightly-2026-11-02`. A range
+    /// can hold alternatives joined by `||`, such as `^22.18 || >=23.6`.
+    ///
+    /// A pin in the global user configuration does not count. Neither does a
+    /// pin in a directory above the project, because these files differ on
+    /// each machine. A local mise file inside the project, such as
+    /// `mise.local.toml`, counts. So a developer can override the pin of the
+    /// project on their own machine.
+    ///
+    /// The lookup does not ask whether mise installed the version, because
+    /// the answer is about the pins. `doctor` reads it to report a requirement
+    /// that the pins of the project do not meet.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidRange`][invalid] when a requirement is not a range,
+    /// and [`MiseUnavailable`][unavailable] when mise does not run. Returns
+    /// [`UnpinnedToolchain`][unpinned] when no configuration inside the
+    /// project pins the toolchain, or no dated version of the channel of a
+    /// range of dates. When a requirement accepts no pin, returns
+    /// [`UnmetRequirement`][unmet]. The error gives the first pin with three
+    /// numbers or a date to compare, and the requirement that refused it.
+    /// Returns [`UnreadableVersion`][unreadable] when a range of releases
+    /// finds no pin with three numbers. Returns
+    /// [`UnrecognizedReport`][unrecognized] when mise lists the pins in a form
+    /// that the crate does not read.
+    ///
+    /// # Panics
+    ///
+    /// Panics when no Tokio runtime drives the future. The runtime waits for
+    /// mise, and the method has no way to ask without one.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rakko::{Context, MiseTool, ToolchainRequirement, VersionRange};
+    /// use rakko_tool::Tool;
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let context = Context::builder().root("/home/otter/project").build();
+    /// let requirement = ToolchainRequirement::builder().toolchain("node").versions(VersionRange::new(">=22.18")).build();
+    ///
+    /// let version = Tool::select_toolchain()
+    ///     .toolchain(&MiseTool::new("node"))
+    ///     .requirements(&[requirement])
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    ///
+    /// println!("{version}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// [invalid]: ResolveToolchainError::InvalidRange
+    /// [unavailable]: ResolveToolchainError::MiseUnavailable
+    /// [unmet]: ResolveToolchainError::UnmetRequirement
+    /// [unpinned]: ResolveToolchainError::UnpinnedToolchain
+    /// [unreadable]: ResolveToolchainError::UnreadableVersion
+    /// [unrecognized]: ResolveToolchainError::UnrecognizedReport
+    #[builder]
+    pub async fn select_toolchain(
+        toolchain: &MiseTool,
+        requirements: &[ToolchainRequirement],
+        context: &Context,
+    ) -> Result<ToolVersion, ResolveToolchainError> {
+        let ranges: Vec<VersionRange> = requirements
+            .iter()
+            .filter(|requirement| requirement.toolchain() == toolchain)
+            .map(|requirement| requirement.versions().clone())
+            .collect();
+
+        select(toolchain, &ranges, context.root())
+            .await
+            .map_err(|unselected| unselected.toolchain_error(toolchain))
+    }
+}
+
+/// Returns whether mise installed a tool at a version
+///
+/// # Errors
+///
+/// Returns the error of a mise that did not run.
+async fn installed(
+    tool: &MiseTool,
+    version: &ToolVersion,
+    root: &ProjectRoot,
+) -> Result<bool, RunCommandError> {
+    let execution = Invocation::new(MISE)
+        .arg(WHERE)
+        .arg(format!("{tool}@{version}"))
+        .in_directory(root.get())
+        .run()
+        .await?;
+
+    Ok(execution.status().success())
 }
 
 /// Returns the exact version at which the declarations of an action give a
@@ -704,7 +943,7 @@ mod tests {
     use std::process::Command;
 
     use kawauso_process::invocation::WorkingDirectory;
-    use rakko::{Documented, Name, Outcome, VersionRange, action_name};
+    use rakko::{Documented, Name, Outcome, ToolchainRequirement, VersionRange, action_name};
     use tempfile::TempDir;
 
     use super::*;
@@ -953,6 +1192,119 @@ mod tests {
             .context(&context())
             .call()
             .await
+    }
+
+    /// An action that requires the toolchain in the ranges that it holds,
+    /// and that resolves the toolchain when it runs
+    #[derive(Documented)]
+    struct Requiring {
+        /// The requirements that the action declares
+        requirements: Vec<ToolchainRequirement>,
+
+        /// The tools that the action declares
+        tools: Vec<ToolRequirement>,
+
+        /// Whether a run of the action asked for the toolchain
+        resolved: std::sync::atomic::AtomicBool,
+    }
+
+    impl Requiring {
+        /// Creates an action that requires the toolchain in each range
+        fn new(ranges: &[&str]) -> Self {
+            Self {
+                requirements: ranges
+                    .iter()
+                    .map(|range| {
+                        ToolchainRequirement::builder()
+                            .toolchain(PINNED)
+                            .versions(VersionRange::new(*range))
+                            .build()
+                    })
+                    .collect(),
+                tools: Vec::new(),
+                resolved: std::sync::atomic::AtomicBool::new(false),
+            }
+        }
+
+        /// Returns whether a run of the action asked for the toolchain
+        fn resolved(&self) -> bool {
+            self.resolved.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    impl Action for Requiring {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("requiring")
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            self.tools.clone()
+        }
+
+        fn toolchains(&self) -> Vec<ToolchainRequirement> {
+            self.requirements.clone()
+        }
+
+        async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+            self.resolved
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+
+            match Tool::resolve_toolchain()
+                .action(self)
+                .toolchain(PINNED)
+                .executable(PINNED)
+                .context(context)
+                .call()
+                .await
+            {
+                Ok(_) => Outcome::Passed { summary: None },
+                Err(error) => Outcome::Errored {
+                    source: Box::new(error),
+                },
+            }
+        }
+    }
+
+    /// Resolves the toolchain for an action that requires it in each range,
+    /// with the range of the run, in the context
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of the lookup, which the test asserts on.
+    #[bon::builder]
+    async fn toolchain_of(
+        ranges: &[&str],
+        accepting: Option<&str>,
+        #[builder(default = PINNED)] executable: &str,
+        context: &Context,
+    ) -> Result<Tool, ResolveToolchainError> {
+        Tool::resolve_toolchain()
+            .action(&Requiring::new(ranges))
+            .toolchain(PINNED)
+            .executable(executable)
+            .maybe_accepting(accepting.map(VersionRange::new))
+            .context(context)
+            .call()
+            .await
+    }
+
+    /// Drives the run of an erased action to its outcome
+    async fn erased_run(action: &dyn rakko::ErasedAction, context: &Context) -> Outcome {
+        action.run(context, &rakko::ArgsValues::empty()).await
+    }
+
+    /// Returns a platform with an operating system that is not the one of the
+    /// run of the test
+    fn another_platform() -> rakko::Platform {
+        let system = if cfg!(target_os = "windows") {
+            rakko::OperatingSystem::Linux
+        } else {
+            rakko::OperatingSystem::Windows
+        };
+
+        rakko::Platform::new(system)
     }
 
     /// A program in a directory that cannot be an entry of `PATH`
@@ -1474,6 +1826,165 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn resolve_toolchain_with_a_program_that_the_toolchain_lacks_reports_it_missing() {
+        let result = toolchain_of()
+            .ranges(&[])
+            .executable("rakko-provides-no-such-program")
+            .context(&context())
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolchainError::MissingExecutable { .. })),
+            "expected a missing program, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_range_of_dates_beside_a_pin_of_releases_reports_it_unpinned()
+    {
+        let result = toolchain_of()
+            .ranges(&[">=nightly-2025-02-20", "<1"])
+            .context(&context())
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolchainError::UnpinnedToolchain { .. })),
+            "expected a pin of another channel to count for nothing, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_range_of_the_run_reports_the_first_pin_that_it_accepts() {
+        let pinned = pinned_by_the_repository();
+        let project = Project::pinning(&["99.0.0", &pinned]);
+
+        let result = toolchain_of()
+            .ranges(&[])
+            .accepting("<99")
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(
+            result
+                .as_ref()
+                .is_ok_and(|tool| runs_version(tool, &pinned)),
+            "expected the program of the pin in the range of the run, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_requirement_and_a_range_of_the_run_reports_the_pin_of_both() {
+        let pinned = pinned_by_the_repository();
+        let project = Project::pinning(&["0.0.1", "99.0.0", &pinned]);
+
+        let result = toolchain_of()
+            .ranges(&[">=1"])
+            .accepting("<99")
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(
+            result
+                .as_ref()
+                .is_ok_and(|tool| runs_version(tool, &pinned)),
+            "expected the program of the pin that both ranges accept, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_requirement_reports_the_first_pin_that_it_accepts() {
+        let pinned = pinned_by_the_repository();
+        let project = Project::pinning(&["99.0.0", &pinned]);
+
+        let result = toolchain_of()
+            .ranges(&["<99"])
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(
+            result
+                .as_ref()
+                .is_ok_and(|tool| runs_version(tool, &pinned)),
+            "expected the program of the pin in the range, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_toolchain_pinned_above_the_project_reports_it_unpinned() {
+        let above = Project::pinning(&[&pinned_by_the_repository()]);
+
+        let result = toolchain_of()
+            .ranges(&[])
+            .context(&above.context_below())
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolchainError::UnpinnedToolchain { .. })),
+            "expected a pin outside the project to count for nothing, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_version_that_is_not_installed_reports_it_uninstalled() {
+        let project = Project::pinning(&["1.6"]);
+
+        let result = toolchain_of()
+            .ranges(&[])
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(
+            matches!(
+                result,
+                Err(ResolveToolchainError::UninstalledToolchain { .. })
+            ),
+            "expected a pin that mise did not install, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_an_unmet_requirement_gives_the_pin_and_the_requirement() {
+        let pinned = pinned_by_the_repository();
+
+        let result = toolchain_of()
+            .ranges(&[">=0", "<1"])
+            .context(&context())
+            .call()
+            .await;
+
+        let Err(ResolveToolchainError::UnmetRequirement { version, range, .. }) = result else {
+            panic!("expected an unmet requirement, got {result:?}");
+        };
+        assert_eq!((version.get(), range.get()), (pinned.as_str(), "<1"));
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_without_a_requirement_reports_the_first_pin() {
+        let pinned = pinned_by_the_repository();
+        let project = Project::pinning(&[&pinned, "99.0.0"]);
+
+        let result = toolchain_of()
+            .ranges(&[])
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(
+            result
+                .as_ref()
+                .is_ok_and(|tool| runs_version(tool, &pinned)),
+            "expected the program of the first pin, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_with_a_declared_tool_reports_the_program_of_its_version() {
         let tool = resolved()
             .tools(&[exact()])
@@ -1588,6 +2099,66 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn run_of_an_action_whose_tool_has_no_build_here_checks_no_toolchain() {
+        let mut action = Requiring::new(&["<1"]);
+        action.tools = vec![
+            ToolRequirement::builder()
+                .tool("github:aonyx-ai/stiles")
+                .executable("stiles")
+                .exact_version_on(ToolVersion::new("0.6.0"), [another_platform()])
+                .build(),
+        ];
+        let above = Project::pinning(&[&pinned_by_the_repository()]);
+
+        let outcome = erased_run(&action, &above.context_below()).await;
+
+        assert_eq!(
+            (
+                matches!(outcome, Outcome::Skipped { .. }),
+                action.resolved()
+            ),
+            (true, false),
+            "got {outcome:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_of_an_action_with_an_unmet_requirement_reports_the_error() {
+        let action = Requiring::new(&["<1"]);
+
+        let outcome = action.run(&context(), &()).await;
+
+        let Outcome::Errored { source } = outcome else {
+            panic!("expected the run to stop, got {outcome:?}");
+        };
+        assert!(
+            matches!(
+                source.downcast_ref::<ResolveToolchainError>(),
+                Some(ResolveToolchainError::UnmetRequirement { .. })
+            ),
+            "got {source:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_of_an_erased_action_with_an_unmet_requirement_reports_the_error() {
+        let action = Requiring::new(&["<1"]);
+
+        let outcome = erased_run(&action, &context()).await;
+
+        let Outcome::Errored { source } = outcome else {
+            panic!("expected the run to stop, got {outcome:?}");
+        };
+        assert!(
+            matches!(
+                source.downcast_ref::<ResolveToolchainError>(),
+                Some(ResolveToolchainError::UnmetRequirement { .. })
+            ),
+            "got {source:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn run_reports_a_tool_that_ended_without_success() {
         let tool = pinned().await;
 
@@ -1639,6 +2210,44 @@ mod tests {
             .expect("expected the tool to run");
 
         assert_eq!(execution.stdout().to_string_lossy().trim(), "two words *");
+    }
+
+    #[tokio::test]
+    async fn select_toolchain_passes_over_the_requirements_of_another_toolchain() {
+        let pinned = pinned_by_the_repository();
+        let requirements = [ToolchainRequirement::builder()
+            .toolchain("node")
+            .versions(VersionRange::new("<1"))
+            .build()];
+
+        let result = Tool::select_toolchain()
+            .toolchain(&MiseTool::new(PINNED))
+            .requirements(&requirements)
+            .context(&context())
+            .call()
+            .await;
+
+        assert_eq!(
+            result.ok().map(|version| version.get().to_owned()),
+            Some(pinned)
+        );
+    }
+
+    #[tokio::test]
+    async fn select_toolchain_with_a_pin_that_is_not_installed_reports_the_pin() {
+        let project = Project::pinning(&["1.6"]);
+
+        let result = Tool::select_toolchain()
+            .toolchain(&MiseTool::new(PINNED))
+            .requirements(&[])
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert_eq!(
+            result.ok().map(|version| version.get().to_owned()),
+            Some("1.6".to_owned())
+        );
     }
 
     /// Shows that the tool type satisfies Send and Sync

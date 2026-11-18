@@ -27,7 +27,7 @@ pub use self::mount::Mount;
 use self::registry::{Mounted, Registry};
 use self::tool_lines::ToolLines;
 use crate::chain::Chain;
-use crate::doctor::{self, Declaration};
+use crate::doctor::{self, Declaration, ToolchainDeclaration};
 use crate::erased_command::ErasedCommand;
 use crate::report::Report;
 use crate::root::{self, ResolveProjectRootError};
@@ -381,8 +381,8 @@ impl Builder {
                 let _ = error.print();
                 return process_exit_code(error.exit_code());
             }
-            Ok(Resolution::Doctor(matches, declarations)) => {
-                return match drive_doctor(matches, declarations) {
+            Ok(Resolution::Doctor(matches, declarations, toolchains)) => {
+                return match drive_doctor(matches, declarations, toolchains) {
                     Ok(code) => std::process::ExitCode::from(code),
                     Err(error) => {
                         let printed_error =
@@ -448,8 +448,9 @@ impl Builder {
             .is_some_and(|name| name == doctor::DOCTOR)
         {
             let declarations = self.declarations();
+            let toolchains = self.toolchains();
 
-            return Ok(Resolution::Doctor(matches, declarations));
+            return Ok(Resolution::Doctor(matches, declarations, toolchains));
         }
 
         let declarations = self.declarations();
@@ -522,6 +523,38 @@ impl Builder {
 
         declarations
     }
+
+    /// Returns what the mounted actions require of the toolchains of the
+    /// project
+    ///
+    /// The members of each group count as well, as they do for the tools.
+    /// Only `doctor` reads the answer. A requirement is no precondition of a
+    /// run, so the run of an entry does not read it. The action that declares
+    /// it checks it when it resolves the toolchain.
+    fn toolchains(&self) -> BTreeSet<ToolchainDeclaration> {
+        let mut toolchains = BTreeSet::new();
+
+        for mounted in self.registry.entries() {
+            let actions: Vec<&dyn ErasedAction> = match mounted {
+                Mounted::Action(action) => vec![action.as_ref()],
+                Mounted::Group { group, .. } => group.members().iter().map(AsRef::as_ref).collect(),
+                Mounted::Command(_) => Vec::new(),
+            };
+
+            for action in actions {
+                let name = action.name();
+
+                toolchains.extend(action.toolchains().into_iter().map(|requirement| {
+                    ToolchainDeclaration::builder()
+                        .action(name.clone())
+                        .requirement(requirement)
+                        .build()
+                }));
+            }
+        }
+
+        toolchains
+    }
 }
 
 /// Returns the exit code of the process for the code that the parser chose
@@ -553,9 +586,16 @@ enum Resolution {
     Entry(ArgMatches, Mounted, BTreeSet<Declaration>),
     /// The command line of a run that names nothing
     Commands(Box<Command>),
-    /// A run of `doctor`, with the arguments that the parser read and the
-    /// tools that the mounted actions declare
-    Doctor(ArgMatches, BTreeSet<Declaration>),
+    /// A run of `doctor`, with what the parser read and what the mounted
+    /// actions declare
+    ///
+    /// The declarations hold the tools of the actions and what they require
+    /// of the toolchains of the project.
+    Doctor(
+        ArgMatches,
+        BTreeSet<Declaration>,
+        BTreeSet<ToolchainDeclaration>,
+    ),
 }
 
 /// Shows the commands that a harness mounted and returns the code of the run
@@ -616,7 +656,10 @@ fn project_root() -> Arg {
 /// Before the action, the command, or the group starts, the run checks the
 /// precondition on the tools against the declarations, as `doctor` checks
 /// it. A problem stops the run, also in CI, because a warning lets a broken
-/// environment pass a pull request without a sign.
+/// environment pass a pull request without a sign. A toolchain requirement is
+/// no part of the precondition. An action whose requirement the pins of the
+/// project do not meet stops with an error when it resolves the toolchain.
+/// Every other action, command, and member of a group still runs.
 ///
 /// # Errors
 ///
@@ -790,6 +833,7 @@ fn drive_command(
 fn drive_doctor(
     matches: ArgMatches,
     declarations: BTreeSet<Declaration>,
+    toolchains: BTreeSet<ToolchainDeclaration>,
 ) -> Result<u8, Box<dyn Error>> {
     let named = matches.get_one::<PathBuf>(PROJECT_ROOT).cloned();
     let mode = matches
@@ -801,6 +845,7 @@ fn drive_doctor(
 
         let outcome = doctor::run()
             .declarations(&declarations)
+            .toolchains(&toolchains)
             .context(&project)
             .mode(mode)
             .call()
@@ -988,8 +1033,9 @@ mod tests {
     use rakko::{
         Action, Architecture, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name,
         OperatingSystem, Platform, ReadArgsError, RequiredVersion, SkipReason, ToolRequirement,
-        ToolVersion, Tools, argument_name,
+        ToolVersion, ToolchainRequirement, Tools, VersionRange, argument_name,
     };
+    use rakko_tool::Tool;
 
     use super::*;
     use crate::command::Command as WrittenCommand;
@@ -1880,11 +1926,130 @@ mod tests {
         let mut line: Vec<OsString> = vec!["rakko".into(), "--project-root".into(), root.into()];
         line.extend(arguments.iter().map(OsString::from));
 
-        let Ok(Resolution::Doctor(matches, declarations)) = builder.resolve(line) else {
+        let Ok(Resolution::Doctor(matches, declarations, toolchains)) = builder.resolve(line)
+        else {
             panic!("expected the run to ask for doctor");
         };
 
-        drive_doctor(matches, declarations).expect("expected doctor to run")
+        drive_doctor(matches, declarations, toolchains).expect("expected doctor to run")
+    }
+
+    /// The toolchain that the demanding action requires
+    ///
+    /// The tests need a toolchain that mise knows. The project of a test pins
+    /// a release that the requirement of the action does not accept, so the
+    /// version need not be installed.
+    const DEMANDED: &str = "jq";
+
+    /// The pins of a project whose toolchain the demanding action does not
+    /// accept
+    const UNMET: &str = "[tools]\njq = \"1.6\"\n";
+
+    /// An action that requires a release of the toolchain that the project
+    /// does not pin
+    ///
+    /// The action resolves the toolchain when it runs.
+    #[derive(Documented)]
+    struct Demanding {
+        /// The tool that the action declares, if it declares one
+        tool: Option<ToolRequirement>,
+        /// Whether a run of the action asked for the toolchain
+        resolved: Arc<AtomicBool>,
+    }
+
+    impl Demanding {
+        /// Creates the action and the flag that its run sets
+        fn new() -> (Self, Arc<AtomicBool>) {
+            let resolved = Arc::new(AtomicBool::new(false));
+            let demanding = Self {
+                tool: None,
+                resolved: Arc::clone(&resolved),
+            };
+
+            (demanding, resolved)
+        }
+
+        /// Creates an action that also declares a tool with a build only on
+        /// the platform, and the flag that its run sets
+        fn limited_to(platform: Platform) -> (Self, Arc<AtomicBool>) {
+            let (mut demanding, resolved) = Self::new();
+            demanding.tool = Some(
+                ToolRequirement::builder()
+                    .tool("github:aonyx-ai/stiles")
+                    .executable("stiles")
+                    .exact_version_on(ToolVersion::new("0.6.0"), [platform])
+                    .build(),
+            );
+
+            (demanding, resolved)
+        }
+    }
+
+    impl Action for Demanding {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name("demanding")
+        }
+
+        fn tools(&self) -> Vec<ToolRequirement> {
+            self.tool.iter().cloned().collect()
+        }
+
+        fn toolchains(&self) -> Vec<ToolchainRequirement> {
+            vec![
+                ToolchainRequirement::builder()
+                    .toolchain(DEMANDED)
+                    .versions(VersionRange::new(">=99"))
+                    .build(),
+            ]
+        }
+
+        async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
+            self.resolved.store(true, Ordering::SeqCst);
+
+            match Tool::resolve_toolchain()
+                .action(self)
+                .toolchain(DEMANDED)
+                .executable(DEMANDED)
+                .context(context)
+                .call()
+                .await
+            {
+                Ok(_) => Outcome::Passed { summary: None },
+                Err(error) => Outcome::Errored {
+                    source: Box::new(error),
+                },
+            }
+        }
+    }
+
+    /// Returns the code of a run of the entry in a project that pins a
+    /// toolchain that the demanding action does not accept
+    ///
+    /// The run writes the generated file first when the mounted actions
+    /// declare a tool, so that the precondition on the tools holds.
+    fn unmet_run(builder: Builder, entry: &str) -> u8 {
+        let directory = Trusted::with(UNMET);
+        let line: Vec<OsString> = vec![
+            "rakko".into(),
+            "--project-root".into(),
+            directory.path().into(),
+            entry.into(),
+        ];
+        let Ok(Resolution::Entry(matches, mounted, declarations)) = builder.resolve(line) else {
+            panic!("expected the command line to read the run that the test names");
+        };
+        if !declarations.is_empty() {
+            doctor::write_pins()
+                .declarations(&declarations)
+                .root(directory.path())
+                .call()
+                .expect("the test writes the generated file");
+        }
+
+        dispatch(matches, mounted, declarations)
+            .expect("expected the command line to drive the run")
     }
 
     /// A project in a temporary directory that mise trusts
@@ -1900,14 +2065,20 @@ mod tests {
     impl Trusted {
         /// Creates the project and trusts its configuration
         fn new() -> Self {
+            Self::with("[tools]\n")
+        }
+
+        /// Creates the project with the pins of its `mise.toml`, and trusts
+        /// its configuration
+        fn with(pins: &str) -> Self {
             let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-            let pins = directory.path().join("mise.toml");
-            std::fs::write(&pins, "[tools]\n").expect("the test writes the mise.toml");
+            let configuration = directory.path().join("mise.toml");
+            std::fs::write(&configuration, pins).expect("the test writes the mise.toml");
 
             let trusted = std::process::Command::new("mise")
                 .arg("trust")
                 .arg("--quiet")
-                .arg(&pins)
+                .arg(&configuration)
                 .status()
                 .expect("the test runs mise");
             assert!(trusted.success(), "expected mise to trust the project");
@@ -1975,10 +2146,11 @@ mod tests {
         let mut line: Vec<OsString> = vec!["rakko".into(), "--project-root".into(), root];
         line.extend(arguments.iter().map(OsString::from));
 
-        let Ok(Resolution::Doctor(matches, declarations)) = builder.resolve(line) else {
+        let Ok(Resolution::Doctor(matches, declarations, toolchains)) = builder.resolve(line)
+        else {
             panic!("expected the run to ask for doctor");
         };
-        let code = drive_doctor(matches, declarations).expect("expected doctor to run");
+        let code = drive_doctor(matches, declarations, toolchains).expect("expected doctor to run");
 
         (directory, code)
     }
@@ -2587,6 +2759,19 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_runs_a_command_beside_an_action_whose_toolchain_requirement_is_unmet() {
+        let (demanding, _resolved) = Demanding::new();
+        let (written, witness) = Written::new("serve");
+
+        let code = unmet_run(builder().mount(demanding).mount(written), "serve");
+
+        assert_eq!(
+            (code, witness.ran.load(Ordering::SeqCst)),
+            (EXIT_CLEAN, true)
+        );
+    }
+
+    #[test]
     fn dispatch_runs_an_action_beside_a_tool_on_another_platform() {
         let directory = Trusted::new();
         let limited = || builder().mount([limited_to(another_platform())]);
@@ -2627,6 +2812,23 @@ mod tests {
             ),
             (0, true, true),
             "got {generated}"
+        );
+    }
+
+    #[test]
+    fn dispatch_runs_an_action_beside_an_action_whose_toolchain_requirement_is_unmet() {
+        let (demanding, resolved) = Demanding::new();
+        let (probe, ran) = Probe::new("probe");
+
+        let code = unmet_run(builder().mount(demanding).mount(probe), "probe");
+
+        assert_eq!(
+            (
+                code,
+                ran.load(Ordering::SeqCst),
+                resolved.load(Ordering::SeqCst)
+            ),
+            (EXIT_CLEAN, true, false)
         );
     }
 
@@ -2688,6 +2890,24 @@ mod tests {
             .expect("expected the command line to drive the action");
 
         assert!(ran.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn dispatch_runs_every_member_of_a_group_whose_member_has_an_unmet_toolchain_requirement() {
+        let (demanding, resolved) = Demanding::new();
+        let (probe, ran) = Probe::new("probe");
+        let group = sequence(vec![Box::new(demanding), Box::new(probe)]);
+
+        let code = unmet_run(builder().mount(group), GROUP);
+
+        assert_eq!(
+            (
+                code,
+                resolved.load(Ordering::SeqCst),
+                ran.load(Ordering::SeqCst)
+            ),
+            (EXIT_UNANSWERED, true, true)
+        );
     }
 
     #[test]
@@ -2759,6 +2979,15 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_skips_an_action_whose_tool_has_no_build_here_before_its_toolchain() {
+        let (demanding, resolved) = Demanding::limited_to(another_platform());
+
+        let code = unmet_run(builder().mount(demanding), "demanding");
+
+        assert_eq!((code, resolved.load(Ordering::SeqCst)), (EXIT_CLEAN, false));
+    }
+
+    #[test]
     fn dispatch_stops_a_command_whose_tool_pins_are_stale() {
         let (written, witness) = Written::new("serve");
 
@@ -2798,6 +3027,18 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_stops_an_action_whose_toolchain_requirement_is_unmet() {
+        let (demanding, resolved) = Demanding::new();
+
+        let code = unmet_run(builder().mount(demanding), "demanding");
+
+        assert_eq!(
+            (code, resolved.load(Ordering::SeqCst)),
+            (EXIT_UNANSWERED, true)
+        );
+    }
+
+    #[test]
     fn drive_doctor_after_a_repair_of_bundled_tools_reports_no_problem() {
         let directory = Trusted::new();
         doctor_in()
@@ -2818,6 +3059,34 @@ mod tests {
     #[test]
     fn drive_doctor_reports_a_problem_as_findings() {
         let (_project, code) = run_doctor(&["doctor"]);
+
+        assert_eq!(code, EXIT_FINDINGS);
+    }
+
+    #[test]
+    fn drive_doctor_reports_an_unmet_toolchain_requirement_as_findings() {
+        let directory = Trusted::with(UNMET);
+        let (demanding, _resolved) = Demanding::new();
+
+        let code = doctor_in()
+            .root(directory.path())
+            .builder(builder().mount(demanding))
+            .arguments(&["doctor"])
+            .call();
+
+        assert_eq!(code, EXIT_FINDINGS);
+    }
+
+    #[test]
+    fn drive_doctor_reports_an_unmet_toolchain_requirement_of_a_member_as_findings() {
+        let directory = Trusted::with(UNMET);
+        let (demanding, _resolved) = Demanding::new();
+
+        let code = doctor_in()
+            .root(directory.path())
+            .builder(builder().mount(sequence(vec![Box::new(demanding)])))
+            .arguments(&["doctor"])
+            .call();
 
         assert_eq!(code, EXIT_FINDINGS);
     }
@@ -2872,6 +3141,20 @@ mod tests {
                 .join(".config/mise/conf.d/rakko.toml")
                 .is_file()
         );
+    }
+
+    #[test]
+    fn drive_doctor_with_the_flag_reports_an_unmet_toolchain_requirement_as_findings() {
+        let directory = Trusted::with(UNMET);
+        let (demanding, _resolved) = Demanding::new();
+
+        let code = doctor_in()
+            .root(directory.path())
+            .builder(builder().mount(demanding))
+            .arguments(&["doctor", "--fix"])
+            .call();
+
+        assert_eq!(code, EXIT_FINDINGS);
     }
 
     #[test]
@@ -3229,7 +3512,7 @@ mod tests {
             ])
             .mount(group);
 
-        let Ok(Resolution::Doctor(_, declarations)) = builder.resolve(["rakko", doctor::DOCTOR])
+        let Ok(Resolution::Doctor(_, declarations, _)) = builder.resolve(["rakko", doctor::DOCTOR])
         else {
             panic!("expected the run to ask for doctor");
         };

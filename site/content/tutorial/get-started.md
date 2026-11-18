@@ -48,8 +48,8 @@ Actions resolve and report paths relative to this root.
 ## Pin the Toolchains and Add the Task
 
 A toolchain is a compiler or runtime for your project. Your project pins
-its toolchain versions. Each action accepts a range of versions and uses the
-version that your project pins.
+its toolchain versions, and each action uses the version that your project
+pins. Some actions also require a range of versions.
 
 The three actions need two Rust toolchains: a stable release with clippy and
 rustfmt, and a nightly release with rustfmt. The formatter uses nightly
