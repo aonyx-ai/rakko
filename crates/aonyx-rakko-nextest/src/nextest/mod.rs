@@ -1,6 +1,6 @@
 //! The nextest that a project runs
 //!
-//! This module holds the version of nextest that the crate declares and the
+//! This module holds the pin of nextest that the crate declares and the
 //! program that mise installed at that version. It also holds the cargo that
 //! the builds of that program start and the command line of a run. The consent
 //! that the experimental report of nextest needs sits here as well. A caller
@@ -11,8 +11,8 @@ mod error;
 mod lockfile;
 
 use aonyx_rakko_cargo::{Cargo, CargoRoot};
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ProjectRoot, ToolOutput, Tools};
+use rakko_tool::{Launch, ResolveToolError, ShownStreams, Tool};
 
 pub use self::error::ObserveNextestError;
 pub use self::lockfile::Lockfile;
@@ -23,13 +23,6 @@ const CARGO_NEXTEST: &str = "cargo:cargo-nextest";
 
 /// The program of the tool
 const PROGRAM: &str = "cargo-nextest";
-
-/// The version of nextest that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str =
-    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(CARGO_NEXTEST);
 
 /// The arguments that ask nextest to run every test with every feature
 ///
@@ -71,13 +64,13 @@ const CONSENT_VALUE: &str = "1";
 /// that the crate declares. The pin of the project does not change it, so a
 /// run reaches the version that the tests of the crate cover. Nextest is a
 /// plugin of cargo, so the value also holds the cargo that the builds of a run
-/// start. That cargo runs on the stable toolchain that the project pins.
+/// start. That cargo runs on the toolchain that the caller selected for it.
 /// Nothing here installs a tool. The caller resolves cargo for the project and hands it
 /// over. That way an action which also runs cargo for a job of its own asks
 /// mise once.
 ///
-/// An action that runs nextest declares [`requirement`][requirement] among
-/// its tools, so that the machinery can read the version.
+/// An action that runs nextest adds [`TOOLS`][tools] to its tools, so that
+/// the machinery can read the version, and a run can resolve nextest.
 ///
 /// A run tests one workspace root and reports what nextest and cargo said
 /// about it. The caller discovers the roots of the project and decides what
@@ -95,12 +88,12 @@ const CONSENT_VALUE: &str = "1";
 /// use aonyx_rakko_nextest::{Lockfile, Nextest};
 /// use rakko_test_utils::path;
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
 /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-/// let cargo = Cargo::resolve(&context).await?;
+/// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
 /// let roots = cargo.roots().await?;
 /// let nextest = Nextest::resolve()
+///     .action(action)
 ///     .cargo(cargo)
 ///     .lockfile(Lockfile::Locked)
 ///     .context(&context)
@@ -116,7 +109,7 @@ const CONSENT_VALUE: &str = "1";
 /// # }
 /// ```
 ///
-/// [requirement]: Nextest::requirement
+/// [tools]: Nextest::TOOLS
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Nextest {
     /// The cargo that the builds of a run start
@@ -136,39 +129,53 @@ pub struct Nextest {
 
 #[bon::bon]
 impl Nextest {
-    /// Returns the requirement of the nextest that the crate runs
+    /// The tools that the mise file of the crate pins, which is nextest alone
     ///
-    /// The requirement holds the exact version that the crate pins. An action
-    /// that runs nextest returns it from its declaration of tools.
+    /// An action that runs nextest through this crate returns the constant
+    /// from [`Action::additional_tools`]. The crate keeps the pin, so every
+    /// action that uses it runs the version that the tests of the crate
+    /// cover.
     ///
     /// # Examples
     ///
     /// ```
+    /// use rakko::{Action, Context, Documented, Name, Outcome, Tools, action_name};
     /// use aonyx_rakko_nextest::Nextest;
     ///
-    /// let requirement = Nextest::requirement();
+    /// /// Runs the tests of the project
+    /// #[derive(Documented)]
+    /// struct RunTests;
     ///
-    /// assert_eq!(
-    ///     requirement.executable().map(rakko::Executable::get),
-    ///     Some("cargo-nextest")
-    /// );
+    /// impl Action for RunTests {
+    ///     type Args = ();
+    ///
+    ///     fn name(&self) -> Name {
+    ///         action_name!("run-tests")
+    ///     }
+    ///
+    ///     fn additional_tools(&self) -> Vec<Tools> {
+    ///         vec![Nextest::TOOLS]
+    ///     }
+    ///
+    ///     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    ///         Outcome::Passed { summary: None }
+    ///     }
+    /// }
+    ///
+    /// assert_eq!(RunTests.tools()[0].tool().get(), "cargo:cargo-nextest");
     /// ```
-    pub fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(CARGO_NEXTEST)
-            .executable(PROGRAM)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
+    pub const TOOLS: Tools = rakko::bundled_tools!();
 
-    /// Returns the nextest that mise installed at the version of the crate,
-    /// with the cargo that its builds start
+    /// Returns the nextest that mise installed at the version that an action
+    /// declares, with the cargo that its builds start
     ///
-    /// The lookup asks mise for the version that
-    /// [`requirement`][requirement] holds, so a pin of nextest in the project
-    /// does not change the answer. The lockfile tells a run whether cargo may
-    /// resolve the dependencies of the build. Otherwise cargo builds the
-    /// versions that the lockfile holds and refuses every other one.
+    /// The lookup reads the tools that the action declares, which hold
+    /// [`TOOLS`][tools]. It asks mise for nextest at the version that they
+    /// give, so a pin of nextest in the project does not change the answer.
+    /// The builds of a run start the cargo that the caller gives, on its
+    /// toolchain. The lockfile tells a run whether cargo may resolve the
+    /// dependencies of the build. Otherwise cargo builds the versions that the
+    /// lockfile holds and refuses every other one.
     ///
     /// The nextest keeps the tool output of the context. Each run sends what
     /// nextest and cargo write for people to it while they run.
@@ -181,11 +188,11 @@ impl Nextest {
     /// use aonyx_rakko_nextest::{Lockfile, Nextest};
     /// use rakko_test_utils::path;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-    /// let cargo = Cargo::resolve(&context).await?;
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
     /// let nextest = Nextest::resolve()
+    ///     .action(action)
     ///     .cargo(cargo)
     ///     .lockfile(Lockfile::Writable)
     ///     .context(&context)
@@ -197,19 +204,23 @@ impl Nextest {
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
-    /// it reports no nextest at that version, for example because nothing
+    /// Returns a [`ResolveToolError`] when the action does not declare
+    /// nextest, or when mise does not run. It also returns one when mise
+    /// reports no nextest at that version, for example because nothing
     /// installed it.
     ///
-    /// [requirement]: Nextest::requirement
+    /// [tools]: Nextest::TOOLS
     #[builder]
-    pub async fn resolve(
+    pub async fn resolve<A: Action>(
+        action: &A,
         cargo: Cargo,
         lockfile: Lockfile,
         context: &Context,
-    ) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(CARGO_NEXTEST)
+            .executable(PROGRAM)
             .context(context)
             .call()
             .await?;
@@ -247,12 +258,12 @@ impl Nextest {
     /// use aonyx_rakko_nextest::{Lockfile, Nextest};
     /// use rakko_test_utils::path;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-    /// let cargo = Cargo::resolve(&context).await?;
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
     /// let roots = cargo.roots().await?;
     /// let nextest = Nextest::resolve()
+    ///     .action(action)
     ///     .cargo(cargo)
     ///     .lockfile(Lockfile::Locked)
     ///     .context(&context)

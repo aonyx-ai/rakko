@@ -13,7 +13,7 @@ mod error;
 use aonyx_rakko_cargo::{Cargo, CargoRoot};
 use rakko::{
     Access, Action, Context, DirectoryPath, Documented, Finding, Location, Name, Outcome,
-    ProjectRoot, SkipReason, Summary, ToolRequirement, action_name,
+    ProjectRoot, SkipReason, Summary, Tools, action_name,
 };
 
 pub use self::error::CheckDependenciesError;
@@ -68,11 +68,11 @@ const WARNINGS: &str = "warnings";
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
 /// run stops with an error when mise reports no cargo-deny at the declared
-/// version. It stops when the project pins no stable Rust toolchain that the
-/// action accepts. It stops when the workspaces of the project cannot be
-/// discovered, or when the lockfile of a workspace needs an update. It stops
-/// when cargo-deny stops before it has checked a workspace, or when it writes a
-/// record that the action cannot read.
+/// version. It stops when the project pins no Rust release with a version
+/// number. It stops when the workspaces of the project cannot be discovered, or
+/// when the lockfile of a workspace needs an update. It stops when cargo-deny
+/// stops before it has checked a workspace, or when it writes a record that the
+/// action cannot read.
 ///
 /// A run declares a read of the project. It holds cargo-deny to the lockfile of
 /// each workspace, so the run leaves every lockfile as it is. A caller that
@@ -105,12 +105,12 @@ impl Action for CheckDependencies {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement(), Deny::requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -129,12 +129,21 @@ impl Action for CheckDependencies {
 ///
 /// Returns the error of the step that could not finish. The step can be tool
 /// resolution, workspace discovery, a cargo-deny run, or report reading.
-async fn drive(context: &Context) -> Result<Outcome, CheckDependenciesError> {
-    let cargo = Cargo::resolve(context)
+async fn drive(
+    action: &CheckDependencies,
+    context: &Context,
+) -> Result<Outcome, CheckDependenciesError> {
+    let cargo = Cargo::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckDependenciesError::UnresolvedCargo { source })?;
 
-    let deny = Deny::resolve(context)
+    let deny = Deny::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckDependenciesError::UnresolvedDeny { source })?;
 

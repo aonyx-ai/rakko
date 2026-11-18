@@ -1,24 +1,17 @@
 //! The cargo-udeps that a project runs
 //!
-//! This module holds the version of cargo-udeps that the crate declares and
-//! the program that mise installed at that version.
+//! This module holds the program of cargo-udeps that mise installed at the
+//! version that the crate declares.
 
 use getset::Getters;
-use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-use rakko_tool::{MiseFile, ResolveRequirementError, Tool};
+use rakko::{Action, Context};
+use rakko_tool::{ResolveToolError, Tool};
 
 /// The name that mise knows the tool by
 const CARGO_UDEPS: &str = "cargo:cargo-udeps";
 
 /// The program of the tool
 const PROGRAM: &str = "cargo-udeps";
-
-/// The version of cargo-udeps that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str =
-    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(CARGO_UDEPS);
 
 /// The cargo-udeps that a project runs
 ///
@@ -37,35 +30,29 @@ pub(crate) struct Udeps {
     tool: Tool,
 }
 
+#[bon::bon]
 impl Udeps {
-    /// Returns the requirement of the cargo-udeps that the crate runs
+    /// Returns the cargo-udeps that mise installed at the version that the
+    /// action declares
     ///
-    /// The requirement holds the exact version that the crate pins.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(CARGO_UDEPS)
-            .executable(PROGRAM)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the cargo-udeps that mise installed at the version of the
-    /// crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of cargo-udeps in the project does not change the
-    /// answer.
+    /// The action declares the pin of the mise file of the crate, so a pin of
+    /// cargo-udeps in the project does not change the answer.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
-    /// it reports no cargo-udeps at that version, for example because nothing
+    /// Returns a [`ResolveToolError`] when the action does not declare
+    /// cargo-udeps, or when mise does not run. It also returns one when mise
+    /// reports no cargo-udeps at that version, for example because nothing
     /// installed it.
-    ///
-    /// [requirement]: Udeps::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        action: &A,
+        context: &Context,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(CARGO_UDEPS)
+            .executable(PROGRAM)
             .context(context)
             .call()
             .await?;

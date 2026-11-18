@@ -8,10 +8,10 @@
 mod error;
 
 use aonyx_rakko_cargo::lockfile::{self, LOCKED};
-use aonyx_rakko_cargo::{Cargo, CargoReport, CargoRoot, Toolchain};
+use aonyx_rakko_cargo::{Cargo, CargoReport, CargoRoot, Toolchain, ToolchainSelection};
 use rakko::{
     Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
-    ToolRequirement, action_name,
+    ToolchainRequirement, Tools, action_name,
 };
 use rakko_tool::{Execution, Launch, ShownStreams};
 
@@ -55,8 +55,11 @@ const UDEPS: [&str; 7] = [
 /// against the dependencies of the manifests. So a run agrees with a
 /// contributor that runs cargo-udeps bare. The cargo-udeps that runs is the
 /// version that the action declares, which [mise] installed, whatever version
-/// the project pins. Its builds run on the nightly toolchain that the project
-/// pins, and the action installs nothing.
+/// the project pins. Cargo and its builds run on the nightly toolchain that
+/// the project pins with a date, and the action installs nothing. The action
+/// requires such a nightly, because only the nightly writes the record of the
+/// crates that a target loaded. So `doctor` reports a project that pins
+/// none.
 ///
 /// A run only reports, and it takes no argument. It examines every workspace
 /// of the project, because the harness of a project is a package of its own
@@ -66,11 +69,12 @@ const UDEPS: [&str; 7] = [
 /// become the findings instead.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
-/// run stops with an error when the project pins no stable or no nightly Rust
-/// toolchain that the action accepts. It stops when mise reports no cargo-udeps
-/// at the declared version. It stops when the workspaces of the project cannot
-/// be discovered, or when the lockfile of a workspace needs an update. It stops
-/// when the tools write a report that the action does not recognize.
+/// run stops with an error when the project pins no dated nightly Rust
+/// toolchain, or when nothing installed it. It stops when mise reports no
+/// cargo-udeps at the declared version. It stops when the workspaces of the
+/// project cannot be discovered, or when the lockfile of a workspace needs an
+/// update. It stops when the tools write a report that the action does not
+/// recognize.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of
 /// each workspace. Cargo writes what it builds into the `target` directory.
@@ -107,16 +111,16 @@ impl Action for CheckUnusedDeps {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![
-            Cargo::requirement(),
-            Toolchain::nightly(),
-            Udeps::requirement(),
-        ]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
+    }
+
+    fn toolchains(&self) -> Vec<ToolchainRequirement> {
+        vec![Toolchain::nightly_requirement()]
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -127,10 +131,10 @@ impl Action for CheckUnusedDeps {
 
 /// Runs the action against the project of the context
 ///
-/// The run examines the project, resolves cargo, the nightly toolchain, and
-/// cargo-udeps, discovers the workspaces, and examines each of them. An error
-/// that this function returns stops the run, and the caller reports it in the
-/// outcome.
+/// The run examines the project, resolves the cargo of the nightly toolchain
+/// and cargo-udeps, discovers the workspaces, and examines each of them. An
+/// error that this function returns stops the run, and the caller reports it
+/// in the outcome.
 ///
 /// The run asks for the nightly toolchain, because the record that names the
 /// crates a target loaded comes from an unstable option of the compiler. A
@@ -141,19 +145,22 @@ impl Action for CheckUnusedDeps {
 /// Returns the error of the step that could not finish. That step is the
 /// resolution of a tool or of the toolchain. It can also be the discovery of
 /// the workspaces, a run of cargo-udeps, or the reading of a report.
-async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
-    let cargo = Cargo::resolve(context)
-        .await
-        .map_err(|source| CheckUnusedDepsError::UnresolvedCargo { source })?;
-
-    let toolchain = Toolchain::resolve_requirement()
-        .requirement(&Toolchain::nightly())
+async fn drive(
+    action: &CheckUnusedDeps,
+    context: &Context,
+) -> Result<Outcome, CheckUnusedDepsError> {
+    let cargo = Cargo::resolve()
+        .action(action)
+        .selection(ToolchainSelection::Nightly)
         .context(context)
         .call()
         .await
         .map_err(|source| CheckUnusedDepsError::UnresolvedToolchain { source })?;
 
-    let udeps = Udeps::resolve(context)
+    let udeps = Udeps::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckUnusedDepsError::UnresolvedUdeps { source })?;
 
@@ -171,7 +178,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckUnusedDepsError> {
     let mut findings = Vec::new();
 
     for root in &roots {
-        findings.extend(check(&cargo, &udeps, root, &toolchain, context).await?);
+        findings.extend(check(&cargo, &udeps, root, context).await?);
     }
 
     if findings.is_empty() {
@@ -210,11 +217,10 @@ async fn check(
     cargo: &Cargo,
     udeps: &Udeps,
     root: &CargoRoot,
-    toolchain: &Toolchain,
     context: &Context,
 ) -> Result<Vec<Finding>, CheckUnusedDepsError> {
     let execution = cargo
-        .plugin_invocation_with_toolchain(root, udeps.tool(), toolchain)
+        .plugin_invocation(root, udeps.tool())
         .args(UDEPS)
         .launch_with(context.tool_output(), ShownStreams::StandardError)
         .await

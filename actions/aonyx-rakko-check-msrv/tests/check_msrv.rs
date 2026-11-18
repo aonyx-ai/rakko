@@ -183,7 +183,12 @@ impl Project {
     /// cannot find its workspaces stays as it is, so that the run reports
     /// what stops it.
     async fn lock(&self) {
-        let Ok(cargo) = Cargo::resolve(&self.context()).await else {
+        let Ok(cargo) = Cargo::resolve()
+            .action(&CheckMsrv)
+            .context(&self.context())
+            .call()
+            .await
+        else {
             return;
         };
         let Ok(roots) = cargo.roots().await else {
@@ -824,12 +829,18 @@ async fn run_without_a_pinned_toolchain_stops() {
 }
 
 #[test]
-fn tools_declare_the_stable_toolchain() {
-    let tools: Vec<String> = CheckMsrv
-        .tools()
-        .iter()
-        .map(|requirement| requirement.tool().get().to_owned())
-        .collect();
+fn toolchains_require_nothing() {
+    let toolchains = CheckMsrv.toolchains();
 
-    assert_eq!(tools, ["rust"]);
+    assert!(
+        toolchains.is_empty(),
+        "expected no requirement, got {toolchains:?}"
+    );
+}
+
+#[test]
+fn tools_are_empty() {
+    let tools = CheckMsrv.tools();
+
+    assert!(tools.is_empty(), "expected no tools, got {tools:?}");
 }

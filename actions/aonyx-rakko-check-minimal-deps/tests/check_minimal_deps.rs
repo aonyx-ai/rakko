@@ -32,7 +32,10 @@ use std::process::Command;
 
 use aonyx_rakko_cargo::{Cargo, Toolchain};
 use aonyx_rakko_check_minimal_deps::{CheckMinimalDeps, CheckMinimalDepsError};
-use rakko::{Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary, ToolEvent};
+use rakko::{
+    Action, Args, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, Summary,
+    ToolEvent, action_name,
+};
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use tempfile::TempDir;
 
@@ -94,13 +97,13 @@ const PASSING_THROUGH_MEMBER: &str = "pub fn value() -> i32 {\n    dep::value()\
 /// A library with one test that fails
 const FAILING: &str = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn fails() {\n        panic!(\"the probe fails on purpose\");\n    }\n}\n";
 
-/// A library with one test that fails when the nightly built it
+/// A library with one test that fails unless the nightly built it
 ///
 /// The proxy of rustup names the toolchain of a build in the environment, and
 /// the compiler hands the value to the code that it builds. A build that the
-/// nightly of the update produced therefore fails the test, and a build on the
-/// toolchain that the project pins passes it.
-const REPORTING_TOOLCHAIN: &str = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn builds_on_the_toolchain_of_the_project() {\n        let toolchain = option_env!(\"RUSTUP_TOOLCHAIN\").unwrap_or_default();\n\n        assert!(!toolchain.starts_with(\"nightly\"), \"built on {toolchain}\");\n    }\n}\n";
+/// nightly of the update produced therefore passes the test, and a build on
+/// a stable toolchain fails it.
+const REPORTING_TOOLCHAIN: &str = "#[cfg(test)]\nmod tests {\n    #[test]\n    fn builds_on_the_nightly() {\n        let toolchain = option_env!(\"RUSTUP_TOOLCHAIN\").unwrap_or_default();\n\n        assert!(toolchain.starts_with(\"nightly-\"), \"built on {toolchain}\");\n    }\n}\n";
 
 /// A library without a test
 const UNTESTED: &str = "pub fn value() -> i32 {\n    1\n}\n";
@@ -121,6 +124,25 @@ const UNINSTALLED_PIN_KEY: &str = "\"cargo:cargo-nextest\"";
 
 /// The header of the table of tools in a mise configuration
 const TOOLS_TABLE: &str = "[tools]\n";
+
+/// An action that requires nothing of a toolchain
+///
+/// A test resolves the stable toolchain of the repository with it, which an
+/// action that requires the nightly cannot do.
+#[derive(Documented)]
+struct Plain;
+
+impl Action for Plain {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("plain")
+    }
+
+    async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+        Outcome::Passed { summary: None }
+    }
+}
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -216,7 +238,10 @@ impl Project {
     async fn without_nightly() -> Self {
         let project = Self::bare();
         let context = Context::builder().root(repository()).build();
-        let cargo = Cargo::resolve(&context)
+        let cargo = Cargo::resolve()
+            .action(&Plain)
+            .context(&context)
+            .call()
             .await
             .expect("the repository pins a stable Rust toolchain");
         let toolchain = cargo.toolchain();
@@ -387,13 +412,13 @@ fn action_identifies_itself_as_check_minimal_deps() {
     assert_eq!(name.get(), "check-minimal-deps");
 }
 
-/// Shows that a run builds the tests on the toolchain of the project
+/// Shows that a run builds the tests on the nightly of the update
 ///
 /// The library reports the toolchain that built it, and the test in it fails
-/// when that toolchain is the nightly of the update. The run passes, so the
-/// tests built on the toolchain that the project pins.
+/// unless that toolchain is a dated nightly. The run passes, so the tests
+/// built on the one toolchain of the action.
 #[tokio::test]
-async fn run_builds_the_tests_on_the_toolchain_of_the_project() {
+async fn run_builds_the_tests_on_the_nightly_of_the_update() {
     let project = Project::with_library(REPORTING_TOOLCHAIN);
 
     let outcome = project.run().await;
@@ -802,7 +827,7 @@ async fn run_without_a_cargo_stops() {
         matches!(
             &outcome,
             Outcome::Errored { source }
-                if matches!(source.downcast_ref(), Some(CheckMinimalDepsError::UnresolvedCargo { .. }))
+                if matches!(source.downcast_ref(), Some(CheckMinimalDepsError::UnresolvedToolchain { .. }))
         ),
         "expected the run to stop without a cargo, got {outcome:?}"
     );
@@ -853,12 +878,12 @@ fn toolchains_require_the_nightly() {
 }
 
 #[test]
-fn tools_declare_the_stable_toolchain_and_nextest() {
+fn tools_declare_cargo_nextest_alone() {
     let tools: Vec<String> = CheckMinimalDeps
         .tools()
         .iter()
         .map(|requirement| requirement.tool().get().to_owned())
         .collect();
 
-    assert_eq!(tools, ["rust", "cargo:cargo-nextest"]);
+    assert_eq!(tools, ["cargo:cargo-nextest"]);
 }

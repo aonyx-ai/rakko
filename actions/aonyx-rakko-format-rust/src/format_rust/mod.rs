@@ -14,10 +14,10 @@ mod report;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use aonyx_rakko_cargo::{Cargo, CargoRoot, Toolchain};
+use aonyx_rakko_cargo::{Cargo, CargoRoot, Toolchain, ToolchainSelection};
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, SkipReason,
-    Summary, ToolOutput, ToolRequirement, action_name,
+    Summary, ToolOutput, ToolchainRequirement, action_name,
 };
 use rakko_tool::{Launch, ShownStreams};
 
@@ -52,9 +52,10 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// rustfmt reads its own configuration and formats every target. So a run
 /// agrees with an editor and with a contributor that runs rustfmt bare. The
 /// cargo that runs is the one that [mise] installed for the project. It runs
-/// on the nightly toolchain that the project pins. The action installs nothing.
-/// The action accepts a range of nightly toolchains by their dates, and the
-/// first pin in that range answers.
+/// on the nightly toolchain that the project pins with a date, and the first
+/// such pin answers. The action installs nothing. The action requires such a
+/// nightly, because rustfmt honors the unstable options of a configuration
+/// only on the nightly channel. So `doctor` reports a project that pins none.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
 /// that names the file. A file that rustfmt cannot parse becomes a finding at
@@ -69,11 +70,11 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// then run a rewrite before the actions that read.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
-/// run stops with an error when the project pins no stable or no nightly Rust
-/// toolchain that the action accepts. The run also stops when the workspaces of
-/// the project cannot be discovered, or when rustfmt warns about its
-/// configuration. It also stops when rustfmt writes a report that the action
-/// does not recognize.
+/// run stops with an error when the project pins no dated nightly Rust
+/// toolchain, or when nothing installed it. The run also stops when the
+/// workspaces of the project cannot be discovered, or when rustfmt warns about
+/// its configuration. It also stops when rustfmt writes a report that the
+/// action does not recognize.
 ///
 /// # Examples
 ///
@@ -105,12 +106,12 @@ impl Action for FormatRust {
         }
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement(), Toolchain::nightly()]
+    fn toolchains(&self) -> Vec<ToolchainRequirement> {
+        vec![Toolchain::nightly_requirement()]
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
-        match drive(context, args).await {
+        match drive(self, context, args).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -121,7 +122,8 @@ impl Action for FormatRust {
 
 /// Runs the action against the project of the context
 ///
-/// The run examines the project and resolves cargo and the nightly toolchain.
+/// The run examines the project and resolves the cargo of the nightly
+/// toolchain.
 /// It discovers the workspaces, checks each of them, and fixes when the
 /// arguments ask for it. An error that this function returns stops the run, and
 /// the caller reports it in the outcome.
@@ -135,13 +137,14 @@ impl Action for FormatRust {
 /// Returns the error of the step that could not finish. That step is the
 /// resolution of the tool or the toolchain, or the discovery of the workspaces.
 /// It can also be a rustfmt run, or the reading of a report.
-async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, FormatRustError> {
-    let cargo = Cargo::resolve(context)
-        .await
-        .map_err(|source| FormatRustError::UnresolvedTool { source })?;
-
-    let toolchain = Toolchain::resolve_requirement()
-        .requirement(&Toolchain::nightly())
+async fn drive(
+    action: &FormatRust,
+    context: &Context,
+    args: &FormatRustArgs,
+) -> Result<Outcome, FormatRustError> {
+    let cargo = Cargo::resolve()
+        .action(action)
+        .selection(ToolchainSelection::Nightly)
         .context(context)
         .call()
         .await
@@ -162,7 +165,7 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
     let mut repairs = Vec::new();
 
     for root in &roots {
-        let checked = observe(&cargo, &toolchain, root, &CHECK, context.tool_output()).await?;
+        let checked = observe(&cargo, root, &CHECK, context.tool_output()).await?;
 
         if checked.listed().is_empty() && checked.invalid().is_empty() {
             continue;
@@ -171,7 +174,7 @@ async fn drive(context: &Context, args: &FormatRustArgs) -> Result<Outcome, Form
         match args.operation() {
             Operation::Rewrite => {
                 let (repaired, remaining) =
-                    fix(&cargo, &toolchain, root, &checked, context.tool_output()).await?;
+                    fix(&cargo, root, &checked, context.tool_output()).await?;
                 repairs.extend(
                     repaired
                         .iter()
@@ -271,12 +274,11 @@ fn findings_of(
 /// a report the action does not recognize.
 async fn fix(
     cargo: &Cargo,
-    toolchain: &Toolchain,
     root: &CargoRoot,
     checked: &RustfmtReport,
     output: &ToolOutput,
 ) -> Result<(Vec<RustfmtProblem>, Vec<RustfmtProblem>), FormatRustError> {
-    let rewritten = observe(cargo, toolchain, root, &FORMAT, output).await?;
+    let rewritten = observe(cargo, root, &FORMAT, output).await?;
     let repaired: HashSet<&PathBuf> = rewritten.listed().iter().collect();
 
     Ok(checked
@@ -299,13 +301,12 @@ async fn fix(
 /// [unrecognized]: FormatRustError::UnrecognizedReport
 async fn observe(
     cargo: &Cargo,
-    toolchain: &Toolchain,
     root: &CargoRoot,
     arguments: &[&str],
     output: &ToolOutput,
 ) -> Result<RustfmtReport, FormatRustError> {
     let execution = cargo
-        .invocation_with_toolchain(root, toolchain)
+        .invocation(root)
         .args(arguments.iter().copied())
         .launch_with(output, ShownStreams::Both)
         .await

@@ -14,10 +14,11 @@ resolves the floors and runs the tests against them.
 
 [Cargo] resolves and [nextest] tests. Nextest runs at the version that the
 action declares, which [mise] installed. The resolution runs on the nightly
-toolchain that the project pins, because the option that asks for the floors is
-unstable. The tests run on the toolchain that the project builds with. The whole
-run happens in a disposable copy of the project. A resolution rewrites a
-lockfile, so the checkout of a contributor is not the place for it.
+toolchain that the project pins with a date, because the option that asks for
+the floors is unstable. The tests run on the same nightly, so the action needs
+no other toolchain. The whole run happens in a disposable copy of the project.
+A resolution rewrites a lockfile, so the checkout of a contributor is not the
+place for it.
 
 A run only reports, and it takes no argument. An update that cargo did not
 finish becomes a finding at the manifest of its workspace. A test that failed

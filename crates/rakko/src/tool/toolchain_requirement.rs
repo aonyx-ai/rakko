@@ -26,7 +26,8 @@ use crate::tool::{MiseTool, VersionRange};
 ///
 /// The range uses the syntax of [`VersionRange`]. A range of dates of one
 /// channel, such as `>=nightly-2025-02-20`, accepts only the pins of that
-/// channel that the project writes with a date.
+/// channel that the project writes with a date. The range `nightly-*`
+/// accepts every such pin.
 ///
 /// [toolchains]: crate::Action::toolchains
 ///

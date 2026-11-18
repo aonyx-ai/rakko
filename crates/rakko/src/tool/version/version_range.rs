@@ -12,7 +12,8 @@ typed_fields::name! {
     /// same syntax with a channel and a date in place of each version, such
     /// as `>=nightly-2025-02-20`. Every comparator gives the same channel,
     /// and the range accepts only the versions of that channel that a
-    /// configuration writes with their date.
+    /// configuration writes with their date. A `*` in place of the date, as
+    /// in `nightly-*`, accepts every dated version of the channel.
     ///
     /// A range can hold alternatives, joined by `||`, such as
     /// `^22.18 || >=23.6`. The range accepts a version that one of the

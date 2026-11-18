@@ -25,7 +25,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use aonyx_rakko_cargo::Cargo;
+use aonyx_rakko_cargo::{Cargo, Toolchain, ToolchainSelection};
 use aonyx_rakko_check_unused_deps::{CheckUnusedDeps, CheckUnusedDepsError};
 use rakko::{
     Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary, ToolEvent, ToolStream,
@@ -209,7 +209,13 @@ impl Project {
     /// build would write. A project in which cargo cannot find its workspaces
     /// stays as it is, so that the run reports what stops it.
     async fn lock(&self) {
-        let Ok(cargo) = Cargo::resolve(&self.context()).await else {
+        let Ok(cargo) = Cargo::resolve()
+            .action(&CheckUnusedDeps)
+            .selection(ToolchainSelection::Nightly)
+            .context(&self.context())
+            .call()
+            .await
+        else {
             return;
         };
         let Ok(roots) = cargo.roots().await else {
@@ -773,7 +779,7 @@ async fn run_without_a_cargo_stops() {
         matches!(
             &outcome,
             Outcome::Errored { source }
-                if matches!(source.downcast_ref(), Some(CheckUnusedDepsError::UnresolvedCargo { .. }))
+                if matches!(source.downcast_ref(), Some(CheckUnusedDepsError::UnresolvedToolchain { .. }))
         ),
         "expected the run to stop without a cargo, got {outcome:?}"
     );
@@ -851,12 +857,19 @@ async fn run_without_a_pinned_nightly_stops() {
 }
 
 #[test]
-fn tools_declare_both_toolchains_and_cargo_udeps() {
+fn toolchains_require_the_nightly() {
+    let toolchains = CheckUnusedDeps.toolchains();
+
+    assert_eq!(toolchains, vec![Toolchain::nightly_requirement()]);
+}
+
+#[test]
+fn tools_declare_cargo_udeps_alone() {
     let tools: Vec<String> = CheckUnusedDeps
         .tools()
         .iter()
         .map(|requirement| requirement.tool().get().to_owned())
         .collect();
 
-    assert_eq!(tools, ["rust", "rust", "cargo:cargo-udeps"]);
+    assert_eq!(tools, ["cargo:cargo-udeps"]);
 }

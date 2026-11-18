@@ -21,12 +21,13 @@ use std::process::Command;
 
 use aonyx_rakko_cargo::{
     Cargo, CargoPackage, CargoReport, CargoRoot, DiscoverRootsError, Documentation,
-    DocumentedNames, PackageName, Publication, RustVersion, Toolchain, lockfile,
+    DocumentedNames, PackageName, Publication, RustVersion, Toolchain, ToolchainSelection,
+    lockfile,
 };
 use rakko::{
     Action, Context, Documented, Name, Outcome, ProjectRoot, ToolchainRequirement, action_name,
 };
-use rakko_tool::{Invocation, ResolveRequirementError, ResolveToolchainError, Tool};
+use rakko_tool::{Invocation, ResolveToolchainError, Tool};
 use tempfile::TempDir;
 
 /// The manifest of a workspace with two members
@@ -310,7 +311,10 @@ impl Project {
 
     /// Resolves the cargo of this project
     async fn resolve(&self) -> Cargo {
-        Cargo::resolve(&self.context())
+        Cargo::resolve()
+            .action(&Requiring(Vec::new()))
+            .context(&self.context())
+            .call()
             .await
             .expect("the test resolves the cargo that the repository pins")
     }
@@ -367,7 +371,10 @@ fn publications(roots: &[CargoRoot]) -> Vec<(String, Publication)> {
 async fn pinned_rust() -> String {
     let context = Context::builder().root(repository()).build();
 
-    Cargo::resolve(&context)
+    Cargo::resolve()
+        .action(&Requiring(Vec::new()))
+        .context(&context)
+        .call()
         .await
         .expect("the repository pins a stable Rust toolchain")
         .toolchain()
@@ -405,6 +412,21 @@ fn repository() -> &'static Path {
         .parent()
         .and_then(Path::parent)
         .expect("the crate lives two directories below the root of the repository")
+}
+
+/// Returns a program that stands in for a plugin of cargo
+///
+/// The program is the cargo of the project, which every machine that runs
+/// the tests has installed.
+async fn stand_in(project: &Project) -> Tool {
+    Tool::resolve_toolchain()
+        .action(&Requiring(Vec::new()))
+        .toolchain("rust")
+        .executable("cargo")
+        .context(&project.context())
+        .call()
+        .await
+        .expect("the test resolves a program to stand in for a plugin")
 }
 
 /// An action that requires the Rust toolchains that it holds
@@ -585,12 +607,7 @@ async fn lockfile_refused_by_a_locked_check_without_a_lockfile_answers_yes() {
 async fn plugin_invocation_selects_the_stable_toolchain_for_the_builds_of_the_plugin() {
     let project = Project::workspace();
     let cargo = project.resolve().await;
-    let plugin = Tool::resolve_requirement()
-        .requirement(&Cargo::requirement())
-        .context(&project.context())
-        .call()
-        .await
-        .expect("the test resolves a program to stand in for a plugin");
+    let plugin = stand_in(&project).await;
 
     let invocation = cargo.plugin_invocation(&project.cargo_root(""), &plugin);
 
@@ -604,12 +621,7 @@ async fn plugin_invocation_selects_the_stable_toolchain_for_the_builds_of_the_pl
 async fn plugin_invocation_tells_the_plugin_to_start_the_cargo_of_the_project() {
     let project = Project::workspace();
     let cargo = project.resolve().await;
-    let plugin = Tool::resolve_requirement()
-        .requirement(&Cargo::requirement())
-        .context(&project.context())
-        .call()
-        .await
-        .expect("the test resolves a program to stand in for a plugin");
+    let plugin = stand_in(&project).await;
 
     let invocation = cargo.plugin_invocation(&project.cargo_root(""), &plugin);
 
@@ -630,12 +642,7 @@ async fn plugin_invocation_tells_the_plugin_to_start_the_cargo_of_the_project() 
 async fn plugin_invocation_with_toolchain_selects_the_toolchain_for_the_builds_of_the_plugin() {
     let project = Project::workspace();
     let cargo = project.resolve().await;
-    let plugin = Tool::resolve_requirement()
-        .requirement(&Cargo::requirement())
-        .context(&project.context())
-        .call()
-        .await
-        .expect("the test resolves a program to stand in for a plugin");
+    let plugin = stand_in(&project).await;
     let toolchain = Toolchain::new("nightly-2026-08-11");
 
     let invocation =
@@ -683,7 +690,11 @@ async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
 async fn resolve_in_a_project_that_pins_rust_finds_the_program() {
     let project = Project::new();
 
-    let cargo = Cargo::resolve(&project.context()).await;
+    let cargo = Cargo::resolve()
+        .action(&Requiring(Vec::new()))
+        .context(&project.context())
+        .call()
+        .await;
 
     assert!(cargo.is_ok(), "expected a cargo, got {cargo:?}");
 }
@@ -693,7 +704,11 @@ async fn resolve_in_this_repository_selects_the_toolchain_that_mise_selects() {
     let selected = selected_rust();
     let context = Context::builder().root(repository()).build();
 
-    let cargo = Cargo::resolve(&context).await;
+    let cargo = Cargo::resolve()
+        .action(&Requiring(Vec::new()))
+        .context(&context)
+        .call()
+        .await;
 
     assert_eq!(
         cargo.ok().map(|cargo| cargo.toolchain().clone()),
@@ -702,34 +717,101 @@ async fn resolve_in_this_repository_selects_the_toolchain_that_mise_selects() {
 }
 
 #[tokio::test]
-async fn resolve_with_a_pin_of_the_stable_channel_says_how_to_repair_it() {
-    let project = Project::with_rust("\"stable\"");
+async fn resolve_of_the_nightly_with_a_release_pinned_first_selects_the_dated_pin() {
+    let context = Context::builder().root(repository()).build();
 
-    let Err(error) = Cargo::resolve(&project.context()).await else {
-        panic!("expected the resolution to fail");
-    };
+    let cargo = Cargo::resolve()
+        .action(&Requiring(vec![Toolchain::nightly_requirement()]))
+        .selection(ToolchainSelection::Nightly)
+        .context(&context)
+        .call()
+        .await;
 
     assert!(
-        error
-            .to_string()
-            .contains("add a pin with a version number"),
-        "expected a hint for the repair, got {error}"
+        cargo
+            .as_ref()
+            .is_ok_and(|cargo| cargo.toolchain().get().starts_with("nightly-")),
+        "expected the dated nightly of the repository, got {cargo:?}"
+    );
+}
+
+/// Shows that one toolchain answers every lookup of an action
+///
+/// The requirement of the nightly applies to the lookup of the stable
+/// toolchain too, and no pin is both.
+#[tokio::test]
+async fn resolve_of_the_stable_toolchain_for_an_action_that_requires_the_nightly_stops() {
+    let context = Context::builder().root(repository()).build();
+
+    let cargo = Cargo::resolve()
+        .action(&Requiring(vec![Toolchain::nightly_requirement()]))
+        .context(&context)
+        .call()
+        .await;
+
+    assert!(cargo.is_err(), "expected no toolchain, got {cargo:?}");
+}
+
+#[tokio::test]
+async fn resolve_with_a_nightly_pinned_first_selects_the_release() {
+    let pin = pinned_rust().await;
+    let project = Project::with_rust(&format!("[\"nightly-2026-11-02\", \"{pin}\"]"));
+
+    let cargo = Cargo::resolve()
+        .action(&Requiring(Vec::new()))
+        .context(&project.context())
+        .call()
+        .await;
+
+    assert_eq!(
+        cargo.ok().map(|cargo| cargo.toolchain().clone()),
+        Some(Toolchain::new(pin))
+    );
+}
+
+/// Shows that the crate accepts every release that the project pins
+///
+/// A machine that installed the release answers it. On every other machine,
+/// the lookup reaches the install and stops there, and not at a range of the
+/// crate.
+#[tokio::test]
+async fn resolve_with_a_pin_of_an_old_release_selects_it() {
+    let project = Project::with_rust("\"1.70.0\"");
+
+    let cargo = Cargo::resolve()
+        .action(&Requiring(Vec::new()))
+        .context(&project.context())
+        .call()
+        .await;
+
+    assert!(
+        match &cargo {
+            Ok(cargo) => cargo.toolchain().get() == "1.70.0",
+            Err(ResolveToolchainError::UninstalledToolchain { version, .. }) => {
+                version.get() == "1.70.0"
+            }
+            Err(_) => false,
+        },
+        "expected the old release, got {cargo:?}"
     );
 }
 
 #[tokio::test]
-async fn resolve_with_a_stable_pin_outside_the_range_reports_the_pin() {
-    let project = Project::with_rust("\"1.70.0\"");
+async fn resolve_with_a_pin_of_the_stable_channel_says_how_to_repair_it() {
+    let project = Project::with_rust("\"stable\"");
 
-    let cargo = Cargo::resolve(&project.context()).await;
+    let Err(error) = Cargo::resolve()
+        .action(&Requiring(Vec::new()))
+        .context(&project.context())
+        .call()
+        .await
+    else {
+        panic!("expected the resolution to fail");
+    };
 
     assert!(
-        matches!(
-            &cargo,
-            Err(ResolveRequirementError::VersionOutOfRange { version, .. })
-                if version.get() == "1.70.0"
-        ),
-        "expected a pin outside the range, got {cargo:?}"
+        error.to_string().contains("pin a version with a number"),
+        "expected a hint for the repair, got {error}"
     );
 }
 
@@ -737,12 +819,16 @@ async fn resolve_with_a_stable_pin_outside_the_range_reports_the_pin() {
 async fn resolve_with_a_stable_pin_that_nothing_installed_reports_the_toolchain() {
     let project = Project::with_rust("\"99.0.0\"");
 
-    let cargo = Cargo::resolve(&project.context()).await;
+    let cargo = Cargo::resolve()
+        .action(&Requiring(Vec::new()))
+        .context(&project.context())
+        .call()
+        .await;
 
     assert!(
         matches!(
             &cargo,
-            Err(ResolveRequirementError::UnresolvedVersion { version, .. })
+            Err(ResolveToolchainError::UninstalledToolchain { version, .. })
                 if version.get() == "99.0.0"
         ),
         "expected a toolchain that nothing installed, got {cargo:?}"
@@ -1514,7 +1600,7 @@ async fn toolchain_resolve_of_a_release_answers_the_pin_of_that_release() {
 
     let toolchain = Toolchain::resolve()
         .action(&Requiring(Vec::new()))
-        .release(&version)
+        .selection(ToolchainSelection::Release(version))
         .context(&project.context())
         .call()
         .await;
@@ -1528,6 +1614,7 @@ async fn toolchain_resolve_of_an_action_that_requires_the_nightly_answers_the_da
 
     let toolchain = Toolchain::resolve()
         .action(&Requiring(vec![Toolchain::nightly_requirement()]))
+        .selection(ToolchainSelection::Nightly)
         .context(&context)
         .call()
         .await;
@@ -1547,6 +1634,7 @@ async fn toolchain_resolve_of_an_action_that_requires_the_nightly_without_a_date
 
     let toolchain = Toolchain::resolve()
         .action(&Requiring(vec![Toolchain::nightly_requirement()]))
+        .selection(ToolchainSelection::Nightly)
         .context(&project.context())
         .call()
         .await;
@@ -1561,35 +1649,18 @@ async fn toolchain_resolve_of_an_action_that_requires_the_nightly_without_a_date
     );
 }
 
-#[tokio::test]
-async fn toolchain_resolve_requirement_of_the_nightly_answers_the_dated_pin() {
-    let context = Context::builder().root(repository()).build();
-
-    let toolchain = Toolchain::resolve_requirement()
-        .requirement(&Toolchain::nightly())
-        .context(&context)
-        .call()
-        .await;
-
-    assert!(
-        toolchain
-            .as_ref()
-            .is_ok_and(|toolchain| toolchain.get().starts_with("nightly-")),
-        "expected the dated nightly of the repository, got {toolchain:?}"
-    );
-}
-
 /// Shows that a bare nightly channel is reported
 ///
 /// A machine that holds a dated nightly resolves a bare `nightly` to it, so
 /// the pin would count on that machine and on no other.
 #[tokio::test]
-async fn toolchain_resolve_requirement_of_the_nightly_with_a_bare_channel_reports_it() {
+async fn toolchain_resolve_of_the_nightly_with_a_bare_channel_reports_it() {
     let pin = pinned_rust().await;
     let project = Project::with_rust(&format!("[\"{pin}\", \"nightly\"]"));
 
-    let toolchain = Toolchain::resolve_requirement()
-        .requirement(&Toolchain::nightly())
+    let toolchain = Toolchain::resolve()
+        .action(&Requiring(Vec::new()))
+        .selection(ToolchainSelection::Nightly)
         .context(&project.context())
         .call()
         .await;
@@ -1597,35 +1668,16 @@ async fn toolchain_resolve_requirement_of_the_nightly_with_a_bare_channel_report
     assert!(
         matches!(
             &toolchain,
-            Err(ResolveRequirementError::UnresolvedToolchain { .. })
+            Err(ResolveToolchainError::UnpinnedToolchain { .. })
         ),
         "expected the bare channel to count for nothing, got {toolchain:?}"
     );
 }
 
 #[tokio::test]
-async fn toolchain_resolve_requirement_of_the_nightly_without_a_dated_pin_reports_it() {
+async fn toolchain_resolve_without_a_selection_answers_the_first_release() {
     let pin = pinned_rust().await;
-    let project = Project::with_rust(&format!("\"{pin}\""));
-
-    let toolchain = Toolchain::resolve_requirement()
-        .requirement(&Toolchain::nightly())
-        .context(&project.context())
-        .call()
-        .await;
-
-    assert!(
-        matches!(
-            &toolchain,
-            Err(ResolveRequirementError::UnresolvedToolchain { .. })
-        ),
-        "expected no nightly, got {toolchain:?}"
-    );
-}
-#[tokio::test]
-async fn toolchain_resolve_without_a_requirement_answers_the_first_pin() {
-    let pin = pinned_rust().await;
-    let project = Project::with_rust(&format!("[\"{pin}\", \"nightly-2026-11-02\"]"));
+    let project = Project::with_rust(&format!("[\"nightly-2026-11-02\", \"{pin}\"]"));
 
     let toolchain = Toolchain::resolve()
         .action(&Requiring(Vec::new()))

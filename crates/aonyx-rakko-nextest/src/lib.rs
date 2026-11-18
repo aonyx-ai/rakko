@@ -7,8 +7,8 @@
 //! the answer as data.
 //!
 //! The crate pins the version of nextest that every such action runs, in
-//! the file `mise.rakko.toml` that the build embeds. An action declares that
-//! version with [`Nextest::requirement`], and the version that the project
+//! the file `mise.rakko.toml` that the build embeds. An action adds that pin
+//! to its tools with [`Nextest::TOOLS`], and the version that the project
 //! pins does not change what runs.
 //!
 //! A run tests one workspace root, because cargo works on one workspace at a
@@ -47,12 +47,12 @@
 //! use aonyx_rakko_nextest::{Lockfile, Nextest};
 //! use rakko_test_utils::path;
 //!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
 //! let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-//! let cargo = Cargo::resolve(&context).await?;
+//! let cargo = Cargo::resolve().action(action).context(&context).call().await?;
 //! let roots = cargo.roots().await?;
 //! let nextest = Nextest::resolve()
+//!     .action(action)
 //!     .cargo(cargo)
 //!     .lockfile(Lockfile::Locked)
 //!     .context(&context)
