@@ -25,7 +25,7 @@ use std::process::Command;
 use aonyx_rakko_test_typescript::{TestTypeScript, TestTypeScriptError};
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent};
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
-use rakko_tool::ResolveRequirementError;
+use rakko_tool::ResolveToolchainError;
 use tempfile::TempDir;
 
 /// A test that passes
@@ -566,9 +566,9 @@ async fn run_with_a_node_between_the_releases_that_strip_types_stops_on_node() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(TestTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
-                    }) if tool.get() == "node"
+                    Some(TestTypeScriptError::UnresolvedToolchain {
+                        source: ResolveToolchainError::UnmetRequirement { toolchain, .. },
+                    }) if toolchain.get() == "node"
                 )
         ),
         "expected the run to stop on the Node of the project, got {outcome:?}"
@@ -592,9 +592,9 @@ async fn run_with_a_node_outside_the_range_stops_on_node() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(TestTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
-                    }) if tool.get() == "node"
+                    Some(TestTypeScriptError::UnresolvedToolchain {
+                        source: ResolveToolchainError::UnmetRequirement { toolchain, .. },
+                    }) if toolchain.get() == "node"
                 )
         ),
         "expected the run to stop on the Node of the project, got {outcome:?}"
@@ -618,9 +618,9 @@ async fn run_without_a_node_stops() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(TestTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::UnresolvedVersion { tool, .. },
-                    }) if tool.get() == "node"
+                    Some(TestTypeScriptError::UnresolvedToolchain {
+                        source: ResolveToolchainError::UninstalledToolchain { toolchain, .. },
+                    }) if toolchain.get() == "node"
                 )
         ),
         "expected the run to stop without a node, got {outcome:?}"
@@ -644,9 +644,9 @@ async fn run_without_a_pinned_node_stops() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(TestTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::UnresolvedToolchain { tool, .. },
-                    }) if tool.get() == "node"
+                    Some(TestTypeScriptError::UnresolvedToolchain {
+                        source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                    }) if toolchain.get() == "node"
                 )
         ),
         "expected the run to stop without a pinned node, got {outcome:?}"

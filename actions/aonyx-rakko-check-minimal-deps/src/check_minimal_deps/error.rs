@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use aonyx_rakko_cargo::{DiscoverRootsError, ReadReportError};
 use aonyx_rakko_nextest::{ObserveNextestError, ReadNextestReportError};
 use aonyx_rakko_worktree::CreateWorktreeError;
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -173,13 +173,14 @@ pub enum CheckMinimalDepsError {
     /// Mise reported no toolchain for the nightly channel of the project
     ///
     /// The project pins no nightly toolchain that the action accepts, or
-    /// nothing installed the pin yet. Only a nightly cargo resolves the floors
-    /// of the dependencies, and the action installs nothing, so the run stops
-    /// here.
+    /// nothing installed the pin yet. The cause says whether a pin of the
+    /// project or an install repairs it. Only a nightly cargo resolves the
+    /// floors of the dependencies, and the action installs nothing, so the run
+    /// stops here.
     #[error("failed to resolve the nightly toolchain")]
     UnresolvedToolchain {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolchainError,
     },
 }
 

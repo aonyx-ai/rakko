@@ -8,8 +8,8 @@
 mod error;
 pub(crate) mod report;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, VersionRange};
-use rakko_tool::{Launch, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput, ToolchainRequirement, VersionRange};
+use rakko_tool::{Launch, ResolveToolchainError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveNodeError;
 use self::report::Report;
@@ -23,7 +23,9 @@ const NODE: &str = "node";
 /// run stops when that version is outside the range. Node finds and runs a
 /// test file in TypeScript only in the releases that strip types by default.
 /// These are 22.18 and later releases of 22, and 23.6 and later. An older
-/// release leaves out every such test, and it says nothing about it.
+/// release leaves out every such test, and it says nothing about it. So the
+/// run would pass without a test, and the action requires the range to
+/// prevent that.
 const NODE_RANGE: &str = "^22.18 || >=23.6";
 
 /// The option that starts the test runner of Node
@@ -62,6 +64,7 @@ pub(crate) struct Node {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Node {
     /// Runs the tests of the project and reads what the runner reported
     ///
@@ -114,38 +117,42 @@ impl Node {
         Ok(report)
     }
 
-    /// Returns the requirement of the Node that the action runs the tests on
+    /// Returns what the action requires of the Node that it runs the tests on
     ///
-    /// Node is a toolchain, so the requirement holds the range of versions
-    /// that the action accepts, and the project pins the version.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(NODE)
-            .executable(NODE)
-            .version(RequiredVersion::Range(VersionRange::new(NODE_RANGE)))
+    /// Node is a toolchain, so the project pins the version, and the
+    /// requirement holds the range of versions that the action accepts.
+    pub(crate) fn requirement() -> ToolchainRequirement {
+        ToolchainRequirement::builder()
+            .toolchain(NODE)
+            .versions(VersionRange::new(NODE_RANGE))
             .build()
     }
 
     /// Returns the node that mise installed at the version that the project
     /// pins
     ///
-    /// The lookup asks mise for the Node that the project pins and that
-    /// [`requirement`][requirement] accepts. A run starts in the root of the
-    /// context.
+    /// The lookup asks mise for the first Node that the project pins and that
+    /// the requirements of the action accept, such as
+    /// [`requirement`][requirement]. A run starts in the root of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] in these conditions:
+    /// Returns a [`ResolveToolchainError`] in these conditions:
     ///
     /// - Mise does not run.
-    /// - The project pins no Node in the range.
-    /// - Mise reports no node at the pinned version, for example because
-    ///   nothing installed it.
+    /// - The project pins no Node, or none that the action accepts.
+    /// - Mise did not install the pinned Node.
     ///
     /// [requirement]: Node::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        action: &A,
+        context: &Context,
+    ) -> Result<Self, ResolveToolchainError> {
+        let tool = Tool::resolve_toolchain()
+            .action(action)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(context)
             .call()
             .await?;

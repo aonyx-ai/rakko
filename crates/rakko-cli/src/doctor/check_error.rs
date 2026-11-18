@@ -4,7 +4,7 @@ use std::io;
 use std::path::PathBuf;
 
 use rakko::Name;
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveRequirementError, ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 /// An error that occurs when `doctor` checks the tool pins of a project
@@ -46,6 +46,20 @@ pub(crate) enum CheckToolPinsError {
     UnrecognizedConfiguration {
         /// The cause of the failure
         source: serde_json::Error,
+    },
+
+    /// The check of a requirement of a toolchain failed for a reason that no
+    /// pin of the project repairs
+    ///
+    /// Examples are mise that does not run, and a requirement that the action
+    /// wrote wrong.
+    #[error("failed to check a requirement of a toolchain that the action `{action}` declares")]
+    UncheckedRequirement {
+        /// The action that declares the requirement
+        action: Name,
+
+        /// The cause of the failure, which gives the toolchain
+        source: ResolveToolchainError,
     },
 
     /// The resolution of a toolchain failed for a reason that no pin of the

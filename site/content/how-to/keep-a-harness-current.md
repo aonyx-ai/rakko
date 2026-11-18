@@ -256,16 +256,18 @@ self-hosted Renovate.
 For a pull request opened by a person, run `doctor --fix` and commit the
 result yourself.
 
-If an action needs a newer toolchain than your project pins, `rakko-update`
-fails without pushing changes. The `doctor` report identifies the pin that
-you need to update.
+If an action requires a newer toolchain than your project pins, `doctor --fix`
+reports it as a finding, so `rakko-update` fails and pushes no changes. The
+`doctor` report identifies the pin that you need to update. Until you update
+it, that action and each group that holds it fail. Other actions and written
+commands still run.
 
 ## Keep the Toolchains Current
 
 Your project pins its toolchains, such as Rust, in its own `mise.toml`, and
 `doctor --fix` never changes them. Renovate moves these pins like any other
-dependency. The actions accept a range of versions for each toolchain, and
-`doctor` reports a pin outside the range of an action.
+dependency. Some actions require a range of versions of a toolchain, and
+`doctor` reports a pin that such an action does not accept.
 
 [Tools and Mise][tools-and-mise] explains who pins which tool, and what
 `doctor` checks.

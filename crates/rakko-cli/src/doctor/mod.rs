@@ -7,6 +7,7 @@ mod precondition_error;
 mod repair_error;
 mod shadow;
 mod toolchain;
+mod toolchain_declaration;
 
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -20,6 +21,7 @@ pub(crate) use self::declaration::Declaration;
 use self::generated::Pins;
 pub(crate) use self::precondition_error::CheckPreconditionError;
 pub(crate) use self::repair_error::RepairToolPinsError;
+pub(crate) use self::toolchain_declaration::ToolchainDeclaration;
 use crate::report::Report;
 
 /// The name of the command
@@ -85,9 +87,18 @@ pub(crate) fn name() -> Name {
 /// the mounted actions declare. No configuration file inside the project that
 /// mise ranks above the generated file can pin a declared tool. Mise would run
 /// that pin instead. Each toolchain that a mounted action requires must be
-/// pinned by the project in the range of the action. A project whose actions
-/// declare no tool needs no generated file. The run reports a generated file
-/// that is left over.
+/// pinned by the project in a version that the action accepts. A project whose
+/// actions declare no tool needs no generated file. The run reports a
+/// generated file that is left over.
+///
+/// The first two parts are the precondition of every run of an action, a
+/// command, or a group. The third part is not. An unmet requirement of a
+/// toolchain stops only the action that declares it, when it runs. The check
+/// reports it so that a person finds it before a run. A finding of any part
+/// fails the run of `doctor` with the exit code of a run with findings. It
+/// does so also after a repair of the other parts. So a workflow that runs
+/// `doctor --fix` fails while the project pins a toolchain that an action does
+/// not accept. The person who reads the failure changes the pin.
 ///
 /// The check reads the project and asks mise about it, and it needs no
 /// network. Mise reads a pin with options, such as the platforms of a tool,
@@ -112,12 +123,14 @@ pub(crate) fn name() -> Name {
 #[bon::builder]
 pub(crate) async fn run(
     declarations: &BTreeSet<Declaration>,
+    toolchains: &BTreeSet<ToolchainDeclaration>,
     context: &Context,
     mode: Mode,
 ) -> Outcome {
     let result: Result<_, Box<dyn Error + Send + Sync>> = match mode {
         Mode::Report => report()
             .declarations(declarations)
+            .toolchains(toolchains)
             .context(context)
             .call()
             .await
@@ -125,6 +138,7 @@ pub(crate) async fn run(
             .map_err(Into::into),
         Mode::Repair => repair()
             .declarations(declarations)
+            .toolchains(toolchains)
             .context(context)
             .call()
             .await
@@ -140,15 +154,19 @@ pub(crate) async fn run(
 /// Checks the precondition on the tools before the run of an action, a
 /// command that the harness wrote, or a group
 ///
-/// The check is the check of a run of `doctor` without `--fix`. It reads the
-/// project and asks mise about it, so it needs no network, and it changes
+/// The check holds the first two parts of the check of a run of `doctor`
+/// without `--fix`. These are the generated file, and the pins that override
+/// a declared tool. A toolchain is no part of it. So a toolchain pin that one
+/// action does not accept stops no other action, command, or group. That
+/// action stops when it resolves the toolchain. The check reads
+/// the project and asks mise about it, so it needs no network, and it changes
 /// nothing. Like that check, it stops with an error in a project that mise does not
 /// trust, when the generated file holds a pin with options. A project whose tool pins have no problem lets the run start.
 ///
 /// # Errors
 ///
 /// Returns [`CheckPreconditionError::UnmetPrecondition`] with the report of
-/// `doctor` when the tool pins have a problem, and
+/// the problems when the tool pins have one, and
 /// [`CheckPreconditionError::UncheckedToolPins`] when the check gets no
 /// answer.
 #[bon::builder]
@@ -156,7 +174,7 @@ pub(crate) async fn require(
     declarations: &BTreeSet<Declaration>,
     context: &Context,
 ) -> Result<(), CheckPreconditionError> {
-    let findings = report()
+    let findings = precondition()
         .declarations(declarations)
         .context(context)
         .call()
@@ -209,6 +227,36 @@ pub(crate) fn write_pins(
 #[bon::builder]
 async fn report(
     declarations: &BTreeSet<Declaration>,
+    toolchains: &BTreeSet<ToolchainDeclaration>,
+    context: &Context,
+) -> Result<Vec<Finding>, CheckToolPinsError> {
+    let mut findings = precondition()
+        .declarations(declarations)
+        .context(context)
+        .call()
+        .await?;
+
+    findings.extend(
+        self::toolchain::check()
+            .declarations(declarations)
+            .toolchains(toolchains)
+            .context(context)
+            .call()
+            .await?,
+    );
+
+    Ok(findings)
+}
+
+/// Returns every problem of the generated file and of the pins that override
+/// a declared tool, which make the precondition of a run
+///
+/// # Errors
+///
+/// Returns the errors that [`CheckToolPinsError`] describes.
+#[bon::builder]
+async fn precondition(
+    declarations: &BTreeSet<Declaration>,
     context: &Context,
 ) -> Result<Vec<Finding>, CheckToolPinsError> {
     let pins = pins(declarations);
@@ -229,13 +277,6 @@ async fn report(
             .iter()
             .map(self::shadow::Shadow::finding),
     );
-    findings.extend(
-        self::toolchain::check()
-            .declarations(declarations)
-            .context(context)
-            .call()
-            .await?,
-    );
 
     Ok(findings)
 }
@@ -249,6 +290,7 @@ async fn report(
 #[bon::builder]
 async fn repair(
     declarations: &BTreeSet<Declaration>,
+    toolchains: &BTreeSet<ToolchainDeclaration>,
     context: &Context,
 ) -> Result<(Vec<Finding>, Vec<Finding>), RepairToolPinsError> {
     let root = context.root();
@@ -289,6 +331,7 @@ async fn repair(
     findings.extend(
         self::toolchain::check()
             .declarations(declarations)
+            .toolchains(toolchains)
             .context(context)
             .call()
             .await?,
@@ -366,7 +409,10 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
-    use rakko::{FilePath, Location, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
+    use rakko::{
+        FilePath, Location, RequiredVersion, ToolRequirement, ToolVersion, ToolchainRequirement,
+        VersionRange,
+    };
     use rakko_tool::MiseFile;
     use tempfile::TempDir;
 
@@ -435,6 +481,34 @@ mod tests {
                     .build(),
             )
             .build()
+    }
+
+    /// Returns what an action requires of the toolchain, in a range
+    #[bon::builder]
+    fn requirement(
+        #[builder(default = "test-typescript")] action: &str,
+        range: &str,
+    ) -> ToolchainDeclaration {
+        ToolchainDeclaration::builder()
+            .action(action.parse().expect("the test names an action"))
+            .requirement(
+                ToolchainRequirement::builder()
+                    .toolchain(TOOLCHAIN)
+                    .versions(VersionRange::new(range))
+                    .build(),
+            )
+            .build()
+    }
+
+    /// Returns the messages of the findings of an outcome
+    fn messages(outcome: &Outcome) -> Vec<String> {
+        match outcome {
+            Outcome::Failed { findings, .. } => findings
+                .iter()
+                .map(|finding| finding.message().get().to_owned())
+                .collect(),
+            _ => Vec::new(),
+        }
     }
 
     /// Returns the declarations of the tool and of a toolchain that no
@@ -671,6 +745,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn require_with_a_toolchain_outside_its_range_lets_the_run_start() {
+        let project = Project::shadowing();
+
+        let result = require()
+            .declarations(&BTreeSet::from([toolchain("<1")]))
+            .context(&project.context())
+            .call()
+            .await;
+
+        assert!(result.is_ok(), "got {result:?}");
+    }
+
+    #[tokio::test]
     async fn require_without_a_declared_tool_lets_the_run_start() {
         let project = Project::with("[tools]\n");
 
@@ -690,6 +777,7 @@ mod tests {
 
         let _outcome = run()
             .declarations(&declarations())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -703,6 +791,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn run_in_repair_mode_keeps_the_pin_that_a_requirement_refuses_and_fails() {
+        let project = Project::shadowing();
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
+
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::from([requirement().range("<1").call()]))
+            .context(&project.context())
+            .mode(Mode::Repair)
+            .call()
+            .await;
+
+        let pins = std::fs::read_to_string(project.directory.path().join("mise.toml"))
+            .expect("the test reads the mise.toml of the project");
+        assert_eq!(
+            (matches!(outcome, Outcome::Failed { .. }), pins),
+            (
+                true,
+                format!("[tools]\n{TOOLCHAIN} = \"{toolchain}\"\n{TOOL} = \"0.9.0\"\n")
+            ),
+            "got {outcome:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn run_in_repair_mode_leaves_a_pin_that_mise_ranks_below_the_file() {
         let project = Project::with("[tools]\n");
         let versions = project.directory.path().join(".tool-versions");
@@ -710,6 +823,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&BTreeSet::from([tool()]))
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -731,6 +845,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&declarations())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -751,6 +866,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&BTreeSet::from([tool()]))
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -777,6 +893,7 @@ mod tests {
 
         let _outcome = run()
             .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -794,6 +911,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -816,6 +934,7 @@ mod tests {
 
         let _outcome = run()
             .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -829,6 +948,7 @@ mod tests {
         let project = Project::shadowing();
         let _repaired = run()
             .declarations(&declarations())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -836,6 +956,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&declarations())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -853,6 +974,7 @@ mod tests {
 
         let _outcome = run()
             .declarations(&declarations())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -880,6 +1002,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&declarations)
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -889,11 +1012,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn run_in_report_mode_reports_a_requirement_that_the_pin_does_not_meet() {
+        let project = Project::shadowing();
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
+
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::from([requirement().range("<1").call()]))
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
+
+        assert_eq!(
+            messages(&outcome),
+            [format!(
+                "the project pins `{TOOLCHAIN}` {toolchain}, which the requirement `<1` of the \
+                 action `test-typescript` does not accept, so change the pin of `{TOOLCHAIN}` to \
+                 a version that it accepts"
+            )]
+        );
+    }
+
+    #[tokio::test]
     async fn run_in_report_mode_reports_the_file_the_pin_and_the_toolchain() {
         let project = Project::shadowing();
 
         let outcome = run()
             .declarations(&declarations())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -920,6 +1067,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&BTreeSet::from([tool()]))
+            .toolchains(&BTreeSet::new())
             .context(&context)
             .mode(Mode::Report)
             .call()
@@ -932,11 +1080,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn run_with_a_requirement_that_the_pin_meets_passes() {
+        let project = Project::shadowing();
+
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::from([requirement().range(">=1").call()]))
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
+
+        assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
+    }
+
+    #[tokio::test]
+    async fn run_with_a_requirement_that_the_project_does_not_pin_reports_it() {
+        let project = Project::with("[tools]\n");
+
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::from([requirement().range(">=1").call()]))
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
+
+        assert!(
+            messages(&outcome).iter().any(|message| {
+                message.starts_with(&format!(
+                "the project pins no version of `{TOOLCHAIN}` that the action `test-typescript` \
+                 accepts, so pin a version that the requirement `>=1` accepts"
+            ))
+            }),
+            "got {outcome:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn run_with_a_toolchain_in_its_range_passes() {
         let project = Project::shadowing();
 
         let outcome = run()
             .declarations(&BTreeSet::from([toolchain(">=1")]))
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -953,6 +1140,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&BTreeSet::from([tool()]))
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -961,6 +1149,55 @@ mod tests {
         assert!(
             matches!(outcome, Outcome::Errored { .. }),
             "got {outcome:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_with_requirements_of_two_actions_checks_each_apart() {
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
+        let project = Project::with(&format!(
+            "[tools]\n{TOOLCHAIN} = [\"{toolchain}\", \"99.0.0\"]\n"
+        ));
+
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::from([
+                requirement().action("check-msrv").range(">=99").call(),
+                requirement().range("<99").call(),
+            ]))
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
+
+        assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
+    }
+
+    #[tokio::test]
+    async fn run_with_requirements_that_no_pin_meets_together_reports_them() {
+        let toolchain = pinned_in().file("mise.toml").tool(TOOLCHAIN).call();
+        let project = Project::with(&format!(
+            "[tools]\n{TOOLCHAIN} = [\"{toolchain}\", \"99.0.0\"]\n"
+        ));
+
+        let outcome = run()
+            .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::from([
+                requirement().range(">=99").call(),
+                requirement().range("<99").call(),
+            ]))
+            .context(&project.context())
+            .mode(Mode::Report)
+            .call()
+            .await;
+
+        assert_eq!(
+            messages(&outcome),
+            [format!(
+                "the project pins `{TOOLCHAIN}` {toolchain}, which the requirement `>=99` of the \
+                 action `test-typescript` does not accept, so change the pin of `{TOOLCHAIN}` to \
+                 a version that it accepts"
+            )]
         );
     }
 
@@ -976,6 +1213,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::new())
             .context(&context)
             .mode(Mode::Report)
             .call()
@@ -990,6 +1228,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&BTreeSet::new())
+            .toolchains(&BTreeSet::new())
             .context(&project.context())
             .mode(Mode::Report)
             .call()

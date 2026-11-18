@@ -1,6 +1,6 @@
 //! The error that stops a run of the action
 
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 use crate::node::ObserveNodeError;
@@ -67,12 +67,13 @@ pub enum TestTypeScriptError {
     /// Mise reported no node that the action accepts
     ///
     /// Mise did not run, the project pins no Node in the range of the action,
-    /// or nothing installed the pinned Node yet. The action installs nothing,
+    /// or nothing installed the pinned Node yet. The cause says whether a pin
+    /// of the project or an install repairs it. The action installs nothing,
     /// so the run stops here.
     #[error("failed to resolve node")]
-    UnresolvedTool {
+    UnresolvedToolchain {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolchainError,
     },
 }
 
