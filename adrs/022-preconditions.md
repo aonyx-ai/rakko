@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. [ADR-031] supersedes the condition on the toolchains in point 5.
 
 ## Context
 
@@ -158,3 +158,4 @@ second way to start a run, next to the commands.
 [adr-006]: 006-composition-is-explicit-data.md
 [adr-014]: 014-commands.md
 [adr-021]: 021-tool-declarations.md
+[adr-031]: 031-tools-and-toolchains.md
