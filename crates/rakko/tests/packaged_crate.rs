@@ -156,11 +156,22 @@ fn write_program(root: &Path, unpacked: &Path) -> PathBuf {
 /// The crate is removed afterwards, so that only the package remains. The
 /// paths that tar reads are relative, because tar on Windows can read the
 /// drive of an absolute path as the name of a host.
+///
+/// The package holds no lockfile. To write one, cargo looks for `rakko` in
+/// its cache of the registry index. That cache has no entry for `rakko` on a
+/// machine that never fetched it from the registry. The program resolves
+/// `rakko` to this checkout instead.
 fn package(root: &Path, target: &Path) -> PathBuf {
     let source = write_crate(root);
     run_cargo(
         &source,
-        &["package", "--no-verify", "--allow-dirty", "--offline"],
+        &[
+            "package",
+            "--no-verify",
+            "--exclude-lockfile",
+            "--allow-dirty",
+            "--offline",
+        ],
         target,
     );
 
