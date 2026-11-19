@@ -20,12 +20,13 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_format_yaml::{FormatYaml, FormatYamlArgs, FormatYamlError};
-use aonyx_rakko_prettier::{Operation, Prettier};
+use aonyx_rakko_prettier::{Operation, Prettier, ResolvePrettierError};
 use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Location, Outcome, Position, ProjectRoot,
     argument_name,
 };
 use rakko_test_utils::run_checking_access;
+use rakko_tool::ResolveToolchainError;
 use tempfile::TempDir;
 
 /// A YAML document that prettier leaves alone
@@ -54,6 +55,18 @@ const PRETTIER_PIN: &str = "\"npm:prettier\"";
 
 /// The header of the table of tools in a mise configuration
 const TOOLS_TABLE: &str = "[tools]\n";
+
+/// A program that stands in for a Node that the tool does not support
+///
+/// The program writes a sentence on its standard error stream and fails
+/// before it runs anything. A release of Node can do the same with a tool that
+/// needs a newer release.
+#[cfg(unix)]
+const FAILING_NODE: &str = "#!/bin/sh\necho 'this release of Node is not supported' >&2\nexit 1\n";
+
+/// The sentence that the failing Node writes
+#[cfg(unix)]
+const UNSUPPORTED: &str = "this release of Node is not supported";
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -90,6 +103,35 @@ impl Project {
         trust(&copy);
 
         project
+    }
+
+    /// Creates a project that pins a Node that fails before it runs anything
+    ///
+    /// The project pins Node as a directory of its own, which mise reads as
+    /// an installed Node. So no machine has to install a release that the
+    /// tool does not support. Mise ignores a configuration that nobody
+    /// trusts, so the configuration is trusted right away.
+    #[cfg(unix)]
+    fn on_failing_node() -> Self {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let runtime = directory.path().join("runtime");
+        let program = runtime.join("bin").join("node");
+        std::fs::create_dir_all(runtime.join("bin"))
+            .expect("the test creates the directory of the Node");
+        std::fs::write(&program, FAILING_NODE).expect("the test writes the Node");
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755))
+            .expect("the test makes the Node executable");
+        let pins = directory.path().join("mise.toml");
+        std::fs::write(
+            &pins,
+            format!("[tools]\nnode = \"path:{}\"\n", runtime.display()),
+        )
+        .expect("the test writes the mise.toml of the project");
+        trust(&pins);
+
+        Self { directory }
     }
 
     /// Returns the context of a run against this project
@@ -179,13 +221,10 @@ impl Drop for Project {
 }
 
 #[test]
-fn action_declares_prettier_and_its_node() {
+fn action_declares_prettier_alone() {
     let tools = FormatYaml.tools();
 
-    assert_eq!(
-        tools,
-        vec![Prettier::requirement(), Prettier::node_requirement()]
-    );
+    assert_eq!(tools, Prettier::TOOLS.requirements());
 }
 
 #[test]
@@ -193,6 +232,16 @@ fn action_identifies_itself_as_format_yaml() {
     let name = FormatYaml.name();
 
     assert_eq!(name.get(), "format-yaml");
+}
+
+#[test]
+fn action_requires_nothing_of_node() {
+    let toolchains = FormatYaml.toolchains();
+
+    assert!(
+        toolchains.is_empty(),
+        "expected no requirement, got {toolchains:?}"
+    );
 }
 
 #[tokio::test]
@@ -229,6 +278,32 @@ async fn run_in_a_missing_directory_stops_without_a_prettier() {
 }
 
 #[tokio::test]
+async fn run_in_a_project_without_node_stops_on_node() {
+    let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+    let context = Context::builder().root(directory.path()).build();
+    let args = FormatYamlArgs::from_values(&ArgsValues::empty())
+        .expect("the test builds the arguments of a run without fix");
+
+    let outcome = FormatYaml.run(&context, &args).await;
+
+    assert!(
+        matches!(
+            &outcome,
+            Outcome::Errored { source }
+                if matches!(
+                    source.downcast_ref(),
+                    Some(FormatYamlError::UnresolvedTool {
+                        source: ResolvePrettierError::UnresolvedToolchain {
+                            source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                        },
+                    }) if toolchain.get() == "node"
+                )
+        ),
+        "expected the run to stop without a Node, got {outcome:?}"
+    );
+}
+
+#[tokio::test]
 async fn run_in_a_project_without_yaml_skips() {
     let project = Project::new();
     project.write().path("notes.txt").content(FORMATTED).call();
@@ -238,6 +313,25 @@ async fn run_in_a_project_without_yaml_skips() {
     assert!(
         matches!(outcome, Outcome::Skipped { .. }),
         "expected the run to skip, got {outcome:?}"
+    );
+}
+
+/// Shows that a Node that prettier cannot run on stops the run with what
+/// Node wrote, and does not pass it
+///
+/// The action requires no range of Node, so the run starts prettier on the
+/// Node that the project pins, whatever its release.
+#[cfg(unix)]
+#[tokio::test]
+async fn run_on_a_node_that_fails_stops_with_what_node_wrote() {
+    let project = Project::on_failing_node();
+    project.write().path("clean.yaml").content(FORMATTED).call();
+
+    let outcome = project.run(Operation::Report).await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }) && format!("{outcome:?}").contains(UNSUPPORTED),
+        "expected the run to stop with what Node wrote, got {outcome:?}"
     );
 }
 

@@ -11,10 +11,10 @@ through a harness, a small Rust program.
 the files that the configuration selects. It reports every rule of the language
 that the code breaks. So a run of the action agrees with an editor and with a
 contributor that runs tsc bare. TypeScript and Node are toolchains of the
-project, so the action declares the range of versions of each that it accepts.
-It starts the tsc that [mise] installed for the project, at the version that the
-project pinned, on the Node that the project pins. It translates what tsc
-reported into the outcome of the run.
+project, and the action requires no range of either. It starts the tsc that
+[mise] installed for the project, at the version that the project pinned, on
+the Node that the project pins. It translates what tsc reported into the
+outcome of the run.
 
 A run only reports, so the action takes no argument. It emits nothing either.
 Tsc builds a project as well as it checks one, and a check that left output

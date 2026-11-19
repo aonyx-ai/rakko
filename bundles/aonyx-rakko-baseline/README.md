@@ -84,23 +84,24 @@ Rakko installs nothing, and an action whose tool [mise] does not report stops
 instead of passing quietly. An action runs two kinds of tool: toolchains and
 the tools of the action.
 
-A toolchain is a compiler or runtime that the code of the project builds or
-runs with. The project pins its version, and an action accepts a range of
-versions. Node is the toolchain of this bundle. Every tool of the npm backend
-runs on Node, and mise puts no Node on the path for such a tool. So an action
-puts the Node that it resolved first on the path of its tool. The project pins
-Node in its `mise.toml`. Each action takes the first version of the `node`
-entry that its range accepts. A run stops when the range accepts no version of
-the entry. These actions need Node:
+A toolchain is a compiler or runtime that the code of the project builds or runs
+with. The project pins its version. Node is the toolchain of this bundle.
+`check-renovate-config`, `lint-markdown`, and the three actions that format with
+prettier each run a tool of the npm backend. Such a tool runs on Node, and mise
+puts no Node on the path for it. So an action puts the directory of the Node
+that it resolved at the start of the path of its tool. A Node that comes earlier
+on the path of the environment then does not run the tool.
 
-- The three actions that format with prettier accept Node 14 and later.
-- `lint-markdown` accepts Node 22 and later.
-- `check-renovate-config` accepts the Node that the package of Renovate
-  supports: 24.11 and later releases of 24, and 26.13 and later releases of 26.
+The project pins Node in its `mise.toml`, and each action takes the first
+version of the `node` entry. For example, with `node = ["24.11.0", "26.13.0"]`,
+every action of this bundle runs on 24.11.0. No action of this bundle requires a
+range of Node. A run stops when the project pins no Node, or when mise did not
+install the pinned one.
 
-For example, with `node = ["22.12.0", "26.13.0"]`, the prettier actions and
-`lint-markdown` run on 22.12.0. `check-renovate-config` runs on 26.13.0. A run
-of `check-renovate-config` on a pin of Node 25 stops.
+The package of a tool can list the releases of Node that it supports, but the
+actions do not repeat that list. On a release that a tool does not support, the
+tool can run, or it can fail. If it fails, the action stops with what the tool
+wrote.
 
 The other tools belong to the actions. Each of these actions runs the version
 that its crate pins in a `mise.rakko.toml`, and not the version that the

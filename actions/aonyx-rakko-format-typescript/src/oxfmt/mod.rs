@@ -7,33 +7,24 @@
 //! everything between the action and the process lives here.
 
 mod error;
+mod resolve_error;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Launch, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveOxfmtError;
+pub(crate) use self::resolve_error::ResolveOxfmtError;
 use crate::observation::Observation;
 
 /// The name that mise knows the tool by, which is also the name of its
 /// program
 const OXFMT: &str = "oxfmt";
 
-/// The version of oxfmt that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(OXFMT);
-
 /// The name that mise knows Node by, which is also the name of its program
-const NODE: &str = "node";
-
-/// The versions of Node that oxfmt runs on
 ///
-/// Node is a toolchain of the project, so the project pins its version, and
-/// a run stops when that version is outside the range. The range is the one
-/// of the package: 20.19 and later releases of 20, and 22.12 and later
-/// releases.
-const NODE_RANGE: &str = "^20.19.0 || >=22.12.0";
+/// Oxfmt starts Node by this name, and Node is a toolchain of the project. So
+/// the project pins its version, and the action requires no range of it.
+const NODE: &str = "node";
 
 /// The option that asks oxfmt to name the files that a rewrite would change
 ///
@@ -69,9 +60,8 @@ const PATTERN: &str = "**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}";
 /// The value holds the program that mise installed at the version that the
 /// crate declares. The pin of the project does not change it, so a run reaches
 /// the version that the tests of the crate cover. The program runs on the Node
-/// that the project pins, when the range of the crate accepts it. Nothing here
-/// installs a tool: provisioning is the job of mise, and an oxfmt that mise
-/// does not report stops the caller.
+/// that the project pins. Nothing here installs a tool: provisioning is the job
+/// of mise, and an oxfmt that mise does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Oxfmt {
     /// The program that mise installed at the declared version
@@ -83,6 +73,7 @@ pub(crate) struct Oxfmt {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Oxfmt {
     /// Names the files that a rewrite would change, and changes nothing
     ///
@@ -99,61 +90,50 @@ impl Oxfmt {
         self.observe(LIST).await
     }
 
-    /// Returns the requirement of the Node that oxfmt runs on
+    /// Returns the oxfmt that mise installed at the version that the
+    /// action declares, on the Node that the project pins
     ///
-    /// Node is a toolchain, so the requirement holds the range of versions
-    /// that oxfmt accepts, and the project pins the version.
-    pub(crate) fn node_requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(NODE)
-            .executable(NODE)
-            .version(RequiredVersion::Range(VersionRange::new(NODE_RANGE)))
-            .build()
-    }
-
-    /// Returns the requirement of the oxfmt that the crate runs
-    ///
-    /// The requirement holds the exact version that the crate pins.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(OXFMT)
-            .executable(OXFMT)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the oxfmt that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of oxfmt in the project does not change the answer. It
-    /// also asks mise for the Node that the project pins and that
-    /// [`node_requirement`][node] accepts. A run starts in the root of the
-    /// context, with that Node first on its path.
+    /// The lookup reads the tools that the action declares, which hold the
+    /// pin in the mise file of the crate. So a pin of the tool in the project
+    /// does not change the answer. It also asks mise for the first Node that
+    /// the project pins. A run starts in the root of the context, with that
+    /// Node first on its path.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] in these conditions:
+    /// Returns [`UnresolvedTool`][tool] when the action does not declare the
+    /// tool, or when mise reports no oxfmt at that version, for example
+    /// because nothing installed it. Returns [`UnresolvedToolchain`][toolchain]
+    /// when the project pins no Node, or when mise did not install that Node.
+    /// It also returns that error when the directory of that Node cannot be an
+    /// entry of `PATH`. Both errors also occur when mise does not run.
     ///
-    /// - Mise does not run.
-    /// - The project pins no Node in the range.
-    /// - Mise reports no oxfmt at the declared version or no Node at the
-    ///   pinned one, for example because nothing installed it.
-    /// - The directory of that Node cannot be an entry of `PATH`.
-    ///
-    /// [node]: Oxfmt::node_requirement
-    /// [requirement]: Oxfmt::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement()
-            .requirement(&Self::node_requirement())
+    /// [tool]: ResolveOxfmtError::UnresolvedTool
+    /// [toolchain]: ResolveOxfmtError::UnresolvedToolchain
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        action: &A,
+        context: &Context,
+    ) -> Result<Self, ResolveOxfmtError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(OXFMT)
+            .executable(OXFMT)
             .context(context)
             .call()
-            .await?;
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+            .await
+            .map_err(|source| ResolveOxfmtError::UnresolvedTool { source })?;
+        let node = Tool::resolve_toolchain()
+            .action(action)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(context)
             .call()
-            .await?
-            .with_toolchain(&node)?;
+            .await
+            .map_err(|source| ResolveOxfmtError::UnresolvedToolchain { source })?;
+        let tool = tool
+            .with_toolchain(&node)
+            .map_err(|source| ResolveOxfmtError::UnresolvedToolchain { source })?;
 
         Ok(Self {
             tool,
@@ -207,12 +187,12 @@ mod tests {
     use std::path::Path;
 
     use super::*;
+    use crate::FormatTypeScript;
 
     /// Returns the context of a run in the root of this repository
     ///
-    /// The repository pins a Node that the range of the crate accepts, and
-    /// it installs the oxfmt that the crate declares. The crate lives two
-    /// directories below the root.
+    /// The repository pins a Node, and it installs the oxfmt that the crate
+    /// declares. The crate lives two directories below the root.
     fn context() -> Context {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let root = manifest
@@ -233,14 +213,19 @@ mod tests {
     #[tokio::test]
     async fn resolve_runs_oxfmt_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_requirement()
-            .requirement(&Oxfmt::node_requirement())
+        let node = Tool::resolve_toolchain()
+            .action(&FormatTypeScript)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(&context)
             .call()
             .await
             .expect("the test resolves the Node that the repository pins");
 
-        let oxfmt = Oxfmt::resolve(&context)
+        let oxfmt = Oxfmt::resolve()
+            .action(&FormatTypeScript)
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the oxfmt that the crate declares");
 

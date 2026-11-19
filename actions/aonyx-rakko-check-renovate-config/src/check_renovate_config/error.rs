@@ -2,11 +2,11 @@
 
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
-use crate::validator::ObserveValidatorError;
 use crate::validator::report::ReadReportError;
+use crate::validator::{ObserveValidatorError, ResolveValidatorError};
 
 /// An error that stops a run of the action before it has an answer
 ///
@@ -82,17 +82,27 @@ pub enum CheckRenovateConfigError {
         source: ReadReportError,
     },
 
-    /// Mise reported no validator at the version that the action declares, or
-    /// no Node that the action accepts
+    /// Mise reported no validator at the version that the action declares
     ///
-    /// Mise did not run, or the project pins no Node in the range of the
-    /// action. Nothing installed the declared Renovate or the pinned Node yet,
-    /// or the directory of that Node cannot be an entry of `PATH`. The action
-    /// installs nothing, so the run stops here.
+    /// Mise did not run, or nothing installed the declared Renovate yet. The
+    /// action installs nothing, so the run stops here.
     #[error("failed to resolve renovate-config-validator")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
+    },
+
+    /// Mise reported no Node that the project pins for the validator
+    ///
+    /// Mise did not run, or the project pins no Node. Nothing installed the
+    /// pinned Node yet, or the directory of that Node cannot be an entry of
+    /// `PATH`. The action requires no range of Node, so a pin that the package
+    /// of Renovate does not support still reaches the validator. The action
+    /// installs nothing, so the run stops here.
+    #[error("failed to resolve the Node of renovate-config-validator")]
+    UnresolvedToolchain {
+        /// The cause of the failure
+        source: ResolveToolchainError,
     },
 
     /// The validator did not run
@@ -122,6 +132,22 @@ impl From<ObserveValidatorError> for CheckRenovateConfigError {
             }
             ObserveValidatorError::ValidatorUnavailable { source } => {
                 Self::ValidatorUnavailable { source }
+            }
+        }
+    }
+}
+
+impl From<ResolveValidatorError> for CheckRenovateConfigError {
+    /// Turns the failure to resolve the validator into the error of the action
+    ///
+    /// The machinery that resolves the validator separates the tool from the
+    /// toolchain, as the action does, so the conversion renames the condition
+    /// and adds nothing.
+    fn from(error: ResolveValidatorError) -> Self {
+        match error {
+            ResolveValidatorError::UnresolvedTool { source } => Self::UnresolvedTool { source },
+            ResolveValidatorError::UnresolvedToolchain { source } => {
+                Self::UnresolvedToolchain { source }
             }
         }
     }

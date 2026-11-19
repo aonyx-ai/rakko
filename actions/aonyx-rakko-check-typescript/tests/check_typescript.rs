@@ -27,7 +27,7 @@ use std::process::Command;
 use aonyx_rakko_check_typescript::{CheckTypeScript, CheckTypeScriptError};
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent};
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
-use rakko_tool::ResolveRequirementError;
+use rakko_tool::ResolveToolchainError;
 use tempfile::TempDir;
 
 /// A configuration that selects the source directory of the project
@@ -74,6 +74,22 @@ const EXPLAINED: &str = "type Greet = (name: string) => string;\n\nexport const 
 
 /// The start of the line of the repository's `mise.toml` that pins TypeScript
 const TYPESCRIPT_PIN: &str = "\"npm:typescript\"";
+
+/// A program that stands in for a Node that the tool does not support
+///
+/// The program writes a sentence on its standard error stream and fails
+/// before it runs anything. A release of Node can do the same with a tool that
+/// needs a newer release.
+#[cfg(unix)]
+const FAILING_NODE: &str = "#!/bin/sh\necho 'this release of Node is not supported' >&2\nexit 1\n";
+
+/// The sentence that the failing Node writes
+#[cfg(unix)]
+const UNSUPPORTED: &str = "this release of Node is not supported";
+
+/// The start of the line of the repository's `mise.toml` that pins Node
+#[cfg(unix)]
+const NODE_PIN: &str = "node = ";
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -154,6 +170,44 @@ impl Project {
         std::fs::write(
             &copy,
             pins.replace(pin, &format!("{TYPESCRIPT_PIN} = \"{version}\"")),
+        )
+        .expect("the test writes the mise.toml of the project");
+        trust(&copy);
+
+        project
+    }
+
+    /// Creates a project with the tsc of this repository on a Node that fails
+    /// before it runs anything
+    ///
+    /// The project copies the `mise.toml` of this repository, and the copy
+    /// pins Node as a directory of the project instead. Mise reads that
+    /// directory as an installed Node. So no machine has to install a release
+    /// that the tool does not support. Mise ignores a configuration that
+    /// nobody trusts, so the copy is trusted right away.
+    #[cfg(unix)]
+    fn on_failing_node() -> Self {
+        use std::os::unix::fs::PermissionsExt;
+
+        let project = Self::bare();
+        let runtime = project.directory.path().join("runtime");
+        let program = runtime.join("bin").join("node");
+        std::fs::create_dir_all(runtime.join("bin"))
+            .expect("the test creates the directory of the Node");
+        std::fs::write(&program, FAILING_NODE).expect("the test writes the Node");
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755))
+            .expect("the test makes the Node executable");
+
+        let pins = std::fs::read_to_string(repository().join("mise.toml"))
+            .expect("the test reads the mise.toml of the repository");
+        let pin = pins
+            .lines()
+            .find(|line| line.starts_with(NODE_PIN))
+            .expect("the mise.toml of the repository pins Node");
+        let copy = project.root.join("mise.toml");
+        std::fs::write(
+            &copy,
+            pins.replace(pin, &format!("{NODE_PIN}\"path:{}\"", runtime.display())),
         )
         .expect("the test writes the mise.toml of the project");
         trust(&copy);
@@ -358,6 +412,30 @@ async fn run_of_a_project_that_builds_writes_no_output() {
     assert!(
         !project.holds("dist"),
         "expected the run to write no output directory"
+    );
+}
+
+/// Shows that a Node that tsc cannot run on stops the run with what Node
+/// wrote, and does not pass it
+///
+/// The action requires no range of Node, so the run starts tsc on the Node
+/// that the project pins, whatever its release.
+#[cfg(unix)]
+#[tokio::test]
+async fn run_on_a_node_that_fails_stops_with_what_node_wrote() {
+    let project = Project::on_failing_node();
+    project
+        .write()
+        .path("tsconfig.json")
+        .content(CONFIGURATION)
+        .call();
+    project.write().path("src/index.ts").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }) && format!("{outcome:?}").contains(UNSUPPORTED),
+        "expected the run to stop with what Node wrote, got {outcome:?}"
     );
 }
 
@@ -615,33 +693,6 @@ async fn run_with_a_type_error_reports_the_position_of_tsc() {
 }
 
 #[tokio::test]
-async fn run_with_a_typescript_outside_the_range_stops_on_typescript() {
-    let project = Project::pinning_typescript("4.9.5");
-    project
-        .write()
-        .path("tsconfig.json")
-        .content(CONFIGURATION)
-        .call();
-    project.write().path("src/index.ts").content(VALID).call();
-
-    let outcome = project.run().await;
-
-    assert!(
-        matches!(
-            &outcome,
-            Outcome::Errored { source }
-                if matches!(
-                    source.downcast_ref(),
-                    Some(CheckTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
-                    }) if tool.get() == "npm:typescript"
-                )
-        ),
-        "expected the run to stop on the TypeScript of the project, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
 async fn run_with_an_explained_diagnostic_carries_the_explanation() {
     let project = Project::new();
     project
@@ -730,9 +781,9 @@ async fn run_without_a_node_stops_on_node() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(CheckTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::UnresolvedToolchain { tool, .. },
-                    }) if tool.get() == "node"
+                    Some(CheckTypeScriptError::UnresolvedToolchain {
+                        source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                    }) if toolchain.get() == "node"
                 )
         ),
         "expected the run to stop without a Node, got {outcome:?}"
@@ -757,9 +808,9 @@ async fn run_without_a_tsc_stops() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(CheckTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::UnresolvedVersion { tool, .. },
-                    }) if tool.get() == "npm:typescript"
+                    Some(CheckTypeScriptError::UnresolvedToolchain {
+                        source: ResolveToolchainError::UninstalledToolchain { toolchain, .. },
+                    }) if toolchain.get() == "npm:typescript"
                 )
         ),
         "expected the run to stop without a tsc, got {outcome:?}"

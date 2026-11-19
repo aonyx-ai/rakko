@@ -51,30 +51,32 @@ Rakko installs nothing, and an action whose tool [mise] does not report stops
 instead of passing quietly. An action runs two kinds of tool: toolchains and
 the tools of the action.
 
-A toolchain is a compiler or runtime that the code of the project builds or
-runs with. The project pins its version in its `mise.toml`, and an action
-accepts a range of versions. Each action takes the first version of the `node`
-or `npm:typescript` entry that its range accepts. A run stops when the range
-accepts no version of the entry. For example, with
-`node = ["22.12.0", "26.13.0"]`, `format-typescript` runs on 22.12.0. The
-toolchains of this bundle are Node and TypeScript:
+A toolchain is a compiler or runtime that the code of the project builds or runs
+with. The project pins its version in its `mise.toml`. An action can require a
+range of versions of a toolchain, and this range is a requirement of the action.
+Each action takes the first version of the `node` or `npm:typescript` entry that
+the requirements of the action accept. An action without a requirement takes the
+first version. A run stops when the requirements of the action accept no version
+of the entry.
 
-- `check-typescript` accepts `npm:typescript` 5 and later. The editor of a
-  contributor uses the TypeScript in `node_modules`, so pin the version that
-  the project depends on. Tsc runs on Node, and the action accepts Node 12.20
-  and later, the range of TypeScript 5.0. A newer TypeScript can need a newer
-  Node, such as 16.20 and later for TypeScript 7.
-- `format-typescript` accepts the Node that oxfmt supports: 20.19 and later
-  releases of 20, and 22.12 and later releases. So a run on a pin of Node 21
-  stops.
+For example, with `node = ["24.11.0", "26.13.0"]`, every action of this bundle
+runs on 24.11.0. The toolchains of this bundle are Node and TypeScript:
+
+- `check-typescript` requires no range of `npm:typescript` or of Node. The
+  editor of a contributor uses the TypeScript in `node_modules`, so pin the
+  version that the project depends on. Tsc runs on Node.
+- `format-typescript` requires no range of Node.
 - `test-typescript` accepts 22.18 and later releases of 22, and 23.6 and later
   releases, as the next section explains.
 
 Every tool of the npm backend runs on Node, and mise puts no Node on the path
-for such a tool. So `check-typescript` and `format-typescript` put the Node that
-they resolved at the start of the path of their tool. The baseline reads the
-same `node` entry, so the entry must hold a version in the range of each action
-of both bundles.
+for such a tool. So `check-typescript` and `format-typescript` put the directory
+of the Node that they resolved at the start of the path of their tool. A Node
+that comes earlier on the path of the environment then does not run the tool. On
+a release of Node that a tool does not support, the tool can run, or it can
+fail. If it fails, the action stops with what the tool wrote. The baseline reads
+the same `node` entry, so the first version of the entry must also be one that
+each tool of both bundles supports.
 
 The other tools belong to the actions. Each of these actions runs the version
 that its crate pins in a `mise.rakko.toml`, and not the version that the

@@ -9,7 +9,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Documented, Finding, Name, Outcome, ProjectRoot, SkipReason, Summary,
-    ToolRequirement, action_name,
+    Tools, action_name,
 };
 
 pub use self::error::CheckRenovateConfigError;
@@ -25,8 +25,8 @@ use crate::validator::Validator;
 /// `renovate-config-validator --strict --no-global default.json`. The validator
 /// that runs is the one of the version of Renovate that the action declares,
 /// which [mise] installed, whatever version the project pins. It runs on the
-/// Node that the project pins, when the action accepts that version. The action
-/// installs nothing.
+/// Node that the project pins, and the action requires no range of it. The
+/// action installs nothing.
 ///
 /// A preset is a configuration that other configurations extend. Renovate
 /// reads a preset such as `github>owner/repository` from the `default.json` in
@@ -46,9 +46,9 @@ use crate::validator::Validator;
 ///
 /// The action applies to a project that holds a Renovate configuration or a
 /// preset, and it skips visibly otherwise. A run stops with an error when mise
-/// reports no validator at the declared version or no Node in the accepted
-/// range. It also stops if the validator stops before validating the project.
-/// It stops if the validator writes a log that the action cannot read.
+/// reports no validator at the declared version or no Node that the project
+/// pins. It also stops if the validator stops before validating the project. It
+/// stops if the validator writes a log that the action cannot read.
 ///
 /// A run declares a read of the project. A caller that orders runs by their
 /// declarations runs it after the actions that write.
@@ -80,12 +80,12 @@ impl Action for CheckRenovateConfig {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Validator::requirement(), Validator::node_requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -107,10 +107,15 @@ impl Action for CheckRenovateConfig {
 ///
 /// Returns the error of the step that could not finish. The step is the
 /// resolution of the tool, a run of the validator, or the reading of its log.
-async fn drive(context: &Context) -> Result<Outcome, CheckRenovateConfigError> {
-    let validator = Validator::resolve(context)
-        .await
-        .map_err(|source| CheckRenovateConfigError::UnresolvedTool { source })?;
+async fn drive(
+    action: &CheckRenovateConfig,
+    context: &Context,
+) -> Result<Outcome, CheckRenovateConfigError> {
+    let validator = Validator::resolve()
+        .action(action)
+        .context(context)
+        .call()
+        .await?;
 
     let observation = validator
         .observe()
@@ -304,12 +309,23 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_the_validator_and_its_node() {
-        let tools = CheckRenovateConfig.tools();
+    fn toolchains_require_nothing_of_node() {
+        let toolchains = CheckRenovateConfig.toolchains();
 
-        assert_eq!(
-            tools,
-            vec![Validator::requirement(), Validator::node_requirement()]
+        assert!(
+            toolchains.is_empty(),
+            "expected no requirement, got {toolchains:?}"
         );
+    }
+
+    #[test]
+    fn tools_declare_renovate_alone() {
+        let tools: Vec<String> = CheckRenovateConfig
+            .tools()
+            .iter()
+            .map(|requirement| requirement.tool().get().to_owned())
+            .collect();
+
+        assert_eq!(tools, ["npm:renovate"]);
     }
 }

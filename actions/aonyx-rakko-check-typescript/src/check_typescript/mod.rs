@@ -9,7 +9,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    SkipReason, ToolRequirement, action_name,
+    SkipReason, action_name,
 };
 
 pub use self::error::CheckTypeScriptError;
@@ -40,12 +40,11 @@ const UNINHABITED: &str = "TS18003";
 /// Type checks the TypeScript of a project
 ///
 /// The action wraps [tsc]. Tsc reads the `tsconfig.json` of the project,
-/// collects the files that the configuration selects, and reports every rule
-/// of the language that the code breaks. The tsc that runs is the one that
-/// [mise] installed for the project. It has the version that the project
-/// pinned, when the action accepts that version. It runs on the Node that the
-/// project pins, when the action accepts that version too. The action installs
-/// nothing.
+/// collects the files that the configuration selects, and reports every rule of
+/// the language that the code breaks. The tsc that runs is the one that [mise]
+/// installed for the project, at the version that the project pinned. It runs
+/// on the Node that the project pins. The action requires no range of
+/// TypeScript or of Node, and it installs nothing.
 ///
 /// A run reports and emits nothing, and it takes no argument. Every diagnostic
 /// of tsc becomes a finding at the place that tsc marked. The message of the
@@ -54,7 +53,7 @@ const UNINHABITED: &str = "TS18003";
 /// The action applies to a project that tsc has something to check in, and it
 /// skips visibly otherwise. A run stops with an error in these conditions:
 ///
-/// - Mise reports no TypeScript or no Node in the accepted range.
+/// - Mise reports no TypeScript or no Node that the project pins.
 /// - Tsc reports nothing and ends without success.
 /// - Tsc writes a report that the action cannot read.
 ///
@@ -90,12 +89,8 @@ impl Action for CheckTypeScript {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Tsc::requirement(), Tsc::node_requirement()]
-    }
-
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -114,10 +109,16 @@ impl Action for CheckTypeScript {
 ///
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the tsc run, or the reading of the report.
-async fn drive(context: &Context) -> Result<Outcome, CheckTypeScriptError> {
-    let tsc = Tsc::resolve(context)
+async fn drive(
+    action: &CheckTypeScript,
+    context: &Context,
+) -> Result<Outcome, CheckTypeScriptError> {
+    let tsc = Tsc::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
-        .map_err(|source| CheckTypeScriptError::UnresolvedTool { source })?;
+        .map_err(|source| CheckTypeScriptError::UnresolvedToolchain { source })?;
 
     let diagnostics = tsc.observe().await?;
 
@@ -473,9 +474,19 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_typescript_and_its_node() {
+    fn toolchains_require_nothing() {
+        let toolchains = CheckTypeScript.toolchains();
+
+        assert!(
+            toolchains.is_empty(),
+            "expected no requirement, got {toolchains:?}"
+        );
+    }
+
+    #[test]
+    fn tools_are_empty() {
         let tools = CheckTypeScript.tools();
 
-        assert_eq!(tools, vec![Tsc::requirement(), Tsc::node_requirement()]);
+        assert!(tools.is_empty(), "expected no tool, got {tools:?}");
     }
 }

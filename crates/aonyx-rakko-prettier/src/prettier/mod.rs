@@ -1,17 +1,19 @@
 //! The prettier that a project runs
 //!
-//! This module holds the version of prettier that the crate declares and the
-//! range of Node that it accepts. It also holds the program that mise installed
-//! at that version and the run of one operation. An action states which
+//! This module holds the version of prettier that the crate declares. It also
+//! holds the program that mise installed at that version, on the Node that the
+//! project pins, and the run of one operation. An action states which
 //! operation it wants and which files it cares about, and everything between
 //! the action and the process lives here.
 
 mod error;
+mod resolve_error;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput, Tools};
+use rakko_tool::{Launch, ShownStreams, Tool};
 
 pub use self::error::ObservePrettierError;
+pub use self::resolve_error::ResolvePrettierError;
 use crate::filter::Filter;
 use crate::observation::Observation;
 use crate::operation::Operation;
@@ -22,21 +24,12 @@ const PRETTIER: &str = "npm:prettier";
 /// The program of the tool
 const PROGRAM: &str = "prettier";
 
-/// The version of prettier that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(PRETTIER);
-
 /// The name that mise knows Node by, which is also the name of its program
-const NODE: &str = "node";
-
-/// The versions of Node that prettier runs on
 ///
-/// The range is the one that the package of prettier states for its engine.
-/// Node is a toolchain of the project, so the project pins its version, and
-/// a run stops when that version is outside the range.
-const NODE_RANGE: &str = ">=14";
+/// Prettier starts Node by this name, and Node is a toolchain of the
+/// project. So the project pins its version, and the crate requires no
+/// range of it.
+const NODE: &str = "node";
 
 /// The flag that asks prettier to name the files that it would rewrite
 const LIST_DIFFERENT: &str = "--list-different";
@@ -69,26 +62,24 @@ const NO_COLOR: &str = "--no-color";
 /// The value holds the program that mise installed at the version that the
 /// crate declares. The pin of the project does not change it, so a run
 /// reaches the version that the tests of the crate cover.
-/// Prettier runs on the Node that the project pins, when the range of the
-/// crate accepts it.
+/// Prettier runs on the Node that the project pins, and not on a Node that
+/// comes first on the path of the environment.
 /// Nothing here installs a tool: provisioning is the job of mise.
 /// A prettier or a Node that mise does not report stops the caller.
 ///
-/// An action that runs prettier declares [`requirement`][requirement] and
-/// [`node_requirement`][node] among its tools, so that the machinery can read
-/// the versions.
+/// An action that runs prettier adds [`TOOLS`][tools] to its tools, so that
+/// the machinery can read the version, and a run can resolve prettier.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::Context;
+/// use rakko::{Action, Context};
 /// use aonyx_rakko_prettier::{FileExtension, Filter, Operation, Prettier};
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
 /// let filter = Filter::new([FileExtension::new("md")]);
 /// let context = Context::builder().root("/home/otter/project").build();
-/// let prettier = Prettier::resolve(&context).await?;
+/// let prettier = Prettier::resolve().action(action).context(&context).call().await?;
 ///
 /// let observation = prettier.observe(Operation::Report, &filter).await?;
 ///
@@ -97,8 +88,7 @@ const NO_COLOR: &str = "--no-color";
 /// # }
 /// ```
 ///
-/// [node]: Prettier::node_requirement
-/// [requirement]: Prettier::requirement
+/// [tools]: Prettier::TOOLS
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Prettier {
     /// The program that mise installed at the declared version, on the Node
@@ -111,7 +101,46 @@ pub struct Prettier {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Prettier {
+    /// The tools that the mise file of the crate pins, which is prettier alone
+    ///
+    /// An action that runs prettier through this crate returns the constant
+    /// from [`Action::additional_tools`]. The crate keeps the pin, so every
+    /// action that uses it runs the version that the tests of the crate
+    /// cover. Node is a toolchain of the project, so the constant holds no
+    /// Node.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{Action, Context, Documented, Name, Outcome, Tools, action_name};
+    /// use aonyx_rakko_prettier::Prettier;
+    ///
+    /// /// Formats the CSS files of the project
+    /// #[derive(Documented)]
+    /// struct FormatCss;
+    ///
+    /// impl Action for FormatCss {
+    ///     type Args = ();
+    ///
+    ///     fn name(&self) -> Name {
+    ///         action_name!("format-css")
+    ///     }
+    ///
+    ///     fn additional_tools(&self) -> Vec<Tools> {
+    ///         vec![Prettier::TOOLS]
+    ///     }
+    ///
+    ///     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    ///         Outcome::Passed { summary: None }
+    ///     }
+    /// }
+    ///
+    /// assert_eq!(FormatCss.tools()[0].tool().get(), "npm:prettier");
+    /// ```
+    pub const TOOLS: Tools = rakko::bundled_tools!();
+
     /// Runs one operation over the files that the filter selects
     ///
     /// The run sends what prettier writes to the tool output of the context
@@ -120,13 +149,12 @@ impl Prettier {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::Context;
+    /// use rakko::{Action, Context};
     /// use aonyx_rakko_prettier::{FileExtension, Filter, Operation, Prettier};
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root("/home/otter/project").build();
-    /// let prettier = Prettier::resolve(&context).await?;
+    /// let prettier = Prettier::resolve().action(action).context(&context).call().await?;
     /// let filter = Filter::new([FileExtension::new("md")]);
     /// let observation = prettier.observe(Operation::Report, &filter).await?;
     ///
@@ -168,105 +196,70 @@ impl Prettier {
             .call())
     }
 
-    /// Returns the requirement of the Node that prettier runs on
+    /// Returns the prettier that mise installed at the version that an action
+    /// declares, on the Node that the project pins
     ///
-    /// Node is a toolchain, so the requirement holds the range of versions
-    /// that prettier accepts, and the project pins the version.
-    /// An action that runs prettier returns it from its declaration of tools,
-    /// next to [`requirement`][requirement].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use aonyx_rakko_prettier::Prettier;
-    ///
-    /// let requirement = Prettier::node_requirement();
-    ///
-    /// assert_eq!(requirement.tool().get(), "node");
-    /// ```
-    ///
-    /// [requirement]: Prettier::requirement
-    pub fn node_requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(NODE)
-            .executable(NODE)
-            .version(RequiredVersion::Range(VersionRange::new(NODE_RANGE)))
-            .build()
-    }
-
-    /// Returns the requirement of the prettier that the crate runs
-    ///
-    /// The requirement holds the exact version that the crate pins.
-    /// An action that runs prettier returns it from its declaration of tools,
-    /// next to [`node_requirement`][node].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use aonyx_rakko_prettier::Prettier;
-    ///
-    /// let requirement = Prettier::requirement();
-    ///
-    /// assert_eq!(requirement.tool().get(), "npm:prettier");
-    /// ```
-    ///
-    /// [node]: Prettier::node_requirement
-    pub fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(PRETTIER)
-            .executable(PROGRAM)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the prettier that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of prettier in the project does not change the answer.
-    /// It also asks mise for the Node that the project pins and that
-    /// [`node_requirement`][node] accepts.
-    /// A run of prettier starts in the root of the context, with that Node
-    /// first on its path.
+    /// The lookup reads the tools that the action declares, which hold
+    /// [`TOOLS`][tools]. It asks mise for prettier at the version that they
+    /// give, so a pin of prettier in the project does not change the answer.
+    /// It also asks mise for the Node that the project pins and that the
+    /// requirements of the action accept. An action that requires nothing of
+    /// Node runs on the first pin. A run of prettier starts in the root of the
+    /// context, with that Node first on its path. So a Node that comes first
+    /// on the path of the environment does not run prettier.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::Context;
+    /// use rakko::{Action, Context};
     /// use aonyx_rakko_prettier::Prettier;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root("/home/otter/project").build();
-    /// let prettier = Prettier::resolve(&context).await?;
+    /// let prettier = Prettier::resolve().action(action).context(&context).call().await?;
     ///
-    /// assert_eq!(prettier, Prettier::resolve(&context).await?);
+    /// assert_eq!(prettier, Prettier::resolve().action(action).context(&context).call().await?);
     /// # Ok(())
     /// # }
     /// ```
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
-    /// returns one when the project pins no Node in the range. It also returns
-    /// one when mise reports no prettier at the declared version or no Node at
-    /// the pinned one. This happens, for example, because nothing installed
-    /// that prettier or that Node. It also returns one when the directory of
-    /// that Node cannot be an entry of `PATH`.
+    /// Returns [`UnresolvedTool`][tool] when the action does not declare
+    /// prettier, or when mise reports no prettier at that version, for
+    /// example because nothing installed it. Returns
+    /// [`UnresolvedToolchain`][toolchain] when the project pins no Node that
+    /// the action accepts, or when mise did not install that Node. It also
+    /// returns that error when the directory of that Node cannot be an entry of
+    /// `PATH`. Both errors also occur when mise does not run.
     ///
-    /// [node]: Prettier::node_requirement
-    /// [requirement]: Prettier::requirement
-    pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement()
-            .requirement(&Self::node_requirement())
+    /// [tool]: ResolvePrettierError::UnresolvedTool
+    /// [toolchain]: ResolvePrettierError::UnresolvedToolchain
+    /// [tools]: Prettier::TOOLS
+    #[builder]
+    pub async fn resolve<A: Action>(
+        action: &A,
+        context: &Context,
+    ) -> Result<Self, ResolvePrettierError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(PRETTIER)
+            .executable(PROGRAM)
             .context(context)
             .call()
-            .await?;
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+            .await
+            .map_err(|source| ResolvePrettierError::UnresolvedTool { source })?;
+        let node = Tool::resolve_toolchain()
+            .action(action)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(context)
             .call()
-            .await?
-            .with_toolchain(&node)?;
+            .await
+            .map_err(|source| ResolvePrettierError::UnresolvedToolchain { source })?;
+        let tool = tool
+            .with_toolchain(&node)
+            .map_err(|source| ResolvePrettierError::UnresolvedToolchain { source })?;
 
         Ok(Self {
             tool,
@@ -285,13 +278,35 @@ mod tests {
 
     use std::path::Path;
 
+    use rakko::{Documented, Name, Outcome, action_name};
+
     use super::*;
+
+    /// An action that runs prettier through the crate and requires nothing
+    /// of Node
+    #[derive(Documented)]
+    struct Formatting;
+
+    impl Action for Formatting {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("formatting")
+        }
+
+        fn additional_tools(&self) -> Vec<Tools> {
+            vec![Prettier::TOOLS]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
 
     /// Returns the context of a run in the root of this repository
     ///
-    /// The repository pins a Node that the range of the crate accepts, and
-    /// it installs the prettier that the crate declares. The crate lives two
-    /// directories below the root.
+    /// The repository pins a Node, and it installs the prettier that the
+    /// crate declares. The crate lives two directories below the root.
     fn context() -> Context {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let root = manifest
@@ -312,14 +327,19 @@ mod tests {
     #[tokio::test]
     async fn resolve_runs_prettier_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_requirement()
-            .requirement(&Prettier::node_requirement())
+        let node = Tool::resolve_toolchain()
+            .action(&Formatting)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(&context)
             .call()
             .await
             .expect("the test resolves the Node that the repository pins");
 
-        let prettier = Prettier::resolve(&context)
+        let prettier = Prettier::resolve()
+            .action(&Formatting)
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the prettier that the crate declares");
 
@@ -334,5 +354,16 @@ mod tests {
             std::env::split_paths(&path).next().as_deref(),
             node.program().get().parent()
         );
+    }
+
+    #[test]
+    fn tools_declare_prettier_alone() {
+        let tools: Vec<String> = Prettier::TOOLS
+            .requirements()
+            .iter()
+            .map(|requirement| requirement.tool().get().to_owned())
+            .collect();
+
+        assert_eq!(tools, [PRETTIER]);
     }
 }

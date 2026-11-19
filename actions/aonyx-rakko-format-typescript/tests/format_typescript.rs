@@ -28,7 +28,7 @@ use aonyx_rakko_format_typescript::{
 };
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent};
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
-use rakko_tool::ResolveRequirementError;
+use rakko_tool::{ResolveToolError, ResolveToolchainError};
 use tempfile::TempDir;
 
 /// TypeScript that oxfmt would rewrite
@@ -54,6 +54,18 @@ const TOOL_PIN: &str = "oxfmt";
 
 /// The header of the table of tools in a mise configuration
 const TOOLS_TABLE: &str = "[tools]\n";
+
+/// A program that stands in for a Node that the tool does not support
+///
+/// The program writes a sentence on its standard error stream and fails
+/// before it runs anything. A release of Node can do the same with a tool that
+/// needs a newer release.
+#[cfg(unix)]
+const FAILING_NODE: &str = "#!/bin/sh\necho 'this release of Node is not supported' >&2\nexit 1\n";
+
+/// The sentence that the failing Node writes
+#[cfg(unix)]
+const UNSUPPORTED: &str = "this release of Node is not supported";
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -90,6 +102,35 @@ impl Project {
         trust(&copy);
 
         project
+    }
+
+    /// Creates a project that pins a Node that fails before it runs anything
+    ///
+    /// The project pins Node as a directory of its own, which mise reads as
+    /// an installed Node. So no machine has to install a release that the
+    /// tool does not support. Mise ignores a configuration that nobody
+    /// trusts, so the configuration is trusted right away.
+    #[cfg(unix)]
+    fn on_failing_node() -> Self {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let runtime = directory.path().join("runtime");
+        let program = runtime.join("bin").join("node");
+        std::fs::create_dir_all(runtime.join("bin"))
+            .expect("the test creates the directory of the Node");
+        std::fs::write(&program, FAILING_NODE).expect("the test writes the Node");
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755))
+            .expect("the test makes the Node executable");
+        let pins = directory.path().join("mise.toml");
+        std::fs::write(
+            &pins,
+            format!("[tools]\nnode = \"path:{}\"\n", runtime.display()),
+        )
+        .expect("the test writes the mise.toml of the project");
+        trust(&pins);
+
+        Self { directory }
     }
 
     /// Returns the context of a run against this project
@@ -322,7 +363,7 @@ async fn fixing_run_that_left_a_problem_holds_the_repairs_beside_it() {
 }
 
 #[tokio::test]
-async fn report_in_a_missing_directory_stops_on_node() {
+async fn report_in_a_missing_directory_stops_without_oxfmt() {
     let parent = tempfile::tempdir().expect("the test creates a temporary directory");
     let missing = parent.path().join("missing");
     let context = Context::builder().root(missing.as_path()).build();
@@ -338,45 +379,11 @@ async fn report_in_a_missing_directory_stops_on_node() {
                 if matches!(
                     source.downcast_ref(),
                     Some(FormatTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::MiseUnavailable { tool, .. },
-                    }) if tool.get() == "node"
+                        source: ResolveToolError::MiseUnavailable { tool, .. },
+                    }) if tool.get() == "oxfmt"
                 )
         ),
-        "expected the run to stop before it resolves Node, got {outcome:?}"
-    );
-}
-
-#[tokio::test]
-async fn report_in_a_project_with_node_between_the_releases_of_oxfmt_stops_on_node() {
-    let directory = tempfile::tempdir().expect("the test creates a temporary directory");
-    let pins = directory.path().join("mise.toml");
-    std::fs::write(&pins, "[tools]\nnode = \"21.0.0\"\n")
-        .expect("the test writes the mise.toml of the project");
-    trust(&pins);
-    let context = Context::builder().root(directory.path()).build();
-
-    let outcome = FormatTypeScript
-        .run(&context, &FormatTypeScriptArgs::default())
-        .await;
-
-    let _ = Command::new("mise")
-        .arg("trust")
-        .arg("--quiet")
-        .arg("--untrust")
-        .arg(&pins)
-        .status();
-    assert!(
-        matches!(
-            &outcome,
-            Outcome::Errored { source }
-                if matches!(
-                    source.downcast_ref(),
-                    Some(FormatTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::VersionOutOfRange { tool, .. },
-                    }) if tool.get() == "node"
-                )
-        ),
-        "expected the run to stop on Node 21.0.0, which oxfmt does not support, got {outcome:?}"
+        "expected the run to stop before it resolves oxfmt, got {outcome:?}"
     );
 }
 
@@ -395,9 +402,9 @@ async fn report_in_a_project_without_node_stops_on_node() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(FormatTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::UnresolvedToolchain { tool, .. },
-                    }) if tool.get() == "node"
+                    Some(FormatTypeScriptError::UnresolvedToolchain {
+                        source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                    }) if toolchain.get() == "node"
                 )
         ),
         "expected the run to stop without a Node, got {outcome:?}"
@@ -551,6 +558,29 @@ async fn report_of_an_unformatted_file_names_it() {
         panic!("expected the run to fail, got {outcome:?}");
     };
     assert_eq!(locations(&findings), [path_text("src/index.ts")]);
+}
+
+/// Shows that a Node that oxfmt cannot run on stops the run with what Node
+/// wrote, and does not pass it
+///
+/// The action requires no range of Node, so the run starts oxfmt on the Node
+/// that the project pins, whatever its release.
+#[cfg(unix)]
+#[tokio::test]
+async fn report_on_a_node_that_fails_stops_with_what_node_wrote() {
+    let project = Project::on_failing_node();
+    project
+        .write()
+        .path("src/index.ts")
+        .content(FORMATTED)
+        .call();
+
+    let outcome = project.report().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }) && format!("{outcome:?}").contains(UNSUPPORTED),
+        "expected the run to stop with what Node wrote, got {outcome:?}"
+    );
 }
 
 #[tokio::test]

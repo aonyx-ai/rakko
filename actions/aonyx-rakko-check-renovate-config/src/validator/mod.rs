@@ -6,12 +6,14 @@
 
 mod error;
 pub(crate) mod report;
+mod resolve_error;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion, VersionRange};
-use rakko_tool::{Invocation, Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Invocation, Launch, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveValidatorError;
 use self::report::Report;
+pub(crate) use self::resolve_error::ResolveValidatorError;
 use crate::observation::Observation;
 
 /// The name that mise knows the tool by
@@ -20,22 +22,14 @@ const RENOVATE: &str = "npm:renovate";
 /// The program of the tool that validates a configuration
 const VALIDATOR: &str = "renovate-config-validator";
 
-/// The version of Renovate that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(RENOVATE);
-
 /// The name that mise knows Node by, which is also the name of its program
-const NODE: &str = "node";
-
-/// The versions of Node that the validator runs on
 ///
-/// Node is a toolchain of the project, so the project pins its version, and
-/// a run stops when that version is outside the range. The range is the one
-/// of the package: 24.11 and later releases of 24, and 26.13 and later
-/// releases of 26.
-const NODE_RANGE: &str = "^24.11.0 || ^26.13.0";
+/// The validator starts Node by this name, and Node is a toolchain of the
+/// project. So the project pins its version, and the action requires no
+/// range of it. The validator can run on a Node that the package of Renovate
+/// does not support. Then it validates, or it fails with the error message of
+/// Node, and the run reports that failure.
+const NODE: &str = "node";
 
 /// The option that asks the validator for strict validation
 ///
@@ -117,9 +111,8 @@ const INVALID: i32 = 1;
 /// The value holds the program that mise installed at the version that the
 /// crate declares. The pin of the project does not change it. So a run reaches
 /// the version that the tests of the crate cover. The program runs on the Node
-/// that the project pins, when the range of the crate accepts it. Nothing here
-/// installs a tool: provisioning is the job of mise, and a validator that mise
-/// does not report stops the caller.
+/// that the project pins. Nothing here installs a tool: provisioning is the job
+/// of mise, and a validator that mise does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Validator {
     /// The program that mise installed at the declared version
@@ -131,6 +124,7 @@ pub(crate) struct Validator {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Validator {
     /// Runs the validator over the project and reads what it reported
     ///
@@ -180,60 +174,51 @@ impl Validator {
         observe(self.preset_invocation(), &self.output).await
     }
 
-    /// Returns the requirement of the Node that the validator runs on
+    /// Returns the validator that mise installed at the version that the
+    /// action declares, on the Node that the project pins
     ///
-    /// Node is a toolchain, so the requirement holds the range of versions
-    /// that the validator accepts, and the project pins the version.
-    pub(crate) fn node_requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(NODE)
-            .executable(NODE)
-            .version(RequiredVersion::Range(VersionRange::new(NODE_RANGE)))
-            .build()
-    }
-
-    /// Returns the requirement of the validator that the crate runs
-    ///
-    /// The requirement holds the exact version that the crate pins.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(RENOVATE)
-            .executable(VALIDATOR)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the validator that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of the tool in the project does not change the answer.
-    /// It also asks mise for the Node that the project pins and that
-    /// [`node_requirement`][node] accepts. A run starts in the root of the
-    /// context, with that Node first on its path.
+    /// The lookup reads the tools that the action declares, which hold the
+    /// pin of Renovate in the mise file of the crate. So a pin of the tool in
+    /// the project does not change the answer. It also asks mise for the first
+    /// Node that the project pins. A run starts in the root of the context,
+    /// with that Node first on its path.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
-    /// returns one when the project pins no Node in the range. It also returns
-    /// one when mise reports no validator at the declared version or no Node at
-    /// the pinned one. This happens, for example, because nothing installed
-    /// that validator or that Node. It also returns one when the directory of
-    /// that Node cannot be an entry of `PATH`.
+    /// Returns [`UnresolvedTool`][tool] when the action does not declare
+    /// Renovate, or when mise reports no validator at that version, for
+    /// example because nothing installed it. Returns
+    /// [`UnresolvedToolchain`][toolchain] when the project pins no Node, or
+    /// when mise did not install that Node. It also returns that error when the
+    /// directory of that Node cannot be an entry of `PATH`. Both errors also
+    /// occur when mise does not run.
     ///
-    /// [node]: Validator::node_requirement
-    /// [requirement]: Validator::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement()
-            .requirement(&Self::node_requirement())
+    /// [tool]: ResolveValidatorError::UnresolvedTool
+    /// [toolchain]: ResolveValidatorError::UnresolvedToolchain
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        action: &A,
+        context: &Context,
+    ) -> Result<Self, ResolveValidatorError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(RENOVATE)
+            .executable(VALIDATOR)
             .context(context)
             .call()
-            .await?;
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+            .await
+            .map_err(|source| ResolveValidatorError::UnresolvedTool { source })?;
+        let node = Tool::resolve_toolchain()
+            .action(action)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(context)
             .call()
-            .await?
-            .with_toolchain(&node)?;
+            .await
+            .map_err(|source| ResolveValidatorError::UnresolvedToolchain { source })?;
+        let tool = tool
+            .with_toolchain(&node)
+            .map_err(|source| ResolveValidatorError::UnresolvedToolchain { source })?;
 
         Ok(Self {
             tool,
@@ -393,6 +378,7 @@ mod tests {
     use std::path::Path;
 
     use super::*;
+    use crate::CheckRenovateConfig;
 
     /// A log that announces one configuration and reports nothing about it
     const VALID_LOG: &str = "{\"level\":30,\"msg\":\"Validating renovate.json\"}\n\
@@ -428,9 +414,8 @@ mod tests {
 
     /// Returns the context of a run in the repository that the tests run in
     ///
-    /// The repository pins a Node that the range of the crate accepts. The
-    /// repository also installs the Renovate that the crate declares, so the
-    /// tests resolve the validator there.
+    /// The repository pins a Node. The repository also installs the Renovate
+    /// that the crate declares, so the tests resolve the validator there.
     fn context() -> Context {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let root = manifest
@@ -443,7 +428,10 @@ mod tests {
 
     /// Returns the validator that the crate declares
     async fn validator() -> Validator {
-        Validator::resolve(&context())
+        Validator::resolve()
+            .action(&CheckRenovateConfig)
+            .context(&context())
+            .call()
             .await
             .expect("expected mise to report the validator that the crate declares")
     }
@@ -593,8 +581,10 @@ mod tests {
 
     #[tokio::test]
     async fn invocation_runs_on_the_node_of_the_project() {
-        let node = Tool::resolve_requirement()
-            .requirement(&Validator::node_requirement())
+        let node = Tool::resolve_toolchain()
+            .action(&CheckRenovateConfig)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(&context())
             .call()
             .await

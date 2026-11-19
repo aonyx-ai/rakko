@@ -1,6 +1,7 @@
 //! What the crate reports when it cannot resolve a toolchain of the project
 
 use kawauso_process::error::RunCommandError;
+use kawauso_process::invocation::Program;
 use rakko::{Executable, MiseTool, ToolVersion, VersionRange};
 use thiserror::Error;
 
@@ -135,6 +136,25 @@ pub enum ResolveToolchainError {
 
         /// The range of versions that the requirement accepts
         range: VersionRange,
+    },
+
+    /// The directory of the program of the toolchain cannot be an entry of
+    /// `PATH`
+    ///
+    /// A tool that starts its toolchain by name, such as a package for Node,
+    /// finds the program of the toolchain through the variable `PATH`. An
+    /// entry of `PATH` cannot hold the separator of the entries, such as `:`
+    /// on Unix. A program without a directory gives no entry either. Without
+    /// the entry, the tool runs on a toolchain that the environment chose
+    /// instead of the one that the project pins. So the run stops. A location
+    /// of the installs of mise without that character repairs the failure.
+    #[error(
+        "the toolchain `{}` has no directory that can be an entry of `PATH`",
+        program.get().display()
+    )]
+    UnplaceableToolchain {
+        /// The program of the toolchain that mise reported
+        program: Program,
     },
 
     /// Mise reports no version of the toolchain that the project pins

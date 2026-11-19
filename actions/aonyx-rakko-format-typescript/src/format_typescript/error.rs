@@ -2,10 +2,10 @@
 
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
-use crate::oxfmt::ObserveOxfmtError;
+use crate::oxfmt::{ObserveOxfmtError, ResolveOxfmtError};
 
 /// An error that stops a run of the action before it has an answer
 ///
@@ -75,21 +75,26 @@ pub enum FormatTypeScriptError {
         stderr: String,
     },
 
-    /// Mise reported no oxfmt at the version that the action declares, or no
-    /// Node that the action accepts
+    /// Mise reported no oxfmt at the version that the action declares
     ///
-    /// The cause is one of these conditions:
-    ///
-    /// - Mise did not run.
-    /// - The project pins no Node in the range of the action.
-    /// - Nothing installed the declared oxfmt or the pinned Node yet.
-    /// - The directory of that Node cannot be an entry of `PATH`.
-    ///
-    /// The action installs nothing, so the run stops here.
+    /// Mise did not run, or nothing installed the declared oxfmt yet. The
+    /// action installs nothing, so the run stops here.
     #[error("failed to resolve oxfmt")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
+    },
+
+    /// Mise reported no Node that the project pins for oxfmt
+    ///
+    /// Mise did not run, or the project pins no Node. Nothing installed the
+    /// pinned Node yet, or the directory of that Node cannot be an entry of
+    /// `PATH`. The action requires no range of Node. The action installs
+    /// nothing, so the run stops here.
+    #[error("failed to resolve the Node of oxfmt")]
+    UnresolvedToolchain {
+        /// The cause of the failure
+        source: ResolveToolchainError,
     },
 }
 
@@ -101,6 +106,22 @@ impl From<ObserveOxfmtError> for FormatTypeScriptError {
     fn from(error: ObserveOxfmtError) -> Self {
         match error {
             ObserveOxfmtError::OxfmtUnavailable { source } => Self::OxfmtUnavailable { source },
+        }
+    }
+}
+
+impl From<ResolveOxfmtError> for FormatTypeScriptError {
+    /// Turns the failure to resolve oxfmt into the error of the action
+    ///
+    /// The machinery that resolves oxfmt separates the tool from the
+    /// toolchain, as the action does, so the conversion renames the condition
+    /// and adds nothing.
+    fn from(error: ResolveOxfmtError) -> Self {
+        match error {
+            ResolveOxfmtError::UnresolvedTool { source } => Self::UnresolvedTool { source },
+            ResolveOxfmtError::UnresolvedToolchain { source } => {
+                Self::UnresolvedToolchain { source }
+            }
         }
     }
 }
