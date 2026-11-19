@@ -14,7 +14,7 @@ mod report;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use aonyx_rakko_cargo::{Cargo, CargoRoot, Toolchain, ToolchainSelection};
+use aonyx_rakko_cargo::{Cargo, CargoRoot, Toolchain};
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, SkipReason,
     Summary, ToolOutput, ToolchainRequirement, action_name,
@@ -144,7 +144,6 @@ async fn drive(
 ) -> Result<Outcome, FormatRustError> {
     let cargo = Cargo::resolve()
         .action(action)
-        .selection(ToolchainSelection::Nightly)
         .context(context)
         .call()
         .await

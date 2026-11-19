@@ -321,16 +321,14 @@ impl Cargo {
     /// Returns the cargo of the Rust toolchain that the project pins for a
     /// run of an action
     ///
-    /// The selection picks the kind of pin that the run works on, and it is
-    /// the stable release unless the caller gives another one. The lookup also
-    /// reads what the action requires of `rust` from [`Action::toolchains`].
-    /// It takes the first toolchain that the project pins and that the
-    /// selection and the requirements accept, as [`Toolchain::resolve`] does.
-    /// A command of cargo then selects that toolchain, whatever toolchain the
+    /// The lookup reads what the action requires of `rust` from
+    /// [`Action::toolchains`]. Without a selection, the run works on the
+    /// dated nightly when the action requires one, and on the stable release
+    /// otherwise. So one toolchain answers every job of the action. The lookup
+    /// takes the first toolchain that the project pins and that the selection
+    /// and the requirements accept, as [`Toolchain::resolve`] does. A command
+    /// of cargo then selects that toolchain, whatever toolchain the
     /// environment or the files of the project select.
-    ///
-    /// An action that requires the nightly selects the nightly here too, so
-    /// that one toolchain answers every job of the action.
     ///
     /// # Errors
     ///
@@ -343,30 +341,25 @@ impl Cargo {
     ///
     /// ```no_run
     /// use rakko::{Action, Context, ProjectRoot};
-    /// use aonyx_rakko_cargo::{Cargo, ToolchainSelection};
+    /// use aonyx_rakko_cargo::Cargo;
     ///
     /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-    /// let cargo = Cargo::resolve()
-    ///     .action(action)
-    ///     .selection(ToolchainSelection::Nightly)
-    ///     .context(&context)
-    ///     .call()
-    ///     .await?;
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
     ///
-    /// assert!(cargo.toolchain().get().starts_with("nightly-"));
+    /// println!("{}", cargo.toolchain());
     /// # Ok(())
     /// # }
     /// ```
     #[builder]
     pub async fn resolve<A: Action>(
         action: &A,
-        #[builder(default)] selection: ToolchainSelection,
+        selection: Option<ToolchainSelection>,
         context: &Context,
     ) -> Result<Self, ResolveToolchainError> {
         let tool = Toolchain::tool()
             .action(action)
-            .selection(&selection)
+            .maybe_selection(selection.as_ref())
             .context(context)
             .call()
             .await?;

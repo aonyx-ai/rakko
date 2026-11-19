@@ -13,6 +13,7 @@ use bon::bon;
 use rakko::{Action, Context, ToolchainRequirement};
 use rakko_tool::{ResolveToolchainError, Tool};
 
+use self::selection::DATED_NIGHTLIES;
 pub use self::selection::ToolchainSelection;
 use crate::cargo::{CARGO, RUST};
 
@@ -46,8 +47,8 @@ impl Toolchain {
     /// `nightly-2026-11-02`. An action returns it from
     /// [`Action::toolchains`]. Then `doctor` reports a project that pins
     /// none, and a run of the action stops with an error that asks for such
-    /// a pin. The action also selects [`ToolchainSelection::Nightly`],
-    /// because the requirement applies to every lookup of Rust by the action.
+    /// a pin. A lookup of Rust for the action that gives no selection then
+    /// runs on the nightly, so the action states the nightly only once.
     ///
     /// # Examples
     ///
@@ -61,21 +62,21 @@ impl Toolchain {
     pub fn nightly_requirement() -> ToolchainRequirement {
         ToolchainRequirement::builder()
             .toolchain(RUST)
-            .versions(ToolchainSelection::Nightly.range())
+            .versions(rakko::VersionRange::new(DATED_NIGHTLIES))
             .build()
     }
 
     /// Returns the Rust toolchain that the project pins for a job of an
     /// action
     ///
-    /// The selection picks the kind of pin that the job runs on. That is the
-    /// stable release by default. It can also be the dated nightly, or the
-    /// release that a run knows, such as the `rust-version` of a manifest.
-    /// The lookup also reads
-    /// what the action requires of `rust` from [`Action::toolchains`], such as
-    /// [`nightly_requirement`][nightly]. It takes the first toolchain that the
-    /// project pins and that the selection and all of these accept, as
-    /// [`Tool::resolve_toolchain`] does.
+    /// The lookup reads what the action requires of `rust` from
+    /// [`Action::toolchains`], such as [`nightly_requirement`][nightly]. A
+    /// selection picks the kind of pin that the job runs on. An example is the
+    /// release that the `rust-version` of a manifest declares.
+    /// Without a selection, the job runs on the dated nightly when the action
+    /// requires one, and on the stable release otherwise. The lookup takes
+    /// the first toolchain that the project pins and that the selection and
+    /// all the requirements accept, as [`Tool::resolve_toolchain`] does.
     ///
     /// A pin in the global configuration of the user does not count, and
     /// neither does a pin in a directory above the project. The lookup starts
@@ -120,12 +121,12 @@ impl Toolchain {
     #[builder]
     pub async fn resolve<A: Action>(
         action: &A,
-        #[builder(default)] selection: ToolchainSelection,
+        selection: Option<ToolchainSelection>,
         context: &Context,
     ) -> Result<Self, ResolveToolchainError> {
         let tool = Self::tool()
             .action(action)
-            .selection(&selection)
+            .maybe_selection(selection.as_ref())
             .context(context)
             .call()
             .await?;
@@ -136,20 +137,26 @@ impl Toolchain {
     /// Returns the cargo of the Rust toolchain that a selection and the
     /// requirements of an action accept
     ///
+    /// Without a selection, the requirements of the action pick one, as
+    /// [`ToolchainSelection`] says.
+    ///
     /// # Errors
     ///
     /// Returns the error of [`Tool::resolve_toolchain`].
     #[builder]
     pub(crate) async fn tool<A: Action>(
         action: &A,
-        selection: &ToolchainSelection,
+        selection: Option<&ToolchainSelection>,
         context: &Context,
     ) -> Result<Tool, ResolveToolchainError> {
         Tool::resolve_toolchain()
             .action(action)
             .toolchain(RUST)
             .executable(CARGO)
-            .accepting(selection.range())
+            .accepting(ToolchainSelection::range_of(
+                selection,
+                &action.toolchains(),
+            ))
             .context(context)
             .call()
             .await

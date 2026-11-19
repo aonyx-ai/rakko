@@ -25,7 +25,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use aonyx_rakko_cargo::{Cargo, Toolchain, ToolchainSelection};
+use aonyx_rakko_cargo::{Cargo, Toolchain};
 use aonyx_rakko_check_unused_deps::{CheckUnusedDeps, CheckUnusedDepsError};
 use rakko::{
     Action, Args, Context, Finding, Location, Outcome, ProjectRoot, Summary, ToolEvent, ToolStream,
@@ -211,7 +211,6 @@ impl Project {
     async fn lock(&self) {
         let Ok(cargo) = Cargo::resolve()
             .action(&CheckUnusedDeps)
-            .selection(ToolchainSelection::Nightly)
             .context(&self.context())
             .call()
             .await

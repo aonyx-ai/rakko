@@ -11,7 +11,7 @@
 
 mod error;
 
-use aonyx_rakko_cargo::{Cargo, CargoRoot, Toolchain, ToolchainSelection};
+use aonyx_rakko_cargo::{Cargo, CargoRoot, Toolchain};
 use aonyx_rakko_nextest::{Lockfile, Nextest};
 use aonyx_rakko_worktree::Worktree;
 use rakko::{
@@ -156,7 +156,6 @@ async fn drive(
 ) -> Result<Outcome, CheckMinimalDepsError> {
     let cargo = Cargo::resolve()
         .action(action)
-        .selection(ToolchainSelection::Nightly)
         .context(context)
         .call()
         .await

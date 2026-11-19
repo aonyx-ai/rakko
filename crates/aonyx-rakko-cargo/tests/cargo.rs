@@ -686,6 +686,28 @@ async fn report_of_a_check_reads_what_the_pinned_cargo_wrote() {
     );
 }
 
+/// Shows that an action that requires the nightly states it only once
+///
+/// The repository pins a release before its nightly, and the run gives no
+/// selection. The requirement of the action picks the nightly.
+#[tokio::test]
+async fn resolve_for_an_action_that_requires_the_nightly_selects_the_dated_pin() {
+    let context = Context::builder().root(repository()).build();
+
+    let cargo = Cargo::resolve()
+        .action(&Requiring(vec![Toolchain::nightly_requirement()]))
+        .context(&context)
+        .call()
+        .await;
+
+    assert!(
+        cargo
+            .as_ref()
+            .is_ok_and(|cargo| cargo.toolchain().get().starts_with("nightly-")),
+        "expected the dated nightly of the repository, got {cargo:?}"
+    );
+}
+
 #[tokio::test]
 async fn resolve_in_a_project_that_pins_rust_finds_the_program() {
     let project = Project::new();
@@ -716,25 +738,6 @@ async fn resolve_in_this_repository_selects_the_toolchain_that_mise_selects() {
     );
 }
 
-#[tokio::test]
-async fn resolve_of_the_nightly_with_a_release_pinned_first_selects_the_dated_pin() {
-    let context = Context::builder().root(repository()).build();
-
-    let cargo = Cargo::resolve()
-        .action(&Requiring(vec![Toolchain::nightly_requirement()]))
-        .selection(ToolchainSelection::Nightly)
-        .context(&context)
-        .call()
-        .await;
-
-    assert!(
-        cargo
-            .as_ref()
-            .is_ok_and(|cargo| cargo.toolchain().get().starts_with("nightly-")),
-        "expected the dated nightly of the repository, got {cargo:?}"
-    );
-}
-
 /// Shows that one toolchain answers every lookup of an action
 ///
 /// The requirement of the nightly applies to the lookup of the stable
@@ -745,6 +748,7 @@ async fn resolve_of_the_stable_toolchain_for_an_action_that_requires_the_nightly
 
     let cargo = Cargo::resolve()
         .action(&Requiring(vec![Toolchain::nightly_requirement()]))
+        .selection(ToolchainSelection::Stable)
         .context(&context)
         .call()
         .await;
@@ -1614,7 +1618,6 @@ async fn toolchain_resolve_of_an_action_that_requires_the_nightly_answers_the_da
 
     let toolchain = Toolchain::resolve()
         .action(&Requiring(vec![Toolchain::nightly_requirement()]))
-        .selection(ToolchainSelection::Nightly)
         .context(&context)
         .call()
         .await;
@@ -1634,7 +1637,6 @@ async fn toolchain_resolve_of_an_action_that_requires_the_nightly_without_a_date
 
     let toolchain = Toolchain::resolve()
         .action(&Requiring(vec![Toolchain::nightly_requirement()]))
-        .selection(ToolchainSelection::Nightly)
         .context(&project.context())
         .call()
         .await;
@@ -1659,8 +1661,7 @@ async fn toolchain_resolve_of_the_nightly_with_a_bare_channel_reports_it() {
     let project = Project::with_rust(&format!("[\"{pin}\", \"nightly\"]"));
 
     let toolchain = Toolchain::resolve()
-        .action(&Requiring(Vec::new()))
-        .selection(ToolchainSelection::Nightly)
+        .action(&Requiring(vec![Toolchain::nightly_requirement()]))
         .context(&project.context())
         .call()
         .await;

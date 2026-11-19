@@ -8,7 +8,7 @@
 mod error;
 
 use aonyx_rakko_cargo::lockfile::{self, LOCKED};
-use aonyx_rakko_cargo::{Cargo, CargoReport, CargoRoot, Toolchain, ToolchainSelection};
+use aonyx_rakko_cargo::{Cargo, CargoReport, CargoRoot, Toolchain};
 use rakko::{
     Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
     ToolchainRequirement, Tools, action_name,
@@ -151,7 +151,6 @@ async fn drive(
 ) -> Result<Outcome, CheckUnusedDepsError> {
     let cargo = Cargo::resolve()
         .action(action)
-        .selection(ToolchainSelection::Nightly)
         .context(context)
         .call()
         .await
