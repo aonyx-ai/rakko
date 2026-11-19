@@ -1,0 +1,20 @@
+[package]
+name = "otter-test-node"
+version = "0.0.0"
+description = "The example action of the guide Use a Toolchain From an Action on the website of Rakko"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+rakko = { workspace = true }
+rakko-tool = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

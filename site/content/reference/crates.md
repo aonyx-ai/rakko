@@ -33,6 +33,14 @@ The crate of your own action can have any name. If you want, you can put the
 name of your organization and then `rakko` in front of it, such as
 `otter-rakko-check-readme`.
 
+## Versions
+
+The crates started at 0.1. A release before 1.0 can break the API, and the
+documentation of each breaking release gives the steps to migrate. All the
+crates go to 1.0 together, after every harness of Aonyx runs a release for
+four weeks without a break. Each breaking release starts the four weeks again.
+[Migrate From 0.1][migrate] gives the steps for the first break.
+
 ## The Command Line
 
 Your harness defines its own set of commands. Use its help to list the
@@ -44,6 +52,7 @@ mise run rakko -- --help
 mise run rakko -- format-rust --help
 ```
 
+[migrate]: @/how-to/migrate-from-0-1.md
 [mise]: https://mise.jdx.dev
 [rakko]: https://docs.rs/rakko
 [rakko-cli]: https://docs.rs/rakko-cli
