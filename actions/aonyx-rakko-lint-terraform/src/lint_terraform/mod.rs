@@ -11,7 +11,7 @@ use std::path::Path;
 
 use rakko::{
     Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, ProjectRoot,
-    ToolRequirement, action_name,
+    Tools, action_name,
 };
 
 pub use self::error::LintTerraformError;
@@ -70,12 +70,12 @@ impl Action for LintTerraform {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Tflint::requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(context, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -90,8 +90,11 @@ impl Action for LintTerraform {
 ///
 /// Returns the error of the step that could not finish. That step is the
 /// resolution of the tool, the run of TFLint, or the reading of its report.
-async fn drive(context: &Context) -> Result<Outcome, LintTerraformError> {
-    let tflint = Tflint::resolve(context)
+async fn drive(context: &Context, action: &LintTerraform) -> Result<Outcome, LintTerraformError> {
+    let tflint = Tflint::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| LintTerraformError::UnresolvedTool { source })?;
 
@@ -254,9 +257,23 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_the_tflint_of_the_crate() {
+    fn tools_declare_tflint_alone() {
         let tools = LintTerraform.tools();
 
-        assert_eq!(tools, [Tflint::requirement()]);
+        let names: Vec<&str> = tools.iter().map(|tool| tool.tool().get()).collect();
+
+        assert_eq!(names, ["tflint"]);
+    }
+
+    #[test]
+    fn tools_declare_the_exact_version_of_the_crate() {
+        let tools = LintTerraform.tools();
+
+        let version = tools[0].version();
+
+        assert!(
+            include_str!("../../mise.rakko.toml").contains(&format!("tflint = \"{version}\"")),
+            "expected the version of the mise file of the crate, got {version}"
+        );
     }
 }

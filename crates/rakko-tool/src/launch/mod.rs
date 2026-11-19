@@ -2,7 +2,7 @@
 //!
 //! A package manager for Node installs a tool as a script, with a launcher
 //! beside it under the same name. On Windows the launcher is a batch file,
-//! and [`Tool::resolve_requirement`][resolve] answers with it, because
+//! and [`Tool::resolve`][resolve] answers with it, because
 //! Windows cannot start the script. A batch file runs in `cmd.exe`, and
 //! `cmd.exe` stops when the operating system refuses it a file that another
 //! process holds at that moment. It writes the message of the operating
@@ -13,7 +13,7 @@
 //! the run that does that, so that an action receives the answer of its tool
 //! and not the refusal of the launcher.
 //!
-//! [resolve]: crate::Tool::resolve_requirement
+//! [resolve]: crate::Tool::resolve
 
 mod shown_streams;
 
@@ -71,19 +71,19 @@ const SHARING_VIOLATION: i32 = 32;
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+/// use rakko::{Action, Context};
 /// use rakko_tool::{Launch, ShownStreams, Tool};
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let requirement = ToolRequirement::builder()
-///     .tool("npm:prettier")
-///     .executable("prettier")
-///     .version(RequiredVersion::Exact(ToolVersion::new("3.9.10")))
-///     .build();
+/// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
 /// let context = Context::builder().root("/home/otter/project").build();
 ///
-/// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
+/// let tool = Tool::resolve()
+///     .action(action)
+///     .tool("npm:prettier")
+///     .executable("prettier")
+///     .context(&context)
+///     .call()
+///     .await?;
 ///
 /// let execution = tool
 ///     .invocation()
@@ -168,19 +168,19 @@ pub trait Launch: Sealed {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko::{Action, Context};
     /// use rakko_tool::{Launch, ShownStreams, Tool};
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("taplo")
-    ///     .executable("taplo")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
-    ///     .build();
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root("/home/otter/project").build();
     ///
-    /// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
+    /// let tool = Tool::resolve()
+    ///     .action(action)
+    ///     .tool("taplo")
+    ///     .executable("taplo")
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
     ///
     /// let execution = tool
     ///     .invocation()
@@ -384,12 +384,12 @@ mod tests {
 
     #[cfg(windows)]
     use kawauso_process::invocation::Program;
-    use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+    use rakko::{Action, Context, Documented, Name, Outcome, ProjectRoot, action_name};
     #[cfg(windows)]
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{MiseFile, Tool};
+    use crate::Tool;
 
     /// A launcher that the operating system refuses once and then runs
     #[cfg(windows)]
@@ -789,21 +789,34 @@ mod tests {
             .clone()
     }
 
+    /// An action that declares nothing, which looks up the jq of the
+    /// repository
+    #[derive(Documented)]
+    struct Probe;
+
+    impl Action for Probe {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("probe")
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
+
     /// Returns the jq that the repository pins
+    ///
+    /// The repository pins jq in its own `mise.toml`, and no action declares
+    /// it. So the lookup takes the pin of the project, as for a toolchain.
     async fn jq() -> Tool {
-        let pins = std::fs::read_to_string(root().get().join("mise.toml"))
-            .expect("the test reads the mise.toml of the repository");
-        let requirement = ToolRequirement::builder()
-            .tool("jq")
-            .executable("jq")
-            .version(RequiredVersion::Exact(ToolVersion::new(
-                MiseFile::new(&pins).pinned_version("jq"),
-            )))
-            .build();
         let context = Context::builder().root(root()).build();
 
-        Tool::resolve_requirement()
-            .requirement(&requirement)
+        Tool::resolve_toolchain()
+            .action(&Probe)
+            .toolchain("jq")
+            .executable("jq")
             .context(&context)
             .call()
             .await

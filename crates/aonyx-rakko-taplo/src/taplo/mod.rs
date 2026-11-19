@@ -1,8 +1,8 @@
 //! The taplo that a project runs
 //!
-//! This module holds the version of taplo that the crate declares, the
-//! program that mise installed at that version, and the run of one
-//! operation. An action states which operation it wants, and
+//! This module holds the tools that the crate declares, and the program that
+//! mise installed at the version of taplo that they give. It also holds the
+//! run of one operation. An action states which operation it wants, and
 //! everything between the action and the process lives here.
 
 mod error;
@@ -10,10 +10,8 @@ mod error;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{
-    Execution, Invocation, Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool,
-};
+use rakko::{Action, Context, ProjectRoot, ToolOutput, Tools};
+use rakko_tool::{Execution, Invocation, Launch, ResolveToolError, ShownStreams, Tool};
 
 pub use self::error::ObserveTaploError;
 use crate::observation::Observation;
@@ -44,12 +42,6 @@ const BACKOFF: Duration = Duration::from_millis(25);
 /// The name that mise knows the tool by, which is also the name of its
 /// program
 const TAPLO: &str = "taplo";
-
-/// The version of taplo that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(TAPLO);
 
 /// The variable that selects which lines of its log taplo writes
 ///
@@ -102,8 +94,8 @@ const PLAIN: &str = "never";
 /// installs a tool: provisioning is the job of mise, and a taplo that mise
 /// does not report stops the caller.
 ///
-/// An action that runs taplo declares [`requirement`][requirement] among its
-/// tools, so that the machinery can read the version.
+/// An action that runs taplo adds [`TOOLS`][tools] to its tools, so that the
+/// machinery can read the version, and a run can resolve taplo.
 ///
 /// # Examples
 ///
@@ -112,10 +104,9 @@ const PLAIN: &str = "never";
 /// use aonyx_rakko_taplo::{Operation, Taplo};
 /// use rakko_test_utils::path;
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
 /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-/// let taplo = Taplo::resolve(&context).await?;
+/// let taplo = Taplo::resolve().context(&context).action(action).call().await?;
 ///
 /// let observation = taplo.observe(Operation::CheckFormat).await?;
 ///
@@ -124,7 +115,7 @@ const PLAIN: &str = "never";
 /// # }
 /// ```
 ///
-/// [requirement]: Taplo::requirement
+/// [tools]: Taplo::TOOLS
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Taplo {
     /// The root of the project that taplo runs in
@@ -142,7 +133,44 @@ pub struct Taplo {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Taplo {
+    /// The tools that the mise file of the crate pins, which is taplo alone
+    ///
+    /// An action that runs taplo through this crate returns the constant from
+    /// [`Action::additional_tools`]. The crate keeps the pin, so every action
+    /// that uses it runs the version that the tests of the crate cover.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rakko::{Action, Context, Documented, Name, Outcome, Tools, action_name};
+    /// use aonyx_rakko_taplo::Taplo;
+    ///
+    /// /// Checks the TOML files of the project
+    /// #[derive(Documented)]
+    /// struct CheckToml;
+    ///
+    /// impl Action for CheckToml {
+    ///     type Args = ();
+    ///
+    ///     fn name(&self) -> Name {
+    ///         action_name!("check-toml")
+    ///     }
+    ///
+    ///     fn additional_tools(&self) -> Vec<Tools> {
+    ///         vec![Taplo::TOOLS]
+    ///     }
+    ///
+    ///     async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+    ///         Outcome::Passed { summary: None }
+    ///     }
+    /// }
+    ///
+    /// assert_eq!(CheckToml.tools()[0].tool().get(), "taplo");
+    /// ```
+    pub const TOOLS: Tools = rakko::bundled_tools!();
+
     /// Runs one operation and reads what taplo reported
     ///
     /// Each attempt sends what taplo writes to the tool output of the context
@@ -184,10 +212,9 @@ impl Taplo {
     /// use aonyx_rakko_taplo::{Operation, Taplo};
     /// use rakko_test_utils::path;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-    /// let taplo = Taplo::resolve(&context).await?;
+    /// let taplo = Taplo::resolve().context(&context).action(action).call().await?;
     /// let observation = taplo.observe(Operation::CheckFormat).await?;
     ///
     /// assert!(observation.problems().is_empty());
@@ -239,36 +266,13 @@ impl Taplo {
         answered.ok_or(unanswered)
     }
 
-    /// Returns the requirement of the taplo that the crate runs
+    /// Returns the taplo that mise installed at the version that an action
+    /// declares
     ///
-    /// The requirement holds the exact version that the crate pins. An action
-    /// that runs taplo returns it from its declaration of tools.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use aonyx_rakko_taplo::Taplo;
-    ///
-    /// let requirement = Taplo::requirement();
-    ///
-    /// assert_eq!(
-    ///     requirement.executable().map(rakko::Executable::get),
-    ///     Some("taplo")
-    /// );
-    /// ```
-    pub fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(TAPLO)
-            .executable(TAPLO)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the taplo that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of taplo in the project does not change the answer.
-    /// A run of taplo starts in the root of the context.
+    /// The lookup reads the tools that the action declares, which hold
+    /// [`TOOLS`][tools]. It asks mise for taplo at the version that they give,
+    /// so a pin of taplo in the project does not change the answer. A run of
+    /// taplo starts in the root of the context.
     ///
     /// # Examples
     ///
@@ -277,26 +281,31 @@ impl Taplo {
     /// use aonyx_rakko_taplo::Taplo;
     /// use rakko_test_utils::path;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
-    /// let taplo = Taplo::resolve(&context).await?;
+    /// let taplo = Taplo::resolve().context(&context).action(action).call().await?;
     ///
-    /// assert_eq!(taplo, Taplo::resolve(&context).await?);
+    /// assert_eq!(taplo, Taplo::resolve().context(&context).action(action).call().await?);
     /// # Ok(())
     /// # }
     /// ```
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
-    /// it reports no taplo at that version, for example because nothing
-    /// installed it.
+    /// Returns a [`ResolveToolError`] when the action does not declare taplo,
+    /// or when mise does not run. It also returns one when mise reports no
+    /// taplo at that version, for example because nothing installed it.
     ///
-    /// [requirement]: Taplo::requirement
-    pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    /// [tools]: Taplo::TOOLS
+    #[builder]
+    pub async fn resolve<A: Action>(
+        context: &Context,
+        action: &A,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(TAPLO)
+            .executable(TAPLO)
             .context(context)
             .call()
             .await?;
@@ -379,7 +388,29 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use rakko::{Documented, Name, Outcome, action_name};
+
     use super::*;
+
+    /// An action that runs taplo through the crate
+    #[derive(Documented)]
+    struct Wrapping;
+
+    impl Action for Wrapping {
+        type Args = ();
+
+        fn name(&self) -> Name {
+            action_name!("wrapping")
+        }
+
+        fn additional_tools(&self) -> Vec<Tools> {
+            vec![Taplo::TOOLS]
+        }
+
+        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+            Outcome::Passed { summary: None }
+        }
+    }
 
     /// Returns a directory that holds an entry with the given name
     fn directory_with(name: &str) -> tempfile::TempDir {
@@ -453,7 +484,10 @@ mod tests {
         let context = Context::builder()
             .root(ProjectRoot::new(PathBuf::from(env!("CARGO_MANIFEST_DIR"))))
             .build();
-        let taplo = Taplo::resolve(&context)
+        let taplo = Taplo::resolve()
+            .context(&context)
+            .action(&Wrapping)
+            .call()
             .await
             .expect("expected mise to report the taplo that the crate declares");
 

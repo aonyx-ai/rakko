@@ -5,8 +5,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use rakko::{
-    FilePath, Finding, Location, MiseTool, Platform, ProjectRoot, RequiredVersion, ToolRequirement,
-    ToolVersion,
+    FilePath, Finding, Location, MiseTool, Platform, ProjectRoot, ToolRequirement, ToolVersion,
 };
 use toml_edit::{Array, ArrayOfTables, DocumentMut, Item, Key, Table, Value};
 
@@ -80,8 +79,8 @@ const STALE: &str = "the generated file of the tool pins does not match the tool
 /// The exact versions of the tools that the mounted actions declare, each
 /// with the platforms where the tool has a build
 ///
-/// A toolchain is a decision of the project, so its range does not reach the
-/// generated file. Two actions can pin two versions of one tool. The file then
+/// A toolchain is a decision of the project and no declared tool, so it does
+/// not reach the generated file. Two actions can pin two versions of one tool. The file then
 /// pins both, and each action finds its own version.
 ///
 /// A version without a list of platforms is needed on every platform. A
@@ -99,10 +98,7 @@ impl Pins {
             BTreeMap::new();
 
         for requirement in requirements {
-            let RequiredVersion::Exact(version) = requirement.version() else {
-                continue;
-            };
-
+            let version = requirement.version();
             let platforms = requirement.platforms().cloned();
             let versions = pins.entry(requirement.tool().clone()).or_default();
 
@@ -424,7 +420,7 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
-    use rakko::{Architecture, OperatingSystem, VersionRange};
+    use rakko::{Architecture, OperatingSystem};
     use tempfile::TempDir;
 
     use super::*;
@@ -432,14 +428,11 @@ mod tests {
     /// Returns the requirement of a tool at an exact version on the platforms
     #[bon::builder]
     fn limited(tool: &str, version: &str, platforms: &[Platform]) -> ToolRequirement {
-        ToolRequirement::builder()
+        crate::declared::requirement()
             .tool(tool)
-            .executable(tool)
-            .exact_version_on(
-                ToolVersion::new(version),
-                platforms.iter().copied().collect::<BTreeSet<_>>(),
-            )
-            .build()
+            .version(version)
+            .platforms(platforms)
+            .call()
     }
 
     /// Returns the generated file of the requirements, without its header
@@ -501,21 +494,10 @@ mod tests {
     /// Returns the requirement of a tool at an exact version
     #[bon::builder]
     fn exact(tool: &str, version: &str) -> ToolRequirement {
-        ToolRequirement::builder()
+        crate::declared::requirement()
             .tool(tool)
-            .executable(tool)
-            .version(RequiredVersion::Exact(ToolVersion::new(version)))
-            .build()
-    }
-
-    /// Returns the requirement of a toolchain in a range
-    #[bon::builder]
-    fn range(tool: &str, range: &str) -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(tool)
-            .executable(tool)
-            .version(RequiredVersion::Range(VersionRange::new(range)))
-            .build()
+            .version(version)
+            .call()
     }
 
     /// Returns the message of the problem that the check finds in a project
@@ -703,13 +685,6 @@ mod tests {
         let pins = taplo();
 
         assert!(!pins.contains("jq"));
-    }
-
-    #[test]
-    fn of_leaves_out_a_toolchain() {
-        let pins = Pins::of(&[range().tool("node").range(">=22").call()]);
-
-        assert!(pins.is_empty());
     }
 
     #[test]

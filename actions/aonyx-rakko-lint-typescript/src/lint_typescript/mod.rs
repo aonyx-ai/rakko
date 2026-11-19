@@ -11,7 +11,7 @@ use std::path::Path;
 
 use rakko::{
     Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, ProjectRoot,
-    SkipReason, Summary, ToolRequirement, action_name,
+    SkipReason, Summary, Tools, action_name,
 };
 
 pub use self::error::LintTypeScriptError;
@@ -80,12 +80,12 @@ impl Action for LintTypeScript {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Oxlint::requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(context, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -104,8 +104,11 @@ impl Action for LintTypeScript {
 ///
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the oxlint run, or the reading of the report.
-async fn drive(context: &Context) -> Result<Outcome, LintTypeScriptError> {
-    let oxlint = Oxlint::resolve(context)
+async fn drive(context: &Context, action: &LintTypeScript) -> Result<Outcome, LintTypeScriptError> {
+    let oxlint = Oxlint::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| LintTypeScriptError::UnresolvedTool { source })?;
 
@@ -463,9 +466,23 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_the_oxlint_of_the_crate() {
+    fn tools_declare_oxlint_alone() {
         let tools = LintTypeScript.tools();
 
-        assert_eq!(tools, vec![Oxlint::requirement()]);
+        let names: Vec<&str> = tools.iter().map(|tool| tool.tool().get()).collect();
+
+        assert_eq!(names, ["oxlint"]);
+    }
+
+    #[test]
+    fn tools_declare_the_exact_version_of_the_crate() {
+        let tools = LintTypeScript.tools();
+
+        let version = tools[0].version();
+
+        assert!(
+            include_str!("../../mise.rakko.toml").contains(&format!("oxlint = \"{version}\"")),
+            "expected the version of the mise file of the crate, got {version}"
+        );
     }
 }

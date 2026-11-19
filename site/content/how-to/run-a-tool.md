@@ -64,43 +64,38 @@ Trust the file once:
 mise trust mise.rakko.toml
 ```
 
-## Read the Pin When the Crate Compiles
-
-Read the version and platforms from `mise.rakko.toml` at compile time. This
-keeps the action's declaration and the [mise] pin in one place:
-
-{{ <example crate="check-toml" file="src/lib.rs" region="pin" /> }}
-
-`include_str!` embeds the file in the crate. `MiseFile` reads it in a
-constant, so a missing taplo pin fails the build before anyone runs the
-action.
-
 ## Declare the Tool
 
-The action declares each tool that it runs as a `ToolRequirement`. The
-requirement holds the name of the tool in [mise], the program that the action
-starts, and the version that the action accepts:
-
-{{ <example crate="check-toml" file="src/lib.rs" region="requirement" /> }}
-
-When the pin lists platforms, `exact_version_on` sets the version and the
-platforms together. Otherwise, the requirement takes the exact version alone.
-
-The action returns its requirements from `tools`:
+Return the pins of `mise.rakko.toml` from `bundled_tools`:
 
 {{ <example crate="check-toml" file="src/lib.rs" region="tools" /> }}
 
-`tools` takes no arguments or context. Projects need the tool declarations
-before they can install tools or start a run. Return a requirement for every
-tool the action can use, regardless of its arguments.
+`bundled_tools!` embeds the file when the crate compiles. It reads every pin,
+with its version and its platforms. So the declaration and the [mise] pin stay
+in one place. A missing file, a version that is not exact, or an invalid
+platform name fails the build before anyone runs the action.
 
-### Declare a Toolchain
+The macro declares every pin of the file for each action that calls it. In the
+file, keep only the tools that your action runs. Rakko reads the declarations
+before any run, so projects can install the tools first.
+
+A crate can wrap a tool for several actions. It keeps the pin of that tool and
+offers its tools as a constant. For example, `aonyx-rakko-taplo` offers
+`Taplo::TOOLS`, and `format-toml` returns `vec![Taplo::TOOLS]` from
+`additional_tools`.
+
+### Use a Toolchain
 
 A toolchain is a compiler or runtime for the project, such as Rust or Node.js.
-The project pins its toolchains. Declare the versions your action accepts
-with `RequiredVersion::Range` and a `VersionRange` such as `>=22`. The action
-uses the project's pinned version if it falls within that range. Toolchains
-have no platform list.
+The project pins its toolchains, and your action does not pin them. Resolve a
+toolchain with `Tool::resolve_toolchain`, which takes the version that the
+project pins.
+
+Your action can need certain versions of a toolchain. It needs them when an
+older release gives a wrong result. It also needs them when the error of the
+toolchain does not say that its pin is the cause. Then return a
+`ToolchainRequirement` with a `VersionRange` such as `>=22` from `toolchains`.
+An unmet requirement stops only your action.
 
 Some tools start their toolchain by name, such as a package for Node.js that
 starts `node`. Resolve the toolchain as well, and give it to the tool with
@@ -113,9 +108,10 @@ The run resolves the tool and starts it:
 
 {{ <example crate="check-toml" file="src/lib.rs" region="run" /> }}
 
-- `Tool::resolve_requirement` asks [mise] for the required program and version.
-  A project pin cannot override an exact requirement. If resolution fails,
-  the action returns `Outcome::Errored`.
+- `Tool::resolve` asks [mise] for the program of a tool that your action
+  declares, at the version of its pin. A project pin cannot override that
+  version. One tool can provide several programs, so the run gives the program
+  that it starts. If resolution fails, the action returns `Outcome::Errored`.
 - `invocation` describes the command and starts it from the project root.
   No shell interprets the arguments, so the tool receives them as written.
 - `launch_with` starts the tool and waits for it to finish. The context
@@ -137,10 +133,9 @@ not need to start one.
 
 ### Runs Outside the Platforms
 
-If a requirement lists platforms, Rakko skips the action on any other
-platform. The skip names the tool and the platform. Your action needs no
-platform detection code. The same rule applies when the action belongs to a
-group.
+If a pin lists platforms, Rakko skips the action on any other platform. The
+skip gives the tool and the platform. Your action needs no platform detection
+code. The same rule applies when the action belongs to a group.
 
 ## Use the Action in a Project
 

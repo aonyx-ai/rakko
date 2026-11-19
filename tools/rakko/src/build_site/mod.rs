@@ -6,8 +6,8 @@ mod error;
 use std::path::Path;
 
 use rakko::{
-    Access, Action, Context, Documented, Finding, Location, Name, Outcome, RequiredVersion,
-    Summary, ToolOutput, ToolRequirement, VersionRange, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Summary, ToolOutput,
+    ToolchainRequirement, VersionRange, action_name,
 };
 use rakko_tool::{Execution, Launch, ShownStreams, Tool};
 
@@ -21,7 +21,10 @@ const ZOLA: &str = "zola";
 /// with
 ///
 /// A release of Zola can change the syntax of the templates, as 0.22 and 0.23
-/// did. So the range stops before the next minor release.
+/// did. Another release then reports an error in a correct template. That
+/// error does not say that the pin of Zola is the cause. So the range ends
+/// before 0.24. A run with a pin outside the range fails with an error that
+/// says which pin to change.
 const ZOLA_RANGE: &str = ">=0.23.6, <0.24";
 
 /// The directory of the website, relative to the root of the project
@@ -40,7 +43,7 @@ const NO_DIAGNOSIS: &str = "zola did not build the website and reported nothing"
 ///
 /// Zola compiles the templates and the pages of the project, and they are
 /// written for the 0.23 releases of Zola. So Zola is a toolchain of the
-/// project: the root `mise.toml` pins it, and the action declares the range of
+/// project: the root `mise.toml` pins it, and the action requires the range of
 /// versions that it accepts.
 ///
 /// Zola writes every link as an absolute URL below the address in
@@ -65,13 +68,15 @@ impl Action for BuildSite {
         Access::Write
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
+    fn toolchains(&self) -> Vec<ToolchainRequirement> {
         vec![requirement()]
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
-        let zola = match Tool::resolve_requirement()
-            .requirement(&requirement())
+        let zola = match Tool::resolve_toolchain()
+            .action(self)
+            .toolchain(ZOLA)
+            .executable(ZOLA)
             .context(context)
             .call()
             .await
@@ -104,11 +109,10 @@ impl Action for BuildSite {
 ///
 /// Zola is a toolchain, so the requirement holds the range of versions that
 /// the action accepts, and the project pins the version.
-fn requirement() -> ToolRequirement {
-    ToolRequirement::builder()
-        .tool(ZOLA)
-        .executable(ZOLA)
-        .version(RequiredVersion::Range(VersionRange::new(ZOLA_RANGE)))
+fn requirement() -> ToolchainRequirement {
+    ToolchainRequirement::builder()
+        .toolchain(ZOLA)
+        .versions(VersionRange::new(ZOLA_RANGE))
         .build()
 }
 
@@ -198,12 +202,74 @@ mod tests {
 
     /// Returns the Zola that this repository pins
     async fn zola() -> Tool {
-        Tool::resolve_requirement()
-            .requirement(&requirement())
+        Tool::resolve_toolchain()
+            .action(&BuildSite)
+            .toolchain(ZOLA)
+            .executable(ZOLA)
             .context(&repository())
             .call()
             .await
             .expect("the test resolves the Zola that the repository pins")
+    }
+
+    /// A project in a temporary directory whose `mise.toml` pins the Zola of
+    /// this repository and holds a site that builds
+    struct Pinning {
+        /// The directory that holds the project
+        directory: tempfile::TempDir,
+    }
+
+    impl Pinning {
+        /// Creates the project
+        ///
+        /// Mise ignores a configuration that nobody trusts, so the test trusts
+        /// the file at once.
+        async fn new() -> Self {
+            let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+            let pins = directory.path().join("mise.toml");
+            std::fs::write(
+                &pins,
+                format!("[tools]\n{ZOLA} = \"{}\"\n", zola().await.version()),
+            )
+            .expect("the test writes the mise.toml of the project");
+            let trusted = std::process::Command::new("mise")
+                .arg("trust")
+                .arg("--quiet")
+                .arg(&pins)
+                .status()
+                .expect("the test runs mise");
+            assert!(trusted.success(), "expected mise to trust the project");
+
+            let site = directory.path().join(SITE);
+            std::fs::create_dir_all(site.join("templates")).expect("the test creates the site");
+            std::fs::write(
+                site.join("zola.toml"),
+                "base_url = \"https://example.com\"\n",
+            )
+            .expect("the test writes the configuration");
+
+            Self { directory }
+        }
+
+        /// Returns the context of a run in the project
+        fn context(&self) -> Context {
+            Context::builder().root(self.directory.path()).build()
+        }
+    }
+
+    impl Drop for Pinning {
+        /// Withdraws the trust that the project received
+        ///
+        /// A failure stays quiet, because the test already reported what it
+        /// was about.
+        fn drop(&mut self) {
+            let _ = std::process::Command::new("mise")
+                .arg("trust")
+                .arg("--quiet")
+                .arg("--untrust")
+                .arg(self.directory.path().join("mise.toml"))
+                .status();
+        }
     }
 
     #[test]
@@ -319,13 +385,14 @@ mod tests {
 
     #[tokio::test]
     async fn requirement_accepts_the_zola_that_the_repository_pins() {
-        let resolution = Tool::resolve_requirement()
-            .requirement(&requirement())
+        let selection = Tool::select_toolchain()
+            .toolchain(&rakko::MiseTool::new(ZOLA))
+            .requirements(&[requirement()])
             .context(&repository())
             .call()
             .await;
 
-        assert!(resolution.is_ok());
+        assert!(selection.is_ok(), "got {selection:?}");
     }
 
     #[tokio::test]
@@ -345,10 +412,28 @@ mod tests {
         ));
     }
 
+    #[tokio::test]
+    async fn run_in_a_project_that_pins_zola_builds_the_website() {
+        let project = Pinning::new().await;
+
+        let outcome = BuildSite
+            .run(&project.context(), &BuildSiteArgs::default())
+            .await;
+
+        assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
+    }
+
     #[test]
-    fn tools_declare_zola() {
+    fn toolchains_require_the_zola_of_the_templates() {
+        let toolchains = BuildSite.toolchains();
+
+        assert_eq!(toolchains, vec![requirement()]);
+    }
+
+    #[test]
+    fn tools_declare_nothing() {
         let tools = BuildSite.tools();
 
-        assert_eq!(tools, vec![requirement()]);
+        assert!(tools.is_empty(), "expected no tool, got {tools:?}");
     }
 }

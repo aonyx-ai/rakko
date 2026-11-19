@@ -20,11 +20,13 @@ pub(crate) enum ObserveTerraformError {
         source: RunCommandError,
     },
 
-    /// Terraform could not read a file of the project
+    /// Terraform stopped before it read the whole project
     ///
     /// Terraform stops at the first file that it cannot parse, and it writes
-    /// diagnostics that say why. The files after it stay unread.
-    #[error("Terraform could not read the configuration of the project:\n{diagnostics}")]
+    /// diagnostics that say why. The files after it stay unread. A release of
+    /// Terraform also stops at an option of the formatter that it does not
+    /// know.
+    #[error("Terraform stopped before it read the whole project:\n{diagnostics}")]
     UnreadableConfiguration {
         /// The diagnostics that Terraform wrote
         diagnostics: String,

@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use rakko::{
     Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, ProjectRoot,
-    ToolRequirement, action_name,
+    action_name,
 };
 
 pub use self::args::FormatTerraformArgs;
@@ -37,8 +37,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 ///
 /// Terraform is a toolchain of the project. So the version that runs is the
 /// version that the project pins in its mise configuration, which [mise]
-/// installed. A run stops when that version is older than 1.0. The action
-/// installs nothing.
+/// installed. The action requires no range of versions and installs nothing.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
 /// that gives the file. With the `fix` argument, Terraform rewrites those
@@ -49,8 +48,8 @@ const UNFORMATTED_REPAIR: &str = "the file was not properly formatted";
 /// then run a rewrite before the actions that read.
 ///
 /// Terraform finds no file in a project without Terraform, and the run passes.
-/// A run stops with an error when mise reports no Terraform that the action
-/// accepts. It also stops when Terraform cannot parse a file of the project,
+/// A run stops with an error when mise reports no Terraform that the project
+/// pins. It also stops when Terraform cannot parse a file of the project,
 /// because Terraform stops at that file and the rest stays unread.
 ///
 /// # Examples
@@ -82,12 +81,8 @@ impl Action for FormatTerraform {
         }
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Terraform::requirement()]
-    }
-
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
-        match drive(context, args).await {
+        match drive(context, args, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -109,8 +104,12 @@ impl Action for FormatTerraform {
 async fn drive(
     context: &Context,
     args: &FormatTerraformArgs,
+    action: &FormatTerraform,
 ) -> Result<Outcome, FormatTerraformError> {
-    let terraform = Terraform::resolve(context)
+    let terraform = Terraform::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| FormatTerraformError::UnresolvedTool { source })?;
     let root = context.root();
@@ -259,9 +258,19 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_terraform_as_a_toolchain() {
+    fn toolchains_require_nothing_of_terraform() {
+        let toolchains = FormatTerraform.toolchains();
+
+        assert!(
+            toolchains.is_empty(),
+            "expected no requirement, got {toolchains:?}"
+        );
+    }
+
+    #[test]
+    fn tools_declare_nothing() {
         let tools = FormatTerraform.tools();
 
-        assert_eq!(tools, [Terraform::requirement()]);
+        assert!(tools.is_empty(), "expected no tool, got {tools:?}");
     }
 }

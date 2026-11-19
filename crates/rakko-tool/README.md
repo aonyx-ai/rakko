@@ -17,9 +17,10 @@ of its crate, or adds the tools of a helper crate. A tool that the action
 wraps resolves at the exact version that the action pins. So a run starts the
 version that the tests of the action cover. The lookup with `Tool::resolve`
 refuses a tool that the action does not declare. A toolchain, such as Rust or
-Node, belongs to the project. An action that declares toolchain requirements
-resolves the toolchain with `Tool::resolve_toolchain`. The lookup takes the
-first pin of the project that every requirement accepts. When the
+Node, belongs to the project. An action resolves a toolchain with
+`Tool::resolve_toolchain`. The lookup takes the first pin of the project that
+every toolchain requirement of the action accepts. An action without such a
+requirement gets the first pin. When the
 requirements accept no pin, the lookup returns an error, and only that action
 stops.
 

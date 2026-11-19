@@ -1,6 +1,6 @@
 //! The errors that stop a build of the website
 
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the build-site action
@@ -12,8 +12,8 @@ pub(crate) enum BuildSiteError {
     /// Mise found no Zola that the project pins in the range of the action
     #[error("failed to resolve zola")]
     UnresolvedZola {
-        /// The cause of the failure, with the tool and the version
-        source: ResolveRequirementError,
+        /// The cause of the failure, with the toolchain and the version
+        source: ResolveToolchainError,
     },
 
     /// Zola did not start, so nothing was built

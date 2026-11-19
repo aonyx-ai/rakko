@@ -1,16 +1,15 @@
 //! The external program that an action runs
 //!
-//! An action declares a requirement of each tool that it runs, and this module
-//! turns that requirement into a program that a run can start. The tool holds
-//! what a run needs. That is the location that mise reported, the version that
-//! the requirement resolved to, and the root of the project that the tool works
-//! on.
+//! An action declares each tool that it runs. This module turns a declared
+//! tool, or a toolchain of the project, into a program that a run can start.
+//! The tool holds what a run needs. That is the location that mise
+//! reported, the version that the lookup resolved, and the root of the
+//! project that the tool works on.
 //!
 //! Nothing starts a program until the caller runs a command. A tool describes
 //! the command, the action adds its arguments, and the run reports what the
 //! tool produced.
 
-mod requirement_error;
 mod resolve_tool_error;
 mod resolve_toolchain_error;
 mod toolchain;
@@ -25,11 +24,10 @@ use kawauso_process::error::RunCommandError;
 use kawauso_process::invocation::Program;
 use kawauso_process::{Execution, Invocation};
 use rakko::{
-    Action, Context, Executable, MiseTool, ProjectRoot, RequiredVersion, ToolRequirement,
-    ToolVersion, ToolchainRequirement, VersionRange,
+    Action, Context, Executable, MiseTool, ProjectRoot, ToolRequirement, ToolVersion,
+    ToolchainRequirement, VersionRange,
 };
 
-pub use self::requirement_error::ResolveRequirementError;
 pub use self::resolve_tool_error::ResolveToolError;
 pub use self::resolve_toolchain_error::ResolveToolchainError;
 use self::toolchain::select;
@@ -80,9 +78,11 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 
 /// An external program that an action runs
 ///
-/// A tool is a program that mise installed. [`resolve_requirement`][declared]
-/// asks mise for the version that an action declares, and
-/// [`invocation`][invocation] describes the command that runs the tool.
+/// A tool is a program that mise installed. [`resolve`][resolve] asks mise for
+/// a tool at the version that an action declares.
+/// [`resolve_toolchain`][toolchain] asks it for a toolchain at the version that
+/// the project pins. [`invocation`][invocation] describes the command that
+/// runs the tool.
 ///
 /// The value carries the root of the project. That is because a tool behaves
 /// the same from every directory of a project only if every run of it starts in
@@ -92,18 +92,18 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+/// use rakko::{Action, Context, ProjectRoot};
 /// use rakko_tool::Tool;
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let requirement = ToolRequirement::builder()
+/// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
+/// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
+/// let tool = Tool::resolve()
+///     .action(action)
 ///     .tool("zizmor")
 ///     .executable("zizmor")
-///     .version(RequiredVersion::Exact(ToolVersion::new("1.32.0")))
-///     .build();
-/// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-/// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
+///     .context(&context)
+///     .call()
+///     .await?;
 /// let execution = tool.invocation().arg("--version").run().await?;
 ///
 /// assert!(execution.status().success());
@@ -111,8 +111,9 @@ const EXECUTABLE_EXTENSIONS: [&str; 4] = ["com", "exe", "bat", "cmd"];
 /// # }
 /// ```
 ///
-/// [declared]: Tool::resolve_requirement
 /// [invocation]: Tool::invocation
+/// [resolve]: Tool::resolve
+/// [toolchain]: Tool::resolve_toolchain
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Tool {
     /// The location of the program that mise installed
@@ -125,10 +126,11 @@ pub struct Tool {
     /// The root of the project that the tool works on
     root: ProjectRoot,
 
-    /// The version of the tool that the requirement resolved to
+    /// The version of the tool that the lookup resolved
     ///
-    /// For an exact version, the requirement gives it. For a range, it is the
-    /// version that the project pins and that the range accepts.
+    /// For a tool, the declaration of the action gives it. For a toolchain, it
+    /// is the version that the project pins and that the requirements of the
+    /// action accept.
     #[getset(get = "pub")]
     version: ToolVersion,
 
@@ -147,9 +149,9 @@ pub struct Tool {
 impl Tool {
     /// Returns the command that runs the tool
     ///
-    /// The command starts the program that
-    /// [`resolve_requirement`][resolve] found, in the root of the project,
-    /// and it carries no argument yet. The caller adds the arguments of the
+    /// The command starts the program that the lookup found, such as
+    /// [`resolve`][resolve], in the root of the project, and it carries no
+    /// argument yet. The caller adds the arguments of the
     /// operation that it wants. Then it runs the command with
     /// [`launch_with`][launch-with] and the tool output of its context. The run
     /// sends what the tool writes to that tool output, and it survives a
@@ -175,19 +177,19 @@ impl Tool {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko::{Action, Context};
     /// use rakko_tool::{Launch, ShownStreams, Tool};
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("taplo")
-    ///     .executable("taplo")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
-    ///     .build();
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root("/home/otter/project").build();
     ///
-    /// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
+    /// let tool = Tool::resolve()
+    ///     .action(action)
+    ///     .tool("taplo")
+    ///     .executable("taplo")
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
     ///
     /// let execution = tool
     ///     .invocation()
@@ -201,7 +203,7 @@ impl Tool {
     /// ```
     ///
     /// [launch-with]: crate::Launch::launch_with
-    /// [resolve]: Tool::resolve_requirement
+    /// [resolve]: Tool::resolve
     /// [toolchain]: Tool::with_toolchain
     pub fn invocation(&self) -> Invocation {
         self.invocation_over(&std::env::var_os(PATH).unwrap_or_default())
@@ -305,148 +307,14 @@ impl Tool {
         Ok(self)
     }
 
-    /// Returns the tool that a requirement accepts, at the location that mise
-    /// reports
-    ///
-    /// For an exact version, the lookup asks mise for the program of the tool
-    /// at that version, wherever mise installed it. The version that the
-    /// project pins does not change the answer, so a run starts the version
-    /// that the tests of the action cover.
-    ///
-    /// For a range, the tool is a toolchain, and the project pins its version.
-    /// The lookup asks mise which versions the project configuration pins.
-    /// It takes the first one that the range accepts, in the order of the pins.
-    /// Then it asks mise for the program at that version.
-    /// A range compares release versions such as `>=1.85`, or dates of one
-    /// channel such as `>=nightly-2025-02-20`.
-    /// A range of dates reads only the pins of that channel that the
-    /// configuration writes with a date, such as `nightly-2026-11-02`.
-    /// A range can hold alternatives joined by `||`, such as `^22.18 || >=23.6`.
-    /// It accepts a pin that one of them accepts.
-    /// A pin in the global user configuration does not count.
-    /// Neither does a pin in a directory above the project.
-    /// These files differ on each machine.
-    /// A local mise file inside the project, such as `mise.local.toml`,
-    /// counts. So a developer can override the pin of the project on their own
-    /// machine.
-    ///
-    /// The answer is an absolute path, and a command of the tool starts in
-    /// the root of the context. The lookup starts up to three processes, so an
-    /// action resolves each tool once and keeps the result for the length of
-    /// the run.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`MiseUnavailable`][unavailable] when mise does not run.
-    /// Returns [`UnresolvedVersion`][unresolved] when mise reports no program
-    /// of the tool at the version, for example because nothing installed that
-    /// version.
-    /// Rakko installs nothing, so a missing version is a failure and not a
-    /// step this method takes.
-    ///
-    /// For a toolchain, returns [`InvalidRange`][invalid] when the range is
-    /// not a range.
-    /// Returns [`UnresolvedToolchain`][toolchain] when no configuration inside
-    /// the project pins the toolchain, or no dated version of the channel of a
-    /// range of dates.
-    /// Returns [`UnrecognizedReport`][unrecognized] when mise lists pins in a
-    /// form the crate does not read.
-    /// When the range accepts no pin, returns [`VersionOutOfRange`][outside]
-    /// for the first pin with three numbers or a date to compare.
-    /// Returns [`UnreadableVersion`][unreadable] when a range of releases
-    /// finds no pin with three numbers.
-    ///
-    /// Returns [`UnknownRequirement`][unknown] for a kind of version that this
-    /// release does not know.
-    ///
-    /// # Panics
-    ///
-    /// Panics when no Tokio runtime drives the future. The runtime waits for
-    /// mise, and the method has no way to ask without one.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion};
-    /// use rakko_tool::Tool;
-    ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("taplo")
-    ///     .executable("taplo")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
-    ///     .build();
-    /// let context = Context::builder().root("/home/otter/project").build();
-    ///
-    /// let tool = Tool::resolve_requirement().requirement(&requirement).context(&context).call().await?;
-    ///
-    /// println!("{}", tool.program());
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// [invalid]: ResolveRequirementError::InvalidRange
-    /// [outside]: ResolveRequirementError::VersionOutOfRange
-    /// [toolchain]: ResolveRequirementError::UnresolvedToolchain
-    /// [unavailable]: ResolveRequirementError::MiseUnavailable
-    /// [unknown]: ResolveRequirementError::UnknownRequirement
-    /// [unreadable]: ResolveRequirementError::UnreadableVersion
-    /// [unrecognized]: ResolveRequirementError::UnrecognizedReport
-    /// [unresolved]: ResolveRequirementError::UnresolvedVersion
-    #[builder]
-    pub async fn resolve_requirement(
-        requirement: &ToolRequirement,
-        context: &Context,
-    ) -> Result<Self, ResolveRequirementError> {
-        let tool = requirement.tool();
-        let root = context.root();
-
-        let version = match requirement.version() {
-            RequiredVersion::Exact(version) => version.clone(),
-            RequiredVersion::Range(range) => select(tool, std::slice::from_ref(range), root)
-                .await
-                .map_err(|unselected| unselected.requirement_error(tool))?,
-            _ => {
-                return Err(ResolveRequirementError::UnknownRequirement { tool: tool.clone() });
-            }
-        };
-
-        let Some(bin) = requirement.executable() else {
-            return Err(ResolveRequirementError::UnstatedExecutable { tool: tool.clone() });
-        };
-
-        let execution = which(tool, &version, bin, root).await.map_err(|source| {
-            ResolveRequirementError::MiseUnavailable {
-                tool: tool.clone(),
-                source,
-            }
-        })?;
-
-        let named =
-            program(&execution).ok_or_else(|| ResolveRequirementError::UnresolvedVersion {
-                tool: tool.clone(),
-                executable: bin.clone(),
-                version: version.clone(),
-                details: details(&execution),
-            })?;
-
-        Ok(Self {
-            program: executable(named),
-            root: root.clone(),
-            version,
-            toolchains: Vec::new(),
-        })
-    }
-
     /// Returns a program of a tool that an action declares, at the location
     /// that mise reports
     ///
     /// The lookup reads the declarations of the action from
     /// [`Action::tools`], and it takes the exact version that they give
     /// for the tool. So a run starts only a tool that the action declares. A
-    /// tool that the action declares only with a range, as a toolchain, is not
-    /// such a tool, and [`resolve_requirement`][requirement] resolves it.
+    /// toolchain of the project is no such tool, and
+    /// [`resolve_toolchain`][toolchain] resolves it.
     ///
     /// Then the lookup asks mise for the program of the tool at that version,
     /// wherever mise installed it. The version that the project pins does not
@@ -463,8 +331,8 @@ impl Tool {
     /// # Errors
     ///
     /// Returns [`UndeclaredTool`][undeclared] when the declarations hold no
-    /// exact version of the tool, and [`AmbiguousVersion`][ambiguous] when
-    /// they hold more than one. Returns [`MiseUnavailable`][unavailable] when
+    /// version of the tool, and [`AmbiguousVersion`][ambiguous] when they
+    /// hold more than one. Returns [`MiseUnavailable`][unavailable] when
     /// mise does not run. Returns [`UninstalledVersion`][uninstalled] when
     /// mise did not install the tool at that version. Rakko installs nothing,
     /// so a missing version is a failure and not a step this method takes.
@@ -500,7 +368,7 @@ impl Tool {
     ///
     /// [ambiguous]: ResolveToolError::AmbiguousVersion
     /// [missing]: ResolveToolError::MissingExecutable
-    /// [requirement]: Tool::resolve_requirement
+    /// [toolchain]: Tool::resolve_toolchain
     /// [unavailable]: ResolveToolError::MiseUnavailable
     /// [undeclared]: ResolveToolError::UndeclaredTool
     /// [uninstalled]: ResolveToolError::UninstalledVersion
@@ -792,12 +660,11 @@ async fn installed(
     Ok(execution.status().success())
 }
 
-/// Returns the exact version at which the declarations of an action give a
-/// tool
+/// Returns the version at which the declarations of an action give a tool
 ///
 /// # Errors
 ///
-/// Returns [`UndeclaredTool`][undeclared] when the declarations give no exact
+/// Returns [`UndeclaredTool`][undeclared] when the declarations give no
 /// version of the tool, and [`AmbiguousVersion`][ambiguous] when they give
 /// more than one.
 ///
@@ -810,10 +677,7 @@ fn declared_version(
     let versions: BTreeSet<&ToolVersion> = tools
         .iter()
         .filter(|requirement| requirement.tool() == tool)
-        .filter_map(|requirement| match requirement.version() {
-            RequiredVersion::Exact(version) => Some(version),
-            _ => None,
-        })
+        .map(ToolRequirement::version)
         .collect();
 
     let mut declared = versions.iter();
@@ -953,11 +817,13 @@ mod tests {
     use std::process::Command;
 
     use kawauso_process::invocation::WorkingDirectory;
-    use rakko::{Documented, Name, Outcome, ToolchainRequirement, VersionRange, action_name};
+    use rakko::__private::{MiseText, ToolPin};
+    use rakko::{
+        Documented, Name, Outcome, ToolchainRequirement, Tools, VersionRange, action_name,
+    };
     use tempfile::TempDir;
 
     use super::*;
-    use crate::pin::MiseFile;
 
     /// The tool that this repository pins and that the tests resolve
     ///
@@ -973,6 +839,40 @@ mod tests {
     /// therefore the one that shows whether resolution answers with a program
     /// that the platform can start.
     const SCRIPTED: &str = "prettier";
+
+    /// The pin of the tool of a package manager for Node
+    ///
+    /// The pin comes from the mise file of the crate that wraps the tool. So an
+    /// update of the pin reaches the test without a change to it.
+    const SCRIPTED_TOOLS: Tools = rakko::__tools_of_mise_file!(include_str!(
+        "../../../aonyx-rakko-prettier/mise.rakko.toml"
+    ));
+
+    /// The tool of the package with two programs
+    ///
+    /// The package `renovate` provides `renovate` and
+    /// `renovate-config-validator`.
+    const RENOVATE: &str = "npm:renovate";
+
+    /// The pin of the tool of the package with two programs
+    ///
+    /// The pin comes from the mise file of the action that runs the tool. So
+    /// an update of the pin reaches the test without a change to it.
+    const RENOVATE_TOOLS: Tools = rakko::__tools_of_mise_file!(include_str!(
+        "../../../../actions/aonyx-rakko-check-renovate-config/mise.rakko.toml"
+    ));
+
+    /// The pin of a tool whose platforms leave out the platform of the test
+    #[cfg(not(windows))]
+    const ELSEWHERE: Tools = rakko::__tools_of_mise_file!(
+        "[tools]\n\"github:aonyx-ai/stiles\" = { version = \"0.6.0\", os = [\"windows\"] }\n"
+    );
+
+    /// The pin of a tool whose platforms leave out the platform of the test
+    #[cfg(windows)]
+    const ELSEWHERE: Tools = rakko::__tools_of_mise_file!(
+        "[tools]\n\"github:aonyx-ai/stiles\" = { version = \"0.6.0\", os = [\"linux\"] }\n"
+    );
 
     /// Returns the root of the project that the tests run against
     ///
@@ -999,32 +899,42 @@ mod tests {
         Context::builder().root(directory).build()
     }
 
-    /// Returns a requirement of the tool that this repository pins
-    fn requirement(version: RequiredVersion) -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(PINNED)
-            .executable(PINNED)
-            .version(version)
-            .build()
+    /// Returns the tools of a mise file that pins the tool at the version
+    ///
+    /// Only the reader of a mise file creates a declaration, so the helper
+    /// gives the reader the text of a file with one pin. A test needs a
+    /// version that only a run knows, such as the version that the repository
+    /// pins. The reader then works at run time, and the text and the pin stay
+    /// for the rest of the run of the tests.
+    fn declared(version: &str) -> Tools {
+        let text: &'static str = format!("[tools]\n{PINNED} = \"{version}\"\n").leak();
+        let pins: &'static [ToolPin; 1] = Box::leak(Box::new(MiseText::new(text).pins::<1>()));
+
+        rakko::__private::tools(pins)
     }
 
-    /// Returns the requirement of the exact version that this repository
-    /// pins
-    fn exact() -> ToolRequirement {
-        let version = ToolVersion::new(pinned_by_the_repository());
-
-        requirement(RequiredVersion::Exact(version))
+    /// Returns the tools of a mise file that pins the version that this
+    /// repository pins
+    fn exact() -> Tools {
+        declared(&pinned_by_the_repository())
     }
 
     /// Returns the version of the tool that this repository pins
     ///
     /// The version comes from the `mise.toml` of the repository, so that an
-    /// update of the pin reaches the tests without a change to them.
+    /// update of the pin reaches the tests without a change to them. The
+    /// repository pins the tool on a line of its own, as `jq = "1.8.2"`.
     fn pinned_by_the_repository() -> String {
         let pins = std::fs::read_to_string(root().get().join("mise.toml"))
             .expect("the test reads the mise.toml of the repository");
 
-        MiseFile::new(&pins).pinned_version(PINNED).to_owned()
+        pins.lines()
+            .find_map(|line| {
+                let (key, value) = line.split_once('=')?;
+
+                (key.trim() == PINNED).then(|| value.trim().trim_matches('"').to_owned())
+            })
+            .expect("the mise.toml of the repository pins the tool on a line of its own")
     }
 
     /// Returns whether a tool starts the program of a version
@@ -1033,11 +943,6 @@ mod tests {
     /// its name, so the path of the program shows the version.
     fn runs_version(tool: &Tool, version: &str) -> bool {
         tool.program().get().to_string_lossy().contains(version)
-    }
-
-    /// Returns the requirement of a toolchain with the given range
-    fn toolchain(range: &str) -> ToolRequirement {
-        requirement(RequiredVersion::Range(VersionRange::new(range)))
     }
 
     /// A project in a temporary directory whose mise file pins the tool
@@ -1109,63 +1014,19 @@ mod tests {
 
     /// Returns the tool that this repository pins, resolved
     async fn pinned() -> Tool {
-        Tool::resolve_requirement()
-            .requirement(&exact())
+        Tool::resolve()
+            .action(&Declaring(vec![exact()]))
+            .tool(PINNED)
+            .executable(PINNED)
             .context(&context())
             .call()
             .await
             .expect("expected mise to report the location of a tool that this project pins")
     }
 
-    /// Returns the requirement of the tool of a package manager for Node
-    ///
-    /// The version comes from the mise file of the crate that wraps the tool.
-    /// So an update of the pin reaches the test without a change to it.
-    fn scripted() -> ToolRequirement {
-        let pins = std::fs::read_to_string(
-            root()
-                .get()
-                .join("crates/aonyx-rakko-prettier/mise.rakko.toml"),
-        )
-        .expect("the test reads the mise file of the crate that wraps the tool");
-        let tool = format!("npm:{SCRIPTED}");
-        let version = ToolVersion::new(MiseFile::new(&pins).pinned_version(&tool));
-
-        ToolRequirement::builder()
-            .tool(tool)
-            .executable(SCRIPTED)
-            .version(RequiredVersion::Exact(version))
-            .build()
-    }
-
-    /// Returns the requirement of the tool of a package with two programs
-    ///
-    /// The package `renovate` provides `renovate` and
-    /// `renovate-config-validator`. The version comes from the mise file of
-    /// the action that runs the tool. So an update of the pin reaches the test
-    /// without a change to it.
-    fn renovate() -> ToolRequirement {
-        let pins = std::fs::read_to_string(
-            root()
-                .get()
-                .join("actions/aonyx-rakko-check-renovate-config/mise.rakko.toml"),
-        )
-        .expect("the test reads the mise file of the action that runs the tool");
-        let version = ToolVersion::new(MiseFile::new(&pins).pinned_version(RENOVATE));
-
-        ToolRequirement::builder()
-            .tool(RENOVATE)
-            .executable("renovate")
-            .version(RequiredVersion::Exact(version))
-            .build()
-    }
-
-    /// The tool of the package with two programs
-    const RENOVATE: &str = "npm:renovate";
-
-    /// An action that declares the requirements that it holds
+    /// An action that declares the tools of the mise files that it holds
     #[derive(Documented)]
-    struct Declaring(Vec<ToolRequirement>);
+    struct Declaring(Vec<Tools>);
 
     impl Action for Declaring {
         type Args = ();
@@ -1174,7 +1035,7 @@ mod tests {
             action_name!("declaring")
         }
 
-        fn tools(&self) -> Vec<ToolRequirement> {
+        fn additional_tools(&self) -> Vec<Tools> {
             self.0.clone()
         }
 
@@ -1183,15 +1044,15 @@ mod tests {
         }
     }
 
-    /// Resolves a program of a tool for an action that declares the
-    /// requirements, in the root of this repository
+    /// Resolves a program of a tool for an action that declares the tools,
+    /// in the root of this repository
     ///
     /// # Errors
     ///
     /// Returns the error of the lookup, which the test asserts on.
     #[bon::builder]
     async fn resolved(
-        tools: &[ToolRequirement],
+        tools: &[Tools],
         tool: &str,
         executable: &str,
     ) -> Result<Tool, ResolveToolError> {
@@ -1211,22 +1072,28 @@ mod tests {
         /// The requirements that the action declares
         requirements: Vec<ToolchainRequirement>,
 
-        /// The tools that the action declares
-        tools: Vec<ToolRequirement>,
+        /// The tools of the mise files that the action declares
+        tools: Vec<Tools>,
 
         /// Whether a run of the action asked for the toolchain
         resolved: std::sync::atomic::AtomicBool,
     }
 
     impl Requiring {
-        /// Creates an action that requires the toolchain in each range
+        /// Creates an action that requires the toolchain of the tests in each
+        /// range
         fn new(ranges: &[&str]) -> Self {
+            Self::of(PINNED, ranges)
+        }
+
+        /// Creates an action that requires a toolchain in each range
+        fn of(toolchain: &str, ranges: &[&str]) -> Self {
             Self {
                 requirements: ranges
                     .iter()
                     .map(|range| {
                         ToolchainRequirement::builder()
-                            .toolchain(PINNED)
+                            .toolchain(toolchain)
                             .versions(VersionRange::new(*range))
                             .build()
                     })
@@ -1249,7 +1116,7 @@ mod tests {
             action_name!("requiring")
         }
 
-        fn tools(&self) -> Vec<ToolRequirement> {
+        fn additional_tools(&self) -> Vec<Tools> {
             self.tools.clone()
         }
 
@@ -1287,12 +1154,13 @@ mod tests {
     async fn toolchain_of(
         ranges: &[&str],
         accepting: Option<&str>,
+        #[builder(default = PINNED)] toolchain: &str,
         #[builder(default = PINNED)] executable: &str,
         context: &Context,
     ) -> Result<Tool, ResolveToolchainError> {
         Tool::resolve_toolchain()
-            .action(&Requiring::new(ranges))
-            .toolchain(PINNED)
+            .action(&Requiring::of(toolchain, ranges))
+            .toolchain(toolchain)
             .executable(executable)
             .maybe_accepting(accepting.map(VersionRange::new))
             .context(context)
@@ -1303,18 +1171,6 @@ mod tests {
     /// Drives the run of an erased action to its outcome
     async fn erased_run(action: &dyn rakko::ErasedAction, context: &Context) -> Outcome {
         action.run(context, &rakko::ArgsValues::empty()).await
-    }
-
-    /// Returns a platform with an operating system that is not the one of the
-    /// run of the test
-    fn another_platform() -> rakko::Platform {
-        let system = if cfg!(target_os = "windows") {
-            rakko::OperatingSystem::Linux
-        } else {
-            rakko::OperatingSystem::Windows
-        };
-
-        rakko::Platform::new(system)
     }
 
     /// A program in a directory that cannot be an entry of `PATH`
@@ -1513,9 +1369,32 @@ mod tests {
         assert!(runs_version(&tool, &pinned_by_the_repository()));
     }
 
+    /// Mise names a script for a package of Node on every platform
+    ///
+    /// Windows starts a program by the extension of its file. So this run
+    /// reaches the tool only when resolution answered with the launcher beside
+    /// the script.
+    #[tokio::test]
+    async fn resolve_of_a_tool_of_a_package_manager_reports_a_program_that_runs() {
+        let tool = resolved()
+            .tools(&[SCRIPTED_TOOLS])
+            .tool(format!("npm:{SCRIPTED}").as_str())
+            .executable(SCRIPTED)
+            .call()
+            .await
+            .expect("expected mise to report the location of a tool that this project installs");
+
+        let execution = tool.invocation().arg("--version").run().await;
+
+        assert!(
+            execution.is_ok(),
+            "expected the tool to run, got {execution:?}"
+        );
+    }
+
     #[tokio::test]
     async fn resolve_of_a_tool_reports_each_program_that_it_provides() {
-        let tools = [renovate()];
+        let tools = [RENOVATE_TOOLS];
 
         let validator = resolved()
             .tools(&tools)
@@ -1536,365 +1415,33 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_requirement_ignores_the_pin_of_the_project() {
-        let project = Project::pinning(&["0.0.1"]);
-
-        let tool = Tool::resolve_requirement()
-            .requirement(&exact())
-            .context(&project.context())
+    async fn resolve_toolchain_of_a_toolchain_that_mise_does_not_know_reports_it_unpinned() {
+        let result = toolchain_of()
+            .toolchain("rakko-pins-no-such-tool")
+            .ranges(&[">=1"])
+            .context(&context())
             .call()
             .await;
 
-        assert!(tool.is_ok(), "expected the declared version, got {tool:?}");
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_runs_the_tool_in_the_root_of_the_context() {
-        let tool = Tool::resolve_requirement()
-            .requirement(&exact())
-            .context(&context())
-            .call()
-            .await
-            .expect("expected mise to report the version that this project pins");
-
-        let invocation = tool.invocation();
-
-        assert_eq!(
-            invocation.working_directory().map(WorkingDirectory::get),
-            Some(root().get())
+        assert!(
+            matches!(result, Err(ResolveToolchainError::UnpinnedToolchain { .. })),
+            "expected an unpinned toolchain, got {result:?}"
         );
     }
 
     #[tokio::test]
-    async fn resolve_requirement_with_a_pin_that_is_no_version_reports_it() {
+    async fn resolve_toolchain_with_a_pin_that_is_no_version_reports_it_unreadable() {
         let project = Project::pinning(&["ref:main"]);
 
-        let result = Tool::resolve_requirement()
-            .requirement(&toolchain(">=1"))
+        let result = toolchain_of()
+            .ranges(&[">=1"])
             .context(&project.context())
             .call()
             .await;
 
         assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::UnreadableVersion { .. })
-            ),
+            matches!(result, Err(ResolveToolchainError::UnreadableVersion { .. })),
             "expected an unreadable version, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_range_of_dates_of_an_unpinned_channel_reports_it_unresolved()
-     {
-        let beta = ToolRequirement::builder()
-            .tool("rust")
-            .executable("cargo")
-            .version(RequiredVersion::Range(VersionRange::new(
-                ">=beta-2025-02-20",
-            )))
-            .build();
-
-        let result = Tool::resolve_requirement()
-            .requirement(&beta)
-            .context(&context())
-            .call()
-            .await;
-
-        assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::UnresolvedToolchain { .. })
-            ),
-            "expected no dated pin of the channel, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_range_of_dates_reports_the_dated_pin_of_its_channel() {
-        let nightly = ToolRequirement::builder()
-            .tool("rust")
-            .executable("cargo")
-            .version(RequiredVersion::Range(VersionRange::new(
-                ">=nightly-2025-02-20",
-            )))
-            .build();
-
-        let result = Tool::resolve_requirement()
-            .requirement(&nightly)
-            .context(&context())
-            .call()
-            .await;
-
-        assert!(
-            result
-                .as_ref()
-                .is_ok_and(|tool| tool.version().get().starts_with("nightly-")),
-            "expected the dated nightly that this repository pins, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_range_of_dates_that_no_pin_reaches_stops() {
-        let nightly = ToolRequirement::builder()
-            .tool("rust")
-            .executable("cargo")
-            .version(RequiredVersion::Range(VersionRange::new(
-                ">=nightly-2999-01-01",
-            )))
-            .build();
-
-        let result = Tool::resolve_requirement()
-            .requirement(&nightly)
-            .context(&context())
-            .call()
-            .await;
-
-        assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::VersionOutOfRange { .. })
-            ),
-            "expected a nightly outside the range, got {result:?}"
-        );
-    }
-
-    /// Mise names a script for a package of Node on every platform
-    ///
-    /// Windows starts a program by the extension of its file. So this run
-    /// reaches the tool only when resolution answered with the launcher beside
-    /// the script.
-    #[tokio::test]
-    async fn resolve_requirement_with_a_tool_of_a_package_manager_reports_a_program_that_runs() {
-        let tool = Tool::resolve_requirement()
-            .requirement(&scripted())
-            .context(&context())
-            .call()
-            .await
-            .expect("expected mise to report the location of a tool that this project installs");
-
-        let execution = tool.invocation().arg("--version").run().await;
-
-        assert!(
-            execution.is_ok(),
-            "expected the tool to run, got {execution:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_toolchain_in_its_range_reports_the_pinned_version() {
-        let pinned = pinned_by_the_repository();
-
-        let result = Tool::resolve_requirement()
-            .requirement(&toolchain(">=1"))
-            .context(&context())
-            .call()
-            .await;
-
-        assert!(
-            result
-                .as_ref()
-                .is_ok_and(|tool| runs_version(tool, &pinned)),
-            "expected the program of the pinned version, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_toolchain_outside_its_range_stops() {
-        let result = Tool::resolve_requirement()
-            .requirement(&toolchain("<1"))
-            .context(&context())
-            .call()
-            .await;
-
-        assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::VersionOutOfRange { .. })
-            ),
-            "expected a version outside the range, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_toolchain_pinned_above_the_project_reports_it_unresolved() {
-        let above = Project::pinning(&[&pinned_by_the_repository()]);
-
-        let result = Tool::resolve_requirement()
-            .requirement(&toolchain(">=1"))
-            .context(&above.context_below())
-            .call()
-            .await;
-
-        assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::UnresolvedToolchain { .. })
-            ),
-            "expected a pin outside the project to count for nothing, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_toolchain_pinned_three_times_reports_the_first_pin() {
-        let pinned = pinned_by_the_repository();
-        let project = Project::pinning(&[&pinned, "99.0.0", "0.0.1"]);
-
-        let result = Tool::resolve_requirement()
-            .requirement(&toolchain(">=0"))
-            .context(&project.context())
-            .call()
-            .await;
-
-        assert!(
-            result
-                .as_ref()
-                .is_ok_and(|tool| runs_version(tool, &pinned)),
-            "expected the program of the first pin, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_toolchain_pinned_twice_reports_the_first_pin_in_its_range()
-    {
-        let pinned = pinned_by_the_repository();
-        let project = Project::pinning(&["99.0.0", &pinned]);
-
-        let result = Tool::resolve_requirement()
-            .requirement(&toolchain("<99"))
-            .context(&project.context())
-            .call()
-            .await;
-
-        assert!(
-            result
-                .as_ref()
-                .is_ok_and(|tool| runs_version(tool, &pinned)),
-            "expected the program of the pin in the range, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_toolchain_that_mise_does_not_know_reports_it_unresolved() {
-        let unknown = ToolRequirement::builder()
-            .tool("rakko-pins-no-such-tool")
-            .executable("rakko-pins-no-such-tool")
-            .version(RequiredVersion::Range(VersionRange::new(">=1")))
-            .build();
-
-        let result = Tool::resolve_requirement()
-            .requirement(&unknown)
-            .context(&context())
-            .call()
-            .await;
-
-        assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::UnresolvedToolchain { .. })
-            ),
-            "expected an unresolved toolchain, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_version_that_is_not_installed_carries_what_mise_said() {
-        let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
-
-        let Err(error) = Tool::resolve_requirement()
-            .requirement(&missing)
-            .context(&context())
-            .call()
-            .await
-        else {
-            panic!("expected the lookup to report an error");
-        };
-
-        assert!(
-            error.to_string().contains("is not installed"),
-            "expected the diagnosis of mise, got {error}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_a_version_that_is_not_installed_gives_the_tool_and_the_version()
-     {
-        let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
-
-        let Err(error) = Tool::resolve_requirement()
-            .requirement(&missing)
-            .context(&context())
-            .call()
-            .await
-        else {
-            panic!("expected the lookup to report an error");
-        };
-
-        assert!(
-            error.to_string().contains("`jq` 0.0.1"),
-            "expected the tool and the version, got {error}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_an_installed_version_reports_its_program() {
-        let tool = Tool::resolve_requirement()
-            .requirement(&exact())
-            .context(&context())
-            .call()
-            .await
-            .expect("expected mise to report the version that this project pins");
-
-        assert!(tool.program().get().is_file());
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_an_installed_version_reports_the_version() {
-        let tool = Tool::resolve_requirement()
-            .requirement(&exact())
-            .context(&context())
-            .call()
-            .await
-            .expect("expected mise to report the version that this project pins");
-
-        assert_eq!(tool.version().get(), pinned_by_the_repository());
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_an_invalid_range_reports_it() {
-        let result = Tool::resolve_requirement()
-            .requirement(&toolchain("not a range"))
-            .context(&context())
-            .call()
-            .await;
-
-        assert!(
-            matches!(result, Err(ResolveRequirementError::InvalidRange { .. })),
-            "expected an invalid range, got {result:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn resolve_requirement_with_an_unpinned_toolchain_reports_it() {
-        let outside = tempfile::tempdir().expect("the test creates a temporary directory");
-        let unpinned = ToolRequirement::builder()
-            .tool("npm:rakko-pins-no-such-package")
-            .executable("rakko-pins-no-such-package")
-            .version(RequiredVersion::Range(VersionRange::new(">=1")))
-            .build();
-
-        let result = Tool::resolve_requirement()
-            .requirement(&unpinned)
-            .context(&context_of(outside.path()))
-            .call()
-            .await;
-
-        assert!(
-            matches!(
-                result,
-                Err(ResolveRequirementError::UnresolvedToolchain { .. })
-            ),
-            "expected an unpinned toolchain, got {result:?}"
         );
     }
 
@@ -1925,6 +1472,56 @@ mod tests {
         assert!(
             matches!(result, Err(ResolveToolchainError::UnpinnedToolchain { .. })),
             "expected a pin of another channel to count for nothing, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_range_of_dates_of_an_unpinned_channel_reports_it_unpinned() {
+        let result = toolchain_of()
+            .toolchain("rust")
+            .executable("cargo")
+            .ranges(&[">=beta-2025-02-20"])
+            .context(&context())
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolchainError::UnpinnedToolchain { .. })),
+            "expected no dated pin of the channel, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_range_of_dates_reports_the_dated_pin_of_its_channel() {
+        let result = toolchain_of()
+            .toolchain("rust")
+            .executable("cargo")
+            .ranges(&[">=nightly-2025-02-20"])
+            .context(&context())
+            .call()
+            .await;
+
+        assert!(
+            result
+                .as_ref()
+                .is_ok_and(|tool| tool.version().get().starts_with("nightly-")),
+            "expected the dated nightly that this repository pins, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_a_range_of_dates_that_no_pin_reaches_reports_it_unmet() {
+        let result = toolchain_of()
+            .toolchain("rust")
+            .executable("cargo")
+            .ranges(&[">=nightly-2999-01-01"])
+            .context(&context())
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolchainError::UnmetRequirement { .. })),
+            "expected a nightly outside the range, got {result:?}"
         );
     }
 
@@ -2023,6 +1620,20 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn resolve_toolchain_with_an_invalid_range_reports_it() {
+        let result = toolchain_of()
+            .ranges(&["not a range"])
+            .context(&context())
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolchainError::InvalidRange { .. })),
+            "expected an invalid range, got {result:?}"
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_toolchain_with_an_unmet_requirement_gives_the_pin_and_the_requirement() {
         let pinned = pinned_by_the_repository();
 
@@ -2036,6 +1647,24 @@ mod tests {
             panic!("expected an unmet requirement, got {result:?}");
         };
         assert_eq!((version.get(), range.get()), (pinned.as_str(), "<1"));
+    }
+
+    #[tokio::test]
+    async fn resolve_toolchain_with_an_unpinned_toolchain_reports_it() {
+        let outside = tempfile::tempdir().expect("the test creates a temporary directory");
+
+        let result = toolchain_of()
+            .toolchain("npm:rakko-pins-no-such-package")
+            .executable("rakko-pins-no-such-package")
+            .ranges(&[">=1"])
+            .context(&context_of(outside.path()))
+            .call()
+            .await;
+
+        assert!(
+            matches!(result, Err(ResolveToolchainError::UnpinnedToolchain { .. })),
+            "expected an unpinned toolchain, got {result:?}"
+        );
     }
 
     #[tokio::test]
@@ -2106,10 +1735,7 @@ mod tests {
 
     #[tokio::test]
     async fn resolve_with_a_tool_declared_at_two_versions_reports_it_ambiguous() {
-        let tools = [
-            exact(),
-            requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1"))),
-        ];
+        let tools = [exact(), declared("0.0.1")];
 
         let result = resolved()
             .tools(&tools)
@@ -2125,26 +1751,45 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn resolve_with_a_tool_declared_only_as_a_toolchain_reports_it_undeclared() {
-        let result = resolved()
-            .tools(&[toolchain(">=1.0")])
+    async fn resolve_with_a_version_that_is_not_installed_carries_what_mise_said() {
+        let Err(error) = resolved()
+            .tools(&[declared("0.0.1")])
             .tool(PINNED)
             .executable(PINNED)
             .call()
-            .await;
+            .await
+        else {
+            panic!("expected the lookup to report an error");
+        };
 
         assert!(
-            matches!(result, Err(ResolveToolError::UndeclaredTool { .. })),
-            "expected an undeclared tool, got {result:?}"
+            error.to_string().contains("is not installed"),
+            "expected the diagnosis of mise, got {error}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_with_a_version_that_is_not_installed_gives_the_tool_and_the_version() {
+        let Err(error) = resolved()
+            .tools(&[declared("0.0.1")])
+            .tool(PINNED)
+            .executable(PINNED)
+            .call()
+            .await
+        else {
+            panic!("expected the lookup to report an error");
+        };
+
+        assert!(
+            error.to_string().contains("`jq` 0.0.1"),
+            "expected the tool and the version, got {error}"
         );
     }
 
     #[tokio::test]
     async fn resolve_with_a_version_that_is_not_installed_reports_it_uninstalled() {
-        let missing = requirement(RequiredVersion::Exact(ToolVersion::new("0.0.1")));
-
         let result = resolved()
-            .tools(&[missing])
+            .tools(&[declared("0.0.1")])
             .tool(PINNED)
             .executable(PINNED)
             .call()
@@ -2159,7 +1804,7 @@ mod tests {
     #[tokio::test]
     async fn resolve_without_the_tool_in_the_declarations_reports_it_undeclared() {
         let result = resolved()
-            .tools(&[renovate()])
+            .tools(&[RENOVATE_TOOLS])
             .tool(PINNED)
             .executable(PINNED)
             .call()
@@ -2174,13 +1819,7 @@ mod tests {
     #[tokio::test]
     async fn run_of_an_action_whose_tool_has_no_build_here_checks_no_toolchain() {
         let mut action = Requiring::new(&["<1"]);
-        action.tools = vec![
-            ToolRequirement::builder()
-                .tool("github:aonyx-ai/stiles")
-                .executable("stiles")
-                .exact_version_on(ToolVersion::new("0.6.0"), [another_platform()])
-                .build(),
-        ];
+        action.tools = vec![ELSEWHERE];
         let above = Project::pinning(&[&pinned_by_the_repository()]);
 
         let outcome = erased_run(&action, &above.context_below()).await;

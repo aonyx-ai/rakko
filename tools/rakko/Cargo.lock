@@ -273,6 +273,7 @@ dependencies = [
 name = "aonyx-rakko-format-terraform"
 version = "0.1.0"
 dependencies = [
+ "bon",
  "getset",
  "rakko",
  "rakko-tool",

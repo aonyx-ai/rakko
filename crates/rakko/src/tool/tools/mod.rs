@@ -226,7 +226,7 @@ mod tests {
     )]
 
     use super::*;
-    use crate::tool::{RequiredVersion, ToolVersion};
+    use crate::tool::ToolVersion;
 
     #[test]
     fn requirements_keep_the_order_of_the_file() {
@@ -248,7 +248,7 @@ mod tests {
 
         assert_eq!(
             tools.requirements()[0].version(),
-            &RequiredVersion::Exact(ToolVersion::new("0.10.0"))
+            &ToolVersion::new("0.10.0")
         );
     }
 

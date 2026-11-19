@@ -1,8 +1,8 @@
 //! The example action of the guide "Run a Tool From an Action"
 //!
 //! The action runs taplo, an external tool, to check the TOML files of a
-//! project. The crate pins taplo in its `mise.rakko.toml`, declares the tool
-//! with the version of that pin, and runs it at that version through mise.
+//! project. The crate pins taplo in its `mise.rakko.toml`, declares the tools
+//! of that file, and runs taplo at the version of its pin through mise.
 //!
 //! The site shows the regions of this file between the `// region:` and the
 //! `// endregion:` comments. Cargo compiles and tests the file, so the code on
@@ -11,42 +11,10 @@
 
 // region: imports
 use rakko::{
-    Access, Action, Context, Documented, Finding, Location, Name, Outcome, RequiredVersion,
-    ToolRequirement, ToolVersion, action_name,
+    Access, Action, Context, Documented, Finding, Location, Name, Outcome, Tools, action_name,
 };
-use rakko_tool::{Launch, MiseFile, PinnedPlatforms, ShownStreams, Tool};
+use rakko_tool::{Launch, ShownStreams, Tool};
 // endregion: imports
-
-// region: pin
-/// The name of taplo in the configuration of mise, and of its program
-const TAPLO: &str = "taplo";
-
-/// The mise file of the crate, which pins the taplo that the action runs
-const PINS: MiseFile = MiseFile::new(include_str!("../mise.rakko.toml"));
-
-/// The version of taplo that the action runs
-///
-/// A mise file that pins no taplo fails the build.
-const VERSION: &str = PINS.pinned_version(TAPLO);
-
-/// The platforms where taplo has a build, or `None` for every platform
-///
-/// A platform that Rakko does not read fails the build.
-const PLATFORMS: Option<PinnedPlatforms> = PINS.pinned_platforms(TAPLO);
-// endregion: pin
-
-// region: requirement
-/// Returns the requirement of the taplo that the action runs
-fn taplo() -> ToolRequirement {
-    let version = ToolVersion::new(VERSION);
-    let builder = ToolRequirement::builder().tool(TAPLO).executable(TAPLO);
-
-    match PLATFORMS {
-        Some(platforms) => builder.exact_version_on(version, platforms).build(),
-        None => builder.version(RequiredVersion::Exact(version)).build(),
-    }
-}
-// endregion: requirement
 
 // region: action
 /// Checks that the TOML files of the project are valid
@@ -68,15 +36,17 @@ impl Action for CheckToml {
     }
 
     // region: tools
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![taplo()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
     // endregion: tools
 
     // region: run
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        let tool = match Tool::resolve_requirement()
-            .requirement(&taplo())
+        let tool = match Tool::resolve()
+            .action(self)
+            .tool("taplo")
+            .executable("taplo")
             .context(context)
             .call()
             .await

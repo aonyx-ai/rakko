@@ -10,7 +10,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    SkipReason, Summary, ToolRequirement, action_name,
+    SkipReason, Summary, Tools, action_name,
 };
 
 pub use self::error::LintYamlError;
@@ -77,12 +77,12 @@ impl Action for LintYaml {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Yamllint::requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(context, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -101,8 +101,11 @@ impl Action for LintYaml {
 ///
 /// Returns the error of the step that failed: tool resolution, file listing,
 /// the yamllint run, or report reading.
-async fn drive(context: &Context) -> Result<Outcome, LintYamlError> {
-    let yamllint = Yamllint::resolve(context)
+async fn drive(context: &Context, action: &LintYaml) -> Result<Outcome, LintYamlError> {
+    let yamllint = Yamllint::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| LintYamlError::UnresolvedTool { source })?;
 
@@ -371,9 +374,23 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_the_yamllint_of_the_crate() {
+    fn tools_declare_the_exact_version_of_the_crate() {
         let tools = LintYaml.tools();
 
-        assert_eq!(tools, vec![Yamllint::requirement()]);
+        let version = tools[0].version();
+
+        assert!(
+            include_str!("../../mise.rakko.toml").contains(&format!("yamllint = \"{version}\"")),
+            "expected the version of the mise file of the crate, got {version}"
+        );
+    }
+
+    #[test]
+    fn tools_declare_yamllint_alone() {
+        let tools = LintYaml.tools();
+
+        let names: Vec<&str> = tools.iter().map(|tool| tool.tool().get()).collect();
+
+        assert_eq!(names, ["yamllint"]);
     }
 }

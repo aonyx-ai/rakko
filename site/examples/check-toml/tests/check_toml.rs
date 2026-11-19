@@ -8,28 +8,26 @@
 
 // region: tools
 use otter_check_toml::CheckToml;
-use rakko::{Action, RequiredVersion, ToolVersion};
-use rakko_tool::MiseFile;
+use rakko::Action;
 
 #[test]
-fn tools_pins_the_version_of_the_mise_file() {
-    let pin = MiseFile::new(include_str!("../mise.rakko.toml")).pinned_version("taplo");
-
+fn tools_pin_the_version_of_the_mise_file() {
     let tools = CheckToml.tools();
 
-    assert_eq!(
-        tools[0].version(),
-        &RequiredVersion::Exact(ToolVersion::new(pin))
+    let version = tools[0].version();
+
+    assert!(
+        include_str!("../mise.rakko.toml").contains(&format!("taplo = \"{version}\"")),
+        "expected the version of the mise file, got {version}"
     );
 }
 // endregion: tools
 
 #[test]
-fn tools_runs_the_program_of_taplo() {
+fn tools_with_one_pin_hold_taplo_alone() {
     let tools = CheckToml.tools();
 
-    assert_eq!(
-        tools[0].executable().map(rakko::Executable::get),
-        Some("taplo")
-    );
+    let names: Vec<&str> = tools.iter().map(|tool| tool.tool().get()).collect();
+
+    assert_eq!(names, ["taplo"]);
 }

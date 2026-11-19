@@ -19,7 +19,9 @@ use std::process::Command;
 
 use aonyx_rakko_taplo::{Observation, Operation, ProblemDetail, Taplo};
 use bon::bon;
-use rakko::{Context, ProjectRoot, ToolEvent};
+use rakko::{
+    Action, Context, Documented, Name, Outcome, ProjectRoot, ToolEvent, Tools, action_name,
+};
 use rakko_test_utils::ToolRecorder;
 use tempfile::TempDir;
 
@@ -31,6 +33,39 @@ const UNFORMATTED: &str = "x   =    1\n";
 
 /// A TOML document that taplo cannot parse
 const INVALID: &str = "broken = [1,\n";
+
+/// An action that runs taplo through the crate
+#[derive(Documented)]
+struct Wrapping;
+
+impl Action for Wrapping {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("wrapping")
+    }
+
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Taplo::TOOLS]
+    }
+
+    async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+        Outcome::Passed { summary: None }
+    }
+}
+
+/// Resolves the taplo that the crate declares in the context
+///
+/// # Errors
+///
+/// Returns the error of the lookup, which a test asserts on.
+async fn resolve(context: &Context) -> Result<Taplo, rakko_tool::ResolveToolError> {
+    Taplo::resolve()
+        .context(context)
+        .action(&Wrapping)
+        .call()
+        .await
+}
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -60,7 +95,7 @@ impl Project {
 
     /// Runs one operation of taplo against this project
     async fn observe(&self, operation: Operation) -> Observation {
-        let taplo = Taplo::resolve(&self.context())
+        let taplo = resolve(&self.context())
             .await
             .expect("the test resolves the taplo that the crate declares");
 
@@ -208,7 +243,7 @@ async fn observe_reads_a_report_without_color_codes() {
     let project = Project::new();
     project.write().path("broken.toml").content(INVALID).call();
 
-    let taplo = Taplo::resolve(&project.context())
+    let taplo = resolve(&project.context())
         .await
         .expect("the test resolves the taplo that the crate declares");
 
@@ -236,7 +271,7 @@ async fn observe_sends_the_start_of_taplo_to_the_tool_output_of_the_context() {
         .root(project.root())
         .tool_output(recorder.output().clone())
         .build();
-    let taplo = Taplo::resolve(&context)
+    let taplo = resolve(&context)
         .await
         .expect("the test resolves the taplo that the crate declares");
 
@@ -258,7 +293,7 @@ async fn resolve_in_a_missing_directory_reports_an_error() {
     let missing = parent.path().join("missing");
     let context = Context::builder().root(missing.as_path()).build();
 
-    let taplo = Taplo::resolve(&context).await;
+    let taplo = resolve(&context).await;
 
     assert!(
         taplo.is_err(),
@@ -270,7 +305,7 @@ async fn resolve_in_a_missing_directory_reports_an_error() {
 async fn resolve_in_a_project_that_pins_another_taplo_finds_the_declared_one() {
     let project = Project::new();
 
-    let taplo = Taplo::resolve(&project.context()).await;
+    let taplo = resolve(&project.context()).await;
 
     assert!(taplo.is_ok(), "expected the declared taplo, got {taplo:?}");
 }

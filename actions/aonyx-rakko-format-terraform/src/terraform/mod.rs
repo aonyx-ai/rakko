@@ -1,30 +1,22 @@
 //! The Terraform that a project runs
 //!
-//! This module holds the versions of Terraform that the crate accepts and the
-//! runs of its formatter. It also holds the program that mise installed at the
-//! version that the project pins. An action asks for a run, and everything between
-//! the action and the process lives here.
+//! This module holds the runs of the formatter of Terraform, and the program
+//! that mise installed at the version that the project pins. An action asks
+//! for a run, and this module holds all the code between the action and the
+//! process.
 
 mod error;
 
 use std::path::{Path, PathBuf};
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, VersionRange};
-use rakko_tool::{Execution, Invocation, Launch, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Execution, Invocation, Launch, ResolveToolchainError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveTerraformError;
 
 /// The name that mise knows Terraform by, which is also the name of its
 /// program
 const TERRAFORM: &str = "terraform";
-
-/// The versions of Terraform that the action formats with
-///
-/// Terraform is a toolchain of the project, because the configuration of the
-/// project runs on it. So the project pins its version, and a run stops when
-/// that version is outside the range. Every release since 1.0 knows the
-/// options that the action gives.
-const TERRAFORM_RANGE: &str = ">=1.0";
 
 /// The command of Terraform that formats files
 const FMT: &str = "fmt";
@@ -77,6 +69,7 @@ pub(crate) struct Terraform {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Terraform {
     /// Runs the formatter over the project and returns the files it listed
     ///
@@ -107,32 +100,31 @@ impl Terraform {
         listed(&execution, operation, root)
     }
 
-    /// Returns the requirement of the Terraform that the action formats with
-    ///
-    /// Terraform is a toolchain, so the requirement holds the range of
-    /// versions that the action accepts, and the project pins the version.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(TERRAFORM)
-            .executable(TERRAFORM)
-            .version(RequiredVersion::Range(VersionRange::new(TERRAFORM_RANGE)))
-            .build()
-    }
-
     /// Returns the Terraform that mise installed at the version that the
     /// project pins
     ///
+    /// Terraform is a toolchain of the project, because the configuration of
+    /// the project runs on it. So the lookup takes the first pin of Terraform
+    /// in the project, and the action requires no range of versions. A release
+    /// can lack an option of the formatter. Then the run of Terraform stops,
+    /// and the error of the run carries what Terraform wrote about the option.
     /// A run of Terraform starts in the root of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
-    /// the project pins no Terraform in the range. It also returns one when
-    /// mise reports no Terraform at the pinned version, for example because
-    /// nothing installed it.
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    /// Returns a [`ResolveToolchainError`] when mise does not run, or when the
+    /// project pins no Terraform. It also returns one when mise reports no
+    /// Terraform at the pinned version, for example because nothing installed
+    /// it.
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        context: &Context,
+        action: &A,
+    ) -> Result<Self, ResolveToolchainError> {
+        let tool = Tool::resolve_toolchain()
+            .action(action)
+            .toolchain(TERRAFORM)
+            .executable(TERRAFORM)
             .context(context)
             .call()
             .await?;
@@ -160,8 +152,10 @@ fn invocation(tool: &Tool, operation: Operation) -> Invocation {
 /// Terraform lists one file on each line of its standard output stream. A
 /// check ends with success when every file is formatted, and with a status of
 /// its own when it listed a file. A rewrite ends with success and lists the
-/// files that it rewrote. Any other status means that Terraform could not
-/// read the configuration, and its diagnostics say why.
+/// files that it rewrote. Any other status means that Terraform stopped before
+/// it read the whole project, and its diagnostics say why. Terraform stops at a
+/// file that it cannot parse, and a release stops at an option that it does
+/// not know.
 ///
 /// # Errors
 ///
@@ -212,16 +206,6 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Operation>();
-    }
-
-    #[test]
-    fn requirement_accepts_a_range_of_terraform() {
-        let requirement = Terraform::requirement();
-
-        assert_eq!(
-            requirement.version(),
-            &RequiredVersion::Range(VersionRange::new(TERRAFORM_RANGE))
-        );
     }
 
     #[test]

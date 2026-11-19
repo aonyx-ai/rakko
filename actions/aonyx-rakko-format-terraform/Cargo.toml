@@ -11,13 +11,13 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+bon = { workspace = true }
 getset = { workspace = true }
 rakko = { workspace = true }
 rakko-tool = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-bon = { workspace = true }
 rakko-test-utils = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }

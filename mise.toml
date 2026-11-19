@@ -79,8 +79,8 @@ python = "3.14.8"
 "npm:typescript" = "7.0.2"
 # Terraform is a toolchain of this repository, like node, because the
 # configuration of a project runs on it. `format-terraform` reads this pin,
-# and it accepts Terraform 1.0 and later. Nothing here holds Terraform files,
-# so the action passes here, and the pin exists for the tests of the action.
+# and it requires no range of it. Nothing here holds Terraform files, so the
+# action passes here, and the pin exists for the tests of the action.
 terraform = "1.17.2"
 # Zola is a toolchain of this repository, like node, because it compiles the
 # templates and the pages of the website in `site/`. They are written for the

@@ -255,7 +255,7 @@ mod tests {
 
     use std::collections::BTreeSet;
 
-    use rakko::{Architecture, OperatingSystem, Platform, Position, RequiredVersion};
+    use rakko::{Architecture, OperatingSystem, Platform, Position};
     use rakko_test_utils::path;
 
     use super::*;
@@ -376,9 +376,7 @@ mod tests {
     fn tools_declare_the_exact_version_of_the_crate() {
         let tools = LintStiles.tools();
 
-        let RequiredVersion::Exact(version) = tools[0].version() else {
-            panic!("expected an exact version of stiles");
-        };
+        let version = tools[0].version();
 
         assert!(
             include_str!("../../mise.rakko.toml").contains(&format!("version = \"{version}\"")),

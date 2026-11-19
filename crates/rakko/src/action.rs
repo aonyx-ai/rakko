@@ -149,17 +149,15 @@ pub trait Action: Documented + Send + Sync {
     /// before any run starts.
     ///
     /// The default answer holds the tools of [`bundled_tools`][bundled] and
-    /// then those of [`additional_tools`][additional], each once. An action
-    /// that pins its tools in mise files needs no implementation of this
-    /// method. A
-    /// tool that a run starts must be in this answer. The lookup of a tool
-    /// reads the answer, and it refuses a tool that the answer does not hold.
+    /// then those of [`additional_tools`][additional], each once. A tool that
+    /// a run starts must be in this answer. The lookup of a tool reads the
+    /// answer, and it refuses a tool that the answer does not hold.
     ///
-    /// An action that implements the method must not read a file or start a
-    /// tool there. Such an action can give a requirement that the builder of
-    /// [`ToolRequirement`] creates. An older action gives the range of a
-    /// toolchain there, which still works. A new action declares what it
-    /// requires of a toolchain with [`toolchains`][toolchains].
+    /// An action needs no implementation of this method. Each
+    /// [`ToolRequirement`] comes from a pin of a mise file, so the two methods
+    /// above already give every tool that an action can declare. A toolchain is no tool of the
+    /// action. An action declares what it requires of a toolchain with
+    /// [`toolchains`][toolchains].
     ///
     /// A requirement can give the platforms where its tool has a build. On
     /// every other platform, the machinery does not start the run, and the
@@ -250,7 +248,7 @@ mod tests {
 
     use super::*;
     use crate::Documented;
-    use crate::tool::{RequiredVersion, ToolVersion, VersionRange};
+    use crate::tool::VersionRange;
 
     /// Whether a future has returned control already
     #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
@@ -276,26 +274,6 @@ mod tests {
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
             YieldOnce::default().await;
-            Outcome::Passed { summary: None }
-        }
-    }
-
-    /// An action that declares the one tool that it runs
-    #[derive(Documented)]
-    struct Wrapper;
-
-    impl Action for Wrapper {
-        type Args = ();
-
-        fn name(&self) -> Name {
-            "wrapper".parse().unwrap()
-        }
-
-        fn tools(&self) -> Vec<ToolRequirement> {
-            vec![taplo()]
-        }
-
-        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
             Outcome::Passed { summary: None }
         }
     }
@@ -429,15 +407,6 @@ mod tests {
             .iter()
             .map(|requirement| requirement.tool().get().to_owned())
             .collect()
-    }
-
-    /// Returns the requirement that the wrapper declares
-    fn taplo() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool("taplo")
-            .executable("taplo")
-            .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
-            .build()
     }
 
     /// A future that returns control once before it resolves
@@ -651,14 +620,5 @@ mod tests {
         let tools = action.tools();
 
         assert_eq!(names(&tools), ["shellcheck", "yamllint"]);
-    }
-
-    #[test]
-    fn tools_returns_what_the_action_declares() {
-        let action = Wrapper;
-
-        let tools = action.tools();
-
-        assert_eq!(tools, vec![taplo()]);
     }
 }

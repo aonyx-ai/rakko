@@ -56,12 +56,11 @@ from the design discussions to the terms that replaced them.
   actions declare. The check compares the values of the file, so a formatter
   can change its layout. No pin of the project can override a declared tool.
   `doctor` also reports each unmet toolchain requirement of a mounted action.
-  It checks the range of a toolchain in an older tool requirement in the same
-  way. These two checks are no part of the precondition. The check needs no
-  network. `doctor --fix` writes the generated file, removes each pin that
-  overrides a declared tool, and locks the tools with mise. It does not change
-  the pin of a toolchain, and it says which pin to change. A finding of any
-  kind fails the run of `doctor`, also with `--fix`.
+  That check is no part of the precondition. Neither check needs the network.
+  `doctor --fix` writes the generated file, removes each pin that overrides a
+  declared tool, and locks the tools with mise. It does not change the pin of
+  a toolchain, and it says which pin to change. A finding of any kind fails
+  the run of `doctor`, also with `--fix`.
 - **Erased action** — The internal, object-safe view of an action. Bundles
   export erased actions, and the registry in the harness holds them. Action
   authors do not see this type. A harness that only mounts does not write it
@@ -196,15 +195,14 @@ from the design discussions to the terms that replaced them.
   one tool can provide several programs. For example, the tool `npm:renovate`
   provides `renovate` and `renovate-config-validator`. The action gives the
   program when it runs the tool.
-- **Tool requirement** — What an action declares for each tool that it runs. A
-  requirement holds the identifier of the tool in the configuration of mise.
-  It also holds the exact version of a tool, or the range of versions of a
-  toolchain. An action that does not declare a toolchain requirement can give
-  the range of a toolchain here. A requirement of an exact version can also
-  list the platforms where the tool has a build. The requirement of a tool pin
-  holds no program. A requirement that the builder creates also holds the
-  program that the action starts. The declaration takes no arguments and no
-  context, because the machinery reads it before any run starts.
+- **Tool requirement** — What an action declares for each tool that it runs.
+  Each requirement comes from a tool pin, and no code creates one in another
+  way. A requirement holds the identifier of the tool in the configuration of
+  mise and its exact version. When the pin lists platforms, the requirement
+  holds them too. It holds no program, because the action gives the program
+  when it runs the tool. A toolchain is no tool requirement. The declaration
+  takes no arguments and no context, because the machinery reads it before any
+  run starts.
 - **Toolchain** — A tool that the code of the project builds or runs with,
   such as Rust, Node.js, or TypeScript. The project pins its toolchains. An
   action pins every other tool that it runs through mise. An action runs on

@@ -220,7 +220,6 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
-    use rakko::{RequiredVersion, ToolRequirement, ToolVersion};
     use tempfile::TempDir;
 
     use super::*;
@@ -235,11 +234,10 @@ mod tests {
 
     /// Returns the pins of taplo
     fn taplo() -> Pins {
-        Pins::of(&[ToolRequirement::builder()
+        Pins::of(&[crate::declared::requirement()
             .tool("taplo")
-            .executable("taplo")
-            .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
-            .build()])
+            .version("0.10.0")
+            .call()])
     }
 
     /// Returns a configuration file at a path below the root that pins the

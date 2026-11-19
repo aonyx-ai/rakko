@@ -27,7 +27,7 @@ use rakko::{
     Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent, ToolStream,
 };
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
-use rakko_tool::ResolveRequirementError;
+use rakko_tool::ResolveToolError;
 use tempfile::TempDir;
 
 /// TypeScript that breaks no rule that oxlint enables by itself
@@ -223,7 +223,7 @@ async fn run_in_a_missing_directory_stops_without_an_oxlint() {
                 if matches!(
                     source.downcast_ref(),
                     Some(LintTypeScriptError::UnresolvedTool {
-                        source: ResolveRequirementError::MiseUnavailable { tool, .. },
+                        source: ResolveToolError::MiseUnavailable { tool, .. },
                     }) if tool.get() == "oxlint"
                 )
         ),

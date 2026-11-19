@@ -20,38 +20,37 @@ pub(crate) use self::platform::Host;
 pub use self::platform::{Architecture, OperatingSystem, Platform};
 pub use self::toolchain_requirement::ToolchainRequirement;
 pub use self::tools::Tools;
-pub use self::version::{RequiredVersion, ToolVersion, VersionRange};
+pub use self::version::{ToolVersion, VersionRange};
 
-/// A tool that an action runs, and the versions that it accepts
+/// A tool that an action runs, at the exact version that a mise file pins
 ///
 /// The machinery reads the requirements of an action before any run, from
 /// [`Action::tools`][tools]. A requirement holds these parts:
 ///
 /// - the identifier of the tool in the configuration of mise,
-/// - the versions of the tool that the action accepts, and
-/// - the platforms where the tool has a build, for an exact version.
+/// - the exact version of the tool, and
+/// - the platforms where the tool has a build, or none for every platform.
 ///
 /// Mise installs the tool. A resolver asks mise for a program of the tool at
-/// a version that the requirement accepts.
+/// that version.
 ///
-/// An action that wraps a tool pins it in its mise file, and
-/// [`bundled_tools!`][bundled] reads the pin. The requirement of such a pin
-/// holds the exact version and the platforms of the pin. It holds no
-/// program, because one tool can provide several programs. The action gives
-/// the program when it runs the tool. A requirement that the builder creates also
-/// holds the program that the action starts. An action that does not declare
-/// a [`ToolchainRequirement`] can give the range of versions of a toolchain
-/// there.
+/// Every requirement comes from a pin of a mise file. An action that wraps a
+/// tool pins it in the mise file of its crate, and
+/// [`bundled_tools!`][bundled] reads the pin when the crate compiles. No
+/// other code creates a requirement. So an action declares only a tool that
+/// a mise file pins. A requirement holds no program, because one tool can
+/// provide several programs. The action gives the program when it runs the
+/// tool.
 ///
-/// A requirement of an exact version can give the platforms where the tool
-/// has a build. Mise then installs the tool only on those platforms. On every
-/// other platform, a run of the action through [`ErasedAction`][erased] or
-/// [`BoundAction`][bound] skips before it starts. The reason gives the tool
-/// and the platform. A call of [`Action::run`][run] on the type of the action
-/// does not skip. A requirement without such a list needs the tool on every
-/// platform. A toolchain gets no list, because the project pins its
-/// toolchains. So the builder does not let a requirement of a range carry
-/// platforms.
+/// A requirement can give the platforms where the tool has a build. Mise then
+/// installs the tool only on those platforms. On every other platform, a run
+/// of the action through [`ErasedAction`][erased] or [`BoundAction`][bound]
+/// skips before it starts. The reason gives the tool and the platform. A call
+/// of [`Action::run`][run] on the type of the action does not skip.
+///
+/// A toolchain, such as Rust or Node.js, is no tool of the action. The project
+/// pins it, and an action that needs some of its versions declares a
+/// [`ToolchainRequirement`].
 ///
 /// [bound]: crate::BoundAction
 /// [bundled]: crate::bundled_tools
@@ -62,18 +61,11 @@ pub use self::version::{RequiredVersion, ToolVersion, VersionRange};
 /// # Examples
 ///
 /// ```
-/// use rakko::{Executable, MiseTool, RequiredVersion, ToolRequirement, ToolVersion};
+/// const TOOLS: rakko::Tools = rakko::__tools_of_mise_file!("[tools]\ntaplo = \"0.10.0\"\n");
 ///
-/// let requirement = ToolRequirement::builder()
-///     .tool(MiseTool::new("npm:markdownlint-cli"))
-///     .executable(Executable::new("markdownlint"))
-///     .version(RequiredVersion::Exact(ToolVersion::new("0.50.0")))
-///     .build();
+/// let requirement = &TOOLS.requirements()[0];
 ///
-/// assert_eq!(
-///     requirement.executable().map(Executable::get),
-///     Some("markdownlint")
-/// );
+/// assert_eq!(requirement.tool().get(), "taplo");
 /// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct ToolRequirement {
@@ -81,13 +73,9 @@ pub struct ToolRequirement {
     #[getset(get = "pub")]
     tool: MiseTool,
 
-    /// The program of the tool that the action starts, or `None` for the
-    /// requirement of a pin, whose program the action gives when it runs
-    executable: Option<Executable>,
-
-    /// The versions of the tool that the action accepts
+    /// The exact version of the tool that the action runs
     #[getset(get = "pub")]
-    version: RequiredVersion,
+    version: ToolVersion,
 
     /// The platforms where the tool has a build, or `None` for every
     /// platform
@@ -96,81 +84,9 @@ pub struct ToolRequirement {
 
 #[bon]
 impl ToolRequirement {
-    /// Creates a requirement from a tool, its program, and its versions
-    ///
-    /// The builder sets the versions with `version`. For a tool that has a
-    /// build only on some platforms, it sets the exact version and the
-    /// platforms together with `exact_version_on`. So only a requirement of
-    /// an exact version can carry platforms, and a toolchain cannot. Without
-    /// platforms, the requirement needs the tool on every platform.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko::{RequiredVersion, ToolRequirement, ToolVersion};
-    ///
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("npm:prettier")
-    ///     .executable("prettier")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("3.3.0")))
-    ///     .build();
-    ///
-    /// assert_eq!(requirement.tool().get(), "npm:prettier");
-    /// ```
-    ///
-    /// A tool with builds for Linux and for macOS on ARM only:
-    ///
-    /// ```
-    /// use rakko::{Architecture, OperatingSystem, Platform, ToolRequirement, ToolVersion};
-    ///
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("github:aonyx-ai/stiles")
-    ///     .executable("stiles")
-    ///     .exact_version_on(
-    ///         ToolVersion::new("0.6.0"),
-    ///         [
-    ///             Platform::new(OperatingSystem::Linux),
-    ///             Platform::new(OperatingSystem::Macos).with_architecture(Architecture::Arm64),
-    ///         ],
-    ///     )
-    ///     .build();
-    ///
-    /// assert_eq!(requirement.platforms().map(|platforms| platforms.len()), Some(2));
-    /// ```
-    ///
-    /// A toolchain cannot carry platforms, so this does not compile:
-    ///
-    /// ```compile_fail
-    /// use std::collections::BTreeSet;
-    ///
-    /// use rakko::{OperatingSystem, Platform, RequiredVersion, ToolRequirement, VersionRange};
-    ///
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("node")
-    ///     .executable("node")
-    ///     .version(RequiredVersion::Range(VersionRange::new(">=22")))
-    ///     .platforms(BTreeSet::from([Platform::new(OperatingSystem::Linux)]))
-    ///     .build();
-    /// ```
-    #[builder]
-    pub fn new(
-        #[builder(into)] tool: MiseTool,
-        #[builder(into)] executable: Executable,
-        version: RequiredVersion,
-        #[builder(setters(vis = ""))] platforms: Option<BTreeSet<Platform>>,
-    ) -> Self {
-        Self {
-            tool,
-            executable: Some(executable),
-            version,
-            platforms,
-        }
-    }
-
     /// Creates the requirement of a pin of a mise file
     ///
-    /// The requirement holds the exact version and the platforms of the pin,
-    /// and no program.
+    /// The requirement holds the exact version and the platforms of the pin.
     #[builder]
     pub(crate) fn declared(
         tool: MiseTool,
@@ -179,35 +95,9 @@ impl ToolRequirement {
     ) -> Self {
         Self {
             tool,
-            executable: None,
-            version: RequiredVersion::Exact(version),
+            version,
             platforms,
         }
-    }
-
-    /// Returns the program of the tool that the action starts, or `None` for
-    /// the requirement of a pin of a mise file
-    ///
-    /// The requirement of a pin holds no program, because one tool can
-    /// provide several programs. The action gives the program when it runs
-    /// the tool.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko::{Executable, RequiredVersion, ToolRequirement, ToolVersion};
-    ///
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("npm:prettier")
-    ///     .executable("prettier")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("3.3.0")))
-    ///     .build();
-    ///
-    /// assert_eq!(requirement.executable().map(Executable::get), Some("prettier"));
-    /// ```
-    #[must_use]
-    pub fn executable(&self) -> Option<&Executable> {
-        self.executable.as_ref()
     }
 
     /// Returns the platforms where the tool has a build, or `None` when the
@@ -216,60 +106,13 @@ impl ToolRequirement {
     /// # Examples
     ///
     /// ```
-    /// use rakko::{RequiredVersion, ToolRequirement, ToolVersion};
+    /// const TOOLS: rakko::Tools = rakko::__tools_of_mise_file!("[tools]\ntaplo = \"0.10.0\"\n");
     ///
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("taplo")
-    ///     .executable("taplo")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
-    ///     .build();
-    ///
-    /// assert_eq!(requirement.platforms(), None);
+    /// assert_eq!(TOOLS.requirements()[0].platforms(), None);
     /// ```
     #[must_use]
     pub fn platforms(&self) -> Option<&BTreeSet<Platform>> {
         self.platforms.as_ref()
-    }
-}
-
-impl<S: tool_requirement_builder::State> ToolRequirementBuilder<S> {
-    /// Sets the exact version of the tool and the platforms where the tool
-    /// has a build
-    ///
-    /// Mise then installs the tool only on those platforms. The method takes
-    /// the place of `version`, so a requirement of a range, which a
-    /// toolchain declares, cannot carry platforms. Give at least one
-    /// platform, because a tool without a platform runs nowhere.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rakko::{OperatingSystem, Platform, RequiredVersion, ToolRequirement, ToolVersion};
-    ///
-    /// let requirement = ToolRequirement::builder()
-    ///     .tool("zizmor")
-    ///     .executable("zizmor")
-    ///     .exact_version_on(ToolVersion::new("1.32.0"), [Platform::new(OperatingSystem::Linux)])
-    ///     .build();
-    ///
-    /// assert_eq!(
-    ///     requirement.version(),
-    ///     &RequiredVersion::Exact(ToolVersion::new("1.32.0"))
-    /// );
-    /// ```
-    pub fn exact_version_on(
-        self,
-        version: ToolVersion,
-        platforms: impl Into<BTreeSet<Platform>>,
-    ) -> ToolRequirementBuilder<
-        tool_requirement_builder::SetPlatforms<tool_requirement_builder::SetVersion<S>>,
-    >
-    where
-        S::Version: tool_requirement_builder::IsUnset,
-        S::Platforms: tool_requirement_builder::IsUnset,
-    {
-        self.version(RequiredVersion::Exact(version))
-            .platforms(platforms.into())
     }
 }
 
@@ -282,34 +125,21 @@ mod tests {
 
     use super::*;
 
+    /// Returns the requirement of a tool on every platform
     fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool("npm:markdownlint-cli")
-            .executable("markdownlint")
-            .version(RequiredVersion::Exact(ToolVersion::new("0.50.0")))
-            .build()
-    }
-
-    #[test]
-    fn executable_returns_the_given_program() {
-        let requirement = requirement();
-
-        assert_eq!(
-            requirement.executable(),
-            Some(&Executable::new("markdownlint"))
-        );
+        ToolRequirement::declared()
+            .tool(MiseTool::new("npm:markdownlint-cli"))
+            .version(ToolVersion::new("0.50.0"))
+            .call()
     }
 
     #[test]
     fn platforms_returns_the_given_platforms() {
-        let requirement = ToolRequirement::builder()
-            .tool("taplo")
-            .executable("taplo")
-            .exact_version_on(
-                ToolVersion::new("0.10.0"),
-                [Platform::new(OperatingSystem::Windows)],
-            )
-            .build();
+        let requirement = ToolRequirement::declared()
+            .tool(MiseTool::new("taplo"))
+            .version(ToolVersion::new("0.10.0"))
+            .platforms(BTreeSet::from([Platform::new(OperatingSystem::Windows)]))
+            .call();
 
         assert_eq!(
             requirement.platforms(),
@@ -322,13 +152,6 @@ mod tests {
         let requirement = requirement();
 
         assert_eq!(requirement.platforms(), None);
-    }
-
-    #[test]
-    fn requirement_is_send_and_sync() {
-        fn assert_send_and_sync<T: Send + Sync>() {}
-
-        assert_send_and_sync::<ToolRequirement>();
     }
 
     #[test]
@@ -346,12 +169,9 @@ mod tests {
     }
 
     #[test]
-    fn version_returns_the_given_versions() {
+    fn version_returns_the_given_version() {
         let requirement = requirement();
 
-        assert_eq!(
-            requirement.version(),
-            &RequiredVersion::Exact(ToolVersion::new("0.50.0"))
-        );
+        assert_eq!(requirement.version(), &ToolVersion::new("0.50.0"));
     }
 }

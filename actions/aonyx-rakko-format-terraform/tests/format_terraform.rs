@@ -232,8 +232,8 @@ async fn run_in_a_project_without_terraform_passes() {
 }
 
 #[tokio::test]
-async fn run_with_a_terraform_before_1_0_stops() {
-    let project = Project::pinning("0.15.5");
+async fn run_with_a_terraform_that_nothing_installed_stops() {
+    let project = Project::pinning("0.0.1");
     project.write().path("main.tf").content(FORMATTED).call();
 
     let outcome = project.run(FormatMode::Report).await;
