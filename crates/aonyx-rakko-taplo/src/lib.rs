@@ -14,7 +14,7 @@
 //!
 //! For the same reason, the crate pins the version of taplo that every such
 //! action runs, in the file `mise.rakko.toml` that the build embeds. An
-//! action declares that version with [`Taplo::requirement`], and the version
+//! action adds that pin to its tools with [`Taplo::TOOLS`], and the version
 //! that the project pins does not change what runs.
 //!
 //! # Asynchronous Runtime
@@ -31,11 +31,14 @@
 //! use aonyx_rakko_taplo::{Operation, Taplo};
 //! use rakko_test_utils::path;
 //!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
 //! let context = Context::builder().root(ProjectRoot::new(path("/home/otter/project"))).build();
 //!
-//! let taplo = Taplo::resolve(&context).await?;
+//! let taplo = Taplo::resolve()
+//!     .context(&context)
+//!     .action(action)
+//!     .call()
+//!     .await?;
 //! let observation = taplo.observe(Operation::Lint).await?;
 //!
 //! assert!(observation.problems().is_empty());

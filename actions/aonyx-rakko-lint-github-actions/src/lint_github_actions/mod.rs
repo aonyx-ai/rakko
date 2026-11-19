@@ -9,7 +9,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    ToolRequirement, action_name,
+    Tools, action_name,
 };
 
 pub use self::error::LintGitHubActionsError;
@@ -82,12 +82,12 @@ impl Action for LintGitHubActions {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Zizmor::requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(context, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -110,8 +110,14 @@ impl Action for LintGitHubActions {
 ///
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, the zizmor run, or the reading of the report.
-async fn drive(context: &Context) -> Result<Outcome, LintGitHubActionsError> {
-    let zizmor = Zizmor::resolve(context)
+async fn drive(
+    context: &Context,
+    action: &LintGitHubActions,
+) -> Result<Outcome, LintGitHubActionsError> {
+    let zizmor = Zizmor::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| LintGitHubActionsError::UnresolvedTool { source })?;
 
@@ -190,9 +196,10 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
+    use std::collections::BTreeSet;
     use std::path::PathBuf;
 
-    use rakko::{Position, Span};
+    use rakko::{Architecture, OperatingSystem, Platform, Position, Span};
     use rakko_test_utils::path;
 
     use super::*;
@@ -304,9 +311,38 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_the_zizmor_of_the_crate() {
+    fn tools_declare_the_exact_version_of_the_crate() {
         let tools = LintGitHubActions.tools();
 
-        assert_eq!(tools, vec![Zizmor::requirement()]);
+        let version = tools[0].version();
+
+        assert!(
+            include_str!("../../mise.rakko.toml")
+                .contains(&format!("zizmor = {{ version = \"{version}\"")),
+            "expected the version of the mise file of the crate, got {version}"
+        );
+    }
+
+    #[test]
+    fn tools_declare_zizmor_alone() {
+        let tools = LintGitHubActions.tools();
+
+        let names: Vec<&str> = tools.iter().map(|tool| tool.tool().get()).collect();
+
+        assert_eq!(names, ["zizmor"]);
+    }
+
+    #[test]
+    fn tools_leave_out_windows_on_arm() {
+        let tools = LintGitHubActions.tools();
+
+        assert_eq!(
+            tools[0].platforms(),
+            Some(&BTreeSet::from([
+                Platform::new(OperatingSystem::Linux),
+                Platform::new(OperatingSystem::Macos),
+                Platform::new(OperatingSystem::Windows).with_architecture(Architecture::X64),
+            ]))
+        );
     }
 }

@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 use crate::terraform::ObserveTerraformError;
@@ -25,7 +25,7 @@ use crate::terraform::ObserveTerraformError;
 ///
 /// assert_eq!(
 ///     error.to_string(),
-///     "Terraform could not read the configuration of the project:\nError: Unclosed configuration block"
+///     "Terraform stopped before it read the whole project:\nError: Unclosed configuration block"
 /// );
 /// ```
 #[derive(Debug, Error)]
@@ -52,12 +52,13 @@ pub enum FormatTerraformError {
         source: RunCommandError,
     },
 
-    /// Terraform could not read a file of the project
+    /// Terraform stopped before it read the whole project
     ///
     /// Terraform stops at the first file that it cannot parse, and the files
-    /// after it stay unread. An outcome built on such a run would describe a
-    /// part of the project as though it were the whole.
-    #[error("Terraform could not read the configuration of the project:\n{diagnostics}")]
+    /// after it stay unread. A release of Terraform also stops at an option of
+    /// the formatter that it does not know. An outcome built on such a run
+    /// would describe a part of the project as though it were the whole.
+    #[error("Terraform stopped before it read the whole project:\n{diagnostics}")]
     UnreadableConfiguration {
         /// The diagnostics that Terraform wrote
         diagnostics: String,
@@ -74,15 +75,14 @@ pub enum FormatTerraformError {
         stderr: String,
     },
 
-    /// Mise reported no Terraform that the action accepts
+    /// Mise reported no Terraform that the project pins
     ///
-    /// The project pins no Terraform in the range of the action, or nothing
-    /// installed the version that it pins. The action installs nothing, so
-    /// the run stops here.
+    /// The project pins no Terraform, or nothing installed the version that it
+    /// pins. The action installs nothing, so the run stops here.
     #[error("failed to resolve Terraform")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolchainError,
     },
 }
 

@@ -257,8 +257,7 @@ mod tests {
     use rakko::{
         Access, Action, Args, ArgsSchema, ArgsValues, Argument, ArgumentShape, ArgumentValue,
         ErasedAction, Name, OperatingSystem, Outcome, Platform, ReadArgsError, SkipReason,
-        ToolCommand, ToolEvent, ToolLine, ToolRequirement, ToolStream, ToolVersion, action_name,
-        argument_name,
+        ToolCommand, ToolEvent, ToolLine, ToolStream, Tools, action_name, argument_name,
     };
 
     use super::*;
@@ -480,7 +479,7 @@ mod tests {
             Action::access(&self.recorder, context, args)
         }
 
-        fn tools(&self) -> Vec<ToolRequirement> {
+        fn additional_tools(&self) -> Vec<Tools> {
             let elsewhere = if cfg!(target_os = "windows") {
                 OperatingSystem::Linux
             } else {
@@ -488,11 +487,11 @@ mod tests {
             };
 
             vec![
-                ToolRequirement::builder()
+                crate::declared::tools()
                     .tool("zizmor")
-                    .executable("zizmor")
-                    .exact_version_on(ToolVersion::new("1.32.0"), [Platform::new(elsewhere)])
-                    .build(),
+                    .version("1.32.0")
+                    .platforms(&[Platform::new(elsewhere)])
+                    .call(),
             ]
         }
 

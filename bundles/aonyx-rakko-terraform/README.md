@@ -49,8 +49,8 @@ instead of passing quietly. An action runs two kinds of tool: toolchains and
 the tools of the action.
 
 Terraform is a toolchain, because the configuration of the project runs on it.
-The project pins its version in its `mise.toml`, and `format-terraform` accepts
-Terraform 1.0 and later.
+The project pins its version in its `mise.toml`, and `format-terraform` runs the
+version that the project pins.
 
 TFLint is a tool of `lint-terraform`. The action runs the version that its crate
 pins in a `mise.rakko.toml`, and not the version that the project pins.

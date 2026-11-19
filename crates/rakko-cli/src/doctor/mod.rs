@@ -238,7 +238,6 @@ async fn report(
 
     findings.extend(
         self::toolchain::check()
-            .declarations(declarations)
             .toolchains(toolchains)
             .context(context)
             .call()
@@ -330,7 +329,6 @@ async fn repair(
 
     findings.extend(
         self::toolchain::check()
-            .declarations(declarations)
             .toolchains(toolchains)
             .context(context)
             .call()
@@ -409,12 +407,9 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
-    use rakko::{
-        FilePath, Location, RequiredVersion, ToolRequirement, ToolVersion, ToolchainRequirement,
-        VersionRange,
-    };
-    use rakko_tool::MiseFile;
+    use rakko::{FilePath, Location, ToolchainRequirement, Tools, VersionRange};
     use tempfile::TempDir;
+    use toml_edit::DocumentMut;
 
     use super::*;
 
@@ -426,6 +421,10 @@ mod tests {
 
     /// The tool that the tests declare at an exact version
     const TOOL: &str = "taplo";
+
+    /// The pin of the tool in the mise file of the crate that wraps it
+    const TOOLS: Tools =
+        rakko::__tools_of_mise_file!(include_str!("../../../aonyx-rakko-taplo/mise.rakko.toml"));
 
     /// The lockfile of the generated file, relative to the root
     const LOCKFILE: &str = ".config/mise/mise.lock";
@@ -445,41 +444,20 @@ mod tests {
     fn pinned_in(file: &str, tool: &str) -> String {
         let pins = std::fs::read_to_string(repository().join(file))
             .expect("the test reads a mise file of the repository");
+        let document: DocumentMut = pins.parse().expect("the mise file is TOML");
 
-        MiseFile::new(&pins).pinned_version(tool).to_owned()
+        document["tools"][tool]
+            .as_str()
+            .expect("the mise file pins the tool at one version")
+            .to_owned()
     }
 
     /// Returns the declaration of the tool at the version that the crate of
     /// the tool pins
     fn tool() -> Declaration {
-        let version = pinned_in()
-            .file("crates/aonyx-rakko-taplo/mise.rakko.toml")
-            .tool(TOOL)
-            .call();
-
         Declaration::builder()
             .action("format-toml".parse().expect("the test names an action"))
-            .requirement(
-                ToolRequirement::builder()
-                    .tool(TOOL)
-                    .executable(TOOL)
-                    .version(RequiredVersion::Exact(ToolVersion::new(version)))
-                    .build(),
-            )
-            .build()
-    }
-
-    /// Returns the declaration of the toolchain in a range
-    fn toolchain(range: &str) -> Declaration {
-        Declaration::builder()
-            .action("format-json".parse().expect("the test names an action"))
-            .requirement(
-                ToolRequirement::builder()
-                    .tool(TOOLCHAIN)
-                    .executable(TOOLCHAIN)
-                    .version(RequiredVersion::Range(VersionRange::new(range)))
-                    .build(),
-            )
+            .requirement(TOOLS.requirements().remove(0))
             .build()
     }
 
@@ -511,10 +489,14 @@ mod tests {
         }
     }
 
-    /// Returns the declarations of the tool and of a toolchain that no
-    /// version accepts
+    /// Returns the declaration of the tool
     fn declarations() -> BTreeSet<Declaration> {
-        BTreeSet::from([tool(), toolchain("<1")])
+        BTreeSet::from([tool()])
+    }
+
+    /// Returns a requirement of the toolchain that no version accepts
+    fn toolchains() -> BTreeSet<ToolchainDeclaration> {
+        BTreeSet::from([requirement().range("<1").call()])
     }
 
     /// A project in a temporary directory with a configuration file of mise
@@ -745,19 +727,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn require_with_a_toolchain_outside_its_range_lets_the_run_start() {
-        let project = Project::shadowing();
-
-        let result = require()
-            .declarations(&BTreeSet::from([toolchain("<1")]))
-            .context(&project.context())
-            .call()
-            .await;
-
-        assert!(result.is_ok(), "got {result:?}");
-    }
-
-    #[tokio::test]
     async fn require_without_a_declared_tool_lets_the_run_start() {
         let project = Project::with("[tools]\n");
 
@@ -777,7 +746,7 @@ mod tests {
 
         let _outcome = run()
             .declarations(&declarations())
-            .toolchains(&BTreeSet::new())
+            .toolchains(&toolchains())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -845,7 +814,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&declarations())
-            .toolchains(&BTreeSet::new())
+            .toolchains(&toolchains())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -948,7 +917,7 @@ mod tests {
         let project = Project::shadowing();
         let _repaired = run()
             .declarations(&declarations())
-            .toolchains(&BTreeSet::new())
+            .toolchains(&toolchains())
             .context(&project.context())
             .mode(Mode::Repair)
             .call()
@@ -956,7 +925,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&declarations())
-            .toolchains(&BTreeSet::new())
+            .toolchains(&toolchains())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -974,7 +943,7 @@ mod tests {
 
         let _outcome = run()
             .declarations(&declarations())
-            .toolchains(&BTreeSet::new())
+            .toolchains(&toolchains())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -1040,7 +1009,7 @@ mod tests {
 
         let outcome = run()
             .declarations(&declarations())
-            .toolchains(&BTreeSet::new())
+            .toolchains(&toolchains())
             .context(&project.context())
             .mode(Mode::Report)
             .call()
@@ -1115,21 +1084,6 @@ mod tests {
             }),
             "got {outcome:?}"
         );
-    }
-
-    #[tokio::test]
-    async fn run_with_a_toolchain_in_its_range_passes() {
-        let project = Project::shadowing();
-
-        let outcome = run()
-            .declarations(&BTreeSet::from([toolchain(">=1")]))
-            .toolchains(&BTreeSet::new())
-            .context(&project.context())
-            .mode(Mode::Report)
-            .call()
-            .await;
-
-        assert!(matches!(outcome, Outcome::Passed { .. }), "got {outcome:?}");
     }
 
     #[tokio::test]

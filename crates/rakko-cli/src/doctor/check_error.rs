@@ -4,7 +4,7 @@ use std::io;
 use std::path::PathBuf;
 
 use rakko::Name;
-use rakko_tool::{ResolveRequirementError, ResolveToolchainError, RunCommandError};
+use rakko_tool::{ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 /// An error that occurs when `doctor` checks the tool pins of a project
@@ -60,17 +60,6 @@ pub(crate) enum CheckToolPinsError {
 
         /// The cause of the failure, which gives the toolchain
         source: ResolveToolchainError,
-    },
-
-    /// The resolution of a toolchain failed for a reason that no pin of the
-    /// project repairs
-    #[error("failed to check a toolchain that the action `{action}` requires")]
-    UnresolvedToolchain {
-        /// The action that requires the toolchain
-        action: Name,
-
-        /// The cause of the failure, which gives the toolchain
-        source: ResolveRequirementError,
     },
 }
 

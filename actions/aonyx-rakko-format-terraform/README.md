@@ -14,9 +14,8 @@ directory of a module. Terraform takes no configuration for its formatter, so
 every project that runs the same version formats in the same way.
 
 Terraform is a toolchain of the project. The action runs the Terraform that the
-project pins in its mise configuration, which [mise] installed, and it accepts
-Terraform 1.0 and later. It translates the list of files that Terraform
-reported into the outcome of the run.
+project pins in its mise configuration, which [mise] installed. It translates
+the list of files that Terraform reported into the outcome of the run.
 
 A run reports by default and rewrites with the `fix` argument. A file that
 Terraform cannot parse stops the run, because Terraform stops at that file and

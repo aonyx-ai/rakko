@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
 use crate::yamllint::report::ReadReportError;
@@ -85,11 +85,13 @@ pub enum LintYamlError {
     /// Mise reported no yamllint at the version that the action declares
     ///
     /// Mise did not run, or nothing installed that version of yamllint yet. The
-    /// action installs nothing, so the run stops here.
+    /// action installs nothing, so the run stops here. The action can also
+    /// declare no yamllint, declare it at two versions, or ask for a program that
+    /// yamllint does not provide. No change of the project repairs that.
     #[error("failed to resolve yamllint")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
     },
 
     /// Yamllint did not run

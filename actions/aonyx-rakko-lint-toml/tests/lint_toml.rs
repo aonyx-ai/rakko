@@ -167,7 +167,7 @@ fn action_declares_no_argument() {
 fn action_declares_the_taplo_of_rakko_taplo() {
     let tools = LintToml.tools();
 
-    assert_eq!(tools, vec![Taplo::requirement()]);
+    assert_eq!(tools, Taplo::TOOLS.requirements());
 }
 
 #[test]

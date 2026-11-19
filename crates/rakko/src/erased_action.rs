@@ -261,9 +261,7 @@ mod tests {
     use super::*;
     use crate::Documented;
     use crate::args::{Argument, ArgumentShape, ArgumentValue};
-    use crate::tool::{
-        OperatingSystem, Platform, RequiredVersion, ToolVersion, Tools, VersionRange,
-    };
+    use crate::tool::{OperatingSystem, Tools, VersionRange};
     use crate::{action_name, argument_name};
 
     /// What a formatter does with the files that it examines
@@ -336,8 +334,8 @@ mod tests {
             action_name!("wrapper")
         }
 
-        fn tools(&self) -> Vec<ToolRequirement> {
-            vec![taplo()]
+        fn bundled_tools(&self) -> Tools {
+            TAPLO
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
@@ -373,35 +371,43 @@ mod tests {
             .build()
     }
 
-    /// Returns the requirement that the wrapper declares
-    fn taplo() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool("taplo")
-            .executable("taplo")
-            .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
-            .build()
-    }
+    /// The pin of taplo that the wrapper declares
+    const TAPLO: Tools = crate::__tools_of_mise_file!("[tools]\ntaplo = \"0.10.0\"\n");
 
-    /// An action that declares taplo and a tool with a build only on some
-    /// platforms, and records whether it ran
+    /// The pin of a tool whose platforms include the platform of the test
+    #[cfg(not(any(target_os = "macos", windows)))]
+    const HERE: Tools = crate::__tools_of_mise_file!(
+        "[tools]\n\"github:aonyx-ai/stiles\" = { version = \"0.6.0\", os = [\"linux\"] }\n"
+    );
+
+    /// The pin of a tool whose platforms include the platform of the test
+    #[cfg(target_os = "macos")]
+    const HERE: Tools = crate::__tools_of_mise_file!(
+        "[tools]\n\"github:aonyx-ai/stiles\" = { version = \"0.6.0\", os = [\"macos\"] }\n"
+    );
+
+    /// The pin of a tool whose platforms include the platform of the test
+    #[cfg(windows)]
+    const HERE: Tools = crate::__tools_of_mise_file!(
+        "[tools]\n\"github:aonyx-ai/stiles\" = { version = \"0.6.0\", os = [\"windows\"] }\n"
+    );
+
+    /// An action that declares taplo and a tool of a helper with a build only
+    /// on some platforms, and records whether it ran
     #[derive(Documented)]
     struct Limited {
-        /// The tool with a build only on some platforms
-        tool: ToolRequirement,
+        /// The pin of the tool with a build only on some platforms
+        tool: Tools,
         /// Whether a run of the action started
         ran: AtomicBool,
     }
 
     impl Limited {
         /// Creates an action whose second tool has a build only on the
-        /// platform
-        fn on(platform: Platform) -> Self {
+        /// platforms of the pin
+        fn on(tool: Tools) -> Self {
             Self {
-                tool: ToolRequirement::builder()
-                    .tool("github:aonyx-ai/stiles")
-                    .executable("stiles")
-                    .exact_version_on(ToolVersion::new("0.6.0"), [platform])
-                    .build(),
+                tool,
                 ran: AtomicBool::new(false),
             }
         }
@@ -414,8 +420,12 @@ mod tests {
             action_name!("limited")
         }
 
-        fn tools(&self) -> Vec<ToolRequirement> {
-            vec![taplo(), self.tool.clone()]
+        fn bundled_tools(&self) -> Tools {
+            TAPLO
+        }
+
+        fn additional_tools(&self) -> Vec<Tools> {
+            vec![self.tool]
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
@@ -472,18 +482,6 @@ mod tests {
         } else {
             OperatingSystem::Linux
         }
-    }
-
-    /// Returns a platform with an operating system that is not the one of the
-    /// run of the test
-    fn another_platform() -> Platform {
-        let system = if cfg!(target_os = "windows") {
-            OperatingSystem::Linux
-        } else {
-            OperatingSystem::Windows
-        };
-
-        Platform::new(system)
     }
 
     /// Returns the platform of the run of the test, as mise writes it
@@ -680,7 +678,7 @@ mod tests {
 
     #[test]
     fn bound_run_of_an_action_whose_tool_has_no_build_here_skips() {
-        let action = Limited::on(another_platform());
+        let action = Limited::on(ELSEWHERE);
         let values = ArgsValues::empty();
         let bound = ErasedAction::bind(&action, &values).unwrap();
 
@@ -751,7 +749,7 @@ mod tests {
 
     #[test]
     fn run_of_an_action_whose_tool_has_a_build_here_runs_the_action() {
-        let action = Limited::on(Platform::new(this_system()));
+        let action = Limited::on(HERE);
 
         let _outcome = drive(&action, &ArgsValues::empty());
 
@@ -760,7 +758,7 @@ mod tests {
 
     #[test]
     fn run_of_an_action_whose_tool_has_no_build_here_gives_the_tool_and_the_platform() {
-        let action = Limited::on(another_platform());
+        let action = Limited::on(ELSEWHERE);
 
         let outcome = drive(&action, &ArgsValues::empty());
 
@@ -778,7 +776,7 @@ mod tests {
 
     #[test]
     fn run_of_an_action_whose_tool_has_no_build_here_starts_no_run() {
-        let action = Limited::on(another_platform());
+        let action = Limited::on(ELSEWHERE);
 
         let _outcome = drive(&action, &ArgsValues::empty());
 
@@ -838,7 +836,7 @@ mod tests {
 
         let tools = ErasedAction::tools(&action);
 
-        assert_eq!(tools, vec![taplo()]);
+        assert_eq!(tools, TAPLO.requirements());
     }
 
     #[test]

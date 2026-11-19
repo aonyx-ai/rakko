@@ -41,7 +41,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum ResolveToolError {
-    /// The action declares the tool at more than one exact version
+    /// The action declares the tool at more than one version
     ///
     /// Two sources of the tools of the action pin the same tool at different
     /// versions. The sources can be the mise file of the action and that of a
@@ -96,10 +96,13 @@ pub enum ResolveToolError {
     ///
     /// A run asks only for the tools that the action declares. So a project
     /// can install every tool that a run needs before the run starts.
-    /// The tool is in no mise file that the action returns, or the action
-    /// declares it only as a toolchain. A pin of the tool in the mise file of
-    /// the crate, or the tools of the helper crate that pins it, repairs the
-    /// failure.
+    /// The tool is in no mise file that the action returns. A toolchain of
+    /// the project is no declared tool either, and
+    /// [`Tool::resolve_toolchain`][toolchain] resolves it. A pin of the tool
+    /// in the mise file of the crate, or the tools of the helper crate that
+    /// pins it, repairs the failure.
+    ///
+    /// [toolchain]: crate::Tool::resolve_toolchain
     #[error("the action declares no tool `{tool}`")]
     UndeclaredTool {
         /// The tool that the action asked for

@@ -87,8 +87,8 @@ pub use self::group::Group;
 pub use self::name::{Name, ParseNameError};
 pub use self::outcome::{Outcome, SkipReason, Summary};
 pub use self::tool::{
-    Architecture, Executable, MiseTool, OperatingSystem, Platform, RequiredVersion,
-    ToolRequirement, ToolVersion, ToolchainRequirement, Tools, VersionRange,
+    Architecture, Executable, MiseTool, OperatingSystem, Platform, ToolRequirement, ToolVersion,
+    ToolchainRequirement, Tools, VersionRange,
 };
 pub use self::tool_output::{
     ToolCommand, ToolEnd, ToolEvent, ToolExitCode, ToolLine, ToolOutput, ToolStream, ToolText,

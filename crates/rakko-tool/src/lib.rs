@@ -28,13 +28,6 @@
 //! its toolchain by name, such as a package for Node, runs on the toolchain
 //! that [`Tool::with_toolchain`] gives it.
 //!
-//! [`Tool::resolve_requirement`] resolves a
-//! [`ToolRequirement`][requirement] that the builder of the contract created.
-//! A toolchain resolves there at the version that the project pins, when the
-//! range of the action accepts it. [`MiseFile`] reads the pin of one tool
-//! in a constant, for a requirement that the builder creates. This lookup
-//! does not compare a requirement with the declaration of the action.
-//!
 //! The crate describes a command and starts nothing until the caller asks for
 //! a run. An action can therefore write the command to a log, or name it in
 //! an error, before anything runs.
@@ -89,12 +82,10 @@
 //! [launch-with]: Launch::launch_with
 //! [output]: rakko::ToolOutput
 //! [mise]: https://mise.jdx.dev
-//! [requirement]: rakko::ToolRequirement
 //! [toolchains]: rakko::Action::toolchains
 //! [tokio]: https://tokio.rs
 
 mod launch;
-mod pin;
 mod seal;
 mod tool;
 
@@ -103,5 +94,4 @@ pub use kawauso_process::invocation::Program;
 pub use kawauso_process::{Execution, Invocation};
 
 pub use self::launch::{Launch, ShownStreams};
-pub use self::pin::{MiseFile, PinnedPlatforms};
-pub use self::tool::{ResolveRequirementError, ResolveToolError, ResolveToolchainError, Tool};
+pub use self::tool::{ResolveToolError, ResolveToolchainError, Tool};

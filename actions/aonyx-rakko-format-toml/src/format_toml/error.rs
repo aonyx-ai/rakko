@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use aonyx_rakko_taplo::ObserveTaploError;
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -89,11 +89,13 @@ pub enum FormatTomlError {
     /// Mise reported no taplo at the version that the action declares
     ///
     /// Mise did not run, or nothing installed that version of taplo yet. The
-    /// action installs nothing, so the run stops here.
+    /// action installs nothing, so the run stops here. The action can also
+    /// declare no taplo, declare it at two versions, or ask for a program that
+    /// taplo does not provide. No change of the project repairs that.
     #[error("failed to resolve taplo")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
     },
 }
 

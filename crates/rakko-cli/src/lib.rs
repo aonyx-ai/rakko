@@ -86,6 +86,8 @@
 mod builder;
 mod chain;
 mod command;
+#[cfg(test)]
+mod declared;
 mod doctor;
 mod erased_command;
 mod report;

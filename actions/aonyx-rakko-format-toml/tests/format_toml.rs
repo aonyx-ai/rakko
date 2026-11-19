@@ -165,7 +165,7 @@ impl Drop for Project {
 fn action_declares_the_taplo_of_rakko_taplo() {
     let tools = FormatToml.tools();
 
-    assert_eq!(tools, vec![Taplo::requirement()]);
+    assert_eq!(tools, Taplo::TOOLS.requirements());
 }
 
 #[test]

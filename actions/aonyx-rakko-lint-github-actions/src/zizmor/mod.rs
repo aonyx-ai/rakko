@@ -1,15 +1,15 @@
 //! The zizmor that a project runs
 //!
-//! This module holds the version that the crate declares, the program that mise
-//! installed at that version, and the run that produces a report. An action
+//! This module holds the program that mise installed at the version that the
+//! action declares, and the run that produces a report. An action
 //! asks for a run, and everything between the action and the process lives
 //! here.
 
 mod error;
 mod report;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, PinnedPlatforms, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Launch, ResolveToolError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveZizmorError;
 use crate::observation::{Examination, Observation};
@@ -17,22 +17,6 @@ use crate::observation::{Examination, Observation};
 /// The name that mise knows the tool by, which is also the name of its
 /// program
 const ZIZMOR: &str = "zizmor";
-
-/// The mise file of the crate, which pins the zizmor that the crate runs
-const PINS: MiseFile = MiseFile::new(include_str!("../../mise.rakko.toml"));
-
-/// The version of zizmor that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = PINS.pinned_version(ZIZMOR);
-
-/// The platforms where zizmor has a build, or `None` for every platform
-///
-/// The list comes from the same pin as the version. A platform that the
-/// list leaves out gets no zizmor from mise, and a run of the action skips
-/// there.
-const PLATFORMS: Option<PinnedPlatforms> = PINS.pinned_platforms(ZIZMOR);
 
 /// The option that asks zizmor for its report as data
 ///
@@ -112,6 +96,7 @@ pub(crate) struct Zizmor {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Zizmor {
     /// Runs zizmor over the project and reads what it reported
     ///
@@ -176,36 +161,28 @@ impl Zizmor {
         Ok(Observation::builder().problems(problems).build())
     }
 
-    /// Returns the requirement of the zizmor that the crate runs
+    /// Returns the zizmor that mise installed at the version that the action
+    /// declares
     ///
-    /// The requirement holds the exact version that the crate pins, and the
-    /// platforms that the pin lists.
-    pub(crate) fn requirement() -> ToolRequirement {
-        let version = ToolVersion::new(VERSION);
-        let builder = ToolRequirement::builder().tool(ZIZMOR).executable(ZIZMOR);
-
-        match PLATFORMS {
-            Some(platforms) => builder.exact_version_on(version, platforms).build(),
-            None => builder.version(RequiredVersion::Exact(version)).build(),
-        }
-    }
-
-    /// Returns the zizmor that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of zizmor in the project does not change the answer.
-    /// A run of zizmor starts in the root of the context.
+    /// The lookup reads the tools that the action declares. The mise file of
+    /// the crate pins zizmor, so they hold its version. A pin of zizmor in the
+    /// project does not change the answer. A run of zizmor starts in the root
+    /// of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
-    /// returns one when mise reports no zizmor at that version, for example
-    /// because nothing installed it.
-    ///
-    /// [requirement]: Zizmor::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    /// Returns a [`ResolveToolError`] when the action declares no zizmor, or
+    /// when mise does not run. It also returns one when mise reports no
+    /// zizmor at that version, for example because nothing installed it.
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        context: &Context,
+        action: &A,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(ZIZMOR)
+            .executable(ZIZMOR)
             .context(context)
             .call()
             .await?;
@@ -254,10 +231,6 @@ mod tests {
         reason = "An assertion in a test panics by design. A `# Panics` section on every test would repeat that and give the reader no information."
     )]
 
-    use std::collections::BTreeSet;
-
-    use rakko::{Architecture, OperatingSystem, Platform};
-
     use super::*;
 
     #[test]
@@ -300,20 +273,6 @@ mod tests {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}
 
         assert_send_sync_and_unpin::<Collection>();
-    }
-
-    #[test]
-    fn requirement_leaves_out_windows_on_arm() {
-        let requirement = Zizmor::requirement();
-
-        assert_eq!(
-            requirement.platforms(),
-            Some(&BTreeSet::from([
-                Platform::new(OperatingSystem::Linux),
-                Platform::new(OperatingSystem::Macos),
-                Platform::new(OperatingSystem::Windows).with_architecture(Architecture::X64),
-            ]))
-        );
     }
 
     #[test]

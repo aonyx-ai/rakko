@@ -316,32 +316,6 @@ mod tests {
         );
     }
 
-    /// Shows that the lookup of `rakko-tool` for a requirement with a program
-    /// refuses the requirement of a pin
-    ///
-    /// This crate holds a mise file, so its pins are pins of a real file. The
-    /// test lives here, because `rakko-tool` holds no mise file of its own.
-    #[tokio::test]
-    async fn resolve_requirement_of_a_pin_reports_it_without_a_program() {
-        let context = Context::builder()
-            .root(ProjectRoot::new(std::env::temp_dir()))
-            .build();
-
-        let result = Tool::resolve_requirement()
-            .requirement(&Shfmt::TOOLS.requirements()[0])
-            .context(&context)
-            .call()
-            .await;
-
-        assert!(
-            matches!(
-                result,
-                Err(rakko_tool::ResolveRequirementError::UnstatedExecutable { .. })
-            ),
-            "expected a requirement without a program, got {result:?}"
-        );
-    }
-
     #[test]
     fn shfmt_is_send_sync_and_unpin() {
         fn assert_send_sync_and_unpin<T: Send + Sync + Unpin>() {}

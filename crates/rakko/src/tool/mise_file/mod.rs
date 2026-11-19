@@ -1239,17 +1239,6 @@ mod tests {
     }
 
     #[test]
-    fn requirement_of_a_pin_holds_no_program() {
-        let pin = ToolPin {
-            tool: "taplo",
-            version: "0.10.0",
-            platforms: None,
-        };
-
-        assert_eq!(pin.requirement().executable(), None);
-    }
-
-    #[test]
     fn requirement_of_a_pin_keeps_its_exact_version() {
         let pin = ToolPin {
             tool: "taplo",
@@ -1257,10 +1246,7 @@ mod tests {
             platforms: None,
         };
 
-        assert_eq!(
-            pin.requirement().version(),
-            &crate::tool::RequiredVersion::Exact(ToolVersion::new("0.10.0"))
-        );
+        assert_eq!(pin.requirement().version(), &ToolVersion::new("0.10.0"));
     }
 
     #[test]

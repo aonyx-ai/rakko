@@ -1,7 +1,7 @@
 //! The yamllint that a project runs
 //!
-//! This module holds the version that the crate declares and the program that
-//! mise installed at that version. It also holds the runs that produce a
+//! This module holds the program that mise installed at the version that the
+//! action declares. It also holds the runs that produce a
 //! listing and a report. An action asks for a run, and everything between the
 //! action and the process lives here.
 
@@ -11,8 +11,8 @@ pub(crate) mod report;
 
 use std::path::PathBuf;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Launch, ResolveToolError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveYamllintError;
 pub(crate) use self::listing::ListFilesError;
@@ -21,12 +21,6 @@ use crate::observation::{Completion, Observation};
 /// The name that mise knows the tool by, which is also the name of its
 /// program
 const YAMLLINT: &str = "yamllint";
-
-/// The version of yamllint that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(YAMLLINT);
 
 /// The option that asks yamllint for its report in the parsable format
 ///
@@ -75,6 +69,7 @@ pub(crate) struct Yamllint {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Yamllint {
     /// Returns the files that yamllint examines in the project
     ///
@@ -144,33 +139,28 @@ impl Yamllint {
             .build())
     }
 
-    /// Returns the requirement of the yamllint that the crate runs
+    /// Returns the yamllint that mise installed at the version that the action
+    /// declares
     ///
-    /// The requirement holds the exact version that the crate pins.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(YAMLLINT)
-            .executable(YAMLLINT)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the yamllint that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of yamllint in the project does not change the answer.
-    /// A run of yamllint starts in the root of the context.
+    /// The lookup reads the tools that the action declares. The mise file of
+    /// the crate pins yamllint, so they hold its version. A pin of yamllint in the
+    /// project does not change the answer. A run of yamllint starts in the root
+    /// of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
-    /// returns one when mise reports no yamllint at that version, for example
-    /// because nothing installed it.
-    ///
-    /// [requirement]: Yamllint::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    /// Returns a [`ResolveToolError`] when the action declares no yamllint, or
+    /// when mise does not run. It also returns one when mise reports no
+    /// yamllint at that version, for example because nothing installed it.
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        context: &Context,
+        action: &A,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(YAMLLINT)
+            .executable(YAMLLINT)
             .context(context)
             .call()
             .await?;

@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use aonyx_rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    Summary, ToolRequirement, action_name,
+    Summary, Tools, action_name,
 };
 
 pub use self::args::FormatTomlArgs;
@@ -82,12 +82,12 @@ impl Action for FormatToml {
         }
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Taplo::requirement()]
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Taplo::TOOLS]
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
-        match drive(context, args).await {
+        match drive(context, args, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -98,16 +98,24 @@ impl Action for FormatToml {
 
 /// Runs the action against the project of the context
 ///
-/// The run examines the project, resolves taplo, checks, and fixes when the
-/// arguments ask for it. An error that this function returns stops the run,
-/// and the caller reports it in the outcome.
+/// The run examines the project, resolves taplo from the tools that the
+/// action declares, checks, and fixes when the arguments ask for it. An error
+/// that this function returns stops the run, and the caller reports it in the
+/// outcome.
 ///
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, a taplo run, or the reading of the report.
-async fn drive(context: &Context, args: &FormatTomlArgs) -> Result<Outcome, FormatTomlError> {
-    let taplo = Taplo::resolve(context)
+async fn drive(
+    context: &Context,
+    args: &FormatTomlArgs,
+    action: &FormatToml,
+) -> Result<Outcome, FormatTomlError> {
+    let taplo = Taplo::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| FormatTomlError::UnresolvedTool { source })?;
 

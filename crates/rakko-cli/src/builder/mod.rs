@@ -1031,9 +1031,9 @@ mod tests {
     use clawless::CommandResult;
     use rakko::Documented;
     use rakko::{
-        Action, Architecture, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name,
-        OperatingSystem, Platform, ReadArgsError, RequiredVersion, SkipReason, ToolRequirement,
-        ToolVersion, ToolchainRequirement, Tools, VersionRange, argument_name,
+        Action, Args, Argument, ArgumentShape, ArgumentValue, Bundle, Name, OperatingSystem,
+        Platform, ReadArgsError, SkipReason, ToolRequirement, ToolchainRequirement, Tools,
+        VersionRange, argument_name,
     };
     use rakko_tool::Tool;
 
@@ -1192,8 +1192,8 @@ mod tests {
     struct Gated {
         /// The probe that gives the action its name and runs it
         probe: Probe,
-        /// The tool that the action declares
-        tool: ToolRequirement,
+        /// The tools of the helper that the action declares
+        tool: Tools,
     }
 
     impl Gated {
@@ -1203,11 +1203,11 @@ mod tests {
             let (probe, ran) = Probe::new("lint-stiles");
             let gated = Self {
                 probe,
-                tool: ToolRequirement::builder()
+                tool: crate::declared::tools()
                     .tool("github:aonyx-ai/stiles")
-                    .executable("stiles")
-                    .exact_version_on(ToolVersion::new("0.6.0"), [platform])
-                    .build(),
+                    .version("0.6.0")
+                    .platforms(&[platform])
+                    .call(),
             };
 
             (gated, ran)
@@ -1221,8 +1221,8 @@ mod tests {
             Action::name(&self.probe)
         }
 
-        fn tools(&self) -> Vec<ToolRequirement> {
-            vec![self.tool.clone()]
+        fn additional_tools(&self) -> Vec<Tools> {
+            vec![self.tool]
         }
 
         async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
@@ -1501,8 +1501,8 @@ mod tests {
     struct Tooled {
         /// The name that identifies this action
         name: Name,
-        /// The tool that the action declares
-        tool: ToolRequirement,
+        /// The tools of the helper that the action declares
+        tool: Tools,
     }
 
     impl Action for Tooled {
@@ -1512,8 +1512,8 @@ mod tests {
             self.name.clone()
         }
 
-        fn tools(&self) -> Vec<ToolRequirement> {
-            vec![self.tool.clone()]
+        fn additional_tools(&self) -> Vec<Tools> {
+            vec![self.tool]
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
@@ -1674,11 +1674,10 @@ mod tests {
     /// Returns the requirement of a tool at an exact version
     #[bon::builder]
     fn exact(tool: &str, version: &str) -> ToolRequirement {
-        ToolRequirement::builder()
+        crate::declared::requirement()
             .tool(tool)
-            .executable(tool)
-            .version(RequiredVersion::Exact(ToolVersion::new(version)))
-            .build()
+            .version(version)
+            .call()
     }
 
     /// Returns the flag that the command of the reader carries for an argument
@@ -1797,11 +1796,11 @@ mod tests {
     fn limited_to(platform: Platform) -> Box<dyn ErasedAction> {
         Box::new(Tooled {
             name: action_name("format-toml"),
-            tool: ToolRequirement::builder()
+            tool: crate::declared::tools()
                 .tool("taplo")
-                .executable("taplo")
-                .exact_version_on(ToolVersion::new("0.10.0"), [platform])
-                .build(),
+                .version("0.10.0")
+                .platforms(&[platform])
+                .call(),
         })
     }
 
@@ -1823,45 +1822,6 @@ mod tests {
 
         fn bundled_tools(&self) -> Tools {
             BUNDLED
-        }
-
-        async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
-            Outcome::Passed { summary: None }
-        }
-    }
-
-    /// An action that builds the requirements of the pins of [`BUNDLED`] by
-    /// hand
-    #[derive(Documented)]
-    struct Built;
-
-    impl Action for Built {
-        type Args = ();
-
-        fn name(&self) -> Name {
-            action_name("lint-bundled")
-        }
-
-        fn tools(&self) -> Vec<ToolRequirement> {
-            vec![
-                ToolRequirement::builder()
-                    .tool("taplo")
-                    .executable("taplo")
-                    .version(RequiredVersion::Exact(ToolVersion::new("0.10.0")))
-                    .build(),
-                ToolRequirement::builder()
-                    .tool("github:aonyx-ai/stiles")
-                    .executable("stiles")
-                    .exact_version_on(
-                        ToolVersion::new("0.6.0"),
-                        [
-                            Platform::new(OperatingSystem::Linux),
-                            Platform::new(OperatingSystem::Macos)
-                                .with_architecture(Architecture::Arm64),
-                        ],
-                    )
-                    .build(),
-            ]
         }
 
         async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
@@ -1951,8 +1911,9 @@ mod tests {
     /// The action resolves the toolchain when it runs.
     #[derive(Documented)]
     struct Demanding {
-        /// The tool that the action declares, if it declares one
-        tool: Option<ToolRequirement>,
+        /// The tools of the helper that the action declares, if it declares
+        /// one
+        tool: Option<Tools>,
         /// Whether a run of the action asked for the toolchain
         resolved: Arc<AtomicBool>,
     }
@@ -1974,11 +1935,11 @@ mod tests {
         fn limited_to(platform: Platform) -> (Self, Arc<AtomicBool>) {
             let (mut demanding, resolved) = Self::new();
             demanding.tool = Some(
-                ToolRequirement::builder()
+                crate::declared::tools()
                     .tool("github:aonyx-ai/stiles")
-                    .executable("stiles")
-                    .exact_version_on(ToolVersion::new("0.6.0"), [platform])
-                    .build(),
+                    .version("0.6.0")
+                    .platforms(&[platform])
+                    .call(),
             );
 
             (demanding, resolved)
@@ -1992,8 +1953,8 @@ mod tests {
             action_name("demanding")
         }
 
-        fn tools(&self) -> Vec<ToolRequirement> {
-            self.tool.iter().cloned().collect()
+        fn additional_tools(&self) -> Vec<Tools> {
+            self.tool.iter().copied().collect()
         }
 
         fn toolchains(&self) -> Vec<ToolchainRequirement> {
@@ -2125,7 +2086,7 @@ mod tests {
     fn tooled(name: &str, tool: &str, version: &str) -> Box<dyn ErasedAction> {
         Box::new(Tooled {
             name: action_name(name),
-            tool: exact().tool(tool).version(version).call(),
+            tool: crate::declared::tools().tool(tool).version(version).call(),
         })
     }
 
@@ -3158,12 +3119,15 @@ mod tests {
     }
 
     #[test]
-    fn drive_doctor_with_the_flag_writes_the_pins_of_bundled_tools_as_of_built_ones() {
+    fn drive_doctor_with_the_flag_writes_both_forms_of_a_bundled_pin() {
         let bundled = repaired_pins(builder().mount(Bundled));
 
-        let built = repaired_pins(builder().mount(Built));
-
-        assert_eq!(bundled, built);
+        assert!(
+            bundled.ends_with(
+                "[tools]\ntaplo = \"0.10.0\"\n\n[tools.\"github:aonyx-ai/stiles\"]\nversion = \"0.6.0\"\nos = [\"linux\", \"macos/arm64\"]\n"
+            ),
+            "got {bundled}"
+        );
     }
 
     #[test]

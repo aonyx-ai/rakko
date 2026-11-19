@@ -1,15 +1,15 @@
 //! The TFLint that a project runs
 //!
-//! This module holds the version that the crate declares and the program that
-//! mise installed at that version. It also holds the run that produces a
+//! This module holds the program that mise installed at the version that the
+//! action declares. It also holds the run that produces a
 //! report. An action asks for a run, and everything between the action and
 //! the process lives here.
 
 mod error;
 mod report;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Launch, ResolveToolError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveTflintError;
 use crate::issue::TflintIssue;
@@ -17,12 +17,6 @@ use crate::issue::TflintIssue;
 /// The name that mise knows the tool by, which is also the name of its
 /// program
 const TFLINT: &str = "tflint";
-
-/// The version of TFLint that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str = MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(TFLINT);
 
 /// The option that asks TFLint for its report as data
 ///
@@ -62,6 +56,7 @@ pub(crate) struct Tflint {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Tflint {
     /// Runs TFLint over the project and returns the issues that it reported
     ///
@@ -111,33 +106,28 @@ impl Tflint {
         Ok(issues)
     }
 
-    /// Returns the requirement of the TFLint that the crate runs
+    /// Returns the TFLint that mise installed at the version that the action
+    /// declares
     ///
-    /// The requirement holds the exact version that the crate pins.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(TFLINT)
-            .executable(TFLINT)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the TFLint that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of TFLint in the project does not change the answer.
-    /// A run of TFLint starts in the root of the context.
+    /// The lookup reads the tools that the action declares. The mise file of
+    /// the crate pins TFLint, so they hold its version. A pin of TFLint in the
+    /// project does not change the answer. A run of TFLint starts in the root
+    /// of the context.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run. It also
-    /// returns one when mise reports no TFLint at that version, for example
-    /// because nothing installed it.
-    ///
-    /// [requirement]: Tflint::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    /// Returns a [`ResolveToolError`] when the action declares no TFLint, or
+    /// when mise does not run. It also returns one when mise reports no
+    /// TFLint at that version, for example because nothing installed it.
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        context: &Context,
+        action: &A,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(TFLINT)
+            .executable(TFLINT)
             .context(context)
             .call()
             .await?;

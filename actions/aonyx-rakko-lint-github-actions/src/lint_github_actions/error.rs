@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
 use crate::zizmor::ObserveZizmorError;
@@ -75,11 +75,13 @@ pub enum LintGitHubActionsError {
     /// Mise reported no zizmor at the version that the action declares
     ///
     /// Mise did not run, or nothing installed that version of zizmor yet. The
-    /// action installs nothing, so the run stops here.
+    /// action installs nothing, so the run stops here. The action can also
+    /// declare no zizmor, declare it at two versions, or ask for a program that
+    /// zizmor does not provide. No change of the project repairs that.
     #[error("failed to resolve zizmor")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
     },
 
     /// Zizmor did not run

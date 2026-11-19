@@ -10,7 +10,7 @@ mod error;
 use aonyx_rakko_taplo::{Observation, Operation, ProblemDetail, Taplo, TaploProblem};
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    Summary, ToolRequirement, action_name,
+    Summary, Tools, action_name,
 };
 
 pub use self::error::LintTomlError;
@@ -71,12 +71,12 @@ impl Action for LintToml {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Taplo::requirement()]
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Taplo::TOOLS]
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(context, self).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -87,16 +87,19 @@ impl Action for LintToml {
 
 /// Runs the action against the project of the context
 ///
-/// The run examines the project, resolves taplo, and validates. An error
-/// that this function returns stops the run, and the caller reports it in
-/// the outcome.
+/// The run examines the project, resolves taplo from the tools that the
+/// action declares, and validates. An error that this function returns stops
+/// the run, and the caller reports it in the outcome.
 ///
 /// # Errors
 ///
 /// Returns the error of the step that could not finish: the resolution of
 /// the tool, the taplo run, or the reading of the report.
-async fn drive(context: &Context) -> Result<Outcome, LintTomlError> {
-    let taplo = Taplo::resolve(context)
+async fn drive(context: &Context, action: &LintToml) -> Result<Outcome, LintTomlError> {
+    let taplo = Taplo::resolve()
+        .context(context)
+        .action(action)
+        .call()
         .await
         .map_err(|source| LintTomlError::UnresolvedTool { source })?;
 

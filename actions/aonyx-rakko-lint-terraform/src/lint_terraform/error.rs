@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, RunCommandError};
 use thiserror::Error;
 
 use crate::tflint::ObserveTflintError;
@@ -77,11 +77,13 @@ pub enum LintTerraformError {
     /// Mise reported no TFLint at the version that the action declares
     ///
     /// Mise did not run, or nothing installed that version of TFLint yet. The
-    /// action installs nothing, so the run stops here.
+    /// action installs nothing, so the run stops here. The action can also
+    /// declare no TFLint, declare it at two versions, or ask for a program that
+    /// TFLint does not provide. No change of the project repairs that.
     #[error("failed to resolve TFLint")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
     },
 }
 

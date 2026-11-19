@@ -24,7 +24,7 @@ use semver::{Version, VersionReq};
 use serde::Deserialize;
 
 use super::{CURRENT, MISE, diagnosis};
-use crate::tool::{ResolveRequirementError, ResolveToolchainError};
+use crate::tool::ResolveToolchainError;
 
 /// The subcommand of mise that lists the versions of a tool
 const LIST: &str = "ls";
@@ -119,38 +119,6 @@ pub(super) enum Unselected {
 }
 
 impl Unselected {
-    /// Returns the error of the resolution of a requirement of a tool
-    pub(super) fn requirement_error(self, tool: &MiseTool) -> ResolveRequirementError {
-        let tool = tool.clone();
-
-        match self {
-            Self::InvalidRange { range, source } => ResolveRequirementError::InvalidRange {
-                tool,
-                range,
-                source,
-            },
-            Self::MiseUnavailable { source } => {
-                ResolveRequirementError::MiseUnavailable { tool, source }
-            }
-            Self::Outside { version, range } => ResolveRequirementError::VersionOutOfRange {
-                tool,
-                version,
-                range,
-            },
-            Self::Unpinned { details } => {
-                ResolveRequirementError::UnresolvedToolchain { tool, details }
-            }
-            Self::Unreadable { version, source } => ResolveRequirementError::UnreadableVersion {
-                tool,
-                version,
-                source,
-            },
-            Self::UnrecognizedReport { source } => {
-                ResolveRequirementError::UnrecognizedReport { tool, source }
-            }
-        }
-    }
-
     /// Returns the error of the resolution of a toolchain
     pub(super) fn toolchain_error(self, toolchain: &MiseTool) -> ResolveToolchainError {
         let toolchain = toolchain.clone();
