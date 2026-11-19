@@ -87,20 +87,10 @@ offers its tools as a constant. For example, `aonyx-rakko-taplo` offers
 ### Use a Toolchain
 
 A toolchain is a compiler or runtime for the project, such as Rust or Node.js.
-The project pins its toolchains, and your action does not pin them. Resolve a
-toolchain with `Tool::resolve_toolchain`, which takes the version that the
-project pins.
-
-Your action can need certain versions of a toolchain. It needs them when an
-older release gives a wrong result. It also needs them when the error of the
-toolchain does not say that its pin is the cause. Then return a
-`ToolchainRequirement` with a `VersionRange` such as `>=22` from `toolchains`.
-An unmet requirement stops only your action.
-
-Some tools start their toolchain by name, such as a package for Node.js that
-starts `node`. Resolve the toolchain as well, and give it to the tool with
-`Tool::with_toolchain`. The tool then runs on the toolchain that your action
-resolved.
+The project pins its toolchains, and your action does not pin them. Do not put
+a toolchain in `mise.rakko.toml`. [Use a Toolchain From an
+Action][use-a-toolchain] shows how your action runs on the pin of the project,
+and when it requires some releases.
 
 ## Run the Tool
 
@@ -173,3 +163,4 @@ package.
 [test-an-action]: @/how-to/test-an-action.md
 [tokio]: https://tokio.rs
 [tools-and-mise]: @/explanation/tools-and-mise.md
+[use-a-toolchain]: @/how-to/use-a-toolchain.md

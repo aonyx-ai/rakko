@@ -17,7 +17,10 @@ A toolchain is a compiler or runtime for the project's code. Rust, Node.js,
 and TypeScript are examples. The project pins these versions in `mise.toml`,
 and an action runs on the project's pin. An action can also require a range
 of versions, such as a minimum release or a dated Rust nightly. It does this
-to protect a result, or to use an option that only a nightly has.
+to protect a result, or to use an option that only a nightly has. Most
+actions require nothing. Such an action still runs on the project's pin, and
+never on a runtime that it finds on the `PATH`.
+[Use a Toolchain From an Action][use-a-toolchain] shows both cases.
 
 For other tools, a pin specifies an exact version. The action owns that pin,
 and its tests cover that version. The pin travels with the action, so
@@ -81,6 +84,12 @@ Every harness has the command `doctor`. It checks three conditions:
 - The project pins each toolchain that a mounted action requires, at a version
   that the requirement of that action accepts.
 
+The third check reads only the requirements that actions declare. An action
+that runs on a toolchain without a requirement does not make `doctor` report
+a missing pin. For example, `format-terraform` runs on the Terraform of the
+project and requires no release. If the project pins no Terraform, `doctor`
+reports nothing, and `format-terraform` stops with an error when it runs.
+
 `doctor` reads project files and asks [mise] about them. It needs no network,
 so it can examine the same conditions offline and in CI.
 
@@ -125,3 +134,4 @@ tools.
 [keep-current]: @/how-to/keep-a-harness-current.md
 [mise]: https://mise.jdx.dev
 [run-a-tool]: @/how-to/run-a-tool.md
+[use-a-toolchain]: @/how-to/use-a-toolchain.md

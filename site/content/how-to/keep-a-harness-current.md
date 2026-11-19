@@ -267,7 +267,10 @@ commands still run.
 Your project pins its toolchains, such as Rust, in its own `mise.toml`, and
 `doctor --fix` never changes them. Renovate moves these pins like any other
 dependency. Some actions require a range of versions of a toolchain, and
-`doctor` reports a pin that such an action does not accept.
+`doctor` reports a pin that such an action does not accept. `doctor` checks
+only these requirements. A toolchain that an action uses without a
+requirement gets no report, so a missing pin of it shows when that action
+runs.
 
 [Tools and Mise][tools-and-mise] explains who pins which tool, and what
 `doctor` checks.

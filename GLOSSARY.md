@@ -56,7 +56,10 @@ from the design discussions to the terms that replaced them.
   actions declare. The check compares the values of the file, so a formatter
   can change its layout. No pin of the project can override a declared tool.
   `doctor` also reports each unmet toolchain requirement of a mounted action.
-  That check is no part of the precondition. Neither check needs the network.
+  That check is no part of the precondition. It reads only the requirements
+  that actions declare. An action that runs on a toolchain without a
+  requirement does not make `doctor` report a missing pin, and the action
+  stops when it runs. Neither check needs the network.
   `doctor --fix` writes the generated file, removes each pin that overrides a
   declared tool, and locks the tools with mise. It does not change the pin of
   a toolchain, and it says which pin to change. A finding of any kind fails
@@ -66,6 +69,12 @@ from the design discussions to the terms that replaced them.
   authors do not see this type. A harness that only mounts does not write it
   either, because the builder of the command line, or the bundle that holds a
   list, erases each action.
+- **Executable** — A program that a tool or a toolchain provides, such as
+  `renovate-config-validator` of the tool `npm:renovate`, or `cargo` of the
+  toolchain `rust`. A run gives the executable when it asks mise for a tool or
+  a toolchain, and no declaration holds one. The lookup finds the executable
+  only in the declared tool at its exact version, or in the selected pin of
+  the toolchain. It never searches the `PATH` of the environment.
 - **Finding** — One problem that an action found in the project, with its
   location. Findings travel in the outcome of an action run.
 - **Fleet** — All Aonyx projects that Rakko maintains.
@@ -191,16 +200,16 @@ from the design discussions to the terms that replaced them.
   platforms where the tool has one. The crate embeds the file, and
   `bundled_tools!` reads every pin of the file when the crate compiles. An
   action returns the pins of its own file from `bundled_tools`, and the pins
-  of a helper crate from `additional_tools`. A pin holds no program, because
-  one tool can provide several programs. For example, the tool `npm:renovate`
-  provides `renovate` and `renovate-config-validator`. The action gives the
-  program when it runs the tool.
-- **Tool requirement** — What an action declares for each tool that it runs.
+  of a helper crate from `additional_tools`. A pin holds no executable,
+  because one tool can provide several executables. For example, the tool
+  `npm:renovate` provides `renovate` and `renovate-config-validator`. The
+  action gives the executable when it runs the tool.
+- **Tool requirement** — The declaration of one tool that an action runs.
   Each requirement comes from a tool pin, and no code creates one in another
   way. A requirement holds the identifier of the tool in the configuration of
   mise and its exact version. When the pin lists platforms, the requirement
-  holds them too. It holds no program, because the action gives the program
-  when it runs the tool. A toolchain is no tool requirement. The declaration
+  holds them too. It holds no executable, because the action gives the
+  executable when it runs the tool. A toolchain is no tool requirement. The declaration
   takes no arguments and no context, because the machinery reads it before any
   run starts.
 - **Toolchain** — A tool that the code of the project builds or runs with,
@@ -213,7 +222,15 @@ from the design discussions to the terms that replaced them.
   accepts, such as a minimum release or a dated Rust nightly. The requirement
   is optional, and it adds no pin. The lookup of the toolchain compares it
   with the pins of the project. An unmet requirement stops only the action
-  that declares it. `doctor` reports an unmet requirement before a run.
+  that declares it. `doctor` reports an unmet requirement before a run. An
+  action declares none by default. Such an action still runs on the pin of the
+  project, and never on a toolchain that it finds on the `PATH`.
+- **Toolchain selection** — The choice of the pin of a toolchain that a run
+  takes. The lookup takes the first pin of the project that every toolchain
+  requirement of the action accepts, or the first pin when the action has
+  none. A helper can narrow the choice, such as to the first stable release
+  among the Rust pins, or to the release that the `rust-version` of a manifest
+  gives. A selection is no requirement, so `doctor` does not report it.
 - **Wrapping** — The execution of an external tool as a subprocess of an
   action. Wrapping is the normal integration path, and Rakko makes it a
   polished one.
