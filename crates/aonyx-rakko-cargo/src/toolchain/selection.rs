@@ -11,24 +11,25 @@ const RELEASES: &str = "*";
 /// The range that accepts every dated nightly, which passes over a release
 pub(crate) const DATED_NIGHTLIES: &str = "nightly-*";
 
-/// The start of the date of a nightly in a range of dates, such as
+/// The prefix of the nightly channel in a range, such as `nightly-*` or
 /// `>=nightly-2025-02-20`
-const NIGHTLY_DATE: &str = "nightly-";
+const NIGHTLY_CHANNEL: &str = "nightly-";
 
 /// Which of the Rust toolchains that a project pins a job runs on
 ///
 /// A project can pin several Rust toolchains. Examples are a release to build
 /// with, a dated nightly for unstable options, and the oldest release that
-/// its manifests promise to compile on. A selection picks one of them for a
-/// run. The lookup reads the pins in the order of the `rust` entry, and it
-/// takes the first one that the selection picks.
+/// its manifests promise to compile on. A selection picks the stable release
+/// or a given release for a run. The lookup reads the pins in the order of
+/// the `rust` entry, and it takes the first one that the selection picks.
 ///
 /// A selection is no requirement. It belongs to the run, and nothing reads it
 /// before a run starts. An action that accepts only some toolchains declares
 /// that with [`Action::toolchains`][toolchains], and the lookup applies both.
 ///
-/// A run that gives no selection gets one from the requirements of the
-/// action. An action that requires a dated nightly of `rust`, such as
+/// No selection picks the dated nightly. A run that gives no selection takes
+/// the kind of pin from the requirements of the action. An action that
+/// requires a dated nightly of `rust`, such as
 /// [`Toolchain::nightly_requirement`][nightly], runs on the first dated
 /// nightly that the project pins. Every other action runs on the first
 /// stable release. So an action that needs the nightly states it once, in
@@ -90,9 +91,10 @@ impl ToolchainSelection {
     /// Returns the range of the pins that a run picks from, with the
     /// selection of the run or without one
     ///
-    /// Without a selection, a requirement of `rust` whose range gives the
-    /// dates of the nightly picks the dated nightly. Otherwise the run picks
-    /// the stable release.
+    /// A given selection gives its own range. Without a selection, a
+    /// requirement of `rust` whose range gives the nightly channel picks the
+    /// dated nightly. Without a selection and without such a requirement, the
+    /// run picks the stable release.
     pub(crate) fn range_of(
         selection: Option<&Self>,
         requirements: &[ToolchainRequirement],
@@ -103,7 +105,7 @@ impl ToolchainSelection {
 
         let nightly = requirements.iter().any(|requirement| {
             requirement.toolchain().get() == RUST
-                && requirement.versions().get().contains(NIGHTLY_DATE)
+                && requirement.versions().get().contains(NIGHTLY_CHANNEL)
         });
 
         if nightly {

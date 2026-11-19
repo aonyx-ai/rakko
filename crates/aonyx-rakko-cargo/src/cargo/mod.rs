@@ -324,7 +324,7 @@ impl Cargo {
     /// The lookup reads what the action requires of `rust` from
     /// [`Action::toolchains`]. Without a selection, the run works on the
     /// dated nightly when the action requires one, and on the stable release
-    /// otherwise. So one toolchain answers every job of the action. The lookup
+    /// otherwise. So every job of the action runs on one toolchain. The lookup
     /// takes the first toolchain that the project pins and that the selection
     /// and the requirements accept, as [`Toolchain::resolve`] does. A command
     /// of cargo then selects that toolchain, whatever toolchain the

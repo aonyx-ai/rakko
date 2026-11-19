@@ -137,8 +137,8 @@ impl Toolchain {
     /// Returns the cargo of the Rust toolchain that a selection and the
     /// requirements of an action accept
     ///
-    /// Without a selection, the requirements of the action pick one, as
-    /// [`ToolchainSelection`] says.
+    /// Without a selection, the requirements of the action decide which kind
+    /// of pin the run takes, as [`ToolchainSelection`] says.
     ///
     /// # Errors
     ///

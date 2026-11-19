@@ -17,13 +17,13 @@
 //!
 //! A Rust toolchain is a decision of the project, so the project pins it.
 //! A project can pin several, such as a stable release, a dated nightly, and
-//! the oldest release that it promises to compile on. A run can pick one of
-//! them with a [`ToolchainSelection`], and the crate resolves the first pin
-//! that the selection picks. An action states a requirement of a toolchain
-//! only for a need of its own. An action that needs the unstable options of
-//! the nightly returns [`Toolchain::nightly_requirement`] from
-//! [`Action::toolchains`][toolchains]. A run that picks no toolchain then runs
-//! on the dated nightly, and on the stable release otherwise.
+//! the oldest release that it promises to compile on. An action states a
+//! requirement of a toolchain only for a need of its own. An action that
+//! needs the unstable options of the nightly returns
+//! [`Toolchain::nightly_requirement`] from [`Action::toolchains`][toolchains].
+//! Such an action runs on the first dated nightly that the project pins.
+//! Every other action runs on the first stable release. A run can also pick
+//! the stable release or another release with a [`ToolchainSelection`].
 //!
 //! Cargo reports the diagnostics of a build as JSON, and this crate reads
 //! that JSON. The shape belongs to a version of cargo, so keeping the reading
