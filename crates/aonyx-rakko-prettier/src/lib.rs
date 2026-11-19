@@ -68,5 +68,5 @@ pub use self::filter::{FileExtension, Filter};
 pub use self::matching::Matching;
 pub use self::observation::Observation;
 pub use self::operation::Operation;
-pub use self::prettier::{ObservePrettierError, Prettier, ResolvePrettierError};
+pub use self::prettier::{ObservePrettierError, Prettier};
 pub use self::problem::{PrettierProblem, ProblemDetail};

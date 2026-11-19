@@ -20,7 +20,8 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_format_markdown::{FormatMarkdown, FormatMarkdownArgs, FormatMarkdownError};
-use aonyx_rakko_prettier::{Operation, Prettier, ResolvePrettierError};
+use aonyx_rakko_node::ResolveNodeToolError;
+use aonyx_rakko_prettier::{Operation, Prettier};
 use rakko::{
     Action, Args, ArgsValues, ArgumentValue, Context, Location, Outcome, ProjectRoot, argument_name,
 };
@@ -302,7 +303,7 @@ async fn run_in_a_project_without_node_stops_on_node() {
                 if matches!(
                     source.downcast_ref(),
                     Some(FormatMarkdownError::UnresolvedTool {
-                        source: ResolvePrettierError::UnresolvedToolchain {
+                        source: ResolveNodeToolError::UnresolvedNode {
                             source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
                         },
                     }) if toolchain.get() == "node"

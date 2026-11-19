@@ -8,8 +8,9 @@
 mod error;
 pub(crate) mod report;
 
+use aonyx_rakko_node::{Node, ResolveNodeToolchainError};
 use rakko::{Action, Context, ToolOutput};
-use rakko_tool::{Launch, ResolveToolchainError, ShownStreams, Tool};
+use rakko_tool::{Launch, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveTscError;
 use crate::diagnostic::Diagnostic;
@@ -24,14 +25,6 @@ const TYPESCRIPT: &str = "npm:typescript";
 
 /// The program of the compiler
 const TSC: &str = "tsc";
-
-/// The name that mise knows Node by, which is also the name of its program
-///
-/// Tsc starts Node by this name, and Node is a toolchain of the project. So
-/// the project pins its version, and the action requires no range of it. A
-/// release of TypeScript can fail on a Node that it does not support. Then the
-/// run reports what tsc wrote.
-const NODE: &str = "node";
 
 /// The option that stops tsc from writing the output of a build
 ///
@@ -148,34 +141,34 @@ impl Tsc {
     /// the project pins. A run starts in the root of the context, with that
     /// Node first on its path.
     ///
+    /// The action requires no range of Node. A release of TypeScript can fail
+    /// on a Node that it does not support. Then the run reports what tsc
+    /// wrote.
+    ///
     /// # Errors
     ///
-    /// Returns a [`ResolveToolchainError`] in these conditions:
+    /// Returns [`UnresolvedNode`][node] when mise does not run, when the
+    /// project pins no Node, or when mise did not install the pinned Node. It
+    /// also returns that error when the directory of that Node cannot be an
+    /// entry of `PATH`. Returns [`UnresolvedToolchain`][toolchain] when the
+    /// project pins no TypeScript, or when mise did not install the pinned
+    /// TypeScript. The lookup finds Node before TypeScript, so when both are
+    /// missing, the error is about Node.
     ///
-    /// - Mise does not run.
-    /// - The project pins no Node or no TypeScript.
-    /// - Mise did not install the pinned TypeScript or the pinned Node.
-    /// - The directory of that Node cannot be an entry of `PATH`.
+    /// [node]: ResolveNodeToolchainError::UnresolvedNode
+    /// [toolchain]: ResolveNodeToolchainError::UnresolvedToolchain
     #[builder]
     pub(crate) async fn resolve<A: Action>(
         action: &A,
         context: &Context,
-    ) -> Result<Self, ResolveToolchainError> {
-        let node = Tool::resolve_toolchain()
-            .action(action)
-            .toolchain(NODE)
-            .executable(NODE)
-            .context(context)
-            .call()
-            .await?;
-        let tool = Tool::resolve_toolchain()
+    ) -> Result<Self, ResolveNodeToolchainError> {
+        let tool = Node::resolve_toolchain()
             .action(action)
             .toolchain(TYPESCRIPT)
             .executable(TSC)
             .context(context)
             .call()
-            .await?
-            .with_toolchain(&node)?;
+            .await?;
 
         Ok(Self {
             tool,
@@ -213,10 +206,8 @@ mod tests {
     #[tokio::test]
     async fn resolve_runs_tsc_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_toolchain()
+        let node = Node::resolve()
             .action(&CheckTypeScript)
-            .toolchain(NODE)
-            .executable(NODE)
             .context(&context)
             .call()
             .await

@@ -19,9 +19,9 @@
 use std::path::Path;
 use std::process::Command;
 
+use aonyx_rakko_node::ResolveNodeToolError;
 use aonyx_rakko_prettier::{
     Exit, FileExtension, Filter, Observation, Operation, Prettier, ProblemDetail,
-    ResolvePrettierError,
 };
 use rakko::{
     Action, Context, Documented, Name, Outcome, ProjectRoot, ToolEvent, Tools, action_name,
@@ -93,7 +93,7 @@ impl Action for Bare {
 /// # Errors
 ///
 /// Returns the error of the lookup, which the test asserts on.
-async fn resolve(context: &Context) -> Result<Prettier, ResolvePrettierError> {
+async fn resolve(context: &Context) -> Result<Prettier, ResolveNodeToolError> {
     Prettier::resolve()
         .action(&Formatting)
         .context(context)
@@ -388,7 +388,7 @@ async fn resolve_in_a_project_without_node_reports_node() {
     assert!(
         matches!(
             &prettier,
-            Err(ResolvePrettierError::UnresolvedToolchain {
+            Err(ResolveNodeToolError::UnresolvedNode {
                 source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
             }) if toolchain.get() == "node"
         ),
@@ -409,7 +409,7 @@ async fn resolve_with_an_action_that_does_not_declare_prettier_reports_it() {
     assert!(
         matches!(
             &prettier,
-            Err(ResolvePrettierError::UnresolvedTool {
+            Err(ResolveNodeToolError::UnresolvedTool {
                 source: ResolveToolError::UndeclaredTool { tool },
             }) if tool.get() == "npm:prettier"
         ),

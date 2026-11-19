@@ -14,7 +14,10 @@ use rakko_tool::{Launch, ResolveToolchainError, ShownStreams, Tool};
 pub(crate) use self::error::ObserveNodeError;
 use self::report::Report;
 
-/// The name that mise knows Node by, which is also the name of its program
+/// The name that mise knows Node by, which the requirement uses
+///
+/// It must match the toolchain that `aonyx_rakko_node::Node` resolves, or the
+/// range does not apply to that lookup.
 const NODE: &str = "node";
 
 /// The versions of Node that the action runs the tests on
@@ -149,10 +152,8 @@ impl Node {
         action: &A,
         context: &Context,
     ) -> Result<Self, ResolveToolchainError> {
-        let tool = Tool::resolve_toolchain()
+        let tool = aonyx_rakko_node::Node::resolve()
             .action(action)
-            .toolchain(NODE)
-            .executable(NODE)
             .context(context)
             .call()
             .await?;

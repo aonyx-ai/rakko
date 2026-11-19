@@ -115,7 +115,8 @@ async fn drive(
         .action(action)
         .context(context)
         .call()
-        .await?;
+        .await
+        .map_err(|source| CheckRenovateConfigError::UnresolvedTool { source })?;
 
     let observation = validator
         .observe()

@@ -188,6 +188,7 @@ dependencies = [
 name = "aonyx-rakko-check-renovate-config"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "bon",
  "getset",
  "rakko",
@@ -202,6 +203,7 @@ dependencies = [
 name = "aonyx-rakko-check-typescript"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "bon",
  "getset",
  "rakko",
@@ -228,6 +230,7 @@ dependencies = [
 name = "aonyx-rakko-format-json"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "aonyx-rakko-prettier",
  "getset",
  "rakko",
@@ -239,6 +242,7 @@ dependencies = [
 name = "aonyx-rakko-format-markdown"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "aonyx-rakko-prettier",
  "getset",
  "rakko",
@@ -295,6 +299,7 @@ dependencies = [
 name = "aonyx-rakko-format-typescript"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "bon",
  "getset",
  "rakko",
@@ -307,6 +312,7 @@ dependencies = [
 name = "aonyx-rakko-format-yaml"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "aonyx-rakko-prettier",
  "getset",
  "rakko",
@@ -332,6 +338,7 @@ dependencies = [
 name = "aonyx-rakko-lint-markdown"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "bon",
  "getset",
  "rakko",
@@ -444,6 +451,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-node"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "rakko",
+ "rakko-tool",
+ "thiserror",
+]
+
+[[package]]
 name = "aonyx-rakko-pre-commit"
 version = "0.1.0"
 dependencies = [
@@ -454,6 +471,7 @@ dependencies = [
 name = "aonyx-rakko-prettier"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "bon",
  "getset",
  "rakko",
@@ -572,6 +590,7 @@ dependencies = [
 name = "aonyx-rakko-test-typescript"
 version = "0.1.0"
 dependencies = [
+ "aonyx-rakko-node",
  "bon",
  "getset",
  "rakko",

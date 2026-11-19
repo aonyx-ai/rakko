@@ -7,24 +7,17 @@
 //! everything between the action and the process lives here.
 
 mod error;
-mod resolve_error;
 
+use aonyx_rakko_node::{Node, ResolveNodeToolError};
 use rakko::{Action, Context, ToolOutput};
 use rakko_tool::{Launch, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveOxfmtError;
-pub(crate) use self::resolve_error::ResolveOxfmtError;
 use crate::observation::Observation;
 
 /// The name that mise knows the tool by, which is also the name of its
 /// program
 const OXFMT: &str = "oxfmt";
-
-/// The name that mise knows Node by, which is also the name of its program
-///
-/// Oxfmt starts Node by this name, and Node is a toolchain of the project. So
-/// the project pins its version, and the action requires no range of it.
-const NODE: &str = "node";
 
 /// The option that asks oxfmt to name the files that a rewrite would change
 ///
@@ -103,37 +96,25 @@ impl Oxfmt {
     ///
     /// Returns [`UnresolvedTool`][tool] when the action does not declare the
     /// tool, or when mise reports no oxfmt at that version, for example
-    /// because nothing installed it. Returns [`UnresolvedToolchain`][toolchain]
+    /// because nothing installed it. Returns [`UnresolvedNode`][node]
     /// when the project pins no Node, or when mise did not install that Node.
     /// It also returns that error when the directory of that Node cannot be an
     /// entry of `PATH`. Both errors also occur when mise does not run.
     ///
-    /// [tool]: ResolveOxfmtError::UnresolvedTool
-    /// [toolchain]: ResolveOxfmtError::UnresolvedToolchain
+    /// [node]: ResolveNodeToolError::UnresolvedNode
+    /// [tool]: ResolveNodeToolError::UnresolvedTool
     #[builder]
     pub(crate) async fn resolve<A: Action>(
         action: &A,
         context: &Context,
-    ) -> Result<Self, ResolveOxfmtError> {
-        let tool = Tool::resolve()
+    ) -> Result<Self, ResolveNodeToolError> {
+        let tool = Node::resolve_tool()
             .action(action)
             .tool(OXFMT)
             .executable(OXFMT)
             .context(context)
             .call()
-            .await
-            .map_err(|source| ResolveOxfmtError::UnresolvedTool { source })?;
-        let node = Tool::resolve_toolchain()
-            .action(action)
-            .toolchain(NODE)
-            .executable(NODE)
-            .context(context)
-            .call()
-            .await
-            .map_err(|source| ResolveOxfmtError::UnresolvedToolchain { source })?;
-        let tool = tool
-            .with_toolchain(&node)
-            .map_err(|source| ResolveOxfmtError::UnresolvedToolchain { source })?;
+            .await?;
 
         Ok(Self {
             tool,
@@ -213,10 +194,8 @@ mod tests {
     #[tokio::test]
     async fn resolve_runs_oxfmt_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_toolchain()
+        let node = Node::resolve()
             .action(&FormatTypeScript)
-            .toolchain(NODE)
-            .executable(NODE)
             .context(&context)
             .call()
             .await

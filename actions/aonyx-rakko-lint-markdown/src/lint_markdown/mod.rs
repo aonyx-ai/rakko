@@ -125,7 +125,8 @@ async fn drive(action: &LintMarkdown, context: &Context) -> Result<Outcome, Lint
         .action(action)
         .context(context)
         .call()
-        .await?;
+        .await
+        .map_err(|source| LintMarkdownError::UnresolvedTool { source })?;
 
     let observation = markdownlint.observe(context.root()).await?;
 

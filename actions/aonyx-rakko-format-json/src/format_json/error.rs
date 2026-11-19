@@ -2,7 +2,8 @@
 
 use std::path::PathBuf;
 
-use aonyx_rakko_prettier::{ObservePrettierError, ResolvePrettierError};
+use aonyx_rakko_node::ResolveNodeToolError;
+use aonyx_rakko_prettier::ObservePrettierError;
 use rakko_tool::RunCommandError;
 use thiserror::Error;
 
@@ -92,12 +93,12 @@ pub enum FormatJsonError {
     ///
     /// Mise did not run, or the project pins no Node. Nothing installed the
     /// declared prettier or the pinned Node yet, or the directory of that Node
-    /// cannot be an entry of `PATH`. The source tells the tool from the
-    /// toolchain. The action installs nothing, so the run stops here.
+    /// cannot be an entry of `PATH`. The source tells prettier from Node. The
+    /// action installs nothing, so the run stops here.
     #[error("failed to resolve prettier")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolvePrettierError,
+        source: ResolveNodeToolError,
     },
 }
 

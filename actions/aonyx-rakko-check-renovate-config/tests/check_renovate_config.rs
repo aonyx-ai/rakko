@@ -21,6 +21,7 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_check_renovate_config::{CheckRenovateConfig, CheckRenovateConfigError};
+use aonyx_rakko_node::ResolveNodeToolError;
 use rakko::{
     Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, Summary, ToolEvent,
     ToolStream,
@@ -319,7 +320,12 @@ async fn run_in_a_missing_directory_stops_without_a_validator() {
         matches!(
             &outcome,
             Outcome::Errored { source }
-                if matches!(source.downcast_ref(), Some(CheckRenovateConfigError::UnresolvedTool { .. }))
+                if matches!(
+                    source.downcast_ref(),
+                    Some(CheckRenovateConfigError::UnresolvedTool {
+                        source: ResolveNodeToolError::UnresolvedTool { .. },
+                    })
+                )
         ),
         "expected the run to stop without a validator, got {outcome:?}"
     );
@@ -338,8 +344,10 @@ async fn run_in_a_project_without_node_stops_on_node() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(CheckRenovateConfigError::UnresolvedToolchain {
-                        source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                    Some(CheckRenovateConfigError::UnresolvedTool {
+                        source: ResolveNodeToolError::UnresolvedNode {
+                            source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                        },
                     }) if toolchain.get() == "node"
                 )
         ),

@@ -20,6 +20,7 @@ use std::path::Path;
 use std::process::Command;
 
 use aonyx_rakko_lint_markdown::{LintMarkdown, LintMarkdownError};
+use aonyx_rakko_node::ResolveNodeToolError;
 use rakko::{
     Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent, ToolStream,
 };
@@ -300,7 +301,12 @@ async fn run_in_a_missing_directory_stops_without_a_markdownlint() {
         matches!(
             &outcome,
             Outcome::Errored { source }
-                if matches!(source.downcast_ref(), Some(LintMarkdownError::UnresolvedTool { .. }))
+                if matches!(
+                    source.downcast_ref(),
+                    Some(LintMarkdownError::UnresolvedTool {
+                        source: ResolveNodeToolError::UnresolvedTool { .. },
+                    })
+                )
         ),
         "expected the run to stop without a markdownlint, got {outcome:?}"
     );
@@ -319,8 +325,10 @@ async fn run_in_a_project_without_node_stops_on_node() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(LintMarkdownError::UnresolvedToolchain {
-                        source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                    Some(LintMarkdownError::UnresolvedTool {
+                        source: ResolveNodeToolError::UnresolvedNode {
+                            source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                        },
                     }) if toolchain.get() == "node"
                 )
         ),

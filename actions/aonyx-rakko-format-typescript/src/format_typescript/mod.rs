@@ -133,7 +133,8 @@ async fn drive(
         .action(action)
         .context(context)
         .call()
-        .await?;
+        .await
+        .map_err(|source| FormatTypeScriptError::UnresolvedTool { source })?;
 
     match args.operation() {
         Operation::Rewrite => fix(&oxfmt, context.root()).await,

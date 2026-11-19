@@ -26,6 +26,7 @@ use std::process::Command;
 use aonyx_rakko_format_typescript::{
     FormatTypeScript, FormatTypeScriptArgs, FormatTypeScriptError,
 };
+use aonyx_rakko_node::ResolveNodeToolError;
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent};
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use rakko_tool::{ResolveToolError, ResolveToolchainError};
@@ -379,7 +380,9 @@ async fn report_in_a_missing_directory_stops_without_oxfmt() {
                 if matches!(
                     source.downcast_ref(),
                     Some(FormatTypeScriptError::UnresolvedTool {
-                        source: ResolveToolError::MiseUnavailable { tool, .. },
+                        source: ResolveNodeToolError::UnresolvedTool {
+                            source: ResolveToolError::MiseUnavailable { tool, .. },
+                        },
                     }) if tool.get() == "oxfmt"
                 )
         ),
@@ -402,8 +405,10 @@ async fn report_in_a_project_without_node_stops_on_node() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(FormatTypeScriptError::UnresolvedToolchain {
-                        source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                    Some(FormatTypeScriptError::UnresolvedTool {
+                        source: ResolveNodeToolError::UnresolvedNode {
+                            source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                        },
                     }) if toolchain.get() == "node"
                 )
         ),
