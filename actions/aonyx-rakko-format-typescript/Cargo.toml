@@ -11,6 +11,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+aonyx-rakko-node = { workspace = true }
 bon = { workspace = true }
 getset = { workspace = true }
 rakko = { workspace = true }

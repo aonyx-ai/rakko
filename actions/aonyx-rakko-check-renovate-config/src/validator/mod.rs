@@ -6,14 +6,13 @@
 
 mod error;
 pub(crate) mod report;
-mod resolve_error;
 
+use aonyx_rakko_node::{Node, ResolveNodeToolError};
 use rakko::{Action, Context, ToolOutput};
 use rakko_tool::{Invocation, Launch, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveValidatorError;
 use self::report::Report;
-pub(crate) use self::resolve_error::ResolveValidatorError;
 use crate::observation::Observation;
 
 /// The name that mise knows the tool by
@@ -21,15 +20,6 @@ const RENOVATE: &str = "npm:renovate";
 
 /// The program of the tool that validates a configuration
 const VALIDATOR: &str = "renovate-config-validator";
-
-/// The name that mise knows Node by, which is also the name of its program
-///
-/// The validator starts Node by this name, and Node is a toolchain of the
-/// project. So the project pins its version, and the action requires no
-/// range of it. The validator can run on a Node that the package of Renovate
-/// does not support. Then it validates, or it fails with the error message of
-/// Node, and the run reports that failure.
-const NODE: &str = "node";
 
 /// The option that asks the validator for strict validation
 ///
@@ -183,42 +173,35 @@ impl Validator {
     /// Node that the project pins. A run starts in the root of the context,
     /// with that Node first on its path.
     ///
+    /// The action requires no range of Node. The validator can run on a Node
+    /// that the package of Renovate does not support. Then it validates, or
+    /// it fails with the error message of Node, and the run reports that
+    /// failure.
+    ///
     /// # Errors
     ///
     /// Returns [`UnresolvedTool`][tool] when the action does not declare
     /// Renovate, or when mise reports no validator at that version, for
     /// example because nothing installed it. Returns
-    /// [`UnresolvedToolchain`][toolchain] when the project pins no Node, or
-    /// when mise did not install that Node. It also returns that error when the
+    /// [`UnresolvedNode`][node] when the project pins no Node, or when mise
+    /// did not install that Node. It also returns that error when the
     /// directory of that Node cannot be an entry of `PATH`. Both errors also
     /// occur when mise does not run.
     ///
-    /// [tool]: ResolveValidatorError::UnresolvedTool
-    /// [toolchain]: ResolveValidatorError::UnresolvedToolchain
+    /// [node]: ResolveNodeToolError::UnresolvedNode
+    /// [tool]: ResolveNodeToolError::UnresolvedTool
     #[builder]
     pub(crate) async fn resolve<A: Action>(
         action: &A,
         context: &Context,
-    ) -> Result<Self, ResolveValidatorError> {
-        let tool = Tool::resolve()
+    ) -> Result<Self, ResolveNodeToolError> {
+        let tool = Node::resolve_tool()
             .action(action)
             .tool(RENOVATE)
             .executable(VALIDATOR)
             .context(context)
             .call()
-            .await
-            .map_err(|source| ResolveValidatorError::UnresolvedTool { source })?;
-        let node = Tool::resolve_toolchain()
-            .action(action)
-            .toolchain(NODE)
-            .executable(NODE)
-            .context(context)
-            .call()
-            .await
-            .map_err(|source| ResolveValidatorError::UnresolvedToolchain { source })?;
-        let tool = tool
-            .with_toolchain(&node)
-            .map_err(|source| ResolveValidatorError::UnresolvedToolchain { source })?;
+            .await?;
 
         Ok(Self {
             tool,
@@ -581,10 +564,8 @@ mod tests {
 
     #[tokio::test]
     async fn invocation_runs_on_the_node_of_the_project() {
-        let node = Tool::resolve_toolchain()
+        let node = Node::resolve()
             .action(&CheckRenovateConfig)
-            .toolchain(NODE)
-            .executable(NODE)
             .context(&context())
             .call()
             .await

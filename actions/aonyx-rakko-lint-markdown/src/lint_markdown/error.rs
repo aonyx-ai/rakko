@@ -3,10 +3,11 @@
 use std::io::Error as IoError;
 use std::path::PathBuf;
 
-use rakko_tool::{ResolveToolError, ResolveToolchainError, RunCommandError};
+use aonyx_rakko_node::ResolveNodeToolError;
+use rakko_tool::RunCommandError;
 use thiserror::Error;
 
-use crate::markdownlint::{ObserveMarkdownlintError, ResolveMarkdownlintError};
+use crate::markdownlint::ObserveMarkdownlintError;
 
 /// An error that stops a run of the action before it has an answer
 ///
@@ -119,26 +120,18 @@ pub enum LintMarkdownError {
         source: IoError,
     },
 
-    /// Mise reported no markdownlint at the version that the action declares
+    /// Mise reported no markdownlint at the version that the action declares, or
+    /// no Node that the project pins
     ///
-    /// Mise did not run, or nothing installed the declared markdownlint yet.
-    /// The action installs nothing, so the run stops here.
+    /// Mise did not run, or the project pins no Node. Nothing installed the
+    /// declared markdownlint or the pinned Node yet, or the directory of that
+    /// Node cannot be an entry of `PATH`. The source tells markdownlint from
+    /// Node. The action requires no range of Node. The action installs
+    /// nothing, so the run stops here.
     #[error("failed to resolve markdownlint")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveToolError,
-    },
-
-    /// Mise reported no Node that the project pins for markdownlint
-    ///
-    /// Mise did not run, or the project pins no Node. Nothing installed the
-    /// pinned Node yet, or the directory of that Node cannot be an entry of
-    /// `PATH`. The action requires no range of Node. The action installs
-    /// nothing, so the run stops here.
-    #[error("failed to resolve the Node of markdownlint")]
-    UnresolvedToolchain {
-        /// The cause of the failure
-        source: ResolveToolchainError,
+        source: ResolveNodeToolError,
     },
 }
 
@@ -160,22 +153,6 @@ impl From<ObserveMarkdownlintError> for LintMarkdownError {
             }
             ObserveMarkdownlintError::UnwritableReference { source } => {
                 Self::UnwritableReference { source }
-            }
-        }
-    }
-}
-
-impl From<ResolveMarkdownlintError> for LintMarkdownError {
-    /// Turns the failure to resolve markdownlint into the error of the action
-    ///
-    /// The machinery that resolves markdownlint separates the tool from the
-    /// toolchain, as the action does, so the conversion renames the condition
-    /// and adds nothing.
-    fn from(error: ResolveMarkdownlintError) -> Self {
-        match error {
-            ResolveMarkdownlintError::UnresolvedTool { source } => Self::UnresolvedTool { source },
-            ResolveMarkdownlintError::UnresolvedToolchain { source } => {
-                Self::UnresolvedToolchain { source }
             }
         }
     }

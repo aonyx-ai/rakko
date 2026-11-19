@@ -8,14 +8,13 @@
 mod error;
 mod reference;
 mod report;
-mod resolve_error;
 
+use aonyx_rakko_node::{Node, ResolveNodeToolError};
 use rakko::{Action, Context, ProjectRoot, ToolOutput};
 use rakko_tool::{Launch, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveMarkdownlintError;
 use self::reference::Reference;
-pub(crate) use self::resolve_error::ResolveMarkdownlintError;
 use crate::observation::{Examination, Exit, Observation};
 
 /// The name that mise knows the tool by
@@ -23,13 +22,6 @@ const MARKDOWNLINT_CLI: &str = "npm:markdownlint-cli";
 
 /// The program of the tool
 const MARKDOWNLINT: &str = "markdownlint";
-
-/// The name that mise knows Node by, which is also the name of its program
-///
-/// Markdownlint starts Node by this name, and Node is a toolchain of the
-/// project. So the project pins its version, and the action requires no range
-/// of it.
-const NODE: &str = "node";
 
 /// The flag that asks markdownlint for its report as data
 ///
@@ -221,37 +213,25 @@ impl Markdownlint {
     ///
     /// Returns [`UnresolvedTool`][tool] when the action does not declare the
     /// tool, or when mise reports no markdownlint at that version, for example
-    /// because nothing installed it. Returns [`UnresolvedToolchain`][toolchain]
+    /// because nothing installed it. Returns [`UnresolvedNode`][node]
     /// when the project pins no Node, or when mise did not install that Node.
     /// It also returns that error when the directory of that Node cannot be an
     /// entry of `PATH`. Both errors also occur when mise does not run.
     ///
-    /// [tool]: ResolveMarkdownlintError::UnresolvedTool
-    /// [toolchain]: ResolveMarkdownlintError::UnresolvedToolchain
+    /// [node]: ResolveNodeToolError::UnresolvedNode
+    /// [tool]: ResolveNodeToolError::UnresolvedTool
     #[builder]
     pub(crate) async fn resolve<A: Action>(
         action: &A,
         context: &Context,
-    ) -> Result<Self, ResolveMarkdownlintError> {
-        let tool = Tool::resolve()
+    ) -> Result<Self, ResolveNodeToolError> {
+        let tool = Node::resolve_tool()
             .action(action)
             .tool(MARKDOWNLINT_CLI)
             .executable(MARKDOWNLINT)
             .context(context)
             .call()
-            .await
-            .map_err(|source| ResolveMarkdownlintError::UnresolvedTool { source })?;
-        let node = Tool::resolve_toolchain()
-            .action(action)
-            .toolchain(NODE)
-            .executable(NODE)
-            .context(context)
-            .call()
-            .await
-            .map_err(|source| ResolveMarkdownlintError::UnresolvedToolchain { source })?;
-        let tool = tool
-            .with_toolchain(&node)
-            .map_err(|source| ResolveMarkdownlintError::UnresolvedToolchain { source })?;
+            .await?;
 
         Ok(Self {
             tool,
@@ -348,10 +328,8 @@ mod tests {
     #[tokio::test]
     async fn resolve_runs_markdownlint_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_toolchain()
+        let node = Node::resolve()
             .action(&LintMarkdown)
-            .toolchain(NODE)
-            .executable(NODE)
             .context(&context)
             .call()
             .await

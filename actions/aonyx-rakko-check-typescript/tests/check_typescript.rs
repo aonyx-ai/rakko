@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use aonyx_rakko_check_typescript::{CheckTypeScript, CheckTypeScriptError};
+use aonyx_rakko_node::ResolveNodeToolchainError;
 use rakko::{Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent};
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use rakko_tool::ResolveToolchainError;
@@ -782,7 +783,9 @@ async fn run_without_a_node_stops_on_node() {
                 if matches!(
                     source.downcast_ref(),
                     Some(CheckTypeScriptError::UnresolvedToolchain {
-                        source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                        source: ResolveNodeToolchainError::UnresolvedNode {
+                            source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                        },
                     }) if toolchain.get() == "node"
                 )
         ),
@@ -809,7 +812,9 @@ async fn run_without_a_tsc_stops() {
                 if matches!(
                     source.downcast_ref(),
                     Some(CheckTypeScriptError::UnresolvedToolchain {
-                        source: ResolveToolchainError::UninstalledToolchain { toolchain, .. },
+                        source: ResolveNodeToolchainError::UnresolvedToolchain {
+                            source: ResolveToolchainError::UninstalledToolchain { toolchain, .. },
+                        },
                     }) if toolchain.get() == "npm:typescript"
                 )
         ),

@@ -1,6 +1,7 @@
 //! The error that stops a run of the action
 
-use rakko_tool::{ResolveToolchainError, RunCommandError};
+use aonyx_rakko_node::ResolveNodeToolchainError;
+use rakko_tool::RunCommandError;
 use thiserror::Error;
 
 use crate::tsc::ObserveTscError;
@@ -77,12 +78,12 @@ pub enum CheckTypeScriptError {
     /// - Nothing installed the pinned TypeScript or the pinned Node yet.
     /// - The directory of that Node cannot be an entry of `PATH`.
     ///
-    /// The source gives the toolchain. The action installs nothing, so the run
-    /// stops here.
+    /// The source tells TypeScript from Node. The action installs nothing, so
+    /// the run stops here.
     #[error("failed to resolve tsc")]
     UnresolvedToolchain {
         /// The cause of the failure
-        source: ResolveToolchainError,
+        source: ResolveNodeToolchainError,
     },
 }
 

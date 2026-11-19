@@ -11,6 +11,7 @@ rust-version.workspace = true
 keywords = ["rakko", "prettier", "formatting"]
 
 [dependencies]
+aonyx-rakko-node = { workspace = true }
 bon = { workspace = true }
 getset = { workspace = true }
 rakko = { workspace = true }

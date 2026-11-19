@@ -7,13 +7,12 @@
 //! the action and the process lives here.
 
 mod error;
-mod resolve_error;
 
+use aonyx_rakko_node::{Node, ResolveNodeToolError};
 use rakko::{Action, Context, ToolOutput, Tools};
 use rakko_tool::{Launch, ShownStreams, Tool};
 
 pub use self::error::ObservePrettierError;
-pub use self::resolve_error::ResolvePrettierError;
 use crate::filter::Filter;
 use crate::observation::Observation;
 use crate::operation::Operation;
@@ -23,13 +22,6 @@ const PRETTIER: &str = "npm:prettier";
 
 /// The program of the tool
 const PROGRAM: &str = "prettier";
-
-/// The name that mise knows Node by, which is also the name of its program
-///
-/// Prettier starts Node by this name, and Node is a toolchain of the
-/// project. So the project pins its version, and the crate requires no
-/// range of it.
-const NODE: &str = "node";
 
 /// The flag that asks prettier to name the files that it would rewrite
 const LIST_DIFFERENT: &str = "--list-different";
@@ -228,38 +220,28 @@ impl Prettier {
     /// Returns [`UnresolvedTool`][tool] when the action does not declare
     /// prettier, or when mise reports no prettier at that version, for
     /// example because nothing installed it. Returns
-    /// [`UnresolvedToolchain`][toolchain] when the project pins no Node that
-    /// the action accepts, or when mise did not install that Node. It also
-    /// returns that error when the directory of that Node cannot be an entry of
-    /// `PATH`. Both errors also occur when mise does not run.
+    /// [`UnresolvedNode`][node] when the project pins no Node that the action
+    /// accepts, or when mise did not install that Node. It also returns that
+    /// error when the directory of that Node cannot be an entry of `PATH`.
+    /// Both errors also occur when mise does not run. The lookup finds
+    /// prettier before Node, so when both are missing, the error is about
+    /// prettier.
     ///
-    /// [tool]: ResolvePrettierError::UnresolvedTool
-    /// [toolchain]: ResolvePrettierError::UnresolvedToolchain
+    /// [node]: ResolveNodeToolError::UnresolvedNode
+    /// [tool]: ResolveNodeToolError::UnresolvedTool
     /// [tools]: Prettier::TOOLS
     #[builder]
     pub async fn resolve<A: Action>(
         action: &A,
         context: &Context,
-    ) -> Result<Self, ResolvePrettierError> {
-        let tool = Tool::resolve()
+    ) -> Result<Self, ResolveNodeToolError> {
+        let tool = Node::resolve_tool()
             .action(action)
             .tool(PRETTIER)
             .executable(PROGRAM)
             .context(context)
             .call()
-            .await
-            .map_err(|source| ResolvePrettierError::UnresolvedTool { source })?;
-        let node = Tool::resolve_toolchain()
-            .action(action)
-            .toolchain(NODE)
-            .executable(NODE)
-            .context(context)
-            .call()
-            .await
-            .map_err(|source| ResolvePrettierError::UnresolvedToolchain { source })?;
-        let tool = tool
-            .with_toolchain(&node)
-            .map_err(|source| ResolvePrettierError::UnresolvedToolchain { source })?;
+            .await?;
 
         Ok(Self {
             tool,
@@ -327,10 +309,8 @@ mod tests {
     #[tokio::test]
     async fn resolve_runs_prettier_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_toolchain()
+        let node = Node::resolve()
             .action(&Formatting)
-            .toolchain(NODE)
-            .executable(NODE)
             .context(&context)
             .call()
             .await
