@@ -15,12 +15,15 @@
 //! workspace root under the project, and an action runs its job at each of
 //! them.
 //!
-//! A Rust toolchain is a decision of the project, so the project pins it and
-//! an action states the range of toolchains that it accepts.
-//! [`Cargo::requirement`] gives the range of the stable toolchain, and
-//! [`Toolchain::nightly`] the range of the nightly. An action declares them
-//! among its tools, and the crate resolves the toolchain that the project
-//! pins in each range.
+//! A Rust toolchain is a decision of the project, so the project pins it.
+//! A project can pin several, such as a stable release, a dated nightly, and
+//! the oldest release that it promises to compile on. An action states a
+//! requirement of a toolchain only for a need of its own. An action that
+//! needs the unstable options of the nightly returns
+//! [`Toolchain::nightly_requirement`] from [`Action::toolchains`][toolchains].
+//! Such an action runs on the first dated nightly that the project pins.
+//! Every other action runs on the first stable release. A run can also pick
+//! the stable release or another release with a [`ToolchainSelection`].
 //!
 //! Cargo reports the diagnostics of a build as JSON, and this crate reads
 //! that JSON. The shape belongs to a version of cargo, so keeping the reading
@@ -37,14 +40,13 @@
 //! root:
 //!
 //! ```no_run
-//! use rakko::Context;
+//! use rakko::{Action, Context};
 //! use aonyx_rakko_cargo::{Cargo, CargoReport};
 //!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
 //! let context = Context::builder().root("/home/otter/project").build();
 //!
-//! let cargo = Cargo::resolve(&context).await?;
+//! let cargo = Cargo::resolve().action(action).context(&context).call().await?;
 //!
 //! for workspace in cargo.roots().await? {
 //!     let execution = cargo
@@ -61,6 +63,7 @@
 //! ```
 //!
 //! [cargo]: https://doc.rust-lang.org/cargo/
+//! [toolchains]: rakko::Action::toolchains
 //! [tokio]: https://tokio.rs
 
 mod cargo;
@@ -75,5 +78,5 @@ pub use self::report::{CargoDiagnostic, CargoReport, ReadReportError};
 pub use self::root::{
     CargoPackage, CargoRoot, Documentation, DocumentedNames, PackageName, Publication,
 };
-pub use self::toolchain::Toolchain;
+pub use self::toolchain::{Toolchain, ToolchainSelection};
 pub use self::version::RustVersion;

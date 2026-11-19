@@ -1,7 +1,7 @@
 //! The error that stops a run of the action
 
 use aonyx_rakko_cargo::{DiscoverRootsError, PackageName};
-use rakko_tool::ResolveRequirementError;
+use rakko_tool::ResolveToolchainError;
 use thiserror::Error;
 
 use crate::crates_io::LookUpOwnersError;
@@ -70,14 +70,14 @@ pub enum CheckCrateOwnersError {
 
     /// Mise reported no cargo for the project
     ///
-    /// Cargo describes the workspaces that a run checks, and it adds an
-    /// owner with `fix`. The project pins no stable Rust toolchain that the
-    /// action accepts, or nothing installed the pin yet. The action installs
-    /// nothing, so the run stops here.
+    /// Cargo describes the workspaces that a run checks, and it adds an owner
+    /// with `fix`. The project pins no Rust release with a version number, or
+    /// nothing installed the pin yet. The action installs nothing, so the run
+    /// stops here.
     #[error("failed to resolve cargo")]
     UnresolvedCargo {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolchainError,
     },
 }
 

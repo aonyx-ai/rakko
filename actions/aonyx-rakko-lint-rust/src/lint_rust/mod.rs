@@ -10,8 +10,7 @@ mod error;
 use aonyx_rakko_cargo::lockfile::{self, LOCKED};
 use aonyx_rakko_cargo::{Cargo, CargoReport, CargoRoot};
 use rakko::{
-    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary, action_name,
 };
 use rakko_tool::{Execution, Launch, ShownStreams};
 
@@ -44,9 +43,8 @@ const CLIPPY: [&str; 5] = [
 /// the lints that the project configured, and examines every target with every
 /// feature. So a run agrees with an editor and with a contributor that runs
 /// clippy bare. The cargo that runs is the one [mise] installed for the
-/// project, on the stable toolchain that the project pins. The action installs
-/// nothing. The action accepts a range of stable toolchains, and the first pin
-/// in that range answers.
+/// project. It runs on the first pin with a version number, such as `1.99.1`,
+/// whatever its release. The action installs nothing.
 ///
 /// A run only reports, and it takes no argument. It lints every workspace of
 /// the project, because the harness of a project is a package of its own.
@@ -58,10 +56,11 @@ const CLIPPY: [&str; 5] = [
 /// denies it.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
-/// run stops with an error when the project pins no stable Rust toolchain that
-/// the action accepts. It also stops when the workspaces of the project cannot
-/// be discovered. It also stops when the lockfile of a workspace needs an
-/// update, or when cargo writes a report that the action does not recognize.
+/// run stops with an error when the project pins no Rust release with a version
+/// number that the action accepts. It also stops when the workspaces of the
+/// project cannot be discovered. It also stops when the lockfile of a workspace
+/// needs an update, or when cargo writes a report that the action does not
+/// recognize.
 ///
 /// A run declares a read of the project.
 ///
@@ -99,12 +98,8 @@ impl Action for LintRust {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement()]
-    }
-
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -125,8 +120,11 @@ impl Action for LintRust {
 ///
 /// The step could be tool resolution, workspace discovery, a cargo run, or
 /// reading a report.
-async fn drive(context: &Context) -> Result<Outcome, LintRustError> {
-    let cargo = Cargo::resolve(context)
+async fn drive(action: &LintRust, context: &Context) -> Result<Outcome, LintRustError> {
+    let cargo = Cargo::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| LintRustError::UnresolvedTool { source })?;
 

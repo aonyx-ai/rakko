@@ -683,8 +683,9 @@ impl Tool {
     /// it takes the first pin. A range compares release versions such as
     /// `>=1.85`, or dates of one channel such as `>=nightly-2025-02-20`. A
     /// range of dates reads only the pins of that channel that the
-    /// configuration writes with a date, such as `nightly-2026-11-02`. A range
-    /// can hold alternatives joined by `||`, such as `^22.18 || >=23.6`.
+    /// configuration writes with a date, such as `nightly-2026-11-02`. The
+    /// range `nightly-*` accepts every such pin. A range can hold
+    /// alternatives joined by `||`, such as `^22.18 || >=23.6`.
     ///
     /// A pin in the global user configuration does not count. Neither does a
     /// pin in a directory above the project, because these files differ on

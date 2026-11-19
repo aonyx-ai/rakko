@@ -10,8 +10,8 @@ mod error;
 use aonyx_rakko_cargo::Cargo;
 use aonyx_rakko_nextest::{Lockfile, Nextest};
 use rakko::{
-    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary, Tools,
+    action_name,
 };
 
 pub use self::error::TestRustError;
@@ -40,11 +40,11 @@ const NO_WORKSPACE: &str = "cargo discovered no workspace in the project";
 /// instead of failing.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
-/// run stops with an error when the project pins no stable Rust toolchain that
-/// the action accepts. It stops when mise reports no nextest at the declared
-/// version. It stops when the workspaces of the project cannot be discovered or
-/// when the lockfile of a workspace needs an update. It stops when nextest
-/// writes a report that the run cannot answer from.
+/// run stops with an error when the project pins no Rust release with a version
+/// number. It stops when mise reports no nextest at the declared version. It
+/// stops when the workspaces of the project cannot be discovered or when the
+/// lockfile of a workspace needs an update. It stops when nextest writes a
+/// report that the run cannot answer from.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of
 /// each workspace. Cargo writes what it builds into the `target` directory,
@@ -81,12 +81,12 @@ impl Action for TestRust {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement(), Nextest::requirement()]
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Nextest::TOOLS]
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -106,8 +106,11 @@ impl Action for TestRust {
 /// Returns the error of the step that could not finish. The step is the
 /// resolution of a tool, the discovery of the workspaces, or a run of nextest
 /// that left no answer.
-async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
-    let cargo = Cargo::resolve(context)
+async fn drive(action: &TestRust, context: &Context) -> Result<Outcome, TestRustError> {
+    let cargo = Cargo::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| TestRustError::UnresolvedCargo { source })?;
 
@@ -123,6 +126,7 @@ async fn drive(context: &Context) -> Result<Outcome, TestRustError> {
     }
 
     let nextest = Nextest::resolve()
+        .action(action)
         .cargo(cargo)
         .lockfile(Lockfile::Locked)
         .context(context)

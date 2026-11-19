@@ -9,7 +9,8 @@
 //! A range compares the versions of releases, such as `>=1.85`, or the dates
 //! of one channel, such as `>=nightly-2025-02-20`. Rustup names a dated
 //! toolchain of a channel by its date. So a nightly toolchain has a date
-//! and no version of its own to compare.
+//! and no version of its own to compare. The range `nightly-*` accepts every
+//! dated version of the channel.
 //!
 //! A range can hold alternatives, joined by `||`, such as `^22.18 || >=23.6`.
 //! It accepts a pin that one of them accepts.
@@ -306,13 +307,21 @@ pub(super) async fn select(
 /// The text that joins the alternatives of a range
 const ALTERNATIVE: &str = "||";
 
+/// The end of a comparator that accepts every date of its channel, such as
+/// `nightly-*`
+const ANY_DATE: &str = "-*";
+
+/// The version requirement that accepts every date
+const WILDCARD: &str = "*";
+
 /// The versions that a range accepts, in the form that the pins are read in
 ///
 /// A range compares the versions of releases, such as `>=1.85`. A range can
 /// also compare the dates of a channel, such as `>=nightly-2025-02-20`. Every
 /// comparator of such a range gives the same channel and a date. A pin of
 /// that channel then carries a date as well, such as `nightly-2026-11-02`,
-/// and the range compares the dates.
+/// and the range compares the dates. The comparator `nightly-*` accepts every
+/// date of the channel.
 ///
 /// A range holds one or more alternatives, and it accepts a pin that one of
 /// them accepts. The alternatives of a range of dates give the same channel.
@@ -462,8 +471,9 @@ fn dated_alternatives(alternatives: &[&str]) -> Option<(String, Vec<String>)> {
 ///
 /// A comparator such as `>=nightly-2025-02-20` gives the channel `nightly`
 /// and the date `2025.2.20`. The numbers of a version carry no leading
-/// zeros, so the date loses them. A text with a comparator that gives no
-/// date, or with two channels, is no range of dates.
+/// zeros, so the date loses them. The comparator `nightly-*` gives the
+/// channel and the wildcard `*`, which accepts every date. A text with a
+/// comparator that gives no date, or with two channels, is no range of dates.
 fn dated(range: &str) -> Option<(String, String)> {
     let mut channel: Option<&str> = None;
     let mut comparators = Vec::new();
@@ -474,7 +484,7 @@ fn dated(range: &str) -> Option<(String, String)> {
             .find(|character: char| character.is_ascii_alphabetic())
             .unwrap_or(comparator.len());
         let (operator, version) = comparator.split_at(start);
-        let (name, date) = channel_date(version)?;
+        let (name, date) = channel_date(version).or_else(|| any_date(version))?;
 
         if channel.is_some_and(|known| known != name) {
             return None;
@@ -485,6 +495,21 @@ fn dated(range: &str) -> Option<(String, String)> {
     }
 
     channel.map(|channel| (channel.to_owned(), comparators.join(", ")))
+}
+
+/// Returns the channel of a comparator that accepts every date of it, and
+/// the wildcard that stands for every date
+///
+/// The comparator is a channel of letters, a hyphen, and `*`, such as
+/// `nightly-*`. Any other text answers `None`.
+fn any_date(comparator: &str) -> Option<(&str, String)> {
+    let channel = comparator.strip_suffix(ANY_DATE)?;
+
+    if channel.is_empty() || !channel.bytes().all(|byte| byte.is_ascii_alphabetic()) {
+        return None;
+    }
+
+    Some((channel, WILDCARD.to_owned()))
 }
 
 /// Returns the date of a pin of a channel, read as a version, when the pin
@@ -638,6 +663,13 @@ mod tests {
     }
 
     #[test]
+    fn any_date_without_a_channel_answers_none() {
+        let range = any_date("-*");
+
+        assert_eq!(range, None);
+    }
+
+    #[test]
     fn dated_alternatives_of_two_channels_are_no_range_of_dates() {
         let range = dated_alternatives(&[">=nightly-2025-02-20", ">=beta-2026-01-01"]);
 
@@ -681,6 +713,20 @@ mod tests {
     #[test]
     fn dated_with_a_comparator_without_a_date_is_no_range_of_dates() {
         let range = dated(">=nightly-2025-02-20, <1.90");
+
+        assert_eq!(range, None);
+    }
+
+    #[test]
+    fn dated_with_a_wildcard_after_a_channel_accepts_every_date() {
+        let range = dated("nightly-*");
+
+        assert_eq!(range, Some(("nightly".to_owned(), "*".to_owned())));
+    }
+
+    #[test]
+    fn dated_with_a_wildcard_after_a_channel_that_holds_a_digit_is_no_range_of_dates() {
+        let range = dated("n1ghtly-*");
 
         assert_eq!(range, None);
     }
@@ -743,6 +789,13 @@ mod tests {
             .range(">=nightly-2025-02-20")
             .pin("nightly-2026-11-02")
             .call();
+
+        assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
+    }
+
+    #[test]
+    fn read_with_a_date_in_a_wildcard_range_of_dates_accepts_the_pin() {
+        let reading = read().range("nightly-*").pin("nightly-2014-01-01").call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
     }
@@ -833,6 +886,13 @@ mod tests {
         let reading = read().range(">=1.85").pin("1.99.1").call();
 
         assert!(matches!(reading, Reading::Accepted), "got {reading:?}");
+    }
+
+    #[test]
+    fn read_with_a_release_in_a_wildcard_range_of_dates_reports_it_foreign() {
+        let reading = read().range("nightly-*").pin("1.99.1").call();
+
+        assert!(matches!(reading, Reading::Foreign), "got {reading:?}");
     }
 
     #[test]

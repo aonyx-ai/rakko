@@ -36,10 +36,9 @@ const SEPARATOR: char = '.';
 /// use rakko::{Context, ProjectRoot};
 /// use aonyx_rakko_cargo::Cargo;
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
 /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-/// let cargo = Cargo::resolve(&context).await?;
+/// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
 ///
 /// for root in cargo.roots().await? {
 ///     if let Some(version) = root.rust_version() {
@@ -84,10 +83,9 @@ impl RustVersion {
     /// use rakko::{Context, ProjectRoot};
     /// use aonyx_rakko_cargo::Cargo;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-    /// let cargo = Cargo::resolve(&context).await?;
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
     ///
     /// for root in cargo.roots().await? {
     ///     if let Some(version) = root.rust_version() {

@@ -775,12 +775,22 @@ async fn run_without_a_manifest_skips() {
 }
 
 #[test]
-fn tools_declare_the_stable_toolchain_and_nextest() {
+fn toolchains_require_nothing() {
+    let toolchains = CheckLatestDeps.toolchains();
+
+    assert!(
+        toolchains.is_empty(),
+        "expected no requirement, got {toolchains:?}"
+    );
+}
+
+#[test]
+fn tools_declare_cargo_nextest_alone() {
     let tools: Vec<String> = CheckLatestDeps
         .tools()
         .iter()
         .map(|requirement| requirement.tool().get().to_owned())
         .collect();
 
-    assert_eq!(tools, ["rust", "cargo:cargo-nextest"]);
+    assert_eq!(tools, ["cargo:cargo-nextest"]);
 }

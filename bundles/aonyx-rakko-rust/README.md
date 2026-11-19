@@ -62,19 +62,22 @@ Rakko installs nothing, and an action whose tool [mise] does not report stops
 instead of passing quietly. An action runs two kinds of tool.
 
 The Rust toolchains are decisions of the project, so the project pins them in
-its `mise.toml`, and each action accepts a range of them. Each action runs on
-the first pin in its range, in the order of the `rust` entry. For example, with
+its `mise.toml`. Each action selects one kind of toolchain: a stable release or
+a dated nightly. It runs on the first pin of that kind, in the order of the
+`rust` entry. For example, with
 `rust = ["1.99.1", "nightly-2026-11-02", "1.88.0"]`, the actions that run on a
 stable toolchain run on 1.99.1. With `1.88.0` first, they run on 1.88.0.
 
-- `rust`, with the `clippy` and `rustfmt` components, because cargo drives
-  every action of the bundle, and clippy and rustfmt are what two of them run.
-  The actions accept a stable toolchain from 1.85 on, pinned by a version such
-  as `1.99.1`. A pin of the `stable` channel has no version to compare, so a
-  run passes over it and takes the first pin with a version in the range. That
-  pin can be the pin of the oldest supported version: with
+- `rust`, with the `clippy` and `rustfmt` components. Cargo drives every
+  action of the bundle that runs on a stable release, such as `lint-rust` and
+  `test-rust`, and `lint-rust` runs clippy. The actions accept every stable
+  release, pinned by a version such as `1.99.1`. A pin of the `stable` channel
+  has no version, so a run passes over it and takes the first pin with a
+  version. That pin can be the pin of the oldest supported version: with
   `rust = ["stable", "1.88.0"]`, the actions run on 1.88.0. A run stops when
-  no pin with a version is in the range, and its error says to add such a pin.
+  no pin has a version, and its error says to add such a pin. The actions
+  require nothing of the stable release, so `doctor` does not report a project
+  that pins none.
 - a second `rust` on the `nightly` channel, with the `rustfmt` component,
   because `format-rust` reads the unstable options of `.rustfmt.toml` and
   `check-unused-deps` needs the unstable option that records which crates a
@@ -82,8 +85,9 @@ stable toolchain run on 1.99.1. With `1.88.0` first, they run on 1.88.0.
   its date, such as `nightly-2026-08-11`, and not by the bare channel. Mise
   ignores `mise.lock` for Rust once it has installed any toolchain, so a bare
   `nightly` resolves to the newest nightly that the machine holds. The actions
-  accept a nightly from 2025-02-20 on. A bare `nightly` counts for nothing,
-  also on a machine where mise resolves it to a date.
+  accept every dated nightly, and they require one, so `doctor` reports a
+  project that pins none. A bare `nightly` counts for nothing, also on a
+  machine where mise resolves it to a date.
 
 Stiles is a decision of the project as well. `lint-stiles` accepts exactly one
 version of `github:aonyx-ai/stiles`, because the rules that a project loads are

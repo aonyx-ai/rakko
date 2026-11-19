@@ -60,9 +60,9 @@ the three checks here add one entry to that list:
   `1.88.1`, and one of `1.88.0` accepts only the pin `1.88.0`. A pin that
   stops agreeing with the manifests fails the check instead of moving it.
 
-The other two need nothing beyond the core: `check-minimal-deps` resolves on
-the nightly `rust` and runs the tests with `cargo:cargo-nextest`, and
-`test-rust-docs` builds the examples with cargo.
+The other two need nothing beyond the core. `check-minimal-deps` resolves the
+floors on the nightly `rust` and runs the tests there with
+`cargo:cargo-nextest`. `test-rust-docs` builds the examples with cargo.
 
 ## Documentation
 

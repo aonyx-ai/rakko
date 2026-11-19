@@ -11,8 +11,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use getset::Getters;
-use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, VersionRange};
-use rakko_tool::{Execution, Invocation, Launch, ResolveRequirementError, RunCommandError, Tool};
+use rakko::{Action, Context, ProjectRoot};
+use rakko_tool::{Execution, Invocation, Launch, ResolveToolchainError, RunCommandError, Tool};
 use serde::Deserialize;
 use toml_edit::DocumentMut;
 
@@ -20,7 +20,7 @@ pub use self::error::DiscoverRootsError;
 use crate::root::{
     CargoPackage, CargoRoot, Documentation, DocumentedNames, MANIFEST, PackageName, Publication,
 };
-use crate::toolchain::Toolchain;
+use crate::toolchain::{Toolchain, ToolchainSelection};
 use crate::version::RustVersion;
 
 /// The name that mise knows the Rust toolchains by
@@ -31,12 +31,6 @@ pub(crate) const CARGO: &str = "cargo";
 
 /// The name that cargo gives to crates.io in a list of registries
 const CRATES_IO: &str = "crates-io";
-
-/// The range of the stable toolchains that the crate accepts
-///
-/// Rust 1.85 is the first release that builds a package of edition 2024, and
-/// the tests of the actions build such packages.
-const STABLE: &str = ">=1.85";
 
 /// The variable that tells a plugin of cargo which cargo started it
 ///
@@ -96,27 +90,24 @@ const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 
 /// The cargo that a project runs
 ///
-/// The value holds the cargo of the stable toolchain that the project pins,
-/// which mise installed. The project owns its Rust toolchains, so the crate
-/// accepts a range of them, and [`requirement`][requirement] gives that
-/// range. Every command selects that toolchain by name, so a run reaches the
-/// same compiler as the editor and the terminal of a contributor. Nothing
-/// here installs a tool: provisioning is the job of mise, and a toolchain
-/// that mise does not report stops the caller.
-///
-/// An action that runs cargo declares [`requirement`][requirement] among its
-/// tools, so that the machinery can read the range.
+/// The value holds the cargo of the Rust toolchain that the project pins and
+/// that a run selects, which mise installed. The project owns its Rust
+/// toolchains, so the crate declares no range of them. A run selects one of
+/// the pins with [`resolve`][resolve], the stable release by default. Every
+/// command selects that toolchain by name, so a run reaches the same compiler
+/// as the editor and the terminal of a contributor. Nothing here installs a
+/// tool: provisioning is the job of mise, and a toolchain that mise does not
+/// report stops the caller.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use rakko::{Context, ProjectRoot};
+/// use rakko::{Action, Context, ProjectRoot};
 /// use aonyx_rakko_cargo::Cargo;
 ///
-/// # #[tokio::main(flavor = "current_thread")]
-/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
 /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-/// let cargo = Cargo::resolve(&context).await?;
+/// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
 ///
 /// for root in cargo.roots().await? {
 ///     let execution = cargo.invocation(&root).arg("check").run().await?;
@@ -127,7 +118,7 @@ const DOCTESTED: [&str; 3] = ["lib", "rlib", "proc-macro"];
 /// # }
 /// ```
 ///
-/// [requirement]: Cargo::requirement
+/// [resolve]: Cargo::resolve
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Getters)]
 pub struct Cargo {
     /// The root of the project that the tool works on
@@ -136,17 +127,18 @@ pub struct Cargo {
     /// The program that mise installed for the project
     tool: Tool,
 
-    /// The stable toolchain that the project pins, which every command
-    /// selects unless the caller selects another one
+    /// The toolchain that the project pins and that the run selected, which
+    /// every command selects unless the caller selects another one
     #[getset(get = "pub")]
     toolchain: Toolchain,
 }
 
+#[bon::bon]
 impl Cargo {
     /// Returns the command that runs cargo at a root
     ///
     /// The command starts the program that [`resolve`][resolve] found, in
-    /// the directory of the root, and it selects the stable toolchain that
+    /// the directory of the root, and it selects the toolchain that
     /// [`toolchain`][toolchain] gives. The caller adds the arguments of the
     /// job that it wants, and then runs the command. Cargo works on the
     /// workspace whose directory it runs in, so the command line reads the
@@ -157,13 +149,12 @@ impl Cargo {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, ProjectRoot};
+    /// use rakko::{Action, Context, ProjectRoot};
     /// use aonyx_rakko_cargo::Cargo;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-    /// let cargo = Cargo::resolve(&context).await?;
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
     ///
     /// for root in cargo.roots().await? {
     ///     let execution = cargo.invocation(&root).arg("check").run().await?;
@@ -190,15 +181,15 @@ impl Cargo {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, ProjectRoot};
-    /// use aonyx_rakko_cargo::{Cargo, Toolchain};
+    /// use rakko::{Action, Context, ProjectRoot};
+    /// use aonyx_rakko_cargo::{Cargo, RustVersion, Toolchain, ToolchainSelection};
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-    /// let cargo = Cargo::resolve(&context).await?;
-    /// let toolchain = Toolchain::resolve_requirement()
-    ///     .requirement(&Toolchain::nightly())
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
+    /// let toolchain = Toolchain::resolve()
+    ///     .action(action)
+    ///     .selection(ToolchainSelection::Release(RustVersion::new("1.88")))
     ///     .context(&context)
     ///     .call()
     ///     .await?;
@@ -229,7 +220,7 @@ impl Cargo {
     /// subcommand as the first argument, as cargo does, such as `nextest`.
     ///
     /// The command runs in the directory of the root. It tells the plugin to
-    /// start this cargo for its builds on the stable toolchain that
+    /// start this cargo for its builds on the toolchain that
     /// [`toolchain`][toolchain] gives. So a build of the plugin uses the same
     /// compiler as a job of [`invocation`][invocation].
     /// [`plugin_invocation_with_toolchain`][with] selects another toolchain.
@@ -237,21 +228,17 @@ impl Cargo {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
+    /// use rakko::{Action, Context, ProjectRoot};
     /// use aonyx_rakko_cargo::Cargo;
     /// use rakko_tool::Tool;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-    /// let cargo = Cargo::resolve(&context).await?;
-    /// let requirement = ToolRequirement::builder()
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
+    /// let nextest = Tool::resolve()
+    ///     .action(action)
     ///     .tool("cargo:cargo-nextest")
     ///     .executable("cargo-nextest")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.9.100")))
-    ///     .build();
-    /// let nextest = Tool::resolve_requirement()
-    ///     .requirement(&requirement)
     ///     .context(&context)
     ///     .call()
     ///     .await?;
@@ -284,26 +271,23 @@ impl Cargo {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, ProjectRoot, RequiredVersion, ToolRequirement, ToolVersion};
-    /// use aonyx_rakko_cargo::{Cargo, Toolchain};
+    /// use rakko::{Action, Context, ProjectRoot};
+    /// use aonyx_rakko_cargo::{Cargo, RustVersion, Toolchain, ToolchainSelection};
     /// use rakko_tool::Tool;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-    /// let cargo = Cargo::resolve(&context).await?;
-    /// let toolchain = Toolchain::resolve_requirement()
-    ///     .requirement(&Toolchain::nightly())
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
+    /// let toolchain = Toolchain::resolve()
+    ///     .action(action)
+    ///     .selection(ToolchainSelection::Release(RustVersion::new("1.88")))
     ///     .context(&context)
     ///     .call()
     ///     .await?;
-    /// let requirement = ToolRequirement::builder()
+    /// let nextest = Tool::resolve()
+    ///     .action(action)
     ///     .tool("cargo:cargo-nextest")
     ///     .executable("cargo-nextest")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("0.9.100")))
-    ///     .build();
-    /// let nextest = Tool::resolve_requirement()
-    ///     .requirement(&requirement)
     ///     .context(&context)
     ///     .call()
     ///     .await?;
@@ -334,68 +318,48 @@ impl Cargo {
             .env(TOOLCHAIN_VARIABLE, toolchain.get())
     }
 
-    /// Returns the requirement of the stable toolchain that the crate runs
+    /// Returns the cargo of the Rust toolchain that the project pins for a
+    /// run of an action
     ///
-    /// A Rust toolchain is a decision of the project, so the requirement
-    /// holds the range of the stable toolchains that the crate accepts. This
-    /// range is not one specific version. An action that runs cargo returns
-    /// it from its declaration of tools.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use aonyx_rakko_cargo::Cargo;
-    ///
-    /// let requirement = Cargo::requirement();
-    ///
-    /// assert_eq!(
-    ///     requirement.executable().map(rakko::Executable::get),
-    ///     Some("cargo")
-    /// );
-    /// ```
-    pub fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(RUST)
-            .executable(CARGO)
-            .version(RequiredVersion::Range(VersionRange::new(STABLE)))
-            .build()
-    }
-
-    /// Returns the cargo of the stable toolchain that the project pins
-    ///
-    /// The lookup takes the first toolchain that the project pins and that
-    /// the range of [`requirement`][requirement] accepts, as
-    /// [`Toolchain::resolve_requirement`] does. A command of cargo then
-    /// selects that toolchain, whatever toolchain the environment or the
-    /// files of the project select.
+    /// The lookup reads what the action requires of `rust` from
+    /// [`Action::toolchains`]. Without a selection, the run works on the
+    /// dated nightly when the action requires one, and on the stable release
+    /// otherwise. So every job of the action runs on one toolchain. The lookup
+    /// takes the first toolchain that the project pins and that the selection
+    /// and the requirements accept, as [`Toolchain::resolve`] does. A command
+    /// of cargo then selects that toolchain, whatever toolchain the
+    /// environment or the files of the project select.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run or when
-    /// the project pins no toolchain in the range. It returns the same error
-    /// when nothing installed the toolchain that it pins.
+    /// Returns a [`ResolveToolchainError`] when mise does not run or when
+    /// the project pins no toolchain that the selection and the requirements
+    /// accept. It returns the same error when nothing installed the toolchain
+    /// that it pins.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, ProjectRoot};
+    /// use rakko::{Action, Context, ProjectRoot};
     /// use aonyx_rakko_cargo::Cargo;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root(ProjectRoot::new(std::env::temp_dir())).build();
-    /// let cargo = Cargo::resolve(&context).await?;
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
     ///
-    /// assert!(cargo.toolchain().get().starts_with("1."));
+    /// println!("{}", cargo.toolchain());
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// [requirement]: Cargo::requirement
-    pub async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let requirement = Self::requirement();
-        let tool = Tool::resolve_requirement()
-            .requirement(&requirement)
+    #[builder]
+    pub async fn resolve<A: Action>(
+        action: &A,
+        selection: Option<ToolchainSelection>,
+        context: &Context,
+    ) -> Result<Self, ResolveToolchainError> {
+        let tool = Toolchain::tool()
+            .action(action)
+            .maybe_selection(selection.as_ref())
             .context(context)
             .call()
             .await?;
@@ -448,11 +412,10 @@ impl Cargo {
     /// use rakko::{Context, ProjectRoot};
     /// use aonyx_rakko_cargo::Cargo;
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let project = std::env::temp_dir();
     /// let context = Context::builder().root(ProjectRoot::new(project.clone())).build();
-    /// let cargo = Cargo::resolve(&context).await?;
+    /// let cargo = Cargo::resolve().action(action).context(&context).call().await?;
     ///
     /// for root in cargo.roots().await? {
     ///     assert!(root.directory().starts_with(&project));

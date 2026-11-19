@@ -15,7 +15,7 @@ use aonyx_rakko_nextest::{Lockfile, Nextest};
 use aonyx_rakko_worktree::Worktree;
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    Summary, ToolOutput, ToolRequirement, action_name,
+    Summary, ToolOutput, Tools, action_name,
 };
 use rakko_tool::{Execution, Launch, ShownStreams};
 
@@ -62,11 +62,11 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// the answer for the manifest that they are editing.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
-/// run stops with an error when the project pins no stable Rust toolchain that
-/// the action accepts. It stops when mise reports no nextest at the declared
-/// version, the project is no git repository, or the copy cannot be created. It
-/// stops when the workspaces of the project cannot be discovered, or when
-/// nextest writes a report that the run cannot answer from.
+/// run stops with an error when the project pins no Rust release with a version
+/// number. It stops when mise reports no nextest at the declared version, the
+/// project is no git repository, or the copy cannot be created. It stops when
+/// the workspaces of the project cannot be discovered, or when nextest writes a
+/// report that the run cannot answer from.
 ///
 /// A run declares a read of the project, because it builds in a temporary
 /// worktree outside the project. Git records that worktree only under `.git`,
@@ -100,12 +100,12 @@ impl Action for CheckLatestDeps {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement(), Nextest::requirement()]
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Nextest::TOOLS]
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -131,8 +131,14 @@ impl Action for CheckLatestDeps {
 /// Returns the error of the step that could not finish. It may be from tool
 /// resolution, workspace discovery, copy creation, a cargo run, or a nextest
 /// run that left no answer.
-async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
-    let cargo = Cargo::resolve(context)
+async fn drive(
+    action: &CheckLatestDeps,
+    context: &Context,
+) -> Result<Outcome, CheckLatestDepsError> {
+    let cargo = Cargo::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckLatestDepsError::UnresolvedCargo { source })?;
 
@@ -166,6 +172,7 @@ async fn drive(context: &Context) -> Result<Outcome, CheckLatestDepsError> {
     }
 
     let nextest = Nextest::resolve()
+        .action(action)
         .cargo(cargo)
         .lockfile(Lockfile::Locked)
         .context(context)

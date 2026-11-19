@@ -21,8 +21,12 @@ use std::process::Command;
 
 use aonyx_rakko_cargo::Cargo;
 use aonyx_rakko_nextest::{Lockfile, Nextest, Observation, ObserveNextestError};
-use rakko::{Context, Location, Position, ProjectRoot, ToolEvent, ToolOutput, ToolStream};
+use rakko::{
+    Action, Context, Documented, Location, Name, Outcome, Position, ProjectRoot, ToolEvent,
+    ToolOutput, ToolStream, Tools, action_name,
+};
 use rakko_test_utils::{ToolRecorder, path_text};
+use rakko_tool::ResolveToolError;
 use tempfile::TempDir;
 
 /// The manifest of a package that nextest tests
@@ -61,6 +65,42 @@ const TOOLS_TABLE: &str = "[tools]\n";
 
 /// The pin of a nextest that no machine installs
 const UNINSTALLED_NEXTEST: &str = "\"cargo:cargo-nextest\" = \"0.0.1\"";
+
+/// An action that runs nextest through the crate
+#[derive(Documented)]
+struct Tester;
+
+impl Action for Tester {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("tester")
+    }
+
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Nextest::TOOLS]
+    }
+
+    async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+        Outcome::Passed { summary: None }
+    }
+}
+
+/// An action that declares no tool
+#[derive(Documented)]
+struct Undeclared;
+
+impl Action for Undeclared {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("undeclared")
+    }
+
+    async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+        Outcome::Passed { summary: None }
+    }
+}
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -147,7 +187,10 @@ impl Project {
             .root(root.clone())
             .tool_output(output)
             .build();
-        let cargo = Cargo::resolve(&context)
+        let cargo = Cargo::resolve()
+            .action(&Tester)
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the cargo that the project pins");
         let workspace = cargo
@@ -159,6 +202,7 @@ impl Project {
             .expect("the project holds one workspace");
 
         Nextest::resolve()
+            .action(&Tester)
             .cargo(cargo)
             .lockfile(lockfile)
             .context(&context)
@@ -503,4 +547,40 @@ async fn observe_sends_the_start_of_nextest_to_the_tool_output_of_the_context() 
         "expected the start of nextest, got {:?}",
         recorder.events()
     );
+}
+
+#[tokio::test]
+async fn resolve_for_an_action_that_declares_no_nextest_reports_it_undeclared() {
+    let project = Project::new();
+    let context = Context::builder().root(project.root()).build();
+    let cargo = Cargo::resolve()
+        .action(&Undeclared)
+        .context(&context)
+        .call()
+        .await
+        .expect("the test resolves the cargo that the project pins");
+
+    let nextest = Nextest::resolve()
+        .action(&Undeclared)
+        .cargo(cargo)
+        .lockfile(Lockfile::Locked)
+        .context(&context)
+        .call()
+        .await;
+
+    assert!(
+        matches!(nextest, Err(ResolveToolError::UndeclaredTool { .. })),
+        "expected an undeclared tool, got {nextest:?}"
+    );
+}
+
+#[test]
+fn tools_pin_nextest_alone() {
+    let tools: Vec<String> = Tester
+        .tools()
+        .iter()
+        .map(|requirement| requirement.tool().get().to_owned())
+        .collect();
+
+    assert_eq!(tools, ["cargo:cargo-nextest"]);
 }

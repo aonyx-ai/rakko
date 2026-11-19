@@ -12,8 +12,7 @@ use std::collections::HashSet;
 use aonyx_rakko_cargo::lockfile::{self, LOCKED};
 use aonyx_rakko_cargo::{Cargo, CargoPackage, CargoReport, CargoRoot, DocumentedNames};
 use rakko::{
-    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary, action_name,
 };
 use rakko_tool::{Execution, Launch, ShownStreams};
 
@@ -58,9 +57,8 @@ const PACKAGE: &str = "--package";
 /// The action wraps [rustdoc]. Cargo reads the manifests of the project and
 /// renders the documentation of every package. This includes the private items
 /// and every feature. The cargo that runs is the one that [mise] installed for
-/// the project. It runs on the stable toolchain that the project pins. The
-/// action installs nothing. The action accepts a range of stable toolchains,
-/// and the first pin in that range answers.
+/// the project. It runs on the first pin with a version number, such as
+/// `1.99.1`, whatever its release. The action installs nothing.
 ///
 /// Building the documentation is also the only examination that it gets.
 /// Rustdoc resolves the links between items while it renders them, and a link
@@ -84,10 +82,11 @@ const PACKAGE: &str = "--package";
 /// stay as they are.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
-/// run stops with an error when the project pins no stable Rust toolchain that
-/// the action accepts. A run also stops when the workspaces of the project
-/// cannot be discovered. It also stops when the lockfile of a workspace needs
-/// an update, or when cargo writes a report that the action does not recognize.
+/// run stops with an error when the project pins no Rust release with a version
+/// number. A run also stops when the workspaces of the
+/// project cannot be discovered. It also stops when the lockfile of a workspace
+/// needs an update, or when cargo writes a report that the action does not
+/// recognize.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of
 /// each workspace. Cargo writes what it builds into the `target` directory,
@@ -123,12 +122,8 @@ impl Action for BuildInternalDocs {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement()]
-    }
-
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -148,8 +143,14 @@ impl Action for BuildInternalDocs {
 /// Returns the error of the step that could not finish. This includes the
 /// resolution of the tool, the discovery of the workspaces, a cargo run, or
 /// the reading of a report.
-async fn drive(context: &Context) -> Result<Outcome, BuildInternalDocsError> {
-    let cargo = Cargo::resolve(context)
+async fn drive(
+    action: &BuildInternalDocs,
+    context: &Context,
+) -> Result<Outcome, BuildInternalDocsError> {
+    let cargo = Cargo::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| BuildInternalDocsError::UnresolvedTool { source })?;
 

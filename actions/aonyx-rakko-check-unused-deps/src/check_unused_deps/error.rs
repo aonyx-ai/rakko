@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use aonyx_rakko_cargo::{DiscoverRootsError, ReadReportError};
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolError, ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 use crate::report::ReadUdepsReportError;
@@ -114,27 +114,17 @@ pub enum CheckUnusedDepsError {
         stderr: String,
     },
 
-    /// Mise reported no cargo for the project
-    ///
-    /// The project pins no stable Rust toolchain that the action accepts, or
-    /// nothing installed the pin yet. The action installs nothing, so the run
-    /// stops here.
-    #[error("failed to resolve cargo")]
-    UnresolvedCargo {
-        /// The cause of the failure
-        source: ResolveRequirementError,
-    },
-
-    /// Mise reported no toolchain for the nightly channel of the project
+    /// Mise reported no cargo of the nightly toolchain for the project
     ///
     /// Cargo-udeps reads the crates that a target loaded from a record that
     /// only an unstable option of the compiler writes. So the build needs the
-    /// nightly channel. The action installs nothing, so a project that pins no
-    /// nightly that the action accepts stops the run.
+    /// nightly channel. The project pins no nightly with a date, or nothing
+    /// installed the pin yet. The action installs nothing, so the run stops
+    /// here.
     #[error("failed to resolve the nightly toolchain")]
     UnresolvedToolchain {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolchainError,
     },
 
     /// Mise reported no cargo-udeps at the version that the action declares
@@ -144,7 +134,7 @@ pub enum CheckUnusedDepsError {
     #[error("failed to resolve cargo-udeps")]
     UnresolvedUdeps {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolError,
     },
 }
 

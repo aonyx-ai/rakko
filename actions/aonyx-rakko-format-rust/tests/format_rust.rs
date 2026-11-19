@@ -19,11 +19,11 @@
 use std::path::Path;
 use std::process::Command;
 
-use aonyx_rakko_cargo::Cargo;
+use aonyx_rakko_cargo::{Cargo, Toolchain};
 use aonyx_rakko_format_rust::{FormatRust, FormatRustArgs, Operation};
 use rakko::{
-    Action, Args, ArgsValues, ArgumentValue, Context, Finding, Location, Outcome, Position,
-    ProjectRoot, Summary, ToolEvent, argument_name,
+    Action, Args, ArgsValues, ArgumentValue, Context, Documented, Finding, Location, Name, Outcome,
+    Position, ProjectRoot, Summary, ToolEvent, action_name, argument_name,
 };
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
 use tempfile::TempDir;
@@ -60,6 +60,25 @@ const UNKNOWN_OPTION: &str = "no_such_option = true\n";
 
 /// A configuration that rustfmt cannot parse
 const UNPARSABLE_CONFIGURATION: &str = "this = = 1\n";
+
+/// An action that requires nothing of a toolchain
+///
+/// A test resolves the stable toolchain of the repository with it, which an
+/// action that requires the nightly cannot do.
+#[derive(Documented)]
+struct Plain;
+
+impl Action for Plain {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("plain")
+    }
+
+    async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+        Outcome::Passed { summary: None }
+    }
+}
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -211,7 +230,10 @@ fn locations(findings: &[Finding]) -> Vec<String> {
 async fn pinned_rust() -> String {
     let context = Context::builder().root(repository()).build();
 
-    Cargo::resolve(&context)
+    Cargo::resolve()
+        .action(&Plain)
+        .context(&context)
+        .call()
         .await
         .expect("the repository pins a stable Rust toolchain")
         .toolchain()
@@ -735,12 +757,15 @@ async fn run_without_fix_leaves_the_project_unchanged() {
 }
 
 #[test]
-fn tools_declare_both_toolchains() {
-    let tools: Vec<String> = FormatRust
-        .tools()
-        .iter()
-        .map(|requirement| requirement.tool().get().to_owned())
-        .collect();
+fn toolchains_require_the_nightly() {
+    let toolchains = FormatRust.toolchains();
 
-    assert_eq!(tools, ["rust", "rust"]);
+    assert_eq!(toolchains, vec![Toolchain::nightly_requirement()]);
+}
+
+#[test]
+fn tools_are_empty() {
+    let tools = FormatRust.tools();
+
+    assert!(tools.is_empty(), "expected no tools, got {tools:?}");
 }

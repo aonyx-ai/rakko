@@ -18,10 +18,9 @@
 //! use rakko::Context;
 //! use aonyx_rakko_cargo::{Cargo, lockfile};
 //!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn run(action: &impl rakko::Action) -> Result<(), Box<dyn std::error::Error>> {
 //! let context = Context::builder().root("/home/otter/project").build();
-//! let cargo = Cargo::resolve(&context).await?;
+//! let cargo = Cargo::resolve().action(action).context(&context).call().await?;
 //!
 //! for root in cargo.roots().await? {
 //!     let execution = cargo

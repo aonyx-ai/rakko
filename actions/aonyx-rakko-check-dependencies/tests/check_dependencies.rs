@@ -251,7 +251,12 @@ impl Project {
     /// would write. A project in which cargo cannot find its workspaces stays
     /// as it is, so that the run reports what stops it.
     async fn lock(&self) {
-        let Ok(cargo) = Cargo::resolve(&self.context()).await else {
+        let Ok(cargo) = Cargo::resolve()
+            .action(&CheckDependencies)
+            .context(&self.context())
+            .call()
+            .await
+        else {
             return;
         };
         let Ok(roots) = cargo.roots().await else {
@@ -769,12 +774,22 @@ async fn run_without_a_lockfile_says_that_it_needs_an_update() {
 }
 
 #[test]
-fn tools_declare_the_stable_toolchain_and_cargo_deny() {
+fn toolchains_require_nothing() {
+    let toolchains = CheckDependencies.toolchains();
+
+    assert!(
+        toolchains.is_empty(),
+        "expected no requirement, got {toolchains:?}"
+    );
+}
+
+#[test]
+fn tools_declare_cargo_deny_alone() {
     let tools: Vec<String> = CheckDependencies
         .tools()
         .iter()
         .map(|requirement| requirement.tool().get().to_owned())
         .collect();
 
-    assert_eq!(tools, ["rust", "cargo:cargo-deny"]);
+    assert_eq!(tools, ["cargo:cargo-deny"]);
 }

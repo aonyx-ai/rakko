@@ -2,7 +2,7 @@
 //! dependencies
 //!
 //! This module holds the action and the error that stops a run. The action
-//! looks at the project, resolves cargo and the nightly toolchain, and
+//! looks at the project, resolves the cargo of the nightly toolchain, and
 //! discovers the workspaces. It stands up a copy of the project to work in. In
 //! that
 //! copy it asks cargo for the lowest versions that the manifests allow, and
@@ -16,7 +16,7 @@ use aonyx_rakko_nextest::{Lockfile, Nextest};
 use aonyx_rakko_worktree::Worktree;
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, ProjectRoot, SkipReason,
-    Summary, ToolOutput, ToolRequirement, ToolchainRequirement, action_name,
+    Summary, ToolOutput, ToolchainRequirement, Tools, action_name,
 };
 use rakko_tool::{Execution, Launch, ShownStreams};
 
@@ -49,14 +49,15 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// life of a project ever asks, because every ordinary build reaches for the
 /// newest version that the floor allows. The action resolves the floors and
 /// runs the tests of the project against them, so the promise is confirmed
-/// instead of assumed. The cargo that runs is the one of the toolchains that
-/// the project pins, and [nextest] runs at the version that the action
-/// declares. [Mise] installed both.
+/// instead of assumed. The cargo that runs is the one of the nightly toolchain
+/// that the project pins with a date. [Nextest] runs at the version that the
+/// action declares. [Mise] installed both.
 ///
-/// The resolution runs on the nightly toolchain that the project pins,
-/// because the option that asks cargo for the floors is unstable. The tests
-/// run on the toolchain that the project builds with. They answer for the
-/// versions of the resolution and not for the compiler that resolved them.
+/// The resolution needs the nightly toolchain, because the option that asks
+/// cargo for the floors is unstable. So the action requires a dated nightly,
+/// and `doctor` reports a project that pins none. The tests run on the same
+/// nightly, so that the action runs on one toolchain. They answer for the
+/// versions of the resolution and not for the compiler that built them.
 ///
 /// A run only reports, and it takes no argument. It covers every workspace of
 /// the project, because the harness of a project is a package of its own. An
@@ -71,11 +72,12 @@ const NO_DIAGNOSIS: &str = "cargo wrote nothing about it";
 /// reads the answer for the manifest that they are editing.
 ///
 /// A project whose cargo discovers no workspace skips visibly, and says so. A
-/// run stops with an error when the project pins no stable or no nightly Rust
-/// toolchain that the action accepts. It stops when mise reports no nextest at
-/// the declared version, the project is no git repository, or the copy cannot
-/// be created. It stops when the workspaces of the project cannot be
-/// discovered, or when nextest writes a report that the run cannot answer from.
+/// run stops with an error when the project pins no dated nightly Rust
+/// toolchain, or when nothing installed it. It stops when mise reports no
+/// nextest at the declared version, the project is no git repository, or the
+/// copy cannot be created. It stops when the workspaces of the project cannot
+/// be discovered, or when nextest writes a report that the run cannot answer
+/// from.
 ///
 /// A run declares a read of the project, because it builds in a temporary
 /// worktree outside the project. Git records that worktree only under `.git`,
@@ -109,8 +111,8 @@ impl Action for CheckMinimalDeps {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement(), Nextest::requirement()]
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Nextest::TOOLS]
     }
 
     fn toolchains(&self) -> Vec<ToolchainRequirement> {
@@ -129,7 +131,7 @@ impl Action for CheckMinimalDeps {
 
 /// Runs the action against the project of the context
 ///
-/// The run examines the project, resolves cargo and the nightly toolchain,
+/// The run examines the project, resolves the cargo of the nightly toolchain,
 /// discovers the workspaces, and creates the copy that the work happens in.
 /// It updates every workspace of the copy, and it tests them when every
 /// update succeeded. An error that this function returns stops the run, and
@@ -152,11 +154,7 @@ async fn drive(
     action: &CheckMinimalDeps,
     context: &Context,
 ) -> Result<Outcome, CheckMinimalDepsError> {
-    let cargo = Cargo::resolve(context)
-        .await
-        .map_err(|source| CheckMinimalDepsError::UnresolvedCargo { source })?;
-
-    let toolchain = Toolchain::resolve()
+    let cargo = Cargo::resolve()
         .action(action)
         .context(context)
         .call()
@@ -182,16 +180,7 @@ async fn drive(
     let mut findings = Vec::new();
 
     for root in &copies {
-        findings.extend(
-            update(
-                &cargo,
-                root,
-                &toolchain,
-                worktree.root(),
-                context.tool_output(),
-            )
-            .await?,
-        );
+        findings.extend(update(&cargo, root, worktree.root(), context.tool_output()).await?);
     }
 
     if !findings.is_empty() {
@@ -202,6 +191,7 @@ async fn drive(
     }
 
     let nextest = Nextest::resolve()
+        .action(action)
         .cargo(cargo)
         .lockfile(Lockfile::Locked)
         .context(context)
@@ -323,8 +313,8 @@ fn summary(roots: usize, ran: u64) -> Summary {
 ///
 /// The update runs in the directory of the root, which lies in the copy. So the
 /// lockfile that it rewrites is the lockfile of the copy. It runs on the
-/// nightly toolchain, which is the only one that accepts the option, and the
-/// selection reaches this run of cargo alone. An update that ends without
+/// nightly toolchain of the cargo, which is the only one that accepts the
+/// option. An update that ends without
 /// success is an answer about the project, and it comes back as the finding
 /// that reports it.
 ///
@@ -336,12 +326,11 @@ fn summary(roots: usize, ran: u64) -> Summary {
 async fn update(
     cargo: &Cargo,
     root: &CargoRoot,
-    toolchain: &Toolchain,
     project: &ProjectRoot,
     output: &ToolOutput,
 ) -> Result<Option<Finding>, CheckMinimalDepsError> {
     let execution = cargo
-        .invocation_with_toolchain(root, toolchain)
+        .invocation(root)
         .args(UPDATE)
         .launch_with(output, ShownStreams::Both)
         .await

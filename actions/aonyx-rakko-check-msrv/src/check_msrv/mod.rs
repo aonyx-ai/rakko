@@ -8,10 +8,11 @@
 mod error;
 
 use aonyx_rakko_cargo::lockfile::{self, LOCKED};
-use aonyx_rakko_cargo::{Cargo, CargoReport, CargoRoot, RustVersion, Toolchain};
+use aonyx_rakko_cargo::{
+    Cargo, CargoReport, CargoRoot, RustVersion, Toolchain, ToolchainSelection,
+};
 use rakko::{
-    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary,
-    ToolRequirement, action_name,
+    Access, Action, Context, Documented, Finding, Name, Outcome, SkipReason, Summary, action_name,
 };
 use rakko_tool::{Execution, Launch, ShownStreams};
 
@@ -51,11 +52,12 @@ const CHECK: [&str; 5] = [
 /// the one that [mise] installed for the project, on the toolchain that mise
 /// installed for the declared version. The action installs nothing.
 ///
-/// The action declares the range of stable toolchains whose cargo discovers the
-/// workspaces. The toolchain of a declared version comes from a manifest, so
-/// the action cannot declare it. A run takes the first pin of the project that
-/// is a patch of the declared release. For example, `1.88` accepts the pin
-/// `1.88.1`, and `1.88.0` accepts only the pin `1.88.0`.
+/// The cargo that discovers the workspaces runs on the stable toolchain that
+/// the project pins. The toolchain of a declared version comes from a
+/// manifest, so the action declares no requirement of a toolchain. A run takes
+/// the first pin of the project that is a patch of the declared release. For
+/// example, `1.88` accepts the pin `1.88.1`, and `1.88.0` accepts only the pin
+/// `1.88.0`.
 ///
 /// A run only reports, and it takes no argument. It checks every workspace
 /// of the project that declares a version, each on the toolchain that it
@@ -66,11 +68,11 @@ const CHECK: [&str; 5] = [
 ///
 /// A project whose cargo discovers no workspace, and one whose workspaces
 /// declare no Rust version, skip visibly and say so. A run stops with an error
-/// when the project pins no stable Rust toolchain that the action accepts. It
-/// also stops when mise reports no toolchain of the declared version. It stops
-/// when the workspaces of the project cannot be discovered, or when a
-/// declaration cannot be read. It stops when the lockfile of a workspace needs
-/// an update, or when cargo writes a report that the action does not recognize.
+/// when the project pins no Rust release with a version number. It also stops
+/// when mise reports no toolchain of the declared version. It stops when the
+/// workspaces of the project cannot be discovered, or when a declaration cannot
+/// be read. It stops when the lockfile of a workspace needs an update, or when
+/// cargo writes a report that the action does not recognize.
 ///
 /// A run declares a read of the project. It holds cargo to the lockfile of each
 /// workspace. Cargo writes what it builds into the `target` directory,
@@ -105,10 +107,6 @@ impl Action for CheckMsrv {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement()]
-    }
-
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
         match drive(self, context).await {
             Ok(outcome) => outcome,
@@ -133,7 +131,10 @@ impl Action for CheckMsrv {
 /// or the reading of a declaration. It can also be a cargo run or the reading
 /// of a report.
 async fn drive(action: &CheckMsrv, context: &Context) -> Result<Outcome, CheckMsrvError> {
-    let cargo = Cargo::resolve(context)
+    let cargo = Cargo::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckMsrvError::UnresolvedTool { source })?;
 
@@ -202,7 +203,7 @@ async fn check(
 ) -> Result<Vec<Finding>, CheckMsrvError> {
     let toolchain = Toolchain::resolve()
         .action(action)
-        .release(version)
+        .selection(ToolchainSelection::Release(version.clone()))
         .context(context)
         .call()
         .await

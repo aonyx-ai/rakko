@@ -1,16 +1,16 @@
 //! The cargo-deny that a project runs
 //!
-//! This module holds the version of cargo-deny that the crate declares. It also
-//! holds the program that mise installed at that version, and the run that
-//! checks one workspace with it. An action asks for a run. Everything between
+//! This module holds the program of cargo-deny that mise installed at the
+//! version that the crate pins. It also holds the run that checks one
+//! workspace with it. An action asks for a run. Everything between
 //! the action and the process lives here.
 
 mod error;
 mod report;
 
 use aonyx_rakko_cargo::{CargoRoot, lockfile};
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, ToolVersion};
-use rakko_tool::{Launch, MiseFile, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Launch, ResolveToolError, ShownStreams, Tool};
 
 pub(crate) use self::error::CheckWorkspaceError;
 use self::report::Entry;
@@ -21,13 +21,6 @@ const CARGO_DENY: &str = "cargo:cargo-deny";
 
 /// The program of the tool
 const PROGRAM: &str = "cargo-deny";
-
-/// The version of cargo-deny that the crate runs
-///
-/// The version comes from the mise file of the crate, which the build
-/// embeds, so a file without the pin fails the build.
-const VERSION: &str =
-    MiseFile::new(include_str!("../../mise.rakko.toml")).pinned_version(CARGO_DENY);
 
 /// The option that asks cargo-deny for its report as data
 ///
@@ -101,6 +94,7 @@ pub(crate) struct Deny {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Deny {
     /// Runs cargo-deny over one workspace and reads what it reported
     ///
@@ -192,33 +186,27 @@ impl Deny {
         Ok(problems)
     }
 
-    /// Returns the requirement of the cargo-deny that the crate runs
+    /// Returns the cargo-deny that mise installed at the version that the
+    /// action declares
     ///
-    /// The requirement holds the exact version that the crate pins.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(CARGO_DENY)
-            .executable(PROGRAM)
-            .version(RequiredVersion::Exact(ToolVersion::new(VERSION)))
-            .build()
-    }
-
-    /// Returns the cargo-deny that mise installed at the version of the crate
-    ///
-    /// The lookup asks mise for the version that [`requirement`][requirement]
-    /// holds, so a pin of cargo-deny in the project does not change the
-    /// answer.
+    /// The action declares the pin of the mise file of the crate, so a pin of
+    /// cargo-deny in the project does not change the answer.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] when mise does not run, or when
-    /// it reports no cargo-deny at that version, for example because nothing
+    /// Returns a [`ResolveToolError`] when the action does not declare
+    /// cargo-deny, or when mise does not run. It also returns one when mise
+    /// reports no cargo-deny at that version, for example because nothing
     /// installed it.
-    ///
-    /// [requirement]: Deny::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        action: &A,
+        context: &Context,
+    ) -> Result<Self, ResolveToolError> {
+        let tool = Tool::resolve()
+            .action(action)
+            .tool(CARGO_DENY)
+            .executable(PROGRAM)
             .context(context)
             .call()
             .await?;

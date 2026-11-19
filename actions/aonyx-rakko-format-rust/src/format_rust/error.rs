@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use aonyx_rakko_cargo::DiscoverRootsError;
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use rakko_tool::{ResolveToolchainError, RunCommandError};
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -93,27 +93,16 @@ pub enum FormatRustError {
         stderr: String,
     },
 
-    /// Mise reported no cargo for the project
-    ///
-    /// The project pins no stable Rust toolchain that the action accepts, or
-    /// nothing installed the pin yet. The action installs nothing, so the run
-    /// stops here.
-    #[error("failed to resolve cargo")]
-    UnresolvedTool {
-        /// The cause of the failure
-        source: ResolveRequirementError,
-    },
-
-    /// Mise reported no nightly toolchain for the project
+    /// Mise reported no cargo of the nightly toolchain for the project
     ///
     /// Rustfmt honors the unstable options of a configuration only on the
     /// nightly channel, so the action runs on the nightly toolchain that the
-    /// project pins. The project pins none that the action accepts, or
-    /// nothing installed the pin yet, and the action installs nothing.
+    /// project pins. The project pins no nightly with a date, or nothing
+    /// installed the pin yet, and the action installs nothing.
     #[error("failed to resolve the nightly toolchain")]
     UnresolvedToolchain {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolveToolchainError,
     },
 }
 

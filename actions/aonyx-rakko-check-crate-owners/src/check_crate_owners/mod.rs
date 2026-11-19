@@ -12,7 +12,7 @@ mod operation;
 use aonyx_rakko_cargo::{Cargo, CargoRoot, PackageName, Publication};
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, SkipReason, Summary,
-    ToolRequirement, action_name,
+    action_name,
 };
 
 pub use self::args::CheckCrateOwnersArgs;
@@ -83,12 +83,11 @@ const CRATES: &str = "crates";
 /// nothing in the project. It changes the owners on crates.io.
 ///
 /// A project that holds no crate that cargo can publish to crates.io skips
-/// visibly, and so
-/// does a project whose crates crates.io has none of. A run stops with an
-/// error when the project pins no stable Rust toolchain that the action
-/// accepts. It stops when it cannot discover the workspaces of the project,
-/// or when the client for crates.io cannot configure its TLS. It
-/// stops when it cannot read the owners of a crate from crates.io.
+/// visibly, and so does a project whose crates crates.io has none of. A run
+/// stops with an error when the project pins no Rust release with a version
+/// number. It stops when it cannot discover the workspaces of the project, or
+/// when the client for crates.io cannot configure its TLS. It stops when it
+/// cannot read the owners of a crate from crates.io.
 ///
 /// # Examples
 ///
@@ -145,12 +144,8 @@ impl Action for CheckCrateOwners {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Cargo::requirement()]
-    }
-
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
-        match drive(context, args.operation(), &self.owners).await {
+        match drive(self, context, args.operation(), &self.owners).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -170,11 +165,15 @@ impl Action for CheckCrateOwners {
 /// resolution of cargo, the discovery of the workspaces, the setup of the
 /// client, or a lookup of owners.
 async fn drive(
+    action: &CheckCrateOwners,
     context: &Context,
     operation: Operation,
     owners: &[CrateOwner],
 ) -> Result<Outcome, CheckCrateOwnersError> {
-    let cargo = Cargo::resolve(context)
+    let cargo = Cargo::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| CheckCrateOwnersError::UnresolvedCargo { source })?;
 
