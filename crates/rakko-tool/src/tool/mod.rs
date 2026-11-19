@@ -16,6 +16,7 @@ mod resolve_toolchain_error;
 mod toolchain;
 
 use std::collections::BTreeSet;
+use std::ffi::OsStr;
 use std::path::PathBuf;
 
 use bon::bon;
@@ -203,18 +204,27 @@ impl Tool {
     /// [resolve]: Tool::resolve_requirement
     /// [toolchain]: Tool::with_toolchain
     pub fn invocation(&self) -> Invocation {
+        self.invocation_over(&std::env::var_os(PATH).unwrap_or_default())
+    }
+
+    /// Returns the command that runs the tool, with the toolchains of the tool
+    /// before the given path
+    ///
+    /// [`invocation`][invocation] gives the path that the process inherited.
+    ///
+    /// [invocation]: Tool::invocation
+    fn invocation_over(&self, inherited: &OsStr) -> Invocation {
         let invocation = Invocation::new(self.program.clone()).in_directory(self.root.get());
 
         if self.toolchains.is_empty() {
             return invocation;
         }
 
-        let inherited = std::env::var_os(PATH).unwrap_or_default();
         let directories = self
             .toolchains
             .iter()
             .cloned()
-            .chain(std::env::split_paths(&inherited));
+            .chain(std::env::split_paths(inherited));
 
         match std::env::join_paths(directories) {
             Ok(path) => invocation.env(PATH, path),
@@ -227,11 +237,12 @@ impl Tool {
     /// Some tools start a toolchain by its name. For example, a package for
     /// Node starts the `node` program that it finds first on the path. The
     /// toolchain that the environment puts first can then be another version
-    /// than the one that the action resolved. That toolchain can also be a
-    /// version outside the range of the action. A command of the returned tool
-    /// puts the directory of the program of the toolchain before the path that
-    /// the process inherited. So the tool runs on the toolchain that the caller
-    /// resolved, and the inherited path follows that directory.
+    /// than the one that the project pins. A command of the returned tool puts
+    /// the directory of the program of the toolchain before the path that the
+    /// process inherited. So the tool runs on the toolchain that the caller
+    /// resolved, such as with [`resolve_toolchain`][resolve], and the
+    /// inherited path follows that directory. An action that requires nothing
+    /// of the toolchain still runs the tool on the pin of the project.
     ///
     /// A tool can run on several toolchains. A run searches their
     /// directories in the order that the caller added the toolchains.
@@ -248,26 +259,23 @@ impl Tool {
     /// # Examples
     ///
     /// ```no_run
-    /// use rakko::{Context, RequiredVersion, ToolRequirement, ToolVersion, VersionRange};
+    /// use rakko::{Action, Context};
     /// use rakko_tool::{Launch, Tool};
     ///
-    /// # #[tokio::main(flavor = "current_thread")]
-    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
     /// let context = Context::builder().root("/home/otter/project").build();
-    /// let node = ToolRequirement::builder()
-    ///     .tool("node")
+    ///
+    /// let node = Tool::resolve_toolchain()
+    ///     .action(action)
+    ///     .toolchain("node")
     ///     .executable("node")
-    ///     .version(RequiredVersion::Range(VersionRange::new(">=22")))
-    ///     .build();
-    /// let prettier = ToolRequirement::builder()
+    ///     .context(&context)
+    ///     .call()
+    ///     .await?;
+    /// let prettier = Tool::resolve()
+    ///     .action(action)
     ///     .tool("npm:prettier")
     ///     .executable("prettier")
-    ///     .version(RequiredVersion::Exact(ToolVersion::new("3.9.10")))
-    ///     .build();
-    ///
-    /// let node = Tool::resolve_requirement().requirement(&node).context(&context).call().await?;
-    /// let prettier = Tool::resolve_requirement()
-    ///     .requirement(&prettier)
     ///     .context(&context)
     ///     .call()
     ///     .await?
@@ -280,14 +288,15 @@ impl Tool {
     /// # }
     /// ```
     ///
-    /// [unplaceable]: ResolveRequirementError::UnplaceableToolchain
-    pub fn with_toolchain(mut self, toolchain: &Tool) -> Result<Self, ResolveRequirementError> {
+    /// [resolve]: Tool::resolve_toolchain
+    /// [unplaceable]: ResolveToolchainError::UnplaceableToolchain
+    pub fn with_toolchain(mut self, toolchain: &Tool) -> Result<Self, ResolveToolchainError> {
         let program = toolchain.program();
         let directory = program
             .get()
             .parent()
             .filter(|directory| std::env::join_paths([directory]).is_ok())
-            .ok_or_else(|| ResolveRequirementError::UnplaceableToolchain {
+            .ok_or_else(|| ResolveToolchainError::UnplaceableToolchain {
                 program: program.clone(),
             })?;
 
@@ -1334,6 +1343,21 @@ mod tests {
         }
     }
 
+    /// The toolchain that a package for Node starts by name, which is also
+    /// the name of its program
+    #[cfg(unix)]
+    const NODE: &str = "node";
+
+    /// Writes a program that the operating system can start
+    #[cfg(unix)]
+    fn write_program(path: &Path, content: &str) {
+        use std::os::unix::fs::PermissionsExt;
+
+        std::fs::write(path, content).expect("the test writes a program");
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+            .expect("the test makes the program executable");
+    }
+
     /// Returns the value that a command gives to the path, if it gives one
     fn path_of(invocation: &Invocation) -> Option<std::ffi::OsString> {
         invocation
@@ -1372,6 +1396,54 @@ mod tests {
         assert_eq!(
             std::env::split_paths(&path).next(),
             Some(PathBuf::from("/opt/toolchain/bin"))
+        );
+    }
+
+    /// Shows that a tool on the Node that the project pins does not start
+    /// another Node that comes first on the inherited path
+    ///
+    /// A package for Node starts `node` by name. The test puts an unrelated
+    /// program by that name first on the inherited path, and that program
+    /// writes a word of its own. The tool writes the version of the Node that
+    /// runs it. The action requires nothing of Node, so the lookup takes the
+    /// pin of the repository.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn invocation_of_a_tool_on_the_pinned_node_ignores_another_node_first_on_the_path() {
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let unrelated = directory.path().join("unrelated");
+        std::fs::create_dir(&unrelated).expect("the test creates a directory");
+        write_program(&unrelated.join(NODE), "#!/bin/sh\necho unrelated\n");
+        let script = directory.path().join("version");
+        write_program(
+            &script,
+            "#!/usr/bin/env node\nconsole.log(process.version);\n",
+        );
+        let node = Tool::resolve_toolchain()
+            .action(&Declaring(Vec::new()))
+            .toolchain(NODE)
+            .executable(NODE)
+            .context(&context())
+            .call()
+            .await
+            .expect("the test resolves the Node that the repository pins");
+        let tool = tool_at(script.to_str().expect("the temporary path is text"))
+            .with_toolchain(&node)
+            .expect("the test adds a toolchain whose directory can be an entry of PATH");
+        let inherited = std::env::join_paths(std::iter::once(unrelated).chain(
+            std::env::split_paths(&std::env::var_os(PATH).unwrap_or_default()),
+        ))
+        .expect("the test joins directories that can be entries of PATH");
+
+        let execution = tool
+            .invocation_over(&inherited)
+            .run()
+            .await
+            .expect("expected the tool to run");
+
+        assert_eq!(
+            execution.stdout().to_string_lossy().trim(),
+            format!("v{}", node.version())
         );
     }
 
@@ -2281,7 +2353,7 @@ mod tests {
         assert!(
             matches!(
                 &tool,
-                Err(ResolveRequirementError::UnplaceableToolchain { program })
+                Err(ResolveToolchainError::UnplaceableToolchain { program })
                     if program.get() == Path::new(UNPLACEABLE)
             ),
             "expected the toolchain to be refused, got {tool:?}"
@@ -2297,7 +2369,7 @@ mod tests {
         assert!(
             matches!(
                 tool,
-                Err(ResolveRequirementError::UnplaceableToolchain { .. })
+                Err(ResolveToolchainError::UnplaceableToolchain { .. })
             ),
             "expected the toolchain to be refused, got {tool:?}"
         );

@@ -1,43 +1,37 @@
 //! The tsc that a project runs
 //!
-//! This module holds the versions of TypeScript and of Node that the crate
-//! accepts. It also holds the compiler that mise installed at the version that
-//! the project pins, and the run that produces its diagnostics. An action asks
-//! for a run, and everything between the action and the process lives here.
+//! This module holds the compiler that mise installed at the version that the
+//! project pins, and the run that produces its diagnostics. The compiler runs
+//! on the Node that the project pins. An action asks for a run, and everything
+//! between the action and the process lives here.
 
 mod error;
 pub(crate) mod report;
 
-use rakko::{Context, RequiredVersion, ToolOutput, ToolRequirement, VersionRange};
-use rakko_tool::{Launch, ResolveRequirementError, ShownStreams, Tool};
+use rakko::{Action, Context, ToolOutput};
+use rakko_tool::{Launch, ResolveToolchainError, ShownStreams, Tool};
 
 pub(crate) use self::error::ObserveTscError;
 use crate::diagnostic::Diagnostic;
 
 /// The name that mise knows TypeScript by
+///
+/// TypeScript is a toolchain of the project, so the project pins its version,
+/// and the action requires no range of it. Each release from TypeScript 3.9 on
+/// gives a missing configuration one of the numbers that the action knows,
+/// `TS5057` or `TS5081`.
 const TYPESCRIPT: &str = "npm:typescript";
 
 /// The program of the compiler
 const TSC: &str = "tsc";
 
-/// The versions of TypeScript that the action reads the report of
-///
-/// TypeScript is a toolchain of the project, so the project pins its version,
-/// and a run stops when that version is outside the range. The action reads
-/// the diagnostics of TypeScript 5 and later. It knows the number that the
-/// diagnostic of a missing configuration has in each of these releases.
-const TYPESCRIPT_RANGE: &str = ">=5";
-
 /// The name that mise knows Node by, which is also the name of its program
-const NODE: &str = "node";
-
-/// The versions of Node that tsc runs on
 ///
-/// Node is a toolchain of the project, so the project pins its version, and
-/// a run stops when that version is outside the range. The range is the one
-/// of the oldest TypeScript that the action accepts. A newer TypeScript can
-/// need a newer Node, such as 16.20 and later for TypeScript 7.
-const NODE_RANGE: &str = ">=12.20";
+/// Tsc starts Node by this name, and Node is a toolchain of the project. So
+/// the project pins its version, and the action requires no range of it. A
+/// release of TypeScript can fail on a Node that it does not support. Then the
+/// run reports what tsc wrote.
+const NODE: &str = "node";
 
 /// The option that stops tsc from writing the output of a build
 ///
@@ -76,11 +70,9 @@ const HERE: &str = ".";
 /// editor and the terminal of a contributor. The version decides what the
 /// language is. A release of TypeScript adds rules, and a program that one
 /// version accepts is a program that the next one can refuse. TypeScript is
-/// therefore a toolchain of the project, and the crate states only the range
-/// of versions that it accepts. The compiler runs on the Node that the project
-/// pins, when the range of the crate accepts it. Nothing here installs a tool:
-/// provisioning is the job of mise, and a tsc that mise does not report stops
-/// the caller.
+/// therefore a toolchain of the project, and the crate requires no range of
+/// it. The compiler runs on the Node that the project pins. Nothing here installs a tool: provisioning is the job of mise, and a
+/// tsc that mise does not report stops the caller.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub(crate) struct Tsc {
     /// The program that mise installed at the version that the project pins
@@ -92,6 +84,7 @@ pub(crate) struct Tsc {
     output: ToolOutput,
 }
 
+#[bon::bon]
 impl Tsc {
     /// Runs tsc over the project and reads what it reported
     ///
@@ -148,59 +141,37 @@ impl Tsc {
         Ok(diagnostics)
     }
 
-    /// Returns the requirement of the Node that tsc runs on
-    ///
-    /// Node is a toolchain, so the requirement holds the range of versions
-    /// that tsc accepts, and the project pins the version.
-    pub(crate) fn node_requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(NODE)
-            .executable(NODE)
-            .version(RequiredVersion::Range(VersionRange::new(NODE_RANGE)))
-            .build()
-    }
-
-    /// Returns the requirement of the TypeScript that the action checks with
-    ///
-    /// TypeScript is a toolchain, so the requirement holds the range of
-    /// versions that the action accepts, and the project pins the version.
-    pub(crate) fn requirement() -> ToolRequirement {
-        ToolRequirement::builder()
-            .tool(TYPESCRIPT)
-            .executable(TSC)
-            .version(RequiredVersion::Range(VersionRange::new(TYPESCRIPT_RANGE)))
-            .build()
-    }
-
     /// Returns the tsc that mise installed at the version that the project
-    /// pins
+    /// pins, on the Node that the project pins
     ///
-    /// The lookup asks mise for the TypeScript that the project pins and that
-    /// [`requirement`][requirement] accepts. It also asks mise for the Node
-    /// that the project pins and that [`node_requirement`][node] accepts. A
-    /// run starts in the root of the context, with that Node first on its
-    /// path.
+    /// The lookup asks mise for the first TypeScript and the first Node that
+    /// the project pins. A run starts in the root of the context, with that
+    /// Node first on its path.
     ///
     /// # Errors
     ///
-    /// Returns a [`ResolveRequirementError`] in these conditions:
+    /// Returns a [`ResolveToolchainError`] in these conditions:
     ///
     /// - Mise does not run.
-    /// - The project pins no TypeScript or no Node in the range.
-    /// - Mise reports no tsc or no Node at the pinned version, for example
-    ///   because nothing installed it.
+    /// - The project pins no Node or no TypeScript.
+    /// - Mise did not install the pinned TypeScript or the pinned Node.
     /// - The directory of that Node cannot be an entry of `PATH`.
-    ///
-    /// [node]: Tsc::node_requirement
-    /// [requirement]: Tsc::requirement
-    pub(crate) async fn resolve(context: &Context) -> Result<Self, ResolveRequirementError> {
-        let node = Tool::resolve_requirement()
-            .requirement(&Self::node_requirement())
+    #[builder]
+    pub(crate) async fn resolve<A: Action>(
+        action: &A,
+        context: &Context,
+    ) -> Result<Self, ResolveToolchainError> {
+        let node = Tool::resolve_toolchain()
+            .action(action)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(context)
             .call()
             .await?;
-        let tool = Tool::resolve_requirement()
-            .requirement(&Self::requirement())
+        let tool = Tool::resolve_toolchain()
+            .action(action)
+            .toolchain(TYPESCRIPT)
+            .executable(TSC)
             .context(context)
             .call()
             .await?
@@ -223,11 +194,11 @@ mod tests {
     use std::path::Path;
 
     use super::*;
+    use crate::CheckTypeScript;
 
     /// Returns the context of a run in the root of this repository
     ///
-    /// The repository pins a TypeScript and a Node that the ranges of the
-    /// crate accept, and it installs both. The crate lives two directories
+    /// The repository pins a TypeScript and a Node, and it installs both. The crate lives two directories
     /// below the root.
     fn context() -> Context {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -242,14 +213,19 @@ mod tests {
     #[tokio::test]
     async fn resolve_runs_tsc_on_the_node_of_the_project() {
         let context = context();
-        let node = Tool::resolve_requirement()
-            .requirement(&Tsc::node_requirement())
+        let node = Tool::resolve_toolchain()
+            .action(&CheckTypeScript)
+            .toolchain(NODE)
+            .executable(NODE)
             .context(&context)
             .call()
             .await
             .expect("the test resolves the Node that the repository pins");
 
-        let tsc = Tsc::resolve(&context)
+        let tsc = Tsc::resolve()
+            .action(&CheckTypeScript)
+            .context(&context)
+            .call()
             .await
             .expect("the test resolves the TypeScript that the repository pins");
 

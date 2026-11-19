@@ -9,10 +9,10 @@ through a harness, a small Rust program.
 
 [Oxfmt] does the work. The action gives oxfmt the files of TypeScript and of
 JavaScript, and oxfmt reads its own configuration and formats what its ignore
-files leave. So a run of the action agrees with an editor and with a
-contributor that runs oxfmt bare. The action declares the version of oxfmt that
-it runs. It also declares the range of Node that oxfmt runs on. It starts that
-version, which [mise] installed, on the Node that the project pins.
+files leave. So a run of the action agrees with an editor and with a contributor
+that runs oxfmt bare. The action declares the version of oxfmt that it runs. It
+starts that version, which [mise] installed, on the Node that the project pins.
+The action requires no range of Node.
 
 Oxfmt formats more languages than the action asks it about. The action passes
 oxfmt only the extensions of TypeScript and of JavaScript. Oxfmt then leaves the

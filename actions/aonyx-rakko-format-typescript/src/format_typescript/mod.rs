@@ -13,7 +13,7 @@ use std::path::Path;
 
 use rakko::{
     Access, Action, Context, Documented, FilePath, Finding, Location, Name, Outcome, Position,
-    ProjectRoot, SkipReason, ToolRequirement, action_name,
+    ProjectRoot, SkipReason, Tools, action_name,
 };
 
 pub use self::args::FormatTypeScriptArgs;
@@ -40,11 +40,11 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 ///
 /// The action wraps [oxfmt]. The action names the files of the language, and
 /// oxfmt reads its own configuration. Oxfmt formats what its ignore files
-/// leave. So a run agrees with an editor and with a contributor that runs
-/// oxfmt bare. The oxfmt that runs is the version that the action declares,
-/// which [mise] installed, whatever version the project pins. It runs on the
-/// Node that the project pins, when the action accepts that version. The
-/// action installs nothing.
+/// leave. So a run agrees with an editor and with a contributor that runs oxfmt
+/// bare. The oxfmt that runs is the version that the action declares, which
+/// [mise] installed, whatever version the project pins. It runs on the Node
+/// that the project pins, and the action requires no range of it. The action
+/// installs nothing.
 ///
 /// Oxfmt formats more languages than the action asks it about. It would
 /// otherwise rewrite the Markdown, the JSON, and the YAML of a project that
@@ -65,8 +65,8 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// A run whose oxfmt found no file of the language skips visibly, and says so.
 /// A run stops with an error in these conditions:
 ///
-/// - Mise reports no oxfmt at the declared version or no Node in the accepted
-///   range.
+/// - Mise reports no oxfmt at the declared version or no Node that the project
+///   pins.
 /// - Oxfmt refused a configuration of the project.
 /// - Oxfmt writes a report that the action does not recognize.
 ///
@@ -100,12 +100,12 @@ impl Action for FormatTypeScript {
         }
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Oxfmt::requirement(), Oxfmt::node_requirement()]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
-        match drive(context, args).await {
+        match drive(self, context, args).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -125,12 +125,15 @@ impl Action for FormatTypeScript {
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, or an oxfmt run.
 async fn drive(
+    action: &FormatTypeScript,
     context: &Context,
     args: &FormatTypeScriptArgs,
 ) -> Result<Outcome, FormatTypeScriptError> {
-    let oxfmt = Oxfmt::resolve(context)
-        .await
-        .map_err(|source| FormatTypeScriptError::UnresolvedTool { source })?;
+    let oxfmt = Oxfmt::resolve()
+        .action(action)
+        .context(context)
+        .call()
+        .await?;
 
     match args.operation() {
         Operation::Rewrite => fix(&oxfmt, context.root()).await,
@@ -477,9 +480,23 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_oxfmt_and_its_node() {
-        let tools = FormatTypeScript.tools();
+    fn toolchains_require_nothing_of_node() {
+        let toolchains = FormatTypeScript.toolchains();
 
-        assert_eq!(tools, vec![Oxfmt::requirement(), Oxfmt::node_requirement()]);
+        assert!(
+            toolchains.is_empty(),
+            "expected no requirement, got {toolchains:?}"
+        );
+    }
+
+    #[test]
+    fn tools_declare_oxfmt_alone() {
+        let tools: Vec<String> = FormatTypeScript
+            .tools()
+            .iter()
+            .map(|requirement| requirement.tool().get().to_owned())
+            .collect();
+
+        assert_eq!(tools, ["oxfmt"]);
     }
 }

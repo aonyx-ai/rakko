@@ -21,9 +21,13 @@ use std::process::Command;
 
 use aonyx_rakko_prettier::{
     Exit, FileExtension, Filter, Observation, Operation, Prettier, ProblemDetail,
+    ResolvePrettierError,
 };
-use rakko::{Context, ProjectRoot, ToolEvent};
+use rakko::{
+    Action, Context, Documented, Name, Outcome, ProjectRoot, ToolEvent, Tools, action_name,
+};
 use rakko_test_utils::ToolRecorder;
+use rakko_tool::{ResolveToolError, ResolveToolchainError};
 use tempfile::TempDir;
 
 /// A Markdown document that prettier leaves alone
@@ -46,6 +50,56 @@ const TOOLS_TABLE: &str = "[tools]\n";
 /// Prettier reports the option and then formats without it, which is the
 /// shortest way to make a run write a marker line of its own.
 const IGNORED_CONFIGURATION: &str = "{ \"notAnOption\": 5 }\n";
+
+/// An action that runs prettier through the crate and requires nothing of
+/// Node
+#[derive(Documented)]
+struct Formatting;
+
+impl Action for Formatting {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("formatting")
+    }
+
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Prettier::TOOLS]
+    }
+
+    async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+        Outcome::Passed { summary: None }
+    }
+}
+
+/// An action that declares no tool
+#[derive(Documented)]
+struct Bare;
+
+impl Action for Bare {
+    type Args = ();
+
+    fn name(&self) -> Name {
+        action_name!("bare")
+    }
+
+    async fn run(&self, _context: &Context, _args: &Self::Args) -> Outcome {
+        Outcome::Passed { summary: None }
+    }
+}
+
+/// Resolves prettier for an action that declares the tools of the crate
+///
+/// # Errors
+///
+/// Returns the error of the lookup, which the test asserts on.
+async fn resolve(context: &Context) -> Result<Prettier, ResolvePrettierError> {
+    Prettier::resolve()
+        .action(&Formatting)
+        .context(context)
+        .call()
+        .await
+}
 
 /// A project that a test builds in a temporary directory
 struct Project {
@@ -101,7 +155,7 @@ impl Project {
 
     /// Runs one operation of prettier against this project
     async fn observe(&self, operation: Operation, filter: &Filter) -> Observation {
-        let prettier = Prettier::resolve(&self.context())
+        let prettier = resolve(&self.context())
             .await
             .expect("the test resolves the prettier that the crate declares");
 
@@ -268,7 +322,7 @@ async fn observe_sends_the_start_of_prettier_to_the_tool_output_of_the_context()
         .root(project.root())
         .tool_output(recorder.output().clone())
         .build();
-    let prettier = Prettier::resolve(&context)
+    let prettier = resolve(&context)
         .await
         .expect("the test resolves the prettier that the crate declares");
 
@@ -305,7 +359,7 @@ async fn resolve_in_a_missing_directory_reports_an_error() {
     let missing = parent.path().join("missing");
     let context = Context::builder().root(missing.as_path()).build();
 
-    let prettier = Prettier::resolve(&context).await;
+    let prettier = resolve(&context).await;
 
     assert!(
         prettier.is_err(),
@@ -317,7 +371,7 @@ async fn resolve_in_a_missing_directory_reports_an_error() {
 async fn resolve_in_a_project_that_pins_another_prettier_finds_the_declared_one() {
     let project = Project::new();
 
-    let prettier = Prettier::resolve(&project.context()).await;
+    let prettier = resolve(&project.context()).await;
 
     assert!(
         prettier.is_ok(),
@@ -329,13 +383,36 @@ async fn resolve_in_a_project_that_pins_another_prettier_finds_the_declared_one(
 async fn resolve_in_a_project_without_node_reports_node() {
     let project = Project::bare();
 
-    let prettier = Prettier::resolve(&project.context()).await;
+    let prettier = resolve(&project.context()).await;
 
-    let Err(error) = prettier else {
-        panic!("expected the resolution to fail, got {prettier:?}");
-    };
     assert!(
-        error.to_string().contains("`node`"),
-        "expected the error to name node, got {error}"
+        matches!(
+            &prettier,
+            Err(ResolvePrettierError::UnresolvedToolchain {
+                source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+            }) if toolchain.get() == "node"
+        ),
+        "expected the resolution to stop on node, got {prettier:?}"
+    );
+}
+
+#[tokio::test]
+async fn resolve_with_an_action_that_does_not_declare_prettier_reports_it() {
+    let project = Project::new();
+
+    let prettier = Prettier::resolve()
+        .action(&Bare)
+        .context(&project.context())
+        .call()
+        .await;
+
+    assert!(
+        matches!(
+            &prettier,
+            Err(ResolvePrettierError::UnresolvedTool {
+                source: ResolveToolError::UndeclaredTool { tool },
+            }) if tool.get() == "npm:prettier"
+        ),
+        "expected the resolution to refuse an undeclared prettier, got {prettier:?}"
     );
 }

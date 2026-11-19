@@ -17,7 +17,7 @@ use aonyx_rakko_prettier::{
 };
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    SkipReason, ToolRequirement, action_name,
+    SkipReason, Tools, action_name,
 };
 
 pub use self::args::FormatJsonArgs;
@@ -49,7 +49,7 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 /// agrees with an editor and with a contributor that runs prettier bare. The
 /// prettier that runs is the version that the action declares, which [mise]
 /// installed, whatever version the project pins. It runs on the Node that the
-/// project pins, when the action accepts that version. The action installs
+/// project pins, and the action requires no range of it. The action installs
 /// nothing.
 ///
 /// A run reports by default. A file that is not formatted becomes a finding
@@ -64,9 +64,9 @@ const UNFORMATTED_REPAIR: &str = "the file was not formatted";
 ///
 /// A run whose prettier found no JSON file to examine skips visibly and says
 /// so. A run stops with an error when mise reports no prettier at the declared
-/// version or no Node in the accepted range. It also stops when a
-/// configuration of the project did not reach the run. It stops when
-/// prettier writes a report that the action does not recognize.
+/// version or no Node that the project pins. It also stops when a configuration
+/// of the project did not reach the run. It stops when prettier writes a report
+/// that the action does not recognize.
 ///
 /// # Examples
 ///
@@ -98,12 +98,12 @@ impl Action for FormatJson {
         }
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![Prettier::requirement(), Prettier::node_requirement()]
+    fn additional_tools(&self) -> Vec<Tools> {
+        vec![Prettier::TOOLS]
     }
 
     async fn run(&self, context: &Context, args: &Self::Args) -> Outcome {
-        match drive(context, args).await {
+        match drive(self, context, args).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -122,10 +122,17 @@ impl Action for FormatJson {
 ///
 /// Returns the error of the step that could not finish: the resolution of the
 /// tool, a prettier run, or the reading of the report.
-async fn drive(context: &Context, args: &FormatJsonArgs) -> Result<Outcome, FormatJsonError> {
+async fn drive(
+    action: &FormatJson,
+    context: &Context,
+    args: &FormatJsonArgs,
+) -> Result<Outcome, FormatJsonError> {
     let filter = filter();
 
-    let prettier = Prettier::resolve(context)
+    let prettier = Prettier::resolve()
+        .action(action)
+        .context(context)
+        .call()
         .await
         .map_err(|source| FormatJsonError::UnresolvedTool { source })?;
 

@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use aonyx_rakko_prettier::ObservePrettierError;
-use rakko_tool::{ResolveRequirementError, RunCommandError};
+use aonyx_rakko_prettier::{ObservePrettierError, ResolvePrettierError};
+use rakko_tool::RunCommandError;
 use thiserror::Error;
 
 /// An error that stops a run of the action before it has an answer
@@ -88,16 +88,16 @@ pub enum FormatYamlError {
     },
 
     /// Mise reported no prettier at the version that the action declares, or
-    /// no Node that the action accepts
+    /// no Node that the project pins
     ///
-    /// Mise did not run, or the project pins no Node in the range of the
-    /// action. Nothing installed the declared prettier or the pinned Node yet,
-    /// or the directory of that Node cannot be an entry of `PATH`. The action
-    /// installs nothing, so the run stops here.
+    /// Mise did not run, or the project pins no Node. Nothing installed the
+    /// declared prettier or the pinned Node yet, or the directory of that Node
+    /// cannot be an entry of `PATH`. The source tells the tool from the
+    /// toolchain. The action installs nothing, so the run stops here.
     #[error("failed to resolve prettier")]
     UnresolvedTool {
         /// The cause of the failure
-        source: ResolveRequirementError,
+        source: ResolvePrettierError,
     },
 }
 

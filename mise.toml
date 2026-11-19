@@ -12,17 +12,12 @@ cargo-binstall = "1.27.0"
 
 # Prettier, markdownlint-cli, oxfmt, tsc, and the validator of Renovate all run
 # on node. Mise puts no node on the path for a tool of its npm backend. Node is
-# a toolchain of this repository. So the actions that wrap these tools read
-# this pin, and each runs its tool on it. `test-typescript` runs the tests on
-# it. Each of them accepts a range of versions, and the pin must be in every
-# range:
-#
-# - tsc: 12.20 and later
-# - prettier: 14 and later
-# - markdownlint-cli: 22 and later
-# - oxfmt: `^20.19.0 || >=22.12.0`
-# - the tests of `test-typescript`: `^22.18 || >=23.6`
-# - Renovate: `^24.11.0 || ^26.13.0`
+# a toolchain of this repository. So the actions that wrap these tools read this
+# pin, and each runs its tool on it. `test-typescript` runs the tests on it. It
+# is the one action that requires a range, `^22.18 || >=23.6`, because an older
+# release does not run the test files of a project that are in TypeScript. The
+# other actions take the pin whatever its release. So the pin must also be a
+# release that each of these tools supports.
 node = "26.13.1"
 
 # The first toolchain is the default for builds, Clippy, and the tests. The
@@ -80,7 +75,7 @@ jq = "1.8.2"
 uv = "0.13.9"
 python = "3.14.8"
 # TypeScript is a toolchain of this repository, like node. `check-typescript`
-# reads this pin, and it accepts TypeScript 5 and later.
+# reads this pin, and it requires no range of it.
 "npm:typescript" = "7.0.2"
 # Terraform is a toolchain of this repository, like node, because the
 # configuration of a project runs on it. `format-terraform` reads this pin,

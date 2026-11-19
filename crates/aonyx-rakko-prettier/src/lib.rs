@@ -18,11 +18,11 @@
 //! differently breaks one crate, and not one crate per group of files.
 //!
 //! For the same reason, the crate pins the version of prettier that every
-//! such action runs, in the file `mise.rakko.toml` that the build embeds.
-//! Prettier runs on Node, which is a toolchain of the project. An action
-//! declares the version of prettier with [`Prettier::requirement`] and the
-//! range of Node with [`Prettier::node_requirement`]. The version of
-//! prettier that the project pins does not change what runs.
+//! such action runs, in the file `mise.rakko.toml` that the build embeds. An
+//! action adds that pin to its tools with [`Prettier::TOOLS`]. The version of
+//! prettier that the project pins does not change what runs. Prettier runs on
+//! Node, which is a toolchain of the project. A run takes the Node that the
+//! project pins, and the crate requires no range of it.
 //!
 //! # Asynchronous Runtime
 //!
@@ -34,15 +34,14 @@
 //! An action resolves prettier and reads what one operation reported:
 //!
 //! ```no_run
-//! use rakko::Context;
+//! use rakko::{Action, Context};
 //! use aonyx_rakko_prettier::{FileExtension, Filter, Matching, Operation, Prettier};
 //!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # async fn run(action: &impl Action) -> Result<(), Box<dyn std::error::Error>> {
 //! let context = Context::builder().root("/home/otter/project").build();
 //! let filter = Filter::new([FileExtension::new("yaml"), FileExtension::new("yml")]);
 //!
-//! let prettier = Prettier::resolve(&context).await?;
+//! let prettier = Prettier::resolve().action(action).context(&context).call().await?;
 //! let observation = prettier.observe(Operation::Report, &filter).await?;
 //!
 //! match observation.unmatched_pattern() {
@@ -69,5 +68,5 @@ pub use self::filter::{FileExtension, Filter};
 pub use self::matching::Matching;
 pub use self::observation::Observation;
 pub use self::operation::Operation;
-pub use self::prettier::{ObservePrettierError, Prettier};
+pub use self::prettier::{ObservePrettierError, Prettier, ResolvePrettierError};
 pub use self::problem::{PrettierProblem, ProblemDetail};

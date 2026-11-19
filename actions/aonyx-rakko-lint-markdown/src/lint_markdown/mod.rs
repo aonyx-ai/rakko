@@ -9,7 +9,7 @@ mod error;
 
 use rakko::{
     Access, Action, Context, Documented, Finding, Location, Name, Outcome, Position, ProjectRoot,
-    SkipReason, ToolRequirement, action_name,
+    SkipReason, Tools, action_name,
 };
 
 pub use self::error::LintMarkdownError;
@@ -31,8 +31,8 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 /// project turned on. So a run agrees with an editor and with a contributor
 /// that runs markdownlint bare. The markdownlint that runs is the version that
 /// the action declares, which [mise] installed, whatever version the project
-/// pins. It runs on the Node that the project pins, when the action accepts
-/// that version. The action installs nothing.
+/// pins. It runs on the Node that the project pins, and the action requires no
+/// range of it. The action installs nothing.
 ///
 /// A run examines the files and directories whose name starts with a dot,
 /// such as `.github`, which markdownlint skips by default. It leaves out every
@@ -58,7 +58,7 @@ const NOTHING_TO_EXAMINE: &str = "markdownlint found no Markdown file to examine
 ///
 /// The action applies to a project that holds Markdown files, and it skips
 /// visibly otherwise. A run stops with an error when mise reports no
-/// markdownlint at the declared version or no Node in the accepted range. It
+/// markdownlint at the declared version or no Node that the project pins. It
 /// also stops with an error when the action cannot write the temporary
 /// configuration file. It stops with an error when markdownlint cannot parse
 /// the configuration file, or when it writes a report that the action cannot
@@ -94,15 +94,12 @@ impl Action for LintMarkdown {
         Access::Read
     }
 
-    fn tools(&self) -> Vec<ToolRequirement> {
-        vec![
-            Markdownlint::requirement(),
-            Markdownlint::node_requirement(),
-        ]
+    fn bundled_tools(&self) -> Tools {
+        rakko::bundled_tools!()
     }
 
     async fn run(&self, context: &Context, _args: &Self::Args) -> Outcome {
-        match drive(context).await {
+        match drive(self, context).await {
             Ok(outcome) => outcome,
             Err(error) => Outcome::Errored {
                 source: Box::new(error),
@@ -123,10 +120,12 @@ impl Action for LintMarkdown {
 /// resolution of the tool and the write of the temporary configuration. Then
 /// come the markdownlint run, the reading of the configuration, and the
 /// reading of the report.
-async fn drive(context: &Context) -> Result<Outcome, LintMarkdownError> {
-    let markdownlint = Markdownlint::resolve(context)
-        .await
-        .map_err(|source| LintMarkdownError::UnresolvedTool { source })?;
+async fn drive(action: &LintMarkdown, context: &Context) -> Result<Outcome, LintMarkdownError> {
+    let markdownlint = Markdownlint::resolve()
+        .action(action)
+        .context(context)
+        .call()
+        .await?;
 
     let observation = markdownlint.observe(context.root()).await?;
 
@@ -376,15 +375,23 @@ mod tests {
     }
 
     #[test]
-    fn tools_declare_the_markdownlint_and_its_node() {
-        let tools = LintMarkdown.tools();
+    fn toolchains_require_nothing_of_node() {
+        let toolchains = LintMarkdown.toolchains();
 
-        assert_eq!(
-            tools,
-            vec![
-                Markdownlint::requirement(),
-                Markdownlint::node_requirement()
-            ]
+        assert!(
+            toolchains.is_empty(),
+            "expected no requirement, got {toolchains:?}"
         );
+    }
+
+    #[test]
+    fn tools_declare_markdownlint_alone() {
+        let tools: Vec<String> = LintMarkdown
+            .tools()
+            .iter()
+            .map(|requirement| requirement.tool().get().to_owned())
+            .collect();
+
+        assert_eq!(tools, ["npm:markdownlint-cli"]);
     }
 }

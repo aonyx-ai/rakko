@@ -24,7 +24,7 @@ use rakko::{
     Action, Args, Context, Finding, Location, Outcome, Position, ProjectRoot, ToolEvent, ToolStream,
 };
 use rakko_test_utils::{ToolRecorder, path_text, run_checking_access};
-use rakko_tool::ResolveRequirementError;
+use rakko_tool::ResolveToolchainError;
 use tempfile::TempDir;
 
 /// A Markdown document that markdownlint accepts
@@ -84,6 +84,18 @@ const TOOL_PIN: &str = "\"npm:markdownlint-cli\"";
 /// The header of the table of tools in a mise configuration
 const TOOLS_TABLE: &str = "[tools]\n";
 
+/// A program that stands in for a Node that the tool does not support
+///
+/// The program writes a sentence on its standard error stream and fails
+/// before it runs anything. A release of Node can do the same with a tool that
+/// needs a newer release.
+#[cfg(unix)]
+const FAILING_NODE: &str = "#!/bin/sh\necho 'this release of Node is not supported' >&2\nexit 1\n";
+
+/// The sentence that the failing Node writes
+#[cfg(unix)]
+const UNSUPPORTED: &str = "this release of Node is not supported";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -119,6 +131,35 @@ impl Project {
         trust(&copy);
 
         project
+    }
+
+    /// Creates a project that pins a Node that fails before it runs anything
+    ///
+    /// The project pins Node as a directory of its own, which mise reads as
+    /// an installed Node. So no machine has to install a release that the
+    /// tool does not support. Mise ignores a configuration that nobody
+    /// trusts, so the configuration is trusted right away.
+    #[cfg(unix)]
+    fn on_failing_node() -> Self {
+        use std::os::unix::fs::PermissionsExt;
+
+        let directory = tempfile::tempdir().expect("the test creates a temporary directory");
+        let runtime = directory.path().join("runtime");
+        let program = runtime.join("bin").join("node");
+        std::fs::create_dir_all(runtime.join("bin"))
+            .expect("the test creates the directory of the Node");
+        std::fs::write(&program, FAILING_NODE).expect("the test writes the Node");
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755))
+            .expect("the test makes the Node executable");
+        let pins = directory.path().join("mise.toml");
+        std::fs::write(
+            &pins,
+            format!("[tools]\nnode = \"path:{}\"\n", runtime.display()),
+        )
+        .expect("the test writes the mise.toml of the project");
+        trust(&pins);
+
+        Self { directory }
     }
 
     /// Returns the context of a run against this project
@@ -278,9 +319,9 @@ async fn run_in_a_project_without_node_stops_on_node() {
             Outcome::Errored { source }
                 if matches!(
                     source.downcast_ref(),
-                    Some(LintMarkdownError::UnresolvedTool {
-                        source: ResolveRequirementError::UnresolvedToolchain { tool, .. },
-                    }) if tool.get() == "node"
+                    Some(LintMarkdownError::UnresolvedToolchain {
+                        source: ResolveToolchainError::UnpinnedToolchain { toolchain, .. },
+                    }) if toolchain.get() == "node"
                 )
         ),
         "expected the run to stop without a Node, got {outcome:?}"
@@ -367,6 +408,25 @@ async fn run_leaves_out_the_directories_of_git() {
     assert!(
         matches!(outcome, Outcome::Passed { .. }),
         "expected the run to leave the directories of git out, got {outcome:?}"
+    );
+}
+
+/// Shows that a Node that markdownlint cannot run on stops the run with what
+/// Node wrote, and does not pass it
+///
+/// The action requires no range of Node, so the run starts markdownlint on
+/// the Node that the project pins, whatever its release.
+#[cfg(unix)]
+#[tokio::test]
+async fn run_on_a_node_that_fails_stops_with_what_node_wrote() {
+    let project = Project::on_failing_node();
+    project.write().path("notes.md").content(VALID).call();
+
+    let outcome = project.run().await;
+
+    assert!(
+        matches!(outcome, Outcome::Errored { .. }) && format!("{outcome:?}").contains(UNSUPPORTED),
+        "expected the run to stop with what Node wrote, got {outcome:?}"
     );
 }
 
