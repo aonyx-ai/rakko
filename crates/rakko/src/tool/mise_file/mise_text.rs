@@ -82,9 +82,13 @@ impl MiseText<'static> {
     /// The version is exact. It has at least three parts that dots separate,
     /// and each part starts with a digit, as `0.10.0` or `1.0.0-rc.1`. A `v`
     /// can come before the first part, and a tag of a release can come before
-    /// the version with `@`, as `stiles@0.6.0`. Mise resolves a version that
-    /// is not exact, such as `latest` or `3`, to any matching version that it
-    /// installed, so the reader refuses it.
+    /// the version with `@`, as `stiles@0.6.0`. A tool that mise builds from a
+    /// Git repository can give the full hash of a commit after `rev:`. The
+    /// hash has 40 hexadecimal digits in lowercase, as
+    /// `rev:274d9b0a3d158a9db5267ec6c114a01347107aec`. Mise resolves a version
+    /// that is not exact, such as `latest` or `3`, to any matching version that
+    /// it installed. A branch, a tag, or a short hash can refer to another
+    /// commit later. So the reader refuses each of these versions.
     ///
     /// The array `N` must hold as many pins as the file holds, which
     /// [`pin_count`][count] gives.

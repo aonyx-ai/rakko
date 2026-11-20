@@ -10,7 +10,8 @@
 //! [`MiseText::pins`] reads every pin of the file. It refuses every line that
 //! it does not read, so that no pin goes missing without a sign. It also
 //! refuses a version that is not exact, because mise resolves such a version
-//! to whatever matching version it installed.
+//! to whatever matching version it installed. A full revision of a Git
+//! repository is exact: `rev:` and the full hash of a commit.
 //!
 //! The reader reads one name for each operating system and each
 //! architecture, such as `arm64`. It does not read an alias that mise also
@@ -40,6 +41,12 @@ const VERSION: &[u8] = b"version";
 
 /// The key of the platforms in the table of a pin
 const OS: &[u8] = b"os";
+
+/// The prefix of a version that selects one commit of a Git repository
+const REVISION: &[u8] = b"rev:";
+
+/// The number of hexadecimal digits in a full commit hash of Git
+const REVISION_DIGITS: usize = 40;
 
 /// The parts of the pin of a tool, as positions in the text of the file
 #[derive(Copy, Clone)]
@@ -366,8 +373,13 @@ const fn is_bare(byte: u8) -> bool {
 ///
 /// An exact version has at least three parts that dots separate, and each
 /// part starts with a digit. A `v` can come before the first part. A tag of a
-/// release can come before the version, up to the last `@`.
+/// release can come before the version, up to the last `@`. A full revision of
+/// a Git repository is exact as well, as [`is_revision`] reads it.
 const fn is_exact(text: &[u8], first: ByteStart, end: ByteEnd) -> bool {
+    if is_revision(text, first, end) {
+        return true;
+    }
+
     let mut cursor = first.0;
     let mut at = first.0;
     while at < end.0 {
@@ -400,6 +412,31 @@ const fn is_exact(text: &[u8], first: ByteStart, end: ByteEnd) -> bool {
     }
 
     !part_start && parts >= 3
+}
+
+/// Returns whether a version is a full revision of a Git repository
+///
+/// Mise builds some tools from the source in a Git repository, such as a crate
+/// of the `cargo` backend. A version of `rev:` and a commit hash selects one
+/// commit of that repository. The hash must be complete, with 40 hexadecimal
+/// digits in lowercase, as Git writes it. A short hash can match a second
+/// commit later, and a branch or a tag can move to another commit, so the
+/// reader refuses both.
+const fn is_revision(text: &[u8], first: ByteStart, end: ByteEnd) -> bool {
+    let digits = first.0 + REVISION.len();
+    if end.0 != digits + REVISION_DIGITS || !equals(text, first, ByteEnd(digits), REVISION) {
+        return false;
+    }
+
+    let mut cursor = digits;
+    while cursor < end.0 {
+        if !matches!(text[cursor], b'0'..=b'9' | b'a'..=b'f') {
+            return false;
+        }
+        cursor += 1;
+    }
+
+    true
 }
 
 /// Returns each platform of a list that the reader checked
@@ -863,6 +900,21 @@ mod tests {
     }
 
     #[test]
+    fn read_pins_reads_a_full_git_revision() {
+        let pins = pins_of::<1>(
+            "[tools]\n\"cargo:https://github.com/aonyx-ai/otto[crate=otto]\" = \"rev:274d9b0a3d158a9db5267ec6c114a01347107aec\"\n",
+        );
+
+        assert_eq!(
+            pins,
+            [(
+                "cargo:https://github.com/aonyx-ai/otto[crate=otto]",
+                "rev:274d9b0a3d158a9db5267ec6c114a01347107aec"
+            )]
+        );
+    }
+
+    #[test]
     fn read_pins_reads_a_list_of_platforms_with_spaces_and_a_trailing_comma() {
         let file = "[tools]\nstiles = {version=\"0.6.0\",os=[ \"linux\" , \"windows\", ]}\n";
 
@@ -938,9 +990,31 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "a version that is not exact")]
+    fn read_pins_with_a_branch_as_the_version_panics() {
+        read_pins::<1>("[tools]\n\"cargo:https://github.com/aonyx-ai/otto\" = \"branch:main\"\n");
+    }
+
+    #[test]
     #[should_panic(expected = "has no `=`")]
     fn read_pins_with_a_dotted_key_panics() {
         read_pins::<1>("[tools]\ntaplo.version = \"0.10.0\"\n");
+    }
+
+    #[test]
+    #[should_panic(expected = "a version that is not exact")]
+    fn read_pins_with_a_full_hash_after_another_prefix_panics() {
+        read_pins::<1>(
+            "[tools]\n\"cargo:https://github.com/aonyx-ai/otto\" = \"tag:274d9b0a3d158a9db5267ec6c114a01347107aec\"\n",
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "a version that is not exact")]
+    fn read_pins_with_a_git_revision_of_other_characters_panics() {
+        read_pins::<1>(
+            "[tools]\n\"cargo:https://github.com/aonyx-ai/otto\" = \"rev:274D9B0A3D158A9DB5267EC6C114A01347107AEC\"\n",
+        );
     }
 
     #[test]
@@ -1038,6 +1112,12 @@ mod tests {
     #[should_panic(expected = "a version that is not exact")]
     fn read_pins_with_a_reference_as_the_version_panics() {
         read_pins::<1>("[tools]\ntaplo = \"ref:0.10.0\"\n");
+    }
+
+    #[test]
+    #[should_panic(expected = "a version that is not exact")]
+    fn read_pins_with_a_short_git_revision_panics() {
+        read_pins::<1>("[tools]\n\"cargo:https://github.com/aonyx-ai/otto\" = \"rev:274d9b0\"\n");
     }
 
     #[test]
