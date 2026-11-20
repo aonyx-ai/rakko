@@ -17,6 +17,11 @@ version = "0.1.61"
 backend = "cargo:cargo-udeps"
 specifiers = ["0.1.61"]
 
+[[tools."cargo:otto"]]
+version = "0.3.0"
+backend = "cargo:otto"
+specifiers = ["0.3.0"]
+
 [[tools."github:aonyx-ai/stiles"]]
 version = "0.6.0"
 backend = "github:aonyx-ai/stiles"

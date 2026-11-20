@@ -482,6 +482,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "aonyx-rakko-require-changesets"
+version = "0.1.0"
+dependencies = [
+ "bon",
+ "getset",
+ "rakko",
+ "rakko-tool",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "typed-fields",
+]
+
+[[package]]
 name = "aonyx-rakko-rust"
 version = "0.1.0"
 dependencies = [
@@ -1128,6 +1143,7 @@ dependencies = [
  "aonyx-rakko-lint-stiles",
  "aonyx-rakko-lint-yaml",
  "aonyx-rakko-pre-commit",
+ "aonyx-rakko-require-changesets",
  "aonyx-rakko-rust-library",
  "aonyx-rakko-set-msrv",
  "aonyx-rakko-shell",

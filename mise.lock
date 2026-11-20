@@ -30,11 +30,6 @@ version = "0.51.0"
 backend = "cargo:cargo-semver-checks"
 specifiers = ["0.51.0"]
 
-[[tools."cargo:otto"]]
-version = "0.2.0"
-backend = "cargo:otto"
-specifiers = ["0.2.0"]
-
 [[tools.jq]]
 version = "1.8.2"
 backend = "aqua:jqlang/jq"

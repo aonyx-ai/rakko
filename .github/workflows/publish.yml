@@ -40,7 +40,8 @@ jobs:
           clean: false
           persist-credentials: false
 
-      # The setup installs Otto at the version that `mise.toml` pins.
+      # The setup installs Otto at the version that the action
+      # `require-changesets` pins.
       - name: Set up the tools
         uses: $/.github/actions/setup
 

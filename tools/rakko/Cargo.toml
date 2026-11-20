@@ -25,6 +25,7 @@ aonyx-rakko-lint-rust = { path = "../../actions/aonyx-rakko-lint-rust" }
 aonyx-rakko-lint-stiles = { path = "../../actions/aonyx-rakko-lint-stiles" }
 aonyx-rakko-lint-yaml = { path = "../../actions/aonyx-rakko-lint-yaml" }
 aonyx-rakko-pre-commit = { path = "../../commands/aonyx-rakko-pre-commit" }
+aonyx-rakko-require-changesets = { path = "../../actions/aonyx-rakko-require-changesets" }
 aonyx-rakko-rust-library = { path = "../../bundles/aonyx-rakko-rust-library" }
 aonyx-rakko-set-msrv = { path = "../../commands/aonyx-rakko-set-msrv" }
 aonyx-rakko-test-rust = { path = "../../actions/aonyx-rakko-test-rust" }

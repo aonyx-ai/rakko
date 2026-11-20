@@ -127,7 +127,8 @@ from the design discussions to the terms that replaced them.
   action passed, changed the project by repairing everything that it found,
   failed with findings, skipped, or stopped with an error. An action skips
   when there was nothing to examine, or when a tool of the action has no
-  build for the platform of the run.
+  build for the platform of the run. An action that judges a pull request
+  also skips when the run has no GitHub pull request.
 - **Platform** — An operating system, or an operating system with an
   architecture, such as Linux, or macOS on ARM. The pin of a tool can list
   the platforms where the tool has a build. The list uses the form of the
