@@ -41,6 +41,51 @@ const CARGO_VARIABLE: &str = "CARGO";
 /// The variable that tells the proxy of rustup which toolchain answers
 const TOOLCHAIN_VARIABLE: &str = "RUSTUP_TOOLCHAIN";
 
+/// The variables that describe the package of a run of cargo, which the crate
+/// removes from the environment of every command that it starts
+///
+/// Cargo sets these variables for a run of a binary. A harness usually starts
+/// with `cargo run`, so its process holds them, and each command of the crate
+/// inherits them. A build script can tell cargo to compile its package again
+/// when one of them changes, as the build script of `ring` does for
+/// `CARGO_MANIFEST_DIR`. Cargo compares the value in its own environment. A
+/// cargo that a contributor starts in a terminal holds none of them.
+///
+/// When a command keeps them, cargo compiles the package again after each
+/// change between a terminal and an action. It also compiles every package
+/// that depends on it again.
+///
+/// The list holds only the variables that describe the package of the run. A
+/// user sets other variables with the same prefix on purpose, such as
+/// `CARGO_HOME` or `CARGO_TARGET_DIR`, and these still reach the command.
+/// `CARGO` stays as well. Cargo ignores a value that it inherits, and the
+/// command of a plugin sets its own value.
+///
+/// Cargo also adds its directories to the search path of libraries for a run.
+/// That variable is `DYLD_FALLBACK_LIBRARY_PATH` on macOS, `LD_LIBRARY_PATH`
+/// on Linux, and `PATH` on Windows. It stays, because it also holds the value
+/// that the user set, and the removal would lose that value. A build script
+/// that tracks it can still make cargo compile its package again.
+const RUN_VARIABLES: [&str; 17] = [
+    "CARGO_MANIFEST_DIR",
+    "CARGO_MANIFEST_PATH",
+    "CARGO_PKG_AUTHORS",
+    "CARGO_PKG_DESCRIPTION",
+    "CARGO_PKG_HOMEPAGE",
+    "CARGO_PKG_LICENSE",
+    "CARGO_PKG_LICENSE_FILE",
+    "CARGO_PKG_NAME",
+    "CARGO_PKG_README",
+    "CARGO_PKG_REPOSITORY",
+    "CARGO_PKG_RUST_VERSION",
+    "CARGO_PKG_VERSION",
+    "CARGO_PKG_VERSION_MAJOR",
+    "CARGO_PKG_VERSION_MINOR",
+    "CARGO_PKG_VERSION_PATCH",
+    "CARGO_PKG_VERSION_PRE",
+    "OUT_DIR",
+];
+
 /// The directory entry that the discovery does not read
 const GIT_DIRECTORY: &str = ".git";
 
@@ -144,6 +189,14 @@ impl Cargo {
     /// workspace whose directory it runs in, so the command line reads the
     /// same for every root.
     ///
+    /// The command does not hold the variables that describe the package of a
+    /// run of cargo, such as `CARGO_MANIFEST_DIR`. A harness that `cargo run`
+    /// starts holds them, and a cargo in a terminal does not. So a build
+    /// script that tracks one of them sees the same value under the command
+    /// and in a terminal. Cargo then does not compile the package again when
+    /// a contributor changes from one to the other. The other variables stay,
+    /// such as `CARGO_HOME` and the search path of libraries.
+    ///
     /// [`invocation_with_toolchain`][with] selects another toolchain.
     ///
     /// # Examples
@@ -205,10 +258,7 @@ impl Cargo {
     ///
     /// [invocation]: Cargo::invocation
     pub fn invocation_with_toolchain(&self, root: &CargoRoot, toolchain: &Toolchain) -> Invocation {
-        self.tool
-            .invocation()
-            .in_directory(root.directory().as_path())
-            .arg(toolchain.argument())
+        self.command(root.directory(), toolchain)
     }
 
     /// Returns the command that runs a plugin of cargo at a root
@@ -222,7 +272,9 @@ impl Cargo {
     /// The command runs in the directory of the root. It tells the plugin to
     /// start this cargo for its builds on the toolchain that
     /// [`toolchain`][toolchain] gives. So a build of the plugin uses the same
-    /// compiler as a job of [`invocation`][invocation].
+    /// compiler as a job of [`invocation`][invocation]. Like the command of
+    /// [`invocation`][invocation], the command does not hold the variables
+    /// that describe the package of a run of cargo.
     /// [`plugin_invocation_with_toolchain`][with] selects another toolchain.
     ///
     /// # Examples
@@ -311,11 +363,20 @@ impl Cargo {
         plugin: &Tool,
         toolchain: &Toolchain,
     ) -> Invocation {
-        plugin
-            .invocation()
+        without_run_variables(plugin.invocation())
             .in_directory(root.directory().as_path())
             .env(CARGO_VARIABLE, self.tool.program().get())
             .env(TOOLCHAIN_VARIABLE, toolchain.get())
+    }
+
+    /// Returns the command that runs cargo in a directory, on a toolchain
+    ///
+    /// Every command of cargo that the crate starts begins here. So the crate
+    /// removes the variables of a run of cargo from each of them.
+    fn command(&self, directory: &Path, toolchain: &Toolchain) -> Invocation {
+        without_run_variables(self.tool.invocation())
+            .in_directory(directory)
+            .arg(toolchain.argument())
     }
 
     /// Returns the cargo of the Rust toolchain that the project pins for a
@@ -496,10 +557,7 @@ impl Cargo {
     async fn describe(&self, manifest: &Path) -> Result<Metadata, MetadataFailure> {
         let directory = manifest.parent().unwrap_or(self.root.get());
         let execution = self
-            .tool
-            .invocation()
-            .in_directory(directory)
-            .arg(self.toolchain.argument())
+            .command(directory, &self.toolchain)
             .args(METADATA)
             .arg(MANIFEST_PATH)
             .arg(manifest)
@@ -548,6 +606,16 @@ impl Cargo {
                 }
             })
     }
+}
+
+/// Removes the variables of a run of cargo from the environment of a command
+///
+/// A name that the process does not hold leaves nothing to remove, so the
+/// removal is safe in a process that no cargo started.
+fn without_run_variables(invocation: Invocation) -> Invocation {
+    RUN_VARIABLES
+        .into_iter()
+        .fold(invocation, Invocation::env_remove)
 }
 
 /// What went wrong when cargo described a manifest

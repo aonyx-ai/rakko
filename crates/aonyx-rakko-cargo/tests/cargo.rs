@@ -105,6 +105,41 @@ const OUTER: &str = "[workspace]\nmembers = [\"project\"]\nresolver = \"3\"\n";
 /// The manifest of a package that belongs to the workspace above it
 const MEMBER: &str = "[package]\nname = \"project\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
 
+/// The variables that describe the package of a run of cargo
+///
+/// Cargo sets them for a run of a binary. The runner of the tests sets the
+/// same variables for a test, as `cargo run` sets them for a harness. A
+/// terminal holds none of them.
+const RUN_VARIABLES: [&str; 17] = [
+    "CARGO_MANIFEST_DIR",
+    "CARGO_MANIFEST_PATH",
+    "CARGO_PKG_AUTHORS",
+    "CARGO_PKG_DESCRIPTION",
+    "CARGO_PKG_HOMEPAGE",
+    "CARGO_PKG_LICENSE",
+    "CARGO_PKG_LICENSE_FILE",
+    "CARGO_PKG_NAME",
+    "CARGO_PKG_README",
+    "CARGO_PKG_REPOSITORY",
+    "CARGO_PKG_RUST_VERSION",
+    "CARGO_PKG_VERSION",
+    "CARGO_PKG_VERSION_MAJOR",
+    "CARGO_PKG_VERSION_MINOR",
+    "CARGO_PKG_VERSION_PATCH",
+    "CARGO_PKG_VERSION_PRE",
+    "OUT_DIR",
+];
+
+/// The manifest of a package whose binary prints the names of the variables
+/// of its environment
+const PROBE: &str =
+    "[workspace]\n\n[package]\nname = \"probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+/// The manifest of a package whose build script tracks variables of the
+/// environment
+const TRACKING: &str =
+    "[workspace]\n\n[package]\nname = \"tracking\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
 /// A project that a test builds in a temporary directory
 struct Project {
     /// The directory that holds the project
@@ -190,6 +225,51 @@ impl Project {
         std::fs::write(&configuration, format!("[tools]\nrust = {pins}\n"))
             .expect("the test writes the mise.toml of the project");
         trust(&configuration);
+
+        project
+    }
+
+    /// Creates a project with a binary that prints the names of the variables
+    /// that its run holds, one per line
+    ///
+    /// The package has a build script, because cargo describes the output of
+    /// a build script to a run as well.
+    fn probing() -> Self {
+        let project = Self::new();
+        project.write().path("Cargo.toml").content(PROBE).call();
+        project
+            .write()
+            .path("src/main.rs")
+            .content("fn main() {\n    for (name, _) in std::env::vars_os() {\n        println!(\"{}\", name.to_string_lossy());\n    }\n}\n")
+            .call();
+        project
+            .write()
+            .path("build.rs")
+            .content("fn main() {}\n")
+            .call();
+
+        project
+    }
+
+    /// Creates a project with a package whose build script tracks the
+    /// variables of a run of cargo
+    ///
+    /// Cargo builds such a package again when one of the variables in its own
+    /// environment has another value than in the build before. The build
+    /// script of `ring` tracks `CARGO_MANIFEST_DIR` in this way.
+    fn tracking() -> Self {
+        let project = Self::new();
+        let script: String = RUN_VARIABLES
+            .iter()
+            .map(|name| format!("    println!(\"cargo::rerun-if-env-changed={name}\");\n"))
+            .collect();
+        project.write().path("Cargo.toml").content(TRACKING).call();
+        project.write().path("src/lib.rs").content("").call();
+        project
+            .write()
+            .path("build.rs")
+            .content(&format!("fn main() {{\n{script}}}\n"))
+            .call();
 
         project
     }
@@ -449,6 +529,39 @@ impl Action for Requiring {
     }
 }
 
+/// Builds a root as a cargo that a contributor starts in a terminal
+///
+/// The environment of the build holds none of the variables of a run of
+/// cargo. The build is verbose, so cargo writes whether it found each package
+/// fresh.
+async fn build_in_a_terminal(cargo: &Cargo, root: &CargoRoot) -> String {
+    let execution = RUN_VARIABLES
+        .iter()
+        .fold(
+            cargo.invocation(root).args(["build", "--verbose"]),
+            |invocation, name| invocation.env_remove(*name),
+        )
+        .run()
+        .await
+        .expect("the test builds the project as a terminal would");
+
+    execution.stderr().to_string_lossy().into_owned()
+}
+
+/// Returns the line of a verbose build that reports the tracking package
+/// fresh, which `cargo build --verbose` writes when it builds nothing
+fn fresh(project: &Project) -> String {
+    format!("Fresh tracking v0.1.0 ({})", project.root().get().display())
+}
+
+/// Returns whether a variable can describe the package of a run of cargo
+///
+/// Cargo gives such a variable its prefix, except for `OUT_DIR`. `CARGO` and
+/// `CARGO_HOME` do not describe the package, and a run keeps both.
+fn describes_a_run(name: &str) -> bool {
+    (name.starts_with("CARGO_") && name != "CARGO_HOME") || name == "OUT_DIR"
+}
+
 /// Returns the value of a variable that a command sets
 fn variable(invocation: &Invocation, name: &str) -> Option<String> {
     invocation
@@ -488,6 +601,32 @@ impl Drop for Project {
             .arg(self.root.join("mise.toml"))
             .status();
     }
+}
+
+/// Leaves nothing for a cargo of a terminal to build again
+///
+/// The test runs inside a runner that sets the variables of a run of cargo,
+/// as a harness that `cargo run` starts does.
+#[tokio::test]
+async fn invocation_in_a_process_that_cargo_started_leaves_nothing_to_build_again() {
+    std::env::var_os("CARGO_MANIFEST_DIR")
+        .expect("the runner of the tests sets the variables of a run of cargo");
+    let project = Project::tracking();
+    let cargo = project.resolve().await;
+    let root = project.cargo_root("");
+    cargo
+        .invocation(&root)
+        .arg("build")
+        .run()
+        .await
+        .expect("the test builds the project as an action would");
+
+    let output = build_in_a_terminal(&cargo, &root).await;
+
+    assert!(
+        output.contains(&fresh(&project)),
+        "expected a fresh build, got {output}"
+    );
 }
 
 #[tokio::test]
@@ -600,6 +739,34 @@ async fn lockfile_refused_by_a_locked_check_without_a_lockfile_answers_yes() {
     assert!(
         lockfile::refused(&execution.stderr().to_string_lossy()),
         "expected a refusal, got {execution:?}"
+    );
+}
+
+/// Leaves nothing for a cargo of a terminal to build again
+///
+/// The plugin is the cargo of the project, so it builds as a plugin would
+/// through that cargo. The test runs inside a runner that sets the variables
+/// of a run of cargo, as a harness that `cargo run` starts does.
+#[tokio::test]
+async fn plugin_invocation_in_a_process_that_cargo_started_leaves_nothing_to_build_again() {
+    std::env::var_os("CARGO_MANIFEST_DIR")
+        .expect("the runner of the tests sets the variables of a run of cargo");
+    let project = Project::tracking();
+    let cargo = project.resolve().await;
+    let plugin = stand_in(&project).await;
+    let root = project.cargo_root("");
+    cargo
+        .plugin_invocation(&root, &plugin)
+        .arg("build")
+        .run()
+        .await
+        .expect("the test builds the project as a plugin would");
+
+    let output = build_in_a_terminal(&cargo, &root).await;
+
+    assert!(
+        output.contains(&fresh(&project)),
+        "expected a fresh build, got {output}"
     );
 }
 
@@ -1594,6 +1761,42 @@ async fn roots_with_an_unreadable_directory_name_the_directory() {
         ),
         "expected the unreadable directory, got {roots:?}"
     );
+}
+
+/// Holds every variable that the cargo of this repository sets for a run
+///
+/// A new release of cargo can describe the package of a run with a variable
+/// that the list lacks. The probe is a binary with a build script, so cargo
+/// sets `OUT_DIR` for its run too. The run of the probe holds none of the
+/// inherited variables that can describe a run. So each such variable that it
+/// prints comes from cargo. The proxy of rustup sets `CARGO_HOME` for every
+/// run, so the check leaves it out.
+#[tokio::test]
+async fn run_variables_hold_every_variable_that_cargo_sets_for_a_run() {
+    let project = Project::probing();
+    let cargo = project.resolve().await;
+    let inherited = std::env::vars_os()
+        .map(|(name, _)| name.to_string_lossy().into_owned())
+        .filter(|name| describes_a_run(name));
+    let execution = inherited
+        .fold(
+            cargo
+                .invocation(&project.cargo_root(""))
+                .args(["run", "--quiet"]),
+            |invocation, name| invocation.env_remove(name),
+        )
+        .run()
+        .await
+        .expect("the test runs the probe");
+
+    let unlisted: Vec<String> = execution
+        .stdout()
+        .to_string_lossy()
+        .lines()
+        .filter(|name| describes_a_run(name) && !RUN_VARIABLES.contains(name))
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(unlisted, Vec::<String>::new());
 }
 
 #[tokio::test]
