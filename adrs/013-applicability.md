@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted. [ADR-032] supersedes points 1 and 2 for an action that depends
+on a pull request, for the question whether the run is in one.
 
 ## Context
 
@@ -122,3 +123,4 @@ would keep the mirrored discovery alive in the wrapper with the most callers.
 [adr-004]: 004-actions-as-libraries.md
 [adr-010]: 010-project-root.md
 [adr-011]: 011-tool-integration.md
+[adr-032]: 032-pull-requests.md
