@@ -97,7 +97,7 @@ zola = "0.23.6"
 # either tool, so the project pins both. Otto publishes no prebuilt binary, so
 # mise builds it from source, and the pin leaves it off Windows, where no job
 # releases.
-"cargo:otto" = { version = "0.2.0", os = ["linux", "macos"] }
+"cargo:otto" = { version = "0.3.0", os = ["linux", "macos"] }
 "cargo:cargo-semver-checks" = { version = "0.51.0", os = ["linux", "macos"] }
 
 [settings]
