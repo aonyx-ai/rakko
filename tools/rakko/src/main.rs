@@ -18,6 +18,12 @@
 //! CI. So the job of a TypeScript action installs the tools, and then the
 //! action skips.
 //!
+//! It also mounts `require-changesets` on its own, because a project opts
+//! into that check. The check judges a pull request, so CI runs it in a
+//! workflow of its own that runs it again when the body of a pull request
+//! changes. Its name starts with none of the prefixes that the main workflow
+//! picks up.
+//!
 //! It also mounts commands, for a maintenance activity that no single action
 //! describes. A command comes from a crate, and this file mounts it. When a
 //! command runs actions, this file lists those actions and gives them to the
@@ -45,6 +51,7 @@ use aonyx_rakko_lint_rust::LintRust;
 use aonyx_rakko_lint_stiles::LintStiles;
 use aonyx_rakko_lint_yaml::LintYaml;
 use aonyx_rakko_pre_commit::PreCommit;
+use aonyx_rakko_require_changesets::RequireChangesets;
 use aonyx_rakko_set_msrv::SetMsrv;
 use aonyx_rakko_test_rust::TestRust;
 use aonyx_rakko_test_rust_docs::TestRustDocs;
@@ -62,6 +69,7 @@ fn main() -> std::process::ExitCode {
         .mount(aonyx_rakko_typescript::bundle())
         .mount(aonyx_rakko_shell::bundle())
         .mount(aonyx_rakko_terraform::bundle())
+        .mount(RequireChangesets)
         .mount(SetMsrv::new(CheckMsrv))
         .mount(BuildSite)
         .mount(pre_commit)

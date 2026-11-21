@@ -1,0 +1,48 @@
+---
+name: Changesets
+
+# Otto builds the changelog of a release from changesets, and the action
+# `require-changesets` fails a pull request that changes a crate without one,
+# unless the body of the pull request opts the crate out with a reason. The
+# check reads the body, so it runs again when the author edits the body. A job
+# reads the body of the event that started it, also in a re-run, so the
+# workflow listens for the `edited` event. The check runs in a workflow of its
+# own, because an edit of the body would otherwise run every job of CI again.
+"on":
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  require-changesets:
+    name: require-changesets
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The setup cleans the tree itself, and keeps the build output that
+          # an earlier job left on a persistent self-hosted runner.
+          clean: false
+          # The check compares the head of the pull request with the last
+          # commit that it shares with the base, so it needs the history of
+          # both. A checkout of depth 1 holds only the merge commit.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up the tools
+        uses: $/.github/actions/setup
+
+      # The flag `--verbose` adds what Otto writes while it lists the release
+      # units, because the log is the only record of a job that failed.
+      - name: Run the check
+        run: mise run rakko -- require-changesets --verbose

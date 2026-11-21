@@ -92,12 +92,11 @@ zola = "0.23.6"
 
 # Otto releases the crates of this repository, one crate at a time. An owner
 # runs `otto release` from the directory of a crate, and the publish workflow
-# runs Otto again to take the release to crates.io. Otto runs
-# cargo-semver-checks to compare a crate with its last release. No action runs
-# either tool, so the project pins both. Otto publishes no prebuilt binary, so
-# mise builds it from source, and the pin leaves it off Windows, where no job
-# releases.
-"cargo:otto" = { version = "0.2.0", os = ["linux", "macos"] }
+# runs Otto again to take the release to crates.io. The action
+# `require-changesets` pins Otto, so the generated mise file holds that pin,
+# and this file holds none. Otto runs cargo-semver-checks to compare a crate
+# with its last release. No action runs cargo-semver-checks, so the project
+# pins it, and the pin leaves it off Windows, where no job releases.
 "cargo:cargo-semver-checks" = { version = "0.51.0", os = ["linux", "macos"] }
 
 [settings]
