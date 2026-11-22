@@ -6,7 +6,7 @@
 "cargo:cargo-deny" = "0.22.0"
 "cargo:cargo-nextest" = "0.9.152"
 "cargo:cargo-udeps" = "0.1.61"
-"npm:markdownlint-cli" = "0.50.0"
+"npm:markdownlint-cli" = "0.50.1"
 "npm:prettier" = "3.10.1"
 "npm:renovate" = "44.240.0"
 oxfmt = "0.75.0"
