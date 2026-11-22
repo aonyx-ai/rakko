@@ -26,5 +26,5 @@ version = "stiles@0.6.0"
 os = ["linux", "macos/arm64"]
 
 [tools.zizmor]
-version = "1.32.0"
+version = "1.33.1"
 os = ["linux", "macos", "windows/x64"]
