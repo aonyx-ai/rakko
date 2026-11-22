@@ -4,4 +4,4 @@
 # `MISE_ENV=rakko`. Zizmor publishes no build for Windows on ARM, so the pin
 # lists the platforms that have one.
 [tools]
-zizmor = { version = "1.32.0", os = ["linux", "macos", "windows/x64"] }
+zizmor = { version = "1.33.1", os = ["linux", "macos", "windows/x64"] }
