@@ -10,7 +10,7 @@
 "npm:prettier" = "3.10.1"
 "npm:renovate" = "44.257.9"
 oxfmt = "0.75.0"
-oxlint = "1.94.0"
+oxlint = "1.95.0"
 shellcheck = "0.11.0"
 shfmt = "3.14.1"
 taplo = "0.10.0"
