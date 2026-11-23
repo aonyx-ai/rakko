@@ -60,27 +60,27 @@ backend = "npm:oxfmt"
 specifiers = ["0.75.0"]
 
 [[tools.oxlint]]
-version = "1.94.0"
+version = "1.95.0"
 backend = "aqua:oxc-project/oxc/oxlint"
-specifiers = ["1.94.0"]
+specifiers = ["1.95.0"]
 
 [tools.oxlint."platforms.linux-x64"]
-checksum = "sha256:fc1a189a35417ebda77cac83b8bfe9e9d10a7eb27e0d2fe005d222fa01261e64"
+checksum = "sha256:180d51ffd469995f394ba379a4b6f73c55ddb98443df442e3e456951d874a5f1"
 checksum_source = "mise-versions"
-url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.94.0/oxlint-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/754765229"
+url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.95.0/oxlint-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/783612803"
 
 [tools.oxlint."platforms.macos-arm64"]
-checksum = "sha256:d31a59e3b11511075c13173f3c0b63fc0baa51477d73276dded7c308f4c26dc0"
+checksum = "sha256:a08b6a75a95ef77ee6d7bd9e74f903539fb78e856ce58f4f39b6ea2353a4599f"
 checksum_source = "mise-versions"
-url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.94.0/oxlint-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/754765057"
+url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.95.0/oxlint-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/783612648"
 
 [tools.oxlint."platforms.windows-x64"]
-checksum = "sha256:31fb7f706d6cd0ff9c3c734b3a38746477144cc84863d49ed82ac30a9639a96d"
+checksum = "sha256:8a0e8384ee8ff23892ff878dead150c8632fb447ca905e95aed2c5e6684ab921"
 checksum_source = "mise-versions"
-url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.94.0/oxlint-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/754765200"
+url = "https://github.com/oxc-project/oxc/releases/download/oxlint_v1.95.0/oxlint-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/oxc-project/oxc/releases/assets/783612762"
 
 [[tools.shellcheck]]
 version = "0.11.0"
