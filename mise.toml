@@ -42,7 +42,7 @@ node = "26.13.1"
 # component carries the source of the standard library, which rust-analyzer
 # reads.
 rust = [
-  { version = "1.100.0", components = [
+  { version = "1.100.1", components = [
     "clippy",
     "rust-src",
     "rustfmt",
