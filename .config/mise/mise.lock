@@ -3,9 +3,9 @@
 lockfile_version = 4
 
 [[tools."cargo:cargo-deny"]]
-version = "0.22.1"
+version = "0.22.2"
 backend = "cargo:cargo-deny"
-specifiers = ["0.22.1"]
+specifiers = ["0.22.2"]
 
 [[tools."cargo:cargo-nextest"]]
 version = "0.9.152"
